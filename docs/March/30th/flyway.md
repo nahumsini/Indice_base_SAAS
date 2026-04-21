@@ -55,7 +55,7 @@ That lets the Config Center write path use the same storage model on both:
 Start the backend normally:
 
 ```bash
-cd ~/Desktop/indice_saas_spring
+cd ~/Documents/Indice/Indice_base_SAAS
 ./mvnw spring-boot:run
 ```
 

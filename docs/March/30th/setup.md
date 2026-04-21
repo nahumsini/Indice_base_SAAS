@@ -16,7 +16,7 @@ docker exec indice-mysql-fresh mysql -u indice_user -pindice_pass -e "SELECT 1" 
 ## Run backend
 
 ```bash
-cd ~/Desktop/indice_saas_spring
+cd ~/Documents/Indice/Indice_base_SAAS
 ./mvnw spring-boot:run
 ```
 

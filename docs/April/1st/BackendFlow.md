@@ -46,7 +46,7 @@ docker start indice-mysql-fresh
 3. Run the Spring backend from the project root:
 
 ```bash
-cd /home/akira/Documents/Indice/indice_saas_react_java_springboot
+cd /home/akira/Documents/Indice/Indice_base_SAAS
 ./mvnw spring-boot:run
 ```
 

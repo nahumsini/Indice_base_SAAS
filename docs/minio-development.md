@@ -60,7 +60,7 @@ The split endpoint behavior is now:
 
 Local MinIO defaults now live in:
 
-- [application-minio.properties](/home/arcturus/Desktop/indice_saas_spring/src/main/resources/application-minio.properties)
+- [`src/main/resources/application-minio.properties`](../src/main/resources/application-minio.properties)
 
 Recommended clean startup command:
 

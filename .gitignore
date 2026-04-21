@@ -4,6 +4,13 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Python ###
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
 ### STS ###
 .apt_generated
 .classpath
@@ -32,6 +39,17 @@ build/
 ### VS Code ###
 .vscode/
 
+### Environment files ###
+.env
+.env.*
+!.env.example
+react/.env
+react/.env.*
+!react/.env.example
+deployment/env/.env
+deployment/env/.env.*
+!deployment/env/.env.example
+
 ### Copied React app ###
 react/node_modules/
 react/dist/
@@ -39,12 +57,6 @@ react/.env.local
 
 ### Local handoff helpers ###
 handoff/
-
-### Deployment env files ###
-deployment/env/.env
-deployment/env/*.local
-deployment/env/*.secret
-
 
 ### Figma prototype exports ###
 figma_prototype/*
