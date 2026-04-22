@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../shared/context';
 import {
-  getDefaultProfileCountry,
+  PROFILE_COUNTRY_OPTIONS,
+  getProfileCountryLabel,
   type ProfileCountry,
   resolveProfileCountry,
 } from '../shared/profileCountries';
@@ -72,6 +73,7 @@ type ValidatedField =
   | 'nombre'
   | 'apellidos'
   | 'correo'
+  | 'paisRegistro'
   | 'telefonoMovil'
   | 'telefonoAlterno'
   | 'departamento'
@@ -583,7 +585,15 @@ export function AgregarColaboradorModal({
     }
 
     setCurrentStep(1);
-    setFormData(colaboradorData ? { ...initialFormState, ...colaboradorData } : initialFormState);
+    setFormData(
+      colaboradorData
+        ? {
+            ...initialFormState,
+            ...colaboradorData,
+            paisRegistro: resolveProfileCountry(colaboradorData.paisRegistro) ?? colaboradorData.paisRegistro,
+          }
+        : initialFormState,
+    );
     setTouchedFields({});
   }, [colaboradorData, isOpen]);
 
@@ -603,6 +613,13 @@ export function AgregarColaboradorModal({
   const modalBusinessOptions = useMemo(
     () => (businessOptions ?? copy.options.negocios).filter((option) => option.value !== 'all' && option.value !== 'all-businesses'),
     [businessOptions, copy.options.negocios],
+  );
+  const countryOptions = useMemo(
+    () => PROFILE_COUNTRY_OPTIONS.map((country) => ({
+      value: country.code,
+      label: getProfileCountryLabel(country, currentLanguage.code),
+    })),
+    [currentLanguage.code],
   );
 
   const getSelectedPhoneCountry = (countryValue: string): ProfileCountry | undefined => (
@@ -678,7 +695,6 @@ export function AgregarColaboradorModal({
     const normalizedMobile = formData.telefonoMovil.trim();
     const normalizedAlternate = formData.telefonoAlterno.trim();
     const resolvedPhoneCountry = getSelectedPhoneCountry(formData.paisRegistro);
-    const phoneCountry = resolvedPhoneCountry ?? getDefaultProfileCountry();
 
     if (!formData.nombre.trim()) {
       errors.nombre = copy.validation.required;
@@ -694,21 +710,18 @@ export function AgregarColaboradorModal({
       errors.correo = copy.validation.invalidEmail;
     }
 
+    if (!formData.paisRegistro.trim()) {
+      errors.paisRegistro = copy.validation.required;
+    }
+
     const phoneIsValid = (value: string) => {
       if (!value) {
         return true;
       }
 
-      if (resolvedPhoneCountry) {
-        return validatePhoneForProfileCountry(value, phoneCountry).ok;
-      }
-
-      if (!/^[\d\s()+-]+$/.test(value)) {
-        return false;
-      }
-
-      const digits = value.replace(/\D/g, '');
-      return digits.length >= 7 && digits.length <= 15;
+      return resolvedPhoneCountry
+        ? validatePhoneForProfileCountry(value, resolvedPhoneCountry).ok
+        : false;
     };
 
     if (!phoneIsValid(normalizedMobile)) {
@@ -823,7 +836,7 @@ export function AgregarColaboradorModal({
 
   const stepFields: Record<number, ValidatedField[]> = {
     1: ['nombre', 'apellidos', 'correo'],
-    2: ['telefonoMovil', 'telefonoAlterno'],
+    2: ['paisRegistro', 'telefonoMovil', 'telefonoAlterno'],
     3: ['departamento', 'puesto', 'unidadNegocio', 'negocio', ...compensationValidationFields, ...contractValidationFields],
   };
 
@@ -975,12 +988,22 @@ export function AgregarColaboradorModal({
                   {copy.sections.contactInfo}
                 </h3>
                 <div className="space-y-4">
+                  <SelectField
+                    label={copy.fields.paisRegistro}
+                    value={formData.paisRegistro}
+                    onChange={(value) => handleInputChange('paisRegistro', value)}
+                    options={countryOptions}
+                    placeholder={copy.placeholders.select}
+                    required
+                    error={touchedFields.paisRegistro ? validationErrors.paisRegistro : undefined}
+                  />
                   <InputField
                     label={copy.fields.telefonoMovil}
                     value={formData.telefonoMovil}
                     onChange={(value) => handleInputChange('telefonoMovil', value)}
                     placeholder={copy.placeholders.telefono}
                     type="tel"
+                    required
                     error={touchedFields.telefonoMovil ? validationErrors.telefonoMovil : undefined}
                   />
                   <div>

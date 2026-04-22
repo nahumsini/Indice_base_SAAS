@@ -16,7 +16,6 @@ import {
   PROFILE_COUNTRY_OPTIONS,
   getProfileCountryLabel,
   resolveProfileCountry,
-  type ProfileCountry,
 } from '../shared/profileCountries';
 import { validateEmail } from '../shared/validation/email';
 import {
@@ -92,7 +91,7 @@ interface EmployeeModalProps {
   initialData?: EmployeeFormData | null;
   mode?: 'create' | 'edit';
   unitOptions?: Array<{ value: string; label: string }>;
-  businessOptions?: Array<{ value: string; label: string }>;
+  businessOptions?: Array<{ value: string; label: string; unitId?: string; unit_id?: string }>;
 }
 
 type EmployeeFieldKey =
@@ -626,6 +625,16 @@ export function EmployeeModal({
     () => (businessOptions ?? []).filter((option) => option.value !== 'all' && option.value !== 'all-businesses'),
     [businessOptions],
   );
+  const filteredBusinessOptions = useMemo(() => {
+    if (!formData.businessUnitId) {
+      return [];
+    }
+
+    return modalBusinessOptions.filter((option) => (
+      option.unitId === formData.businessUnitId
+      || option.unit_id === formData.businessUnitId
+    ));
+  }, [formData.businessUnitId, modalBusinessOptions]);
   const countryOptions = useMemo(
     () => PROFILE_COUNTRY_OPTIONS.map((country) => ({
       value: country.code,
@@ -651,8 +660,9 @@ export function EmployeeModal({
     const currentFormData = formDataRef.current;
     const nextCountryValue = readDomValue(nativeFormData, 'registrationCountry') || currentFormData.registrationCountry;
     const nextCountry = resolveProfileCountry(nextCountryValue);
-    const normalizePhone = (value: string) =>
-      nextCountry ? normalizePhoneInputForCountry(value, nextCountry) : value;
+    const normalizePhone = (value: string) => (
+      nextCountry ? normalizePhoneInputForCountry(value, nextCountry) : value
+    );
 
     const nextFormData: EmployeeFormData = {
       ...currentFormData,
@@ -733,6 +743,19 @@ export function EmployeeModal({
         ...current,
         [field]: value,
       };
+
+      if (field === 'businessUnitId') {
+        const nextUnitId = String(value ?? '').trim();
+        const currentBusinessMatchesUnit = modalBusinessOptions.some(
+          (option) => (
+            option.value === current.businessId
+            && (option.unitId === nextUnitId || option.unit_id === nextUnitId)
+          ),
+        );
+
+        next.businessId = currentBusinessMatchesUnit ? current.businessId : '';
+      }
+
       formDataRef.current = next;
       return next;
     });
@@ -760,16 +783,9 @@ export function EmployeeModal({
       return true;
     }
 
-    if (resolvedCountry) {
-      return validatePhoneForProfileCountry(value, resolvedCountry).ok;
-    }
-
-    if (!/^[\d\s()+-]+$/.test(value)) {
-      return false;
-    }
-
-    const digits = value.replace(/\D/g, '');
-    return digits.length >= 7 && digits.length <= 15;
+    return resolvedCountry
+      ? validatePhoneForProfileCountry(value, resolvedCountry).ok
+      : false;
   };
 
   const validationErrors = useMemo(() => {
@@ -922,22 +938,13 @@ export function EmployeeModal({
     const nextValidationErrors = (() => {
       const errors: Partial<Record<EmployeeFieldKey, string>> = {};
       const nextResolvedCountry = resolveProfileCountry(nextFormData.registrationCountry);
-      const validatePhoneValue = (value: string) => {
-        if (!value.trim()) {
-          return true;
-        }
-
-        if (nextResolvedCountry) {
-          return validatePhoneForProfileCountry(value, nextResolvedCountry).ok;
-        }
-
-        if (!/^[\d\s()+-]+$/.test(value)) {
-          return false;
-        }
-
-        const digits = value.replace(/\D/g, '');
-        return digits.length >= 7 && digits.length <= 15;
-      };
+      const validatePhoneValue = (value: string) => (
+        !value.trim()
+          ? true
+          : nextResolvedCountry
+            ? validatePhoneForProfileCountry(value, nextResolvedCountry).ok
+            : false
+      );
 
       if (!nextFormData.firstName.trim()) {
         errors.firstName = copy.validation.required;
@@ -1322,7 +1329,7 @@ export function EmployeeModal({
                   label={copy.labels.businessId}
                   value={formData.businessId}
                   onChange={(value) => updateField('businessId', value)}
-                  options={modalBusinessOptions}
+                  options={filteredBusinessOptions}
                   placeholder={copy.placeholders.select}
                   required
                   error={touchedFields.businessId ? validationErrors.businessId : undefined}

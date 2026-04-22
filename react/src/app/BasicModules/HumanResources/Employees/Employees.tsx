@@ -474,7 +474,7 @@ export default function Colaboradores() {
     total_payroll_amount_monthly: 0,
   });
   const [unitOptions, setUnitOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [businessOptions, setBusinessOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [businessOptions, setBusinessOptions] = useState<Array<{ value: string; label: string; unitId?: string; unit_id?: string }>>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [unitFilter, setUnitFilter] = useState(allFilterValue);
   const [businessFilter, setBusinessFilter] = useState(allFilterValue);
@@ -545,7 +545,12 @@ export default function Colaboradores() {
       ]);
       setBusinessOptions([
         { value: allFilterValue, label: copy.filters.all },
-        ...businessesResponse.map((business) => ({ value: String(business.id), label: business.name })),
+        ...businessesResponse.map((business) => ({
+          value: String(business.id),
+          label: business.name,
+          unitId: business.unitId ? String(business.unitId) : business.unit_id ? String(business.unit_id) : undefined,
+          unit_id: business.unit_id ? String(business.unit_id) : business.unitId ? String(business.unitId) : undefined,
+        })),
       ]);
     } catch (error) {
       setLoadError(normalizeErrorMessage(error, copy.errorMessages.load));

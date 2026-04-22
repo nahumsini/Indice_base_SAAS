@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "test:phone-validation": "node scripts/phone-validation-regression.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
