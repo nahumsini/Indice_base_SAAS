@@ -346,6 +346,10 @@ export interface AttendanceControlRule {
 
 export interface AttendanceControlLocation {
   id: number;
+  unit_id?: number | null;
+  unit_name?: string | null;
+  business_id?: number | null;
+  business_name?: string | null;
   name: string;
   latitude: number;
   longitude: number;
@@ -496,11 +500,23 @@ export interface AttendanceControlLocationsResponse {
 }
 
 export interface AttendanceControlLocationPayload {
+  unit_id?: number | null;
+  business_id?: number | null;
   name: string;
   latitude: number;
   longitude: number;
   radius_meters: number;
   status: 'active' | 'inactive';
+}
+
+export interface AttendanceLocationCoordinateExtractionPayload {
+  map_url: string;
+}
+
+export interface AttendanceLocationCoordinateExtractionResponse {
+  latitude: number;
+  longitude: number;
+  resolved_url: string;
 }
 
 export interface AttendanceControlTemplatePayload {
@@ -1004,6 +1020,13 @@ export const humanResourcesApi = {
 
   listAttendanceControlLocations() {
     return apiClient<AttendanceControlLocationsResponse>(endpoints.humanResources.attendanceLocations);
+  },
+
+  extractAttendanceLocationCoordinates(payload: AttendanceLocationCoordinateExtractionPayload) {
+    return apiClient<AttendanceLocationCoordinateExtractionResponse>(endpoints.humanResources.attendanceLocationCoordinateExtraction, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   createAttendanceControlLocation(payload: AttendanceControlLocationPayload) {

@@ -33,6 +33,7 @@ export const endpoints = {
     attendanceSelfDashboard: '/api/v1/hr/attendance/me/dashboard',
     attendanceControlOverview: '/api/v1/hr/attendance/control-overview',
     attendanceLocations: '/api/v1/hr/attendance/locations',
+    attendanceLocationCoordinateExtraction: '/api/v1/hr/attendance/locations/extract-coordinates',
     attendanceScheduleTemplates: '/api/v1/hr/attendance/schedule-templates',
     attendanceScheduleAssignmentsBulk: '/api/v1/hr/attendance/schedule-assignments/bulk',
     attendanceKioskDevices: '/api/v1/hr/attendance/kiosk-devices',
