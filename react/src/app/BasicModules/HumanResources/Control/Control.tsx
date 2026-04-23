@@ -485,6 +485,8 @@ const createDefaultTemplateDays = () =>
   }));
 
 const defaultLocationForm = (): AttendanceControlLocationPayload => ({
+  unit_id: null,
+  business_id: null,
   name: '',
   latitude: 25.686614,
   longitude: -100.316113,
@@ -1074,6 +1076,8 @@ export default function Control() {
   const openEditLocationDialog = (location: AttendanceControlLocation) => {
     setEditingLocation(location);
     setLocationForm({
+      unit_id: location.unit_id ?? null,
+      business_id: location.business_id ?? null,
       name: location.name,
       latitude: location.latitude,
       longitude: location.longitude,

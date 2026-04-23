@@ -12,8 +12,15 @@ import com.indice.erp.face.HrFaceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -37,11 +44,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -62,6 +71,10 @@ public class HrAttendanceService {
     );
     private static final List<String> PUBLIC_KIOSK_AUTH_METHODS = List.of("pin", "badge");
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final Set<String> SUPPORTED_MAP_SHORTLINK_HOSTS = Set.of("maps.app.goo.gl");
+    private static final Pattern GOOGLE_MAPS_PLACE_COORDINATES_PATTERN = Pattern.compile("!3d(-?\\d+(?:\\.\\d+)?)!4d(-?\\d+(?:\\.\\d+)?)");
+    private static final Pattern GOOGLE_MAPS_QUERY_COORDINATES_PATTERN = Pattern.compile("[?&](?:q|ll|center|query|destination)=(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)");
+    private static final Pattern GOOGLE_MAPS_VIEWPORT_COORDINATES_PATTERN = Pattern.compile("@(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)");
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectStorageService objectStorageService;
@@ -69,6 +82,7 @@ public class HrAttendanceService {
     private final ObjectMapper objectMapper;
     private final BCryptPasswordEncoder passwordEncoder;
     private final HrFaceService hrFaceService;
+    private final HttpClient mapLinkHttpClient;
     private final boolean enforceLocationRadius;
     private final String kioskIdentificationTokenSecret;
     private final int kioskIdentificationTokenTtlSeconds;
@@ -92,6 +106,10 @@ public class HrAttendanceService {
         this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
         this.hrFaceService = hrFaceService;
+        this.mapLinkHttpClient = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.ALWAYS)
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
         this.enforceLocationRadius = enforceLocationRadius;
         this.kioskIdentificationTokenSecret = kioskIdentificationTokenSecret == null || kioskIdentificationTokenSecret.isBlank()
             ? "indice-kiosk-identification-secret"
@@ -846,6 +864,26 @@ public class HrAttendanceService {
         return body;
     }
 
+    public Map<String, Object> extractCoordinatesFromMapLink(Map<String, Object> payload) {
+        var rawMapUrl = stringValue(payload, "map_url", "mapUrl", "url", "link");
+        if (rawMapUrl.isBlank()) {
+            throw new IllegalArgumentException("map_url is required.");
+        }
+
+        var mapUri = parseSupportedMapUri(rawMapUrl);
+        var resolvedUri = resolveSupportedMapUri(mapUri);
+        var coordinates = parseCoordinatesFromMapText(resolvedUri.toString());
+        if (coordinates == null) {
+            throw new IllegalArgumentException("Could not extract coordinates from the provided Google Maps link.");
+        }
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("latitude", coordinates.latitude());
+        body.put("longitude", coordinates.longitude());
+        body.put("resolved_url", resolvedUri.toString());
+        return body;
+    }
+
     @Transactional
     public Map<String, Object> saveLocation(long companyId, long userId, Long locationId, Map<String, Object> payload) {
         var name = stringValue(payload, "name", "nombre");
@@ -859,9 +897,12 @@ public class HrAttendanceService {
         if (radiusMeters == null || radiusMeters <= 0) {
             throw new IllegalArgumentException("radius_meters must be greater than zero.");
         }
+        var unitId = normalizeOptionalForeignKey(parseLong(payload, "unit_id", "unitId"));
+        var businessId = normalizeOptionalForeignKey(parseLong(payload, "business_id", "businessId"));
 
         var status = normalizeManagedStatus(stringValue(payload, "status"));
         ensureUniqueLocationName(companyId, locationId, name);
+        validateOperationalScope(companyId, unitId, businessId, null);
 
         if (locationId == null || locationId <= 0) {
             KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -869,18 +910,20 @@ public class HrAttendanceService {
                 var statement = connection.prepareStatement(
                     """
                         INSERT INTO hr_attendance_locations
-                        (company_id, name, latitude, longitude, radius_meters, status, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (company_id, unit_id, business_id, name, latitude, longitude, radius_meters, status, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                     new String[] {"id"}
                 );
                 statement.setLong(1, companyId);
-                statement.setString(2, name);
-                statement.setBigDecimal(3, latitude);
-                statement.setBigDecimal(4, longitude);
-                statement.setInt(5, radiusMeters);
-                statement.setString(6, status);
-                statement.setLong(7, userId);
+                setNullableLong(statement, 2, unitId);
+                setNullableLong(statement, 3, businessId);
+                statement.setString(4, name);
+                statement.setBigDecimal(5, latitude);
+                statement.setBigDecimal(6, longitude);
+                statement.setInt(7, radiusMeters);
+                statement.setString(8, status);
+                statement.setLong(9, userId);
                 return statement;
             }, keyHolder);
             locationId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
@@ -888,13 +931,17 @@ public class HrAttendanceService {
             var updated = jdbcTemplate.update(
                 """
                     UPDATE hr_attendance_locations
-                    SET name = ?,
+                    SET unit_id = ?,
+                        business_id = ?,
+                        name = ?,
                         latitude = ?,
                         longitude = ?,
                         radius_meters = ?,
                         status = ?
                     WHERE id = ? AND company_id = ?
                     """,
+                unitId,
+                businessId,
                 name,
                 latitude,
                 longitude,
@@ -910,6 +957,104 @@ public class HrAttendanceService {
 
         var location = loadLocation(companyId, locationId);
         return Map.of("location", toLocationMap(location));
+    }
+
+    private URI parseSupportedMapUri(String rawMapUrl) {
+        try {
+            var mapUri = new URI(rawMapUrl.trim());
+            var scheme = mapUri.getScheme() == null ? "" : mapUri.getScheme().trim().toLowerCase(Locale.ROOT);
+            if (!"https".equals(scheme) && !"http".equals(scheme)) {
+                throw new IllegalArgumentException("Only HTTP and HTTPS Google Maps links are supported.");
+            }
+
+            var host = normalizeMapHost(mapUri.getHost());
+            if (!isSupportedGoogleMapsHost(host)) {
+                throw new IllegalArgumentException("Only Google Maps links are supported for coordinate extraction.");
+            }
+            return mapUri;
+        } catch (URISyntaxException ex) {
+            throw new IllegalArgumentException("The provided map link is invalid.");
+        }
+    }
+
+    private URI resolveSupportedMapUri(URI mapUri) {
+        var host = normalizeMapHost(mapUri.getHost());
+        if (!SUPPORTED_MAP_SHORTLINK_HOSTS.contains(host)) {
+            return mapUri;
+        }
+
+        var request = HttpRequest.newBuilder(mapUri)
+            .timeout(Duration.ofSeconds(15))
+            .header("User-Agent", "Mozilla/5.0")
+            .GET()
+            .build();
+
+        try {
+            var response = mapLinkHttpClient.send(request, HttpResponse.BodyHandlers.discarding());
+            var resolvedUri = response.uri();
+            var resolvedHost = normalizeMapHost(resolvedUri.getHost());
+            if (!isSupportedGoogleMapsHost(resolvedHost)) {
+                throw new IllegalArgumentException("The provided map link did not resolve to a supported Google Maps URL.");
+            }
+            return resolvedUri;
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Could not resolve the provided Google Maps link.");
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalArgumentException("Coordinate extraction was interrupted while resolving the map link.");
+        }
+    }
+
+    private LocationCoordinates parseCoordinatesFromMapText(String rawText) {
+        if (rawText == null || rawText.isBlank()) {
+            return null;
+        }
+
+        var candidates = List.of(rawText, URLDecoder.decode(rawText, StandardCharsets.UTF_8));
+        for (var candidate : candidates) {
+            var coordinates = extractCoordinates(candidate, GOOGLE_MAPS_PLACE_COORDINATES_PATTERN);
+            if (coordinates != null) {
+                return coordinates;
+            }
+
+            coordinates = extractCoordinates(candidate, GOOGLE_MAPS_QUERY_COORDINATES_PATTERN);
+            if (coordinates != null) {
+                return coordinates;
+            }
+
+            coordinates = extractCoordinates(candidate, GOOGLE_MAPS_VIEWPORT_COORDINATES_PATTERN);
+            if (coordinates != null) {
+                return coordinates;
+            }
+        }
+
+        return null;
+    }
+
+    private LocationCoordinates extractCoordinates(String text, Pattern pattern) {
+        var matcher = pattern.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+
+        return new LocationCoordinates(
+            new BigDecimal(matcher.group(1)),
+            new BigDecimal(matcher.group(2))
+        );
+    }
+
+    private boolean isSupportedGoogleMapsHost(String host) {
+        if (host == null || host.isBlank()) {
+            return false;
+        }
+        if (SUPPORTED_MAP_SHORTLINK_HOSTS.contains(host)) {
+            return true;
+        }
+        return host.matches("(^|.*\\.)google\\.[a-z.]+$");
+    }
+
+    private String normalizeMapHost(String host) {
+        return host == null ? "" : host.trim().toLowerCase(Locale.ROOT);
     }
 
     public Map<String, Object> listScheduleTemplates(long companyId) {
@@ -2261,20 +2406,46 @@ public class HrAttendanceService {
         return jdbcTemplate.query(
             activeOnly
                 ? """
-                    SELECT id, name, latitude, longitude, radius_meters, COALESCE(LOWER(status), 'active') AS status
-                    FROM hr_attendance_locations
-                    WHERE company_id = ?
-                      AND LOWER(COALESCE(status, 'active')) = 'active'
-                    ORDER BY name ASC
+                    SELECT l.id,
+                           l.unit_id,
+                           COALESCE(u.name, '') AS unit_name,
+                           l.business_id,
+                           COALESCE(b.name, '') AS business_name,
+                           l.name,
+                           l.latitude,
+                           l.longitude,
+                           l.radius_meters,
+                           COALESCE(LOWER(l.status), 'active') AS status
+                    FROM hr_attendance_locations l
+                    LEFT JOIN units u ON u.id = l.unit_id
+                    LEFT JOIN businesses b ON b.id = l.business_id
+                    WHERE l.company_id = ?
+                      AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                    ORDER BY l.name ASC
                     """
                 : """
-                    SELECT id, name, latitude, longitude, radius_meters, COALESCE(LOWER(status), 'active') AS status
-                    FROM hr_attendance_locations
-                    WHERE company_id = ?
-                    ORDER BY CASE LOWER(COALESCE(status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, name ASC
+                    SELECT l.id,
+                           l.unit_id,
+                           COALESCE(u.name, '') AS unit_name,
+                           l.business_id,
+                           COALESCE(b.name, '') AS business_name,
+                           l.name,
+                           l.latitude,
+                           l.longitude,
+                           l.radius_meters,
+                           COALESCE(LOWER(l.status), 'active') AS status
+                    FROM hr_attendance_locations l
+                    LEFT JOIN units u ON u.id = l.unit_id
+                    LEFT JOIN businesses b ON b.id = l.business_id
+                    WHERE l.company_id = ?
+                    ORDER BY CASE LOWER(COALESCE(l.status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, l.name ASC
                     """,
             (rs, rowNum) -> new LocationRow(
                 rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                safe(rs.getString("unit_name")),
+                getNullableLong(rs, "business_id"),
+                safe(rs.getString("business_name")),
                 safe(rs.getString("name")),
                 rs.getBigDecimal("latitude"),
                 rs.getBigDecimal("longitude"),
@@ -2292,13 +2463,28 @@ public class HrAttendanceService {
 
         var rows = jdbcTemplate.query(
             """
-                SELECT id, name, latitude, longitude, radius_meters, COALESCE(LOWER(status), 'active') AS status
-                FROM hr_attendance_locations
-                WHERE company_id = ? AND id = ?
+                SELECT l.id,
+                       l.unit_id,
+                       COALESCE(u.name, '') AS unit_name,
+                       l.business_id,
+                       COALESCE(b.name, '') AS business_name,
+                       l.name,
+                       l.latitude,
+                       l.longitude,
+                       l.radius_meters,
+                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ? AND l.id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> new LocationRow(
                 rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                safe(rs.getString("unit_name")),
+                getNullableLong(rs, "business_id"),
+                safe(rs.getString("business_name")),
                 safe(rs.getString("name")),
                 rs.getBigDecimal("latitude"),
                 rs.getBigDecimal("longitude"),
@@ -2389,6 +2575,10 @@ public class HrAttendanceService {
         }
         return new LocationRow(
             id,
+            null,
+            "",
+            null,
+            "",
             safe(rs.getString(prefix + "_name")),
             rs.getBigDecimal(prefix + "_latitude"),
             rs.getBigDecimal(prefix + "_longitude"),
@@ -2404,6 +2594,10 @@ public class HrAttendanceService {
 
         var body = new LinkedHashMap<String, Object>();
         body.put("id", location.id());
+        body.put("unit_id", location.unitId());
+        body.put("unit_name", nullable(location.unitName()));
+        body.put("business_id", location.businessId());
+        body.put("business_name", nullable(location.businessName()));
         body.put("name", location.name());
         body.put("latitude", location.latitude());
         body.put("longitude", location.longitude());
@@ -4135,8 +4329,18 @@ public class HrAttendanceService {
     ) {
     }
 
+    private record LocationCoordinates(
+        BigDecimal latitude,
+        BigDecimal longitude
+    ) {
+    }
+
     private record LocationRow(
         long id,
+        Long unitId,
+        String unitName,
+        Long businessId,
+        String businessName,
         String name,
         BigDecimal latitude,
         BigDecimal longitude,

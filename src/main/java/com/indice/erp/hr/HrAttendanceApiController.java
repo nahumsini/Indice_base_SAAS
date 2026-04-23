@@ -111,6 +111,20 @@ public class HrAttendanceApiController {
         return ResponseEntity.ok(hrAttendanceService.listControlLocations(currentUser.get().companyId()));
     }
 
+    @PostMapping("/locations/extract-coordinates")
+    public ResponseEntity<?> extractLocationCoordinates(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(hrAttendanceService.extractCoordinatesFromMapLink(payload));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/locations")
     public ResponseEntity<?> createLocation(HttpSession session, @RequestBody Map<String, Object> payload) {
         var currentUser = sessionAuthService.currentUser(session);
