@@ -1,18 +1,24 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Calculator,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CheckCircle2,
   CreditCard,
   Download,
-  FileSpreadsheet,
   Filter,
+  Globe2,
+  Info,
+  Landmark,
   LoaderCircle,
+  MapPinned,
   Pencil,
   PlayCircle,
   Printer,
-  RefreshCw,
   Save,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Wallet,
   X,
   XCircle,
@@ -22,6 +28,7 @@ import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/L
 import { SuccessToast } from '../../../components/SuccessToast';
 import { Skeleton } from '../../../components/ui/skeleton';
 import {
+  DialogClose,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,10 +36,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../../components/ui/table';
 import { ApiClientError, buildApiUrl } from '../../../lib/apiClient';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import {
   humanResourcesApi,
+  type BackendEmployee,
   type PayrollCreateRunsPayload,
   type PayrollLineItem,
   type PayrollManualItemPayload,
@@ -47,63 +63,41 @@ import {
   PayrollRunPrintPortal,
 } from './PayrollRunPrintPortal';
 import type { PayrollRunPdfDocumentProps } from './PayrollRunPdfDocument';
+import { SelectField, DateField } from './components/PayrollFormFields';
+import { PayrollTableActionButton } from './components/PayrollTableActionButton';
+import { DetailMetric } from './components/DetailMetric';
+import { PayrollGenerateModal, type PayrollGenerationDraft } from './components/PayrollGenerateModal';
 
-const padDatePart = (value: number) => `${value}`.padStart(2, '0');
-const localDateString = (date: Date) =>
-  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
-const todayIsoDate = () => localDateString(new Date());
-const firstDayOfMonth = () => `${todayIsoDate().slice(0, 8)}01`;
 const PAYROLL_PRINT_REPORT_ID_PREFIX = 'IDX-PR';
+const payrollRateFieldKeys = [
+  'isr_rate',
+  'imss_employee_rate',
+  'infonavit_employee_rate',
+  'imss_employer_rate',
+  'infonavit_employer_rate',
+  'sar_employer_rate',
+] as const;
+const payrollRateProfileKeys = [
+  'mexico',
+  'canada',
+  'usa',
+  'colombia',
+  'brazil',
+  'custom',
+] as const;
 
-const parseIsoDate = (value: string) => {
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const endOfMonthIso = (value: string) => {
-  const parsed = parseIsoDate(value);
-  if (!parsed) {
-    return value;
-  }
-
-  const lastDay = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0);
-  return localDateString(lastDay);
-};
-
-const addDaysIso = (value: string, days: number) => {
-  const parsed = parseIsoDate(value);
-  if (!parsed) {
-    return value;
-  }
-
-  const next = new Date(parsed);
-  next.setDate(next.getDate() + days);
-  return localDateString(next);
-};
-
-const computePayrollPeriodEndDate = (
-  payPeriod: PayrollCreateRunsPayload['pay_period'],
-  periodStartDate: string,
-) => {
-  if (!periodStartDate) {
-    return '';
-  }
-
-  const monthEnd = endOfMonthIso(periodStartDate);
-  const maxEnd = payPeriod === 'weekly'
-    ? addDaysIso(periodStartDate, 6)
-    : payPeriod === 'biweekly'
-      ? addDaysIso(periodStartDate, 13)
-      : monthEnd;
-
-  return maxEnd > monthEnd ? monthEnd : maxEnd;
-};
+type PayrollRateFieldKey = (typeof payrollRateFieldKeys)[number];
+type PayrollRateProfileKey = (typeof payrollRateProfileKeys)[number];
+type PayrollRateEditorMode = 'preset' | 'advanced';
+type PayrollRateValues = Pick<PayrollPreferences, PayrollRateFieldKey>;
+type PayrollRateDrafts = Record<PayrollRateProfileKey, PayrollRateValues>;
 
 const payrollCopy = {
   en: {
     title: 'Payroll',
-    subtitle: 'Generate, review, approve, pay, and export payroll runs using real employee and attendance data.',
+    subtitle: 'Review, process, approve, pay, and export payroll runs using real employee and attendance data.',
     refresh: 'Refresh',
+    applyFilters: 'Apply filters',
     retry: 'Retry',
     loading: 'Loading payroll',
     unauthorized: 'Your session is no longer authenticated. Sign in again and reload the module.',
@@ -111,8 +105,10 @@ const payrollCopy = {
     genericError: 'Unable to load payroll.',
     success: {
       preferences: 'Payroll preferences saved successfully.',
+      rates: 'Payroll rates saved successfully.',
       runsCreated: 'Payroll runs generated successfully.',
       lineSaved: 'Payroll line updated successfully.',
+      runEdited: 'Payroll run updated successfully.',
       processed: 'Payroll run processed successfully.',
       approved: 'Payroll run approved successfully.',
       paid: 'Payroll run marked as paid.',
@@ -125,6 +121,8 @@ const payrollCopy = {
       openRunDescription: 'Loading the complete run detail and employee lines.',
       preferencesTitle: 'Saving payroll preferences',
       preferencesDescription: 'Persisting payroll defaults and statutory rates.',
+      ratesTitle: 'Saving payroll rates',
+      ratesDescription: 'Applying the active country profile and persisting the configured rates.',
       generateTitle: 'Generating payroll',
       generateDescription: 'Building payroll runs from employees, attendance, and current preferences.',
       saveLineTitle: 'Saving payroll line',
@@ -157,10 +155,16 @@ const payrollCopy = {
       rates: 'Rates',
       controlPanel: 'Generate payroll',
       frequency: 'Frequency',
+      period: 'Period',
       periodStart: 'Period start',
       periodEnd: 'Period end',
       periodFrom: 'Period from',
       periodTo: 'Period to',
+      periodThisMonth: 'This month',
+      periodLastMonth: 'Last month',
+      periodTwoMonthsAgo: 'Two months ago',
+      periodAllYear: 'All year',
+      periodCustom: 'Custom',
       filters: 'Run filters',
       status: 'Status',
       unit: 'Unit',
@@ -210,16 +214,74 @@ const payrollCopy = {
       daysPayable: 'Payable days',
       leaveDays: 'Leave days',
       absenceDays: 'Absence days',
+      paidBreaks: 'Paid breaks',
+      vacationDays: 'Vacation days',
       lateCount: 'Late count',
       selectedRun: 'Selected run',
       generate: 'Generate payroll',
       save: 'Save',
+      savePreferences: 'Save preferences',
+      saveRates: 'Save rates',
+      cancel: 'Cancel',
       closeDetail: 'Close detail',
       employerCosts: 'Employer costs',
       openPreferences: 'Preferences',
+      openRates: 'Rate configuration',
       openRun: 'Open',
+      edit: 'Edit',
+      print: 'Print',
       editDraft: 'Edit draft',
       filterStatus: 'Status',
+      payrollType: 'Payroll type',
+      totalAmount: 'Total amount',
+      salary: 'Salary',
+      holidays: 'Holidays',
+      totalToPay: 'Total to pay',
+      taxCalculation: 'Tax calculation',
+      columns: 'Columns',
+      simplifiedPayroll: 'Simplified Payroll',
+      detailedPayroll: 'Detailed Payroll',
+      rfc: 'RFC',
+      curp: 'CURP',
+      nss: 'NSS',
+      daysWorked: 'Days Worked',
+      daysAbsent: 'Days Absent',
+      overtime: 'Overtime',
+      paidHolidays: 'Paid Holidays',
+      totalPay: 'Total Pay',
+      dailyWage: 'Daily Wage',
+      baseWage: 'Base Wage',
+      integratedDailyWage: 'Integrated Daily Wage',
+      baseContributionSalary: 'Base Contribution Salary',
+      periodSalary: 'Period Salary',
+      overtimeAmount: 'Overtime ($)',
+      bonusesCommissions: 'Bonuses/Commissions',
+      vacationBonus: 'Vacation Bonus',
+      proportionalChristmasBonus: 'Proportional Christmas Bonus',
+      totalEarnings: 'Total Earnings',
+      incomeTaxWithheld: 'Income Tax Withheld',
+      imssEmployee: 'IMSS Employee',
+      infonavitType: 'INFONAVIT (Type)',
+      infonavitDiscount: 'INFONAVIT Discount',
+      loans: 'Loans',
+      otherDiscounts: 'Other Discounts',
+      totalDeductions: 'Total Deductions',
+      taxPayroll: 'Tax Payroll',
+      netPay: 'Net Pay',
+      jurisdiction: 'Jurisdiction',
+      countryProfiles: 'Country profiles',
+      operationalSettings: 'Operational settings',
+      rateProfile: 'Rate profile',
+      presetRates: 'Presets',
+      manualRates: 'Manual',
+      activeRateProfile: 'Active rate profile',
+      noJurisdiction: 'From employee profile',
+      automatic: 'Automatic',
+      multipleBusinesses: 'Multiple businesses',
+      allUnits: 'All units',
+      allBusinesses: 'All businesses',
+      recommended: 'Recommended',
+      actionButtons: 'Action buttons',
     },
     summary: {
       runs: 'Runs',
@@ -232,9 +294,9 @@ const payrollCopy = {
       totalNet: 'Total net',
     },
     groupingModes: {
-      single: 'Single payroll',
-      unit: 'By unit',
-      business: 'By business',
+      single: 'Single',
+      unit: 'Per unit',
+      business: 'Per business',
     },
     frequencies: {
       weekly: 'Weekly',
@@ -246,11 +308,158 @@ const payrollCopy = {
       deduction: 'Deduction',
       employer_contribution: 'Employer contribution',
     },
+    preferencesInfo: {
+      title: 'Important information about payroll preferences',
+      bullets: [
+        'Default behavior: payroll runs can be separated automatically by country and province/state when local fiscal rules require it.',
+        'Automatic grouping: collaborators always remain organized by their configured pay period: weekly, biweekly, or monthly.',
+        'Customization: you can change how payroll runs are grouped to match the way your operation is structured.',
+      ],
+      selectionTitle: 'Choose how you want payroll grouped:',
+      note: 'Regardless of the grouping you choose, collaborators are always organized automatically according to the pay period configured on their profile.',
+    },
+    groupingCards: {
+      single: {
+        title: 'Single payroll (default)',
+        description: 'Everyone is kept inside one payroll run. In countries that require province or state separation, payroll is split automatically by local fiscal rules.',
+      },
+      unit: {
+        title: 'By business unit',
+        description: 'One payroll run is created for each business unit so teams can review their totals independently.',
+      },
+      business: {
+        title: 'By business',
+        description: 'One payroll run is created for each registered business, making it easier to review each operating entity.',
+      },
+    },
+    rateConfiguration: {
+      title: 'Payroll configuration',
+      subtitles: {
+        mexico: 'Define how payroll is calculated based on Mexican tax and social contribution rules.',
+        canada: 'Define how payroll is calculated based on Canadian payroll tax and contribution rules.',
+        usa: 'Define how payroll is calculated based on United States payroll tax and employer contribution rules.',
+        colombia: 'Define how payroll is calculated based on Colombian withholding and contribution rules.',
+        brazil: 'Define how payroll is calculated based on Brazilian payroll tax and social contribution rules.',
+        custom: 'Define a company-specific payroll configuration with fully manual contribution values.',
+      },
+      infoBlocks: {
+        mexico: 'Mexico payroll includes taxes and social contributions that are automatically calculated based on official rules. You can customize certain values if needed.',
+        canada: 'Canada payroll includes taxes and contributions that are usually calculated from official federal and provincial rules. You can customize certain values when needed.',
+        usa: 'United States payroll includes withholding, social taxes, and employer contributions that are commonly managed through official rules. You can customize certain values when needed.',
+        colombia: 'Colombia payroll includes withholding and contributions that typically follow statutory formulas. You can customize selected values when needed.',
+        brazil: 'Brazil payroll includes taxes and mandatory contributions that generally follow official formulas. You can customize selected values when needed.',
+        custom: 'Custom profiles give you full control over payroll rates when your company needs a specialized setup outside the standard country presets.',
+      },
+      footerNote: 'Country profiles apply standardized payroll structures while allowing flexibility for company-specific adjustments.',
+      activeProfileLabel: 'Active payroll profile',
+      saveAction: 'Save configuration',
+      viewBreakdown: 'View breakdown',
+      presetApplied: 'Using the official preset for this country profile.',
+      advancedEnabled: 'Advanced editing is enabled for this payroll field.',
+      switchToAdvanced: 'Switch to Advanced to customize this value.',
+      statusBadges: {
+        officialPreset: 'Official preset',
+        customProfile: 'Custom profile',
+        automatic: 'Automatic',
+        fixedByLaw: 'Fixed by law',
+        editable: 'Editable',
+      },
+      modeLabels: {
+        preset: 'Preset',
+        advanced: 'Advanced',
+        officialTable: 'Official table',
+        fixedRate: 'Fixed rate',
+        salaryPercentage: '% of salary',
+      },
+      mexicoCards: {
+        incomeTaxTitle: 'Income Tax (ISR)',
+        officialTableHelper: 'Calculated automatically based on SAT tax tables',
+        progressiveTooltip: 'Progressive tax based on employee income',
+        imssEmployeeTitle: 'IMSS — Employee',
+        imssEmployeeBody: 'Calculated based on Mexican social security law',
+        imssEmployerTitle: 'IMSS — Employer',
+        imssEmployerBody: 'Includes employer contributions required by law',
+        infonavitEmployeeTitle: 'INFONAVIT — Employee',
+        infonavitEmployeeHelper: 'May vary depending on employee credit conditions',
+        infonavitEmployerTitle: 'INFONAVIT — Employer',
+        infonavitEmployerValue: '5% of salary',
+        sarTitle: 'SAR (Retirement Savings)',
+        sarValue: '2%',
+        sarHelper: 'Retirement contribution required in Mexico',
+      },
+      profiles: {
+        mexico: 'Mexico',
+        canada: 'Canada',
+        usa: 'USA',
+        colombia: 'Colombia',
+        brazil: 'Brazil',
+        custom: 'Custom rate',
+      },
+      profileDescriptions: {
+        mexico: 'Configure payroll for Mexican tax and social contribution structures.',
+        canada: 'Set up payroll rates for Canadian withholding and employer obligations.',
+        usa: 'Adjust payroll rates for federal, state, and employer payroll obligations in the United States.',
+        colombia: 'Prepare withholding and contribution rates for Colombian payroll operations.',
+        brazil: 'Define tax and contribution rates for Brazilian payroll calculations.',
+        custom: 'Build a fully custom rate mix for companies with non-standard payroll rules.',
+      },
+      fieldLabels: {
+        mexico: {
+          isr_rate: 'Income tax (ISR)',
+          imss_employee_rate: 'Employee IMSS',
+          infonavit_employee_rate: 'Employee INFONAVIT',
+          imss_employer_rate: 'Employer IMSS',
+          infonavit_employer_rate: 'Employer INFONAVIT',
+          sar_employer_rate: 'Employer SAR',
+        },
+        canada: {
+          isr_rate: 'Federal / provincial tax',
+          imss_employee_rate: 'Employee CPP / QPP',
+          infonavit_employee_rate: 'Employee EI',
+          imss_employer_rate: 'Employer CPP / QPP',
+          infonavit_employer_rate: 'Employer EI',
+          sar_employer_rate: 'Employer retirement / benefits',
+        },
+        usa: {
+          isr_rate: 'Federal / state withholding',
+          imss_employee_rate: 'Employee Social Security',
+          infonavit_employee_rate: 'Employee Medicare / other',
+          imss_employer_rate: 'Employer Social Security',
+          infonavit_employer_rate: 'Employer Medicare / FUTA / SUTA',
+          sar_employer_rate: 'Employer retirement / benefits',
+        },
+        colombia: {
+          isr_rate: 'Income withholding',
+          imss_employee_rate: 'Employee health',
+          infonavit_employee_rate: 'Employee pension',
+          imss_employer_rate: 'Employer health / parafiscals',
+          infonavit_employer_rate: 'Employer pension',
+          sar_employer_rate: 'Employer severance / benefits',
+        },
+        brazil: {
+          isr_rate: 'Income tax (IRRF)',
+          imss_employee_rate: 'Employee INSS',
+          infonavit_employee_rate: 'Employee FGTS / other',
+          imss_employer_rate: 'Employer INSS',
+          infonavit_employer_rate: 'Employer FGTS',
+          sar_employer_rate: 'Employer retirement / benefits',
+        },
+        custom: {
+          isr_rate: 'Primary tax rate',
+          imss_employee_rate: 'Employee contribution A',
+          infonavit_employee_rate: 'Employee contribution B',
+          imss_employer_rate: 'Employer contribution A',
+          infonavit_employer_rate: 'Employer contribution B',
+          sar_employer_rate: 'Employer retirement / other',
+        },
+      },
+    },
   },
   es: {
     title: 'Nómina',
-    subtitle: 'Genera, revisa, aprueba, paga y exporta corridas de nómina con datos reales de colaboradores y asistencia.',
+    subtitle: 'Revisa, procesa, aprueba, paga y exporta corridas de nómina con datos reales de colaboradores y asistencia.',
     refresh: 'Actualizar',
+    applyFilters: 'Aplicar filtros',
     retry: 'Reintentar',
     loading: 'Cargando nómina',
     unauthorized: 'Tu sesión ya no está autenticada. Inicia sesión de nuevo y vuelve a cargar el módulo.',
@@ -258,8 +467,10 @@ const payrollCopy = {
     genericError: 'No se pudo cargar la nómina.',
     success: {
       preferences: 'Preferencias de nómina guardadas correctamente.',
+      rates: 'Tasas de nómina guardadas correctamente.',
       runsCreated: 'Corridas de nómina generadas correctamente.',
       lineSaved: 'Línea de nómina actualizada correctamente.',
+      runEdited: 'Corrida de nómina actualizada correctamente.',
       processed: 'Corrida de nómina procesada correctamente.',
       approved: 'Corrida de nómina aprobada correctamente.',
       paid: 'Corrida de nómina marcada como pagada.',
@@ -272,6 +483,8 @@ const payrollCopy = {
       openRunDescription: 'Cargando el detalle completo de la corrida y sus líneas.',
       preferencesTitle: 'Guardando preferencias',
       preferencesDescription: 'Persistiendo los valores por defecto y las tasas estatutarias.',
+      ratesTitle: 'Guardando tasas de nómina',
+      ratesDescription: 'Aplicando el perfil de país activo y persistiendo las tasas configuradas.',
       generateTitle: 'Generando nómina',
       generateDescription: 'Construyendo corridas con colaboradores, asistencia y preferencias actuales.',
       saveLineTitle: 'Guardando línea de nómina',
@@ -304,8 +517,14 @@ const payrollCopy = {
       rates: 'Tasas',
       controlPanel: 'Generar nómina',
       frequency: 'Frecuencia',
+      period: 'Período',
       periodStart: 'Inicio del período',
       periodEnd: 'Fin del período',
+      periodThisMonth: 'Este mes',
+      periodLastMonth: 'Mes pasado',
+      periodTwoMonthsAgo: 'Hace dos meses',
+      periodAllYear: 'Todo el año',
+      periodCustom: 'Personalizado',
       periodFrom: 'Período desde',
       periodTo: 'Período hasta',
       filters: 'Filtros de corridas',
@@ -357,16 +576,74 @@ const payrollCopy = {
       daysPayable: 'Días pagables',
       leaveDays: 'Días de permiso',
       absenceDays: 'Días de ausencia',
+      paidBreaks: 'Descansos pagados',
+      vacationDays: 'Días de vacaciones',
       lateCount: 'Retardos',
       selectedRun: 'Corrida seleccionada',
       generate: 'Generar nómina',
       save: 'Guardar',
+      savePreferences: 'Guardar preferencias',
+      saveRates: 'Guardar tasas',
+      cancel: 'Cancelar',
       closeDetail: 'Cerrar detalle',
       employerCosts: 'Costos patronales',
       openPreferences: 'Preferencias',
+      openRates: 'Configurar tasas',
       openRun: 'Abrir',
+      edit: 'Editar',
+      print: 'Imprimir',
       editDraft: 'Editar borrador',
       filterStatus: 'Estado',
+      payrollType: 'Tipo de nómina',
+      totalAmount: 'Monto total',
+      salary: 'Salario',
+      holidays: 'Días feriados',
+      totalToPay: 'Total a pagar',
+      taxCalculation: 'Cálculo de impuestos',
+      columns: 'Columnas',
+      simplifiedPayroll: 'Nómina Simplificada',
+      detailedPayroll: 'Nómina Detallada',
+      rfc: 'RFC',
+      curp: 'CURP',
+      nss: 'NSS',
+      daysWorked: 'Días Trabajados',
+      daysAbsent: 'Días Ausentes',
+      overtime: 'Horas Extra',
+      paidHolidays: 'Días Festivos Pagados',
+      totalPay: 'Total a Pagar',
+      dailyWage: 'Salario Diario',
+      baseWage: 'Salario Base',
+      integratedDailyWage: 'Salario Diario Integrado',
+      baseContributionSalary: 'Salario Base de Cotización',
+      periodSalary: 'Salario del Período',
+      overtimeAmount: 'Horas Extra ($)',
+      bonusesCommissions: 'Bonos/Comisiones',
+      vacationBonus: 'Prima Vacacional',
+      proportionalChristmasBonus: 'Aguinaldo Proporcional',
+      totalEarnings: 'Total de Percepciones',
+      incomeTaxWithheld: 'ISR Retenido',
+      imssEmployee: 'IMSS Trabajador',
+      infonavitType: 'INFONAVIT (Tipo)',
+      infonavitDiscount: 'Descuento INFONAVIT',
+      loans: 'Préstamos',
+      otherDiscounts: 'Otros Descuentos',
+      totalDeductions: 'Total de Deducciones',
+      taxPayroll: 'Nómina Fiscal',
+      netPay: 'Neto a Pagar',
+      jurisdiction: 'Jurisdicción',
+      countryProfiles: 'Perfiles por país',
+      operationalSettings: 'Ajustes operativos',
+      rateProfile: 'Perfil de tasas',
+      presetRates: 'Predeterminados',
+      manualRates: 'Manuales',
+      activeRateProfile: 'Perfil de tasas activo',
+      noJurisdiction: 'Según perfil del colaborador',
+      automatic: 'Automático',
+      multipleBusinesses: 'Múltiples negocios',
+      allUnits: 'Todas las unidades',
+      allBusinesses: 'Todos los negocios',
+      recommended: 'Recomendado',
+      actionButtons: 'Botones de acción',
     },
     summary: {
       runs: 'Corridas',
@@ -379,7 +656,7 @@ const payrollCopy = {
       totalNet: 'Neto total',
     },
     groupingModes: {
-      single: 'Nómina única',
+      single: 'Única',
       unit: 'Por unidad',
       business: 'Por negocio',
     },
@@ -393,8 +670,221 @@ const payrollCopy = {
       deduction: 'Deducción',
       employer_contribution: 'Aportación patronal',
     },
+    preferencesInfo: {
+      title: 'Información importante sobre las preferencias de nómina',
+      bullets: [
+        'Configuración predeterminada: las nóminas pueden separarse automáticamente por país y provincia/estado cuando las reglas fiscales locales lo requieran.',
+        'Agrupación automática: los colaboradores siempre se organizan según su período de pago configurado: semanal, quincenal o mensual.',
+        'Personalización: puedes cambiar la forma en que se generan las nóminas para alinearlas con la estructura de tu operación.',
+      ],
+      selectionTitle: 'Selecciona cómo deseas agrupar las nóminas:',
+      note: 'Independientemente de la agrupación que elijas, los colaboradores siempre se organizarán automáticamente según el período de pago configurado en su perfil.',
+    },
+    groupingCards: {
+      single: {
+        title: 'Nómina única (predeterminado)',
+        description: 'Todos se mantienen dentro de una sola corrida. En países que requieren separación por provincia o estado, la nómina se divide automáticamente según las reglas fiscales locales.',
+      },
+      unit: {
+        title: 'Por unidad de negocio',
+        description: 'Se crea una corrida de nómina por cada unidad de negocio para revisar los totales por equipo.',
+      },
+      business: {
+        title: 'Por negocio',
+        description: 'Se crea una corrida de nómina por cada negocio registrado, facilitando la revisión por entidad operativa.',
+      },
+    },
+    rateConfiguration: {
+      title: 'Configuración de nómina',
+      subtitles: {
+        mexico: 'Define cómo se calcula la nómina con base en las reglas mexicanas de impuestos y contribuciones sociales.',
+        canada: 'Define cómo se calcula la nómina con base en las reglas canadienses de impuestos y contribuciones.',
+        usa: 'Define cómo se calcula la nómina con base en las reglas de impuestos y aportaciones patronales de Estados Unidos.',
+        colombia: 'Define cómo se calcula la nómina con base en las reglas colombianas de retención y contribuciones.',
+        brazil: 'Define cómo se calcula la nómina con base en las reglas brasileñas de impuestos y contribuciones sociales.',
+        custom: 'Define una configuración de nómina específica para tu empresa con valores manuales y totalmente personalizados.',
+      },
+      infoBlocks: {
+        mexico: 'La nómina en México incluye impuestos y contribuciones sociales que se calculan automáticamente con base en reglas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
+        canada: 'La nómina en Canadá incluye impuestos y contribuciones que normalmente se calculan con reglas oficiales federales y provinciales. Puedes personalizar ciertos valores si lo necesitas.',
+        usa: 'La nómina en Estados Unidos incluye retenciones, impuestos sociales y aportaciones patronales que normalmente siguen reglas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
+        colombia: 'La nómina en Colombia incluye retenciones y contribuciones que generalmente siguen fórmulas legales. Puedes personalizar ciertos valores si lo necesitas.',
+        brazil: 'La nómina en Brasil incluye impuestos y contribuciones obligatorias que suelen seguir fórmulas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
+        custom: 'Los perfiles personalizados te dan control total sobre las tasas de nómina cuando tu empresa necesita una configuración especial fuera de los perfiles estándar por país.',
+      },
+      footerNote: 'Los perfiles por país aplican estructuras de nómina estandarizadas y al mismo tiempo permiten flexibilidad para ajustes específicos de tu empresa.',
+      activeProfileLabel: 'Perfil activo de nómina',
+      saveAction: 'Guardar configuración',
+      viewBreakdown: 'Ver desglose',
+      presetApplied: 'Se está usando el perfil oficial de este país.',
+      advancedEnabled: 'La edición avanzada está habilitada para este campo de nómina.',
+      switchToAdvanced: 'Cambia a Avanzado para personalizar este valor.',
+      statusBadges: {
+        officialPreset: 'Predeterminado oficial',
+        customProfile: 'Perfil personalizado',
+        automatic: 'Automático',
+        fixedByLaw: 'Fijo por ley',
+        editable: 'Editable',
+      },
+      modeLabels: {
+        preset: 'Predeterminado',
+        advanced: 'Avanzado',
+        officialTable: 'Tabla oficial',
+        fixedRate: 'Tasa fija',
+        salaryPercentage: '% del salario',
+      },
+      mexicoCards: {
+        incomeTaxTitle: 'Impuesto sobre la renta (ISR)',
+        officialTableHelper: 'Se calcula automáticamente con base en las tablas del SAT',
+        progressiveTooltip: 'Impuesto progresivo según el ingreso del colaborador',
+        imssEmployeeTitle: 'IMSS — Colaborador',
+        imssEmployeeBody: 'Se calcula con base en la ley mexicana del seguro social',
+        imssEmployerTitle: 'IMSS — Patronal',
+        imssEmployerBody: 'Incluye las contribuciones patronales requeridas por ley',
+        infonavitEmployeeTitle: 'INFONAVIT — Colaborador',
+        infonavitEmployeeHelper: 'Puede variar según las condiciones de crédito del colaborador',
+        infonavitEmployerTitle: 'INFONAVIT — Patronal',
+        infonavitEmployerValue: '5% del salario',
+        sarTitle: 'SAR (Ahorro para el retiro)',
+        sarValue: '2%',
+        sarHelper: 'Contribución de retiro obligatoria en México',
+      },
+      profiles: {
+        mexico: 'México',
+        canada: 'Canadá',
+        usa: 'USA',
+        colombia: 'Colombia',
+        brazil: 'Brasil',
+        custom: 'Tasa personalizada',
+      },
+      profileDescriptions: {
+        mexico: 'Configura la nómina para estructuras fiscales y de contribuciones mexicanas.',
+        canada: 'Configura tasas para retenciones y obligaciones patronales canadienses.',
+        usa: 'Ajusta tasas para obligaciones federales, estatales y patronales en Estados Unidos.',
+        colombia: 'Prepara retenciones y contribuciones para operaciones de nómina en Colombia.',
+        brazil: 'Define tasas de impuestos y contribuciones para cálculos de nómina en Brasil.',
+        custom: 'Construye una mezcla de tasas completamente personalizada para reglas no estándar.',
+      },
+      fieldLabels: {
+        mexico: {
+          isr_rate: 'Impuesto sobre la renta (ISR)',
+          imss_employee_rate: 'IMSS colaborador',
+          infonavit_employee_rate: 'INFONAVIT colaborador',
+          imss_employer_rate: 'IMSS patronal',
+          infonavit_employer_rate: 'INFONAVIT patronal',
+          sar_employer_rate: 'SAR patronal',
+        },
+        canada: {
+          isr_rate: 'Impuesto federal / provincial',
+          imss_employee_rate: 'CPP / QPP colaborador',
+          infonavit_employee_rate: 'EI colaborador',
+          imss_employer_rate: 'CPP / QPP patronal',
+          infonavit_employer_rate: 'EI patronal',
+          sar_employer_rate: 'Retiro / beneficios patronales',
+        },
+        usa: {
+          isr_rate: 'Retención federal / estatal',
+          imss_employee_rate: 'Seguro Social colaborador',
+          infonavit_employee_rate: 'Medicare / otros colaborador',
+          imss_employer_rate: 'Seguro Social patronal',
+          infonavit_employer_rate: 'Medicare / FUTA / SUTA patronal',
+          sar_employer_rate: 'Retiro / beneficios patronales',
+        },
+        colombia: {
+          isr_rate: 'Retención en la fuente',
+          imss_employee_rate: 'Salud colaborador',
+          infonavit_employee_rate: 'Pensión colaborador',
+          imss_employer_rate: 'Salud / parafiscales patronal',
+          infonavit_employer_rate: 'Pensión patronal',
+          sar_employer_rate: 'Cesantías / beneficios patronales',
+        },
+        brazil: {
+          isr_rate: 'Impuesto sobre la renta (IRRF)',
+          imss_employee_rate: 'INSS colaborador',
+          infonavit_employee_rate: 'FGTS / otros colaborador',
+          imss_employer_rate: 'INSS patronal',
+          infonavit_employer_rate: 'FGTS patronal',
+          sar_employer_rate: 'Retiro / beneficios patronales',
+        },
+        custom: {
+          isr_rate: 'Tasa principal de impuesto',
+          imss_employee_rate: 'Contribución colaborador A',
+          infonavit_employee_rate: 'Contribución colaborador B',
+          imss_employer_rate: 'Contribución patronal A',
+          infonavit_employer_rate: 'Contribución patronal B',
+          sar_employer_rate: 'Retiro / otros patronal',
+        },
+      },
+    },
   },
 } as const;
+
+type PayrollCopy = typeof payrollCopy.en | typeof payrollCopy.es;
+
+const pickPayrollRateValues = (preferences: PayrollPreferences): PayrollRateValues => ({
+  isr_rate: preferences.isr_rate,
+  imss_employee_rate: preferences.imss_employee_rate,
+  infonavit_employee_rate: preferences.infonavit_employee_rate,
+  imss_employer_rate: preferences.imss_employer_rate,
+  infonavit_employer_rate: preferences.infonavit_employer_rate,
+  sar_employer_rate: preferences.sar_employer_rate,
+});
+
+const applyPayrollRateValues = (
+  preferences: PayrollPreferences,
+  rates: PayrollRateValues,
+): PayrollPreferences => ({
+  ...preferences,
+  ...rates,
+});
+
+const createPayrollRateDrafts = (preferences: PayrollPreferences): PayrollRateDrafts => {
+  const baseRates = pickPayrollRateValues(preferences);
+
+  return payrollRateProfileKeys.reduce((drafts, profileKey) => ({
+    ...drafts,
+    [profileKey]: { ...baseRates },
+  }), {} as PayrollRateDrafts);
+};
+
+const formatRateInputPercent = (value: number) => {
+  const percent = value * 100;
+  if (Number.isInteger(percent)) {
+    return String(percent);
+  }
+
+  return percent.toFixed(2).replace(/\.?0+$/, '');
+};
+
+const parseRateInputPercent = (value: string) => {
+  const parsed = Number(value.replace(',', '.'));
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+
+  return Math.max(0, parsed / 100);
+};
+
+const defaultPayrollPreferences: PayrollPreferences = {
+  grouping_mode: 'single',
+  default_daily_hours: 8,
+  pay_leave_days: true,
+  isr_rate: 0.1,
+  imss_employee_rate: 0.04,
+  infonavit_employee_rate: 0.03,
+  imss_employer_rate: 0.07,
+  infonavit_employer_rate: 0.05,
+  sar_employer_rate: 0.02,
+};
+
+const payrollRateProfileFlags: Record<PayrollRateProfileKey, string> = {
+  mexico: '🇲🇽',
+  canada: '🇨🇦',
+  usa: '🇺🇸',
+  colombia: '🇨🇴',
+  brazil: '🇧🇷',
+  custom: '⚙️',
+};
 
 const formatCurrency = (value: number, locale: string) =>
   new Intl.NumberFormat(locale, {
@@ -419,6 +909,59 @@ const formatDate = (value: string, locale: string, fallback: string) => {
     month: 'short',
     year: 'numeric',
   }).format(parsed);
+};
+
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+const resolveGenerationPeriod = (
+  periodRange: string,
+  periodFrom: string,
+  periodTo: string,
+) => {
+  const now = new Date();
+
+  if (periodRange === 'custom' && periodFrom && periodTo) {
+    return {
+      periodStartDate: periodFrom,
+      periodEndDate: periodTo,
+    };
+  }
+
+  if (periodRange === 'this_month') {
+    return {
+      periodStartDate: toIsoDate(startOfMonth(now)),
+      periodEndDate: toIsoDate(endOfMonth(now)),
+    };
+  }
+
+  if (periodRange === 'last_month') {
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return {
+      periodStartDate: toIsoDate(startOfMonth(lastMonth)),
+      periodEndDate: toIsoDate(endOfMonth(lastMonth)),
+    };
+  }
+
+  if (periodRange === 'two_months_ago') {
+    const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    return {
+      periodStartDate: toIsoDate(startOfMonth(twoMonthsAgo)),
+      periodEndDate: toIsoDate(endOfMonth(twoMonthsAgo)),
+    };
+  }
+
+  return {
+    periodStartDate: toIsoDate(startOfMonth(now)),
+    periodEndDate: toIsoDate(endOfMonth(now)),
+  };
 };
 
 const toErrorMessage = (error: unknown, copy: typeof payrollCopy.en | typeof payrollCopy.es) => {
@@ -458,6 +1001,120 @@ type PayrollDialogNotice = {
   message: string;
 };
 
+type PayrollRunEditForm = {
+  status: PayrollRunSummary['status'];
+  employeesCount: string;
+  netAmount: string;
+  jurisdiction: string;
+};
+
+type PayrollEditTableColumnKey =
+  | 'unit'
+  | 'business'
+  | 'employee'
+  | 'daysWorked'
+  | 'daysAbsent'
+  | 'overtime'
+  | 'vacationDays'
+  | 'paidHolidays'
+  | 'bonusesCommissions'
+  | 'loans'
+  | 'totalEarnings'
+  | 'totalDeductions'
+  | 'taxPayroll'
+  | 'netPay';
+
+type PayrollEditTableRow = {
+  id: number | string;
+  unit: string;
+  business: string;
+  employee: string;
+  daysWorked: number;
+  daysAbsent: number;
+  overtime: number;
+  vacationDays: number;
+  paidHolidays: number;
+  bonusesCommissions: number;
+  loans: number;
+  totalEarnings: number;
+  totalDeductions: number;
+  taxPayroll: boolean;
+  netPay: number;
+};
+
+type PayrollEditableAttendanceField =
+  | 'daysWorked'
+  | 'daysAbsent'
+  | 'overtime'
+  | 'vacationDays'
+  | 'paidHolidays';
+
+type PayrollDetailedColumnKey =
+  | 'employee'
+  | 'rfc'
+  | 'curp'
+  | 'nss'
+  | 'unit'
+  | 'business'
+  | 'daysWorked'
+  | 'daysAbsent'
+  | 'overtime'
+  | 'vacationDays'
+  | 'paidHolidays'
+  | 'totalPay'
+  | 'dailyWage'
+  | 'baseWage'
+  | 'integratedDailyWage'
+  | 'baseContributionSalary'
+  | 'periodSalary'
+  | 'overtimeAmount'
+  | 'bonusesCommissions'
+  | 'vacationBonus'
+  | 'proportionalChristmasBonus'
+  | 'totalEarnings'
+  | 'incomeTaxWithheld'
+  | 'imssEmployee'
+  | 'infonavitType'
+  | 'infonavitDiscount'
+  | 'loans'
+  | 'otherDiscounts'
+  | 'totalDeductions'
+  | 'netPay';
+
+type PayrollDetailedRow = {
+  id: number | string;
+  employee: string;
+  rfc: string;
+  curp: string;
+  nss: string;
+  unit: string;
+  business: string;
+  daysWorked: number;
+  daysAbsent: number;
+  overtime: number;
+  vacationDays: number;
+  paidHolidays: number;
+  totalPay: number;
+  dailyWage: number;
+  baseWage: number;
+  integratedDailyWage: number;
+  baseContributionSalary: number;
+  periodSalary: number;
+  overtimeAmount: number;
+  bonusesCommissions: number;
+  vacationBonus: number;
+  proportionalChristmasBonus: number;
+  totalEarnings: number;
+  incomeTaxWithheld: number;
+  imssEmployee: number;
+  infonavitType: string;
+  infonavitDiscount: number;
+  loans: number;
+  otherDiscounts: number;
+  totalDeductions: number;
+  netPay: number;
+};
+
 const createPayrollPrintReportId = (runId: number) => (
   `${PAYROLL_PRINT_REPORT_ID_PREFIX}-${String(runId).padStart(4, '0')}`
 );
@@ -480,12 +1137,131 @@ const downloadFile = async (path: string, filename: string) => {
   window.URL.revokeObjectURL(objectUrl);
 };
 
-export default function Nomina() {
+export default function Payroll() {
   const { currentLanguage } = useLanguage();
   const copy = currentLanguage.code.startsWith('es') ? payrollCopy.es : payrollCopy.en;
 
   const [overview, setOverview] = useState<PayrollOverviewResponse | null>(null);
+  // Seed data for development
+  const seedRuns: PayrollRunSummary[] = [
+    {
+      id: 1,
+      period_start_date: '2026-04-01',
+      period_end_date: '2026-04-07',
+      pay_period: 'weekly',
+      grouping_mode: 'single',
+      grouping_label: '',
+      grouping_key: '',
+      employees_count: 12,
+      gross_amount: 16450,
+      deductions_amount: 3340,
+      employer_contributions_amount: 2260,
+      net_amount: 12000,
+      status: 'draft',
+    },
+    {
+      id: 2,
+      period_start_date: '2026-04-08',
+      period_end_date: '2026-04-14',
+      pay_period: 'weekly',
+      grouping_mode: 'single',
+      grouping_label: '',
+      grouping_key: '',
+      employees_count: 9,
+      gross_amount: 13120,
+      deductions_amount: 2620,
+      employer_contributions_amount: 1980,
+      net_amount: 10500,
+      status: 'processed',
+    },
+    {
+      id: 3,
+      period_start_date: '2026-04-15',
+      period_end_date: '2026-04-21',
+      pay_period: 'weekly',
+      grouping_mode: 'single',
+      grouping_label: '',
+      grouping_key: '',
+      employees_count: 15,
+      gross_amount: 19840,
+      deductions_amount: 4170,
+      employer_contributions_amount: 2985,
+      net_amount: 15670,
+      status: 'approved',
+    },
+    {
+      id: 4,
+      period_start_date: '2026-04-01',
+      period_end_date: '2026-04-15',
+      pay_period: 'biweekly',
+      grouping_mode: 'unit',
+      grouping_label: 'Sales',
+      grouping_key: '1',
+      employees_count: 8,
+      gross_amount: 10490,
+      deductions_amount: 1940,
+      employer_contributions_amount: 1430,
+      net_amount: 8000,
+      status: 'draft',
+    },
+    {
+      id: 5,
+      period_start_date: '2026-03-16',
+      period_end_date: '2026-03-31',
+      pay_period: 'biweekly',
+      grouping_mode: 'business',
+      grouping_label: 'MainCo',
+      grouping_key: '2',
+      employees_count: 15,
+      gross_amount: 21400,
+      deductions_amount: 3920,
+      employer_contributions_amount: 3240,
+      net_amount: 15000,
+      status: 'processed',
+    },
+    {
+      id: 6,
+      period_start_date: '2026-03-01',
+      period_end_date: '2026-03-15',
+      pay_period: 'biweekly',
+      grouping_mode: 'business',
+      grouping_label: 'North America',
+      grouping_key: '3',
+      employees_count: 11,
+      gross_amount: 16900,
+      deductions_amount: 3420,
+      employer_contributions_amount: 2480,
+      net_amount: 12850,
+      status: 'approved',
+    },
+    {
+      id: 7,
+      period_start_date: '2026-04-01',
+      period_end_date: '2026-04-30',
+      pay_period: 'monthly',
+      grouping_mode: 'single',
+      grouping_label: '',
+      grouping_key: '',
+      employees_count: 19,
+      gross_amount: 41800,
+      deductions_amount: 8470,
+      employer_contributions_amount: 6150,
+      net_amount: 33330,
+      status: 'paid',
+    },
+  ];
+  const seedJurisdictionsByRunId: Record<number, string> = {
+    1: 'Ontario, Canada',
+    2: 'Mexico',
+    3: 'Colombia',
+    4: 'Brazil',
+    5: 'Quebec, Canada',
+    6: 'Florida, USA',
+    7: 'Texas, USA',
+  };
   const [runs, setRuns] = useState<PayrollRunSummary[]>([]);
+  const [employees, setEmployees] = useState<BackendEmployee[]>([]);
+  const [jurisdictionsByRunId, setJurisdictionsByRunId] = useState<Record<number, string>>({});
   const [units, setUnits] = useState<BackendUnit[]>([]);
   const [businesses, setBusinesses] = useState<BackendBusiness[]>([]);
   const [selectedRunDetail, setSelectedRunDetail] = useState<PayrollRunDetailResponse | null>(null);
@@ -495,35 +1271,33 @@ export default function Nomina() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isPreferencesDialogOpen, setIsPreferencesDialogOpen] = useState(false);
+  const [isRateConfigDialogOpen, setIsRateConfigDialogOpen] = useState(false);
   const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [isEditRunDialogOpen, setIsEditRunDialogOpen] = useState(false);
+  const [isEditRunDetailLoading, setIsEditRunDetailLoading] = useState(false);
+  const [editRunDetail, setEditRunDetail] = useState<PayrollRunDetailResponse | null>(null);
+  const [editingRun, setEditingRun] = useState<PayrollRunSummary | null>(null);
+  const [editRunForm, setEditRunForm] = useState<PayrollRunEditForm | null>(null);
   const [printJob, setPrintJob] = useState<PayrollRunPdfDocumentProps | null>(null);
   const [runDialogNotice, setRunDialogNotice] = useState<PayrollDialogNotice | null>(null);
-  const [preferencesForm, setPreferencesForm] = useState<PayrollPreferences>({
-    grouping_mode: 'single',
-    default_daily_hours: 8,
-    pay_leave_days: true,
-    isr_rate: 0.1,
-    imss_employee_rate: 0.04,
-    infonavit_employee_rate: 0.03,
-    imss_employer_rate: 0.07,
-    infonavit_employer_rate: 0.05,
-    sar_employer_rate: 0.02,
-  });
-  const [generationForm, setGenerationForm] = useState<PayrollCreateRunsPayload>({
-    pay_period: 'weekly',
-    grouping_mode: 'single',
-    period_start_date: firstDayOfMonth(),
-    period_end_date: computePayrollPeriodEndDate('weekly', firstDayOfMonth()),
-  });
+  const [preferencesForm, setPreferencesForm] = useState<PayrollPreferences>(defaultPayrollPreferences);
+  const [selectedRateProfile, setSelectedRateProfile] = useState<PayrollRateProfileKey>('mexico');
+  const [rateDrafts, setRateDrafts] = useState<PayrollRateDrafts>(() => createPayrollRateDrafts(defaultPayrollPreferences));
   const [filters, setFilters] = useState({
-    status: '',
-    pay_period: '',
-    grouping_mode: '',
+    period_range: 'all_year',
     period_from: '',
     period_to: '',
+    pay_period: '',
+    grouping_mode: '',
     unit_id: '',
     business_id: '',
+    status: '',
   });
+  const [sortConfig, setSortConfig] = useState<{
+    column: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
   const [lineDraft, setLineDraft] = useState<{
     include_in_fiscal: boolean;
     notes: string;
@@ -536,6 +1310,144 @@ export default function Nomina() {
 
   const isSaving = busyState !== null;
   const activeBusyKind = busyState?.kind ?? null;
+  const activeRateValues = rateDrafts[selectedRateProfile];
+  const unitsById = useMemo(
+    () => new Map(units.map((unit) => [String(unit.id), unit.name])),
+    [units],
+  );
+  const businessesById = useMemo(
+    () => new Map(businesses.map((business) => [String(business.id), business])),
+    [businesses],
+  );
+
+  const sortedRuns = useMemo(() => {
+    if (!sortConfig) {
+      return runs;
+    }
+
+    const sortedArray = [...runs];
+    sortedArray.sort((a, b) => {
+      let aValue: string | number | Date;
+      let bValue: string | number | Date;
+
+      switch (sortConfig.column) {
+        case 'period':
+          aValue = new Date(a.period_start_date);
+          bValue = new Date(b.period_start_date);
+          break;
+        case 'frequency':
+          aValue = a.pay_period;
+          bValue = b.pay_period;
+          break;
+        case 'payrollType':
+          aValue = a.grouping_mode;
+          bValue = b.grouping_mode;
+          break;
+        case 'employees':
+          aValue = a.employees_count;
+          bValue = b.employees_count;
+          break;
+        case 'totalAmount':
+          aValue = a.net_amount;
+          bValue = b.net_amount;
+          break;
+        case 'jurisdiction': {
+          const aJurisdiction = jurisdictionsByRunId[a.id]?.trim() || (a.grouping_mode === 'single' ? 'Automatic' : 'No jurisdiction');
+          const bJurisdiction = jurisdictionsByRunId[b.id]?.trim() || (b.grouping_mode === 'single' ? 'Automatic' : 'No jurisdiction');
+          aValue = aJurisdiction;
+          bValue = bJurisdiction;
+          break;
+        }
+        case 'unit': {
+          let aUnitLabel = '';
+          let bUnitLabel = '';
+
+          if (a.grouping_mode === 'unit') {
+            aUnitLabel = a.grouping_label || '';
+          } else if (a.grouping_mode === 'business' && a.grouping_key && businessesById.has(a.grouping_key)) {
+            const matchedBusiness = businessesById.get(a.grouping_key);
+            aUnitLabel = matchedBusiness?.unitId ? String(unitsById.get(String(matchedBusiness.unitId)) || '') : '';
+          }
+
+          if (b.grouping_mode === 'unit') {
+            bUnitLabel = b.grouping_label || '';
+          } else if (b.grouping_mode === 'business' && b.grouping_key && businessesById.has(b.grouping_key)) {
+            const matchedBusiness = businessesById.get(b.grouping_key);
+            bUnitLabel = matchedBusiness?.unitId ? String(unitsById.get(String(matchedBusiness.unitId)) || '') : '';
+          }
+
+          aValue = aUnitLabel;
+          bValue = bUnitLabel;
+          break;
+        }
+        case 'business': {
+          let aBusinessLabel = '';
+          let bBusinessLabel = '';
+
+          if (a.grouping_mode === 'business') {
+            aBusinessLabel = a.grouping_label || '';
+          }
+
+          if (b.grouping_mode === 'business') {
+            bBusinessLabel = b.grouping_label || '';
+          }
+
+          aValue = aBusinessLabel;
+          bValue = bBusinessLabel;
+          break;
+        }
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+
+    return sortedArray;
+  }, [runs, sortConfig, jurisdictionsByRunId, unitsById, businessesById]);
+
+  const handleSortColumn = (column: string) => {
+    setSortConfig((prevConfig) => {
+      if (prevConfig?.column === column) {
+        // Toggle direction if same column
+        return {
+          column,
+          direction: prevConfig.direction === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      // Set new column with ascending direction
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const SortIndicator = ({ column }: { column: string }) => {
+    if (sortConfig?.column !== column) {
+      return <span className="ml-1 text-slate-400 dark:text-slate-500">↑↓</span>;
+    }
+    return sortConfig.direction === 'asc' ? (
+      <span className="ml-1 text-slate-600 dark:text-slate-300">↑</span>
+    ) : (
+      <span className="ml-1 text-slate-600 dark:text-slate-300">↓</span>
+    );
+  };
+
+  const handleStatusChange = (run: PayrollRunSummary, newStatus: PayrollRunSummary['status']) => {
+    if (run.status === newStatus) return;
+
+    setRuns((currentRuns) => currentRuns.map((r) =>
+      r.id === run.id ? { ...r, status: newStatus } : r
+    ));
+  };
 
   const loadPayroll = async (
     activeFilters = filters,
@@ -547,20 +1459,32 @@ export default function Nomina() {
     setErrorMessage('');
 
     try {
-      const [overviewResponse, runsResponse, unitsResponse, businessesResponse] = await Promise.all([
+      const [overviewResponse, runsResponse, employeesResponse, unitsResponse, businessesResponse] = await Promise.all([
         humanResourcesApi.getPayrollOverview(),
         humanResourcesApi.listPayrollRuns(activeFilters),
+        humanResourcesApi.listEmployees().catch(() => ({
+          items: [], count: 0, summary: {
+            total_count: 0,
+            active_count: 0,
+            inactive_count: 0,
+            terminated_count: 0,
+            total_payroll_amount_monthly: 0,
+          }
+        })),
         dashboardApi.listUnits().catch(() => []),
         dashboardApi.listBusinesses().catch(() => []),
       ]);
 
       setOverview(overviewResponse);
       setPreferencesForm(overviewResponse.preferences);
-      setGenerationForm((current) => ({
-        ...current,
-        grouping_mode: current.grouping_mode || overviewResponse.preferences.grouping_mode,
+      setRateDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        custom: pickPayrollRateValues(overviewResponse.preferences),
       }));
-      setRuns(runsResponse.items);
+      const shouldUseSeedRuns = runsResponse.items.length === 0;
+      setRuns(shouldUseSeedRuns ? seedRuns : runsResponse.items);
+      setJurisdictionsByRunId(shouldUseSeedRuns ? seedJurisdictionsByRunId : {});
+      setEmployees(employeesResponse.items || []);
       setUnits(unitsResponse);
       setBusinesses(businessesResponse);
     } catch (error) {
@@ -584,26 +1508,28 @@ export default function Nomina() {
     return () => window.clearTimeout(timeoutId);
   }, [successMessage]);
 
-  useEffect(() => {
-    const expectedPeriodEndDate = computePayrollPeriodEndDate(
-      generationForm.pay_period,
-      generationForm.period_start_date,
-    );
-
-    setGenerationForm((current) => (
-      current.period_end_date === expectedPeriodEndDate
-        ? current
-        : {
-            ...current,
-            period_end_date: expectedPeriodEndDate,
-          }
-    ));
-  }, [generationForm.pay_period, generationForm.period_start_date]);
-
   const selectedLine = useMemo(
     () => selectedRunDetail?.lines.find((line) => line.id === selectedLineId) ?? null,
     [selectedLineId, selectedRunDetail?.lines],
   );
+
+  const updateActiveRateValue = (field: PayrollRateFieldKey, value: number) => {
+    setRateDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [selectedRateProfile]: {
+        ...currentDrafts[selectedRateProfile],
+        [field]: value,
+      },
+    }));
+  };
+
+  const openRateConfiguration = () => {
+    setRateDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      custom: pickPayrollRateValues(preferencesForm),
+    }));
+    setIsRateConfigDialogOpen(true);
+  };
 
   useEffect(() => {
     if (!selectedLine) {
@@ -618,7 +1544,7 @@ export default function Nomina() {
           category: item.category === 'earning' ? 'earning' : 'deduction',
           label: item.label,
           amount: item.amount,
-      })),
+        })),
     });
   }, [selectedLine]);
 
@@ -661,19 +1587,6 @@ export default function Nomina() {
     return detail;
   };
 
-  const summaryCards = overview
-    ? [
-        { label: copy.summary.runs, value: overview.summary.runs_count },
-        { label: copy.summary.draft, value: overview.summary.draft_count },
-        { label: copy.summary.processed, value: overview.summary.processed_count },
-        { label: copy.summary.approved, value: overview.summary.approved_count },
-        { label: copy.summary.paid, value: overview.summary.paid_count },
-        { label: copy.summary.cancelled, value: overview.summary.cancelled_count },
-        { label: copy.summary.totalGross, value: formatCurrency(overview.summary.total_gross_amount, currentLanguage.code) },
-        { label: copy.summary.totalNet, value: formatCurrency(overview.summary.total_net_amount, currentLanguage.code) },
-      ]
-    : [];
-
   const openRunDetail = async (runId: number) => {
     try {
       setRunDialogNotice(null);
@@ -711,16 +1624,66 @@ export default function Nomina() {
     }
   };
 
-  const handleGenerateRuns = async () => {
+  const handleSaveRates = async () => {
+    const nextPreferences = applyPayrollRateValues(preferencesForm, rateDrafts[selectedRateProfile]);
+
+    try {
+      await runBusyTask({
+        kind: 'save-preferences',
+        title: copy.busy.ratesTitle,
+        description: copy.busy.ratesDescription,
+      }, async () => {
+        await humanResourcesApi.updatePayrollPreferences(nextPreferences);
+        setPreferencesForm(nextPreferences);
+        setRateDrafts((currentDrafts) => ({
+          ...currentDrafts,
+          custom: pickPayrollRateValues(nextPreferences),
+        }));
+        setIsRateConfigDialogOpen(false);
+        setSuccessMessage(copy.success.rates);
+        await loadPayroll(filters, { background: true });
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const handleGenerateRuns = async (draft?: PayrollGenerationDraft) => {
+    if (draft) {
+      setFilters((current) => ({
+        ...current,
+        period_range: draft.periodRange,
+        period_from: draft.periodFrom,
+        period_to: draft.periodTo,
+        pay_period: draft.payPeriod,
+        grouping_mode: draft.groupingMode,
+      }));
+    }
+
+    const { periodStartDate, periodEndDate } = resolveGenerationPeriod(
+      draft?.periodRange ?? filters.period_range,
+      draft?.periodFrom ?? filters.period_from,
+      draft?.periodTo ?? filters.period_to,
+    );
+
+    const payload: PayrollCreateRunsPayload = {
+      pay_period: (draft?.payPeriod || filters.pay_period || 'weekly') as PayrollCreateRunsPayload['pay_period'],
+      grouping_mode: (draft?.groupingMode || filters.grouping_mode || preferencesForm.grouping_mode) as PayrollCreateRunsPayload['grouping_mode'],
+      period_start_date: periodStartDate,
+      period_end_date: periodEndDate,
+    };
+
     try {
       await runBusyTask({
         kind: 'generate-runs',
         title: copy.busy.generateTitle,
         description: copy.busy.generateDescription,
       }, async () => {
-        const response = await humanResourcesApi.createPayrollRuns(generationForm);
+        const response = await humanResourcesApi.createPayrollRuns(payload);
+        setIsGenerateModalOpen(false);
         setSuccessMessage(copy.success.runsCreated);
         await loadPayroll(filters, { background: true });
+
         const firstRun = response.items[0];
         if (firstRun) {
           await fetchRunDetail(firstRun.id);
@@ -802,19 +1765,9 @@ export default function Nomina() {
     }
   };
 
-  const applyFilters = async () => {
-    try {
-      await runBusyTask({
-        kind: 'refresh',
-        title: copy.busy.refreshTitle,
-        description: copy.busy.refreshDescription,
-      }, async () => {
-        await loadPayroll(filters, { background: true });
-      }, 700);
-    } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
-    }
-  };
+  useEffect(() => {
+    void loadPayroll(filters, { background: true });
+  }, [filters]);
 
   const handleDownload = async (kind: 'csv' | 'pdf', run: PayrollRunSummary) => {
     try {
@@ -848,6 +1801,144 @@ export default function Nomina() {
     }
   };
 
+  const openEditRunModal = async (run: PayrollRunSummary) => {
+    setEditingRun(run);
+    setEditRunDetail(null);
+    setIsEditRunDetailLoading(true);
+    setEditRunForm({
+      status: run.status,
+      employeesCount: String(run.employees_count),
+      netAmount: String(run.net_amount),
+      jurisdiction: jurisdictionsByRunId[run.id] ?? '',
+    });
+    setIsEditRunDialogOpen(true);
+
+    try {
+      const detail = await humanResourcesApi.getPayrollRun(run.id);
+      setEditRunDetail(detail);
+    } catch {
+      setEditRunDetail(null);
+    } finally {
+      setIsEditRunDetailLoading(false);
+    }
+  };
+
+  const handleSaveEditedRun = () => {
+    if (!editingRun || !editRunForm) {
+      return;
+    }
+
+    const parsedEmployees = Number(editRunForm.employeesCount);
+    const parsedNetAmount = Number(editRunForm.netAmount);
+
+    setRuns((currentRuns) => currentRuns.map((run) => (
+      run.id === editingRun.id
+        ? {
+          ...run,
+          status: editRunForm.status,
+          employees_count: Number.isFinite(parsedEmployees) ? Math.max(0, parsedEmployees) : run.employees_count,
+          net_amount: Number.isFinite(parsedNetAmount) ? Math.max(0, parsedNetAmount) : run.net_amount,
+        }
+        : run
+    )));
+
+    setJurisdictionsByRunId((current) => ({
+      ...current,
+      [editingRun.id]: editRunForm.jurisdiction.trim(),
+    }));
+
+    setIsEditRunDialogOpen(false);
+    setEditingRun(null);
+    setEditRunForm(null);
+    setSuccessMessage(copy.success.runEdited);
+  };
+
+  const handleProcessRunFromTable = async (run: PayrollRunSummary) => {
+    try {
+      await runBusyTask({
+        kind: 'process-run',
+        title: copy.busy.processTitle,
+        description: copy.busy.processDescription,
+      }, async () => {
+        await humanResourcesApi.processPayrollRun(run.id);
+        setSuccessMessage(copy.success.processed);
+        await loadPayroll(filters, { background: true });
+        if (selectedRunDetail?.run.id === run.id) {
+          await refreshOpenRun(run.id);
+        }
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const handlePayRunFromTable = async (run: PayrollRunSummary) => {
+    try {
+      await runBusyTask({
+        kind: 'mark-paid',
+        title: copy.busy.payTitle,
+        description: copy.busy.payDescription,
+      }, async () => {
+        await humanResourcesApi.markPayrollRunPaid(run.id);
+        setSuccessMessage(copy.success.paid);
+        await loadPayroll(filters, { background: true });
+        if (selectedRunDetail?.run.id === run.id) {
+          await refreshOpenRun(run.id);
+        }
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const resolveRunBusiness = (run: PayrollRunSummary) => {
+    if (run.grouping_mode !== 'business') {
+      return null;
+    }
+
+    if (run.grouping_key && businessesById.has(run.grouping_key)) {
+      return businessesById.get(run.grouping_key) ?? null;
+    }
+
+    return businesses.find((business) => business.name === run.grouping_label) ?? null;
+  };
+
+  const resolveRunUnitLabel = (run: PayrollRunSummary) => {
+    if (run.grouping_mode === 'unit') {
+      return run.grouping_label || copy.labels.noUnit;
+    }
+
+    if (run.grouping_mode === 'business') {
+      const matchedBusiness = resolveRunBusiness(run);
+      return matchedBusiness?.unitId ? unitsById.get(String(matchedBusiness.unitId)) || copy.labels.noUnit : copy.labels.noUnit;
+    }
+
+    return copy.labels.allUnits;
+  };
+
+  const resolveRunBusinessLabel = (run: PayrollRunSummary) => {
+    if (run.grouping_mode === 'business') {
+      return run.grouping_label || copy.labels.noBusiness;
+    }
+
+    if (run.grouping_mode === 'unit') {
+      return copy.labels.multipleBusinesses;
+    }
+
+    return copy.labels.allBusinesses;
+  };
+
+  const resolveRunJurisdictionLabel = (run: PayrollRunSummary) => {
+    const customJurisdiction = jurisdictionsByRunId[run.id]?.trim();
+    if (customJurisdiction) {
+      return customJurisdiction;
+    }
+
+    return run.grouping_mode === 'single'
+      ? copy.labels.automatic
+      : copy.labels.noJurisdiction;
+  };
+
   return (
     <>
       <LoadingBarOverlay
@@ -860,7 +1951,7 @@ export default function Nomina() {
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
           <div className="flex items-center justify-between gap-3">
             <span>{errorMessage}</span>
-            <Button variant="outline" size="sm" onClick={() => void applyFilters()}>
+            <Button variant="outline" size="sm" onClick={() => void loadPayroll(filters, { background: true })}>
               {copy.retry}
             </Button>
           </div>
@@ -873,265 +1964,139 @@ export default function Nomina() {
         onClose={() => setSuccessMessage('')}
       />
 
-      <div className="mb-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_22px_60px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-        <div className="bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.16),transparent_36%),linear-gradient(135deg,#10203c_0%,#14325d_55%,#155e75_100%)] px-6 py-7 text-white sm:px-8">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-3 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-                Payroll command center
-              </div>
-              <h2 className="mb-2 flex items-center gap-3 text-3xl font-semibold tracking-[-0.03em] text-white">
-                <span className="text-3xl">💰</span>
-                {copy.title}
-              </h2>
-              <p className="max-w-2xl text-sm leading-6 text-white/78">{copy.subtitle}</p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 xl:justify-end">
-              <Button
-                variant="outline"
-                className="gap-2 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-                onClick={() => setIsPreferencesDialogOpen(true)}
-              >
-                <Settings className="h-4 w-4" />
-                {copy.labels.openPreferences}
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-                onClick={() => void applyFilters()}
-                disabled={isSaving}
-              >
-                {activeBusyKind === 'refresh' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                {copy.refresh}
-              </Button>
-            </div>
+      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
+              <span className="text-2xl">💰</span>
+              {copy.title}
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{copy.subtitle}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={() => setIsGenerateModalOpen(true)}
+              disabled={isSaving}
+              className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
+            >
+              <PlayCircle className="h-4 w-4" />
+              {copy.labels.generate}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={openRateConfiguration}
+              className="gap-2 border-[#143675] text-[#143675] hover:bg-[#143675] hover:text-white"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {copy.labels.openRates}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsPreferencesDialogOpen(true)}
+              className="gap-2 border-[#143675] text-[#143675] hover:bg-[#143675] hover:text-white"
+            >
+              <Settings className="h-4 w-4" />
+              {copy.labels.openPreferences}
+            </Button>
           </div>
         </div>
-
-        {overview?.recent_runs?.length ? (
-          <div className="grid gap-4 border-t border-slate-200 bg-slate-50/80 px-6 py-5 sm:px-8 lg:grid-cols-3 dark:border-slate-700 dark:bg-slate-900/80">
-            {overview.recent_runs.slice(0, 3).map((run) => (
-              <button
-                key={`hero-run-${run.id}`}
-                type="button"
-                onClick={() => void openRunDetail(run.id)}
-                className="rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/60"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                    #{run.id}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    {copy.statuses[run.status]}
-                  </span>
-                </div>
-                <p className="mt-3 text-base font-semibold text-slate-900 dark:text-white">
-                  {run.grouping_label || copy.groupingModes[run.grouping_mode]}
-                </p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)} → {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
-                </p>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-slate-500 dark:text-slate-400">{copy.labels.employees}</p>
-                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">{run.employees_count}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500 dark:text-slate-400">{copy.labels.net}</p>
-                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">{formatCurrency(run.net_amount, currentLanguage.code)}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       {isLoading ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div key={index} className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <Skeleton className="mb-3 h-4 w-28" />
-                <Skeleton className="h-8 w-16" />
-              </div>
-            ))}
-          </div>
-          <Skeleton className="h-[220px] rounded-lg" />
           <Skeleton className="h-[560px] rounded-lg" />
         </div>
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {summaryCards.map((card, index) => {
-              const icons = [Wallet, PlayCircle, Calculator, ShieldCheck, CreditCard, XCircle, FileSpreadsheet, Wallet] as const;
-              const Icon = icons[index];
-              const accentTones = [
-                'from-sky-500/15 to-blue-600/5 border-sky-200',
-                'from-amber-500/15 to-orange-500/5 border-amber-200',
-                'from-emerald-500/15 to-teal-500/5 border-emerald-200',
-                'from-indigo-500/15 to-blue-500/5 border-indigo-200',
-                'from-cyan-500/15 to-sky-500/5 border-cyan-200',
-                'from-rose-500/15 to-red-500/5 border-rose-200',
-                'from-violet-500/15 to-fuchsia-500/5 border-violet-200',
-                'from-slate-500/15 to-slate-700/5 border-slate-200',
-              ] as const;
-              return (
-                <div
-                  key={card.label}
-                  className={`rounded-2xl border bg-gradient-to-br p-5 shadow-sm transition-transform hover:-translate-y-0.5 dark:border-slate-700 dark:bg-slate-900 ${accentTones[index]}`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{card.label}</p>
-                    <div className="rounded-full bg-white/80 p-2 text-slate-900 shadow-sm dark:bg-slate-800/80 dark:text-slate-100">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <p className="mt-4 text-3xl font-bold tracking-[-0.03em] text-slate-950 dark:text-white">{card.value}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">Run creation</p>
-                  <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">{copy.labels.controlPanel}</h3>
-                </div>
-                <div className="rounded-2xl bg-sky-50 px-3 py-2 text-right dark:bg-sky-950/40">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">{copy.labels.groupingMode}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{copy.groupingModes[generationForm.grouping_mode]}</p>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <SelectField
-                  label={copy.labels.frequency}
-                  value={generationForm.pay_period}
-                  onChange={(value) => setGenerationForm({ ...generationForm, pay_period: value as PayrollCreateRunsPayload['pay_period'] })}
-                  options={[
-                    { value: 'weekly', label: copy.frequencies.weekly },
-                    { value: 'biweekly', label: copy.frequencies.biweekly },
-                    { value: 'monthly', label: copy.frequencies.monthly },
-                  ]}
-                />
-                <SelectField
-                  label={copy.labels.groupingMode}
-                  value={generationForm.grouping_mode}
-                  onChange={(value) => setGenerationForm({ ...generationForm, grouping_mode: value as PayrollCreateRunsPayload['grouping_mode'] })}
-                  options={[
-                    { value: 'single', label: copy.groupingModes.single },
-                    { value: 'unit', label: copy.groupingModes.unit },
-                    { value: 'business', label: copy.groupingModes.business },
-                  ]}
-                />
-                <DateField
-                  label={copy.labels.periodStart}
-                  value={generationForm.period_start_date}
-                  onChange={(value) => setGenerationForm({ ...generationForm, period_start_date: value })}
-                />
-                <DateField
-                  label={copy.labels.periodEnd}
-                  value={generationForm.period_end_date}
-                  onChange={() => {}}
-                  disabled
-                  helperText={copy.labels.derivedEndDateHint}
-                />
-              </div>
-              <div className="mt-5">
-                <Button
-                  onClick={() => void handleGenerateRuns()}
-                  disabled={isSaving}
-                  className="gap-2 rounded-xl bg-slate-950 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
-                >
-                  {activeBusyKind === 'generate-runs' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                  {copy.labels.generate}
-                </Button>
-              </div>
+          <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="mb-4 flex items-center gap-2">
+              <Filter className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <h3 className="text-base font-bold text-slate-800 dark:text-white">{copy.labels.filters}</h3>
             </div>
-
-            <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{copy.labels.filters}</h3>
-              </div>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <SelectField
-                  label={copy.labels.filterStatus}
-                  value={filters.status}
-                  onChange={(value) => setFilters({ ...filters, status: value })}
-                  options={[
-                    { value: '', label: copy.labels.all },
-                    { value: 'draft', label: copy.statuses.draft },
-                    { value: 'processed', label: copy.statuses.processed },
-                    { value: 'approved', label: copy.statuses.approved },
-                    { value: 'paid', label: copy.statuses.paid },
-                    { value: 'cancelled', label: copy.statuses.cancelled },
-                  ]}
-                />
-                <SelectField
-                  label={copy.labels.frequency}
-                  value={filters.pay_period}
-                  onChange={(value) => setFilters({ ...filters, pay_period: value })}
-                  options={[
-                    { value: '', label: copy.labels.all },
-                    { value: 'weekly', label: copy.frequencies.weekly },
-                    { value: 'biweekly', label: copy.frequencies.biweekly },
-                    { value: 'monthly', label: copy.frequencies.monthly },
-                  ]}
-                />
-                <SelectField
-                  label={copy.labels.groupingMode}
-                  value={filters.grouping_mode}
-                  onChange={(value) => setFilters({ ...filters, grouping_mode: value })}
-                  options={[
-                    { value: '', label: copy.labels.all },
-                    { value: 'single', label: copy.groupingModes.single },
-                    { value: 'unit', label: copy.groupingModes.unit },
-                    { value: 'business', label: copy.groupingModes.business },
-                  ]}
-                />
-                <SelectField
-                  label={copy.labels.unit}
-                  value={filters.unit_id}
-                  onChange={(value) => setFilters({ ...filters, unit_id: value })}
-                  options={[
-                    { value: '', label: copy.labels.all },
-                    ...units.map((unit) => ({ value: String(unit.id), label: unit.name })),
-                  ]}
-                />
-                <SelectField
-                  label={copy.labels.business}
-                  value={filters.business_id}
-                  onChange={(value) => setFilters({ ...filters, business_id: value })}
-                  options={[
-                    { value: '', label: copy.labels.all },
-                    ...businesses.map((business) => ({ value: String(business.id), label: business.name })),
-                  ]}
-                />
-                <DateField
-                  label={copy.labels.periodFrom}
-                  value={filters.period_from}
-                  onChange={(value) => setFilters({ ...filters, period_from: value })}
-                />
-                <DateField
-                  label={copy.labels.periodTo}
-                  value={filters.period_to}
-                  onChange={(value) => setFilters({ ...filters, period_to: value })}
-                />
-              </div>
-              <div className="mt-5">
-                <Button variant="outline" onClick={() => void applyFilters()} disabled={isSaving} className="gap-2 rounded-xl">
-                  {activeBusyKind === 'refresh' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  {copy.refresh}
-                </Button>
-              </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <SelectField
+                label={copy.labels.period}
+                value={filters.period_range}
+                onChange={(value) => setFilters({ ...filters, period_range: value })}
+                options={[
+                  { value: 'this_month', label: copy.labels.periodThisMonth },
+                  { value: 'last_month', label: copy.labels.periodLastMonth },
+                  { value: 'two_months_ago', label: copy.labels.periodTwoMonthsAgo },
+                  { value: 'all_year', label: copy.labels.periodAllYear },
+                  { value: 'custom', label: copy.labels.periodCustom },
+                ]}
+              />
+              {filters.period_range === 'custom' && (
+                <>
+                  <DateField
+                    label={copy.labels.periodFrom}
+                    value={filters.period_from}
+                    onChange={(value) => setFilters({ ...filters, period_from: value })}
+                  />
+                  <DateField
+                    label={copy.labels.periodTo}
+                    value={filters.period_to}
+                    onChange={(value) => setFilters({ ...filters, period_to: value })}
+                  />
+                </>
+              )}
+              <SelectField
+                label={copy.labels.frequency}
+                value={filters.pay_period}
+                onChange={(value) => setFilters({ ...filters, pay_period: value })}
+                options={[
+                  { value: '', label: copy.labels.all },
+                  { value: 'weekly', label: copy.frequencies.weekly },
+                  { value: 'biweekly', label: copy.frequencies.biweekly },
+                  { value: 'monthly', label: copy.frequencies.monthly },
+                ]}
+              />
+              <SelectField
+                label={copy.labels.payrollType}
+                value={filters.grouping_mode}
+                onChange={(value) => setFilters({ ...filters, grouping_mode: value })}
+                options={[
+                  { value: '', label: copy.labels.all },
+                  { value: 'single', label: copy.groupingModes.single },
+                  { value: 'unit', label: copy.groupingModes.unit },
+                  { value: 'business', label: copy.groupingModes.business },
+                ]}
+              />
+              <SelectField
+                label={copy.labels.unit}
+                value={filters.unit_id}
+                onChange={(value) => setFilters({ ...filters, unit_id: value })}
+                options={[
+                  { value: '', label: copy.labels.all },
+                  ...units.map((unit) => ({ value: String(unit.id), label: unit.name })),
+                ]}
+              />
+              <SelectField
+                label={copy.labels.business}
+                value={filters.business_id}
+                onChange={(value) => setFilters({ ...filters, business_id: value })}
+                options={[
+                  { value: '', label: copy.labels.all },
+                  ...businesses.map((business) => ({ value: String(business.id), label: business.name })),
+                ]}
+              />
+              <SelectField
+                label={copy.labels.status}
+                value={filters.status}
+                onChange={(value) => setFilters({ ...filters, status: value })}
+                options={[
+                  { value: '', label: copy.labels.all },
+                  { value: 'draft', label: copy.statuses.draft },
+                  { value: 'processed', label: copy.statuses.processed },
+                  { value: 'approved', label: copy.statuses.approved },
+                  { value: 'paid', label: copy.statuses.paid },
+                  { value: 'cancelled', label: copy.statuses.cancelled },
+                ]}
+              />
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-700">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -1144,76 +2109,163 @@ export default function Nomina() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 dark:bg-slate-800/60">
-                  <tr>
-                    <HeaderCell>{copy.labels.currentRun}</HeaderCell>
-                    <HeaderCell>{copy.labels.groupingMode}</HeaderCell>
-                    <HeaderCell>{copy.labels.payPeriod}</HeaderCell>
-                    <HeaderCell>{copy.labels.employees}</HeaderCell>
-                    <HeaderCell>{copy.labels.gross}</HeaderCell>
-                    <HeaderCell>{copy.labels.net}</HeaderCell>
-                    <HeaderCell>{copy.labels.status}</HeaderCell>
-                    <HeaderCell>{copy.labels.detail}</HeaderCell>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {runs.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                        {copy.labels.noRuns}
-                      </td>
-                    </tr>
-                  ) : (
-                    runs.map((run) => (
-                      <tr key={run.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <BodyCell>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)} → {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">#{run.id}</div>
-                        </BodyCell>
-                        <BodyCell>{run.grouping_label || copy.groupingModes[run.grouping_mode]}</BodyCell>
-                        <BodyCell>{copy.frequencies[run.pay_period]}</BodyCell>
-                        <BodyCell>{run.employees_count}</BodyCell>
-                        <BodyCell>{formatCurrency(run.gross_amount, currentLanguage.code)}</BodyCell>
-                        <BodyCell>{formatCurrency(run.net_amount, currentLanguage.code)}</BodyCell>
-                        <BodyCell>
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            run.status === 'paid'
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
-                              : run.status === 'cancelled'
-                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                                : run.status === 'approved'
-                                  ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300'
-                                  : run.status === 'processed'
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                          }`}>
-                            {copy.statuses[run.status]}
-                          </span>
-                        </BodyCell>
-                        <BodyCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" disabled={isSaving} onClick={() => void openRunDetail(run.id)}>
-                              {run.status === 'draft' ? <Pencil className="h-4 w-4" /> : <Wallet className="h-4 w-4" />}
-                            </Button>
-                            <Button variant="ghost" size="icon" disabled={isSaving} onClick={() => void handleDownload('csv', run)}>
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" disabled={isSaving} onClick={() => void handleDownload('pdf', run)}>
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </BodyCell>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+            <Table className="min-w-[1400px]">
+              <TableHeader>
+                <TableRow className="border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
+                  <TableHead
+                    onClick={() => handleSortColumn('period')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.period}
+                    <SortIndicator column="period" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('frequency')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.frequency}
+                    <SortIndicator column="frequency" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('payrollType')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.payrollType}
+                    <SortIndicator column="payrollType" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('employees')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.employees}
+                    <SortIndicator column="employees" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('totalAmount')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.totalAmount}
+                    <SortIndicator column="totalAmount" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('jurisdiction')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.jurisdiction}
+                    <SortIndicator column="jurisdiction" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('unit')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.unit}
+                    <SortIndicator column="unit" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('business')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.business}
+                    <SortIndicator column="business" />
+                  </TableHead>
+                  <TableHead
+                    onClick={() => handleSortColumn('status')}
+                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    {copy.labels.status}
+                    <SortIndicator column="status" />
+                  </TableHead>
+                  <TableHead className="px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 dark:text-slate-400">
+                    ACTIONS
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedRuns.length === 0 ? (
+                  <TableRow className="border-slate-200 dark:border-slate-700">
+                    <TableCell colSpan={10} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+                      {copy.labels.noRuns}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedRuns.map((run) => (
+                    <TableRow key={run.id} className="border-slate-200 dark:border-slate-700">
+                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
+                        {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)} → {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
+                        {copy.frequencies[run.pay_period]}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
+                        {copy.groupingModes[run.grouping_mode]}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle font-medium text-slate-900 dark:text-white">
+                        {run.employees_count}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle font-medium text-slate-900 dark:text-white">
+                        {run.net_amount.toLocaleString(currentLanguage.code, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
+                        {resolveRunJurisdictionLabel(run)}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
+                        {resolveRunUnitLabel(run)}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
+                        {resolveRunBusinessLabel(run)}
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle">
+                        <select
+                          value={run.status}
+                          onChange={(e) => handleStatusChange(run, e.target.value as PayrollRunSummary['status'])}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:border-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:hover:border-slate-500"
+                          disabled={isSaving}
+                        >
+                          <option value="draft">Review</option>
+                          <option value="processed">Processed</option>
+                          <option value="approved">Approved</option>
+                          <option value="paid">Paid</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </TableCell>
+                      <TableCell className="px-5 py-6 align-middle">
+                        <div className="flex items-center gap-2">
+                          <PayrollTableActionButton
+                            icon={<Pencil className="h-4 w-4 text-amber-600" />}
+                            label={copy.labels.edit}
+                            onClick={() => void openEditRunModal(run)}
+                            disabled={isSaving}
+                            toneClassName="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                          />
+                          <PayrollTableActionButton
+                            icon={<PlayCircle className="h-4 w-4 text-blue-600" />}
+                            label={copy.labels.process}
+                            onClick={() => void handleProcessRunFromTable(run)}
+                            disabled={isSaving || run.status !== 'draft'}
+                            toneClassName="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-950/60"
+                          />
+                          <PayrollTableActionButton
+                            icon={<Printer className="h-4 w-4 text-violet-600" />}
+                            label={copy.labels.print}
+                            onClick={() => void handleDownload('pdf', run)}
+                            disabled={isSaving}
+                            toneClassName="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-950/60"
+                          />
+                          <PayrollTableActionButton
+                            icon={<Wallet className="h-4 w-4 text-emerald-600" />}
+                            label={copy.labels.pay}
+                            onClick={() => void handlePayRunFromTable(run)}
+                            disabled={isSaving || run.status !== 'approved'}
+                            toneClassName="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </section>
         </>
       )}
 
@@ -1226,6 +2278,62 @@ export default function Nomina() {
           onClose={() => setIsPreferencesDialogOpen(false)}
           onChange={setPreferencesForm}
           onSave={() => void handleSavePreferences()}
+        />
+      ) : null}
+
+      {isGenerateModalOpen ? (
+        <PayrollGenerateModal
+          isOpen={isGenerateModalOpen}
+          isSaving={activeBusyKind === 'generate-runs'}
+          employees={employees}
+          initialPayPeriod={(filters.pay_period || 'weekly') as PayrollCreateRunsPayload['pay_period']}
+          initialGroupingMode={(filters.grouping_mode || preferencesForm.grouping_mode) as PayrollCreateRunsPayload['grouping_mode']}
+          initialPeriodRange={filters.period_range as 'this_month' | 'last_month' | 'two_months_ago' | 'all_year' | 'custom'}
+          initialPeriodFrom={filters.period_from}
+          initialPeriodTo={filters.period_to}
+          copy={{
+            title: copy.labels.generate,
+            subtitle: copy.labels.controlPanel,
+            generate: copy.labels.generate,
+            cancel: copy.labels.cancel,
+            employees: copy.labels.employees,
+            period: copy.labels.period,
+            frequency: copy.labels.frequency,
+            groupingMode: copy.labels.groupingMode,
+            periodFrom: copy.labels.periodFrom,
+            periodTo: copy.labels.periodTo,
+            periodThisMonth: copy.labels.periodThisMonth,
+            periodLastMonth: copy.labels.periodLastMonth,
+            periodTwoMonthsAgo: copy.labels.periodTwoMonthsAgo,
+            periodAllYear: copy.labels.periodAllYear,
+            periodCustom: copy.labels.periodCustom,
+            noResults: currentLanguage.code.startsWith('es') ? 'No se encontraron colaboradores.' : 'No employees found.',
+            attendanceControls: currentLanguage.code.startsWith('es') ? 'Controles de asistencia y ausencias' : 'Attendance and absence controls',
+            earningsControls: currentLanguage.code.startsWith('es') ? 'Controles de percepciones y deducciones' : 'Earnings and deductions controls',
+            daily: copy.labels.daily,
+            weekly: copy.frequencies.weekly,
+            biweekly: copy.frequencies.biweekly,
+            monthly: copy.frequencies.monthly,
+            single: copy.groupingModes.single,
+            unit: copy.groupingModes.unit,
+            business: copy.groupingModes.business,
+          }}
+          onClose={() => setIsGenerateModalOpen(false)}
+          onGenerate={(draft) => void handleGenerateRuns(draft)}
+        />
+      ) : null}
+
+      {isRateConfigDialogOpen ? (
+        <PayrollRatesDialog
+          copy={copy}
+          isOpen={isRateConfigDialogOpen}
+          isSaving={isSaving}
+          selectedProfile={selectedRateProfile}
+          values={activeRateValues}
+          onClose={() => setIsRateConfigDialogOpen(false)}
+          onSelectProfile={setSelectedRateProfile}
+          onChangeValue={updateActiveRateValue}
+          onSave={() => void handleSaveRates()}
         />
       ) : null}
 
@@ -1257,6 +2365,31 @@ export default function Nomina() {
         />
       ) : null}
 
+      {isEditRunDialogOpen && editingRun && editRunForm ? (
+        <PayrollEditRunDialog
+          copy={copy}
+          run={editingRun}
+          form={editRunForm}
+          unitLabel={resolveRunUnitLabel(editingRun)}
+          businessLabel={resolveRunBusinessLabel(editingRun)}
+          jurisdictionLabel={resolveRunJurisdictionLabel(editingRun)}
+          detail={editRunDetail}
+          isDetailLoading={isEditRunDetailLoading}
+          isOpen={isEditRunDialogOpen}
+          isSaving={isSaving}
+          onClose={() => {
+            setIsEditRunDialogOpen(false);
+            setEditRunDetail(null);
+            setEditingRun(null);
+            setEditRunForm(null);
+          }}
+          onChange={setEditRunForm}
+          onSave={handleSaveEditedRun}
+          onPrint={() => void handleDownload('pdf', editingRun)}
+          locale={currentLanguage.code}
+        />
+      ) : null}
+
       <PayrollRunPrintPortal
         job={printJob}
         onComplete={() => setPrintJob(null)}
@@ -1265,74 +2398,993 @@ export default function Nomina() {
   );
 }
 
-function HeaderCell({ children }: { children: ReactNode }) {
-  return (
-    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-      {children}
-    </th>
-  );
-}
-
-function BodyCell({ children }: { children: ReactNode }) {
-  return <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{children}</td>;
-}
-
-function SelectField({
-  label,
-  value,
-  options,
+function PayrollEditRunDialog({
+  copy,
+  run,
+  form,
+  unitLabel,
+  businessLabel,
+  jurisdictionLabel,
+  detail,
+  isDetailLoading,
+  isOpen,
+  isSaving,
+  onClose,
   onChange,
+  onSave,
+  onPrint,
+  locale,
 }: {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  onChange: (value: string) => void;
+  copy: PayrollCopy;
+  run: PayrollRunSummary;
+  form: PayrollRunEditForm;
+  unitLabel: string;
+  businessLabel: string;
+  jurisdictionLabel: string;
+  detail: PayrollRunDetailResponse | null;
+  isDetailLoading: boolean;
+  isOpen: boolean;
+  isSaving: boolean;
+  onClose: () => void;
+  onChange: (value: PayrollRunEditForm) => void;
+  onSave: () => void;
+  onPrint: () => void;
+  locale: string;
 }) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
+  const runLines = detail?.lines ?? [];
+  const isSpanish = locale.startsWith('es');
+  const attendanceLabel = isSpanish ? 'Asistencia' : 'Attendance';
+  const noRowsLabel = isSpanish ? 'No hay colaboradores para esta corrida.' : 'No employees available for this run.';
+  const derivedJurisdiction = form.jurisdiction.trim() || jurisdictionLabel;
+  const statusLabel = copy.statuses[form.status];
+  const payrollTypeLabel = copy.groupingModes[run.grouping_mode];
+  const frequencyLabel = copy.frequencies[run.pay_period];
 
-function DateField({
-  label,
-  value,
-  onChange,
-  disabled = false,
-  helperText,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  helperText?: string;
-}) {
+  const runSummaryCards = [
+    {
+      key: 'period',
+      label: copy.labels.period,
+      value: `${formatDate(run.period_start_date, locale, run.period_start_date)} - ${formatDate(run.period_end_date, locale, run.period_end_date)}`,
+    },
+    {
+      key: 'frequency',
+      label: copy.labels.frequency,
+      value: frequencyLabel,
+    },
+    {
+      key: 'payrollType',
+      label: copy.labels.payrollType,
+      value: payrollTypeLabel,
+    },
+    {
+      key: 'unit',
+      label: copy.labels.unit,
+      value: unitLabel,
+    },
+    {
+      key: 'business',
+      label: copy.labels.business,
+      value: businessLabel,
+    },
+    {
+      key: 'jurisdiction',
+      label: copy.labels.jurisdiction,
+      value: derivedJurisdiction,
+    },
+    {
+      key: 'employees',
+      label: copy.labels.employees,
+      value: form.employeesCount,
+    },
+    {
+      key: 'totalAmount',
+      label: copy.labels.totalAmount,
+      value: Number.isFinite(Number(form.netAmount))
+        ? formatCurrency(Number(form.netAmount), locale)
+        : form.netAmount,
+    },
+    {
+      key: 'status',
+      label: copy.labels.status,
+      value: statusLabel,
+    },
+  ];
+
+  const aggregateLineAmount = (
+    line: PayrollRunLine,
+    category: PayrollLineItem['category'],
+  ) => line.items
+    .filter((item) => item.category === category)
+    .reduce((total, item) => total + item.amount, 0);
+
+  const [payrollViewMode, setPayrollViewMode] = useState<'simplified' | 'detailed'>('simplified');
+
+  const [sortColumn, setSortColumn] = useState<PayrollEditTableColumnKey>('employee');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Record<PayrollEditTableColumnKey, boolean>>({
+    unit: true,
+    business: true,
+    employee: true,
+    daysWorked: true,
+    daysAbsent: true,
+    overtime: true,
+    vacationDays: true,
+    paidHolidays: true,
+    bonusesCommissions: true,
+    loans: true,
+    totalEarnings: true,
+    totalDeductions: true,
+    taxPayroll: true,
+    netPay: true,
+  });
+
+  const parsedEmployeesCount = Number(form.employeesCount);
+  const seedRowsTarget = Number.isFinite(parsedEmployeesCount) && parsedEmployeesCount > 0
+    ? Math.min(Math.max(Math.trunc(parsedEmployeesCount), 4), 10)
+    : 6;
+  const seedNames = [
+    'Liam Parker',
+    'Sofia Bennett',
+    'Noah Rivera',
+    'Mia Thompson',
+    'Ethan Brooks',
+    'Emma Collins',
+    'Lucas Foster',
+    'Ava Ramirez',
+    'Oliver Cruz',
+    'Isabella Reed',
+  ];
+  const roundMoney = (value: number) => Math.round(value * 100) / 100;
+  const seedEarningBase = run.gross_amount > 0 ? run.gross_amount / seedRowsTarget : 920;
+  const seedDeductionBase = run.deductions_amount > 0 ? run.deductions_amount / seedRowsTarget : seedEarningBase * 0.16;
+
+  const seedRows: PayrollEditTableRow[] = Array.from({ length: seedRowsTarget }, (_, index) => {
+    const earningVariance = 1 + (((index % 5) - 2) * 0.06);
+    const deductionVariance = 1 + (((index % 4) - 1.5) * 0.05);
+    const totalEarnings = roundMoney(seedEarningBase * earningVariance);
+    const deductions = roundMoney(seedDeductionBase * deductionVariance);
+    const bonusesCommissions = roundMoney(totalEarnings * 0.04);
+    const loans = (index % 4 === 0) ? roundMoney(180 * earningVariance) : 0;
+    return {
+      id: `seed-${run.id}-${index + 1}`,
+      unit: unitLabel,
+      business: businessLabel,
+      employee: seedNames[index % seedNames.length],
+      daysWorked: 15 - ((run.id + index) % 3),
+      daysAbsent: (run.id + index) % 4 === 0 ? 1 : 0,
+      overtime: (run.id + index) % 3,
+      vacationDays: (run.id + index) % 5 === 0 ? 1 : 0,
+      paidHolidays: (run.id + index) % 6 === 0 ? 1 : 0,
+      bonusesCommissions,
+      loans,
+      totalEarnings,
+      totalDeductions: roundMoney(deductions + loans),
+      taxPayroll: (run.id + index) % 3 !== 0,
+      netPay: roundMoney(totalEarnings - deductions - loans),
+    };
+  });
+
+  const detailRows: PayrollEditTableRow[] = runLines.map((line) => {
+    const totalEarnings = aggregateLineAmount(line, 'earning');
+    const deductions = aggregateLineAmount(line, 'deduction');
+    const loanDeductions = line.items
+      .filter((item) => item.category === 'deduction' && /loan|prestamo/i.test(`${item.code} ${item.label}`))
+      .reduce((total, item) => total + item.amount, 0);
+    const bonusesCommissions = line.items
+      .filter((item) => item.category === 'earning' && /bonus|commission|bono|comision/i.test(`${item.code} ${item.label}`))
+      .reduce((total, item) => total + item.amount, 0);
+    return {
+      id: line.id,
+      unit: line.unit_name || unitLabel,
+      business: line.business_name || businessLabel,
+      employee: line.employee_name,
+      daysWorked: line.days_payable,
+      daysAbsent: line.absence_days,
+      overtime: line.overtime_hours,
+      vacationDays: line.leave_days,
+      paidHolidays: Math.max(0, line.leave_days > 0 ? 1 : 0),
+      bonusesCommissions,
+      loans: loanDeductions,
+      totalEarnings,
+      totalDeductions: deductions,
+      taxPayroll: line.include_in_fiscal,
+      netPay: roundMoney(Math.max(0, line.net_amount || (totalEarnings - deductions))),
+    };
+  });
+
+  const tableRows = detailRows.length > 0 ? detailRows : seedRows;
+  const isUsingSeedRows = detailRows.length === 0;
+
+  const [taxPayrollSelection, setTaxPayrollSelection] = useState<Record<string, boolean>>({});
+  const [attendanceSelection, setAttendanceSelection] = useState<Record<string, Partial<Record<PayrollEditableAttendanceField, number>>>>({});
+
+  const attendanceFieldMaxValues: Record<PayrollEditableAttendanceField, number> = {
+    daysWorked: 31,
+    daysAbsent: 31,
+    overtime: 24,
+    vacationDays: 31,
+    paidHolidays: 31,
+  };
+
+  useEffect(() => {
+    setTaxPayrollSelection((current) => {
+      let hasChanges = false;
+      const next = { ...current };
+      tableRows.forEach((row) => {
+        const rowId = String(row.id);
+        if (next[rowId] === undefined) {
+          next[rowId] = row.taxPayroll;
+          hasChanges = true;
+        }
+      });
+      return hasChanges ? next : current;
+    });
+  }, [tableRows]);
+
+  useEffect(() => {
+    setAttendanceSelection((current) => {
+      let hasChanges = false;
+      const next = { ...current };
+
+      tableRows.forEach((row) => {
+        const rowId = String(row.id);
+        if (next[rowId] === undefined) {
+          next[rowId] = {
+            daysWorked: row.daysWorked,
+            daysAbsent: row.daysAbsent,
+            overtime: row.overtime,
+            vacationDays: row.vacationDays,
+            paidHolidays: row.paidHolidays,
+          };
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? next : current;
+    });
+  }, [tableRows]);
+
+  const rowsWithTaxSelection = useMemo(
+    () => tableRows.map((row) => ({
+      ...row,
+      taxPayroll: taxPayrollSelection[String(row.id)] ?? row.taxPayroll,
+      daysWorked: attendanceSelection[String(row.id)]?.daysWorked ?? row.daysWorked,
+      daysAbsent: attendanceSelection[String(row.id)]?.daysAbsent ?? row.daysAbsent,
+      overtime: attendanceSelection[String(row.id)]?.overtime ?? row.overtime,
+      vacationDays: attendanceSelection[String(row.id)]?.vacationDays ?? row.vacationDays,
+      paidHolidays: attendanceSelection[String(row.id)]?.paidHolidays ?? row.paidHolidays,
+    })),
+    [tableRows, taxPayrollSelection, attendanceSelection],
+  );
+
+  const updateAttendanceField = (
+    rowId: string,
+    field: PayrollEditableAttendanceField,
+    value: number,
+  ) => {
+    setAttendanceSelection((current) => ({
+      ...current,
+      [rowId]: {
+        ...current[rowId],
+        [field]: value,
+      },
+    }));
+  };
+
+  // ── Detailed view state ──────────────────────────────────────────────────
+  const [detailedSortColumn, setDetailedSortColumn] = useState<PayrollDetailedColumnKey>('employee');
+  const [detailedSortDirection, setDetailedSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [isDetailedColumnsMenuOpen, setIsDetailedColumnsMenuOpen] = useState(false);
+  const [detailedAttendanceSelection, setDetailedAttendanceSelection] = useState<Record<string, Partial<Record<PayrollEditableAttendanceField, number>>>>({});
+  const allDetailedColumnsVisible: Record<PayrollDetailedColumnKey, boolean> = {
+    employee: true, rfc: true, curp: true, nss: true, unit: true, business: true,
+    daysWorked: true, daysAbsent: true, overtime: true, vacationDays: true, paidHolidays: true, totalPay: true,
+    dailyWage: true, baseWage: true, integratedDailyWage: true, baseContributionSalary: true,
+    periodSalary: true, overtimeAmount: true, bonusesCommissions: true, vacationBonus: true,
+    proportionalChristmasBonus: true, totalEarnings: true,
+    incomeTaxWithheld: true, imssEmployee: true, infonavitType: true, infonavitDiscount: true,
+    loans: true, otherDiscounts: true, totalDeductions: true, netPay: true,
+  };
+  const [visibleDetailedColumns, setVisibleDetailedColumns] = useState<Record<PayrollDetailedColumnKey, boolean>>(allDetailedColumnsVisible);
+
+  const seedRfcPrefixes = ['AAAB', 'BBBC', 'CCCD', 'DDDE', 'EEEF', 'FFFG', 'GGGX', 'HHHZ', 'IIIY', 'JJJW'];
+  const seedInfonTypes = ['Fixed Amount', 'Percentage', 'VSM', 'Fixed Amount', 'Percentage', 'VSM', 'Fixed Amount', 'Percentage', 'VSM', 'Fixed Amount'];
+
+  const detailedSeedRows: PayrollDetailedRow[] = Array.from({ length: seedRowsTarget }, (_, index) => {
+    const earningVariance = 1 + (((index % 5) - 2) * 0.06);
+    const deductionVariance = 1 + (((index % 4) - 1.5) * 0.05);
+    const baseWage = roundMoney(seedEarningBase * earningVariance * 0.82);
+    const dailyWage = roundMoney(baseWage / 30);
+    const integratedDailyWage = roundMoney(dailyWage * 1.0452);
+    const baseContribution = roundMoney(integratedDailyWage * 30);
+    const periodSalary = roundMoney(baseWage / 2);
+    const overtimeAmt = roundMoney(dailyWage * 0.5 * ((index % 3) + 1));
+    const bonuses = roundMoney(seedEarningBase * 0.04 * earningVariance);
+    const vacationBonus = roundMoney(periodSalary * 0.015);
+    const christmasBonus = roundMoney(periodSalary * 0.01);
+    const totalEarnings = roundMoney(periodSalary + overtimeAmt + bonuses + vacationBonus + christmasBonus);
+    const isr = roundMoney(totalEarnings * 0.07 * deductionVariance);
+    const imss = roundMoney(totalEarnings * 0.02 * deductionVariance);
+    const infonavitDiscount = roundMoney(baseContribution * 0.01);
+    const loans = (index % 4 === 0) ? roundMoney(200 * earningVariance) : 0;
+    const otherDiscounts = (index % 5 === 0) ? roundMoney(50 * earningVariance) : 0;
+    const totalDeductions = roundMoney(isr + imss + infonavitDiscount + loans + otherDiscounts);
+    return {
+      id: `seed-d-${run.id}-${index + 1}`,
+      employee: seedNames[index % seedNames.length],
+      rfc: `${seedRfcPrefixes[index % seedRfcPrefixes.length]}${String(800000 + run.id * 10 + index).padStart(6, '0')}`,
+      curp: `CURP${String(index + 1).padStart(14, '0')}`,
+      nss: String(10000000000 + run.id * 100 + index).padStart(11, '0'),
+      unit: unitLabel,
+      business: businessLabel,
+      daysWorked: 15 - ((run.id + index) % 3),
+      daysAbsent: (run.id + index) % 4 === 0 ? 1 : 0,
+      overtime: (index % 3) + 1,
+      vacationDays: (run.id + index) % 5 === 0 ? 1 : 0,
+      paidHolidays: (run.id + index) % 6 === 0 ? 1 : 0,
+      totalPay: roundMoney(totalEarnings - totalDeductions),
+      dailyWage,
+      baseWage,
+      integratedDailyWage,
+      baseContributionSalary: baseContribution,
+      periodSalary,
+      overtimeAmount: overtimeAmt,
+      bonusesCommissions: bonuses,
+      vacationBonus,
+      proportionalChristmasBonus: christmasBonus,
+      totalEarnings,
+      incomeTaxWithheld: isr,
+      imssEmployee: imss,
+      infonavitType: seedInfonTypes[index % seedInfonTypes.length],
+      infonavitDiscount,
+      loans,
+      otherDiscounts,
+      totalDeductions,
+      netPay: roundMoney(totalEarnings - totalDeductions),
+    };
+  });
+
+  const detailedDetailRows: PayrollDetailedRow[] = runLines.map((line, index) => {
+    const earnings = aggregateLineAmount(line, 'earning');
+    const deductions = aggregateLineAmount(line, 'deduction');
+    const dailyWage = line.hourly_rate_amount > 0 ? roundMoney(line.hourly_rate_amount * 8) : roundMoney(line.base_salary_amount / 30);
+    const integratedDailyWage = roundMoney(dailyWage * 1.0452);
+    const baseContribution = roundMoney(integratedDailyWage * 30);
+    const isr = line.items.find((item) => item.code === 'ISR')?.amount ?? roundMoney(earnings * 0.07);
+    const imss = line.items.find((item) => item.code === 'IMSS_EMP')?.amount ?? roundMoney(earnings * 0.02);
+    const infonavitDiscount = line.items.find((item) => item.code === 'INFONAVIT')?.amount ?? 0;
+    return {
+      id: line.id,
+      employee: line.employee_name,
+      rfc: `RFC${String(index + 1).padStart(13, '0')}`,
+      curp: `CURP${String(index + 1).padStart(14, '0')}`,
+      nss: String(10000000000 + index).padStart(11, '0'),
+      unit: line.unit_name || unitLabel,
+      business: line.business_name || businessLabel,
+      daysWorked: line.days_payable,
+      daysAbsent: line.absence_days,
+      overtime: line.overtime_hours,
+      vacationDays: line.leave_days,
+      paidHolidays: Math.max(0, line.leave_days > 0 ? 1 : 0),
+      totalPay: line.net_amount,
+      dailyWage,
+      baseWage: line.base_salary_amount,
+      integratedDailyWage,
+      baseContributionSalary: baseContribution,
+      periodSalary: roundMoney(line.base_salary_amount / 2),
+      overtimeAmount: roundMoney(line.overtime_hours * dailyWage * 2),
+      bonusesCommissions: 0,
+      vacationBonus: 0,
+      proportionalChristmasBonus: 0,
+      totalEarnings: earnings,
+      incomeTaxWithheld: isr,
+      imssEmployee: imss,
+      infonavitType: 'Fixed Amount',
+      infonavitDiscount,
+      loans: 0,
+      otherDiscounts: roundMoney(deductions - isr - imss - infonavitDiscount),
+      totalDeductions: deductions,
+      netPay: line.net_amount,
+    };
+  });
+
+  const detailedTableRows = detailedDetailRows.length > 0 ? detailedDetailRows : detailedSeedRows;
+
+  useEffect(() => {
+    setDetailedAttendanceSelection((current) => {
+      let hasChanges = false;
+      const next = { ...current };
+
+      detailedTableRows.forEach((row) => {
+        const rowId = String(row.id);
+        if (next[rowId] === undefined) {
+          next[rowId] = {
+            daysWorked: row.daysWorked,
+            daysAbsent: row.daysAbsent,
+            overtime: row.overtime,
+            vacationDays: row.vacationDays,
+            paidHolidays: row.paidHolidays,
+          };
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? next : current;
+    });
+  }, [detailedTableRows]);
+
+  const detailedRowsWithAttendance = useMemo(
+    () => detailedTableRows.map((row) => ({
+      ...row,
+      daysWorked: detailedAttendanceSelection[String(row.id)]?.daysWorked ?? row.daysWorked,
+      daysAbsent: detailedAttendanceSelection[String(row.id)]?.daysAbsent ?? row.daysAbsent,
+      overtime: detailedAttendanceSelection[String(row.id)]?.overtime ?? row.overtime,
+      vacationDays: detailedAttendanceSelection[String(row.id)]?.vacationDays ?? row.vacationDays,
+      paidHolidays: detailedAttendanceSelection[String(row.id)]?.paidHolidays ?? row.paidHolidays,
+    })),
+    [detailedTableRows, detailedAttendanceSelection],
+  );
+
+  const detailedColumns: Array<{ key: PayrollDetailedColumnKey; label: string }> = [
+    { key: 'employee', label: copy.labels.employee },
+    { key: 'rfc', label: copy.labels.rfc },
+    { key: 'curp', label: copy.labels.curp },
+    { key: 'nss', label: copy.labels.nss },
+    { key: 'unit', label: copy.labels.unit },
+    { key: 'business', label: copy.labels.business },
+    { key: 'daysWorked', label: copy.labels.daysWorked },
+    { key: 'daysAbsent', label: copy.labels.daysAbsent },
+    { key: 'overtime', label: copy.labels.overtime },
+    { key: 'vacationDays', label: copy.labels.vacationDays },
+    { key: 'paidHolidays', label: copy.labels.paidHolidays },
+    { key: 'totalPay', label: copy.labels.totalPay },
+    { key: 'dailyWage', label: copy.labels.dailyWage },
+    { key: 'baseWage', label: copy.labels.baseWage },
+    { key: 'integratedDailyWage', label: copy.labels.integratedDailyWage },
+    { key: 'baseContributionSalary', label: copy.labels.baseContributionSalary },
+    { key: 'periodSalary', label: copy.labels.periodSalary },
+    { key: 'overtimeAmount', label: copy.labels.overtimeAmount },
+    { key: 'bonusesCommissions', label: copy.labels.bonusesCommissions },
+    { key: 'vacationBonus', label: copy.labels.vacationBonus },
+    { key: 'proportionalChristmasBonus', label: copy.labels.proportionalChristmasBonus },
+    { key: 'totalEarnings', label: copy.labels.totalEarnings },
+    { key: 'incomeTaxWithheld', label: copy.labels.incomeTaxWithheld },
+    { key: 'imssEmployee', label: copy.labels.imssEmployee },
+    { key: 'infonavitType', label: copy.labels.infonavitType },
+    { key: 'infonavitDiscount', label: copy.labels.infonavitDiscount },
+    { key: 'loans', label: copy.labels.loans },
+    { key: 'otherDiscounts', label: copy.labels.otherDiscounts },
+    { key: 'totalDeductions', label: copy.labels.totalDeductions },
+    { key: 'netPay', label: copy.labels.netPay },
+  ];
+
+  const sortedDetailedRows = useMemo(() => {
+    const rows = [...detailedRowsWithAttendance];
+    rows.sort((a, b) => {
+      const av = a[detailedSortColumn];
+      const bv = b[detailedSortColumn];
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return detailedSortDirection === 'asc' ? av - bv : bv - av;
+      }
+      return detailedSortDirection === 'asc'
+        ? String(av).localeCompare(String(bv))
+        : String(bv).localeCompare(String(av));
+    });
+    return rows;
+  }, [detailedRowsWithAttendance, detailedSortColumn, detailedSortDirection]);
+
+  const toggleDetailedSort = (column: PayrollDetailedColumnKey) => {
+    if (detailedSortColumn === column) {
+      setDetailedSortDirection((cur) => (cur === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setDetailedSortColumn(column);
+    setDetailedSortDirection('asc');
+  };
+
+  const columns: Array<{ key: PayrollEditTableColumnKey; label: string }> = [
+    { key: 'unit', label: copy.labels.unit },
+    { key: 'business', label: copy.labels.business },
+    { key: 'employee', label: copy.labels.employee },
+    { key: 'daysWorked', label: copy.labels.daysWorked },
+    { key: 'daysAbsent', label: copy.labels.daysAbsent },
+    { key: 'overtime', label: copy.labels.overtime },
+    { key: 'vacationDays', label: copy.labels.vacationDays },
+    { key: 'paidHolidays', label: copy.labels.paidHolidays },
+    { key: 'bonusesCommissions', label: copy.labels.bonusesCommissions },
+    { key: 'loans', label: copy.labels.loans },
+    { key: 'totalEarnings', label: copy.labels.totalEarnings },
+    { key: 'totalDeductions', label: copy.labels.totalDeductions },
+    { key: 'netPay', label: copy.labels.netPay },
+    { key: 'taxPayroll', label: copy.labels.taxPayroll },
+  ];
+
+  const formatAmount = (value: number) => value.toLocaleString(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const detailedVisibleColumns = detailedColumns.filter((column) => visibleDetailedColumns[column.key]);
+
+  const sortedRows = useMemo(() => {
+    const rows = [...rowsWithTaxSelection];
+    rows.sort((left, right) => {
+      const leftValue = left[sortColumn];
+      const rightValue = right[sortColumn];
+
+      if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+        return sortDirection === 'asc' ? leftValue - rightValue : rightValue - leftValue;
+      }
+
+      if (typeof leftValue === 'boolean' && typeof rightValue === 'boolean') {
+        return sortDirection === 'asc'
+          ? Number(leftValue) - Number(rightValue)
+          : Number(rightValue) - Number(leftValue);
+      }
+
+      return sortDirection === 'asc'
+        ? String(leftValue).localeCompare(String(rightValue))
+        : String(rightValue).localeCompare(String(leftValue));
+    });
+    return rows;
+  }, [rowsWithTaxSelection, sortColumn, sortDirection]);
+
+  const simplifiedVisibleColumns = columns.filter((column) => visibleColumns[column.key]);
+  const totalNetPay = sortedRows.reduce((sum, row) => sum + row.netPay, 0);
+  const totalDetailedNetPay = sortedDetailedRows.reduce((sum, row) => sum + row.netPay, 0);
+
+  const renderAttendanceSelect = (
+    rowId: string,
+    field: PayrollEditableAttendanceField,
+    value: number,
+  ) => (
+    <select
+      value={value}
+      onChange={(event) => updateAttendanceField(rowId, field, Number(event.target.value))}
+      disabled={isSaving}
+      className="h-8 w-full min-w-[84px] rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-800 outline-none focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+      aria-label={field}
+    >
+      {Array.from({ length: attendanceFieldMaxValues[field] + 1 }, (_, option) => (
+        <option key={option} value={option}>{option}</option>
+      ))}
+    </select>
+  );
+
+  const updateDetailedAttendanceField = (
+    rowId: string,
+    field: PayrollEditableAttendanceField,
+    value: number,
+  ) => {
+    setDetailedAttendanceSelection((current) => ({
+      ...current,
+      [rowId]: {
+        ...current[rowId],
+        [field]: value,
+      },
+    }));
+  };
+
+  const renderDetailedAttendanceSelect = (
+    rowId: string,
+    field: PayrollEditableAttendanceField,
+    value: number,
+  ) => (
+    <select
+      value={value}
+      onChange={(event) => updateDetailedAttendanceField(rowId, field, Number(event.target.value))}
+      disabled={isSaving}
+      className="h-8 w-full min-w-[78px] rounded-md border border-slate-200 bg-white px-2 text-center text-sm text-slate-800 outline-none focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+      aria-label={field}
+    >
+      {Array.from({ length: attendanceFieldMaxValues[field] + 1 }, (_, option) => (
+        <option key={option} value={option}>{option}</option>
+      ))}
+    </select>
+  );
+
+  const toggleSort = (column: PayrollEditTableColumnKey) => {
+    if (sortColumn === column) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortColumn(column);
+    setSortDirection('asc');
+  };
+
   return (
-    <div>
-      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-      <input
-        type="date"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
-      />
-      {helperText ? (
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{helperText}</p>
-      ) : null}
-    </div>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        onClose();
+      }
+    }}>
+      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 z-[85] flex h-screen !w-screen max-h-none !max-w-none sm:!max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-none dark:bg-slate-900 [&>button]:hidden">
+        <header className="border-b border-white/20 bg-[#143675] px-6 py-5 text-white">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="text-2xl font-semibold tracking-tight">
+                {copy.labels.edit} #{run.id} · {derivedJurisdiction}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-sm text-blue-100">
+                {copy.labels.period}: {formatDate(run.period_start_date, locale, run.period_start_date)} - {formatDate(run.period_end_date, locale, run.period_end_date)}
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/50 bg-white/10 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label={copy.labels.close}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 dark:bg-slate-950/40">
+          <div className="space-y-5 px-6 py-5">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {runSummaryCards.map((card) => (
+                  <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/80">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{card.label}</p>
+                    {card.key === 'status' ? (
+                      <select
+                        value={form.status}
+                        onChange={(event) => onChange({
+                          ...form,
+                          status: event.target.value as PayrollRunSummary['status'],
+                        })}
+                        disabled={isSaving}
+                        className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                        aria-label={copy.labels.status}
+                      >
+                        <option value="draft">{copy.statuses.draft}</option>
+                        <option value="processed">{copy.statuses.processed}</option>
+                        <option value="approved">{copy.statuses.approved}</option>
+                        <option value="paid">{copy.statuses.paid}</option>
+                        <option value="cancelled">{copy.statuses.cancelled}</option>
+                      </select>
+                    ) : (
+                      <p className="mt-1 truncate text-sm font-medium text-slate-900 dark:text-white" title={String(card.value)}>{card.value}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/50">
+              <div className="relative flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {copy.labels.employees} · {attendanceLabel} · {copy.labels.gross} / {copy.labels.deductions}
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {/* View mode toggle */}
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setPayrollViewMode('simplified')}
+                      className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'simplified'
+                        ? 'bg-[#143675] text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                        }`}
+                    >
+                      {copy.labels.simplifiedPayroll}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayrollViewMode('detailed')}
+                      className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'detailed'
+                        ? 'bg-[#143675] text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                        }`}
+                    >
+                      {copy.labels.detailedPayroll}
+                    </button>
+                  </div>
+
+                </div>
+
+                {/* Simplified columns dropdown */}
+                {isColumnsMenuOpen ? (
+                  <div className="absolute right-4 top-12 z-20 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {copy.labels.columns}
+                    </p>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {columns.map((column) => (
+                        <label key={column.key} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns[column.key]}
+                            onChange={(event) => {
+                              setVisibleColumns((current) => ({
+                                ...current,
+                                [column.key]: event.target.checked,
+                              }));
+                            }}
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
+                          />
+                          <span>{column.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Detailed columns dropdown */}
+                {isDetailedColumnsMenuOpen ? (
+                  <div className="absolute right-4 top-12 z-20 max-h-[320px] w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {copy.labels.columns}
+                    </p>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {detailedColumns.map((column) => (
+                        <label key={column.key} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
+                          <input
+                            type="checkbox"
+                            checked={visibleDetailedColumns[column.key]}
+                            onChange={(event) => {
+                              setVisibleDetailedColumns((current) => ({
+                                ...current,
+                                [column.key]: event.target.checked,
+                              }));
+                            }}
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
+                          />
+                          <span>{column.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {isDetailLoading ? (
+                <div className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                  <LoaderCircle className="mx-auto mb-3 h-5 w-5 animate-spin" />
+                  {copy.loading}
+                </div>
+              ) : payrollViewMode === 'simplified' ? (
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[1240px]">
+                    <TableHeader>
+                      <TableRow className="border-slate-200 bg-slate-50/90 dark:border-slate-700 dark:bg-slate-900/70">
+                        {simplifiedVisibleColumns.map((column) => (
+                          <TableHead key={column.key} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <button
+                              type="button"
+                              onClick={() => toggleSort(column.key)}
+                              className="inline-flex items-center gap-1 text-left"
+                            >
+                              <span>{column.label}</span>
+                              {sortColumn === column.key ? (
+                                sortDirection === 'asc' ? (
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                )
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5 opacity-30" />
+                              )}
+                            </button>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={simplifiedVisibleColumns.length || 1} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                            {noRowsLabel}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <>
+                          {sortedRows.map((row) => (
+                            <TableRow key={row.id} className="border-slate-200 dark:border-slate-700">
+                              {visibleColumns.unit ? <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{row.unit}</TableCell> : null}
+                              {visibleColumns.business ? <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{row.business}</TableCell> : null}
+                              {visibleColumns.employee ? <TableCell className="px-4 py-3 align-top font-medium text-slate-900 dark:text-white">{row.employee}</TableCell> : null}
+                              {visibleColumns.daysWorked ? <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{renderAttendanceSelect(String(row.id), 'daysWorked', row.daysWorked)}</TableCell> : null}
+                              {visibleColumns.daysAbsent ? <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{renderAttendanceSelect(String(row.id), 'daysAbsent', row.daysAbsent)}</TableCell> : null}
+                              {visibleColumns.overtime ? <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{renderAttendanceSelect(String(row.id), 'overtime', row.overtime)}</TableCell> : null}
+                              {visibleColumns.vacationDays ? <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{renderAttendanceSelect(String(row.id), 'vacationDays', row.vacationDays)}</TableCell> : null}
+                              {visibleColumns.paidHolidays ? <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{renderAttendanceSelect(String(row.id), 'paidHolidays', row.paidHolidays)}</TableCell> : null}
+                              {visibleColumns.bonusesCommissions ? <TableCell className="px-4 py-3 align-top font-medium text-emerald-700 dark:text-emerald-300">{formatAmount(row.bonusesCommissions)}</TableCell> : null}
+                              {visibleColumns.loans ? <TableCell className="px-4 py-3 align-top font-medium text-rose-700 dark:text-rose-300">{formatAmount(row.loans)}</TableCell> : null}
+                              {visibleColumns.totalEarnings ? <TableCell className="px-4 py-3 align-top font-medium text-emerald-700 dark:text-emerald-300">{formatAmount(row.totalEarnings)}</TableCell> : null}
+                              {visibleColumns.totalDeductions ? <TableCell className="px-4 py-3 align-top font-medium text-rose-700 dark:text-rose-300">{formatAmount(row.totalDeductions)}</TableCell> : null}
+                              {visibleColumns.netPay ? <TableCell className="px-4 py-3 align-top font-semibold text-slate-900 dark:text-slate-100">{formatAmount(row.netPay)}</TableCell> : null}
+                              {visibleColumns.taxPayroll ? (
+                                <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.taxPayroll}
+                                    onChange={(event) => {
+                                      const rowId = String(row.id);
+                                      setTaxPayrollSelection((current) => ({
+                                        ...current,
+                                        [rowId]: event.target.checked,
+                                      }));
+                                    }}
+                                    className="h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
+                                    aria-label={copy.labels.taxPayroll}
+                                  />
+                                </TableCell>
+                              ) : null}
+                            </TableRow>
+                          ))}
+
+                          {visibleColumns.netPay ? (
+                            <TableRow className="border-slate-300 bg-slate-100/80 dark:border-slate-600 dark:bg-slate-800/70">
+                              {simplifiedVisibleColumns.map((column, index) => {
+                                if (column.key === 'netPay') {
+                                  return (
+                                    <TableCell key={column.key} className="px-4 py-3 align-top font-bold text-[#143675] dark:text-blue-300">
+                                      {formatAmount(totalNetPay)}
+                                    </TableCell>
+                                  );
+                                }
+
+                                if (index === 0) {
+                                  return (
+                                    <TableCell key={column.key} className="px-4 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                                      {isSpanish ? 'Total' : 'Total'}
+                                    </TableCell>
+                                  );
+                                }
+
+                                return <TableCell key={column.key} className="px-4 py-3 align-top" />;
+                              })}
+                            </TableRow>
+                          ) : null}
+                        </>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                /* ── Detailed Payroll Table ─────────────────────────────────── */
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[3200px]">
+                    <TableHeader>
+                      <TableRow className="border-slate-200 bg-slate-50/90 dark:border-slate-700 dark:bg-slate-900/70">
+                        {detailedVisibleColumns.map((col) => (
+                          <TableHead key={col.key} className="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => toggleDetailedSort(col.key)}
+                              className="inline-flex items-center gap-1 text-left"
+                            >
+                              <span>{col.label}</span>
+                              {detailedSortColumn === col.key ? (
+                                detailedSortDirection === 'asc' ? (
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                )
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5 opacity-30" />
+                              )}
+                            </button>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedDetailedRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={detailedVisibleColumns.length || 1} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                            {noRowsLabel}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <>
+                          {sortedDetailedRows.map((row) => (
+                            <TableRow key={row.id} className="border-slate-200 dark:border-slate-700">
+                              {visibleDetailedColumns.employee ? <TableCell className="px-3 py-3 align-top font-medium text-slate-900 whitespace-nowrap dark:text-white">{row.employee}</TableCell> : null}
+                              {visibleDetailedColumns.rfc ? <TableCell className="px-3 py-3 align-top font-mono text-xs text-slate-700 whitespace-nowrap dark:text-slate-200">{row.rfc}</TableCell> : null}
+                              {visibleDetailedColumns.curp ? <TableCell className="px-3 py-3 align-top font-mono text-xs text-slate-700 whitespace-nowrap dark:text-slate-200">{row.curp}</TableCell> : null}
+                              {visibleDetailedColumns.nss ? <TableCell className="px-3 py-3 align-top font-mono text-xs text-slate-700 whitespace-nowrap dark:text-slate-200">{row.nss}</TableCell> : null}
+                              {visibleDetailedColumns.unit ? <TableCell className="px-3 py-3 align-top text-slate-700 whitespace-nowrap dark:text-slate-200">{row.unit}</TableCell> : null}
+                              {visibleDetailedColumns.business ? <TableCell className="px-3 py-3 align-top text-slate-700 whitespace-nowrap dark:text-slate-200">{row.business}</TableCell> : null}
+                              {visibleDetailedColumns.daysWorked ? <TableCell className="px-3 py-3 align-top text-center text-slate-700 dark:text-slate-200">{renderDetailedAttendanceSelect(String(row.id), 'daysWorked', row.daysWorked)}</TableCell> : null}
+                              {visibleDetailedColumns.daysAbsent ? <TableCell className="px-3 py-3 align-top text-center text-slate-700 dark:text-slate-200">{renderDetailedAttendanceSelect(String(row.id), 'daysAbsent', row.daysAbsent)}</TableCell> : null}
+                              {visibleDetailedColumns.overtime ? <TableCell className="px-3 py-3 align-top text-center text-slate-700 dark:text-slate-200">{renderDetailedAttendanceSelect(String(row.id), 'overtime', row.overtime)}</TableCell> : null}
+                              {visibleDetailedColumns.vacationDays ? <TableCell className="px-3 py-3 align-top text-center text-slate-700 dark:text-slate-200">{renderDetailedAttendanceSelect(String(row.id), 'vacationDays', row.vacationDays)}</TableCell> : null}
+                              {visibleDetailedColumns.paidHolidays ? <TableCell className="px-3 py-3 align-top text-center text-slate-700 dark:text-slate-200">{renderDetailedAttendanceSelect(String(row.id), 'paidHolidays', row.paidHolidays)}</TableCell> : null}
+                              {visibleDetailedColumns.totalPay ? <TableCell className="px-3 py-3 align-top text-right font-semibold text-slate-900 dark:text-slate-100">{formatAmount(row.totalPay)}</TableCell> : null}
+                              {visibleDetailedColumns.dailyWage ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.dailyWage)}</TableCell> : null}
+                              {visibleDetailedColumns.baseWage ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.baseWage)}</TableCell> : null}
+                              {visibleDetailedColumns.integratedDailyWage ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.integratedDailyWage)}</TableCell> : null}
+                              {visibleDetailedColumns.baseContributionSalary ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.baseContributionSalary)}</TableCell> : null}
+                              {visibleDetailedColumns.periodSalary ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.periodSalary)}</TableCell> : null}
+                              {visibleDetailedColumns.overtimeAmount ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.overtimeAmount)}</TableCell> : null}
+                              {visibleDetailedColumns.bonusesCommissions ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.bonusesCommissions)}</TableCell> : null}
+                              {visibleDetailedColumns.vacationBonus ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.vacationBonus)}</TableCell> : null}
+                              {visibleDetailedColumns.proportionalChristmasBonus ? <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(row.proportionalChristmasBonus)}</TableCell> : null}
+                              {visibleDetailedColumns.totalEarnings ? <TableCell className="px-3 py-3 align-top text-right font-medium text-emerald-700 dark:text-emerald-300">{formatAmount(row.totalEarnings)}</TableCell> : null}
+                              {visibleDetailedColumns.incomeTaxWithheld ? <TableCell className="px-3 py-3 align-top text-right text-rose-700 dark:text-rose-300">{formatAmount(row.incomeTaxWithheld)}</TableCell> : null}
+                              {visibleDetailedColumns.imssEmployee ? <TableCell className="px-3 py-3 align-top text-right text-rose-700 dark:text-rose-300">{formatAmount(row.imssEmployee)}</TableCell> : null}
+                              {visibleDetailedColumns.infonavitType ? <TableCell className="px-3 py-3 align-top text-slate-700 whitespace-nowrap dark:text-slate-200">{row.infonavitType}</TableCell> : null}
+                              {visibleDetailedColumns.infonavitDiscount ? <TableCell className="px-3 py-3 align-top text-right text-rose-700 dark:text-rose-300">{formatAmount(row.infonavitDiscount)}</TableCell> : null}
+                              {visibleDetailedColumns.loans ? <TableCell className="px-3 py-3 align-top text-right text-rose-700 dark:text-rose-300">{formatAmount(row.loans)}</TableCell> : null}
+                              {visibleDetailedColumns.otherDiscounts ? <TableCell className="px-3 py-3 align-top text-right text-rose-700 dark:text-rose-300">{formatAmount(row.otherDiscounts)}</TableCell> : null}
+                              {visibleDetailedColumns.totalDeductions ? <TableCell className="px-3 py-3 align-top text-right font-medium text-rose-700 dark:text-rose-300">{formatAmount(row.totalDeductions)}</TableCell> : null}
+                              {visibleDetailedColumns.netPay ? <TableCell className="px-3 py-3 align-top text-right font-semibold text-[#143675] dark:text-blue-300">{formatAmount(row.netPay)}</TableCell> : null}
+                            </TableRow>
+                          ))}
+
+                          {visibleDetailedColumns.netPay ? (
+                            <TableRow className="border-slate-300 bg-slate-100/80 dark:border-slate-600 dark:bg-slate-800/70">
+                              {detailedVisibleColumns.map((column, index) => {
+                                if (column.key === 'netPay') {
+                                  return (
+                                    <TableCell key={column.key} className="px-3 py-3 align-top text-right font-bold text-[#143675] dark:text-blue-300">
+                                      {formatAmount(totalDetailedNetPay)}
+                                    </TableCell>
+                                  );
+                                }
+
+                                if (index === 0) {
+                                  return (
+                                    <TableCell key={column.key} className="px-3 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                                      Total
+                                    </TableCell>
+                                  );
+                                }
+
+                                return <TableCell key={column.key} className="px-3 py-3 align-top" />;
+                              })}
+                            </TableRow>
+                          ) : null}
+                        </>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+
+        <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isSaving}
+            className="rounded-xl"
+          >
+            {copy.labels.cancel}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onPrint}
+            disabled={isSaving}
+            className="gap-2 rounded-xl"
+          >
+            <Printer className="h-4 w-4" />
+            {copy.labels.print}
+          </Button>
+          <Button
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            className="gap-2 rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+          >
+            <Save className="h-4 w-4" />
+            {copy.labels.save}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1345,7 +3397,7 @@ function PayrollPreferencesDialog({
   onChange,
   onSave,
 }: {
-  copy: typeof payrollCopy.en | typeof payrollCopy.es;
+  copy: PayrollCopy;
   isOpen: boolean;
   isSaving: boolean;
   form: PayrollPreferences;
@@ -1353,13 +3405,25 @@ function PayrollPreferencesDialog({
   onChange: (value: PayrollPreferences) => void;
   onSave: () => void;
 }) {
-  const rateFields = [
-    { key: 'isr_rate', label: 'ISR' },
-    { key: 'imss_employee_rate', label: 'IMSS employee' },
-    { key: 'infonavit_employee_rate', label: 'INFONAVIT employee' },
-    { key: 'imss_employer_rate', label: 'IMSS employer' },
-    { key: 'infonavit_employer_rate', label: 'INFONAVIT employer' },
-    { key: 'sar_employer_rate', label: 'SAR employer' },
+  const groupingOptions = [
+    {
+      key: 'single',
+      title: copy.groupingCards.single.title,
+      description: copy.groupingCards.single.description,
+      highlighted: true,
+    },
+    {
+      key: 'unit',
+      title: copy.groupingCards.unit.title,
+      description: copy.groupingCards.unit.description,
+      highlighted: false,
+    },
+    {
+      key: 'business',
+      title: copy.groupingCards.business.title,
+      description: copy.groupingCards.business.description,
+      highlighted: false,
+    },
   ] as const;
 
   return (
@@ -1368,72 +3432,516 @@ function PayrollPreferencesDialog({
         onClose();
       }
     }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{copy.labels.preferences}</DialogTitle>
-          <DialogDescription>{copy.labels.rates}</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <SelectField
-              label={copy.labels.groupingMode}
-              value={form.grouping_mode}
-              onChange={(value) => onChange({ ...form, grouping_mode: value as PayrollPreferences['grouping_mode'] })}
-              options={[
-                { value: 'single', label: copy.groupingModes.single },
-                { value: 'unit', label: copy.groupingModes.unit },
-                { value: 'business', label: copy.groupingModes.business },
-              ]}
-            />
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.defaultDailyHours}</label>
-              <input
-                type="number"
-                min="0.5"
-                step="0.25"
-                value={form.default_daily_hours}
-                onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <div className="flex items-end">
-              <label className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={form.pay_leave_days}
-                  onChange={(event) => onChange({ ...form, pay_leave_days: event.target.checked })}
-                />
-                {copy.labels.payLeaveDays}
-              </label>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {rateFields.map((field) => (
-              <div key={field.key}>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.00001"
-                  value={form[field.key]}
-                  onChange={(event) => onChange({ ...form, [field.key]: Number(event.target.value) })}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+      <DialogContent className="!flex h-[min(88vh,920px)] max-h-[calc(100vh-3rem)] max-w-[920px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
+        <div className="shrink-0 bg-[#143675] px-5 py-3 sm:px-6 sm:py-3.5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 pr-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">
+                <Settings className="h-5 w-5" />
               </div>
-            ))}
+              <div>
+                <DialogTitle className="text-[1.2rem] font-bold leading-tight text-white sm:text-[1.45rem]">
+                  {copy.labels.preferences}
+                </DialogTitle>
+              </div>
+            </div>
+            <DialogClose asChild>
+              <button
+                type="button"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </DialogClose>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" className="rounded-xl" onClick={onClose}>{copy.labels.close}</Button>
-          <Button onClick={onSave} disabled={isSaving} className="gap-2 rounded-xl">
-            {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {copy.labels.save}
-          </Button>
-        </DialogFooter>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-900/60">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="space-y-5">
+              <section className="rounded-[24px] border border-[#143675]/20 bg-[#143675]/5 p-5 dark:border-[#143675]/30 dark:bg-[#143675]/10">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-[#8fb2ff]">
+                    <Info className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <DialogDescription className="text-xl font-semibold leading-snug text-[#143675] dark:text-[#8fb2ff]">
+                      {copy.preferencesInfo.title}
+                    </DialogDescription>
+                    <div className="mt-4 space-y-3 text-base leading-8 text-slate-600 dark:text-slate-300">
+                      {copy.preferencesInfo.bullets.map((bullet) => (
+                        <p key={bullet}>• {bullet}</p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div>
+                  <h3 className="text-[1.15rem] font-bold text-slate-900 dark:text-white">
+                    {copy.preferencesInfo.selectionTitle}
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  {groupingOptions.map((option) => {
+                    const isSelected = form.grouping_mode === option.key;
+
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] })}
+                        className={`w-full rounded-[24px] border px-5 py-5 text-left transition-all ${isSelected
+                          ? 'border-[#143675] bg-[#143675]/5 shadow-sm ring-2 ring-[#143675]/10 dark:bg-[#143675]/10'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-800'
+                          }`}
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="max-w-3xl">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h4 className="text-2xl font-bold leading-tight text-slate-900 dark:text-white">
+                                {option.title}
+                              </h4>
+                              {option.highlighted ? (
+                                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-[#143675] dark:bg-slate-700 dark:text-slate-100">
+                                  {copy.labels.recommended}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">
+                              {option.description}
+                            </p>
+                          </div>
+                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border ${isSelected
+                            ? 'border-[#143675] bg-white text-[#143675] dark:bg-slate-900'
+                            : 'border-slate-300 bg-white text-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-600'
+                            }`}>
+                            <CheckCircle2 className="h-6 w-6" />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  {copy.labels.operationalSettings}
+                </h3>
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      {copy.labels.defaultDailyHours}
+                    </label>
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.25"
+                      value={form.default_daily_hours}
+                      onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-none focus:border-[#143675] focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <label className="inline-flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={form.pay_leave_days}
+                        onChange={(event) => onChange({ ...form, pay_leave_days: event.target.checked })}
+                        className="h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
+                      />
+                      {copy.labels.payLeaveDays}
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-start gap-3">
+                  <div className="text-xl">💡</div>
+                  <p className="text-base leading-8 text-slate-600 dark:text-slate-300">
+                    {copy.preferencesInfo.note}
+                  </p>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800 sm:px-6">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                className="h-11 rounded-2xl border-slate-200 bg-white px-5 text-base font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                onClick={onClose}
+              >
+                {copy.labels.cancel}
+              </Button>
+              <Button
+                onClick={onSave}
+                disabled={isSaving}
+                className="h-11 gap-2 rounded-2xl bg-[#143675] px-5 text-base font-semibold text-white hover:bg-[#0f2855]"
+              >
+                {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
+                {copy.labels.savePreferences}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PayrollRatesDialog({
+  copy,
+  isOpen,
+  isSaving,
+  selectedProfile,
+  values,
+  onClose,
+  onSelectProfile,
+  onChangeValue,
+  onSave,
+}: {
+  copy: PayrollCopy;
+  isOpen: boolean;
+  isSaving: boolean;
+  selectedProfile: PayrollRateProfileKey;
+  values: PayrollRateValues;
+  onClose: () => void;
+  onSelectProfile: (value: PayrollRateProfileKey) => void;
+  onChangeValue: (field: PayrollRateFieldKey, value: number) => void;
+  onSave: () => void;
+}) {
+  const fieldLabels = copy.rateConfiguration.fieldLabels[selectedProfile];
+  const [editorMode, setEditorMode] = useState<PayrollRateEditorMode>('preset');
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    setEditorMode('preset');
+  }, [isOpen, selectedProfile]);
+
+  const isSpanish = copy.labels.cancel === 'Cancelar';
+  const isCustomProfile = selectedProfile === 'custom';
+  const isAdvancedMode = editorMode === 'advanced';
+  const activeProfileName = copy.rateConfiguration.profiles[selectedProfile];
+  const activeProfileFlag = payrollRateProfileFlags[selectedProfile];
+  const headerTitle = `${copy.rateConfiguration.title} — ${activeProfileName}`;
+  const infoBlockText = copy.rateConfiguration.infoBlocks[selectedProfile];
+
+  const summaryStatus = isCustomProfile
+    ? (isSpanish ? 'Perfil personalizado' : 'Custom profile')
+    : isAdvancedMode
+      ? (isSpanish ? 'Ajustado por la empresa' : 'Company adjusted')
+      : (isSpanish ? 'Predeterminado oficial' : 'Official preset');
+
+  const summaryTone: 'success' | 'warning' | 'info' = isCustomProfile
+    ? 'warning'
+    : isAdvancedMode
+      ? 'info'
+      : 'success';
+
+  const iconByField: Record<PayrollRateFieldKey, typeof Wallet> = {
+    isr_rate: Wallet,
+    imss_employee_rate: ShieldCheck,
+    infonavit_employee_rate: CreditCard,
+    imss_employer_rate: ShieldCheck,
+    infonavit_employer_rate: CreditCard,
+    sar_employer_rate: Landmark,
+  };
+
+  const automaticFields: PayrollRateFieldKey[] = ['isr_rate', 'imss_employee_rate', 'imss_employer_rate'];
+  const fixedByLawFields: PayrollRateFieldKey[] = ['infonavit_employer_rate'];
+  const adjustableFields: PayrollRateFieldKey[] = ['infonavit_employee_rate', 'sar_employer_rate'];
+
+  const handlePercentInputChange = (field: PayrollRateFieldKey, nextValue: string) => {
+    onChangeValue(field, parseRateInputPercent(nextValue));
+  };
+
+  const renderPercentInput = (field: PayrollRateFieldKey) => (
+    <div className="w-32">
+      <div className="relative">
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          value={formatRateInputPercent(values[field])}
+          onChange={(event) => handlePercentInputChange(field, event.target.value)}
+          className="h-11 w-full rounded-xl border border-amber-200 bg-white pl-3 pr-9 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-[#143675] dark:border-amber-700/40 dark:bg-slate-800 dark:text-slate-100"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400 dark:text-slate-500">
+          %
+        </span>
+      </div>
+    </div>
+  );
+
+  const renderStatusBadge = (label: string, tone: 'success' | 'warning' | 'info') => {
+    const toneClasses = {
+      success: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-300',
+      warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300',
+      info: 'border-[#143675]/20 bg-[#143675]/10 text-[#143675] dark:border-[#143675]/30 dark:bg-[#143675]/20 dark:text-[#9fbeff]',
+    } as const;
+
+    return (
+      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${toneClasses[tone]}`}>
+        {tone === 'success' ? '🟢' : tone === 'warning' ? '🟡' : '🔵'}
+        <span className="ml-1.5">{label}</span>
+      </span>
+    );
+  };
+
+  const renderBreakdownButton = () => (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#143675] transition hover:border-[#143675]/30 hover:bg-[#143675]/5 dark:border-slate-600 dark:text-[#9fbeff] dark:hover:bg-[#143675]/15"
+    >
+      {copy.rateConfiguration.viewBreakdown}
+      <ChevronRight className="h-3.5 w-3.5" />
+    </button>
+  );
+
+  const componentCardClassName = 'rounded-2xl border bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5';
+
+  const renderAutomaticCard = (field: PayrollRateFieldKey, description: string) => {
+    const Icon = iconByField[field];
+    return (
+      <article key={field} className={`${componentCardClassName} border-emerald-100 dark:border-emerald-800/30`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <Icon className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{fieldLabels[field]}</h4>
+              <p className="mt-1 text-xs leading-6 text-slate-500 dark:text-slate-400">{description}</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {renderStatusBadge(copy.rateConfiguration.statusBadges.automatic, 'success')}
+            {renderBreakdownButton()}
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  const renderFixedCard = (field: PayrollRateFieldKey, description: string) => {
+    const Icon = iconByField[field];
+    return (
+      <article key={field} className={`${componentCardClassName} border-emerald-100 dark:border-emerald-800/30`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <Icon className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{fieldLabels[field]}</h4>
+              <p className="mt-1 text-xs leading-6 text-slate-500 dark:text-slate-400">{description}</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {renderStatusBadge(copy.rateConfiguration.statusBadges.fixedByLaw, 'success')}
+            <p className="text-xl font-bold text-slate-900 dark:text-white">{formatRateInputPercent(values[field])}%</p>
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  const renderAdjustableCard = (field: PayrollRateFieldKey, description: string) => {
+    const Icon = iconByField[field];
+    const hasValue = values[field] > 0;
+    const notConfiguredLabel = isSpanish ? 'No configurado' : 'Not configured';
+
+    return (
+      <article key={field} className={`${componentCardClassName} border-amber-100 dark:border-amber-800/30`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+              <Icon className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{fieldLabels[field]}</h4>
+              <p className="mt-1 text-xs leading-6 text-slate-500 dark:text-slate-400">{description}</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {renderStatusBadge(isSpanish ? 'Ajustable' : 'Adjustable', 'warning')}
+            {isAdvancedMode || isCustomProfile ? (
+              renderPercentInput(field)
+            ) : (
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                {hasValue ? `${formatRateInputPercent(values[field])}%` : notConfiguredLabel}
+              </p>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  const mexicoOverviewText = isSpanish
+    ? 'ISR: se calcula usando tablas fiscales oficiales. IMSS: se aplica automáticamente. INFONAVIT: depende de las condiciones del colaborador. SAR: es fijo por ley.'
+    : 'Income tax (ISR): calculated using official tax tables. Social security (IMSS): automatically applied. Housing (INFONAVIT): depends on employee conditions. Retirement (SAR): fixed by law.';
+
+  const automaticDescription = isSpanish
+    ? 'Este componente es calculado automáticamente por el sistema según reglas oficiales.'
+    : 'This component is calculated automatically by the system based on official rules.';
+  const fixedDescription = isSpanish
+    ? 'Este componente tiene una contribución fija definida por ley.'
+    : 'This component has a fixed contribution defined by law.';
+  const adjustableDescription = isSpanish
+    ? 'Este componente puede ser ajustado por la empresa cuando aplique.'
+    : 'This component can be adjusted by the company when needed.';
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        onClose();
+      }
+    }}>
+      <DialogContent className="!flex h-[min(88vh,940px)] max-h-[calc(100vh-3rem)] max-w-[980px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
+        <div className="shrink-0 bg-[#143675] px-5 py-3 sm:px-6 sm:py-3.5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="pr-4">
+              <DialogTitle className="text-[1.1rem] font-normal leading-tight text-white sm:text-[1.2rem]">
+                {headerTitle}
+              </DialogTitle>
+            </div>
+            <DialogClose asChild>
+              <button
+                type="button"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/70 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </DialogClose>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-900/60">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="space-y-5">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl" aria-hidden="true">{activeProfileFlag}</span>
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{activeProfileName}</h3>
+                      {renderStatusBadge(summaryStatus, summaryTone)}
+                    </div>
+                    <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+                      {isSpanish
+                        ? 'Entiende cómo se calcula la nómina en este país. La mayoría de los valores se aplican automáticamente con base en reglas oficiales.'
+                        : 'Understand how payroll is calculated in this country. Most values are automatically applied based on official rules.'}
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <select
+                      value={selectedProfile}
+                      onChange={(event) => onSelectProfile(event.target.value as PayrollRateProfileKey)}
+                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    >
+                      {payrollRateProfileKeys.map((profileKey) => (
+                        <option key={profileKey} value={profileKey}>
+                          {payrollRateProfileFlags[profileKey]} {copy.rateConfiguration.profiles[profileKey]}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100/90 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                      <button
+                        type="button"
+                        onClick={() => setEditorMode('preset')}
+                        className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${!isAdvancedMode
+                          ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
+                          }`}
+                      >
+                        {isSpanish ? 'Resumen' : 'Overview'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditorMode('advanced')}
+                        className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${isAdvancedMode
+                          ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
+                          }`}
+                      >
+                        {copy.rateConfiguration.modeLabels.advanced}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-[#143675]/12 bg-[#143675]/5 p-5 shadow-sm dark:border-[#143675]/30 dark:bg-[#143675]/10">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-[#9fbeff]">
+                    <Info className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+                    {selectedProfile === 'mexico' ? mexicoOverviewText : infoBlockText}
+                  </p>
+                </div>
+              </section>
+
+              {isAdvancedMode ? (
+                <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-200">
+                  {isSpanish
+                    ? 'Los cambios en modo Avanzado pueden sobrescribir reglas estándar de nómina.'
+                    : 'Changes in Advanced mode may override standard payroll rules.'}
+                </section>
+              ) : null}
+
+              <section className="space-y-3">
+                {automaticFields.map((field) => renderAutomaticCard(field, automaticDescription))}
+                {fixedByLawFields.map((field) => renderFixedCard(field, fixedDescription))}
+                {adjustableFields.map((field) => renderAdjustableCard(field, adjustableDescription))}
+              </section>
+
+              <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-[#8fb2ff]">
+                    <Info className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+                      {isSpanish
+                        ? 'Este perfil muestra qué componentes de nómina se calculan automáticamente y cuáles pueden personalizarse según tu empresa.'
+                        : 'This profile shows which payroll components are calculated automatically and which can be customized based on your company.'}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800 sm:px-6">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                className="h-11 rounded-2xl border-slate-200 bg-white px-5 text-base font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                onClick={onClose}
+              >
+                {copy.labels.cancel}
+              </Button>
+              <Button
+                onClick={onSave}
+                disabled={isSaving}
+                className="h-11 gap-2 rounded-2xl bg-[#143675] px-5 text-base font-semibold text-white hover:bg-[#0f2855]"
+              >
+                {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <SlidersHorizontal className="h-4 w-4" />}
+                {copy.rateConfiguration.saveAction}
+              </Button>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1552,11 +4060,10 @@ function PayrollRunDialog({
 
           {notice ? (
             <div
-              className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
-                notice.tone === 'success'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300'
-                  : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-300'
-              }`}
+              className={`mb-6 rounded-xl border px-4 py-3 text-sm ${notice.tone === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300'
+                : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-300'
+                }`}
             >
               {notice.message}
             </div>
@@ -1592,11 +4099,10 @@ function PayrollRunDialog({
                       key={line.id}
                       type="button"
                       onClick={() => onSelectLine(line.id)}
-                      className={`w-full rounded-lg border px-4 py-4 text-left transition-all ${
-                        selectedLineId === line.id
-                          ? 'border-blue-700 bg-blue-50 shadow-sm dark:border-blue-400 dark:bg-blue-950/20'
-                          : 'border-gray-200 bg-white hover:border-blue-300 dark:border-gray-700 dark:bg-gray-800'
-                      }`}
+                      className={`w-full rounded-lg border px-4 py-4 text-left transition-all ${selectedLineId === line.id
+                        ? 'border-blue-700 bg-blue-50 shadow-sm dark:border-blue-400 dark:bg-blue-950/20'
+                        : 'border-gray-200 bg-white hover:border-blue-300 dark:border-gray-700 dark:bg-gray-800'
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1861,11 +4367,3 @@ function PayrollRunDialog({
   );
 }
 
-function DetailMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/60">
-      <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-2 text-sm font-medium text-gray-900 dark:text-white">{value}</p>
-    </div>
-  );
-}
