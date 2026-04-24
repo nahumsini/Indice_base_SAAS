@@ -399,6 +399,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveKioskDevice(long companyId, long userId, Long kioskDeviceId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var code = stringValue(payload, "code");
         var name = stringValue(payload, "name", "nombre");
         if (code.isBlank() || name.isBlank()) {
@@ -513,6 +514,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> publicKioskIdentify(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
         var location = requirePublicKioskLocation(kioskDevice);
         var authMethod = normalizePublicKioskAuthMethod(stringValue(payload, "auth_method", "method_type"));
@@ -585,6 +587,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> publicKioskPunch(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
         var location = requirePublicKioskLocation(kioskDevice);
         var identificationToken = stringValue(payload, "identification_token");
@@ -656,6 +659,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveAccessProfile(long companyId, long userId, Long profileId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employeeId = parseLong(payload, "employee_id");
         if (employeeId == null || employeeId <= 0) {
             throw new IllegalArgumentException("employee_id is required.");
@@ -734,6 +738,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveAccessMethod(long companyId, Long methodId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var accessProfileId = parseLong(payload, "access_profile_id");
         if (accessProfileId == null || accessProfileId <= 0) {
             throw new IllegalArgumentException("access_profile_id is required.");
@@ -865,6 +870,7 @@ public class HrAttendanceService {
     }
 
     public Map<String, Object> extractCoordinatesFromMapLink(Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var rawMapUrl = stringValue(payload, "map_url", "mapUrl", "url", "link");
         if (rawMapUrl.isBlank()) {
             throw new IllegalArgumentException("map_url is required.");
@@ -886,6 +892,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveLocation(long companyId, long userId, Long locationId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var name = stringValue(payload, "name", "nombre");
         if (name.isBlank()) {
             throw new IllegalArgumentException("name is required.");
@@ -1081,6 +1088,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveScheduleTemplate(long companyId, long userId, Long templateId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var name = stringValue(payload, "name", "nombre");
         if (name.isBlank()) {
             throw new IllegalArgumentException("name is required.");
@@ -1206,6 +1214,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> bulkAssignScheduleTemplate(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var templateId = parseLong(payload, "template_id");
         if (templateId == null || templateId <= 0) {
             throw new IllegalArgumentException("template_id is required.");
@@ -1272,6 +1281,7 @@ public class HrAttendanceService {
     }
 
     public Map<String, Object> createPhotoUpload(long companyId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         if (!objectStorageService.isEnabled()) {
             throw new ObjectStorageDisabledException("Object storage is not enabled.");
         }
@@ -1309,6 +1319,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> createSelfPhotoUpload(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employee = resolveSessionAttendanceEmployee(companyId, userId);
         var normalizedPayload = new LinkedHashMap<String, Object>(payload);
         normalizedPayload.put("employee_id", employee.id());
@@ -1316,6 +1327,7 @@ public class HrAttendanceService {
     }
 
     public Map<String, Object> recordKioskEvent(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employeeId = parseLong(payload, "employee_id");
         if (employeeId == null || employeeId <= 0) {
             throw new IllegalArgumentException("employee_id is required.");
@@ -1441,6 +1453,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> recordSelfKioskEvent(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employee = resolveSessionAttendanceEmployee(companyId, userId);
         var normalizedPayload = new LinkedHashMap<String, Object>(payload);
         normalizedPayload.put("employee_id", employee.id());
@@ -1448,6 +1461,7 @@ public class HrAttendanceService {
     }
 
     public Map<String, Object> updateDailyRecord(long companyId, long userId, long employeeId, LocalDate date, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         loadAttendanceEmployee(companyId, employeeId);
         var targetStatusRaw = stringValue(payload, "status", "corrected_status");
         var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
@@ -1492,6 +1506,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> updateSelfDailyRecord(long companyId, long userId, LocalDate date, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employee = resolveSessionAttendanceEmployee(companyId, userId);
         return updateDailyRecord(companyId, userId, employee.id(), date, payload);
     }
@@ -3584,6 +3599,10 @@ public class HrAttendanceService {
         return value == null || value <= 0 ? null : value;
     }
 
+    private Map<String, Object> normalizePayload(Map<String, Object> payload) {
+        return payload == null ? Map.of() : payload;
+    }
+
     private String normalizeAuthMethod(String value) {
         var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         normalized = switch (normalized) {
@@ -3821,6 +3840,7 @@ public class HrAttendanceService {
     }
 
     private List<ScheduleTemplateDayDefinition> parseTemplateDays(Map<String, Object> payload, String scheduleMode) {
+        payload = normalizePayload(payload);
         var rawDays = payload.get("days");
         if (!(rawDays instanceof List<?> daysList) || daysList.isEmpty()) {
             throw new IllegalArgumentException("days is required.");
@@ -3921,6 +3941,7 @@ public class HrAttendanceService {
     }
 
     private boolean parseBoolean(Map<String, Object> payload, String key) {
+        payload = normalizePayload(payload);
         var value = payload.get(key);
         if (value instanceof Boolean bool) {
             return bool;

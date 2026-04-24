@@ -4,6 +4,15 @@ import { Checkbox } from './ui/checkbox';
 import { X, Search, Clock, AlertCircle, MapPin } from 'lucide-react';
 import { LoadingBarOverlay, runWithMinimumDuration } from './LoadingBarOverlay';
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from './ui/pagination';
+import {
   humanResourcesApi,
   type AttendanceControlAssignment,
   type AttendanceControlLocation,
@@ -45,6 +54,8 @@ const weekdayConfig = [
   { dayOfWeek: 6, dia: 'Sat' },
   { dayOfWeek: 7, dia: 'Sun' },
 ] as const;
+
+const collaboratorsPerPage = 10;
 
 const emptyScheduleDays = (): HorarioDiaDraft[] =>
   weekdayConfig.map((day) => ({
@@ -120,6 +131,7 @@ export function HorariosModal({
   const [appliedUnidadFilter, setAppliedUnidadFilter] = useState('');
   const [appliedNegocioFilter, setAppliedNegocioFilter] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
   const [modoHorario, setModoHorario] = useState<'Horario estricto' | 'Horario abierto'>('Horario estricto');
   const [toleranciaIngreso, setToleranciaIngreso] = useState(10);
@@ -149,6 +161,7 @@ export function HorariosModal({
     setAppliedUnidadFilter('');
     setAppliedNegocioFilter('');
     setSelectedEmployeeIds([]);
+    setCurrentPage(1);
     setSelectedTemplateName(selectedTemplate?.name ?? 'Custom schedule');
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
@@ -188,8 +201,61 @@ export function HorariosModal({
     return matchesSearch && matchesUnit && matchesBusiness;
   }), [appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, assignments]);
 
-  const allVisibleSelected = filteredAssignments.length > 0
-    && filteredAssignments.every((assignment) => selectedEmployeeIds.includes(assignment.employee_id));
+  const totalPages = Math.max(1, Math.ceil(filteredAssignments.length / collaboratorsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (safeCurrentPage - 1) * collaboratorsPerPage;
+  const pageEndIndex = pageStartIndex + collaboratorsPerPage;
+  const paginatedAssignments = filteredAssignments.slice(pageStartIndex, pageEndIndex);
+  const visibleEmployeeIds = paginatedAssignments.map((assignment) => assignment.employee_id);
+  const allVisibleSelected = visibleEmployeeIds.length > 0
+    && visibleEmployeeIds.every((employeeId) => selectedEmployeeIds.includes(employeeId));
+  const paginationStart = filteredAssignments.length === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = filteredAssignments.length === 0 ? 0 : Math.min(pageEndIndex, filteredAssignments.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, isOpen]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const changePage = (page: number) => {
+    if (page < 1 || page > totalPages || page === safeCurrentPage) {
+      return;
+    }
+
+    setCurrentPage(page);
+  };
+
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 1) {
+      return [1];
+    }
+
+    const pages = new Set<number>([1, totalPages, safeCurrentPage]);
+    if (safeCurrentPage - 1 > 1) {
+      pages.add(safeCurrentPage - 1);
+    }
+    if (safeCurrentPage + 1 < totalPages) {
+      pages.add(safeCurrentPage + 1);
+    }
+
+    const sortedPages = Array.from(pages).sort((left, right) => left - right);
+    const items: Array<number | 'ellipsis'> = [];
+
+    sortedPages.forEach((page, index) => {
+      const previousPage = sortedPages[index - 1];
+      if (previousPage && page - previousPage > 1) {
+        items.push('ellipsis');
+      }
+      items.push(page);
+    });
+
+    return items;
+  }, [safeCurrentPage, totalPages]);
 
   if (!isOpen) return null;
 
@@ -218,10 +284,10 @@ export function HorariosModal({
 
   const toggleAll = () => {
     if (allVisibleSelected) {
-      setSelectedEmployeeIds((current) => current.filter((id) => !filteredAssignments.some((assignment) => assignment.employee_id === id)));
+      setSelectedEmployeeIds((current) => current.filter((id) => !visibleEmployeeIds.includes(id)));
       return;
     }
-    setSelectedEmployeeIds((current) => Array.from(new Set([...current, ...filteredAssignments.map((assignment) => assignment.employee_id)])));
+    setSelectedEmployeeIds((current) => Array.from(new Set([...current, ...visibleEmployeeIds])));
   };
 
   const updateHorario = (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => {
@@ -469,7 +535,7 @@ export function HorariosModal({
                         </td>
                       </tr>
                     ) : (
-                      filteredAssignments.map((assignment) => {
+                      paginatedAssignments.map((assignment) => {
                         const isSelected = selectedEmployeeIds.includes(assignment.employee_id);
 
                         return (
@@ -500,6 +566,64 @@ export function HorariosModal({
                   </tbody>
                 </table>
               </div>
+              {filteredAssignments.length > 0 ? (
+                <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Showing {paginationStart}-{paginationEnd} of {filteredAssignments.length} collaborators
+                  </p>
+                  <div className="flex flex-col items-start gap-3 md:items-end">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Page {safeCurrentPage} of {totalPages}
+                    </p>
+                    <Pagination className="mx-0 w-auto justify-start md:justify-end">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              changePage(safeCurrentPage - 1);
+                            }}
+                            aria-disabled={safeCurrentPage === 1}
+                            className={safeCurrentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
+                          />
+                        </PaginationItem>
+                        {paginationItems.map((item, index) => (
+                          item === 'ellipsis' ? (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          ) : (
+                            <PaginationItem key={item}>
+                              <PaginationLink
+                                href="#"
+                                isActive={item === safeCurrentPage}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  changePage(item);
+                                }}
+                              >
+                                {item}
+                              </PaginationLink>
+                            </PaginationItem>
+                          )
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              changePage(safeCurrentPage + 1);
+                            }}
+                            aria-disabled={safeCurrentPage === totalPages}
+                            className={safeCurrentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="p-6">
