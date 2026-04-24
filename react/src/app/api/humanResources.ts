@@ -250,6 +250,9 @@ export interface AttendanceLocation {
   radius_meters: number;
 }
 
+export type AttendanceStatus = 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | 'pending' | 'not_scheduled';
+export type AttendanceCorrectionStatus = Exclude<AttendanceStatus, 'pending' | 'not_scheduled'>;
+
 export interface AttendanceDashboardItem {
   employee_id: number;
   employee_number?: string;
@@ -260,9 +263,9 @@ export interface AttendanceDashboardItem {
   unit_name?: string;
   business_id?: number | null;
   business_name?: string;
-  status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
+  status: AttendanceStatus;
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   minutes_late: number;
@@ -303,9 +306,9 @@ export interface AttendanceDashboardResponse {
 export interface AttendanceCalendarDay {
   date: string;
   day: number;
-  effective_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
+  effective_status: AttendanceStatus;
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   entry_registered: boolean;
   exit_registered: boolean;
   first_check_in_at?: string | null;
@@ -445,9 +448,9 @@ export interface AttendanceControlAssignment {
   effective_start_date?: string | null;
   effective_end_date?: string | null;
   today_rule?: AttendanceControlRule | null;
-  today_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
+  today_status: AttendanceStatus;
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   minutes_late: number;
@@ -779,7 +782,7 @@ export interface PublicKioskPunchResponse {
   event_kind: 'check_in' | 'check_out';
   auth_method: 'pin' | 'badge';
   result_status: 'success';
-  status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
+  status: AttendanceStatus;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   location: AttendanceLocation;
@@ -800,16 +803,16 @@ export interface AttendanceMediaPresignResponse {
 }
 
 export interface AttendanceCorrectionPayload {
-  status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | '';
+  status: AttendanceCorrectionStatus | '';
   notes?: string;
 }
 
 export interface AttendanceDailyRecordUpdateResponse {
   employee_id: number;
   date: string;
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
-  effective_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
+  effective_status: AttendanceStatus;
   notes?: string | null;
 }
 

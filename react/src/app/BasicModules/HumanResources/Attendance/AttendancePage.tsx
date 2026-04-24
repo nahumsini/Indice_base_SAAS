@@ -24,6 +24,7 @@ import {
   humanResourcesApi,
   type AttendanceCalendarDay,
   type AttendanceCalendarResponse,
+  type AttendanceCorrectionStatus,
   type AttendanceDashboardResponse,
 } from '../../../api/humanResources';
 
@@ -76,6 +77,8 @@ const attendanceCopy = {
       leave: 'Leave',
       rest: 'Rest',
       absence: 'No record',
+      pending: 'Pending',
+      not_scheduled: 'Not scheduled',
       totalMonitored: 'Total monitored',
     },
     statuses: {
@@ -84,6 +87,8 @@ const attendanceCopy = {
       leave: 'Leave',
       rest: 'Rest',
       absence: 'No record',
+      pending: 'Pending',
+      not_scheduled: 'Not scheduled',
     },
     labels: {
       collaborator: 'Employee',
@@ -183,6 +188,8 @@ const attendanceCopy = {
       leave: 'Permisos',
       rest: 'Descanso',
       absence: 'Sin registro',
+      pending: 'Pendiente',
+      not_scheduled: 'Sin horario',
       totalMonitored: 'Total monitoreado',
     },
     statuses: {
@@ -191,6 +198,8 @@ const attendanceCopy = {
       leave: 'Permiso',
       rest: 'Descanso',
       absence: 'Sin registro',
+      pending: 'Pendiente',
+      not_scheduled: 'Sin horario',
     },
     labels: {
       collaborator: 'Colaborador',
@@ -594,7 +603,7 @@ export default function Attendance() {
 
   const handleUpdateStatus = async (
     date: string,
-    status: AttendanceCalendarDay['effective_status'] | '',
+    status: AttendanceCorrectionStatus | '',
   ) => {
     if (!selectedItem) {
       return;

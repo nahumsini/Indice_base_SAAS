@@ -67,7 +67,9 @@ public class HrAttendanceService {
         "late",
         "leave",
         "rest",
-        "absence"
+        "absence",
+        "pending",
+        "not_scheduled"
     );
     private static final List<String> PUBLIC_KIOSK_AUTH_METHODS = List.of("pin", "badge");
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -148,13 +150,15 @@ public class HrAttendanceService {
         for (var employee : employees) {
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
             var scheduleRule = scheduleRulesByEmployee.get(employee.id());
-            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule);
+            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
 
             switch (effectiveStatus) {
                 case "on_time" -> onTimeCount++;
                 case "late" -> lateCount++;
                 case "leave" -> leaveCount++;
                 case "rest" -> restCount++;
+                case "pending", "not_scheduled" -> {
+                }
                 default -> absenceCount++;
             }
 
@@ -169,7 +173,7 @@ public class HrAttendanceService {
             item.put("business_id", employee.businessId());
             item.put("business_name", employee.businessName());
             item.put("status", effectiveStatus);
-            item.put("system_status", dailyRecord != null ? dailyRecord.systemStatus() : inferSystemStatus(scheduleRule));
+            item.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, date));
             item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
             item.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
             item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
@@ -222,13 +226,13 @@ public class HrAttendanceService {
         for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
             var dailyRecord = dailyRecords.get(currentDate);
             var scheduleRule = resolveScheduleRule(scheduleWindows, currentDate);
-            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule);
+            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, currentDate);
 
             var day = new LinkedHashMap<String, Object>();
             day.put("date", currentDate.toString());
             day.put("day", currentDate.getDayOfMonth());
             day.put("effective_status", effectiveStatus);
-            day.put("system_status", dailyRecord != null ? dailyRecord.systemStatus() : inferSystemStatus(scheduleRule));
+            day.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, currentDate));
             day.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
             day.put("entry_registered", dailyRecord != null && dailyRecord.firstCheckInAt() != null);
             day.put("exit_registered", dailyRecord != null && dailyRecord.lastCheckOutAt() != null);
@@ -306,8 +310,8 @@ public class HrAttendanceService {
             var assignment = currentAssignments.get(employee.id());
             var scheduleRule = scheduleRulesByEmployee.get(employee.id());
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
-            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule);
-            var systemStatus = dailyRecord != null ? dailyRecord.systemStatus() : inferSystemStatus(scheduleRule);
+            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
+            var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
 
             if (assignment == null) {
                 unassignedEmployeesCount++;
@@ -645,7 +649,7 @@ public class HrAttendanceService {
         result.put("event_kind", eventType);
         result.put("auth_method", tokenClaims.authMethod());
         result.put("result_status", "success");
-        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule));
+        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule, eventTimestamp.toLocalDate()));
         result.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
         result.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
         result.put("location", toLocationMap(location));
@@ -1443,7 +1447,7 @@ public class HrAttendanceService {
         result.put("event_kind", eventKind);
         result.put("auth_method", authMethod);
         result.put("result_status", operationalResultStatus);
-        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule));
+        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule, eventTimestamp.toLocalDate()));
         result.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
         result.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
         result.put("location", toLocationMap(location));
@@ -1497,9 +1501,9 @@ public class HrAttendanceService {
         var body = new LinkedHashMap<String, Object>();
         body.put("employee_id", employeeId);
         body.put("date", date.toString());
-        body.put("system_status", refreshed != null ? refreshed.systemStatus() : inferSystemStatus(scheduleRule));
+        body.put("system_status", resolveSystemStatus(refreshed, scheduleRule, date));
         body.put("corrected_status", refreshed != null ? refreshed.correctedStatus() : null);
-        body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule));
+        body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule, date));
         body.put("notes", refreshed != null ? refreshed.notes() : null);
         return body;
     }
@@ -2119,6 +2123,7 @@ public class HrAttendanceService {
                 LEFT JOIN hr_attendance_locations l ON l.id = t.location_id
                 WHERE a.company_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
                 ORDER BY a.employee_id ASC, a.effective_start_date DESC, a.id DESC
@@ -2167,6 +2172,7 @@ public class HrAttendanceService {
                 JOIN hr_schedule_templates t ON t.id = a.template_id
                 WHERE a.company_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
                 ORDER BY a.employee_id ASC, a.effective_start_date DESC, a.id DESC
@@ -2193,11 +2199,13 @@ public class HrAttendanceService {
     private Map<Long, Integer> loadActiveAssignmentCountsByTemplate(long companyId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT template_id, COUNT(*) AS total_count
-                FROM hr_employee_schedule_assignments
-                WHERE company_id = ?
-                  AND LOWER(COALESCE(status, 'active')) = 'active'
-                GROUP BY template_id
+                SELECT a.template_id, COUNT(*) AS total_count
+                FROM hr_employee_schedule_assignments a
+                JOIN hr_schedule_templates t ON t.id = a.template_id
+                WHERE a.company_id = ?
+                  AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
+                GROUP BY a.template_id
                 """,
             (rs, rowNum) -> Map.entry(rs.getLong("template_id"), rs.getInt("total_count")),
             companyId
@@ -2347,6 +2355,7 @@ public class HrAttendanceService {
                 WHERE a.company_id = ?
                   AND a.employee_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
                 ORDER BY a.effective_start_date DESC, a.id DESC
@@ -2407,7 +2416,7 @@ public class HrAttendanceService {
         var refreshed = rebuildDailyRecordProjection(companyId, employeeId, date);
         var scheduleRule = loadScheduleRule(companyId, employeeId, date);
         return new EffectiveDailyRecord(
-            resolveEffectiveStatus(refreshed, scheduleRule),
+            resolveEffectiveStatus(refreshed, scheduleRule, date),
             refreshed != null ? refreshed.firstCheckInAt() : null,
             refreshed != null ? refreshed.lastCheckOutAt() : null
         );
@@ -2542,9 +2551,9 @@ public class HrAttendanceService {
         return location;
     }
 
-    private String calculateSystemStatus(ScheduleRule scheduleRule, LocalDateTime firstCheckIn) {
+    private String calculateSystemStatus(ScheduleRule scheduleRule, LocalDateTime firstCheckIn, LocalDate date) {
         if (firstCheckIn == null) {
-            return inferSystemStatus(scheduleRule);
+            return inferSystemStatus(scheduleRule, date);
         }
         if (scheduleRule == null || scheduleRule.isRestDay() || scheduleRule.startTime() == null) {
             return "on_time";
@@ -2566,21 +2575,50 @@ public class HrAttendanceService {
         return (int) Duration.between(scheduledStart, firstCheckIn).toMinutes();
     }
 
-    private String inferSystemStatus(ScheduleRule scheduleRule) {
-        if (scheduleRule != null && scheduleRule.isRestDay()) {
+    private String inferSystemStatus(ScheduleRule scheduleRule, LocalDate date) {
+        if (scheduleRule == null) {
+            return "not_scheduled";
+        }
+        if (scheduleRule.isRestDay()) {
             return "rest";
         }
-        return "absence";
+
+        var today = LocalDate.now();
+        if (date.isAfter(today)) {
+            return "pending";
+        }
+        if (date.isBefore(today)) {
+            return "absence";
+        }
+        if (scheduleRule.endTime() == null) {
+            return "pending";
+        }
+
+        return LocalDateTime.now().isAfter(date.atTime(scheduleRule.endTime())) ? "absence" : "pending";
     }
 
-    private String resolveEffectiveStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule) {
+    private String resolveSystemStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule, LocalDate date) {
+        if (dailyRecord == null) {
+            return inferSystemStatus(scheduleRule, date);
+        }
+
+        if (
+            "absence".equals(dailyRecord.systemStatus())
+                && dailyRecord.firstCheckInAt() == null
+                && dailyRecord.lastCheckOutAt() == null
+                && HrPayloadUtils.isBlank(dailyRecord.correctedStatus())
+        ) {
+            return inferSystemStatus(scheduleRule, date);
+        }
+
+        return dailyRecord.systemStatus();
+    }
+
+    private String resolveEffectiveStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule, LocalDate date) {
         if (dailyRecord != null && !HrPayloadUtils.isBlank(dailyRecord.correctedStatus())) {
             return dailyRecord.correctedStatus();
         }
-        if (dailyRecord != null && !HrPayloadUtils.isBlank(dailyRecord.systemStatus())) {
-            return dailyRecord.systemStatus();
-        }
-        return inferSystemStatus(scheduleRule);
+        return resolveSystemStatus(dailyRecord, scheduleRule, date);
     }
 
     private LocationRow mapLocation(ResultSet rs, String prefix) throws SQLException {
@@ -3366,7 +3404,7 @@ public class HrAttendanceService {
             }
         }
 
-        var systemStatus = calculateSystemStatus(scheduleRule, firstCheckIn);
+        var systemStatus = calculateSystemStatus(scheduleRule, firstCheckIn, date);
         var minutesLate = calculateMinutesLate(scheduleRule, firstCheckIn);
 
         if (existing == null) {
@@ -4111,6 +4149,8 @@ public class HrAttendanceService {
             case "permiso", "leave" -> "leave";
             case "descanso", "rest" -> "rest";
             case "falta", "absence" -> "absence";
+            case "pendiente", "scheduled", "pending" -> "pending";
+            case "sin_horario", "not_scheduled", "unassigned" -> "not_scheduled";
             default -> normalized;
         };
 

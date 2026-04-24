@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, type UIEvent, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CalendarDays,
@@ -14,15 +14,18 @@ import {
   RotateCw,
   Search,
   ShieldCheck,
+  Table2,
   Users,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Button } from '../../../components/ui/button';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { Skeleton } from '../../../components/ui/skeleton';
-import { LocationRegistrationModal } from '../../../components/LocationRegistrationModal';
-import { HorariosModal } from '../../../components/HorariosModal';
-import { FaceEnrollmentModal } from '../../../components/FaceEnrollmentModal';
+import { LocationRegistrationModal } from './components/LocationRegistrationModal';
+import { ScheduleModal } from './components/ScheduleModal';
+import { ScheduleOverviewModal } from './components/ScheduleOverviewModal';
+import { FaceEnrollmentModal } from './components/FaceEnrollmentModal';
+import { SuccessToast } from '../../../components/SuccessToast';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import {
   Dialog,
@@ -39,6 +42,7 @@ import {
   type AttendanceCalendarDay,
   type AttendanceAccessProfile,
   type AttendanceAccessProfilePayload,
+  type AttendanceCorrectionStatus,
   humanResourcesApi,
   type AttendanceControlAssignment,
   type AttendanceControlAssignmentPayload,
@@ -90,6 +94,8 @@ const controlCopy = {
       leave: 'Leave',
       rest: 'Rest',
       absence: 'No record',
+      pending: 'Pending',
+      not_scheduled: 'Not scheduled',
       active: 'Active',
       inactive: 'Inactive',
     },
@@ -134,6 +140,7 @@ const controlCopy = {
       start: 'Start',
       end: 'End',
       tolerance: 'Late tolerance',
+      workingDay: 'Working day',
       restDay: 'Rest day',
       dayOff: 'Day off',
       noSchedule: 'No schedule assigned',
@@ -287,6 +294,8 @@ const controlCopy = {
       leave: 'Permiso',
       rest: 'Descanso',
       absence: 'Sin registro',
+      pending: 'Pendiente',
+      not_scheduled: 'Sin horario',
       active: 'Activo',
       inactive: 'Inactivo',
     },
@@ -331,6 +340,7 @@ const controlCopy = {
       start: 'Inicio',
       end: 'Fin',
       tolerance: 'Tolerancia',
+      workingDay: 'Día laboral',
       restDay: 'Descanso',
       dayOff: 'Día de descanso',
       noSchedule: 'Sin horario asignado',
@@ -462,6 +472,7 @@ const controlCopy = {
 const weekdayNumbers = [1, 2, 3, 4, 5, 6, 7] as const;
 
 const summaryIcons = [Users, Clock3, AlertTriangle, MapPin, ShieldCheck, AlertTriangle, ShieldCheck, CalendarDays] as const;
+const attendanceListBatchSize = 10;
 
 const statusClasses: Record<string, string> = {
   on_time: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -469,6 +480,8 @@ const statusClasses: Record<string, string> = {
   leave: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
   rest: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
   absence: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300',
+  pending: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  not_scheduled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
   active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
   inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
@@ -476,8 +489,8 @@ const statusClasses: Record<string, string> = {
 const createDefaultTemplateDays = () =>
   weekdayNumbers.map((day) => ({
     day_of_week: day,
-    start_time: day >= 1 && day <= 5 ? '09:00:00' : null,
-    end_time: day >= 1 && day <= 5 ? '18:00:00' : null,
+    start_time: day >= 1 && day <= 5 ? '08:00:00' : null,
+    end_time: day >= 1 && day <= 5 ? '09:00:00' : null,
     meal_minutes: 0,
     rest_minutes: 0,
     late_after_minutes: 10,
@@ -632,6 +645,8 @@ export default function Control() {
   const copy = currentLanguage.code.startsWith('es') ? controlCopy.es : controlCopy.en;
   const manageKioskLabel = currentLanguage.code.startsWith('es') ? 'Administrar kiosco' : 'Manage Kiosk';
   const openKioskLabel = currentLanguage.code.startsWith('es') ? 'Abrir kiosco' : 'Open Kiosk';
+  const viewSchedulesLabel = 'View schedules';
+  const setSchedulesLabel = 'Set schedules';
 
   const [controlDate, setControlDate] = useState(todayIsoDate());
   const [calendarMonth, setCalendarMonth] = useState(toMonthValue(todayIsoDate()));
@@ -650,7 +665,8 @@ export default function Control() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [selectedKioskDeviceId, setSelectedKioskDeviceId] = useState<number | null>(null);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<AttendanceCalendarDay | null>(null);
-  const [pendingCalendarStatus, setPendingCalendarStatus] = useState<AttendanceCalendarDay['effective_status'] | ''>('');
+  const [pendingCalendarStatus, setPendingCalendarStatus] = useState<AttendanceCorrectionStatus | ''>('');
+  const [visibleAttendanceCount, setVisibleAttendanceCount] = useState(attendanceListBatchSize);
   const [faceEnrollment, setFaceEnrollment] = useState<{ id: number; status: string; enrolled_at?: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
@@ -667,6 +683,7 @@ export default function Control() {
   const [locationForm, setLocationForm] = useState<AttendanceControlLocationPayload>(defaultLocationForm());
 
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [isScheduleOverviewModalOpen, setIsScheduleOverviewModalOpen] = useState(false);
   const [isSchedulesModalOpen, setIsSchedulesModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AttendanceControlTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState<AttendanceControlTemplatePayload>(defaultTemplateForm());
@@ -859,6 +876,25 @@ export default function Control() {
     });
   }, [assignmentFilter, overview, searchQuery]);
 
+  useEffect(() => {
+    setVisibleAttendanceCount(attendanceListBatchSize);
+  }, [assignmentFilter, controlDate, overview?.date, searchQuery]);
+
+  const visibleAttendanceAssignments = useMemo(
+    () => filteredAssignments.slice(0, visibleAttendanceCount),
+    [filteredAssignments, visibleAttendanceCount],
+  );
+
+  const handleAttendanceListScroll = (event: UIEvent<HTMLDivElement>) => {
+    const { clientHeight, scrollHeight, scrollTop } = event.currentTarget;
+
+    if (scrollHeight - scrollTop - clientHeight > 160) {
+      return;
+    }
+
+    setVisibleAttendanceCount((current) => Math.min(current + attendanceListBatchSize, filteredAssignments.length));
+  };
+
   const selectedEmployee = useMemo(
     () => overview?.assignments.find((assignment) => assignment.employee_id === selectedEmployeeId) ?? null,
     [overview?.assignments, selectedEmployeeId],
@@ -1008,7 +1044,7 @@ export default function Control() {
 
   const handleCalendarStatusUpdate = async (
     date: string,
-    status: AttendanceCalendarDay['effective_status'] | '',
+    status: AttendanceCorrectionStatus | '',
   ) => {
     if (!selectedEmployeeId) {
       return false;
@@ -1416,11 +1452,11 @@ export default function Control() {
         </div>
       ) : null}
 
-      {successMessage ? (
-        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
-          {successMessage}
-        </div>
-      ) : null}
+      <SuccessToast
+        isVisible={Boolean(successMessage)}
+        message={successMessage}
+        onClose={() => setSuccessMessage('')}
+      />
 
       <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -1444,10 +1480,18 @@ export default function Control() {
             <Button
               variant="outline"
               className="h-8 whitespace-nowrap rounded-md border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              onClick={() => setIsScheduleOverviewModalOpen(true)}
+            >
+              <Table2 className="h-3.5 w-3.5" />
+              {viewSchedulesLabel}
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 whitespace-nowrap rounded-md border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
               onClick={() => setIsSchedulesModalOpen(true)}
             >
               <CalendarDays className="h-3.5 w-3.5" />
-              Schedules
+              {setSchedulesLabel}
             </Button>
             <Button
               variant="outline"
@@ -1484,6 +1528,9 @@ export default function Control() {
                 <div>
                   <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.labels.dailyAttendance}</h3>
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{controlDateLabel}</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {Math.min(visibleAttendanceAssignments.length, filteredAssignments.length)} / {filteredAssignments.length}
+                  </p>
                 </div>
                 <div className="w-full max-w-[180px]">
                   <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
@@ -1499,9 +1546,9 @@ export default function Control() {
               </div>
             </div>
 
-            <div className="max-h-[860px] overflow-y-auto">
+            <div className="max-h-[860px] overflow-y-auto" onScroll={handleAttendanceListScroll}>
               {filteredAssignments.length > 0 ? (
-                filteredAssignments.map((assignment) => (
+                visibleAttendanceAssignments.map((assignment) => (
                   <ControlAttendanceRow
                     key={assignment.employee_id}
                     assignment={assignment}
@@ -1894,7 +1941,16 @@ export default function Control() {
         onReload={() => loadControl(controlDate)}
       />
 
-      <HorariosModal
+      <ScheduleOverviewModal
+        isOpen={isScheduleOverviewModalOpen}
+        onClose={() => setIsScheduleOverviewModalOpen(false)}
+        assignments={overview?.assignments ?? []}
+        date={controlDate}
+        locale={currentLanguage.code}
+        onDateChange={setControlDate}
+      />
+
+      <ScheduleModal
         isOpen={isSchedulesModalOpen}
         onClose={() => setIsSchedulesModalOpen(false)}
         assignments={overview?.assignments ?? []}
@@ -2194,6 +2250,8 @@ function dayTone(day: AttendanceCalendarDay) {
       return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
     case 'absence':
       return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+    case 'pending':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
     case 'rest':
       return 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
     case 'leave':
@@ -2209,6 +2267,10 @@ function dayBadge(copy: typeof controlCopy.en | typeof controlCopy.es, day: Atte
       return '✓';
     case 'absence':
       return '✕';
+    case 'pending':
+      return '...';
+    case 'not_scheduled':
+      return '';
     case 'late':
       return '!';
     case 'rest':
@@ -2435,22 +2497,23 @@ function ControlTemplateDialog({
                   <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <input
                       type="checkbox"
-                      checked={day.is_rest_day}
+                      checked={!day.is_rest_day}
                       onChange={(event) => {
+                        const isWorkingDay = event.target.checked;
                         const nextDays = form.days.map((item, currentIndex) =>
                           currentIndex === index
                             ? {
                                 ...item,
-                                is_rest_day: event.target.checked,
-                                start_time: event.target.checked ? null : item.start_time || '09:00:00',
-                                end_time: event.target.checked ? null : item.end_time || '18:00:00',
+                                is_rest_day: !isWorkingDay,
+                                start_time: isWorkingDay ? item.start_time || '08:00:00' : null,
+                                end_time: isWorkingDay ? item.end_time || '09:00:00' : null,
                               }
                             : item,
                         );
                         onChange({ ...form, days: nextDays });
                       }}
                     />
-                    {copy.labels.restDay}
+                    {copy.labels.workingDay}
                   </label>
                 </div>
 
