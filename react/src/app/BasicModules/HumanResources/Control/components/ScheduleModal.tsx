@@ -20,6 +20,7 @@ import {
   type AttendanceControlTemplate,
   type AttendanceControlTemplatePayload,
 } from '../../../../api/humanResources';
+import { useHRLanguage } from '../../HRLanguage';
 
 interface HorarioDiaDraft {
   dayOfWeek: number;
@@ -127,6 +128,7 @@ export function ScheduleModal({
   effectiveStartDate,
   onApplied,
 }: ScheduleModalProps) {
+  const copy = useHRLanguage().attendanceControl;
   const [searchQuery, setSearchQuery] = useState('');
   const [unidadFilter, setUnidadFilter] = useState('');
   const [negocioFilter, setNegocioFilter] = useState('');
@@ -506,7 +508,7 @@ export function ScheduleModal({
         <div className="flex items-center justify-between border-b border-[#143675] bg-[#143675] p-6">
           <div className="flex items-center gap-2">
             <Clock className="h-6 w-6 text-white" />
-            <h2 className="text-xl font-semibold text-white">Set schedules</h2>
+            <h2 className="text-xl font-semibold text-white">{copy.labels.setSchedules}</h2>
           </div>
           <button onClick={onClose} className="text-white transition-colors hover:text-blue-100">
             <X className="h-6 w-6" />

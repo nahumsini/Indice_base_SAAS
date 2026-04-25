@@ -747,18 +747,18 @@ export interface PublicKioskBootstrapResponse {
     name: string;
   };
   location: AttendanceLocation;
-  auth_methods: Array<'pin' | 'badge'>;
+  auth_methods: Array<'pin'>;
   inactivity_timeout_seconds: number;
 }
 
 export interface PublicKioskIdentifyRequest {
-  auth_method: 'pin' | 'badge';
+  auth_method: 'pin';
   credential_payload: string;
 }
 
 export interface PublicKioskIdentifyResponse {
   auth_attempt_event_id: number;
-  auth_method: 'pin' | 'badge';
+  auth_method: 'pin';
   employee: {
     id: number;
     employee_number?: string;
@@ -774,18 +774,25 @@ export interface PublicKioskPunchRequest {
   identification_token: string;
   event_type: 'check_in' | 'check_out';
   event_timestamp?: string;
+  latitude: number;
+  longitude: number;
+  face_verification_session_id?: number;
+  photo_url?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PublicKioskPunchResponse {
   event_id: number;
   employee_id: number;
   event_kind: 'check_in' | 'check_out';
-  auth_method: 'pin' | 'badge';
+  auth_method: 'pin';
   result_status: 'success';
   status: AttendanceStatus;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   location: AttendanceLocation;
+  photo_object_key?: string | null;
+  identity_evidence?: 'face_verified' | 'photo_fallback';
 }
 
 export interface AttendanceMediaPresignRequest {
@@ -1219,6 +1226,55 @@ export const humanResourcesApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  presignPublicKioskAttendancePhotoUpload(
+    deviceToken: string,
+    payload: Omit<AttendanceMediaPresignRequest, 'employee_id'> & { identification_token: string },
+  ) {
+    return apiClient<AttendanceMediaPresignResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/media/presign-upload`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  createPublicKioskFaceVerificationSession(deviceToken: string, identificationToken: string) {
+    return apiClient<FaceVerificationSessionResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ identification_token: identificationToken }),
+      },
+    );
+  },
+
+  presignPublicKioskFaceVerificationCapture(
+    deviceToken: string,
+    sessionId: number,
+    identificationToken: string,
+    step: string,
+    contentType: string,
+  ) {
+    return apiClient<FaceCapturePresignResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/captures/presign-upload`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ identification_token: identificationToken, step, content_type: contentType }),
+      },
+    );
+  },
+
+  completePublicKioskFaceVerificationSession(deviceToken: string, sessionId: number, identificationToken: string) {
+    return apiClient<FaceVerificationResultResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/complete`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ identification_token: identificationToken }),
+      },
+    );
   },
 
   createFaceEnrollmentSession(employeeId: number) {

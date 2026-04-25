@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '../../../../components/ui/dialog';
 import { type AttendanceControlAssignment } from '../../../../api/humanResources';
+import { useHRLanguage } from '../../HRLanguage';
 
 interface ScheduleOverviewModalProps {
   isOpen: boolean;
@@ -109,6 +110,7 @@ export function ScheduleOverviewModal({
   locale,
   onDateChange,
 }: ScheduleOverviewModalProps) {
+  const copy = useHRLanguage().attendanceControl;
   const [searchQuery, setSearchQuery] = useState('');
   const [unitFilter, setUnitFilter] = useState('');
   const [businessFilter, setBusinessFilter] = useState('');
@@ -246,7 +248,7 @@ export function ScheduleOverviewModal({
             <div>
               <DialogTitle className="flex items-center gap-2 text-2xl">
                 <CalendarDays className="h-5 w-5 text-[#143675] dark:text-[#8bb3ff]" />
-                View schedules
+                {copy.labels.viewSchedules}
               </DialogTitle>
               <DialogDescription className="mt-2">
                 See who is scheduled for the selected date by business, unit, schedule, and time.

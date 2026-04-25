@@ -368,6 +368,82 @@ public class HrAttendanceApiController {
             return ResponseEntity.ok(hrAttendanceService.publicKioskIdentify(deviceToken, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (KioskPinThrottleException ex) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/media/presign-upload")
+    public ResponseEntity<?> publicKioskPresignUpload(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+        try {
+            return ResponseEntity.ok(hrAttendanceService.createPublicKioskPhotoUpload(deviceToken, payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/face-verification-sessions")
+    public ResponseEntity<?> publicKioskCreateFaceVerificationSession(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                hrAttendanceService.createPublicKioskFaceVerificationSession(deviceToken, payload)
+            );
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/face-verification-sessions/{sessionId}/captures/presign-upload")
+    public ResponseEntity<?> publicKioskPresignFaceVerificationCapture(
+        @PathVariable String deviceToken,
+        @PathVariable long sessionId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.createPublicKioskFaceVerificationCaptureUpload(deviceToken, sessionId, payload)
+            );
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/face-verification-sessions/{sessionId}/complete")
+    public ResponseEntity<?> publicKioskCompleteFaceVerificationSession(
+        @PathVariable String deviceToken,
+        @PathVariable long sessionId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.completePublicKioskFaceVerificationSession(deviceToken, sessionId, payload)
+            );
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -377,6 +453,8 @@ public class HrAttendanceApiController {
     public ResponseEntity<?> publicKioskPunch(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(hrAttendanceService.publicKioskPunch(deviceToken, payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

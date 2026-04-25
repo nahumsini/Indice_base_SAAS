@@ -71,7 +71,10 @@ public class HrAttendanceService {
         "pending",
         "not_scheduled"
     );
-    private static final List<String> PUBLIC_KIOSK_AUTH_METHODS = List.of("pin", "badge");
+    private static final List<String> PUBLIC_KIOSK_AUTH_METHODS = List.of("pin");
+    private static final int PUBLIC_KIOSK_PIN_FAILURE_LIMIT = 5;
+    private static final Duration PUBLIC_KIOSK_PIN_LOCK_DURATION = Duration.ofMinutes(15);
+    private static final String PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY = "_pin_throttle";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Set<String> SUPPORTED_MAP_SHORTLINK_HOSTS = Set.of("maps.app.goo.gl");
     private static final Pattern GOOGLE_MAPS_PLACE_COORDINATES_PATTERN = Pattern.compile("!3d(-?\\d+(?:\\.\\d+)?)!4d(-?\\d+(?:\\.\\d+)?)");
@@ -418,11 +421,17 @@ public class HrAttendanceService {
         ensureUniqueKioskCode(companyId, kioskDeviceId, code);
 
         var metadataJson = toJson(payload.get("metadata"));
-        var publicAccessToken = kioskDeviceId == null || kioskDeviceId <= 0
-            ? generateUniqueKioskPublicAccessToken()
-            : loadKioskDevice(companyId, kioskDeviceId).publicAccessToken();
+        KioskDeviceRow existingKioskDevice = null;
+        var publicAccessToken = generateUniqueKioskPublicAccessToken();
+        if (kioskDeviceId != null && kioskDeviceId > 0) {
+            existingKioskDevice = loadKioskDevice(companyId, kioskDeviceId);
+            publicAccessToken = existingKioskDevice.publicAccessToken();
+            metadataJson = mergeKioskInternalMetadata(metadataJson, existingKioskDevice.metadataJson());
+        }
         if (kioskDeviceId == null || kioskDeviceId <= 0) {
             KeyHolder keyHolder = new GeneratedKeyHolder();
+            var insertPublicAccessToken = publicAccessToken;
+            var insertMetadataJson = metadataJson;
             jdbcTemplate.update(connection -> {
                 var statement = connection.prepareStatement(
                     """
@@ -439,8 +448,8 @@ public class HrAttendanceService {
                 statement.setString(5, code);
                 statement.setString(6, name);
                 statement.setString(7, status);
-                statement.setString(8, publicAccessToken);
-                statement.setString(9, metadataJson);
+                statement.setString(8, insertPublicAccessToken);
+                statement.setString(9, insertMetadataJson);
                 statement.setLong(10, userId);
                 return statement;
             }, keyHolder);
@@ -496,6 +505,8 @@ public class HrAttendanceService {
             throw new NoSuchElementException("Kiosk device not found.");
         }
 
+        var kioskDevice = loadKioskDevice(companyId, kioskDeviceId);
+        clearPublicKioskPinFailures(kioskDevice);
         return Map.of("kiosk_device", toKioskDeviceMap(loadKioskDevice(companyId, kioskDeviceId)));
     }
 
@@ -516,21 +527,25 @@ public class HrAttendanceService {
         return body;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = { IllegalArgumentException.class, KioskPinThrottleException.class })
     public Map<String, Object> publicKioskIdentify(String deviceToken, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
         var location = requirePublicKioskLocation(kioskDevice);
-        var authMethod = normalizePublicKioskAuthMethod(stringValue(payload, "auth_method", "method_type"));
+        var requestedAuthMethod = stringValue(payload, "auth_method", "method_type");
+        var authMethod = normalizePublicKioskAuthMethod(requestedAuthMethod.isBlank() ? "pin" : requestedAuthMethod);
         var credentialPayload = nullable(stringValue(payload, "credential_payload", "credential", "pin", "badge_code"));
         if (credentialPayload == null || credentialPayload.isBlank()) {
             throw new IllegalArgumentException("credential_payload is required.");
         }
 
+        ensurePublicKioskPinAttemptAllowed(kioskDevice);
         var resolvedMethod = resolvePublicKioskAccessMethod(kioskDevice.companyId(), authMethod, credentialPayload);
         if (resolvedMethod == null) {
+            recordPublicKioskPinFailure(kioskDevice);
             throw new IllegalArgumentException("Credential validation failed.");
         }
+        clearPublicKioskPinFailures(kioskDevice);
 
         var employee = loadAttendanceEmployee(kioskDevice.companyId(), resolvedMethod.employeeId());
         if ("terminated".equals(employee.status())) {
@@ -593,7 +608,7 @@ public class HrAttendanceService {
     public Map<String, Object> publicKioskPunch(String deviceToken, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
-        var location = requirePublicKioskLocation(kioskDevice);
+        requirePublicKioskLocation(kioskDevice);
         var identificationToken = stringValue(payload, "identification_token");
         if (identificationToken.isBlank()) {
             throw new IllegalArgumentException("identification_token is required.");
@@ -611,6 +626,21 @@ public class HrAttendanceService {
             eventTimestamp = LocalDateTime.now();
         }
 
+        var latitude = parseDecimalRequired(payload, "latitude");
+        var longitude = parseDecimalRequired(payload, "longitude");
+        var location = resolveKioskLocation(kioskDevice.companyId(), kioskDevice.locationId(), latitude, longitude);
+        var faceVerificationSessionId = normalizeOptionalForeignKey(parseLong(payload, "face_verification_session_id"));
+        var photoObjectKey = normalizeAttendancePhotoObjectKey(kioskDevice.companyId(), employee.id(), stringValue(payload, "photo_url"));
+        var hasFaceVerification = faceVerificationSessionId != null;
+        var hasFallbackPhoto = photoObjectKey != null && !photoObjectKey.isBlank();
+
+        if (!hasFaceVerification && !hasFallbackPhoto) {
+            throw new IllegalArgumentException("Face verification or fallback photo is required.");
+        }
+        if (hasFaceVerification) {
+            hrFaceService.consumeSuccessfulVerificationSession(kioskDevice.companyId(), employee.id(), faceVerificationSessionId);
+        }
+
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), eventTimestamp.toLocalDate());
         validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, location);
         validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
@@ -619,7 +649,10 @@ public class HrAttendanceService {
             toJson(payload.get("metadata")),
             Map.of(
                 "public_kiosk", true,
-                "identified_employee_id", employee.id()
+                "identified_employee_id", employee.id(),
+                "pin_verified", true,
+                "identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback",
+                "requires_review", !hasFaceVerification
             )
         );
         var operationalEventId = appendAttendanceEvent(
@@ -629,9 +662,9 @@ public class HrAttendanceService {
             eventTimestamp,
             location.id(),
             kioskDevice.id(),
-            location.latitude(),
-            location.longitude(),
-            null,
+            latitude,
+            longitude,
+            photoObjectKey,
             "kiosk_public",
             tokenClaims.authMethod(),
             "success",
@@ -653,7 +686,49 @@ public class HrAttendanceService {
         result.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
         result.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
         result.put("location", toLocationMap(location));
+        result.put("photo_object_key", photoObjectKey);
+        result.put("identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback");
         return result;
+    }
+
+    public Map<String, Object> createPublicKioskPhotoUpload(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        var normalizedPayload = new LinkedHashMap<String, Object>(payload);
+        normalizedPayload.put("employee_id", context.employee().id());
+        return createPhotoUpload(context.kioskDevice().companyId(), normalizedPayload);
+    }
+
+    public Map<String, Object> createPublicKioskFaceVerificationSession(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        return hrFaceService.createVerificationSession(
+            context.kioskDevice().companyId(),
+            0L,
+            Map.of("employee_id", context.employee().id())
+        );
+    }
+
+    public Map<String, Object> createPublicKioskFaceVerificationCaptureUpload(
+        String deviceToken,
+        long sessionId,
+        Map<String, Object> payload
+    ) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        ensureFaceVerificationSessionBelongsTo(context.kioskDevice().companyId(), context.employee().id(), sessionId);
+        return hrFaceService.createVerificationCaptureUpload(context.kioskDevice().companyId(), sessionId, payload);
+    }
+
+    public Map<String, Object> completePublicKioskFaceVerificationSession(
+        String deviceToken,
+        long sessionId,
+        Map<String, Object> payload
+    ) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        ensureFaceVerificationSessionBelongsTo(context.kioskDevice().companyId(), context.employee().id(), sessionId);
+        return hrFaceService.completeVerificationSession(context.kioskDevice().companyId(), 0L, sessionId);
     }
 
     public Map<String, Object> listAccessProfiles(long companyId) {
@@ -731,7 +806,6 @@ public class HrAttendanceService {
             }
         }
 
-        ensureManualOverrideMethod(companyId, profileId);
         return Map.of("access_profile", toAccessProfileMap(loadAccessProfile(companyId, profileId)));
     }
 
@@ -763,7 +837,13 @@ public class HrAttendanceService {
         if ("badge".equals(methodType) && credentialRef == null) {
             throw new IllegalArgumentException("credential_ref is required for badge methods.");
         }
-        if (!"badge".equals(methodType)) {
+        if ("pin".equals(methodType)) {
+            if (secretRaw != null) {
+                credentialRef = pinCredentialReference(companyId, secretRaw);
+            } else if (methodId != null && methodId > 0) {
+                credentialRef = loadAccessMethod(companyId, methodId).credentialRef();
+            }
+        } else if (!"badge".equals(methodType)) {
             credentialRef = null;
         }
         if (!"pin".equals(methodType) && !"password".equals(methodType)) {
@@ -839,7 +919,6 @@ public class HrAttendanceService {
     public void ensureDefaultAccessProfile(long companyId, long employeeId, long createdBy) {
         var existingProfile = loadAccessProfileByEmployee(companyId, employeeId);
         if (existingProfile != null) {
-            ensureManualOverrideMethod(companyId, existingProfile.id());
             return;
         }
 
@@ -849,7 +928,7 @@ public class HrAttendanceService {
                 """
                     INSERT INTO hr_employee_access_profiles
                     (company_id, employee_id, status, default_method, last_enrolled_at, metadata_json, created_by)
-                    VALUES (?, ?, 'active', 'manual_override', ?, CAST(? AS JSON), ?)
+                    VALUES (?, ?, 'active', 'pin', ?, CAST(? AS JSON), ?)
                     """,
                 new String[] {"id"}
             );
@@ -860,11 +939,6 @@ public class HrAttendanceService {
             statement.setLong(5, createdBy);
             return statement;
         }, keyHolder);
-
-        var profileId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
-        if (profileId != null) {
-            ensureManualOverrideMethod(companyId, profileId);
-        }
     }
 
     public Map<String, Object> listControlLocations(long companyId) {
@@ -2750,6 +2824,41 @@ public class HrAttendanceService {
         return rows.getFirst();
     }
 
+    private KioskDeviceRow loadKioskDeviceForUpdate(long companyId, long kioskDeviceId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT d.id,
+                       d.company_id,
+                       d.unit_id,
+                       u.name AS unit_name,
+                       d.business_id,
+                       b.name AS business_name,
+                       d.location_id,
+                       l.name AS location_name,
+                       d.code,
+                       d.name,
+                       COALESCE(LOWER(d.status), 'active') AS status,
+                       d.public_access_token,
+                       d.metadata_json
+                FROM hr_kiosk_devices d
+                LEFT JOIN units u ON u.id = d.unit_id
+                LEFT JOIN businesses b ON b.id = d.business_id
+                LEFT JOIN hr_attendance_locations l ON l.id = d.location_id
+                WHERE d.company_id = ?
+                  AND d.id = ?
+                LIMIT 1
+                FOR UPDATE
+                """,
+            (rs, rowNum) -> mapKioskDeviceRow(rs),
+            companyId,
+            kioskDeviceId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Kiosk device not found.");
+        }
+        return rows.getFirst();
+    }
+
     private KioskDeviceRow loadKioskDeviceByPublicAccessToken(String publicAccessToken) {
         var normalizedToken = publicAccessToken == null ? "" : publicAccessToken.trim();
         if (normalizedToken.isBlank()) {
@@ -3013,18 +3122,11 @@ public class HrAttendanceService {
         }
 
         return switch (authMethod) {
-            case "badge" -> {
-                var matches = candidateMethods.stream()
-                    .filter((method) -> Objects.equals(nullable(method.credentialRef()), nullable(credentialPayload)))
-                    .toList();
-                if (matches.size() > 1) {
-                    throw new IllegalArgumentException("Badge credential is assigned to more than one employee.");
-                }
-                yield matches.isEmpty() ? null : matches.getFirst();
-            }
             case "pin" -> {
+                var credentialRef = pinCredentialReference(companyId, credentialPayload);
                 var matches = candidateMethods.stream()
                     .filter((method) -> method.secretHash() != null && !method.secretHash().isBlank())
+                    .filter((method) -> method.credentialRef() == null || method.credentialRef().isBlank() || Objects.equals(method.credentialRef(), credentialRef))
                     .filter((method) -> passwordEncoder.matches(credentialPayload, method.secretHash()))
                     .toList();
                 if (matches.size() > 1) {
@@ -3036,23 +3138,124 @@ public class HrAttendanceService {
         };
     }
 
-    private void ensureManualOverrideMethod(long companyId, long accessProfileId) {
-        var existing = loadAccessMethods(companyId, accessProfileId).stream()
-            .anyMatch((method) -> "manual_override".equals(method.methodType()));
-        if (existing) {
+    private void ensurePublicKioskPinAttemptAllowed(KioskDeviceRow kioskDevice) {
+        var state = loadPublicKioskPinThrottle(kioskDevice);
+        if (state == null) {
             return;
+        }
+
+        var now = Instant.now();
+        if (!state.isLocked(now)) {
+            if (state.lockedUntil() != null) {
+                clearPublicKioskPinFailures(kioskDevice);
+            }
+            return;
+        }
+
+        throw new KioskPinThrottleException(pinThrottleMessage(state, now));
+    }
+
+    private void recordPublicKioskPinFailure(KioskDeviceRow kioskDevice) {
+        var now = Instant.now();
+        var current = loadPublicKioskPinThrottle(kioskDevice);
+        if (current != null && current.isLocked(now)) {
+            throw new KioskPinThrottleException(pinThrottleMessage(current, now));
+        }
+
+        var nextFailedAttempts = current == null || current.lockedUntil() != null
+            ? 1
+            : current.failedAttempts() + 1;
+        var lockedUntil = nextFailedAttempts >= PUBLIC_KIOSK_PIN_FAILURE_LIMIT
+            ? now.plus(PUBLIC_KIOSK_PIN_LOCK_DURATION)
+            : null;
+        var nextState = new PinThrottleState(nextFailedAttempts, lockedUntil);
+        updatePublicKioskPinThrottle(kioskDevice, nextState);
+
+        if (nextState.isLocked(now)) {
+            throw new KioskPinThrottleException(pinThrottleMessage(nextState, now));
+        }
+    }
+
+    private void clearPublicKioskPinFailures(KioskDeviceRow kioskDevice) {
+        updatePublicKioskPinThrottle(kioskDevice, null);
+    }
+
+    private PinThrottleState loadPublicKioskPinThrottle(KioskDeviceRow kioskDevice) {
+        var latestKioskDevice = loadKioskDeviceForUpdate(kioskDevice.companyId(), kioskDevice.id());
+        var metadata = parseJsonMap(latestKioskDevice.metadataJson());
+        var rawThrottle = metadata.get(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY);
+        if (!(rawThrottle instanceof Map<?, ?> throttleMap)) {
+            return null;
+        }
+
+        var failedAttempts = parseMetadataInt(throttleMap.get("failed_attempts"));
+        var lockedUntil = parseMetadataInstant(throttleMap.get("locked_until"));
+        if (failedAttempts <= 0 && lockedUntil == null) {
+            return null;
+        }
+        return new PinThrottleState(Math.max(failedAttempts, 0), lockedUntil);
+    }
+
+    private void updatePublicKioskPinThrottle(KioskDeviceRow kioskDevice, PinThrottleState state) {
+        var latestKioskDevice = loadKioskDeviceForUpdate(kioskDevice.companyId(), kioskDevice.id());
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.putAll(parseJsonMap(latestKioskDevice.metadataJson()));
+
+        if (state == null) {
+            metadata.remove(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY);
+        } else {
+            var throttleMetadata = new LinkedHashMap<String, Object>();
+            throttleMetadata.put("failed_attempts", state.failedAttempts());
+            if (state.lockedUntil() != null) {
+                throttleMetadata.put("locked_until", state.lockedUntil().toString());
+            }
+            metadata.put(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY, throttleMetadata);
         }
 
         jdbcTemplate.update(
             """
-                INSERT INTO hr_employee_access_methods
-                (company_id, access_profile_id, method_type, credential_ref, secret_hash, status, priority, metadata_json)
-                VALUES (?, ?, 'manual_override', NULL, NULL, 'active', 100, CAST(? AS JSON))
+                UPDATE hr_kiosk_devices
+                SET metadata_json = CAST(? AS JSON)
+                WHERE id = ? AND company_id = ?
                 """,
-            companyId,
-            accessProfileId,
-            "{\"label\":\"Manual override\"}"
+            toJson(metadata),
+            kioskDevice.id(),
+            kioskDevice.companyId()
         );
+    }
+
+    private String pinThrottleMessage(PinThrottleState state, Instant now) {
+        var remainingSeconds = Duration.between(now, state.lockedUntil()).toSeconds();
+        var remainingMinutes = Math.max(1L, (remainingSeconds + 59L) / 60L);
+        return "Too many failed PIN attempts. Try again in " + remainingMinutes
+            + (remainingMinutes == 1 ? " minute." : " minutes.");
+    }
+
+    private int parseMetadataInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        var text = metadataTextValue(value);
+        if (text == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
+    }
+
+    private Instant parseMetadataInstant(Object value) {
+        var text = metadataTextValue(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(text);
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
     }
 
     private Map<String, Object> toKioskDeviceMap(KioskDeviceRow device) {
@@ -3069,7 +3272,10 @@ public class HrAttendanceService {
         body.put("name", device.name());
         body.put("status", device.status());
         body.put("public_access_token", device.publicAccessToken());
-        body.put("metadata", parseJsonMap(device.metadataJson()));
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.putAll(parseJsonMap(device.metadataJson()));
+        metadata.remove(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY);
+        body.put("metadata", metadata);
         return body;
     }
 
@@ -3097,7 +3303,7 @@ public class HrAttendanceService {
         body.put("employee_number", method.employeeNumber());
         body.put("employee_name", method.employeeName());
         body.put("method_type", method.methodType());
-        body.put("credential_ref", method.credentialRef());
+        body.put("credential_ref", "badge".equals(method.methodType()) ? method.credentialRef() : null);
         body.put("status", method.status());
         body.put("priority", method.priority());
         body.put("metadata", parseJsonMap(method.metadataJson()));
@@ -3593,6 +3799,37 @@ public class HrAttendanceService {
         }
     }
 
+    private PublicKioskContext requirePublicKioskIdentificationContext(String deviceToken, Map<String, Object> payload) {
+        var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
+        requirePublicKioskLocation(kioskDevice);
+        var identificationToken = stringValue(payload, "identification_token");
+        var tokenClaims = verifyPublicKioskIdentificationToken(deviceToken, identificationToken);
+        var employee = loadAttendanceEmployee(kioskDevice.companyId(), tokenClaims.employeeId());
+        if ("terminated".equals(employee.status())) {
+            throw new IllegalArgumentException("This employee is terminated and cannot record attendance.");
+        }
+        return new PublicKioskContext(kioskDevice, employee, tokenClaims);
+    }
+
+    private void ensureFaceVerificationSessionBelongsTo(long companyId, long employeeId, long sessionId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_face_verification_sessions
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND id = ?
+                """,
+            Integer.class,
+            companyId,
+            employeeId,
+            sessionId
+        );
+        if (count == null || count == 0) {
+            throw new NoSuchElementException("Face verification session not found.");
+        }
+    }
+
     private void validateOperationalScope(long companyId, Long unitId, Long businessId, Long locationId) {
         if (unitId != null) {
             var count = jdbcTemplate.queryForObject(
@@ -3661,7 +3898,7 @@ public class HrAttendanceService {
     private String normalizePublicKioskAuthMethod(String value) {
         var normalized = normalizeEnabledAuthMethod(value);
         if (!PUBLIC_KIOSK_AUTH_METHODS.contains(normalized)) {
-            throw new IllegalArgumentException("Public kiosk auth_method must be pin or badge.");
+            throw new IllegalArgumentException("Public kiosk auth_method must be pin.");
         }
         return normalized;
     }
@@ -3775,6 +4012,25 @@ public class HrAttendanceService {
         }
     }
 
+    private String pinCredentialReference(long companyId, String rawPin) {
+        var normalizedPin = nullable(rawPin);
+        if (normalizedPin == null) {
+            throw new IllegalArgumentException("PIN is required.");
+        }
+
+        try {
+            var mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(kioskIdentificationTokenSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            var payload = companyId + ":" + normalizedPin;
+            var digest = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+            return "pin:v1:" + digest;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to prepare PIN credential reference.", ex);
+        }
+    }
+
     private Map<String, Object> parseJsonMap(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();
@@ -3800,6 +4056,16 @@ public class HrAttendanceService {
         merged.putAll(parseJsonMap(baseJson));
         merged.putAll(additions);
         return toJson(merged);
+    }
+
+    private String mergeKioskInternalMetadata(String candidateJson, String existingJson) {
+        var candidate = new LinkedHashMap<String, Object>();
+        candidate.putAll(parseJsonMap(candidateJson));
+        var existing = parseJsonMap(existingJson);
+        if (existing.containsKey(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY)) {
+            candidate.put(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY, existing.get(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY));
+        }
+        return toJson(candidate);
     }
 
     private String metadataTextValue(Object value) {
@@ -4434,6 +4700,15 @@ public class HrAttendanceService {
     ) {
     }
 
+    private record PinThrottleState(
+        int failedAttempts,
+        Instant lockedUntil
+    ) {
+        boolean isLocked(Instant now) {
+            return lockedUntil != null && lockedUntil.isAfter(now);
+        }
+    }
+
     private record AccessProfileRow(
         long id,
         long companyId,
@@ -4515,6 +4790,13 @@ public class HrAttendanceService {
         long employeeId,
         String authMethod,
         long expiresAtEpochSeconds
+    ) {
+    }
+
+    private record PublicKioskContext(
+        KioskDeviceRow kioskDevice,
+        AttendanceEmployee employee,
+        PublicKioskIdentificationToken tokenClaims
     ) {
     }
 
