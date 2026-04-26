@@ -1177,6 +1177,7 @@ export default function Control() {
         onClose={() => setIsLocationRegistrationModalOpen(false)}
         locations={locations}
         onReload={() => loadControl(controlDate)}
+        onSaved={() => setSuccessMessage(copy.locationSaved)}
       />
 
       <ScheduleOverviewModal

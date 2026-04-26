@@ -32,6 +32,7 @@ interface LocationRegistrationModalProps {
   onClose: () => void;
   locations: AttendanceControlLocation[];
   onReload?: () => Promise<void> | void;
+  onSaved?: () => void;
 }
 
 const toDraftLocation = (location: AttendanceControlLocation): DraftLocation => ({
@@ -93,6 +94,7 @@ export function LocationRegistrationModal({
   onClose,
   locations,
   onReload,
+  onSaved,
 }: LocationRegistrationModalProps) {
   const [draftLocations, setDraftLocations] = useState<DraftLocation[]>([]);
   const [removedLocationIds, setRemovedLocationIds] = useState<number[]>([]);
@@ -473,17 +475,27 @@ export function LocationRegistrationModal({
       setDraftLocations(nextDraftLocations);
     }
 
-    const invalidScopeDraft = nextDraftLocations.find((location) => !hasValidDraftScope(location));
+    const updatedDraftsSource = nextDraftLocations.filter((location) => {
+      if (!location.persistedId) {
+        return false;
+      }
+      const originalLocation = persistedLocationSnapshot.get(location.persistedId);
+      return Boolean(originalLocation) && !areDraftLocationsEqual(location, originalLocation);
+    });
+    const newDrafts = nextDraftLocations.filter((location) => !location.persistedId);
+    const draftsToPersist = [...updatedDraftsSource, ...newDrafts];
+
+    const invalidScopeDraft = draftsToPersist.find((location) => !hasValidDraftScope(location));
     if (invalidScopeDraft) {
-      const scopeMessage = 'Every registered location needs both a business unit and a business before it can be saved.';
+      const scopeMessage = 'Every new or edited location needs both a business unit and a business before it can be saved.';
       setFailureToastMessage(scopeMessage);
       setErrorMessage(scopeMessage);
       return;
     }
 
-    const invalidDataDraft = nextDraftLocations.find((location) => !hasText(location.nombre) || !hasValidDraftCoordinates(location));
+    const invalidDataDraft = draftsToPersist.find((location) => !hasText(location.nombre) || !hasValidDraftCoordinates(location));
     if (invalidDataDraft) {
-      const dataMessage = 'Every registered location needs a name, coordinates, and a valid radius before it can be saved.';
+      const dataMessage = 'Every new or edited location needs a name, coordinates, and a valid radius before it can be saved.';
       setFailureToastMessage(dataMessage);
       setErrorMessage(dataMessage);
       return;
@@ -499,13 +511,6 @@ export function LocationRegistrationModal({
           await humanResourcesApi.deleteAttendanceControlLocation(locationId);
         }
 
-        const updatedDraftsSource = nextDraftLocations.filter((location) => {
-          if (!location.persistedId) {
-            return false;
-          }
-          const originalLocation = persistedLocationSnapshot.get(location.persistedId);
-          return Boolean(originalLocation) && !areDraftLocationsEqual(location, originalLocation);
-        });
         for (const location of updatedDraftsSource) {
           await humanResourcesApi.updateAttendanceControlLocation(location.persistedId!, {
             unit_id: location.unitId ?? null,
@@ -518,7 +523,6 @@ export function LocationRegistrationModal({
           });
         }
 
-        const newDrafts = nextDraftLocations.filter((location) => !location.persistedId);
         for (const location of newDrafts) {
           await humanResourcesApi.createAttendanceControlLocation({
             unit_id: location.unitId ?? null,
@@ -533,6 +537,7 @@ export function LocationRegistrationModal({
 
         await Promise.resolve(onReload?.());
       })(), LOCATION_MODAL_MINIMUM_LOADING_MS);
+      onSaved?.();
       onClose();
     } catch (error) {
       const saveMessage = error instanceof Error ? error.message : 'Could not save locations.';
