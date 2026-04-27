@@ -88,9 +88,10 @@ Updated HR Control:
 - Schedule and work-site assignment lists now hide employees who are already busy for the selected date.
 - Set Schedule now loads free employees through a paginated candidate API instead of rendering every employee at once.
 - Set Schedule now opens from a clean `Default Schedule` using `08:00` to `17:00`, instead of inheriting the selected employee's old template hours.
-- View Schedule was simplified into two clear sections: `Site schedule` and `Employee schedule`.
-- `Site schedule` only asks for date and site; HR can see which sites have working employees and click a site card to load the employees working there.
-- `Employee schedule` lets HR select one employee and review that employee by Day, Week, or Month.
+- View Schedule now uses plain-language buttons: `Sites`, `Employees at site`, and `One employee`.
+- `Sites` shows one card per site with total working employees and shift-time counts for the selected date.
+- `Employees at site` loads only after HR selects a site, then shows the employees working at that site for that date.
+- `One employee` lets HR select one employee and choose any start/end date range, including one specific day.
 - Removing a shift from View Schedule now removes only the selected date; longer schedule/work-site ranges are split so future dates stay assigned.
 - HR Control save/update API actions now use the shared loading overlay plus success and failure toasts; the initial Control page load uses the normal skeleton to avoid a quick overlay flash.
 - Daily Attendance now has a visible employee search and status filter so HR can quickly select an employee before assigning work site or access settings.
