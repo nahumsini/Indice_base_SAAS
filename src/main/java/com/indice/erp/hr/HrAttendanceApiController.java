@@ -190,6 +190,77 @@ public class HrAttendanceApiController {
         }
     }
 
+    @PutMapping("/employees/{employeeId}/allowed-locations")
+    public ResponseEntity<?> replaceEmployeeAllowedLocations(
+        HttpSession session,
+        @PathVariable long employeeId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.replaceEmployeeAllowedLocations(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    employeeId,
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/work-site-assignments/bulk")
+    public ResponseEntity<?> bulkAssignActiveWorkSite(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.bulkAssignActiveWorkSite(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/work-assignments/clear")
+    public ResponseEntity<?> clearEmployeeWorkAssignments(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.clearEmployeeWorkAssignments(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @GetMapping("/schedule-templates")
     public ResponseEntity<?> scheduleTemplates(HttpSession session) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -198,6 +269,39 @@ public class HrAttendanceApiController {
         }
 
         return ResponseEntity.ok(hrAttendanceService.listScheduleTemplates(currentUser.get().companyId()));
+    }
+
+    @GetMapping("/schedule-candidates")
+    public ResponseEntity<?> scheduleCandidates(
+        HttpSession session,
+        @RequestParam(required = false) String date,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(required = false) String search,
+        @RequestParam(name = "unit_id", required = false) Long unitId,
+        @RequestParam(name = "business_id", required = false) Long businessId
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
+            return ResponseEntity.ok(
+                hrAttendanceService.scheduleCandidates(
+                    currentUser.get().companyId(),
+                    targetDate,
+                    page,
+                    size,
+                    search,
+                    unitId,
+                    businessId
+                )
+            );
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
     }
 
     @PostMapping("/schedule-templates")

@@ -20,6 +20,23 @@ export const statusClasses: Record<string, string> = {
   inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 
+type ControlAssignment = AttendanceControlOverviewResponse['assignments'][number];
+
+export function getAssignmentBusyReason(assignment: ControlAssignment) {
+  if (assignment.first_check_in_at || assignment.last_check_out_at) {
+    return 'Attendance already recorded for this date';
+  }
+  if (assignment.active_work_site) {
+    return 'Work site already assigned';
+  }
+  if (assignment.schedule_template_id) {
+    return 'Schedule already assigned';
+  }
+  return '';
+}
+
+export const isAssignmentFreeForWork = (assignment: ControlAssignment) => !getAssignmentBusyReason(assignment);
+
 export function formatDate(value: string | null | undefined, locale: string, fallback: string) {
   if (!value) {
     return fallback;
@@ -70,6 +87,10 @@ export function ControlAttendanceRow({
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {assignment.position_title || assignment.department || copy.labels.noDepartment}
           </p>
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-[#143675] dark:text-[#8bb3ff]">
+            <MapPin className="h-3.5 w-3.5" />
+            <span className="truncate">Assigned site: {assignment.active_work_site?.location_name ?? 'Open'}</span>
+          </div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses[displayStatus]}`}>
           {copy.statuses[displayStatus]}

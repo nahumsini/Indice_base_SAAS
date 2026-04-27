@@ -19,6 +19,7 @@ import {
   type AttendanceControlLocation,
   type AttendanceControlTemplate,
   type AttendanceControlTemplatePayload,
+  type AttendanceScheduleCandidateOption,
 } from '../../../../api/humanResources';
 import { useHRLanguage } from '../../HRLanguage';
 
@@ -35,7 +36,6 @@ interface HorarioDiaDraft {
 interface ScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  assignments: AttendanceControlAssignment[];
   templates: AttendanceControlTemplate[];
   locations: AttendanceControlLocation[];
   selectedTemplateId?: number | null;
@@ -58,8 +58,9 @@ const weekdayConfig = [
 ] as const;
 
 const collaboratorsPerPage = 10;
+const defaultScheduleTemplateName = 'Default Schedule';
 const defaultScheduleStartTime = '08:00';
-const defaultScheduleEndTime = '09:00';
+const defaultScheduleEndTime = '17:00';
 
 const emptyScheduleDays = (): HorarioDiaDraft[] =>
   weekdayConfig.map((day) => ({
@@ -118,10 +119,27 @@ const normalizeTemplatePayload = (payload: AttendanceControlTemplatePayload) =>
     })),
   });
 
+const payloadFromTemplate = (template: AttendanceControlTemplate): AttendanceControlTemplatePayload => ({
+  name: template.name,
+  status: template.status === 'inactive' ? 'inactive' : 'active',
+  schedule_mode: template.schedule_mode === 'open' ? 'open' : 'strict',
+  block_after_grace_period: Boolean(template.block_after_grace_period),
+  enforce_location: Boolean(template.enforce_location),
+  location_id: template.location_id ?? null,
+  days: template.days.map((day) => ({
+    day_of_week: day.day_of_week,
+    start_time: day.start_time ?? null,
+    end_time: day.end_time ?? null,
+    meal_minutes: day.meal_minutes ?? 0,
+    rest_minutes: day.rest_minutes ?? 0,
+    late_after_minutes: day.late_after_minutes,
+    is_rest_day: day.is_rest_day,
+  })),
+});
+
 export function ScheduleModal({
   isOpen,
   onClose,
-  assignments,
   templates,
   locations,
   selectedTemplateId,
@@ -136,6 +154,13 @@ export function ScheduleModal({
   const [appliedUnidadFilter, setAppliedUnidadFilter] = useState('');
   const [appliedNegocioFilter, setAppliedNegocioFilter] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  const [candidateAssignments, setCandidateAssignments] = useState<AttendanceControlAssignment[]>([]);
+  const [candidateUnitOptions, setCandidateUnitOptions] = useState<AttendanceScheduleCandidateOption[]>([]);
+  const [candidateBusinessOptions, setCandidateBusinessOptions] = useState<AttendanceScheduleCandidateOption[]>([]);
+  const [candidateTotalCount, setCandidateTotalCount] = useState(0);
+  const [candidateTotalPages, setCandidateTotalPages] = useState(1);
+  const [candidateAvailableCount, setCandidateAvailableCount] = useState(0);
+  const [candidateBusyCount, setCandidateBusyCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
   const [modoHorario, setModoHorario] = useState<'Horario estricto' | 'Horario abierto'>('Horario estricto');
@@ -144,6 +169,7 @@ export function ScheduleModal({
   const [noPermitirFueraUbicacion, setNoPermitirFueraUbicacion] = useState(false);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState('');
   const [horarios, setHorarios] = useState<HorarioDiaDraft[]>(emptyScheduleDays());
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [failureToastMessage, setFailureToastMessage] = useState('');
@@ -151,7 +177,7 @@ export function ScheduleModal({
   const collaboratorsListRef = useRef<HTMLDivElement>(null);
 
   const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === selectedTemplateId) ?? templates[0] ?? null,
+    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
     [selectedTemplateId, templates],
   );
   const assignmentEffectiveStartDate = effectiveStartDate?.trim() || new Date().toISOString().slice(0, 10);
@@ -161,7 +187,7 @@ export function ScheduleModal({
       return;
     }
 
-    const templateDraft = draftFromTemplate(selectedTemplate);
+    const templateDraft = draftFromTemplate(null);
     setSearchQuery('');
     setUnidadFilter('');
     setNegocioFilter('');
@@ -169,8 +195,13 @@ export function ScheduleModal({
     setAppliedUnidadFilter('');
     setAppliedNegocioFilter('');
     setSelectedEmployeeIds([]);
+    setCandidateAssignments([]);
+    setCandidateTotalCount(0);
+    setCandidateTotalPages(1);
+    setCandidateAvailableCount(0);
+    setCandidateBusyCount(0);
     setCurrentPage(1);
-    setSelectedTemplateName(selectedTemplate?.name ?? 'Custom schedule');
+    setSelectedTemplateName(defaultScheduleTemplateName);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
     setNoPermitirDespuesTolerancia(templateDraft.noPermitirDespuesTolerancia);
@@ -179,47 +210,90 @@ export function ScheduleModal({
     setHorarios(templateDraft.horarios);
     setErrorMessage('');
     setFailureToastMessage('');
-  }, [isOpen, selectedTemplate]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    let active = true;
+    setIsLoadingCandidates(true);
+    setErrorMessage('');
+
+    humanResourcesApi.listAttendanceScheduleCandidates({
+      date: assignmentEffectiveStartDate,
+      page: currentPage,
+      size: collaboratorsPerPage,
+      search: appliedSearchQuery,
+      unit_id: appliedUnidadFilter,
+      business_id: appliedNegocioFilter,
+    })
+      .then((response) => {
+        if (!active) {
+          return;
+        }
+
+        setCandidateAssignments(response.items);
+        setCandidateUnitOptions(response.unit_options);
+        setCandidateBusinessOptions(response.business_options);
+        setCandidateTotalCount(response.total_count);
+        setCandidateTotalPages(response.total_pages);
+        setCandidateAvailableCount(response.available_count);
+        setCandidateBusyCount(response.busy_count);
+        if (response.page !== currentPage) {
+          setCurrentPage(response.page);
+        }
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : 'Could not load schedule candidates.';
+        setCandidateAssignments([]);
+        setCandidateTotalCount(0);
+        setCandidateTotalPages(1);
+        setErrorMessage(message);
+        showFailureToast(message);
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoadingCandidates(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    appliedNegocioFilter,
+    appliedSearchQuery,
+    appliedUnidadFilter,
+    assignmentEffectiveStartDate,
+    currentPage,
+    isOpen,
+  ]);
 
   const unitOptions = useMemo(
-    () => Array.from(new Map(
-      assignments
-        .filter((assignment) => assignment.unit_id)
-        .map((assignment) => [String(assignment.unit_id), assignment.unit_name || 'Unit']),
-    ).entries()),
-    [assignments],
+    () => candidateUnitOptions.map((option) => [String(option.id), option.name || 'Unit'] as const),
+    [candidateUnitOptions],
   );
 
   const businessOptions = useMemo(
-    () => Array.from(new Map(
-      assignments
-        .filter((assignment) => assignment.business_id)
-        .map((assignment) => [String(assignment.business_id), assignment.business_name || 'Business']),
-    ).entries()),
-    [assignments],
+    () => candidateBusinessOptions.map((option) => [String(option.id), option.name || 'Business'] as const),
+    [candidateBusinessOptions],
   );
 
-  const filteredAssignments = useMemo(() => assignments.filter((assignment) => {
-    const normalizedSearch = appliedSearchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !normalizedSearch ||
-      assignment.employee_name.toLowerCase().includes(normalizedSearch) ||
-      (assignment.employee_number ?? '').toLowerCase().includes(normalizedSearch);
-    const matchesUnit = !appliedUnidadFilter || String(assignment.unit_id ?? '') === appliedUnidadFilter;
-    const matchesBusiness = !appliedNegocioFilter || String(assignment.business_id ?? '') === appliedNegocioFilter;
-    return matchesSearch && matchesUnit && matchesBusiness;
-  }), [appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, assignments]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredAssignments.length / collaboratorsPerPage));
+  const totalPages = Math.max(1, candidateTotalPages);
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStartIndex = (safeCurrentPage - 1) * collaboratorsPerPage;
-  const pageEndIndex = pageStartIndex + collaboratorsPerPage;
-  const paginatedAssignments = filteredAssignments.slice(pageStartIndex, pageEndIndex);
+  const paginatedAssignments = candidateAssignments;
   const visibleEmployeeIds = paginatedAssignments.map((assignment) => assignment.employee_id);
   const allVisibleSelected = visibleEmployeeIds.length > 0
     && visibleEmployeeIds.every((employeeId) => selectedEmployeeIds.includes(employeeId));
-  const paginationStart = filteredAssignments.length === 0 ? 0 : pageStartIndex + 1;
-  const paginationEnd = filteredAssignments.length === 0 ? 0 : Math.min(pageEndIndex, filteredAssignments.length);
+  const paginationStart = candidateTotalCount === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = candidateTotalCount === 0 ? 0 : pageStartIndex + paginatedAssignments.length;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -351,6 +425,7 @@ export function ScheduleModal({
   };
 
   const applySearchFilters = () => {
+    setCurrentPage(1);
     setAppliedSearchQuery(searchQuery);
     setAppliedUnidadFilter(unidadFilter);
     setAppliedNegocioFilter(negocioFilter);
@@ -404,7 +479,7 @@ export function ScheduleModal({
     });
 
     return {
-      name: selectedTemplateName.trim() || selectedTemplate?.name || 'Custom schedule',
+      name: selectedTemplateName.trim() || defaultScheduleTemplateName,
       status: 'active',
       schedule_mode: isHorarioAbierto ? 'open' : 'strict',
       block_after_grace_period: !isHorarioAbierto && noPermitirDespuesTolerancia,
@@ -426,32 +501,23 @@ export function ScheduleModal({
           return null;
         }
 
+        const normalizedPayload = normalizeTemplatePayload(payload);
         const sameAsSelectedTemplate = selectedTemplate
-          ? normalizeTemplatePayload(payload) === normalizeTemplatePayload({
-              name: selectedTemplate.name,
-              status: selectedTemplate.status === 'inactive' ? 'inactive' : 'active',
-              schedule_mode: selectedTemplate.schedule_mode === 'open' ? 'open' : 'strict',
-              block_after_grace_period: Boolean(selectedTemplate.block_after_grace_period),
-              enforce_location: Boolean(selectedTemplate.enforce_location),
-              location_id: selectedTemplate.location_id ?? null,
-              days: selectedTemplate.days.map((day) => ({
-                day_of_week: day.day_of_week,
-                start_time: day.start_time ?? null,
-                end_time: day.end_time ?? null,
-                meal_minutes: day.meal_minutes ?? 0,
-                rest_minutes: day.rest_minutes ?? 0,
-                late_after_minutes: day.late_after_minutes,
-                is_rest_day: day.is_rest_day,
-              })),
-            })
+          ? normalizedPayload === normalizeTemplatePayload(payloadFromTemplate(selectedTemplate))
           : false;
+        const reusableTemplate = sameAsSelectedTemplate
+          ? selectedTemplate
+          : templates.find((template) =>
+            template.status !== 'inactive' &&
+              normalizedPayload === normalizeTemplatePayload(payloadFromTemplate(template)),
+          ) ?? null;
 
-        let templateId = selectedTemplate?.id ?? null;
-        let appliedTemplateName = selectedTemplate?.name ?? payload.name;
-        if (!templateId || !sameAsSelectedTemplate) {
-          const templateName = sameAsSelectedTemplate
-            ? payload.name
-            : `${payload.name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
+        let templateId = reusableTemplate?.id ?? null;
+        let appliedTemplateName = reusableTemplate?.name ?? payload.name;
+        if (!templateId) {
+          const templateName = templates.some((template) => template.name === payload.name)
+            ? `${payload.name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+            : payload.name;
           const response = await humanResourcesApi.createAttendanceControlTemplate({
             ...payload,
             name: templateName,
@@ -503,8 +569,8 @@ export function ScheduleModal({
         className="z-[100]"
       />
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="my-8 flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="my-8 flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white text-gray-900 shadow-xl dark:border dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
         <div className="flex items-center justify-between border-b border-[#143675] bg-[#143675] p-6">
           <div className="flex items-center gap-2">
             <Clock className="h-6 w-6 text-white" />
@@ -515,7 +581,7 @@ export function ScheduleModal({
           </button>
         </div>
 
-        <div className="border-b border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-700/50">
+        <div className="border-b border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/70">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
             <div className="xl:min-w-0 xl:flex-[1.8]">
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Look for</label>
@@ -566,7 +632,7 @@ export function ScheduleModal({
           </div>
         </div>
 
-        <div ref={modalBodyRef} className="flex-1 overflow-y-auto">
+        <div ref={modalBodyRef} className="flex-1 overflow-y-auto bg-white dark:bg-gray-950">
           {errorMessage ? (
             <div className="px-6 pt-6">
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
@@ -576,31 +642,38 @@ export function ScheduleModal({
           ) : null}
 
           <div className="grid grid-cols-1 divide-x divide-gray-200 dark:divide-gray-700 lg:grid-cols-2">
-            <div ref={collaboratorsListRef} className="p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 dark:text-white">Collaborators</h3>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  Selected: <span className="font-medium text-blue-600 dark:text-blue-400">{selectedEmployeeIds.length}</span>
-                </span>
-              </div>
+            <div ref={collaboratorsListRef} className="bg-white p-6 dark:bg-gray-950">
+	              <div className="mb-4 flex items-center justify-between gap-3">
+	                <h3 className="font-semibold text-gray-900 dark:text-white">Collaborators</h3>
+	                <div className="flex flex-wrap justify-end gap-2 text-sm text-gray-500 dark:text-gray-400">
+	                  <span>Free: <span className="font-medium text-gray-900 dark:text-white">{candidateAvailableCount}</span></span>
+	                  <span>Selected: <span className="font-medium text-blue-600 dark:text-blue-400">{selectedEmployeeIds.length}</span></span>
+	                </div>
+	              </div>
 
               <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="w-full">
-                  <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
-                    <tr>
-                      <th className="w-10 px-3 py-2 text-left">
-                        <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAll} />
-                      </th>
+	                  <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
+	                    <tr>
+	                      <th className="w-10 px-3 py-2 text-left">
+	                        <Checkbox checked={allVisibleSelected} disabled={isLoadingCandidates} onCheckedChange={toggleAll} />
+	                      </th>
                       <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Code</th>
                       <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Contributor</th>
                       <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Dept</th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                    {filteredAssignments.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                          No collaborators available.
+	                  </thead>
+	                  <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+	                    {isLoadingCandidates ? (
+	                      <tr>
+	                        <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+	                          Loading collaborators...
+	                        </td>
+	                      </tr>
+	                    ) : candidateTotalCount === 0 ? (
+	                      <tr>
+	                        <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+	                          No free collaborators available for this date.
                         </td>
                       </tr>
                     ) : (
@@ -633,13 +706,23 @@ export function ScheduleModal({
                       )})
                     )}
                   </tbody>
-                </table>
-              </div>
-              {filteredAssignments.length > 0 ? (
-                <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {paginationStart}-{paginationEnd} of {filteredAssignments.length} collaborators
-                  </p>
+	                </table>
+	              </div>
+	              {!isLoadingCandidates && candidateTotalCount === 0 && candidateBusyCount > 0 ? (
+	                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+	                  Busy employees are hidden. Remove an existing shift before assigning new work.
+	                </p>
+	              ) : null}
+	              {!isLoadingCandidates && candidateTotalCount > 0 ? (
+	                <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+	                  <p className="text-sm text-gray-500 dark:text-gray-400">
+	                    Showing {paginationStart}-{paginationEnd} of {candidateTotalCount} collaborators
+	                  </p>
+	                  {candidateBusyCount > 0 ? (
+	                    <p className="text-xs text-gray-500 dark:text-gray-400">
+	                      {candidateBusyCount} busy employees are hidden. Remove an existing shift before assigning new work.
+	                    </p>
+	                  ) : null}
                   <div className="flex flex-col items-start gap-3 md:items-end">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Page {safeCurrentPage} of {totalPages}
@@ -695,7 +778,7 @@ export function ScheduleModal({
               ) : null}
             </div>
 
-            <div className="p-6">
+            <div className="bg-white p-6 dark:bg-gray-950">
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-900 dark:text-white">Schedule to be applied</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -885,7 +968,7 @@ export function ScheduleModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-700/50">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/70">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>

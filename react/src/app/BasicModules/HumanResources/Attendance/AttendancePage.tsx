@@ -866,7 +866,7 @@ export default function Attendance() {
       </div>
 
       <Dialog open={isRecordsOpen} onOpenChange={setIsRecordsOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{copy.viewRecords}</DialogTitle>
           </DialogHeader>

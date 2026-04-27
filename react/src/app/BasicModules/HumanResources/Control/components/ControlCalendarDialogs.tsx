@@ -54,8 +54,8 @@ export function ControlCalendarDayDialog({
       }}
     >
       {day ? (
-        <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-[760px]">
-          <DialogHeader className="border-b border-gray-200 px-6 py-5 dark:border-gray-700">
+        <DialogContent className="max-h-[92vh] overflow-y-auto bg-white p-0 text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[760px]">
+          <DialogHeader className="border-b border-gray-200 bg-white px-6 py-5 dark:border-gray-700 dark:bg-gray-950">
             <DialogTitle>
               {copy.labels.modifyStatusOfDay} {new Date(`${day.date}T00:00:00`).getDate()}
             </DialogTitle>
@@ -64,7 +64,7 @@ export function ControlCalendarDayDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 px-6 py-5">
+          <div className="space-y-5 bg-white px-6 py-5 dark:bg-gray-950">
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -194,7 +194,7 @@ export function ControlKioskQrDialog({
 }) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{copy.labels.kioskQrTitle}</DialogTitle>
           <DialogDescription>{kioskLink || copy.labels.kioskTokenUnavailable}</DialogDescription>
@@ -204,7 +204,7 @@ export function ControlKioskQrDialog({
           {qrDataUrl ? (
             <img src={qrDataUrl} alt={copy.labels.kioskQrTitle} className="h-72 w-72 rounded-2xl border border-gray-200 bg-white p-3" />
           ) : (
-            <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500">
+            <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-400">
               {copy.loading}
             </div>
           )}

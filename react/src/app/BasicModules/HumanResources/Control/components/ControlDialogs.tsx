@@ -18,7 +18,24 @@ import {
   type AttendanceKioskDevice,
   type AttendanceKioskDevicePayload,
 } from '../../../../api/humanResources';
-import { type AttendanceControlCopy, statusClasses, weekdayLabel } from './ControlAttendanceWidgets';
+import {
+  getAssignmentBusyReason,
+  isAssignmentFreeForWork,
+  type AttendanceControlCopy,
+  statusClasses,
+  weekdayLabel,
+} from './ControlAttendanceWidgets';
+
+export interface ControlWorkSiteForm {
+  employee_ids: number[];
+  location_ids: number[];
+  location_id: number;
+  effective_start_date: string;
+  effective_end_date: string;
+  start_time: string;
+  end_time: string;
+}
+
 export function ControlLocationDialog({
   copy,
   isOpen,
@@ -40,7 +57,7 @@ export function ControlLocationDialog({
 }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{copy.sections.locationsHint}</DialogDescription>
@@ -137,7 +154,7 @@ export function ControlTemplateDialog({
 }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{copy.sections.templatesHint}</DialogDescription>
@@ -187,7 +204,7 @@ export function ControlTemplateDialog({
                                 ...item,
                                 is_rest_day: !isWorkingDay,
                                 start_time: isWorkingDay ? item.start_time || '08:00:00' : null,
-                                end_time: isWorkingDay ? item.end_time || '09:00:00' : null,
+                                end_time: isWorkingDay ? item.end_time || '17:00:00' : null,
                               }
                             : item,
                         );
@@ -280,9 +297,11 @@ export function ControlAssignmentDialog({
   onChange: (payload: AttendanceControlAssignmentPayload) => void;
   onSave: () => void;
 }) {
+  const availableAssignments = assignments.filter(isAssignmentFreeForWork);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{copy.labels.bulkAssign}</DialogTitle>
           <DialogDescription>{copy.labels.assignmentHint}</DialogDescription>
@@ -329,7 +348,7 @@ export function ControlAssignmentDialog({
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.employeesToAssign}</label>
             <div className="max-h-[320px] space-y-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
-              {assignments.map((assignment) => {
+              {availableAssignments.length > 0 ? availableAssignments.map((assignment) => {
                 const isChecked = form.employee_ids.includes(assignment.employee_id);
                 return (
                   <label key={assignment.employee_id} className="flex items-start gap-3 rounded-lg bg-white px-3 py-3 text-sm dark:bg-gray-800">
@@ -351,14 +370,163 @@ export function ControlAssignmentDialog({
                     </div>
                   </label>
                 );
-              })}
+              }) : (
+                <div className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                  No free employees available for this date. Remove an existing shift before assigning new work.
+                </div>
+              )}
             </div>
+            {assignments.length > availableAssignments.length ? (
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Busy employees are hidden from this list.
+              </p>
+            ) : null}
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button onClick={onSave} disabled={isSaving || form.employee_ids.length === 0 || form.template_id <= 0}>
+          <Button
+            onClick={onSave}
+            disabled={
+              isSaving ||
+              form.employee_ids.length === 0 ||
+              form.template_id <= 0 ||
+              form.employee_ids.some((employeeId) => {
+                const assignment = assignments.find((item) => item.employee_id === employeeId);
+                return assignment ? Boolean(getAssignmentBusyReason(assignment)) : false;
+              })
+            }
+          >
+            {copy.labels.save}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ControlWorkSiteDialog({
+  copy,
+  isOpen,
+  isSaving,
+  employeeName,
+  locations,
+  form,
+  onClose,
+  onChange,
+  onSave,
+}: {
+  copy: AttendanceControlCopy;
+  isOpen: boolean;
+  isSaving: boolean;
+  employeeName: string;
+  locations: AttendanceControlLocation[];
+  form: ControlWorkSiteForm;
+  onClose: () => void;
+  onChange: (payload: ControlWorkSiteForm) => void;
+  onSave: () => void;
+}) {
+  const activeLocations = locations.filter((location) => location.status !== 'inactive');
+  const invalidTimeRange = Boolean(form.start_time && form.end_time && form.end_time <= form.start_time);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Assign site and hours for {employeeName}</DialogTitle>
+          <DialogDescription>
+            Choose where this employee must work and the hours for that assignment.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/60 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Work site</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Attendance will only be accepted from this site for the selected dates.
+            </p>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
+            <select
+              value={form.location_id || ''}
+              onChange={(event) => {
+                const locationId = event.target.value ? Number(event.target.value) : 0;
+                onChange({
+                  ...form,
+                  location_id: locationId,
+                  location_ids: locationId > 0 ? Array.from(new Set([...form.location_ids, locationId])) : form.location_ids,
+                });
+              }}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="">Select work site</option>
+              {activeLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name} - {location.unit_name || copy.labels.noUnit} / {location.business_name || copy.labels.noBusiness}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start date</label>
+            <input
+              type="date"
+              value={form.effective_start_date}
+              onChange={(event) => onChange({ ...form, effective_start_date: event.target.value })}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End date</label>
+            <input
+              type="date"
+              value={form.effective_end_date}
+              onChange={(event) => onChange({ ...form, effective_end_date: event.target.value })}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Work hours</p>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start time</label>
+            <input
+              type="time"
+              value={form.start_time}
+              onChange={(event) => onChange({ ...form, start_time: event.target.value })}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End time</label>
+            <input
+              type="time"
+              value={form.end_time}
+              onChange={(event) => onChange({ ...form, end_time: event.target.value })}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div className="rounded-lg bg-[#143675]/5 px-3 py-2 text-xs text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff] sm:col-span-2">
+            Empty end date keeps this assignment active until you remove or end the shift.
+          </div>
+          {invalidTimeRange ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
+              End time must be after start time.
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
+          <Button
+            onClick={onSave}
+            disabled={isSaving || form.location_id <= 0 || !form.effective_start_date || !form.start_time || !form.end_time || invalidTimeRange}
+          >
             {copy.labels.save}
           </Button>
         </DialogFooter>
@@ -401,7 +569,7 @@ export function ControlKioskManagerDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-5xl">
+      <DialogContent className="max-h-[88vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{copy.labels.manageKiosks}</DialogTitle>
           <DialogDescription>{copy.sections.kiosksHint}</DialogDescription>
@@ -558,7 +726,7 @@ export function ControlKioskDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{copy.sections.kiosksHint}</DialogDescription>

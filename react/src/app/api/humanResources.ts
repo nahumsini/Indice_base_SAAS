@@ -271,6 +271,8 @@ export interface AttendanceDashboardItem {
   minutes_late: number;
   first_location?: AttendanceLocation | null;
   last_location?: AttendanceLocation | null;
+  schedule_rule?: AttendanceControlRule | null;
+  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
   first_photo_url?: string | null;
   last_photo_url?: string | null;
 }
@@ -316,6 +318,8 @@ export interface AttendanceCalendarDay {
   minutes_late: number;
   first_location?: AttendanceLocation | null;
   last_location?: AttendanceLocation | null;
+  schedule_rule?: AttendanceControlRule | null;
+  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
   first_photo_url?: string | null;
   last_photo_url?: string | null;
   notes?: string | null;
@@ -381,6 +385,19 @@ export interface AttendanceControlTemplate {
   location_name?: string | null;
   employees_assigned_count: number;
   days: AttendanceControlTemplateDay[];
+}
+
+export interface AttendanceEmployeeWorkSiteAssignment {
+  id: number;
+  employee_id: number;
+  location_id: number;
+  location_name: string;
+  location: AttendanceControlLocation;
+  template_id?: number | null;
+  template_name?: string | null;
+  effective_start_date: string;
+  effective_end_date?: string | null;
+  status: 'active' | 'inactive';
 }
 
 export interface AttendanceKioskDevice {
@@ -454,6 +471,8 @@ export interface AttendanceControlAssignment {
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   minutes_late: number;
+  allowed_locations?: AttendanceControlLocation[];
+  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
   access_profile?: AttendanceAccessProfile | null;
   latest_event?: AttendanceControlRecentEvent | null;
 }
@@ -496,6 +515,26 @@ export interface AttendanceControlOverviewResponse {
   kiosk_devices: AttendanceKioskDevice[];
   assignments: AttendanceControlAssignment[];
   recent_events: AttendanceControlRecentEvent[];
+}
+
+export interface AttendanceScheduleCandidateOption {
+  id: number;
+  name: string;
+  unit_id?: number | null;
+  unit_name?: string | null;
+}
+
+export interface AttendanceScheduleCandidatesResponse {
+  date: string;
+  items: AttendanceControlAssignment[];
+  page: number;
+  size: number;
+  total_count: number;
+  total_pages: number;
+  available_count: number;
+  busy_count: number;
+  unit_options: AttendanceScheduleCandidateOption[];
+  business_options: AttendanceScheduleCandidateOption[];
 }
 
 export interface AttendanceControlLocationsResponse {
@@ -549,6 +588,37 @@ export interface AttendanceControlAssignmentPayload {
   template_id: number;
   effective_start_date: string;
   effective_end_date?: string;
+}
+
+export interface AttendanceEmployeeAllowedLocationsPayload {
+  location_ids: number[];
+}
+
+export interface AttendanceWorkSiteAssignmentPayload {
+  employee_ids: number[];
+  location_id: number;
+  template_id?: number;
+  effective_start_date: string;
+  effective_end_date?: string;
+}
+
+export interface AttendanceWorkSiteAssignmentResponse {
+  assigned_count: number;
+  location: AttendanceControlLocation;
+  assignments: AttendanceEmployeeWorkSiteAssignment[];
+}
+
+export interface AttendanceWorkAssignmentClearPayload {
+  employee_id: number;
+  date: string;
+}
+
+export interface AttendanceWorkAssignmentClearResponse {
+  employee_id: number;
+  employee_name: string;
+  date: string;
+  schedule_assignments_cleared: number;
+  work_site_assignments_cleared: number;
 }
 
 export interface AttendanceControlAssignmentResult {
@@ -1063,6 +1133,19 @@ export const humanResourcesApi = {
     return apiClient<AttendanceControlTemplatesResponse>(endpoints.humanResources.attendanceScheduleTemplates);
   },
 
+  listAttendanceScheduleCandidates(params: {
+    date: string;
+    page?: number;
+    size?: number;
+    search?: string;
+    unit_id?: string | number;
+    business_id?: string | number;
+  }) {
+    return apiClient<AttendanceScheduleCandidatesResponse>(
+      `${endpoints.humanResources.attendanceScheduleCandidates}${toQueryString(params)}`,
+    );
+  },
+
   createAttendanceControlTemplate(payload: AttendanceControlTemplatePayload) {
     return apiClient<{ template: AttendanceControlTemplate }>(endpoints.humanResources.attendanceScheduleTemplates, {
       method: 'POST',
@@ -1079,6 +1162,30 @@ export const humanResourcesApi = {
 
   bulkAssignAttendanceSchedule(payload: AttendanceControlAssignmentPayload) {
     return apiClient<AttendanceControlBulkAssignmentResponse>(endpoints.humanResources.attendanceScheduleAssignmentsBulk, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  replaceAttendanceEmployeeAllowedLocations(employeeId: string | number, payload: AttendanceEmployeeAllowedLocationsPayload) {
+    return apiClient<{ employee_id: number; allowed_locations: AttendanceControlLocation[] }>(
+      `${endpoints.humanResources.attendanceCalendar}/${employeeId}/allowed-locations`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  bulkAssignAttendanceWorkSite(payload: AttendanceWorkSiteAssignmentPayload) {
+    return apiClient<AttendanceWorkSiteAssignmentResponse>(endpoints.humanResources.attendanceWorkSiteAssignmentsBulk, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  clearAttendanceWorkAssignments(payload: AttendanceWorkAssignmentClearPayload) {
+    return apiClient<AttendanceWorkAssignmentClearResponse>(endpoints.humanResources.attendanceWorkAssignmentsClear, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

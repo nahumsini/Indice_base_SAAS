@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LoadingBarOverlay, runWithMinimumDuration } from '../../../../components/LoadingBarOverlay';
 import { Button } from '../../../../components/ui/button';
 import {
   Dialog,
@@ -28,6 +29,7 @@ interface EmployeeAccessActionsProps {
   selectedAccessProfile: AttendanceAccessProfile | null;
   faceEnrollment: FaceEnrollmentSummary;
   assignments: AttendanceControlAssignment[];
+  inlineLayout?: boolean;
   onFaceEnrollmentChange: (enrollment: FaceEnrollmentSummary) => void;
   onReload: () => Promise<void> | void;
   onSuccess: (message: string) => void;
@@ -67,6 +69,7 @@ export function EmployeeAccessActions({
   selectedAccessProfile,
   faceEnrollment,
   assignments,
+  inlineLayout = false,
   onFaceEnrollmentChange,
   onReload,
   onSuccess,
@@ -83,6 +86,13 @@ export function EmployeeAccessActions({
   if (!selectedEmployee) {
     return null;
   }
+
+  const actionGroupClassName = inlineLayout
+    ? 'contents'
+    : 'grid w-full grid-cols-2 gap-2 sm:w-auto sm:auto-cols-max sm:grid-flow-col sm:grid-cols-none xl:justify-end';
+  const actionButtonClassName = inlineLayout
+    ? 'h-9 min-w-[8.75rem] shrink-0 justify-center whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white'
+    : 'whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white';
 
   const openCreateAccessProfileDialog = () => {
     setEditingAccessProfile(null);
@@ -112,42 +122,44 @@ export function EmployeeAccessActions({
     onError('');
 
     try {
-      const profilePayload = {
-        ...accessProfileForm,
-        default_method: 'pin' as const,
-      };
-      let savedProfile: AttendanceAccessProfile;
-      if (editingAccessProfile) {
-        const response = await humanResourcesApi.updateAttendanceAccessProfile(editingAccessProfile.id, profilePayload);
-        savedProfile = response.access_profile;
-      } else {
-        const response = await humanResourcesApi.createAttendanceAccessProfile(profilePayload);
-        savedProfile = response.access_profile;
-      }
-
-      const nextPin = accessProfilePin.trim();
-      if (nextPin) {
-        const existingPinMethod = savedProfile.methods.find((method) => method.method_type === 'pin') ?? null;
-        const pinPayload: AttendanceAccessMethodPayload = {
-          access_profile_id: savedProfile.id,
-          method_type: 'pin',
-          credential_ref: '',
-          secret: nextPin,
-          status: 'active',
-          priority: existingPinMethod?.priority ?? 10,
-          metadata: existingPinMethod?.metadata ?? {},
+      await runWithMinimumDuration((async () => {
+        const profilePayload = {
+          ...accessProfileForm,
+          default_method: 'pin' as const,
         };
-
-        if (existingPinMethod) {
-          await humanResourcesApi.updateAttendanceAccessMethod(existingPinMethod.id, pinPayload);
+        let savedProfile: AttendanceAccessProfile;
+        if (editingAccessProfile) {
+          const response = await humanResourcesApi.updateAttendanceAccessProfile(editingAccessProfile.id, profilePayload);
+          savedProfile = response.access_profile;
         } else {
-          await humanResourcesApi.createAttendanceAccessMethod(pinPayload);
+          const response = await humanResourcesApi.createAttendanceAccessProfile(profilePayload);
+          savedProfile = response.access_profile;
         }
-      }
+
+        const nextPin = accessProfilePin.trim();
+        if (nextPin) {
+          const existingPinMethod = savedProfile.methods.find((method) => method.method_type === 'pin') ?? null;
+          const pinPayload: AttendanceAccessMethodPayload = {
+            access_profile_id: savedProfile.id,
+            method_type: 'pin',
+            credential_ref: '',
+            secret: nextPin,
+            status: 'active',
+            priority: existingPinMethod?.priority ?? 10,
+            metadata: existingPinMethod?.metadata ?? {},
+          };
+
+          if (existingPinMethod) {
+            await humanResourcesApi.updateAttendanceAccessMethod(existingPinMethod.id, pinPayload);
+          } else {
+            await humanResourcesApi.createAttendanceAccessMethod(pinPayload);
+          }
+        }
+      })(), 850);
 
       setIsAccessProfileDialogOpen(false);
       setAccessProfilePin('');
-      onSuccess(copy.labels.editAccessProfile);
+      onSuccess('Access profile saved successfully.');
       await Promise.resolve(onReload());
     } catch (error) {
       onError(toErrorMessage(error, copy) || copy.saveError);
@@ -161,7 +173,10 @@ export function EmployeeAccessActions({
     onError('');
 
     try {
-      await humanResourcesApi.deleteFaceEnrollment(selectedEmployee.employee_id);
+      await runWithMinimumDuration(
+        humanResourcesApi.deleteFaceEnrollment(selectedEmployee.employee_id),
+        850,
+      );
       onFaceEnrollmentChange(null);
       onSuccess('Face enrollment removed.');
       await Promise.resolve(onReload());
@@ -174,11 +189,17 @@ export function EmployeeAccessActions({
 
   return (
     <>
-      <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:auto-cols-max sm:grid-flow-col sm:grid-cols-none xl:justify-end">
+      <LoadingBarOverlay
+        isVisible={isSaving}
+        title="Saving access changes"
+        description="Please wait while the employee access profile is updated."
+      />
+
+      <div className={actionGroupClassName}>
         <Button
           variant="outline"
           size="sm"
-          className="whitespace-nowrap"
+          className={actionButtonClassName}
           disabled={isSaving}
           onClick={selectedAccessProfile ? () => openEditAccessProfileDialog(selectedAccessProfile) : openCreateAccessProfileDialog}
         >
@@ -187,7 +208,7 @@ export function EmployeeAccessActions({
         <Button
           variant="outline"
           size="sm"
-          className="whitespace-nowrap"
+          className={actionButtonClassName}
           disabled={isSaving}
           onClick={() => setIsFaceEnrollmentModalOpen(true)}
         >
@@ -197,7 +218,7 @@ export function EmployeeAccessActions({
           <Button
             variant="outline"
             size="sm"
-            className="whitespace-nowrap"
+            className={actionButtonClassName}
             disabled={isSaving}
             onClick={() => void handleDeleteFaceEnrollment()}
           >
@@ -226,10 +247,24 @@ export function EmployeeAccessActions({
         employeeId={selectedEmployee.employee_id}
         employeeName={selectedEmployee.employee_name}
         onClose={() => setIsFaceEnrollmentModalOpen(false)}
+        onError={onError}
         onCompleted={async () => {
-          const response = await humanResourcesApi.getFaceEnrollment(selectedEmployee.employee_id);
-          onFaceEnrollmentChange(response.enrollment);
-          onSuccess('Face enrollment completed.');
+          setIsSaving(true);
+          onError('');
+          try {
+            const response = await runWithMinimumDuration(
+              humanResourcesApi.getFaceEnrollment(selectedEmployee.employee_id),
+              850,
+            );
+            onFaceEnrollmentChange(response.enrollment);
+            onSuccess('Face enrollment completed.');
+          } catch (error) {
+            const message = toErrorMessage(error, copy) || copy.saveError;
+            onError(message);
+            throw new Error(message);
+          } finally {
+            setIsSaving(false);
+          }
         }}
       />
     </>
@@ -265,7 +300,7 @@ function AccessProfileDialog({
 }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{copy.labels.metadataHint}</DialogDescription>

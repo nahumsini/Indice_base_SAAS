@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Button } from '../../../components/ui/button';
+import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { LocationRegistrationModal } from './components/LocationRegistrationModal';
@@ -26,6 +27,7 @@ import {
   LegendOutline,
   LegendPill,
   applyCalendarDayUpdate,
+  getAssignmentBusyReason,
   statusClasses,
   weekdayLabel,
 } from './components/ControlAttendanceWidgets';
@@ -39,6 +41,8 @@ import {
   ControlKioskManagerDialog,
   ControlLocationDialog,
   ControlTemplateDialog,
+  ControlWorkSiteDialog,
+  type ControlWorkSiteForm,
 } from './components/ControlDialogs';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
@@ -80,7 +84,7 @@ const createDefaultTemplateDays = () =>
   weekdayNumbers.map((day) => ({
     day_of_week: day,
     start_time: day >= 1 && day <= 5 ? '08:00:00' : null,
-    end_time: day >= 1 && day <= 5 ? '09:00:00' : null,
+    end_time: day >= 1 && day <= 5 ? '17:00:00' : null,
     meal_minutes: 0,
     rest_minutes: 0,
     late_after_minutes: 10,
@@ -114,6 +118,16 @@ const defaultAssignmentForm = (): AttendanceControlAssignmentPayload => ({
   effective_end_date: '',
 });
 
+const defaultWorkSiteForm = (): ControlWorkSiteForm => ({
+  employee_ids: [],
+  location_ids: [],
+  location_id: 0,
+  effective_start_date: todayIsoDate(),
+  effective_end_date: '',
+  start_time: '08:00',
+  end_time: '17:00',
+});
+
 const defaultKioskForm = (): AttendanceKioskDevicePayload => ({
   code: '',
   name: '',
@@ -143,6 +157,22 @@ const findRuleForSelectedDay = (
   return template.days.find((day) => day.day_of_week === dayOfWeek) ?? null;
 };
 
+const timeInputValue = (value?: string | null) => (value ? value.slice(0, 5) : '');
+const templateDayMatchesHours = (
+  day: AttendanceControlTemplate['days'][number] | undefined,
+  dayOfWeek: number,
+  startTime: string,
+  endTime: string,
+) => {
+  if (!day) {
+    return false;
+  }
+  if (dayOfWeek >= 6) {
+    return Boolean(day.is_rest_day);
+  }
+  return !day.is_rest_day && timeInputValue(day.start_time) === startTime && timeInputValue(day.end_time) === endTime;
+};
+
 const toErrorMessage = (error: unknown, copy: AttendanceControlCopy) => {
   if (error instanceof ApiClientError) {
     if (error.status === 404) {
@@ -160,6 +190,8 @@ const toErrorMessage = (error: unknown, copy: AttendanceControlCopy) => {
 export default function Control() {
   const { currentLanguage } = useLanguage();
   const copy = useHRLanguage().attendanceControl;
+  const headerActionButtonClassName = 'h-8 w-full justify-center whitespace-nowrap rounded-md border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white sm:w-auto';
+  const selectedEmployeeActionButtonClassName = 'h-9 min-w-[8.75rem] shrink-0 justify-center whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white';
 
   const [controlDate, setControlDate] = useState(todayIsoDate());
   const [calendarMonth, setCalendarMonth] = useState(toMonthValue(todayIsoDate()));
@@ -187,6 +219,7 @@ export default function Control() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [failureToastMessage, setFailureToastMessage] = useState('');
   const [isKioskQrDialogOpen, setIsKioskQrDialogOpen] = useState(false);
   const [kioskQrDataUrl, setKioskQrDataUrl] = useState('');
 
@@ -203,14 +236,35 @@ export default function Control() {
 
   const [isAssignmentDialogOpen, setIsAssignmentDialogOpen] = useState(false);
   const [assignmentForm, setAssignmentForm] = useState<AttendanceControlAssignmentPayload>(defaultAssignmentForm());
+  const [isWorkSiteDialogOpen, setIsWorkSiteDialogOpen] = useState(false);
+  const [workSiteForm, setWorkSiteForm] = useState<ControlWorkSiteForm>(defaultWorkSiteForm());
   const [isKioskManagerOpen, setIsKioskManagerOpen] = useState(false);
   const [isKioskDialogOpen, setIsKioskDialogOpen] = useState(false);
   const [editingKiosk, setEditingKiosk] = useState<AttendanceKioskDevice | null>(null);
   const [kioskForm, setKioskForm] = useState<AttendanceKioskDevicePayload>(defaultKioskForm());
 
+  const showSuccessToast = (message: string) => {
+    setErrorMessage('');
+    setFailureToastMessage('');
+    setSuccessMessage('');
+    window.setTimeout(() => setSuccessMessage(message), 0);
+  };
+
+  const showFailureToast = (message: string) => {
+    setSuccessMessage('');
+    setErrorMessage(message);
+    setFailureToastMessage('');
+    window.setTimeout(() => setFailureToastMessage(message), 0);
+  };
+
+  const clearControlMessages = () => {
+    setErrorMessage('');
+    setFailureToastMessage('');
+  };
+
   const loadControl = async (date: string) => {
     setIsLoading(true);
-    setErrorMessage('');
+    clearControlMessages();
 
     try {
       const [overviewResponse, locationsResponse, templatesResponse, kioskDevicesResponse, accessProfilesResponse] = await Promise.all([
@@ -242,7 +296,7 @@ export default function Control() {
           : kioskDevicesResponse.items[0]?.id ?? null,
       );
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
+      showFailureToast(toErrorMessage(error, copy));
     } finally {
       setIsLoading(false);
     }
@@ -256,15 +310,6 @@ export default function Control() {
     const nextMonth = controlDate.slice(0, 7);
     setCalendarMonth((current) => (current === nextMonth ? current : nextMonth));
   }, [controlDate]);
-
-  useEffect(() => {
-    if (!successMessage) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => setSuccessMessage(''), 2500);
-    return () => window.clearTimeout(timeoutId);
-  }, [successMessage]);
 
   useEffect(() => {
     if (!selectedEmployeeId) {
@@ -313,7 +358,7 @@ export default function Control() {
         }
 
         setAttendanceCalendarDays([]);
-        setErrorMessage(toErrorMessage(error, copy));
+        showFailureToast(toErrorMessage(error, copy));
       })
       .finally(() => {
         if (active) {
@@ -360,7 +405,18 @@ export default function Control() {
     return overview.assignments.filter((assignment) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        `${assignment.employee_name} ${assignment.employee_number ?? ''} ${assignment.position_title ?? ''} ${assignment.schedule_template_name ?? ''}`
+        [
+          assignment.employee_name,
+          assignment.employee_number,
+          assignment.position_title,
+          assignment.department,
+          assignment.unit_name,
+          assignment.business_name,
+          assignment.schedule_template_name,
+          assignment.active_work_site?.location_name,
+        ]
+          .filter(Boolean)
+          .join(' ')
           .toLowerCase()
           .includes(normalizedSearch);
 
@@ -406,6 +462,7 @@ export default function Control() {
     () => overview?.assignments.find((assignment) => assignment.employee_id === selectedEmployeeId) ?? null,
     [overview?.assignments, selectedEmployeeId],
   );
+  const selectedEmployeeBusyReason = selectedEmployee ? getAssignmentBusyReason(selectedEmployee) : '';
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
@@ -606,10 +663,10 @@ export default function Control() {
 
       setAttendanceCalendarDays(calendarResponse.items);
       setSelectedCalendarDay(calendarResponse.items.find((day) => day.date === date) ?? null);
-      setSuccessMessage(status ? copy.labels.correctionApplied : copy.labels.correctionCleared);
+      showSuccessToast(status ? copy.labels.correctionApplied : copy.labels.correctionCleared);
       return true;
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy) || copy.saveError);
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
       return false;
     } finally {
       setIsUpdatingCalendarDay(false);
@@ -670,12 +727,42 @@ export default function Control() {
 
   const openAssignmentDialog = () => {
     setAssignmentForm({
-      employee_ids: selectedEmployee ? [selectedEmployee.employee_id] : [],
+      employee_ids: selectedEmployee && !getAssignmentBusyReason(selectedEmployee) ? [selectedEmployee.employee_id] : [],
       template_id: selectedEmployee?.schedule_template_id ?? selectedTemplate?.id ?? templates[0]?.id ?? 0,
       effective_start_date: controlDate,
       effective_end_date: '',
     });
     setIsAssignmentDialogOpen(true);
+  };
+
+  const openWorkSiteDialog = () => {
+    if (!selectedEmployee) {
+      return;
+    }
+    const busyReason = getAssignmentBusyReason(selectedEmployee);
+    if (busyReason) {
+      showFailureToast(`${busyReason}. Remove the existing shift before assigning new work.`);
+      return;
+    }
+
+    const allowedLocationIds = selectedEmployee.allowed_locations?.map((location) => location.id) ?? [];
+    const firstActiveLocationId = locations.find((location) => location.status !== 'inactive')?.id ?? 0;
+    const activeLocationId = selectedEmployee.active_work_site?.location_id ?? allowedLocationIds[0] ?? firstActiveLocationId;
+    const nextAllowedLocationIds = Array.from(new Set([
+      ...allowedLocationIds,
+      ...(activeLocationId > 0 ? [activeLocationId] : []),
+    ]));
+
+    setWorkSiteForm({
+      employee_ids: [selectedEmployee.employee_id],
+      location_ids: nextAllowedLocationIds,
+      location_id: activeLocationId,
+      effective_start_date: controlDate,
+      effective_end_date: '',
+      start_time: timeInputValue(selectedRuleForDate?.start_time) || '08:00',
+      end_time: timeInputValue(selectedRuleForDate?.end_time) || '17:00',
+    });
+    setIsWorkSiteDialogOpen(true);
   };
 
   const openNewKioskDialog = () => {
@@ -701,7 +788,7 @@ export default function Control() {
 
   const handleSaveLocation = async () => {
     setIsSaving(true);
-    setErrorMessage('');
+    clearControlMessages();
 
     try {
       if (editingLocation) {
@@ -711,10 +798,10 @@ export default function Control() {
       }
 
       setIsLocationDialogOpen(false);
-      setSuccessMessage(copy.locationSaved);
+      showSuccessToast(copy.locationSaved);
       await loadControl(controlDate);
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy) || copy.saveError);
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
     } finally {
       setIsSaving(false);
     }
@@ -722,7 +809,7 @@ export default function Control() {
 
   const handleSaveTemplate = async () => {
     setIsSaving(true);
-    setErrorMessage('');
+    clearControlMessages();
 
     try {
       if (editingTemplate) {
@@ -732,10 +819,10 @@ export default function Control() {
       }
 
       setIsTemplateDialogOpen(false);
-      setSuccessMessage(copy.templateSaved);
+      showSuccessToast(copy.templateSaved);
       await loadControl(controlDate);
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy) || copy.saveError);
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
     } finally {
       setIsSaving(false);
     }
@@ -743,7 +830,7 @@ export default function Control() {
 
   const handleBulkAssign = async () => {
     setIsSaving(true);
-    setErrorMessage('');
+    clearControlMessages();
 
     try {
       await humanResourcesApi.bulkAssignAttendanceSchedule({
@@ -754,10 +841,156 @@ export default function Control() {
       });
 
       setIsAssignmentDialogOpen(false);
-      setSuccessMessage(copy.bulkAssignSuccess);
+      showSuccessToast(copy.bulkAssignSuccess);
       await loadControl(controlDate);
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy) || copy.saveError);
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const buildWorkSiteTemplateDays = (startTime: string, endTime: string): AttendanceControlTemplatePayload['days'] =>
+    weekdayNumbers.map((dayOfWeek) => ({
+      day_of_week: dayOfWeek,
+      start_time: dayOfWeek >= 1 && dayOfWeek <= 5 ? startTime : null,
+      end_time: dayOfWeek >= 1 && dayOfWeek <= 5 ? endTime : null,
+      meal_minutes: 0,
+      rest_minutes: 0,
+      late_after_minutes: 10,
+      is_rest_day: dayOfWeek >= 6,
+    }));
+
+  const findReusableWorkSiteTemplate = (
+    names: string[],
+    locationId: number,
+    startTime: string,
+    endTime: string,
+  ) =>
+    templates.find((template) =>
+      template.status !== 'inactive' &&
+        names.includes(template.name) &&
+        template.location_id === locationId &&
+        weekdayNumbers.every((dayOfWeek) =>
+          templateDayMatchesHours(
+            template.days.find((day) => day.day_of_week === dayOfWeek),
+            dayOfWeek,
+            startTime,
+            endTime,
+          ),
+        ),
+    ) ?? null;
+
+  const handleSaveWorkSite = async () => {
+    const employeeId = workSiteForm.employee_ids[0];
+    if (
+      !employeeId ||
+      workSiteForm.location_id <= 0 ||
+      !workSiteForm.effective_start_date ||
+      !workSiteForm.start_time ||
+      !workSiteForm.end_time ||
+      workSiteForm.end_time <= workSiteForm.start_time
+    ) {
+      showFailureToast(copy.saveError);
+      return;
+    }
+
+    const selectedLocation = locations.find((location) => location.id === workSiteForm.location_id);
+    if (!selectedLocation) {
+      showFailureToast(copy.saveError);
+      return;
+    }
+    if (selectedLocation.status === 'inactive') {
+      showFailureToast('Only active locations can be assigned.');
+      return;
+    }
+
+    const currentAssignment = overview?.assignments.find((assignment) => assignment.employee_id === employeeId) ?? null;
+    const busyReason = currentAssignment ? getAssignmentBusyReason(currentAssignment) : '';
+    if (busyReason) {
+      showFailureToast(`${busyReason}. Remove the existing shift before assigning new work.`);
+      return;
+    }
+
+    setIsSaving(true);
+    clearControlMessages();
+
+    try {
+      const baseTemplateName = `${selectedLocation.name} Work Hours`;
+      const timeTemplateName = `${baseTemplateName} ${workSiteForm.start_time}-${workSiteForm.end_time}`;
+      const reusableTemplate = findReusableWorkSiteTemplate(
+        [baseTemplateName, timeTemplateName],
+        selectedLocation.id,
+        workSiteForm.start_time,
+        workSiteForm.end_time,
+      );
+      let templateId = reusableTemplate?.id ?? 0;
+      if (!templateId) {
+        const templateName = templates.some((template) => template.name === baseTemplateName)
+          ? templates.some((template) => template.name === timeTemplateName)
+            ? `${timeTemplateName} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+            : timeTemplateName
+          : baseTemplateName;
+        const templateResponse = await humanResourcesApi.createAttendanceControlTemplate({
+          name: templateName,
+          status: 'active',
+          schedule_mode: 'strict',
+          block_after_grace_period: false,
+          enforce_location: true,
+          location_id: selectedLocation.id,
+          days: buildWorkSiteTemplateDays(workSiteForm.start_time, workSiteForm.end_time),
+        });
+        templateId = templateResponse.template.id;
+      }
+
+      await humanResourcesApi.replaceAttendanceEmployeeAllowedLocations(employeeId, {
+        location_ids: Array.from(new Set([...workSiteForm.location_ids, selectedLocation.id])),
+      });
+      await humanResourcesApi.bulkAssignAttendanceWorkSite({
+        employee_ids: workSiteForm.employee_ids,
+        location_id: workSiteForm.location_id,
+        template_id: templateId,
+        effective_start_date: workSiteForm.effective_start_date,
+        effective_end_date: workSiteForm.effective_end_date || undefined,
+      });
+
+      setIsWorkSiteDialogOpen(false);
+      showSuccessToast('Work site assignment saved successfully.');
+      await loadControl(controlDate);
+    } catch (error) {
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleClearEmployeeShift = async (assignment: AttendanceControlAssignment, targetDate = controlDate) => {
+    if (isSaving || !assignment.employee_id) {
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const siteText = assignment.active_work_site?.location_name
+        ? ` at ${assignment.active_work_site.location_name}`
+        : '';
+      const confirmed = window.confirm(`Remove ${assignment.employee_name}'s shift${siteText} from ${targetDate}?`);
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    clearControlMessages();
+
+    try {
+      await humanResourcesApi.clearAttendanceWorkAssignments({
+        employee_id: assignment.employee_id,
+        date: targetDate,
+      });
+      showSuccessToast('Shift removed for this date. Future dates stay assigned.');
+      await loadControl(controlDate);
+    } catch (error) {
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
     } finally {
       setIsSaving(false);
     }
@@ -765,7 +998,7 @@ export default function Control() {
 
   const handleSaveKiosk = async () => {
     setIsSaving(true);
-    setErrorMessage('');
+    clearControlMessages();
 
     try {
       if (editingKiosk) {
@@ -775,10 +1008,10 @@ export default function Control() {
       }
 
       setIsKioskDialogOpen(false);
-      setSuccessMessage(copy.labels.kioskSaved);
+      showSuccessToast(copy.labels.kioskSaved);
       await loadControl(controlDate);
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy) || copy.saveError);
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
     } finally {
       setIsSaving(false);
     }
@@ -792,7 +1025,7 @@ export default function Control() {
   const handleOpenKiosk = (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      setErrorMessage(copy.labels.kioskTokenUnavailable);
+      showFailureToast(copy.labels.kioskTokenUnavailable);
       return;
     }
 
@@ -803,33 +1036,33 @@ export default function Control() {
       return;
     }
 
-    setErrorMessage(copy.labels.kioskTabBlocked);
+    showFailureToast(copy.labels.kioskTabBlocked);
   };
 
   const handleCopyKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      setErrorMessage(copy.labels.kioskTokenUnavailable);
+      showFailureToast(copy.labels.kioskTokenUnavailable);
       return;
     }
 
     try {
       await navigator.clipboard.writeText(kioskLink);
-      setSuccessMessage(copy.labels.kioskLinkCopied);
+      showSuccessToast(copy.labels.kioskLinkCopied);
     } catch {
-      setErrorMessage(copy.saveError);
+      showFailureToast(copy.saveError);
     }
   };
 
   const handleRotateKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const targetDevice = device ?? selectedKioskDevice;
     if (!targetDevice) {
-      setErrorMessage(copy.labels.kioskTokenUnavailable);
+      showFailureToast(copy.labels.kioskTokenUnavailable);
       return;
     }
 
     setIsSaving(true);
-    setErrorMessage('');
+    clearControlMessages();
 
     try {
       const response = await humanResourcesApi.rotateAttendanceKioskDevicePublicToken(targetDevice.id);
@@ -837,24 +1070,32 @@ export default function Control() {
         device.id === response.kiosk_device.id ? response.kiosk_device : device
       )));
       setSelectedKioskDeviceId(response.kiosk_device.id);
-      setSuccessMessage(copy.labels.kioskLinkRotated);
+      showSuccessToast(copy.labels.kioskLinkRotated);
       setIsKioskQrDialogOpen(false);
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy) || copy.saveError);
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
     } finally {
       setIsSaving(false);
     }
   };
 
+  const isControlOverlayVisible = isSaving || isUpdatingCalendarDay;
+  const loadingOverlayTitle = isUpdatingCalendarDay
+    ? copy.labels.savingDayStatus
+    : 'Saving changes';
+  const loadingOverlayDescription = isUpdatingCalendarDay
+    ? copy.labels.savingDayStatusDescription
+    : 'Please wait while the attendance control changes are saved.';
+
   return (
     <>
       <LoadingBarOverlay
-        isVisible={isUpdatingCalendarDay}
-        title={copy.labels.savingDayStatus}
-        description={copy.labels.savingDayStatusDescription}
+        isVisible={isControlOverlayVisible}
+        title={loadingOverlayTitle}
+        description={loadingOverlayDescription}
       />
 
-      {errorMessage ? (
+      {errorMessage && !overview ? (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
           <div className="flex items-center justify-between gap-3">
             <span>{errorMessage}</span>
@@ -871,6 +1112,12 @@ export default function Control() {
         onClose={() => setSuccessMessage('')}
       />
 
+      <FailureToast
+        isVisible={Boolean(failureToastMessage)}
+        message={failureToastMessage}
+        onClose={() => setFailureToastMessage('')}
+      />
+
       <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
@@ -881,10 +1128,10 @@ export default function Control() {
             <p className="text-sm text-gray-600 dark:text-gray-400">{copy.subtitle}</p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
             <Button
               variant="outline"
-              className="h-8 whitespace-nowrap rounded-md border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className={headerActionButtonClassName}
               onClick={() => setIsLocationRegistrationModalOpen(true)}
             >
               <MapPin className="h-3.5 w-3.5" />
@@ -892,7 +1139,7 @@ export default function Control() {
             </Button>
             <Button
               variant="outline"
-              className="h-8 whitespace-nowrap rounded-md border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className={headerActionButtonClassName}
               onClick={() => setIsScheduleOverviewModalOpen(true)}
             >
               <Table2 className="h-3.5 w-3.5" />
@@ -900,7 +1147,7 @@ export default function Control() {
             </Button>
             <Button
               variant="outline"
-              className="h-8 whitespace-nowrap rounded-md border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className={headerActionButtonClassName}
               onClick={() => setIsSchedulesModalOpen(true)}
             >
               <CalendarDays className="h-3.5 w-3.5" />
@@ -908,7 +1155,7 @@ export default function Control() {
             </Button>
             <Button
               variant="outline"
-              className="h-8 whitespace-nowrap rounded-md border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className={headerActionButtonClassName}
               onClick={() => setIsKioskManagerOpen(true)}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -952,6 +1199,43 @@ export default function Control() {
               </div>
             </div>
 
+            <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/40">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                <label className="block">
+                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    Search employee
+                  </span>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="search"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder={copy.searchPlaceholder}
+                      className="w-full rounded-xl border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    Status
+                  </span>
+                  <select
+                    value={assignmentFilter}
+                    onChange={(event) => setAssignmentFilter(event.target.value as typeof assignmentFilter)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="all">{copy.filters.all}</option>
+                    <option value="assigned">{copy.filters.assigned}</option>
+                    <option value="unassigned">{copy.filters.unassigned}</option>
+                    <option value="late">{copy.filters.late}</option>
+                    <option value="corrected">{copy.filters.corrected}</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
             <div className="max-h-[860px] overflow-y-auto" onScroll={handleAttendanceListScroll}>
               {filteredAssignments.length > 0 ? (
                 visibleAttendanceAssignments.map((assignment) => (
@@ -988,6 +1272,9 @@ export default function Control() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <CompactInfoChip>{selectedEmployee.position_title || selectedEmployee.department || copy.labels.noDepartment}</CompactInfoChip>
                     <CompactInfoChip>{selectedEmployee.schedule_template_name || copy.labels.noSchedule}</CompactInfoChip>
+                    <CompactInfoChip tone={selectedEmployee.active_work_site ? 'bg-[#143675]/10 text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]' : undefined}>
+                      Assigned site: {selectedEmployee.active_work_site?.location_name ?? 'Open'}
+                    </CompactInfoChip>
                     <CompactInfoChip tone={statusClasses[selectedEmployee.today_status]}>
                       {copy.statuses[selectedEmployee.today_status]}
                     </CompactInfoChip>
@@ -999,16 +1286,30 @@ export default function Control() {
               </div>
 
               {selectedEmployee ? (
-                <EmployeeAccessActions
-                  selectedEmployee={selectedEmployee}
-                  selectedAccessProfile={selectedAccessProfile}
-                  faceEnrollment={faceEnrollment}
-                  assignments={overview?.assignments ?? []}
-                  onFaceEnrollmentChange={setFaceEnrollment}
-                  onReload={() => loadControl(controlDate)}
-                  onSuccess={setSuccessMessage}
-                  onError={setErrorMessage}
-                />
+                <div className="flex w-full max-w-full flex-nowrap items-center gap-2 overflow-x-auto pb-1 sm:justify-end xl:w-auto xl:overflow-visible xl:pb-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={selectedEmployeeActionButtonClassName}
+                    disabled={Boolean(selectedEmployeeBusyReason)}
+                    title={selectedEmployeeBusyReason ? `${selectedEmployeeBusyReason}. Remove the existing shift first.` : undefined}
+                    onClick={openWorkSiteDialog}
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Assign work site
+                  </Button>
+                  <EmployeeAccessActions
+                    selectedEmployee={selectedEmployee}
+                    selectedAccessProfile={selectedAccessProfile}
+                    faceEnrollment={faceEnrollment}
+                    assignments={overview?.assignments ?? []}
+                    inlineLayout
+                    onFaceEnrollmentChange={setFaceEnrollment}
+                    onReload={() => loadControl(controlDate)}
+                    onSuccess={showSuccessToast}
+                    onError={showFailureToast}
+                  />
+                </div>
               ) : null}
             </div>
 
@@ -1159,6 +1460,18 @@ export default function Control() {
         onSave={() => void handleBulkAssign()}
       />
 
+      <ControlWorkSiteDialog
+        copy={copy}
+        isOpen={isWorkSiteDialogOpen}
+        isSaving={isSaving}
+        employeeName={selectedEmployee?.employee_name ?? '—'}
+        locations={locations}
+        form={workSiteForm}
+        onClose={() => setIsWorkSiteDialogOpen(false)}
+        onChange={setWorkSiteForm}
+        onSave={() => void handleSaveWorkSite()}
+      />
+
       <ControlKioskDialog
         copy={copy}
         isOpen={isKioskDialogOpen}
@@ -1177,7 +1490,7 @@ export default function Control() {
         onClose={() => setIsLocationRegistrationModalOpen(false)}
         locations={locations}
         onReload={() => loadControl(controlDate)}
-        onSaved={() => setSuccessMessage(copy.locationSaved)}
+        onSaved={() => showSuccessToast(copy.locationSaved)}
       />
 
       <ScheduleOverviewModal
@@ -1186,13 +1499,14 @@ export default function Control() {
         assignments={overview?.assignments ?? []}
         date={controlDate}
         locale={currentLanguage.code}
+        isSaving={isSaving}
         onDateChange={setControlDate}
+        onRemoveShift={(assignment, targetDate) => handleClearEmployeeShift(assignment, targetDate)}
       />
 
       <ScheduleModal
         isOpen={isSchedulesModalOpen}
         onClose={() => setIsSchedulesModalOpen(false)}
-        assignments={overview?.assignments ?? []}
         templates={templates}
         locations={locations.filter((location) => location.status !== 'inactive')}
         selectedTemplateId={selectedTemplateId}
@@ -1205,7 +1519,7 @@ export default function Control() {
           ));
           setSelectedTemplateId(result.templateId);
           await loadControl(controlDate);
-          setSuccessMessage(copy.bulkAssignSuccess);
+          showSuccessToast(copy.bulkAssignSuccess);
         }}
       />
     </>

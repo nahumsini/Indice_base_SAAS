@@ -625,8 +625,8 @@ export function LocationRegistrationModal({
         message={failureToastMessage}
         onClose={() => setFailureToastMessage('')}
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white text-gray-900 shadow-xl dark:border dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
           <div className="flex items-center justify-between bg-[#143675] p-6 dark:bg-[#0f2855]">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
@@ -639,7 +639,7 @@ export function LocationRegistrationModal({
             </button>
           </div>
 
-          <div ref={scrollContainerRef} className="flex-1 space-y-6 overflow-y-auto p-6">
+          <div ref={scrollContainerRef} className="flex-1 space-y-6 overflow-y-auto bg-white p-6 dark:bg-gray-950">
             {errorMessage ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
                 {errorMessage}
@@ -807,7 +807,7 @@ export function LocationRegistrationModal({
           </div>
 
           {draftLocations.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/60">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-900/50">
                   <tr>
@@ -820,7 +820,7 @@ export function LocationRegistrationModal({
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900/60">
                   {draftLocations.map((location) => (
                     <tr key={location.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{location.unitName || '—'}</td>
