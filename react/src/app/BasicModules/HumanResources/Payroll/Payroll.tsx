@@ -1368,7 +1368,7 @@ function PayrollPreferencesDialog({
         onClose();
       }
     }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{copy.labels.preferences}</DialogTitle>
           <DialogDescription>{copy.labels.rates}</DialogDescription>

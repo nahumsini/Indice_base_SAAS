@@ -102,7 +102,7 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold">Request Permission</DialogTitle>
           <DialogDescription>

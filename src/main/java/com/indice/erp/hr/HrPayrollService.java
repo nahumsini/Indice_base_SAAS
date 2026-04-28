@@ -852,9 +852,7 @@ public class HrPayrollService {
                     } else {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
                         regularHours = regularHours.add(workedHours.min(scheduledHours.compareTo(BigDecimal.ZERO) > 0 ? scheduledHours : workedHours));
-                        if (workedHours.compareTo(scheduledHours) > 0 && scheduledHours.compareTo(BigDecimal.ZERO) > 0) {
-                            overtimeHours = overtimeHours.add(workedHours.subtract(scheduledHours));
-                        } else if (scheduledHours.compareTo(BigDecimal.ZERO) <= 0) {
+                        if (scheduledHours.compareTo(BigDecimal.ZERO) <= 0) {
                             regularHours = regularHours.add(BigDecimal.ZERO);
                         }
                     }
@@ -867,9 +865,6 @@ public class HrPayrollService {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
                         if (scheduledHours.compareTo(BigDecimal.ZERO) > 0) {
                             regularHours = regularHours.add(workedHours.min(scheduledHours));
-                            if (workedHours.compareTo(scheduledHours) > 0) {
-                                overtimeHours = overtimeHours.add(workedHours.subtract(scheduledHours));
-                            }
                         } else {
                             regularHours = regularHours.add(workedHours);
                         }

@@ -14,6 +14,9 @@ final class HrPayloadUtils {
     }
 
     static String stringValue(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return "";
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof String string && !string.isBlank()) {
@@ -27,6 +30,9 @@ final class HrPayloadUtils {
     }
 
     static Long parseLong(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return null;
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof Number number) {
@@ -44,6 +50,9 @@ final class HrPayloadUtils {
     }
 
     static Integer parseInteger(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return null;
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof Number number) {
@@ -102,6 +111,9 @@ final class HrPayloadUtils {
     }
 
     static List<String> stringList(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return List.of();
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof List<?> list) {
@@ -122,6 +134,9 @@ final class HrPayloadUtils {
     }
 
     static List<Long> longList(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return List.of();
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof List<?> list) {

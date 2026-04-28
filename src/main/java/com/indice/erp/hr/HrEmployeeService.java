@@ -198,7 +198,6 @@ public class HrEmployeeService {
         var employeeId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
         upsertEmployeeProfile(companyId, employeeId, profileDraft);
         syncPortalAccess(companyId, createdBy, employeeId, draft.email(), draft.fullName(), accessDraft);
-        hrAttendanceService.ensureDefaultScheduleAssignment(companyId, employeeId, createdBy);
         hrAttendanceService.ensureDefaultAccessProfile(companyId, employeeId, createdBy);
         return employeeDetails(employeeId, companyId);
     }
@@ -274,7 +273,6 @@ public class HrEmployeeService {
 
         upsertEmployeeProfile(companyId, employeeId, profileDraft);
         syncPortalAccess(companyId, 0L, employeeId, draft.email(), draft.fullName(), accessDraft);
-        hrAttendanceService.ensureDefaultScheduleAssignment(companyId, employeeId, 0L);
         return employeeDetails(employeeId, companyId);
     }
 

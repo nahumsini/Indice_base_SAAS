@@ -230,16 +230,18 @@ public class HrFaceService {
             enrollment.employeeId()
         );
 
-        return Map.of(
-            "enrollment", toEnrollmentMap(loadLatestEnrollment(companyId, enrollment.employeeId()))
-        );
+        var body = new LinkedHashMap<String, Object>();
+        body.put("enrollment", toEnrollmentMap(loadLatestEnrollment(companyId, enrollment.employeeId())));
+        return body;
     }
 
     public Map<String, Object> getEnrollment(long companyId, long employeeId) {
         requireFaceEnabled();
         ensureEmployeeExists(companyId, employeeId);
         var enrollment = loadLatestEnrollment(companyId, employeeId);
-        return Map.of("enrollment", toEnrollmentMap(enrollment));
+        var body = new LinkedHashMap<String, Object>();
+        body.put("enrollment", toEnrollmentMap(enrollment));
+        return body;
     }
 
     @Transactional
@@ -421,26 +423,26 @@ public class HrFaceService {
             companyId
         );
 
-        appendVerificationEvent(sessionId, companyId, session.employeeId(), "verification_completed", nextStatus, Map.of(
-            "matched", matched,
-            "liveness_passed", result != null && result.livenessPassed(),
-            "match_score", result == null ? null : result.matchScore(),
-            "failure_reason", matched ? null : coalesce(failureReason, "Face verification failed.")
-        ));
+        var verificationEventMetadata = new LinkedHashMap<String, Object>();
+        verificationEventMetadata.put("matched", matched);
+        verificationEventMetadata.put("liveness_passed", result != null && result.livenessPassed());
+        verificationEventMetadata.put("match_score", result == null ? null : result.matchScore());
+        verificationEventMetadata.put("failure_reason", matched ? null : coalesce(failureReason, "Face verification failed."));
+        appendVerificationEvent(sessionId, companyId, session.employeeId(), "verification_completed", nextStatus, verificationEventMetadata);
 
         for (var objectKey : capturesByStep.values()) {
             objectStorageService.deleteObject(biometricBucket(), objectKey);
         }
 
-        return Map.of(
-            "session_id", sessionId,
-            "employee_id", session.employeeId(),
-            "status", nextStatus,
-            "matched", matched,
-            "liveness_passed", result != null && result.livenessPassed(),
-            "match_score", result == null ? null : result.matchScore(),
-            "failure_reason", matched ? null : coalesce(failureReason, "Face verification failed.")
-        );
+        var body = new LinkedHashMap<String, Object>();
+        body.put("session_id", sessionId);
+        body.put("employee_id", session.employeeId());
+        body.put("status", nextStatus);
+        body.put("matched", matched);
+        body.put("liveness_passed", result != null && result.livenessPassed());
+        body.put("match_score", result == null ? null : result.matchScore());
+        body.put("failure_reason", matched ? null : coalesce(failureReason, "Face verification failed."));
+        return body;
     }
 
     @Transactional
@@ -747,14 +749,14 @@ public class HrFaceService {
         if (enrollment == null) {
             return null;
         }
-        return Map.of(
-            "id", enrollment.id(),
-            "employee_id", enrollment.employeeId(),
-            "status", enrollment.status(),
-            "expires_at", enrollment.expiresAt() == null ? null : enrollment.expiresAt().toString(),
-            "enrolled_at", enrollment.enrolledAt() == null ? null : enrollment.enrolledAt().toString(),
-            "required_steps", REQUIRED_STEPS
-        );
+        var body = new LinkedHashMap<String, Object>();
+        body.put("id", enrollment.id());
+        body.put("employee_id", enrollment.employeeId());
+        body.put("status", enrollment.status());
+        body.put("expires_at", enrollment.expiresAt() == null ? null : enrollment.expiresAt().toString());
+        body.put("enrolled_at", enrollment.enrolledAt() == null ? null : enrollment.enrolledAt().toString());
+        body.put("required_steps", REQUIRED_STEPS);
+        return body;
     }
 
     private Map<String, Object> presignBody(PresignedUpload upload, String step) {

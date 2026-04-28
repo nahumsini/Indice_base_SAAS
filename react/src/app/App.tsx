@@ -387,6 +387,15 @@ export default function App() {
   const needsPageRedirect = Boolean(pageId && currentPage && pageId !== currentPage);
 
   useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.documentElement.classList.toggle('dark', darkMode);
+    document.body.classList.toggle('dark', darkMode);
+  }, [darkMode]);
+
+  useEffect(() => {
     if (!pageId) {
       return;
     }

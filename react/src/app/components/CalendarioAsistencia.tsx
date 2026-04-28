@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Camera, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
-import type { AttendanceCalendarDay } from '../api/humanResources';
+import type { AttendanceCalendarDay, AttendanceCorrectionStatus } from '../api/humanResources';
 import { useLanguage } from '../shared/context';
 
 interface CalendarioAsistenciaProps {
@@ -13,7 +13,7 @@ interface CalendarioAsistenciaProps {
   onMonthChange: (month: string) => void;
   onUpdateStatus: (
     date: string,
-    status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | '',
+    status: AttendanceCorrectionStatus | '',
   ) => Promise<void>;
 }
 
@@ -28,6 +28,8 @@ const calendarCopy = {
       leave: 'Leave',
       rest: 'Rest',
       absence: 'No record',
+      pending: 'Pending',
+      not_scheduled: 'Not scheduled',
     },
     legend: {
       entry: 'Check-in',
@@ -79,6 +81,8 @@ const calendarCopy = {
       leave: 'Permiso',
       rest: 'Descanso',
       absence: 'Sin registro',
+      pending: 'Pendiente',
+      not_scheduled: 'Sin horario',
     },
     legend: {
       entry: 'Entrada',
@@ -151,7 +155,19 @@ const statusTones: Record<
     buttonTone: 'bg-rose-600 hover:bg-rose-700 text-white',
     subtleTone: 'bg-rose-500/10 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
   },
+  pending: {
+    chip: 'bg-blue-500',
+    buttonTone: 'bg-blue-600 hover:bg-blue-700 text-white',
+    subtleTone: 'bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+  },
+  not_scheduled: {
+    chip: 'bg-gray-400',
+    buttonTone: 'bg-gray-600 hover:bg-gray-700 text-white',
+    subtleTone: 'bg-gray-500/10 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300',
+  },
 };
+
+const manualCorrectionStatuses: AttendanceCorrectionStatus[] = ['on_time', 'late', 'leave', 'rest', 'absence'];
 
 const formatMonthLabel = (month: string, locale: string) => {
   const [year, monthIndex] = month.split('-').map(Number);
@@ -280,7 +296,7 @@ export function CalendarioAsistencia({
     onMonthChange(toMonthValue(next));
   };
 
-  const handleUpdateStatus = async (status: AttendanceCalendarDay['effective_status'] | '') => {
+  const handleUpdateStatus = async (status: AttendanceCorrectionStatus | '') => {
     if (!selectedDay) {
       return;
     }
@@ -636,7 +652,7 @@ export function CalendarioAsistencia({
                 </p>
 
                 <div className="mt-4 grid gap-2">
-                  {(Object.keys(statusTones) as Array<AttendanceCalendarDay['effective_status']>).map((status) => (
+                  {manualCorrectionStatuses.map((status) => (
                     <Button
                       key={status}
                       type="button"
