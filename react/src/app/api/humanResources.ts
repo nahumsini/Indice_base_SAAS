@@ -357,11 +357,19 @@ export interface AttendanceControlLocation {
   unit_name?: string | null;
   business_id?: number | null;
   business_name?: string | null;
+  contract_start_date?: string | null;
+  contract_end_date?: string | null;
   name: string;
   latitude: number;
   longitude: number;
   radius_meters: number;
+  required_hours_per_day?: number | null;
+  required_start_time?: string | null;
+  required_end_time?: string | null;
+  required_days_per_week?: number | null;
   status?: string;
+  assigned_employee_count?: number;
+  assigned_employee_names?: string | null;
 }
 
 export interface AttendanceControlTemplateDay {
@@ -470,11 +478,16 @@ export interface AttendanceControlAssignment {
   corrected_status?: AttendanceCorrectionStatus | null;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
+  first_location?: AttendanceControlLocation | null;
+  last_location?: AttendanceControlLocation | null;
   minutes_late: number;
   allowed_locations?: AttendanceControlLocation[];
+  business_locations?: AttendanceControlLocation[];
   active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
   access_profile?: AttendanceAccessProfile | null;
   latest_event?: AttendanceControlRecentEvent | null;
+  can_assign_schedule?: boolean;
+  schedule_busy_reason?: string | null;
 }
 
 export interface AttendanceControlRecentEvent {
@@ -544,10 +557,16 @@ export interface AttendanceControlLocationsResponse {
 export interface AttendanceControlLocationPayload {
   unit_id?: number | null;
   business_id?: number | null;
+  contract_start_date: string;
+  contract_end_date: string;
   name: string;
   latitude: number;
   longitude: number;
   radius_meters: number;
+  required_hours_per_day: number;
+  required_start_time?: string | null;
+  required_end_time?: string | null;
+  required_days_per_week?: number | null;
   status: 'active' | 'inactive';
 }
 
@@ -826,6 +845,16 @@ export interface PublicKioskIdentifyRequest {
   credential_payload: string;
 }
 
+export interface PublicKioskDayActivity {
+  attendance_date: string;
+  status: AttendanceStatus;
+  first_check_in_at?: string | null;
+  last_check_out_at?: string | null;
+  minutes_late?: number;
+  has_check_in?: boolean;
+  has_check_out?: boolean;
+}
+
 export interface PublicKioskIdentifyResponse {
   auth_attempt_event_id: number;
   auth_method: 'pin';
@@ -838,6 +867,7 @@ export interface PublicKioskIdentifyResponse {
   };
   identification_token: string;
   expires_at: string;
+  today_activity?: PublicKioskDayActivity;
 }
 
 export interface PublicKioskPunchRequest {
@@ -863,6 +893,7 @@ export interface PublicKioskPunchResponse {
   location: AttendanceLocation;
   photo_object_key?: string | null;
   identity_evidence?: 'face_verified' | 'photo_fallback';
+  today_activity?: PublicKioskDayActivity;
 }
 
 export interface AttendanceMediaPresignRequest {
@@ -1140,6 +1171,7 @@ export const humanResourcesApi = {
     search?: string;
     unit_id?: string | number;
     business_id?: string | number;
+    available_only?: string | number;
   }) {
     return apiClient<AttendanceScheduleCandidatesResponse>(
       `${endpoints.humanResources.attendanceScheduleCandidates}${toQueryString(params)}`,

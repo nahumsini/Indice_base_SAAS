@@ -279,7 +279,8 @@ public class HrAttendanceApiController {
         @RequestParam(defaultValue = "10") int size,
         @RequestParam(required = false) String search,
         @RequestParam(name = "unit_id", required = false) Long unitId,
-        @RequestParam(name = "business_id", required = false) Long businessId
+        @RequestParam(name = "business_id", required = false) Long businessId,
+        @RequestParam(name = "available_only", defaultValue = "false") boolean availableOnly
     ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
@@ -296,7 +297,8 @@ public class HrAttendanceApiController {
                     size,
                     search,
                     unitId,
-                    businessId
+                    businessId,
+                    availableOnly
                 )
             );
         } catch (IllegalArgumentException ex) {

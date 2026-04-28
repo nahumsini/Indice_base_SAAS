@@ -12,6 +12,7 @@ import {
   humanResourcesApi,
   type AttendanceCalendarDay,
   type AttendanceControlAssignment,
+  type AttendanceControlRule,
 } from '../../../../api/humanResources';
 import { useHRLanguage } from '../../HRLanguage';
 
@@ -26,15 +27,16 @@ interface ScheduleOverviewModalProps {
   onRemoveShift: (assignment: AttendanceControlAssignment, date?: string) => Promise<void> | void;
 }
 
-type ScheduleViewMode = 'coverage' | 'roster' | 'employee';
+type ScheduleRangeMode = 'day' | 'week' | 'month';
 
+const employeeRowsPerPage = 10;
 const noUnit = 'No unit';
 const noBusiness = 'No business';
-const noSchedule = 'No shift';
-const noAssignedSite = 'Open / no assigned site';
-const noRule = 'No rule for this day';
-const openSchedule = 'Open shift';
-const notScheduled = 'No shift time';
+const noSchedule = 'No shift set';
+const noAssignedSite = 'Not assigned';
+const noRule = 'No rule for this date';
+const openSchedule = 'Open shift - no fixed time';
+const notScheduled = 'Shift time not set';
 const restDay = 'Rest day';
 const attendanceLabels: Record<string, string> = {
   on_time: 'On time',
@@ -47,6 +49,7 @@ const attendanceLabels: Record<string, string> = {
 };
 
 const toTimeText = (value?: string | null) => (value ? value.slice(0, 5) : '');
+const pluralize = (count: number, singular: string, plural = `${singular}s`) => `${count} ${count === 1 ? singular : plural}`;
 const padDatePart = (value: number) => `${value}`.padStart(2, '0');
 const localDateString = (value: Date) =>
   `${value.getFullYear()}-${padDatePart(value.getMonth() + 1)}-${padDatePart(value.getDate())}`;
@@ -55,8 +58,6 @@ const parseLocalDate = (value: string) => {
   const parsed = new Date(`${value}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 };
-const isValidDateText = (value: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
 const uniqueMonthsForRange = (startDate: Date, endDate: Date) => {
   const months = new Set<string>();
   for (let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
@@ -68,62 +69,41 @@ const uniqueMonthsForRange = (startDate: Date, endDate: Date) => {
   return Array.from(months);
 };
 
+const periodRangeFor = (date: string, mode: ScheduleRangeMode) => {
+  const selected = parseLocalDate(date);
+  if (mode === 'month') {
+    return {
+      start: new Date(selected.getFullYear(), selected.getMonth(), 1),
+      end: new Date(selected.getFullYear(), selected.getMonth() + 1, 0),
+    };
+  }
+  if (mode === 'week') {
+    const day = selected.getDay();
+    const offsetToMonday = day === 0 ? -6 : 1 - day;
+    const start = new Date(selected);
+    start.setDate(selected.getDate() + offsetToMonday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { start, end };
+  }
+  return { start: selected, end: selected };
+};
+
+const isActiveEmployee = (assignment: AttendanceControlAssignment) =>
+  (assignment.employee_status || 'active').toLowerCase() === 'active';
+
 const hasWorkingRule = (assignment: AttendanceControlAssignment) =>
   Boolean(assignment.schedule_template_id && assignment.today_rule && !assignment.today_rule.is_rest_day);
 
 const canRemoveShift = (assignment: AttendanceControlAssignment) =>
   Boolean((assignment.schedule_template_id || assignment.active_work_site) && !assignment.first_check_in_at && !assignment.last_check_out_at);
 
-const assignmentSiteId = (assignment: AttendanceControlAssignment) =>
-  assignment.active_work_site?.location_id ?? assignment.today_rule?.location_id ?? null;
+const assignmentUnitName = (assignment: AttendanceControlAssignment) => assignment.unit_name || noUnit;
 
-const assignmentSiteFilterValue = (assignment: AttendanceControlAssignment) =>
-  assignmentSiteId(assignment) ? String(assignmentSiteId(assignment)) : 'open';
+const assignmentUnitFilterValue = (assignment: AttendanceControlAssignment) =>
+  assignment.unit_id != null ? `unit:${assignment.unit_id}` : `unit-name:${assignmentUnitName(assignment)}`;
 
-const assignmentSiteName = (assignment: AttendanceControlAssignment) =>
-  assignment.active_work_site?.location_name || assignment.today_rule?.location_name || noAssignedSite;
-
-const scheduleWindow = (assignment: AttendanceControlAssignment) => {
-  if (!assignment.schedule_template_id) {
-    return noSchedule;
-  }
-
-  const rule = assignment.today_rule;
-  if (!rule) {
-    return noRule;
-  }
-
-  if (rule.is_rest_day) {
-    return restDay;
-  }
-
-  if (rule.schedule_mode === 'open') {
-    return openSchedule;
-  }
-
-  const start = toTimeText(rule.start_time);
-  const end = toTimeText(rule.end_time);
-  return start && end ? `${start} - ${end}` : notScheduled;
-};
-
-const calendarDayShiftTime = (day: AttendanceCalendarDay) => {
-  const rule = day.schedule_rule;
-  if (!rule) {
-    return noSchedule;
-  }
-  if (rule.is_rest_day) {
-    return restDay;
-  }
-  if (rule.schedule_mode === 'open') {
-    return openSchedule;
-  }
-  const start = toTimeText(rule.start_time);
-  const end = toTimeText(rule.end_time);
-  return start && end ? `${start} - ${end}` : notScheduled;
-};
-
-const calendarDaySite = (day: AttendanceCalendarDay) =>
-  day.active_work_site?.location_name || day.schedule_rule?.location_name || noAssignedSite;
+const assignmentBusinessName = (assignment: AttendanceControlAssignment) => assignment.business_name || noBusiness;
 
 const calendarDayType = (day: AttendanceCalendarDay) => {
   if (!day.schedule_rule) {
@@ -135,8 +115,138 @@ const calendarDayType = (day: AttendanceCalendarDay) => {
   return 'Working';
 };
 
-const canRemoveCalendarDay = (day: AttendanceCalendarDay) =>
-  Boolean((day.schedule_rule || day.active_work_site) && !day.entry_registered && !day.exit_registered);
+const timeTextToMinutes = (value?: string | null) => {
+  const timeText = toTimeText(value);
+  const [hours, minutes] = timeText.split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return null;
+  }
+  return hours * 60 + minutes;
+};
+
+const scheduledMinutesForRule = (rule?: AttendanceControlRule | null) => {
+  if (!rule || rule.is_rest_day || rule.schedule_mode === 'open') {
+    return 0;
+  }
+  const start = timeTextToMinutes(rule.start_time);
+  const end = timeTextToMinutes(rule.end_time);
+  if (start == null || end == null || end <= start) {
+    return 0;
+  }
+  return end - start;
+};
+
+const formatScheduledDuration = (minutes: number) => {
+  if (minutes <= 0) {
+    return '';
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (!hours) {
+    return `${remainingMinutes}m`;
+  }
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+};
+
+const scheduleRuleTimeLabel = (rule?: AttendanceControlRule | null) => {
+  if (!rule) {
+    return noRule;
+  }
+  if (rule.is_rest_day) {
+    return restDay;
+  }
+  if (rule.schedule_mode === 'open') {
+    return openSchedule;
+  }
+
+  const start = toTimeText(rule.start_time);
+  const end = toTimeText(rule.end_time);
+  const duration = formatScheduledDuration(scheduledMinutesForRule(rule));
+  if (start && end) {
+    return duration ? `${start} - ${end} (${duration})` : `${start} - ${end}`;
+  }
+  return notScheduled;
+};
+
+const scheduleWindow = (assignment: AttendanceControlAssignment) => {
+  if (!assignment.schedule_template_id) {
+    return `Today: ${noSchedule}`;
+  }
+
+  const rule = assignment.today_rule;
+  if (!rule) {
+    return `Today: ${noRule}`;
+  }
+
+  return `Today: ${scheduleRuleTimeLabel(rule)}`;
+};
+
+const attendanceLabel = (assignment: AttendanceControlAssignment) =>
+  attendanceLabels[assignment.corrected_status ?? assignment.today_status] ?? assignment.today_status;
+
+const periodAttendanceLabel = (days: AttendanceCalendarDay[]) => {
+  const records = days.filter((day) => day.entry_registered || day.exit_registered).length;
+  const late = days.filter((day) => (day.corrected_status ?? day.effective_status) === 'late').length;
+  if (records === 0) {
+    return late > 0 ? `${late} late` : 'No attendance recorded';
+  }
+  return late > 0 ? `${records} recorded, ${late} late` : `${records} recorded`;
+};
+
+const periodScheduleLabel = (days: AttendanceCalendarDay[], rangeMode: ScheduleRangeMode) => {
+  const periodName = rangeMode === 'week' ? 'This week' : 'This month';
+  if (days.length === 0) {
+    return `${periodName}: no schedule found`;
+  }
+
+  const working = days.filter((day) => calendarDayType(day) === 'Working').length;
+  const rest = days.filter((day) => calendarDayType(day) === restDay).length;
+  const noShift = days.length - working - rest;
+  const openShifts = days.filter((day) => day.schedule_rule && !day.schedule_rule.is_rest_day && day.schedule_rule.schedule_mode === 'open').length;
+  const scheduledMinutes = days.reduce(
+    (total, day) => total + scheduledMinutesForRule(day.schedule_rule),
+    0,
+  );
+  const scheduledHours = formatScheduledDuration(scheduledMinutes);
+  const primary = [
+    `${periodName}: ${pluralize(working, 'working day')}`,
+    scheduledHours ? `${scheduledHours} scheduled` : '',
+    openShifts ? pluralize(openShifts, 'open shift') : '',
+  ].filter(Boolean).join(', ');
+  const secondary = [
+    rest ? pluralize(rest, 'rest day') : '',
+    noShift ? `${pluralize(noShift, 'day')} without shift` : '',
+  ].filter(Boolean).join(', ');
+  return secondary ? `${primary} (${secondary})` : primary;
+};
+
+const periodContractSiteLabel = (assignment: AttendanceControlAssignment, days: AttendanceCalendarDay[]) => {
+  const siteCounts = new Map<string, number>();
+  days.forEach((day) => {
+    const site = day.active_work_site?.location_name;
+    if (site) {
+      siteCounts.set(site, (siteCounts.get(site) ?? 0) + 1);
+    }
+  });
+
+  const sites = Array.from(siteCounts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([site]) => site);
+
+  if (sites.length > 0) {
+    return sites.slice(0, 2).join(', ');
+  }
+  return assignment.active_work_site?.location_name || noAssignedSite;
+};
+
+const assignmentBusinessLocationName = (assignment: AttendanceControlAssignment) => {
+  const businessLocations = (assignment.business_locations ?? [])
+    .map((location) => location.name);
+  return businessLocations.length > 0 ? businessLocations.join(', ') : noAssignedSite;
+};
+
+const assignmentContractSiteName = (assignment: AttendanceControlAssignment) =>
+  assignment.active_work_site?.location_name || noAssignedSite;
 
 export function ScheduleOverviewModal({
   isOpen,
@@ -149,176 +259,77 @@ export function ScheduleOverviewModal({
   onRemoveShift,
 }: ScheduleOverviewModalProps) {
   const copy = useHRLanguage().attendanceControl;
-  const [viewMode, setViewMode] = useState<ScheduleViewMode>('coverage');
-  const [siteFilter, setSiteFilter] = useState('');
-  const [employeeScheduleId, setEmployeeScheduleId] = useState('');
-  const [employeeScheduleStartDate, setEmployeeScheduleStartDate] = useState(date);
-  const [employeeScheduleEndDate, setEmployeeScheduleEndDate] = useState(date);
-  const [employeeScheduleDays, setEmployeeScheduleDays] = useState<AttendanceCalendarDay[]>([]);
-  const [isLoadingEmployeeSchedule, setIsLoadingEmployeeSchedule] = useState(false);
-  const [employeeScheduleError, setEmployeeScheduleError] = useState('');
-  const [employeeScheduleReloadKey, setEmployeeScheduleReloadKey] = useState(0);
+  const [unitFilter, setUnitFilter] = useState('');
+  const [rangeMode, setRangeMode] = useState<ScheduleRangeMode>('day');
+  const [periodCalendars, setPeriodCalendars] = useState<Record<number, AttendanceCalendarDay[]>>({});
+  const [isLoadingPeriod, setIsLoadingPeriod] = useState(false);
+  const [periodError, setPeriodError] = useState('');
+  const [employeeTablePage, setEmployeeTablePage] = useState(1);
 
-  const workingAssignments = useMemo(
-    () => assignments.filter(hasWorkingRule),
-    [assignments],
-  );
+  const periodRange = useMemo(() => periodRangeFor(date, rangeMode), [date, rangeMode]);
+  const periodStartKey = useMemo(() => localDateString(periodRange.start), [periodRange]);
+  const periodEndKey = useMemo(() => localDateString(periodRange.end), [periodRange]);
 
-  const siteOptions = useMemo(
-    () => Array.from(new Map(
-      workingAssignments
-        .map((assignment) => [
-          assignmentSiteFilterValue(assignment),
-          assignmentSiteName(assignment),
-        ]),
-    ).entries()).sort((left, right) => left[1].localeCompare(right[1])),
-    [workingAssignments],
-  );
-
-  const employeeOptions = useMemo(
-    () => assignments
-      .map((assignment) => ({
-        id: assignment.employee_id,
-        label: `${assignment.employee_name}${assignment.employee_number ? ` (${assignment.employee_number})` : ''}`,
-      }))
-      .sort((left, right) => left.label.localeCompare(right.label)),
-    [assignments],
-  );
-
-  const selectedEmployeeAssignment = useMemo(
-    () => assignments.find((assignment) => String(assignment.employee_id) === employeeScheduleId) ?? null,
-    [assignments, employeeScheduleId],
-  );
-
-  const employeeScheduleRange = useMemo(() => {
-    if (!isValidDateText(employeeScheduleStartDate) || !isValidDateText(employeeScheduleEndDate)) {
-      return null;
-    }
-
-    const start = parseLocalDate(employeeScheduleStartDate);
-    const end = parseLocalDate(employeeScheduleEndDate);
-    if (start > end) {
-      return null;
-    }
-
-    return {
-      start,
-      end,
-    };
-  }, [employeeScheduleEndDate, employeeScheduleStartDate]);
-
-  const employeeScheduleRangeLabel = useMemo(() => {
+  const periodLabel = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(locale, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
-    if (!employeeScheduleRange) {
-      return 'Choose a valid date range';
-    }
-    const startLabel = formatter.format(employeeScheduleRange.start);
-    const endLabel = formatter.format(employeeScheduleRange.end);
+    const startLabel = formatter.format(periodRange.start);
+    const endLabel = formatter.format(periodRange.end);
     return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`;
-  }, [employeeScheduleRange, locale]);
+  }, [locale, periodRange]);
 
-  const selectedSiteLabel = useMemo(
-    () => siteOptions.find(([value]) => value === siteFilter)?.[1] ?? '',
-    [siteFilter, siteOptions],
+  const activeAssignments = useMemo(
+    () => assignments.filter(isActiveEmployee),
+    [assignments],
   );
 
-  const visibleWorkingAssignments = useMemo(
-    () => siteFilter
-      ? workingAssignments.filter((assignment) => assignmentSiteFilterValue(assignment) === siteFilter)
-      : workingAssignments,
-    [siteFilter, workingAssignments],
+  const unitOptions = useMemo(
+    () => Array.from(new Map(
+      activeAssignments.map((assignment) => [
+        assignmentUnitFilterValue(assignment),
+        assignmentUnitName(assignment),
+      ]),
+    ).entries()).sort((left, right) => left[1].localeCompare(right[1])),
+    [activeAssignments],
   );
 
-  const detailAssignments = siteFilter ? visibleWorkingAssignments : [];
+  const filteredAssignments = useMemo(
+    () => unitFilter
+      ? activeAssignments.filter((assignment) => assignmentUnitFilterValue(assignment) === unitFilter)
+      : activeAssignments,
+    [activeAssignments, unitFilter],
+  );
 
-  useEffect(() => {
-    if (siteFilter && !siteOptions.some(([value]) => value === siteFilter)) {
-      setSiteFilter('');
-    }
-  }, [siteFilter, siteOptions]);
+  const selectedUnitLabel = useMemo(
+    () => unitOptions.find(([value]) => value === unitFilter)?.[1] ?? '',
+    [unitFilter, unitOptions],
+  );
 
-  useEffect(() => {
-    if (!isOpen || !employeeScheduleId) {
-      setEmployeeScheduleDays([]);
-      setIsLoadingEmployeeSchedule(false);
-      setEmployeeScheduleError('');
-      return;
-    }
-
-    if (!employeeScheduleRange) {
-      setEmployeeScheduleDays([]);
-      setIsLoadingEmployeeSchedule(false);
-      setEmployeeScheduleError('Choose a valid start date and end date.');
-      return;
-    }
-
-    let active = true;
-    setIsLoadingEmployeeSchedule(true);
-    setEmployeeScheduleError('');
-
-    const startKey = localDateString(employeeScheduleRange.start);
-    const endKey = localDateString(employeeScheduleRange.end);
-    const months = uniqueMonthsForRange(employeeScheduleRange.start, employeeScheduleRange.end);
-
-    Promise.all(months.map((month) => humanResourcesApi.getAttendanceCalendar(employeeScheduleId, month)))
-      .then((responses) => {
-        if (!active) {
-          return;
-        }
-        const days = responses
-          .flatMap((response) => response.items)
-          .filter((day) => day.date >= startKey && day.date <= endKey)
-          .sort((left, right) => left.date.localeCompare(right.date));
-        setEmployeeScheduleDays(days);
-      })
-      .catch((error) => {
-        if (!active) {
-          return;
-        }
-        setEmployeeScheduleDays([]);
-        setEmployeeScheduleError(error instanceof Error ? error.message : 'Could not load the employee schedule.');
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoadingEmployeeSchedule(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [employeeScheduleId, employeeScheduleRange, employeeScheduleReloadKey, isOpen]);
-
-  const siteCoverage = useMemo(() => {
+  const unitCoverage = useMemo(() => {
     const groups = new Map<string, {
-      siteId: string;
-      site: string;
-      businesses: Set<string>;
-      shiftTimes: Map<string, number>;
+      unitId: string;
+      unit: string;
+      businesses: Map<string, number>;
       count: number;
     }>();
 
-    workingAssignments.forEach((assignment) => {
-      const siteId = assignmentSiteFilterValue(assignment);
-      const site = assignmentSiteName(assignment);
-      const business = assignment.business_name || noBusiness;
-      const time = scheduleWindow(assignment);
-      const current = groups.get(siteId);
+    activeAssignments.forEach((assignment) => {
+      const unitId = assignmentUnitFilterValue(assignment);
+      const unit = assignmentUnitName(assignment);
+      const business = assignmentBusinessName(assignment);
+      const current = groups.get(unitId);
 
       if (current) {
         current.count += 1;
-        current.businesses.add(business);
-        current.shiftTimes.set(time, (current.shiftTimes.get(time) ?? 0) + 1);
+        current.businesses.set(business, (current.businesses.get(business) ?? 0) + 1);
       } else {
-        groups.set(siteId, {
-          siteId,
-          site,
-          businesses: new Set([business]),
-          shiftTimes: new Map([[time, 1]]),
+        groups.set(unitId, {
+          unitId,
+          unit,
+          businesses: new Map([[business, 1]]),
           count: 1,
         });
       }
@@ -327,25 +338,132 @@ export function ScheduleOverviewModal({
     return Array.from(groups.values())
       .map((group) => ({
         ...group,
-        businessLabel: Array.from(group.businesses).sort().join(', '),
-        shifts: Array.from(group.shiftTimes.entries())
-          .map(([time, count]) => ({ time, count }))
-          .sort((left, right) => left.time.localeCompare(right.time)),
+        businessList: Array.from(group.businesses.entries())
+          .map(([business, count]) => ({ business, count }))
+          .sort((left, right) => left.business.localeCompare(right.business)),
       }))
-      .sort((left, right) => {
-        if (left.siteId === 'open') {
-          return 1;
-        }
-        if (right.siteId === 'open') {
-          return -1;
-        }
-        return left.site.localeCompare(right.site);
-      });
-  }, [workingAssignments]);
+      .sort((left, right) => left.unit.localeCompare(right.unit));
+  }, [activeAssignments]);
 
-  const selectedSiteCoverage = useMemo(
-    () => siteCoverage.find((group) => group.siteId === siteFilter) ?? null,
-    [siteCoverage, siteFilter],
+  const visibleUnitCoverage = useMemo(
+    () => unitFilter ? unitCoverage.filter((group) => group.unitId === unitFilter) : unitCoverage,
+    [unitCoverage, unitFilter],
+  );
+
+  const calendarEmployeeIdsKey = useMemo(
+    () => filteredAssignments.map((assignment) => assignment.employee_id).sort((left, right) => left - right).join(','),
+    [filteredAssignments],
+  );
+
+  useEffect(() => {
+    if (unitFilter && !unitOptions.some(([value]) => value === unitFilter)) {
+      setUnitFilter('');
+    }
+  }, [unitFilter, unitOptions]);
+
+  useEffect(() => {
+    if (!isOpen || rangeMode === 'day' || filteredAssignments.length === 0) {
+      setPeriodCalendars({});
+      setIsLoadingPeriod(false);
+      setPeriodError('');
+      return;
+    }
+
+    let isCurrent = true;
+    setPeriodCalendars({});
+    setIsLoadingPeriod(true);
+    setPeriodError('');
+
+    const months = uniqueMonthsForRange(periodRange.start, periodRange.end);
+    Promise.all(filteredAssignments.map(async (assignment) => {
+      const responses = await Promise.all(
+        months.map((month) => humanResourcesApi.getAttendanceCalendar(assignment.employee_id, month)),
+      );
+      const days = responses
+        .flatMap((response) => response.items)
+        .filter((day) => day.date >= periodStartKey && day.date <= periodEndKey)
+        .sort((left, right) => left.date.localeCompare(right.date));
+      return [assignment.employee_id, days] as const;
+    }))
+      .then((entries) => {
+        if (!isCurrent) {
+          return;
+        }
+        setPeriodCalendars(Object.fromEntries(entries));
+      })
+      .catch((error) => {
+        if (!isCurrent) {
+          return;
+        }
+        setPeriodCalendars({});
+        setPeriodError(error instanceof Error ? error.message : 'Could not load schedules for this period.');
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoadingPeriod(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [calendarEmployeeIdsKey, filteredAssignments, isOpen, periodEndKey, periodRange, periodStartKey, rangeMode]);
+
+  const employeeRows = useMemo(
+    () => filteredAssignments
+      .map((assignment) => {
+        const periodDays = rangeMode === 'day' ? [] : periodCalendars[assignment.employee_id] ?? [];
+        const workingDays = rangeMode === 'day'
+          ? (hasWorkingRule(assignment) ? 1 : 0)
+          : periodDays.filter((day) => calendarDayType(day) === 'Working').length;
+        const hasContractSite = rangeMode === 'day'
+          ? Boolean(assignment.active_work_site)
+          : periodDays.some((day) => day.active_work_site);
+
+        return {
+          assignment,
+          workingDays,
+          hasWorkSite: hasContractSite,
+          schedule: rangeMode === 'day' ? scheduleWindow(assignment) : periodScheduleLabel(periodDays, rangeMode),
+          attendance: rangeMode === 'day' ? attendanceLabel(assignment) : periodAttendanceLabel(periodDays),
+          hasAttendance: rangeMode === 'day'
+            ? Boolean(assignment.first_check_in_at || assignment.last_check_out_at)
+            : periodDays.some((day) => day.entry_registered || day.exit_registered),
+          businessLocation: assignmentBusinessLocationName(assignment),
+          contractSite: rangeMode === 'day' ? assignmentContractSiteName(assignment) : periodContractSiteLabel(assignment, periodDays),
+        };
+      })
+      .sort((left, right) => left.assignment.employee_name.localeCompare(right.assignment.employee_name)),
+    [filteredAssignments, periodCalendars, rangeMode],
+  );
+
+  const employeeTablePageCount = Math.max(1, Math.ceil(employeeRows.length / employeeRowsPerPage));
+  const currentEmployeeTablePage = Math.min(employeeTablePage, employeeTablePageCount);
+  const employeeTableStartIndex = (currentEmployeeTablePage - 1) * employeeRowsPerPage;
+  const paginatedEmployeeRows = employeeRows.slice(employeeTableStartIndex, employeeTableStartIndex + employeeRowsPerPage);
+  const employeeTableShowingStart = employeeRows.length === 0 ? 0 : employeeTableStartIndex + 1;
+  const employeeTableShowingEnd = Math.min(employeeTableStartIndex + employeeRowsPerPage, employeeRows.length);
+
+  useEffect(() => {
+    setEmployeeTablePage(1);
+  }, [date, rangeMode, unitFilter]);
+
+  useEffect(() => {
+    if (employeeTablePage > employeeTablePageCount) {
+      setEmployeeTablePage(employeeTablePageCount);
+    }
+  }, [employeeTablePage, employeeTablePageCount]);
+
+  const organisationSummary = useMemo(
+    () => ({
+      totalEmployees: filteredAssignments.length,
+      scheduledEmployees: employeeRows.filter((row) => row.workingDays > 0).length,
+      assignedWorkSites: employeeRows.filter((row) => row.hasWorkSite).length,
+      businesses: filteredAssignments.length
+        ? new Set(filteredAssignments.map(assignmentBusinessName)).size
+        : 0,
+    }),
+    [employeeRows, filteredAssignments],
   );
 
   const dateLabel = useMemo(() => {
@@ -362,13 +480,19 @@ export function ScheduleOverviewModal({
     }).format(parsed);
   }, [date, locale]);
 
+  const scheduleMetricLabel = rangeMode === 'day'
+    ? 'Scheduled today'
+    : rangeMode === 'week'
+      ? 'Scheduled this week'
+      : 'Scheduled this month';
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) {
         onClose();
       }
     }}>
-      <DialogContent className="max-h-[92vh] overflow-hidden bg-white p-0 text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[1120px]" hideCloseButton>
+      <DialogContent className="max-h-[94vh] overflow-hidden bg-white p-0 text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[1320px]" hideCloseButton>
         <DialogHeader className="border-b border-gray-200 bg-white px-6 py-5 dark:border-gray-700 dark:bg-gray-950">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -377,7 +501,7 @@ export function ScheduleOverviewModal({
                 {copy.labels.viewSchedules}
               </DialogTitle>
               <DialogDescription className="mt-2">
-                Choose what you want to check for the selected date.
+                Review active employees by organisation unit and date range.
               </DialogDescription>
             </div>
             <Button variant="outline" size="icon" onClick={onClose}>
@@ -386,352 +510,262 @@ export function ScheduleOverviewModal({
           </div>
         </DialogHeader>
 
-        <div className="max-h-[calc(92vh-86px)] overflow-y-auto px-6 py-5">
-          <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">View schedule</h3>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{dateLabel}</p>
+        <div className="max-h-[calc(94vh-86px)] overflow-y-auto px-8 py-6">
+          <section
+            aria-labelledby="schedule-view-controls-heading"
+            className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+          >
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-end">
+              <div>
+                <h3 id="schedule-view-controls-heading" className="text-base font-semibold text-gray-900 dark:text-white">
+                  Organisation schedule
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {rangeMode === 'day' ? dateLabel : periodLabel}
+                </p>
+                <div className="mt-4 grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_280px] lg:items-end">
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                      Schedule date
+                    </span>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          onDateChange(event.target.value);
+                        }
+                      }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    />
+                  </label>
+
+                  <div>
+                    <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                      Show
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <RangeModeButton value="day" current={rangeMode} onChange={setRangeMode}>Day</RangeModeButton>
+                      <RangeModeButton value="week" current={rangeMode} onChange={setRangeMode}>Week</RangeModeButton>
+                      <RangeModeButton value="month" current={rangeMode} onChange={setRangeMode}>Month</RangeModeButton>
+                    </div>
+                  </div>
+
+                  <FilterSelect label="Unit" value={unitFilter} onChange={setUnitFilter}>
+                    <option value="">All units</option>
+                    {unitOptions.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </FilterSelect>
                 </div>
-                <label className="block lg:w-52 lg:flex-none">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    Date
-                  </span>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(event) => {
-                      if (event.target.value) {
-                        onDateChange(event.target.value);
-                      }
-                    }}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  />
-                </label>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-3">
-                <ScheduleViewButton value="coverage" current={viewMode} onChange={setViewMode}>
-                  Sites
-                </ScheduleViewButton>
-                <ScheduleViewButton value="roster" current={viewMode} onChange={setViewMode}>
-                  Employees at site
-                </ScheduleViewButton>
-                <ScheduleViewButton value="employee" current={viewMode} onChange={setViewMode}>
-                  One employee
-                </ScheduleViewButton>
-              </div>
-
-              {viewMode === 'roster' ? (
-                <FilterSelect label="Site" value={siteFilter} onChange={setSiteFilter}>
-                  <option value="">All working sites</option>
-                  {siteOptions.map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </FilterSelect>
+              {unitFilter ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="xl:justify-self-end"
+                  onClick={() => setUnitFilter('')}
+                >
+                  Show all units
+                </Button>
               ) : null}
             </div>
-          </div>
+          </section>
 
-          {viewMode === 'coverage' ? (
-          <div className="mt-5 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+          <section
+            aria-labelledby="organisation-employees-heading"
+            className="mt-6 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+          >
+            <div className="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-700 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Sites with workers</h3>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {siteFilter
-                    ? `${selectedSiteLabel} for this date.`
-                    : `${siteCoverage.length} site${siteCoverage.length === 1 ? '' : 's'} with working employees for this date.`}
+                <h3 id="organisation-employees-heading" className="text-base font-semibold text-gray-900 dark:text-white">
+                  Active employees
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {unitFilter
+                    ? `${organisationSummary.totalEmployees} active employee${organisationSummary.totalEmployees === 1 ? '' : 's'} in ${selectedUnitLabel}.`
+                    : `${organisationSummary.totalEmployees} active employee${organisationSummary.totalEmployees === 1 ? '' : 's'} across ${unitCoverage.length} unit${unitCoverage.length === 1 ? '' : 's'}.`}
                 </p>
               </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-medium text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
-                  <Users className="h-3.5 w-3.5" />
-                  {workingAssignments.length} employees
-                </span>
-                {siteFilter ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-3 text-xs"
-                    onClick={() => setSiteFilter('')}
-                  >
-                    Show all sites
-                  </Button>
-                ) : null}
-              </div>
+              <span className="rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+                {periodLabel}
+              </span>
             </div>
 
-            {siteCoverage.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-                {siteCoverage.map((group) => {
-                  const isSelected = group.siteId === siteFilter;
-                  return (
-                    <button
-                      key={group.siteId}
-                      type="button"
-                      onClick={() => {
-                        setSiteFilter(group.siteId);
-                        setViewMode('roster');
-                      }}
-                      className={`rounded-lg border p-3 text-left transition-colors hover:border-[#143675]/40 hover:bg-white dark:hover:border-[#8bb3ff]/50 dark:hover:bg-gray-900 ${
-                        isSelected
-                          ? 'border-[#143675] bg-[#143675]/5 dark:border-[#8bb3ff] dark:bg-[#8bb3ff]/10'
-                          : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{group.site}</p>
-                          <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{group.businessLabel}</p>
-                        </div>
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                          {group.count} employee{group.count === 1 ? '' : 's'}
-                        </span>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {group.shifts.map((shift) => (
-                          <span
-                            key={`${group.siteId}-${shift.time}`}
-                            className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[#143675] ring-1 ring-gray-200 dark:bg-gray-800 dark:text-[#8bb3ff] dark:ring-gray-700"
-                          >
-                            {shift.time}: {shift.count}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                  );
-                })}
+            <div className="space-y-5 p-5">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <OverviewMetric label="Active employees" value={organisationSummary.totalEmployees} />
+                <OverviewMetric label={scheduleMetricLabel} value={organisationSummary.scheduledEmployees} />
+                <OverviewMetric label="Assigned to contract site" value={organisationSummary.assignedWorkSites} />
+                <OverviewMetric label="Businesses" value={organisationSummary.businesses} />
               </div>
-            ) : (
-              <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                No working employees for this date.
-              </div>
-            )}
-          </div>
-          ) : null}
 
-          {viewMode === 'roster' ? (
-          <div className="mt-5 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Employees at site</h3>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {selectedSiteCoverage
-                  ? `${selectedSiteCoverage.count} employee${selectedSiteCoverage.count === 1 ? '' : 's'} working at ${selectedSiteCoverage.site} on ${dateLabel}.`
-                  : siteFilter
-                  ? `${detailAssignments.length} employee${detailAssignments.length === 1 ? '' : 's'} working at ${selectedSiteLabel} on ${dateLabel}.`
-                  : 'Select a site to see who is working there.'}
-              </p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px]">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead>Business</TableHead>
-                    <TableHead>Shift time</TableHead>
-                    <TableHead>Attendance</TableHead>
-                    <TableHead>Action</TableHead>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {!siteFilter ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        Select a site to see who is working there.
-                      </td>
-                    </tr>
-                  ) : detailAssignments.length > 0 ? (
-                    detailAssignments.map((assignment) => (
-                      <tr key={assignment.employee_id} className="bg-white dark:bg-gray-800">
-                        <TableCell>
+              {visibleUnitCoverage.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {visibleUnitCoverage.map((group) => {
+                    const isSelected = group.unitId === unitFilter;
+                    return (
+                      <button
+                        key={group.unitId}
+                        type="button"
+                        onClick={() => setUnitFilter(group.unitId)}
+                        className={`rounded-lg border p-4 text-left transition-colors hover:border-[#143675]/40 hover:bg-white dark:hover:border-[#8bb3ff]/50 dark:hover:bg-gray-900 ${
+                          isSelected
+                            ? 'border-[#143675] bg-[#143675]/5 dark:border-[#8bb3ff] dark:bg-[#8bb3ff]/10'
+                            : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 dark:text-white">{assignment.employee_name}</p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                              {assignment.employee_number || assignment.position_title || assignment.department || '-'}
+                            <p className="truncate text-base font-semibold text-gray-900 dark:text-white">{group.unit}</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                              {group.businessList.length} business{group.businessList.length === 1 ? '' : 'es'}
                             </p>
                           </div>
-                        </TableCell>
-                        <TableCell>{assignment.unit_name || noUnit}</TableCell>
-                        <TableCell>{assignment.business_name || noBusiness}</TableCell>
-                        <TableCell>{scheduleWindow(assignment)}</TableCell>
-                        <TableCell>{attendanceLabels[assignment.corrected_status ?? assignment.today_status] ?? assignment.today_status}</TableCell>
-                        <TableCell>
-                          {canRemoveShift(assignment) ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 whitespace-nowrap border-rose-200 px-2.5 text-xs font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-800/50 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                              disabled={isSaving}
-                              onClick={() => onRemoveShift(assignment, date)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Remove day
-                            </Button>
-                          ) : assignment.first_check_in_at || assignment.last_check_out_at ? (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Attendance recorded</span>
-                          ) : (
-                            <span className="text-xs text-gray-400 dark:text-gray-500">-</span>
-                          )}
-                        </TableCell>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No employees are working at this site on the selected date.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          ) : null}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+                            <Users className="h-3.5 w-3.5" />
+                            {group.count}
+                          </span>
+                        </div>
 
-          {viewMode === 'employee' ? (
-          <div className="mt-5 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">One employee schedule</h3>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Pick one employee and choose the exact dates to show.
+                        <div className="mt-4 space-y-2">
+                          {group.businessList.map((item) => (
+                            <div
+                              key={`${group.unitId}-${item.business}`}
+                              className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2 text-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700"
+                            >
+                              <span className="truncate text-gray-700 dark:text-gray-200">{item.business}</span>
+                              <span className="font-semibold text-gray-900 dark:text-white">{item.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              <section
+                aria-labelledby="selected-employees-heading"
+                className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <div className="flex flex-col gap-1 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/40">
+                  <h4 id="selected-employees-heading" className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Employee list
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {unitFilter ? selectedUnitLabel : 'All units'} - {periodLabel}
                   </p>
                 </div>
-              </div>
-
-              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px] lg:items-end">
-                <label className="block">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    Employee
-                  </span>
-                  <select
-                    value={employeeScheduleId}
-                    onChange={(event) => setEmployeeScheduleId(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  >
-                    <option value="">Choose employee</option>
-                    {employeeOptions.map((employee) => (
-                      <option key={employee.id} value={employee.id}>{employee.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    Start date
-                  </span>
-                  <input
-                    type="date"
-                    value={employeeScheduleStartDate}
-                    onChange={(event) => setEmployeeScheduleStartDate(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    End date
-                  </span>
-                  <input
-                    type="date"
-                    value={employeeScheduleEndDate}
-                    onChange={(event) => setEmployeeScheduleEndDate(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  />
-                </label>
-              </div>
-              <p className={`mt-3 rounded-lg px-3 py-2 text-sm font-medium ${
-                employeeScheduleRange
-                  ? 'bg-gray-50 text-gray-700 dark:bg-gray-900/40 dark:text-gray-200'
-                  : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-200'
-              }`}
-              >
-                Showing: {employeeScheduleRangeLabel}
-              </p>
-            </div>
-
-            {!employeeScheduleId ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                Choose an employee and date range to see schedule details.
-              </div>
-            ) : isLoadingEmployeeSchedule ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                Loading employee schedule...
-              </div>
-            ) : employeeScheduleError ? (
-              <div className="px-4 py-8 text-center text-sm text-red-600 dark:text-red-300">
-                {employeeScheduleError}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px]">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Day</TableHead>
-                      <TableHead>Site</TableHead>
-                      <TableHead>Shift time</TableHead>
-                      <TableHead>Attendance</TableHead>
-                      <TableHead>Action</TableHead>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {employeeScheduleDays.length > 0 ? employeeScheduleDays.map((day) => (
-                      <tr key={day.date} className="bg-white dark:bg-gray-800">
-                        <TableCell>{new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(parseLocalDate(day.date))}</TableCell>
-                        <TableCell>
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            calendarDayType(day) === 'Working'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
-                              : calendarDayType(day) === restDay
-                                ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
-                                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-                          }`}
-                          >
-                            {calendarDayType(day)}
-                          </span>
-                        </TableCell>
-                        <TableCell>{calendarDaySite(day)}</TableCell>
-                        <TableCell>{calendarDayShiftTime(day)}</TableCell>
-                        <TableCell>{attendanceLabels[day.corrected_status ?? day.effective_status] ?? day.effective_status}</TableCell>
-                        <TableCell>
-                          {selectedEmployeeAssignment && canRemoveCalendarDay(day) ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 whitespace-nowrap border-rose-200 px-2.5 text-xs font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-800/50 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                              disabled={isSaving}
-                              onClick={async () => {
-                                await Promise.resolve(onRemoveShift(selectedEmployeeAssignment, day.date));
-                                setEmployeeScheduleReloadKey((current) => current + 1);
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Remove day
-                            </Button>
-                          ) : day.entry_registered || day.exit_registered ? (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Attendance recorded</span>
-                          ) : (
-                            <span className="text-xs text-gray-400 dark:text-gray-500">-</span>
-                          )}
-                        </TableCell>
-                      </tr>
-                    )) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1080px]">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                          No schedule days found for this range.
-                        </td>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Unit</TableHead>
+                        <TableHead>Business</TableHead>
+                        <TableHead>Business location</TableHead>
+                        <TableHead>Contract site</TableHead>
+                        <TableHead>Scheduled time</TableHead>
+                        <TableHead>Attendance</TableHead>
+                        <TableHead>Action</TableHead>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-          ) : null}
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {rangeMode !== 'day' && isLoadingPeriod ? (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                            Loading period schedules...
+                          </td>
+                        </tr>
+                      ) : periodError ? (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-10 text-center text-sm text-red-600 dark:text-red-300">
+                            {periodError}
+                          </td>
+                        </tr>
+                      ) : employeeRows.length > 0 ? (
+                        paginatedEmployeeRows.map((row) => (
+                          <tr key={row.assignment.employee_id} className="bg-white dark:bg-gray-800">
+                            <TableCell>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900 dark:text-white">{row.assignment.employee_name}</p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  {row.assignment.employee_number || row.assignment.position_title || row.assignment.department || '-'}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>{assignmentUnitName(row.assignment)}</TableCell>
+                            <TableCell>{assignmentBusinessName(row.assignment)}</TableCell>
+                            <TableCell>{row.businessLocation}</TableCell>
+                            <TableCell>{row.contractSite}</TableCell>
+                            <TableCell>{row.schedule}</TableCell>
+                            <TableCell>{row.attendance}</TableCell>
+                            <TableCell>
+                              {rangeMode === 'day' && canRemoveShift(row.assignment) ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 whitespace-nowrap border-rose-200 px-2.5 text-xs font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-800/50 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                                  disabled={isSaving}
+                                  onClick={() => onRemoveShift(row.assignment, date)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Remove day
+                                </Button>
+                              ) : row.hasAttendance ? (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Attendance recorded</span>
+                              ) : (
+                                <span className="text-xs text-gray-400 dark:text-gray-500">-</span>
+                              )}
+                            </TableCell>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                            No active employees found for this unit.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {employeeRows.length > 0 && !periodError && !(rangeMode !== 'day' && isLoadingPeriod) ? (
+                  <div className="flex flex-col gap-3 border-t border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      Showing {employeeTableShowingStart}-{employeeTableShowingEnd} of {employeeRows.length} employees
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={currentEmployeeTablePage <= 1}
+                        onClick={() => setEmployeeTablePage((page) => Math.max(1, page - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <span className="min-w-20 text-center text-xs font-medium uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400">
+                        Page {currentEmployeeTablePage} of {employeeTablePageCount}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={currentEmployeeTablePage >= employeeTablePageCount}
+                        onClick={() => setEmployeeTablePage((page) => Math.min(employeeTablePageCount, page + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            </div>
+          </section>
         </div>
       </DialogContent>
     </Dialog>
@@ -765,15 +799,24 @@ function FilterSelect({
   );
 }
 
-function ScheduleViewButton({
+function OverviewMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/40">
+      <p className="text-xs font-medium uppercase tracking-[0.1em] text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{value}</p>
+    </div>
+  );
+}
+
+function RangeModeButton({
   value,
   current,
   onChange,
   children,
 }: {
-  value: ScheduleViewMode;
-  current: ScheduleViewMode;
-  onChange: (value: ScheduleViewMode) => void;
+  value: ScheduleRangeMode;
+  current: ScheduleRangeMode;
+  onChange: (value: ScheduleRangeMode) => void;
   children: ReactNode;
 }) {
   const isActive = value === current;

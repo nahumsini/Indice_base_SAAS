@@ -55,6 +55,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,6 +75,7 @@ public class HrAttendanceService {
     private static final List<String> PUBLIC_KIOSK_AUTH_METHODS = List.of("pin");
     private static final int PUBLIC_KIOSK_PIN_FAILURE_LIMIT = 5;
     private static final Duration PUBLIC_KIOSK_PIN_LOCK_DURATION = Duration.ofMinutes(15);
+    private static final Duration EARLY_CHECK_IN_ALLOWANCE = Duration.ofMinutes(15);
     private static final String PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY = "_pin_throttle";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Set<String> SUPPORTED_MAP_SHORTLINK_HOSTS = Set.of("maps.app.goo.gl");
@@ -180,9 +182,9 @@ public class HrAttendanceService {
             item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
             item.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
             item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
-            item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : calculateMinutesLate(scheduleRule, null));
             item.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
             item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
+            item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : calculateMinutesLate(scheduleRule, null));
             item.put("first_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
             item.put("last_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
             items.add(item);
@@ -280,6 +282,7 @@ public class HrAttendanceService {
         var scheduleRulesByEmployee = loadScheduleRules(companyId, date);
         var dailyRecordsByEmployee = loadDailyRecords(companyId, date);
         var allowedLocationsByEmployee = loadAllowedLocationsByEmployee(companyId);
+        var businessLocationsByBusiness = groupLocationsByBusiness(locations);
         var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, date);
         var accessProfilesByEmployee = loadAccessProfilesByEmployee(companyId);
         var kioskDevices = listKioskDevicesRows(companyId);
@@ -363,10 +366,18 @@ public class HrAttendanceService {
             item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
             item.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
             item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
+            item.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
+            item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
             item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : calculateMinutesLate(scheduleRule, null));
             item.put(
                 "allowed_locations",
                 allowedLocationsByEmployee.getOrDefault(employee.id(), List.of()).stream().map(this::toLocationMap).toList()
+            );
+            item.put(
+                "business_locations",
+                employee.businessId() == null
+                    ? List.of()
+                    : businessLocationsByBusiness.getOrDefault(employee.businessId(), List.of()).stream().map(this::toLocationMap).toList()
             );
             var activeWorkSite = activeWorkSitesByEmployee.get(employee.id());
             item.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
@@ -419,7 +430,8 @@ public class HrAttendanceService {
         int size,
         String search,
         Long unitId,
-        Long businessId
+        Long businessId,
+        boolean availableOnly
     ) {
         var safePage = Math.max(1, page);
         var safeSize = Math.max(5, Math.min(size, 50));
@@ -428,41 +440,36 @@ public class HrAttendanceService {
         var normalizedBusinessId = businessId != null && businessId > 0 ? businessId : null;
         var baseWhere = scheduleCandidateBaseWhere();
 
-        Integer allEmployeesCount = jdbcTemplate.queryForObject(
-            """
-                SELECT COUNT(*)
-                FROM hr_employees e
-                WHERE e.company_id = ?
-                  AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
-                """,
-            Integer.class,
-            companyId
-        );
-
-        Integer availableCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employees e WHERE " + baseWhere,
-            Integer.class,
-            scheduleCandidateBaseParams(companyId, date).toArray()
-        );
-
         var filteredWhere = new StringBuilder(baseWhere);
         var filteredParams = scheduleCandidateBaseParams(companyId, date);
         appendScheduleCandidateFilters(filteredWhere, filteredParams, normalizedSearch, normalizedUnitId, normalizedBusinessId);
 
-        Integer totalCountValue = jdbcTemplate.queryForObject(
+        Integer availableCountValue = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM hr_employees e LEFT JOIN units u ON u.id = e.unit_id LEFT JOIN businesses b ON b.id = e.business_id WHERE " + filteredWhere,
             Integer.class,
             filteredParams.toArray()
         );
-        var totalCount = totalCountValue == null ? 0 : totalCountValue;
+        var allFilteredWhere = new StringBuilder(scheduleCandidateEmployeeBaseWhere());
+        var allFilteredParams = scheduleCandidateEmployeeBaseParams(companyId);
+        appendScheduleCandidateFilters(allFilteredWhere, allFilteredParams, normalizedSearch, normalizedUnitId, normalizedBusinessId);
+        Integer allFilteredEmployeesCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM hr_employees e LEFT JOIN units u ON u.id = e.unit_id LEFT JOIN businesses b ON b.id = e.business_id WHERE " + allFilteredWhere,
+            Integer.class,
+            allFilteredParams.toArray()
+        );
+        var availableCount = availableCountValue == null ? 0 : availableCountValue;
+        var allFilteredCount = allFilteredEmployeesCount == null ? 0 : allFilteredEmployeesCount;
+        var totalCount = availableOnly ? availableCount : allFilteredCount;
         var totalPages = Math.max(1, (int) Math.ceil((double) totalCount / safeSize));
         safePage = Math.min(safePage, totalPages);
         var offset = (safePage - 1) * safeSize;
 
-        var itemsParams = new ArrayList<>(filteredParams);
+        var listWhere = availableOnly ? filteredWhere : allFilteredWhere;
+        var listParams = availableOnly ? filteredParams : allFilteredParams;
+        var itemsParams = new ArrayList<>(listParams);
         itemsParams.add(safeSize);
         itemsParams.add(offset);
-        var items = jdbcTemplate.query(
+        var pageEmployees = jdbcTemplate.query(
             """
                 SELECT e.id,
                        COALESCE(e.employee_number, '') AS employee_number,
@@ -480,37 +487,49 @@ public class HrAttendanceService {
                 WHERE %s
                 ORDER BY full_name ASC, e.id ASC
                 LIMIT ? OFFSET ?
-                """.formatted(filteredWhere),
-            (rs, rowNum) -> toScheduleCandidateMap(mapAttendanceEmployee(rs)),
+                """.formatted(listWhere),
+            (rs, rowNum) -> mapAttendanceEmployee(rs),
             itemsParams.toArray()
         );
+        var currentAssignments = loadCurrentAssignments(companyId, date);
+        var scheduleRulesByEmployee = loadScheduleRules(companyId, date);
+        var dailyRecordsByEmployee = loadDailyRecords(companyId, date);
+        var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, date);
+        var items = pageEmployees.stream()
+            .map((employee) -> toScheduleCandidateMap(
+                employee,
+                date,
+                currentAssignments.get(employee.id()),
+                scheduleRulesByEmployee.get(employee.id()),
+                dailyRecordsByEmployee.get(employee.id()),
+                activeWorkSitesByEmployee.get(employee.id())
+            ))
+            .toList();
 
         var unitOptions = jdbcTemplate.query(
             """
-                SELECT DISTINCT u.id, u.name
-                FROM hr_employees e
-                JOIN units u ON u.id = e.unit_id
-                WHERE %s
-                  AND u.id IS NOT NULL
-                ORDER BY u.name ASC
-                """.formatted(baseWhere),
+                SELECT id, name
+                FROM units
+                WHERE (company_id = ? OR company_id IS NULL)
+                  AND (status = 'active' OR status IS NULL OR status = '')
+                ORDER BY name ASC
+                """,
             (rs, rowNum) -> Map.<String, Object>of(
                 "id", rs.getLong("id"),
                 "name", safe(rs.getString("name"))
             ),
-            scheduleCandidateBaseParams(companyId, date).toArray()
+            companyId
         );
 
         var businessOptions = jdbcTemplate.query(
             """
-                SELECT DISTINCT b.id, b.name, u.id AS unit_id, u.name AS unit_name
-                FROM hr_employees e
-                JOIN businesses b ON b.id = e.business_id
+                SELECT b.id, b.name, u.id AS unit_id, u.name AS unit_name
+                FROM businesses b
                 LEFT JOIN units u ON u.id = b.unit_id
-                WHERE %s
-                  AND b.id IS NOT NULL
+                WHERE (b.company_id = ? OR b.company_id IS NULL)
+                  AND (b.status = 'active' OR b.status IS NULL OR b.status = '')
                 ORDER BY b.name ASC
-                """.formatted(baseWhere),
+                """,
             (rs, rowNum) -> {
                 var option = new LinkedHashMap<String, Object>();
                 option.put("id", rs.getLong("id"));
@@ -519,10 +538,9 @@ public class HrAttendanceService {
                 option.put("unit_name", safe(rs.getString("unit_name")));
                 return option;
             },
-            scheduleCandidateBaseParams(companyId, date).toArray()
+            companyId
         );
 
-        var available = availableCount == null ? 0 : availableCount;
         var body = new LinkedHashMap<String, Object>();
         body.put("date", date.toString());
         body.put("items", items);
@@ -530,8 +548,8 @@ public class HrAttendanceService {
         body.put("size", safeSize);
         body.put("total_count", totalCount);
         body.put("total_pages", totalPages);
-        body.put("available_count", available);
-        body.put("busy_count", Math.max(0, (allEmployeesCount == null ? 0 : allEmployeesCount) - available));
+        body.put("available_count", availableCount);
+        body.put("busy_count", Math.max(0, allFilteredCount - availableCount));
         body.put("unit_options", unitOptions);
         body.put("business_options", businessOptions);
         return body;
@@ -723,6 +741,9 @@ public class HrAttendanceService {
         );
 
         var expiresAtEpochSeconds = Instant.now().getEpochSecond() + kioskIdentificationTokenTtlSeconds;
+        var activityDate = eventTimestamp.toLocalDate();
+        var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), activityDate);
+        var dailyRecord = loadDailyRecord(kioskDevice.companyId(), employee.id(), activityDate);
         var body = new LinkedHashMap<String, Object>();
         body.put("auth_attempt_event_id", authAttemptId);
         body.put("auth_method", authMethod);
@@ -738,6 +759,7 @@ public class HrAttendanceService {
             createPublicKioskIdentificationToken(deviceToken, employee.id(), authMethod, expiresAtEpochSeconds)
         );
         body.put("expires_at", Instant.ofEpochSecond(expiresAtEpochSeconds).toString());
+        body.put("today_activity", toPublicKioskDayActivity(activityDate, dailyRecord, scheduleRule));
         return body;
     }
 
@@ -762,6 +784,7 @@ public class HrAttendanceService {
         if (eventTimestamp == null) {
             eventTimestamp = LocalDateTime.now();
         }
+        validateOperationalEventDate(eventType, eventTimestamp);
 
         var latitude = parseDecimalRequired(payload, "latitude");
         var longitude = parseDecimalRequired(payload, "longitude");
@@ -781,7 +804,7 @@ public class HrAttendanceService {
         var attendanceDate = eventTimestamp.toLocalDate();
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(kioskDevice.companyId(), employee.id(), attendanceDate);
-        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, location, activeWorkSite);
+        validateScheduleRegistrationPolicy(kioskDevice.companyId(), employee, scheduleRule, eventType, eventTimestamp, location, activeWorkSite);
         validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
 
         var metadataJson = mergeMetadataJson(
@@ -828,6 +851,7 @@ public class HrAttendanceService {
         result.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
         result.put("photo_object_key", photoObjectKey);
         result.put("identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback");
+        result.put("today_activity", toPublicKioskDayActivity(attendanceDate, dailyRecord, scheduleRule));
         return result;
     }
 
@@ -1163,6 +1187,9 @@ public class HrAttendanceService {
         if (uniqueEmployeeIds.isEmpty()) {
             throw new IllegalArgumentException("employee_ids is required.");
         }
+        if (uniqueEmployeeIds.size() > 1) {
+            throw new IllegalArgumentException("A contract site can only be assigned to one employee at a time.");
+        }
 
         var effectiveStartDate = HrPayloadUtils.parseDate(payload, "effective_start_date", "start_date");
         if (effectiveStartDate == null) {
@@ -1172,12 +1199,15 @@ public class HrAttendanceService {
         if (effectiveEndDate != null && effectiveEndDate.isBefore(effectiveStartDate)) {
             throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
         }
+        if (hasActiveWorkSiteLocationAssignmentOverlap(companyId, location.id(), effectiveStartDate, effectiveEndDate)) {
+            throw new IllegalArgumentException("This contract site is already assigned to another employee in this date range.");
+        }
 
         var assignments = new ArrayList<Map<String, Object>>();
         for (var employeeId : uniqueEmployeeIds) {
             var employee = loadAttendanceEmployee(companyId, employeeId);
             if ("terminated".equals(employee.status())) {
-                throw new IllegalArgumentException("Terminated employees cannot receive work-site assignments.");
+                throw new IllegalArgumentException("Terminated employees cannot receive contract site assignments.");
             }
 
             validateEmployeeIsFreeForAssignment(companyId, employeeId, effectiveStartDate, effectiveEndDate);
@@ -1292,6 +1322,36 @@ public class HrAttendanceService {
         if (radiusMeters == null || radiusMeters <= 0) {
             throw new IllegalArgumentException("radius_meters must be greater than zero.");
         }
+        var contractStartDate = HrPayloadUtils.parseDate(payload, "contract_start_date", "contractStartDate");
+        if (contractStartDate == null) {
+            throw new IllegalArgumentException("contract_start_date is required.");
+        }
+        var contractEndDate = HrPayloadUtils.parseDate(payload, "contract_end_date", "contractEndDate");
+        if (contractEndDate == null) {
+            throw new IllegalArgumentException("contract_end_date is required.");
+        }
+        if (contractEndDate.isBefore(contractStartDate)) {
+            throw new IllegalArgumentException("contract_end_date must be on or after contract_start_date.");
+        }
+        var requiredStartTime = parseTime(payload, "required_start_time");
+        if (requiredStartTime == null) {
+            requiredStartTime = LocalTime.of(8, 0);
+        }
+        var requiredEndTime = parseTime(payload, "required_end_time");
+        if (requiredEndTime == null) {
+            requiredEndTime = LocalTime.of(16, 0);
+        }
+        validatePreferredTimeRange(requiredStartTime, requiredEndTime);
+        var requiredHoursPerDay = normalizeRequiredHoursPerDay(
+            HrPayloadUtils.parseBigDecimal(payload, "required_hours_per_day", "requiredHoursPerDay")
+        );
+        var requiredDaysPerWeek = HrPayloadUtils.parseInteger(payload, "required_days_per_week", "requiredDaysPerWeek");
+        if (requiredDaysPerWeek == null) {
+            requiredDaysPerWeek = 5;
+        }
+        if (requiredDaysPerWeek < 1 || requiredDaysPerWeek > 7) {
+            throw new IllegalArgumentException("required_days_per_week must be between 1 and 7.");
+        }
         var unitId = normalizeOptionalForeignKey(parseLong(payload, "unit_id", "unitId"));
         var businessId = normalizeOptionalForeignKey(parseLong(payload, "business_id", "businessId"));
 
@@ -1302,23 +1362,29 @@ public class HrAttendanceService {
         if (locationId == null || locationId <= 0) {
             KeyHolder keyHolder = new GeneratedKeyHolder();
             jdbcTemplate.update(connection -> {
-                var statement = connection.prepareStatement(
-                    """
-                        INSERT INTO hr_attendance_locations
-                        (company_id, unit_id, business_id, name, latitude, longitude, radius_meters, status, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                    new String[] {"id"}
-                );
+	                var statement = connection.prepareStatement(
+	                    """
+	                        INSERT INTO hr_attendance_locations
+	                        (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters, required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, created_by)
+	                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	                        """,
+	                    new String[] {"id"}
+	                );
                 statement.setLong(1, companyId);
                 setNullableLong(statement, 2, unitId);
                 setNullableLong(statement, 3, businessId);
-                statement.setString(4, name);
-                statement.setBigDecimal(5, latitude);
-                statement.setBigDecimal(6, longitude);
-                statement.setInt(7, radiusMeters);
-                statement.setString(8, status);
-                statement.setLong(9, userId);
+                statement.setObject(4, contractStartDate);
+                statement.setObject(5, contractEndDate);
+                statement.setString(6, name);
+                statement.setBigDecimal(7, latitude);
+                statement.setBigDecimal(8, longitude);
+	                statement.setInt(9, radiusMeters);
+	                statement.setBigDecimal(10, requiredHoursPerDay);
+	                statement.setObject(11, requiredStartTime);
+	                statement.setObject(12, requiredEndTime);
+	                statement.setInt(13, requiredDaysPerWeek);
+	                statement.setString(14, status);
+	                statement.setLong(15, userId);
                 return statement;
             }, keyHolder);
             locationId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
@@ -1328,19 +1394,31 @@ public class HrAttendanceService {
                     UPDATE hr_attendance_locations
                     SET unit_id = ?,
                         business_id = ?,
+                        contract_start_date = ?,
+                        contract_end_date = ?,
                         name = ?,
                         latitude = ?,
-                        longitude = ?,
-                        radius_meters = ?,
-                        status = ?
+	                        longitude = ?,
+	                        radius_meters = ?,
+	                        required_hours_per_day = ?,
+	                        required_start_time = ?,
+	                        required_end_time = ?,
+	                        required_days_per_week = ?,
+	                        status = ?
                     WHERE id = ? AND company_id = ?
                     """,
                 unitId,
                 businessId,
+                contractStartDate,
+                contractEndDate,
                 name,
                 latitude,
-                longitude,
-                radiusMeters,
+	                longitude,
+	                radiusMeters,
+	                requiredHoursPerDay,
+	                requiredStartTime,
+	                requiredEndTime,
+	                requiredDaysPerWeek,
                 status,
                 locationId,
                 companyId
@@ -1732,6 +1810,7 @@ public class HrAttendanceService {
         if (eventTimestamp == null) {
             eventTimestamp = LocalDateTime.now();
         }
+        validateOperationalEventDate(eventKind, eventTimestamp);
         var accessProfile = loadOrCreateAccessProfile(companyId, employeeId, userId);
         var authMethod = resolveRequestedAuthMethod(payload, accessProfile.defaultMethod());
         var kioskDeviceId = normalizeOptionalForeignKey(parseLong(payload, "kiosk_device_id"));
@@ -1801,7 +1880,7 @@ public class HrAttendanceService {
         var attendanceDate = eventTimestamp.toLocalDate();
         var scheduleRule = loadScheduleRule(companyId, employeeId, attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(companyId, employeeId, attendanceDate);
-        validateScheduleRegistrationPolicy(scheduleRule, eventKind, eventTimestamp, location, activeWorkSite);
+        validateScheduleRegistrationPolicy(companyId, employee, scheduleRule, eventKind, eventTimestamp, location, activeWorkSite);
         validateOperationalEventTransition(companyId, employeeId, eventTimestamp, eventKind);
 
         var operationalResultStatus = "manual_override".equals(authMethod) ? "overridden" : "success";
@@ -1851,11 +1930,66 @@ public class HrAttendanceService {
         return recordKioskEvent(companyId, userId, normalizedPayload);
     }
 
+    @Scheduled(fixedDelayString = "${app.hr.attendance.auto-checkout-delay-ms:300000}")
+    @Transactional
+    public void autoCheckoutOpenAttendanceRecords() {
+        var now = LocalDateTime.now();
+        var candidates = loadAutoCheckoutCandidates(now.toLocalDate());
+
+        for (var candidate : candidates) {
+            var scheduleRule = loadScheduleRule(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate());
+            if (scheduleRule == null || scheduleRule.isRestDay() || scheduleRule.endTime() == null) {
+                continue;
+            }
+
+            var checkoutAt = candidate.attendanceDate().atTime(scheduleRule.endTime());
+            if (checkoutAt.isAfter(now)) {
+                continue;
+            }
+            if (candidate.firstCheckInAt() != null && checkoutAt.isBefore(candidate.firstCheckInAt())) {
+                checkoutAt = candidate.firstCheckInAt();
+            }
+            if (hasSuccessfulCheckoutEvent(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate())) {
+                rebuildDailyRecordProjection(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate());
+                continue;
+            }
+
+            appendAttendanceEvent(
+                candidate.companyId(),
+                candidate.employeeId(),
+                "check_out",
+                checkoutAt,
+                candidate.firstLocationId(),
+                null,
+                null,
+                null,
+                null,
+                "system",
+                "auto_checkout",
+                "success",
+                "check_out",
+                toJson(Map.of(
+                    "auto_checkout", true,
+                    "reason", "missing_checkout",
+                    "scheduled_end_time", scheduleRule.endTime().toString()
+                )),
+                "Auto checkout at scheduled end time.",
+                null,
+                0L
+            );
+            rebuildDailyRecordProjection(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate());
+        }
+    }
+
     public Map<String, Object> updateDailyRecord(long companyId, long userId, long employeeId, LocalDate date, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         loadAttendanceEmployee(companyId, employeeId);
         var targetStatusRaw = stringValue(payload, "status", "corrected_status");
         var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
+        var scheduleRule = loadScheduleRule(companyId, employeeId, date);
+        if (scheduleRule == null && correctedStatus != null) {
+            throw new IllegalArgumentException("There is no schedule rule active for the selected day.");
+        }
         var notes = nullable(stringValue(payload, "notes"));
         var correctionMetadata = new LinkedHashMap<String, Object>();
         correctionMetadata.put("corrected_status", correctedStatus);
@@ -1883,7 +2017,6 @@ public class HrAttendanceService {
         );
 
         var refreshed = rebuildDailyRecordProjection(companyId, employeeId, date);
-        var scheduleRule = loadScheduleRule(companyId, employeeId, date);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("employee_id", employeeId);
@@ -2292,11 +2425,61 @@ public class HrAttendanceService {
         item.put("corrected_status", null);
         item.put("first_check_in_at", null);
         item.put("last_check_out_at", null);
+        item.put("first_location", null);
+        item.put("last_location", null);
         item.put("minutes_late", 0);
         item.put("allowed_locations", List.of());
         item.put("active_work_site", null);
         item.put("access_profile", null);
         item.put("latest_event", null);
+        return item;
+    }
+
+    private Map<String, Object> toScheduleCandidateMap(
+        AttendanceEmployee employee,
+        LocalDate date,
+        CurrentScheduleAssignment assignment,
+        ScheduleRule scheduleRule,
+        DailyRecordRow dailyRecord,
+        WorkSiteAssignmentRow activeWorkSite
+    ) {
+        var item = toScheduleCandidateMap(employee);
+        var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
+        var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
+        var hasAttendanceActivity = dailyRecord != null
+            && (dailyRecord.firstCheckInAt() != null || dailyRecord.lastCheckOutAt() != null);
+        var busyReason = "";
+
+        if (assignment != null) {
+            item.put("schedule_template_id", assignment.templateId());
+            item.put("schedule_template_name", displayScheduleTemplateName(assignment.templateName()));
+            item.put("effective_start_date", assignment.effectiveStartDate().toString());
+            item.put("effective_end_date", assignment.effectiveEndDate() == null ? null : assignment.effectiveEndDate().toString());
+            busyReason = "Schedule already assigned";
+        }
+        if (scheduleRule != null) {
+            item.put("today_rule", toScheduleRuleMap(scheduleRule));
+        }
+        if (dailyRecord != null) {
+            item.put("corrected_status", dailyRecord.correctedStatus());
+            item.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
+            item.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
+            item.put("first_location", toLocationMap(dailyRecord.firstLocation()));
+            item.put("last_location", toLocationMap(dailyRecord.lastLocation()));
+            item.put("minutes_late", dailyRecord.minutesLate());
+        }
+        if (activeWorkSite != null) {
+            item.put("active_work_site", toWorkSiteAssignmentMap(activeWorkSite));
+            busyReason = "Contract site assigned";
+        }
+        if (hasAttendanceActivity) {
+            busyReason = "Attendance already recorded";
+        }
+
+        item.put("today_status", effectiveStatus);
+        item.put("system_status", systemStatus);
+        item.put("can_assign_schedule", busyReason.isBlank());
+        item.put("schedule_busy_reason", busyReason.isBlank() ? null : busyReason);
         return item;
     }
 
@@ -2345,6 +2528,13 @@ public class HrAttendanceService {
             """;
     }
 
+    private String scheduleCandidateEmployeeBaseWhere() {
+        return """
+            e.company_id = ?
+              AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
+            """;
+    }
+
     private ArrayList<Object> scheduleCandidateBaseParams(long companyId, LocalDate date) {
         var params = new ArrayList<Object>();
         params.add(companyId);
@@ -2354,6 +2544,12 @@ public class HrAttendanceService {
         params.add(date);
         params.add(date);
         params.add(date);
+        return params;
+    }
+
+    private ArrayList<Object> scheduleCandidateEmployeeBaseParams(long companyId) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
         return params;
     }
 
@@ -2522,6 +2718,18 @@ public class HrAttendanceService {
 
     private DailyRecordRow loadDailyRecord(long companyId, long employeeId, LocalDate date) {
         return loadDailyRecords(companyId, employeeId, date, date).get(date);
+    }
+
+    private Map<String, Object> toPublicKioskDayActivity(LocalDate attendanceDate, DailyRecordRow dailyRecord, ScheduleRule scheduleRule) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("attendance_date", attendanceDate.toString());
+        body.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule, attendanceDate));
+        body.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
+        body.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
+        body.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : 0);
+        body.put("has_check_in", dailyRecord != null && dailyRecord.firstCheckInAt() != null);
+        body.put("has_check_out", dailyRecord != null && dailyRecord.lastCheckOutAt() != null);
+        return body;
     }
 
     private DailyRecordRow mapDailyRecord(ResultSet rs) throws SQLException {
@@ -2871,6 +3079,16 @@ public class HrAttendanceService {
         return loadLocationRows(companyId, true);
     }
 
+    private Map<Long, List<LocationRow>> groupLocationsByBusiness(List<LocationRow> locations) {
+        var grouped = new HashMap<Long, List<LocationRow>>();
+        for (var location : locations) {
+            if (location.businessId() != null) {
+                grouped.computeIfAbsent(location.businessId(), ignored -> new ArrayList<>()).add(location);
+            }
+        }
+        return grouped;
+    }
+
     private List<LocationRow> loadLocationRows(long companyId, boolean activeOnly) {
         return jdbcTemplate.query(
             activeOnly
@@ -2880,11 +3098,36 @@ public class HrAttendanceService {
                            COALESCE(u.name, '') AS unit_name,
                            l.business_id,
                            COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
                            l.name,
                            l.latitude,
                            l.longitude,
-                           l.radius_meters,
-                           COALESCE(LOWER(l.status), 'active') AS status
+	                           l.radius_meters,
+	                           COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                           COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                           COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                           COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                           COALESCE(LOWER(l.status), 'active') AS status,
+                           (
+                               SELECT COUNT(DISTINCT a.employee_id)
+                               FROM hr_employee_work_site_assignments a
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_count,
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))), ''), CONCAT('Employee ', e.id)) ORDER BY e.first_name ASC, e.last_name ASC SEPARATOR ', ')
+                               FROM hr_employee_work_site_assignments a
+                               JOIN hr_employees e ON e.id = a.employee_id
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_names
                     FROM hr_attendance_locations l
                     LEFT JOIN units u ON u.id = l.unit_id
                     LEFT JOIN businesses b ON b.id = l.business_id
@@ -2898,11 +3141,36 @@ public class HrAttendanceService {
                            COALESCE(u.name, '') AS unit_name,
                            l.business_id,
                            COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
                            l.name,
                            l.latitude,
                            l.longitude,
-                           l.radius_meters,
-                           COALESCE(LOWER(l.status), 'active') AS status
+	                           l.radius_meters,
+	                           COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                           COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                           COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                           COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                           COALESCE(LOWER(l.status), 'active') AS status,
+                           (
+                               SELECT COUNT(DISTINCT a.employee_id)
+                               FROM hr_employee_work_site_assignments a
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_count,
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))), ''), CONCAT('Employee ', e.id)) ORDER BY e.first_name ASC, e.last_name ASC SEPARATOR ', ')
+                               FROM hr_employee_work_site_assignments a
+                               JOIN hr_employees e ON e.id = a.employee_id
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_names
                     FROM hr_attendance_locations l
                     LEFT JOIN units u ON u.id = l.unit_id
                     LEFT JOIN businesses b ON b.id = l.business_id
@@ -2915,11 +3183,19 @@ public class HrAttendanceService {
                 safe(rs.getString("unit_name")),
                 getNullableLong(rs, "business_id"),
                 safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
                 safe(rs.getString("name")),
                 rs.getBigDecimal("latitude"),
                 rs.getBigDecimal("longitude"),
-                rs.getInt("radius_meters"),
-                safe(rs.getString("status"))
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+                safe(rs.getString("status")),
+                rs.getInt("assigned_employee_count"),
+                safe(rs.getString("assigned_employee_names"))
             ),
             companyId
         );
@@ -2937,11 +3213,36 @@ public class HrAttendanceService {
                        COALESCE(u.name, '') AS unit_name,
                        l.business_id,
                        COALESCE(b.name, '') AS business_name,
+                       l.contract_start_date,
+                       l.contract_end_date,
                        l.name,
                        l.latitude,
                        l.longitude,
-                       l.radius_meters,
-                       COALESCE(LOWER(l.status), 'active') AS status
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                       COALESCE(LOWER(l.status), 'active') AS status,
+                       (
+                           SELECT COUNT(DISTINCT a.employee_id)
+                           FROM hr_employee_work_site_assignments a
+                           WHERE a.company_id = l.company_id
+                             AND a.location_id = l.id
+                             AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                             AND a.effective_start_date <= CURRENT_DATE
+                             AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                       ) AS assigned_employee_count,
+                       (
+                           SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))), ''), CONCAT('Employee ', e.id)) ORDER BY e.first_name ASC, e.last_name ASC SEPARATOR ', ')
+                           FROM hr_employee_work_site_assignments a
+                           JOIN hr_employees e ON e.id = a.employee_id
+                           WHERE a.company_id = l.company_id
+                             AND a.location_id = l.id
+                             AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                             AND a.effective_start_date <= CURRENT_DATE
+                             AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                       ) AS assigned_employee_names
                 FROM hr_attendance_locations l
                 LEFT JOIN units u ON u.id = l.unit_id
                 LEFT JOIN businesses b ON b.id = l.business_id
@@ -2954,11 +3255,19 @@ public class HrAttendanceService {
                 safe(rs.getString("unit_name")),
                 getNullableLong(rs, "business_id"),
                 safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
                 safe(rs.getString("name")),
                 rs.getBigDecimal("latitude"),
                 rs.getBigDecimal("longitude"),
-                rs.getInt("radius_meters"),
-                safe(rs.getString("status"))
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+                safe(rs.getString("status")),
+                rs.getInt("assigned_employee_count"),
+                safe(rs.getString("assigned_employee_names"))
             ),
             companyId,
             locationId
@@ -2970,19 +3279,81 @@ public class HrAttendanceService {
         return rows.getFirst();
     }
 
+    private List<LocationRow> loadBusinessAttendanceLocations(long companyId, Long businessId) {
+        if (businessId == null) {
+            return List.of();
+        }
+
+        return jdbcTemplate.query(
+            """
+                SELECT l.id,
+	                       l.unit_id,
+	                       COALESCE(u.name, '') AS unit_name,
+	                       l.business_id,
+	                       COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+	                       l.name,
+	                       l.latitude,
+	                       l.longitude,
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ?
+                  AND l.business_id = ?
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY l.name ASC
+                """,
+            (rs, rowNum) -> new LocationRow(
+                rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                safe(rs.getString("unit_name")),
+                getNullableLong(rs, "business_id"),
+                safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
+                safe(rs.getString("name")),
+                rs.getBigDecimal("latitude"),
+	                rs.getBigDecimal("longitude"),
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+	                safe(rs.getString("status")),
+                0,
+                ""
+            ),
+            companyId,
+            businessId
+        );
+    }
+
     private List<LocationRow> loadAllowedLocations(long companyId, long employeeId) {
         return jdbcTemplate.query(
             """
                 SELECT l.id,
-                       l.unit_id,
-                       COALESCE(u.name, '') AS unit_name,
-                       l.business_id,
-                       COALESCE(b.name, '') AS business_name,
-                       l.name,
-                       l.latitude,
-                       l.longitude,
-                       l.radius_meters,
-                       COALESCE(LOWER(l.status), 'active') AS status
+	                       l.unit_id,
+	                       COALESCE(u.name, '') AS unit_name,
+	                       l.business_id,
+	                       COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+	                       l.name,
+	                       l.latitude,
+	                       l.longitude,
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS status
                 FROM hr_employee_allowed_locations al
                 JOIN hr_attendance_locations l ON l.id = al.location_id
                 LEFT JOIN units u ON u.id = l.unit_id
@@ -2999,11 +3370,19 @@ public class HrAttendanceService {
                 safe(rs.getString("unit_name")),
                 getNullableLong(rs, "business_id"),
                 safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
                 safe(rs.getString("name")),
                 rs.getBigDecimal("latitude"),
-                rs.getBigDecimal("longitude"),
-                rs.getInt("radius_meters"),
-                safe(rs.getString("status"))
+	                rs.getBigDecimal("longitude"),
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+	                safe(rs.getString("status")),
+                0,
+                ""
             ),
             companyId,
             employeeId
@@ -3015,15 +3394,21 @@ public class HrAttendanceService {
             """
                 SELECT al.employee_id,
                        l.id,
-                       l.unit_id,
-                       COALESCE(u.name, '') AS unit_name,
-                       l.business_id,
-                       COALESCE(b.name, '') AS business_name,
-                       l.name,
-                       l.latitude,
-                       l.longitude,
-                       l.radius_meters,
-                       COALESCE(LOWER(l.status), 'active') AS status
+	                       l.unit_id,
+	                       COALESCE(u.name, '') AS unit_name,
+	                       l.business_id,
+	                       COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+	                       l.name,
+	                       l.latitude,
+	                       l.longitude,
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS status
                 FROM hr_employee_allowed_locations al
                 JOIN hr_attendance_locations l ON l.id = al.location_id
                 LEFT JOIN units u ON u.id = l.unit_id
@@ -3041,11 +3426,19 @@ public class HrAttendanceService {
                     safe(rs.getString("unit_name")),
                     getNullableLong(rs, "business_id"),
                     safe(rs.getString("business_name")),
+                    rs.getObject("contract_start_date", LocalDate.class),
+                    rs.getObject("contract_end_date", LocalDate.class),
                     safe(rs.getString("name")),
                     rs.getBigDecimal("latitude"),
-                    rs.getBigDecimal("longitude"),
-                    rs.getInt("radius_meters"),
-                    safe(rs.getString("status"))
+	                    rs.getBigDecimal("longitude"),
+	                    rs.getInt("radius_meters"),
+	                    rs.getBigDecimal("required_hours_per_day"),
+	                    rs.getObject("required_start_time", LocalTime.class),
+	                    rs.getObject("required_end_time", LocalTime.class),
+	                    rs.getInt("required_days_per_week"),
+	                    safe(rs.getString("status")),
+                    0,
+                    ""
                 )
             ),
             companyId
@@ -3113,15 +3506,21 @@ public class HrAttendanceService {
                        a.effective_end_date,
                        COALESCE(LOWER(a.status), 'active') AS assignment_status,
                        l.id AS location_id,
-                       l.unit_id AS location_unit_id,
-                       COALESCE(u.name, '') AS location_unit_name,
-                       l.business_id AS location_business_id,
-                       COALESCE(b.name, '') AS location_business_name,
-                       l.name AS location_name,
-                       l.latitude AS location_latitude,
-                       l.longitude AS location_longitude,
-                       l.radius_meters AS location_radius_meters,
-                       COALESCE(LOWER(l.status), 'active') AS location_status
+	                       l.unit_id AS location_unit_id,
+	                       COALESCE(u.name, '') AS location_unit_name,
+	                       l.business_id AS location_business_id,
+	                       COALESCE(b.name, '') AS location_business_name,
+                           l.contract_start_date AS location_contract_start_date,
+                           l.contract_end_date AS location_contract_end_date,
+	                       l.name AS location_name,
+	                       l.latitude AS location_latitude,
+	                       l.longitude AS location_longitude,
+	                       l.radius_meters AS location_radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS location_required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS location_required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS location_required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS location_required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS location_status
                 FROM hr_employee_work_site_assignments a
                 JOIN hr_attendance_locations l ON l.id = a.location_id
                 LEFT JOIN units u ON u.id = l.unit_id
@@ -3164,15 +3563,21 @@ public class HrAttendanceService {
                        a.effective_end_date,
                        COALESCE(LOWER(a.status), 'active') AS assignment_status,
                        l.id AS location_id,
-                       l.unit_id AS location_unit_id,
-                       COALESCE(u.name, '') AS location_unit_name,
-                       l.business_id AS location_business_id,
-                       COALESCE(b.name, '') AS location_business_name,
-                       l.name AS location_name,
-                       l.latitude AS location_latitude,
-                       l.longitude AS location_longitude,
-                       l.radius_meters AS location_radius_meters,
-                       COALESCE(LOWER(l.status), 'active') AS location_status
+	                       l.unit_id AS location_unit_id,
+	                       COALESCE(u.name, '') AS location_unit_name,
+	                       l.business_id AS location_business_id,
+	                       COALESCE(b.name, '') AS location_business_name,
+                           l.contract_start_date AS location_contract_start_date,
+                           l.contract_end_date AS location_contract_end_date,
+	                       l.name AS location_name,
+	                       l.latitude AS location_latitude,
+	                       l.longitude AS location_longitude,
+	                       l.radius_meters AS location_radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS location_required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS location_required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS location_required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS location_required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS location_status
                 FROM hr_employee_work_site_assignments a
                 JOIN hr_attendance_locations l ON l.id = a.location_id
                 LEFT JOIN units u ON u.id = l.unit_id
@@ -3212,11 +3617,19 @@ public class HrAttendanceService {
             safe(rs.getString("location_unit_name")),
             getNullableLong(rs, "location_business_id"),
             safe(rs.getString("location_business_name")),
+            rs.getObject("location_contract_start_date", LocalDate.class),
+            rs.getObject("location_contract_end_date", LocalDate.class),
             safe(rs.getString("location_name")),
             rs.getBigDecimal("location_latitude"),
             rs.getBigDecimal("location_longitude"),
             rs.getInt("location_radius_meters"),
-            safe(rs.getString("location_status"))
+            rs.getBigDecimal("location_required_hours_per_day"),
+            rs.getObject("location_required_start_time", LocalTime.class),
+            rs.getObject("location_required_end_time", LocalTime.class),
+            rs.getInt("location_required_days_per_week"),
+            safe(rs.getString("location_status")),
+            0,
+            ""
         );
         return new WorkSiteAssignmentRow(
             rs.getLong("id"),
@@ -3335,11 +3748,19 @@ public class HrAttendanceService {
             "",
             null,
             "",
+            null,
+            null,
             safe(rs.getString(prefix + "_name")),
             rs.getBigDecimal(prefix + "_latitude"),
             rs.getBigDecimal(prefix + "_longitude"),
             rs.getInt(prefix + "_radius_meters"),
-            "active"
+            null,
+            null,
+            null,
+            null,
+            "active",
+            0,
+            ""
         );
     }
 
@@ -3354,11 +3775,19 @@ public class HrAttendanceService {
         body.put("unit_name", nullable(location.unitName()));
         body.put("business_id", location.businessId());
         body.put("business_name", nullable(location.businessName()));
+        body.put("contract_start_date", location.contractStartDate() == null ? null : location.contractStartDate().toString());
+        body.put("contract_end_date", location.contractEndDate() == null ? null : location.contractEndDate().toString());
         body.put("name", location.name());
         body.put("latitude", location.latitude());
-        body.put("longitude", location.longitude());
-        body.put("radius_meters", location.radiusMeters());
+	        body.put("longitude", location.longitude());
+	        body.put("radius_meters", location.radiusMeters());
+	        body.put("required_hours_per_day", location.requiredHoursPerDay());
+	        body.put("required_start_time", location.requiredStartTime() == null ? null : location.requiredStartTime().toString());
+	        body.put("required_end_time", location.requiredEndTime() == null ? null : location.requiredEndTime().toString());
+	        body.put("required_days_per_week", location.requiredDaysPerWeek());
         body.put("status", location.status());
+        body.put("assigned_employee_count", location.assignedEmployeeCount());
+        body.put("assigned_employee_names", location.assignedEmployeeNames());
         return body;
     }
 
@@ -4060,6 +4489,16 @@ public class HrAttendanceService {
         }
     }
 
+    private void validateOperationalEventDate(String eventKind, LocalDateTime eventTimestamp) {
+        if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventKind)) {
+            return;
+        }
+
+        if (!eventTimestamp.toLocalDate().equals(LocalDate.now())) {
+            throw new IllegalArgumentException("Attendance can only be recorded for today.");
+        }
+    }
+
     private AttendanceOperationalState resolveOperationalState(List<AttendanceEventRow> events) {
         boolean checkedIn = false;
         boolean onBreak = false;
@@ -4355,6 +4794,51 @@ public class HrAttendanceService {
             employeeId,
             date
         );
+    }
+
+    private List<AutoCheckoutCandidate> loadAutoCheckoutCandidates(LocalDate latestAttendanceDate) {
+        return jdbcTemplate.query(
+            """
+                SELECT company_id,
+                       employee_id,
+                       attendance_date,
+                       first_check_in_at,
+                       first_location_id
+                FROM hr_attendance_daily_records
+                WHERE first_check_in_at IS NOT NULL
+                  AND last_check_out_at IS NULL
+                  AND attendance_date <= ?
+                ORDER BY attendance_date ASC, company_id ASC, employee_id ASC
+                LIMIT 500
+                """,
+            (rs, rowNum) -> new AutoCheckoutCandidate(
+                rs.getLong("company_id"),
+                rs.getLong("employee_id"),
+                rs.getObject("attendance_date", LocalDate.class),
+                toLocalDateTime(rs.getTimestamp("first_check_in_at")),
+                getNullableLong(rs, "first_location_id")
+            ),
+            latestAttendanceDate
+        );
+    }
+
+    private boolean hasSuccessfulCheckoutEvent(long companyId, long employeeId, LocalDate date) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_attendance_events
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND attendance_date = ?
+                  AND event_kind = 'check_out'
+                  AND result_status IN ('success', 'overridden')
+                """,
+            Integer.class,
+            companyId,
+            employeeId,
+            date
+        );
+        return count != null && count > 0;
     }
 
     private void ensureUniqueKioskCode(long companyId, Long kioskDeviceId, String code) {
@@ -4841,6 +5325,10 @@ public class HrAttendanceService {
                 if (!endTime.isAfter(startTime)) {
                     throw new IllegalArgumentException("end_time must be after start_time.");
                 }
+            } else if ("open".equals(scheduleMode) && !isRestDay) {
+                if (startTime != null || endTime != null) {
+                    throw new IllegalArgumentException("start_time and end_time are not allowed for open schedule days.");
+                }
             } else {
                 if (isRestDay) {
                     startTime = null;
@@ -4880,7 +5368,7 @@ public class HrAttendanceService {
         }
 
         if (!Objects.equals(template.locationId(), workSite.id())) {
-            throw new IllegalArgumentException("The selected schedule location does not match the assigned work site.");
+            throw new IllegalArgumentException("The selected schedule location does not match the assigned contract site.");
         }
     }
 
@@ -4899,7 +5387,7 @@ public class HrAttendanceService {
             throw new IllegalArgumentException("Employee already has attendance activity in this date range. Remove the existing shift or choose another date.");
         }
         if (hasActiveWorkSiteAssignmentOverlap(companyId, employeeId, startDate, endDate)) {
-            throw new IllegalArgumentException("Employee already has an active work-site assignment in this date range. Remove the existing shift before assigning new work.");
+            throw new IllegalArgumentException("Employee already has an active contract site assignment in this date range. Remove the existing shift before assigning a contract site.");
         }
         if (hasActiveScheduleAssignmentOverlap(companyId, employeeId, startDate, endDate)) {
             throw new IllegalArgumentException("Employee already has an active schedule in this date range. Remove the existing shift before assigning new work.");
@@ -4965,6 +5453,27 @@ public class HrAttendanceService {
         );
     }
 
+    private boolean hasActiveWorkSiteLocationAssignmentOverlap(long companyId, long locationId, LocalDate startDate, LocalDate endDate) {
+        var rangeEnd = assignmentRangeEnd(endDate);
+        Integer count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_employee_work_site_assignments
+                WHERE company_id = ?
+                  AND location_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                  AND effective_start_date <= ?
+                  AND (effective_end_date IS NULL OR effective_end_date >= ?)
+                """,
+            Integer.class,
+            companyId,
+            locationId,
+            rangeEnd,
+            startDate
+        );
+        return count != null && count > 0;
+    }
+
     private boolean hasActiveAssignmentOverlap(
         String tableName,
         long companyId,
@@ -4997,22 +5506,36 @@ public class HrAttendanceService {
     }
 
     private void validateScheduleRegistrationPolicy(
+        long companyId,
+        AttendanceEmployee employee,
         ScheduleRule scheduleRule,
         String eventType,
         LocalDateTime eventTimestamp,
         LocationRow location,
         WorkSiteAssignmentRow activeWorkSite
     ) {
-        if (activeWorkSite != null && List.of("check_in", "check_out", "break_out", "break_in").contains(eventType)) {
-            if (location == null || !Objects.equals(location.id(), activeWorkSite.location().id())) {
-                throw new IllegalArgumentException(
-                    "Attendance registration is restricted to today's assigned work site: " + activeWorkSite.location().name() + "."
-                );
+        if (List.of("check_in", "check_out", "break_out", "break_in").contains(eventType)) {
+            if (activeWorkSite != null) {
+                if (location == null || !Objects.equals(location.id(), activeWorkSite.location().id())) {
+                    throw new IllegalArgumentException(
+                        "Attendance registration is restricted to today's assigned contract site: " + activeWorkSite.location().name() + "."
+                    );
+                }
+            } else {
+                validateBusinessAttendanceLocation(companyId, employee, location);
             }
         }
 
         if (scheduleRule == null || scheduleRule.isRestDay() || !"check_in".equals(eventType)) {
             return;
+        }
+
+        if (scheduleRule.startTime() != null) {
+            var scheduledStart = eventTimestamp.toLocalDate().atTime(scheduleRule.startTime());
+            var earliestAllowedCheckIn = scheduledStart.minus(EARLY_CHECK_IN_ALLOWANCE);
+            if (eventTimestamp.isBefore(earliestAllowedCheckIn)) {
+                throw new IllegalArgumentException("Check-in opens 15 minutes before the scheduled start time.");
+            }
         }
 
         if (activeWorkSite == null && scheduleRule.enforceLocation() && scheduleRule.locationId() != null) {
@@ -5027,6 +5550,29 @@ public class HrAttendanceService {
             if (eventTimestamp.isAfter(graceDeadline)) {
                 throw new IllegalArgumentException("Attendance registration is blocked after the grace period expires.");
             }
+        }
+    }
+
+    private void validateBusinessAttendanceLocation(long companyId, AttendanceEmployee employee, LocationRow location) {
+        if (employee.businessId() == null) {
+            throw new IllegalArgumentException("Employee business is not assigned. Set the employee business before recording attendance.");
+        }
+
+        var businessLocations = loadBusinessAttendanceLocations(companyId, employee.businessId());
+        if (businessLocations.isEmpty()) {
+            throw new IllegalArgumentException("Business location is not configured for " + employee.businessName() + ".");
+        }
+
+        var allowedLocation = businessLocations.stream()
+            .anyMatch((businessLocation) -> location != null && Objects.equals(businessLocation.id(), location.id()));
+        if (!allowedLocation) {
+            var locationNames = businessLocations.stream()
+                .map(LocationRow::name)
+                .limit(3)
+                .toList();
+            throw new IllegalArgumentException(
+                "Attendance registration is restricted to the employee's business location: " + String.join(", ", locationNames) + "."
+            );
         }
     }
 
@@ -5360,6 +5906,23 @@ public class HrAttendanceService {
         }
     }
 
+    private BigDecimal normalizeRequiredHoursPerDay(BigDecimal value) {
+        var resolved = value == null ? new BigDecimal("8.00") : value;
+        if (resolved.compareTo(BigDecimal.ZERO) <= 0 || resolved.compareTo(new BigDecimal("24.00")) > 0) {
+            throw new IllegalArgumentException("required_hours_per_day must be greater than zero and no more than 24.");
+        }
+        return resolved.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void validatePreferredTimeRange(LocalTime startTime, LocalTime endTime) {
+        if (startTime == null || endTime == null) {
+            throw new IllegalArgumentException("required_start_time and required_end_time are required.");
+        }
+        if (!endTime.isAfter(startTime)) {
+            throw new IllegalArgumentException("required_end_time must be after required_start_time.");
+        }
+    }
+
     private double distanceMeters(BigDecimal latitudeA, BigDecimal longitudeA, BigDecimal latitudeB, BigDecimal longitudeB) {
         var earthRadiusMeters = 6_371_000d;
         var lat1 = Math.toRadians(latitudeA.doubleValue());
@@ -5583,11 +6146,19 @@ public class HrAttendanceService {
         String unitName,
         Long businessId,
         String businessName,
+        LocalDate contractStartDate,
+        LocalDate contractEndDate,
         String name,
         BigDecimal latitude,
-        BigDecimal longitude,
-        int radiusMeters,
-        String status
+	        BigDecimal longitude,
+	        int radiusMeters,
+	        BigDecimal requiredHoursPerDay,
+	        LocalTime requiredStartTime,
+	        LocalTime requiredEndTime,
+	        Integer requiredDaysPerWeek,
+	        String status,
+        int assignedEmployeeCount,
+        String assignedEmployeeNames
     ) {
     }
 
@@ -5703,6 +6274,15 @@ public class HrAttendanceService {
         String notes,
         String metadataJson,
         Long supersedesEventId
+    ) {
+    }
+
+    private record AutoCheckoutCandidate(
+        long companyId,
+        long employeeId,
+        LocalDate attendanceDate,
+        LocalDateTime firstCheckInAt,
+        Long firstLocationId
     ) {
     }
 

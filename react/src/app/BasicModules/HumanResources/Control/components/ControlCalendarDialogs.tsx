@@ -33,6 +33,7 @@ export function ControlCalendarDayDialog({
   onPendingStatusChange,
   onClose,
   onSave,
+  onClearDaySchedule,
 }: {
   copy: AttendanceControlCopy;
   day: AttendanceCalendarDay | null;
@@ -43,7 +44,12 @@ export function ControlCalendarDayDialog({
   onPendingStatusChange: (status: AttendanceCorrectionStatus | '') => void;
   onClose: () => void;
   onSave: (date: string, status: AttendanceCorrectionStatus | '') => Promise<boolean>;
+  onClearDaySchedule: (date: string) => Promise<boolean>;
 }) {
+  const hasScheduleForDay = Boolean(day?.schedule_rule);
+  const canClearScheduleForDay = Boolean(day?.schedule_rule || day?.active_work_site);
+  const manualStatusDisabled = !hasScheduleForDay;
+
   return (
     <Dialog
       open={Boolean(day)}
@@ -102,10 +108,15 @@ export function ControlCalendarDayDialog({
 
             <div className="space-y-3">
               <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.manuallyModifyStatus}</p>
+              {manualStatusDisabled ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
+                  {copy.labels.noRuleForDay}
+                </div>
+              ) : null}
               <div className="grid gap-2">
                 <Button
                   type="button"
-                  disabled={isSaving}
+                  disabled={isSaving || manualStatusDisabled}
                   className={`justify-start bg-emerald-600 text-white hover:bg-emerald-700 ${pendingStatus === 'on_time' ? 'ring-2 ring-emerald-300 ring-offset-2' : ''}`}
                   onClick={() => onPendingStatusChange('on_time')}
                 >
@@ -113,7 +124,7 @@ export function ControlCalendarDayDialog({
                 </Button>
                 <Button
                   type="button"
-                  disabled={isSaving}
+                  disabled={isSaving || manualStatusDisabled}
                   className={`justify-start bg-rose-600 text-white hover:bg-rose-700 ${pendingStatus === 'absence' ? 'ring-2 ring-rose-300 ring-offset-2' : ''}`}
                   onClick={() => onPendingStatusChange('absence')}
                 >
@@ -121,7 +132,7 @@ export function ControlCalendarDayDialog({
                 </Button>
                 <Button
                   type="button"
-                  disabled={isSaving}
+                  disabled={isSaving || manualStatusDisabled}
                   className={`justify-start bg-amber-500 text-white hover:bg-amber-600 ${pendingStatus === 'late' ? 'ring-2 ring-amber-300 ring-offset-2' : ''}`}
                   onClick={() => onPendingStatusChange('late')}
                 >
@@ -129,7 +140,7 @@ export function ControlCalendarDayDialog({
                 </Button>
                 <Button
                   type="button"
-                  disabled={isSaving}
+                  disabled={isSaving || manualStatusDisabled}
                   className={`justify-start bg-slate-500 text-white hover:bg-slate-600 ${pendingStatus === 'rest' ? 'ring-2 ring-slate-300 ring-offset-2' : ''}`}
                   onClick={() => onPendingStatusChange('rest')}
                 >
@@ -138,7 +149,7 @@ export function ControlCalendarDayDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={isSaving}
+                  disabled={isSaving || manualStatusDisabled}
                   className={pendingStatus === '' ? 'border-[#1463ff] text-[#1463ff]' : ''}
                   onClick={() => onPendingStatusChange('')}
                 >
@@ -151,13 +162,42 @@ export function ControlCalendarDayDialog({
                   {copy.statuses[resolvedDayStatus(day)]}
                 </span>
               </div>
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-900/50 dark:bg-rose-950/20">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-rose-900 dark:text-rose-200">Clear schedule for this day</p>
+                    <p className="mt-1 text-xs leading-5 text-rose-700 dark:text-rose-300">
+                      Removes the assigned schedule or contract site for this date only. Check-in and check-out records stay saved.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSaving || !canClearScheduleForDay}
+                    className="border-rose-300 text-rose-700 hover:bg-rose-100 hover:text-rose-800 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950"
+                    onClick={async () => {
+                      const didClear = await onClearDaySchedule(day.date);
+                      if (didClear) {
+                        onClose();
+                      }
+                    }}
+                  >
+                    Clear day schedule
+                  </Button>
+                </div>
+                {!canClearScheduleForDay ? (
+                  <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
+                    There is no schedule or contract site assigned on this date.
+                  </p>
+                ) : null}
+              </div>
               <DialogFooter className="pt-2">
                 <Button type="button" variant="outline" disabled={isSaving} onClick={onClose}>
                   {copy.labels.cancel}
                 </Button>
                 <Button
                   type="button"
-                  disabled={isSaving}
+                  disabled={isSaving || manualStatusDisabled}
                   className="bg-[#143675] text-white hover:bg-[#0f2855]"
                   onClick={async () => {
                     const didSave = await onSave(day.date, pendingStatus);

@@ -80,6 +80,7 @@ export function EmployeeAccessActions({
   const [editingAccessProfile, setEditingAccessProfile] = useState<AttendanceAccessProfile | null>(null);
   const [accessProfileForm, setAccessProfileForm] = useState<AttendanceAccessProfilePayload>(defaultAccessProfileForm());
   const [accessProfilePin, setAccessProfilePin] = useState('');
+  const [isPinResetMode, setIsPinResetMode] = useState(false);
   const [isFaceEnrollmentModalOpen, setIsFaceEnrollmentModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -93,6 +94,8 @@ export function EmployeeAccessActions({
   const actionButtonClassName = inlineLayout
     ? 'h-9 min-w-[8.75rem] shrink-0 justify-center whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white'
     : 'whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white';
+  const effectiveAccessProfile = selectedAccessProfile ?? selectedEmployee.access_profile ?? null;
+  const selectedPinMethod = effectiveAccessProfile?.methods.find((method) => method.method_type === 'pin') ?? null;
 
   const openCreateAccessProfileDialog = () => {
     setEditingAccessProfile(null);
@@ -101,6 +104,7 @@ export function EmployeeAccessActions({
       employee_id: selectedEmployee.employee_id,
     });
     setAccessProfilePin('');
+    setIsPinResetMode(false);
     setIsAccessProfileDialogOpen(true);
   };
 
@@ -114,6 +118,7 @@ export function EmployeeAccessActions({
       metadata: profile.metadata ?? { supports_face_recognition: false },
     });
     setAccessProfilePin('');
+    setIsPinResetMode(false);
     setIsAccessProfileDialogOpen(true);
   };
 
@@ -136,9 +141,9 @@ export function EmployeeAccessActions({
           savedProfile = response.access_profile;
         }
 
+        const existingPinMethod = savedProfile.methods.find((method) => method.method_type === 'pin') ?? null;
         const nextPin = accessProfilePin.trim();
-        if (nextPin) {
-          const existingPinMethod = savedProfile.methods.find((method) => method.method_type === 'pin') ?? null;
+        if (nextPin && (!existingPinMethod || isPinResetMode)) {
           const pinPayload: AttendanceAccessMethodPayload = {
             access_profile_id: savedProfile.id,
             method_type: 'pin',
@@ -159,6 +164,7 @@ export function EmployeeAccessActions({
 
       setIsAccessProfileDialogOpen(false);
       setAccessProfilePin('');
+      setIsPinResetMode(false);
       onSuccess('Access profile saved successfully.');
       await Promise.resolve(onReload());
     } catch (error) {
@@ -196,14 +202,18 @@ export function EmployeeAccessActions({
       />
 
       <div className={actionGroupClassName}>
+        <div className={inlineLayout ? 'flex h-9 shrink-0 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100' : 'flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'}>
+          <span className={`h-2 w-2 rounded-full ${selectedPinMethod ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+          {selectedPinMethod ? 'PIN set' : 'No PIN'}
+        </div>
         <Button
           variant="outline"
           size="sm"
           className={actionButtonClassName}
           disabled={isSaving}
-          onClick={selectedAccessProfile ? () => openEditAccessProfileDialog(selectedAccessProfile) : openCreateAccessProfileDialog}
+          onClick={effectiveAccessProfile ? () => openEditAccessProfileDialog(effectiveAccessProfile) : openCreateAccessProfileDialog}
         >
-          {selectedAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
+          {effectiveAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
         </Button>
         <Button
           variant="outline"
@@ -235,9 +245,22 @@ export function EmployeeAccessActions({
         form={accessProfileForm}
         pin={accessProfilePin}
         hasExistingPin={Boolean(editingAccessProfile?.methods.some((method) => method.method_type === 'pin'))}
-        onClose={() => setIsAccessProfileDialogOpen(false)}
+        isPinResetMode={isPinResetMode}
+        onClose={() => {
+          setIsAccessProfileDialogOpen(false);
+          setAccessProfilePin('');
+          setIsPinResetMode(false);
+        }}
         onChange={setAccessProfileForm}
         onPinChange={setAccessProfilePin}
+        onStartPinReset={() => {
+          setAccessProfilePin('');
+          setIsPinResetMode(true);
+        }}
+        onCancelPinReset={() => {
+          setAccessProfilePin('');
+          setIsPinResetMode(false);
+        }}
         onSave={() => void handleSaveAccessProfile()}
         title={editingAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
       />
@@ -279,10 +302,13 @@ function AccessProfileDialog({
   form,
   pin,
   hasExistingPin,
+  isPinResetMode,
   title,
   onClose,
   onChange,
   onPinChange,
+  onStartPinReset,
+  onCancelPinReset,
   onSave,
 }: {
   copy: AttendanceControlCopy;
@@ -292,12 +318,17 @@ function AccessProfileDialog({
   form: AttendanceAccessProfilePayload;
   pin: string;
   hasExistingPin: boolean;
+  isPinResetMode: boolean;
   title: string;
   onClose: () => void;
   onChange: (value: AttendanceAccessProfilePayload) => void;
   onPinChange: (value: string) => void;
+  onStartPinReset: () => void;
+  onCancelPinReset: () => void;
   onSave: () => void;
 }) {
+  const shouldShowPinInput = !hasExistingPin || isPinResetMode;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-xl">
@@ -350,23 +381,50 @@ function AccessProfileDialog({
             </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.pinCode}</label>
-            <input
-              type="password"
-              value={pin}
-              onChange={(event) => onPinChange(event.target.value)}
-              placeholder={copy.labels.pinPlaceholder}
-              inputMode="numeric"
-              autoComplete="new-password"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            />
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">PIN status</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {hasExistingPin
+                    ? 'PIN already exists. Use reset only when HR wants to replace it.'
+                    : 'No PIN exists yet. Enter a PIN to enable kiosk access.'}
+                </p>
+              </div>
+              {hasExistingPin && !isPinResetMode ? (
+                <Button type="button" variant="outline" size="sm" onClick={onStartPinReset} disabled={isSaving}>
+                  Reset PIN
+                </Button>
+              ) : null}
+            </div>
+
+            {shouldShowPinInput ? (
+              <div className="mt-3">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {hasExistingPin ? 'New PIN' : copy.labels.pinCode}
+                </label>
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={(event) => onPinChange(event.target.value)}
+                  placeholder={hasExistingPin ? 'Enter replacement PIN' : copy.labels.pinPlaceholder}
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+                {hasExistingPin ? (
+                  <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={onCancelPinReset} disabled={isSaving}>
+                    Cancel reset
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button onClick={onSave} disabled={isSaving || !form.employee_id || (!hasExistingPin && !pin.trim())}>{copy.labels.save}</Button>
+          <Button onClick={onSave} disabled={isSaving || !form.employee_id || ((!hasExistingPin || isPinResetMode) && !pin.trim())}>{copy.labels.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

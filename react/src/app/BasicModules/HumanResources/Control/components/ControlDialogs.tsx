@@ -36,7 +36,19 @@ export interface ControlWorkSiteForm {
   end_time: string;
 }
 
-export function ControlLocationDialog({
+const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
+const withContractSiteTime = (
+  payload: AttendanceControlLocationPayload,
+  field: 'required_start_time' | 'required_end_time',
+  value: string,
+): AttendanceControlLocationPayload => {
+  return {
+    ...payload,
+    [field]: value ? `${value}:00` : null,
+  };
+};
+
+export function ControlContractSiteDialog({
   copy,
   isOpen,
   isSaving,
@@ -57,13 +69,13 @@ export function ControlLocationDialog({
 }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-xl">
+      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{copy.sections.locationsHint}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4">
+        <div className="grid gap-5 lg:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.locationName}</label>
             <input
@@ -74,7 +86,19 @@ export function ControlLocationDialog({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.status}</label>
+            <select
+              value={form.status}
+              onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="active">{copy.statuses.active}</option>
+              <option value="inactive">{copy.statuses.inactive}</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.latitude}</label>
               <input
@@ -97,28 +121,69 @@ export function ControlLocationDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.radius}</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Contract start date</label>
               <input
+                type="date"
+                value={form.contract_start_date}
+                onChange={(event) => onChange({ ...form, contract_start_date: event.target.value })}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Contract end date</label>
+              <input
+                type="date"
+                value={form.contract_end_date}
+                min={form.contract_start_date}
+                onChange={(event) => onChange({ ...form, contract_end_date: event.target.value })}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+          </div>
+
+	          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 lg:col-span-2">
+	            <div>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.radius}</label>
+	              <input
                 type="number"
                 min="1"
                 value={form.radius_meters}
                 onChange={(event) => onChange({ ...form, radius_meters: Number(event.target.value) })}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.status}</label>
-              <select
-                value={form.status}
-                onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
+	            </div>
+	            <div>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Working hours</label>
+	              <input
+                type="number"
+                min="0.25"
+                max="24"
+                step="0.25"
+                value={form.required_hours_per_day}
+                onChange={(event) => onChange({ ...form, required_hours_per_day: Number(event.target.value) })}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="active">{copy.statuses.active}</option>
-                <option value="inactive">{copy.statuses.inactive}</option>
-              </select>
-            </div>
+              />
+	            </div>
+	            <div>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Preferred start</label>
+	              <input
+	                type="time"
+	                value={timeToInput(form.required_start_time) || '08:00'}
+	                onChange={(event) => onChange(withContractSiteTime(form, 'required_start_time', event.target.value))}
+	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+	              />
+	            </div>
+	            <div>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Preferred end</label>
+	              <input
+	                type="time"
+	                value={timeToInput(form.required_end_time) || '16:00'}
+	                onChange={(event) => onChange(withContractSiteTime(form, 'required_end_time', event.target.value))}
+	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+	              />
+	            </div>
           </div>
         </div>
 
@@ -204,7 +269,7 @@ export function ControlTemplateDialog({
                                 ...item,
                                 is_rest_day: !isWorkingDay,
                                 start_time: isWorkingDay ? item.start_time || '08:00:00' : null,
-                                end_time: isWorkingDay ? item.end_time || '17:00:00' : null,
+                                end_time: isWorkingDay ? item.end_time || '16:00:00' : null,
                               }
                             : item,
                         );
@@ -434,41 +499,49 @@ export function ControlWorkSiteDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Assign site and hours for {employeeName}</DialogTitle>
+          <DialogTitle>Assign contract site and hours for {employeeName}</DialogTitle>
           <DialogDescription>
-            Choose where this employee must work and the hours for that assignment.
+            Choose the external or contract location where this employee must check in for the selected dates.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/60 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Work site</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Contract site</p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Attendance will only be accepted from this site for the selected dates.
+              Attendance will only be accepted from this contract site for the selected dates.
             </p>
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
-            <select
-              value={form.location_id || ''}
-              onChange={(event) => {
-                const locationId = event.target.value ? Number(event.target.value) : 0;
-                onChange({
-                  ...form,
-                  location_id: locationId,
-                  location_ids: locationId > 0 ? Array.from(new Set([...form.location_ids, locationId])) : form.location_ids,
-                });
-              }}
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Attendance location</label>
+	            <select
+	              value={form.location_id || ''}
+	              onChange={(event) => {
+	                const locationId = event.target.value ? Number(event.target.value) : 0;
+	                const selectedLocation = activeLocations.find((location) => location.id === locationId);
+	                onChange({
+	                  ...form,
+	                  location_id: locationId,
+	                  location_ids: locationId > 0 ? Array.from(new Set([...form.location_ids, locationId])) : form.location_ids,
+	                  start_time: timeToInput(selectedLocation?.required_start_time) || form.start_time,
+	                  end_time: timeToInput(selectedLocation?.required_end_time) || form.end_time,
+	                });
+	              }}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
-              <option value="">Select work site</option>
+              <option value="">Select contract site</option>
               {activeLocations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name} - {location.unit_name || copy.labels.noUnit} / {location.business_name || copy.labels.noBusiness}
                 </option>
               ))}
             </select>
+            {activeLocations.length === 0 ? (
+              <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
+                No available contract sites for this date. Sites already assigned to another employee are hidden.
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -491,7 +564,7 @@ export function ControlWorkSiteDialog({
           </div>
 
           <div className="sm:col-span-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Work hours</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Assigned hours</p>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start time</label>
