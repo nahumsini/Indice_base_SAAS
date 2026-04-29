@@ -403,6 +403,8 @@ const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeF
     socialSecurityNumber: details.profile.social_security_number ?? '',
     registrationCountry: details.profile.registration_country ?? '',
     stateProvince: details.profile.state_province ?? '',
+    city: details.profile.city ?? '',
+    postalCode: details.profile.postal_code ?? '',
     alternatePhone: details.profile.alternate_phone ?? '',
     emergencyContactName: details.profile.emergency_contact_name ?? '',
     emergencyContactRelationship: details.profile.emergency_contact_relationship ?? '',
@@ -751,6 +753,8 @@ export default function Colaboradores() {
     const trimmedTaxId = data.taxId.trim();
     const trimmedSocialSecurityNumber = data.socialSecurityNumber.trim();
     const trimmedStateProvince = data.stateProvince.trim();
+    const trimmedCity = data.city.trim();
+    const trimmedPostalCode = data.postalCode.trim();
     const trimmedAlternatePhone = data.alternatePhone.trim();
     const trimmedEmergencyContactName = data.emergencyContactName.trim();
     const trimmedEmergencyContactRelationship = data.emergencyContactRelationship.trim();
@@ -801,6 +805,8 @@ export default function Colaboradores() {
       social_security_number: trimmedSocialSecurityNumber,
       registration_country: data.registrationCountry,
       state_province: trimmedStateProvince,
+      city: trimmedCity,
+      postal_code: trimmedPostalCode,
       alternate_phone: trimmedAlternatePhone,
       emergency_contact_name: trimmedEmergencyContactName,
       emergency_contact_relationship: trimmedEmergencyContactRelationship,
@@ -814,6 +820,8 @@ export default function Colaboradores() {
         social_security_number: trimmedSocialSecurityNumber,
         registration_country: data.registrationCountry,
         state_province: trimmedStateProvince,
+        city: trimmedCity,
+        postal_code: trimmedPostalCode,
         alternate_phone: trimmedAlternatePhone,
         emergency_contact_name: trimmedEmergencyContactName,
         emergency_contact_relationship: trimmedEmergencyContactRelationship,

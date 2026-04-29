@@ -40,6 +40,8 @@ export interface BackendEmployeeProfile {
   social_security_number?: string;
   registration_country?: string;
   state_province?: string;
+  city?: string;
+  postal_code?: string;
   alternate_phone?: string;
   emergency_contact_name?: string;
   emergency_contact_relationship?: string;

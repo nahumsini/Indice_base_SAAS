@@ -22,6 +22,10 @@ import {
   normalizePhoneInputForCountry,
   validatePhoneForProfileCountry,
 } from '../shared/validation/phone';
+import {
+  ManualLocationFields,
+  validatePostalCodeForCountry,
+} from './ManualLocationFields';
 
 export type EmployeeDocumentType =
   | 'birth_certificate'
@@ -59,6 +63,8 @@ export interface EmployeeFormData {
   socialSecurityNumber: string;
   registrationCountry: string;
   stateProvince: string;
+  city: string;
+  postalCode: string;
   alternatePhone: string;
   emergencyContactName: string;
   emergencyContactRelationship: string;
@@ -100,6 +106,7 @@ type EmployeeFieldKey =
   | 'email'
   | 'mobilePhone'
   | 'registrationCountry'
+  | 'postalCode'
   | 'alternatePhone'
   | 'emergencyContactPhone'
   | 'department'
@@ -147,6 +154,8 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
   socialSecurityNumber: '',
   registrationCountry: '',
   stateProvince: '',
+  city: '',
+  postalCode: '',
   alternatePhone: '',
   emergencyContactName: '',
   emergencyContactRelationship: '',
@@ -221,6 +230,8 @@ const modalCopy = {
       socialSecurityNumber: 'Social security number',
       registrationCountry: 'Registration country',
       stateProvince: 'Province / State',
+      city: 'City',
+      postalCode: 'Postal code',
       mobilePhone: 'Mobile phone',
       alternatePhone: 'Alternate phone',
       emergencyContactName: 'Emergency contact name',
@@ -269,6 +280,8 @@ const modalCopy = {
       emergencyContactName: 'e.g. Maria Perez',
       emergencyContactRelationship: 'e.g. Spouse',
       stateProvince: 'e.g. Ontario',
+      city: 'e.g. Toronto',
+      postalCode: 'e.g. M5V 2T6',
       workdayHours: 'e.g. 8',
       salary: 'e.g. 12000.00',
       hourlyRate: 'e.g. 75.00',
@@ -365,6 +378,8 @@ const modalCopy = {
       socialSecurityNumber: 'NSS',
       registrationCountry: 'País de registro',
       stateProvince: 'Provincia / Estado',
+      city: 'Ciudad',
+      postalCode: 'Código postal',
       mobilePhone: 'Teléfono móvil',
       alternatePhone: 'Teléfono alterno',
       emergencyContactName: 'Nombre del contacto',
@@ -412,6 +427,8 @@ const modalCopy = {
       emergencyContactName: 'Ej. María Pérez',
       emergencyContactRelationship: 'Ej. Esposa',
       stateProvince: 'Ej. Ciudad de México',
+      city: 'Ej. Ciudad de México',
+      postalCode: 'Ej. 01000',
       workdayHours: 'Ej. 8',
       salary: 'Ej. 12000.00',
       hourlyRate: 'Ej. 75.00',
@@ -678,6 +695,8 @@ export function EmployeeModal({
       socialSecurityNumber: readDomValue(nativeFormData, 'socialSecurityNumber') || currentFormData.socialSecurityNumber,
       registrationCountry: nextCountryValue,
       stateProvince: readDomValue(nativeFormData, 'stateProvince') || currentFormData.stateProvince,
+      city: readDomValue(nativeFormData, 'city') || currentFormData.city,
+      postalCode: readDomValue(nativeFormData, 'postalCode') || currentFormData.postalCode,
       alternatePhone: normalizePhone(readDomValue(nativeFormData, 'alternatePhone') || currentFormData.alternatePhone),
       emergencyContactName:
         readDomValue(nativeFormData, 'emergencyContactName') || currentFormData.emergencyContactName,
@@ -720,6 +739,9 @@ export function EmployeeModal({
         const next = {
           ...current,
           registrationCountry: String(value ?? ''),
+          stateProvince: '',
+          city: '',
+          postalCode: '',
           mobilePhone: nextCountry ? normalizePhoneInputForCountry(current.mobilePhone, nextCountry) : current.mobilePhone,
           alternatePhone: nextCountry ? normalizePhoneInputForCountry(current.alternatePhone, nextCountry) : current.alternatePhone,
           emergencyContactPhone: nextCountry ? normalizePhoneInputForCountry(current.emergencyContactPhone, nextCountry) : current.emergencyContactPhone,
@@ -820,6 +842,10 @@ export function EmployeeModal({
     if (!formData.registrationCountry.trim()) {
       errors.registrationCountry = copy.validation.required;
     }
+    const postalValidation = validatePostalCodeForCountry(formData.registrationCountry, formData.postalCode);
+    if ('message' in postalValidation) {
+      errors.postalCode = postalValidation.message;
+    }
 
     if (!formData.department.trim()) {
       errors.department = copy.validation.required;
@@ -881,7 +907,7 @@ export function EmployeeModal({
 
   const stepFields: Record<number, EmployeeFieldKey[]> = {
     1: ['firstName', 'lastName', 'email'],
-    2: ['registrationCountry', 'mobilePhone', 'alternatePhone', 'emergencyContactPhone'],
+    2: ['registrationCountry', 'postalCode', 'mobilePhone', 'alternatePhone', 'emergencyContactPhone'],
     3: ['department', 'position', 'businessUnitId', 'businessId', 'workdayHours', ...compensationStepFields, ...contractStepFields],
     4: [],
     5: [],
@@ -970,6 +996,10 @@ export function EmployeeModal({
       }
       if (!nextFormData.registrationCountry.trim()) {
         errors.registrationCountry = copy.validation.required;
+      }
+      const postalValidation = validatePostalCodeForCountry(nextFormData.registrationCountry, nextFormData.postalCode);
+      if ('message' in postalValidation) {
+        errors.postalCode = postalValidation.message;
       }
       if (!nextFormData.department.trim()) {
         errors.department = copy.validation.required;
@@ -1223,24 +1253,64 @@ export function EmployeeModal({
               </h3>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <SelectField
-                  name="registrationCountry"
-                  label={copy.labels.registrationCountry}
-                  value={formData.registrationCountry}
-                  onChange={(value) => updateField('registrationCountry', value)}
-                  options={countryOptions}
-                  placeholder={copy.placeholders.select}
-                  required
-                  error={touchedFields.registrationCountry ? validationErrors.registrationCountry : undefined}
-                />
-                <TextField
-                  name="stateProvince"
-                  label={copy.labels.stateProvince}
-                  value={formData.stateProvince}
-                  onChange={(value) => updateField('stateProvince', value)}
-                  placeholder={copy.placeholders.stateProvince}
-                  autoComplete="address-level1"
-                />
+                <div className="md:col-span-2">
+                  <ManualLocationFields
+                    values={{
+                      pais: formData.registrationCountry,
+                      estado: formData.stateProvince,
+                      ciudad: formData.city,
+                      cp: formData.postalCode,
+                    }}
+                    countries={countryOptions}
+                    labels={{
+                      country: copy.labels.registrationCountry,
+                      selectCountry: copy.placeholders.select,
+                      state: copy.labels.stateProvince,
+                      city: copy.labels.city,
+                      postalCode: copy.labels.postalCode,
+                    }}
+                    placeholders={{
+                      state: copy.placeholders.stateProvince,
+                      city: copy.placeholders.city,
+                      postalCode: copy.placeholders.postalCode,
+                    }}
+                    fieldNames={{
+                      pais: 'registrationCountry',
+                      estado: 'stateProvince',
+                      ciudad: 'city',
+                      cp: 'postalCode',
+                    }}
+                    countryError={touchedFields.registrationCountry ? validationErrors.registrationCountry : undefined}
+                    onChange={(updates) => {
+                      const next = {
+                        ...formDataRef.current,
+                        registrationCountry: updates.pais ?? formDataRef.current.registrationCountry,
+                        stateProvince: updates.estado ?? formDataRef.current.stateProvince,
+                        city: updates.ciudad ?? formDataRef.current.city,
+                        postalCode: updates.cp ?? formDataRef.current.postalCode,
+                      };
+                      if (updates.pais !== undefined) {
+                        const nextCountry = resolveProfileCountry(updates.pais);
+                        next.mobilePhone = nextCountry
+                          ? normalizePhoneInputForCountry(formDataRef.current.mobilePhone, nextCountry)
+                          : formDataRef.current.mobilePhone;
+                        next.alternatePhone = nextCountry
+                          ? normalizePhoneInputForCountry(formDataRef.current.alternatePhone, nextCountry)
+                          : formDataRef.current.alternatePhone;
+                        next.emergencyContactPhone = nextCountry
+                          ? normalizePhoneInputForCountry(formDataRef.current.emergencyContactPhone, nextCountry)
+                          : formDataRef.current.emergencyContactPhone;
+                      }
+                      formDataRef.current = next;
+                      setFormData(next);
+                    }}
+                  />
+                  {touchedFields.postalCode && validationErrors.postalCode ? (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {validationErrors.postalCode}
+                    </p>
+                  ) : null}
+                </div>
                 <TextField
                   name="mobilePhone"
                   label={copy.labels.mobilePhone}

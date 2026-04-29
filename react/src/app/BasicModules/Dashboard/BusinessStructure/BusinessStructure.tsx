@@ -13,6 +13,10 @@ import { BusinessIdentitySection } from './components/BusinessIdentitySection';
 import { OperationTypeSection } from './components/OperationTypeSection';
 import { UnitsSection } from './components/UnitsSection';
 import { LocationCoordinateFields } from './components/LocationCoordinateFields';
+import {
+  ManualLocationFields,
+  validatePostalCodeForCountry,
+} from '../../../components/ManualLocationFields';
 import type {
   CoordinateSource,
   EditingNegocio,
@@ -261,6 +265,34 @@ const buildCoordinateSaveValues = (values: LocationCoordinateFormValues): {
       radiusMeters,
       coordinateSource: normalizeCoordinateSource(values.coordinateSource) ?? 'manual',
       googleMapsUrl: values.googleMapsUrl.trim() || null,
+    },
+  };
+};
+
+const buildManualLocationSaveValues = <T extends {
+  ciudad: string;
+  estado: string;
+  pais: string;
+  cp: string;
+}>(values: T): {
+  ok: true;
+  values: Pick<T, 'ciudad' | 'estado' | 'pais' | 'cp'>;
+} | {
+  ok: false;
+  message: string;
+} => {
+  const postalValidation = validatePostalCodeForCountry(values.pais, values.cp);
+  if ('message' in postalValidation) {
+    return { ok: false, message: postalValidation.message };
+  }
+
+  return {
+    ok: true,
+    values: {
+      ciudad: values.ciudad.trim(),
+      estado: values.estado.trim(),
+      pais: values.pais.trim().toUpperCase(),
+      cp: postalValidation.normalized,
     },
   };
 };
@@ -730,16 +762,22 @@ export default function BusinessStructure() {
       return;
     }
 
+    const manualLocationValidation = buildManualLocationSaveValues(unidadFormValues);
+    if (manualLocationValidation.ok === false) {
+      setLoadError(manualLocationValidation.message);
+      return;
+    }
+
     const newUnidad: Unidad = {
       id: editingUnidad?.id || String(Date.now()),
       name: unidadFormValues.name.trim(),
       logo: unidadFormValues.logo,
       industria: unidadFormValues.industria,
       direccion: unidadFormValues.direccion,
-      ciudad: unidadFormValues.ciudad,
-      estado: unidadFormValues.estado,
-      pais: unidadFormValues.pais,
-      cp: unidadFormValues.cp,
+      ciudad: manualLocationValidation.values.ciudad,
+      estado: manualLocationValidation.values.estado,
+      pais: manualLocationValidation.values.pais,
+      cp: manualLocationValidation.values.cp,
       telefono: unidadFormValues.telefono,
       email: emailValidation.normalized,
       latitude: coordinateValidation.values.latitude ?? undefined,
@@ -787,16 +825,22 @@ export default function BusinessStructure() {
       return;
     }
 
+    const manualLocationValidation = buildManualLocationSaveValues(negocioFormValues);
+    if (manualLocationValidation.ok === false) {
+      setLoadError(manualLocationValidation.message);
+      return;
+    }
+
     const newNegocio: Negocio = {
       id: editingNegocio.id || String(Date.now()),
       name: negocioFormValues.name.trim(),
       logo: negocioFormValues.logo,
       industria: negocioFormValues.industria,
       direccion: negocioFormValues.direccion,
-      ciudad: negocioFormValues.ciudad,
-      estado: negocioFormValues.estado,
-      pais: negocioFormValues.pais,
-      cp: negocioFormValues.cp,
+      ciudad: manualLocationValidation.values.ciudad,
+      estado: manualLocationValidation.values.estado,
+      pais: manualLocationValidation.values.pais,
+      cp: manualLocationValidation.values.cp,
       telefono: negocioFormValues.telefono,
       email: emailValidation.normalized,
       gerente: negocioFormValues.gerente,
@@ -1159,78 +1203,27 @@ export default function BusinessStructure() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {structure.fields.city}
-                        </label>
-                        <input
-                          type="text"
-                          name="ciudad"
-                          value={unidadFormValues.ciudad}
-                          onChange={(event) => setUnidadFormValues((current) => ({
-                            ...current,
-                            ciudad: event.target.value,
-                          }))}
-                          placeholder={structure.placeholders.city}
-                          className={inputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {structure.fields.state}
-                        </label>
-                        <input
-                          type="text"
-                          name="estado"
-                          value={unidadFormValues.estado}
-                          onChange={(event) => setUnidadFormValues((current) => ({
-                            ...current,
-                            estado: event.target.value,
-                          }))}
-                          placeholder={structure.placeholders.state}
-                          className={inputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {structure.fields.postalCode}
-                        </label>
-                        <input
-                          type="text"
-                          name="cp"
-                          value={unidadFormValues.cp}
-                          onChange={(event) => setUnidadFormValues((current) => ({
-                            ...current,
-                            cp: event.target.value,
-                          }))}
-                          placeholder={structure.placeholders.postalCode}
-                          className={inputClassName}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {structure.fields.country}
-                      </label>
-                      <select
-                        name="pais"
-                        value={unidadFormValues.pais}
-                        onChange={(event) => setUnidadFormValues((current) => ({
-                          ...current,
-                          pais: event.target.value,
-                        }))}
-                        className={`${inputClassName} appearance-none cursor-pointer`}
-                      >
-                        <option value="">{structure.fields.selectCountry}</option>
-                          {structure.options.countries.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <ManualLocationFields
+                      values={unidadFormValues}
+                      countries={structure.options.countries}
+                      labels={{
+                        country: structure.fields.country,
+                        selectCountry: structure.fields.selectCountry,
+                        city: structure.fields.city,
+                        state: structure.fields.state,
+                        postalCode: structure.fields.postalCode,
+                      }}
+                      placeholders={{
+                        city: structure.placeholders.city,
+                        state: structure.placeholders.state,
+                        postalCode: structure.placeholders.postalCode,
+                      }}
+                      onChange={(updates) => setUnidadFormValues((current) => ({
+                        ...current,
+                        ...updates,
+                      }))}
+                      disabled={loadingOverlay.isVisible}
+                    />
 
                       <div>
                         <h5 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1469,78 +1462,27 @@ export default function BusinessStructure() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {structure.fields.city}
-                        </label>
-                        <input
-                          type="text"
-                          name="ciudad"
-                          value={negocioFormValues.ciudad}
-                          onChange={(event) => setNegocioFormValues((current) => ({
-                            ...current,
-                            ciudad: event.target.value,
-                          }))}
-                          placeholder={structure.placeholders.city}
-                          className={inputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {structure.fields.state}
-                        </label>
-                        <input
-                          type="text"
-                          name="estado"
-                          value={negocioFormValues.estado}
-                          onChange={(event) => setNegocioFormValues((current) => ({
-                            ...current,
-                            estado: event.target.value,
-                          }))}
-                          placeholder={structure.placeholders.state}
-                          className={inputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {structure.fields.postalCode}
-                        </label>
-                        <input
-                          type="text"
-                          name="cp"
-                          value={negocioFormValues.cp}
-                          onChange={(event) => setNegocioFormValues((current) => ({
-                            ...current,
-                            cp: event.target.value,
-                          }))}
-                          placeholder={structure.placeholders.postalCode}
-                          className={inputClassName}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {structure.fields.country}
-                      </label>
-                        <select
-                          name="pais"
-                          value={negocioFormValues.pais}
-                          onChange={(event) => setNegocioFormValues((current) => ({
-                            ...current,
-                            pais: event.target.value,
-                          }))}
-                          className={`${inputClassName} appearance-none cursor-pointer`}
-                        >
-                        <option value="">{structure.fields.selectCountry}</option>
-                          {structure.options.countries.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <ManualLocationFields
+                      values={negocioFormValues}
+                      countries={structure.options.countries}
+                      labels={{
+                        country: structure.fields.country,
+                        selectCountry: structure.fields.selectCountry,
+                        city: structure.fields.city,
+                        state: structure.fields.state,
+                        postalCode: structure.fields.postalCode,
+                      }}
+                      placeholders={{
+                        city: structure.placeholders.city,
+                        state: structure.placeholders.state,
+                        postalCode: structure.placeholders.postalCode,
+                      }}
+                      onChange={(updates) => setNegocioFormValues((current) => ({
+                        ...current,
+                        ...updates,
+                      }))}
+                      disabled={loadingOverlay.isVisible}
+                    />
 
                       <div>
                         <h5 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
