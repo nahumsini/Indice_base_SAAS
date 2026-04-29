@@ -142,6 +142,7 @@ public class HrAttendanceService {
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
             var scheduleRule = scheduleRulesByEmployee.get(employee.id());
             var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
+            var editLockReason = attendanceEditLockReason(employee, date);
 
             switch (effectiveStatus) {
                 case "on_time" -> onTimeCount++;
@@ -163,6 +164,9 @@ public class HrAttendanceService {
             item.put("unit_name", employee.unitName());
             item.put("business_id", employee.businessId());
             item.put("business_name", employee.businessName());
+            item.put("hire_date", dateString(employee.hireDate()));
+            item.put("attendance_editable", editLockReason == null);
+            item.put("edit_lock_reason", editLockReason);
             item.put("status", effectiveStatus);
             item.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, date));
             item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
@@ -183,6 +187,7 @@ public class HrAttendanceService {
             employeePayload.put("department", employee.department());
             employeePayload.put("unit_id", employee.unitId());
             employeePayload.put("unit_name", employee.unitName());
+            employeePayload.put("hire_date", dateString(employee.hireDate()));
             employeePayload.put("status", employee.status());
             employeesPayload.add(employeePayload);
         }
@@ -219,10 +224,13 @@ public class HrAttendanceService {
             var dailyRecord = dailyRecords.get(currentDate);
             var scheduleRule = resolveScheduleRule(scheduleWindows, currentDate);
             var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, currentDate);
+            var editLockReason = attendanceEditLockReason(employee, currentDate);
 
             var day = new LinkedHashMap<String, Object>();
             day.put("date", currentDate.toString());
             day.put("day", currentDate.getDayOfMonth());
+            day.put("attendance_editable", editLockReason == null);
+            day.put("edit_lock_reason", editLockReason);
             day.put("effective_status", effectiveStatus);
             day.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, currentDate));
             day.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
@@ -243,12 +251,13 @@ public class HrAttendanceService {
         }
 
         var body = new LinkedHashMap<String, Object>();
-        body.put("employee", Map.of(
-            "id", employee.id(),
-            "full_name", employee.fullName(),
-            "position_title", employee.positionTitle(),
-            "department", employee.department()
-        ));
+        var employeePayload = new LinkedHashMap<String, Object>();
+        employeePayload.put("id", employee.id());
+        employeePayload.put("full_name", employee.fullName());
+        employeePayload.put("position_title", employee.positionTitle());
+        employeePayload.put("department", employee.department());
+        employeePayload.put("hire_date", dateString(employee.hireDate()));
+        body.put("employee", employeePayload);
         body.put("month", month.toString());
         body.put("items", days);
         return body;
@@ -310,6 +319,7 @@ public class HrAttendanceService {
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
             var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
             var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
+            var editLockReason = attendanceEditLockReason(employee, date);
 
             if (assignment == null) {
                 unassignedEmployeesCount++;
@@ -340,6 +350,9 @@ public class HrAttendanceService {
             item.put("unit_name", employee.unitName());
             item.put("business_id", employee.businessId());
             item.put("business_name", employee.businessName());
+            item.put("hire_date", dateString(employee.hireDate()));
+            item.put("attendance_editable", editLockReason == null);
+            item.put("edit_lock_reason", editLockReason);
             item.put("schedule_template_id", assignment != null ? assignment.templateId() : null);
             item.put("schedule_template_name", assignment != null ? displayScheduleTemplateName(assignment.templateName()) : null);
             item.put("effective_start_date", assignment != null ? assignment.effectiveStartDate().toString() : null);
@@ -462,6 +475,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -1878,13 +1892,11 @@ public class HrAttendanceService {
 
     public Map<String, Object> updateDailyRecord(long companyId, long userId, long employeeId, LocalDate date, Map<String, Object> payload) {
         payload = normalizePayload(payload);
-        loadAttendanceEmployee(companyId, employeeId);
+        var employee = loadAttendanceEmployee(companyId, employeeId);
+        ensureAttendanceDateEditable(employee, date);
         var targetStatusRaw = stringValue(payload, "status", "corrected_status");
         var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
         var scheduleRule = loadScheduleRule(companyId, employeeId, date);
-        if (scheduleRule == null && correctedStatus != null) {
-            throw new IllegalArgumentException("There is no schedule rule active for the selected day.");
-        }
         var notes = nullable(stringValue(payload, "notes"));
         var correctionMetadata = new LinkedHashMap<String, Object>();
         correctionMetadata.put("corrected_status", correctedStatus);
@@ -1916,6 +1928,8 @@ public class HrAttendanceService {
         var body = new LinkedHashMap<String, Object>();
         body.put("employee_id", employeeId);
         body.put("date", date.toString());
+        body.put("attendance_editable", true);
+        body.put("edit_lock_reason", null);
         body.put("system_status", resolveSystemStatus(refreshed, scheduleRule, date));
         body.put("corrected_status", refreshed != null ? refreshed.correctedStatus() : null);
         body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule, date));
@@ -1938,6 +1952,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -1969,6 +1984,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        unit_ref.id AS unit_id,
                        unit_ref.name AS unit_name,
@@ -2003,6 +2019,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        unit_ref.id AS unit_id,
                        unit_ref.name AS unit_name,
@@ -2252,10 +2269,18 @@ public class HrAttendanceService {
     }
 
     private String formatAttendanceEmployeeNumber(String prefix, int padding, long nextNumber) {
-        var normalizedPrefix = prefix == null || prefix.isBlank() ? "EMP" : prefix.trim().toUpperCase(Locale.ROOT);
+        var normalizedPrefix = normalizeAttendanceEmployeeNumberPrefix(prefix);
         var effectivePadding = Math.max(padding, 4);
         var digits = String.format(Locale.ROOT, "%0" + effectivePadding + "d", nextNumber);
         return normalizedPrefix + "-" + digits;
+    }
+
+    private String normalizeAttendanceEmployeeNumberPrefix(String prefix) {
+        var normalizedPrefix = prefix == null ? "" : prefix.trim().toUpperCase(Locale.ROOT);
+        while (normalizedPrefix.endsWith("-")) {
+            normalizedPrefix = normalizedPrefix.substring(0, normalizedPrefix.length() - 1).trim();
+        }
+        return normalizedPrefix.isBlank() ? "EMP" : normalizedPrefix;
     }
 
     private List<AttendanceEmployee> listAttendanceEmployees(long companyId) {
@@ -2266,6 +2291,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -2290,6 +2316,7 @@ public class HrAttendanceService {
             safe(rs.getString("full_name")),
             safe(rs.getString("position")),
             safe(rs.getString("department")),
+            rs.getObject("hire_date", LocalDate.class),
             safe(rs.getString("status")),
             getNullableLong(rs, "unit_id"),
             safe(rs.getString("unit_name")),
@@ -2310,6 +2337,7 @@ public class HrAttendanceService {
         item.put("unit_name", employee.unitName());
         item.put("business_id", employee.businessId());
         item.put("business_name", employee.businessName());
+        item.put("hire_date", dateString(employee.hireDate()));
         item.put("schedule_template_id", null);
         item.put("schedule_template_name", null);
         item.put("effective_start_date", null);
@@ -2341,6 +2369,7 @@ public class HrAttendanceService {
         var item = toScheduleCandidateMap(employee);
         var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
         var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
+        var editLockReason = attendanceEditLockReason(employee, date);
         var hasAttendanceActivity = dailyRecord != null
             && (dailyRecord.firstCheckInAt() != null || dailyRecord.lastCheckOutAt() != null);
         var busyReason = "";
@@ -2373,6 +2402,8 @@ public class HrAttendanceService {
 
         item.put("today_status", effectiveStatus);
         item.put("system_status", systemStatus);
+        item.put("attendance_editable", editLockReason == null);
+        item.put("edit_lock_reason", editLockReason);
         item.put("can_assign_schedule", busyReason.isBlank());
         item.put("schedule_busy_reason", busyReason.isBlank() ? null : busyReason);
         return item;
@@ -6007,6 +6038,24 @@ public class HrAttendanceService {
         return value == null ? null : value.toString();
     }
 
+    private String dateString(LocalDate value) {
+        return value == null ? null : value.toString();
+    }
+
+    private void ensureAttendanceDateEditable(AttendanceEmployee employee, LocalDate date) {
+        var reason = attendanceEditLockReason(employee, date);
+        if (reason != null) {
+            throw new IllegalArgumentException(reason);
+        }
+    }
+
+    private String attendanceEditLockReason(AttendanceEmployee employee, LocalDate date) {
+        if (employee.hireDate() != null && date.isBefore(employee.hireDate())) {
+            return "Attendance can only be edited on or after this employee's hire date: " + employee.hireDate() + ".";
+        }
+        return null;
+    }
+
     private Long getNullableLong(ResultSet rs, String column) throws SQLException {
         var value = rs.getLong(column);
         return rs.wasNull() ? null : value;
@@ -6060,6 +6109,7 @@ public class HrAttendanceService {
         String fullName,
         String positionTitle,
         String department,
+        LocalDate hireDate,
         String status,
         Long unitId,
         String unitName,

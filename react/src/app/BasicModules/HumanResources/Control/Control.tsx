@@ -664,6 +664,14 @@ export default function Control() {
       return false;
     }
 
+    const targetDay = selectedCalendarDay?.date === date
+      ? selectedCalendarDay
+      : attendanceCalendarDays.find((day) => day.date === date);
+    if (targetDay?.attendance_editable === false) {
+      showFailureToast(targetDay.edit_lock_reason || copy.labels.notModifiable);
+      return false;
+    }
+
     try {
       setIsUpdatingCalendarDay(true);
       await waitForNextPaint();

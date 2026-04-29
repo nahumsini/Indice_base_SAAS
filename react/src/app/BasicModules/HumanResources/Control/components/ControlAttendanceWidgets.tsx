@@ -166,16 +166,18 @@ export function ControlCalendarDayCell({
   onSelect: () => void;
 }) {
   const statusTone = day ? dayTone(day) : null;
+  const isLocked = day?.attendance_editable === false;
 
   return (
     <button
       type="button"
       onClick={onSelect}
+      title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : undefined}
       className={`min-h-[92px] rounded-2xl border p-3 text-left transition-colors ${
         isSelected
           ? 'border-[#1463ff] bg-[#1463ff]/5 shadow-[inset_0_0_0_1px_rgba(20,99,255,0.15)]'
           : 'border-gray-200 bg-white hover:border-[#1463ff]/35 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#8bb3ff]/40'
-      }`}
+      } ${isLocked ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800/70 dark:bg-amber-950/20' : ''}`}
     >
       <div className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</div>
       {day ? (
@@ -188,6 +190,11 @@ export function ControlCalendarDayCell({
             <div className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold ${statusTone}`}>
               {dayBadge(copy, day)}
             </div>
+          ) : null}
+          {isLocked ? (
+            <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
+              {copy.labels.notModifiable}
+            </p>
           ) : null}
         </div>
       ) : null}

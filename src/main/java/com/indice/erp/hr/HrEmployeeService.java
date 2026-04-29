@@ -1039,7 +1039,7 @@ public class HrEmployeeService {
         }
 
         var sequence = loadEmployeeNumberSequence(companyId);
-        var expectedPrefix = sequence.prefix().toUpperCase(Locale.ROOT) + "-";
+        var expectedPrefix = normalizeEmployeeNumberPrefix(sequence.prefix()) + "-";
         var normalizedUpper = normalized.toUpperCase(Locale.ROOT);
 
         if (!normalizedUpper.startsWith(expectedPrefix)) {
@@ -1073,10 +1073,18 @@ public class HrEmployeeService {
     }
 
     private String formatEmployeeNumber(String prefix, int padding, long nextNumber) {
-        var normalizedPrefix = prefix == null || prefix.isBlank() ? "EMP" : prefix.trim().toUpperCase(Locale.ROOT);
+        var normalizedPrefix = normalizeEmployeeNumberPrefix(prefix);
         var effectivePadding = Math.max(padding, 4);
         var digits = String.format(Locale.ROOT, "%0" + effectivePadding + "d", nextNumber);
         return normalizedPrefix + "-" + digits;
+    }
+
+    private String normalizeEmployeeNumberPrefix(String prefix) {
+        var normalizedPrefix = prefix == null ? "" : prefix.trim().toUpperCase(Locale.ROOT);
+        while (normalizedPrefix.endsWith("-")) {
+            normalizedPrefix = normalizedPrefix.substring(0, normalizedPrefix.length() - 1).trim();
+        }
+        return normalizedPrefix.isBlank() ? "EMP" : normalizedPrefix;
     }
 
     private boolean employeeNumberExists(long companyId, String employeeNumber, Long excludedEmployeeId) {
