@@ -1,10 +1,10 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.announcements;
 
-import static com.indice.erp.hr.HrPayloadUtils.longList;
-import static com.indice.erp.hr.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.HrPayloadUtils.parseDateTime;
-import static com.indice.erp.hr.HrPayloadUtils.stringList;
-import static com.indice.erp.hr.HrPayloadUtils.stringValue;
+import static com.indice.erp.hr.shared.HrPayloadUtils.longList;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDateTime;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringList;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;

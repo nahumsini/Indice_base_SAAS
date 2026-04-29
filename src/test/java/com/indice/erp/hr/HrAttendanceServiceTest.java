@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.DisabledObjectStorageService;
 import com.indice.erp.storage.ObjectStorageProperties;

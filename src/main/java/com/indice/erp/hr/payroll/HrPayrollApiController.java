@@ -1,4 +1,4 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.payroll;
 
 import com.indice.erp.auth.SessionAuthService;
 import jakarta.servlet.http.HttpSession;
