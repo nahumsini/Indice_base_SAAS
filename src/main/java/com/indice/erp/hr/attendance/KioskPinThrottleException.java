@@ -1,4 +1,4 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.attendance;
 
 class KioskPinThrottleException extends RuntimeException {
     KioskPinThrottleException(String message) {

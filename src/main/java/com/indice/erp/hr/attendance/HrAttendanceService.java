@@ -1,14 +1,19 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.attendance;
 
-import static com.indice.erp.hr.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.HrPayloadUtils.parseDateTime;
-import static com.indice.erp.hr.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.HrPayloadUtils.safe;
-import static com.indice.erp.hr.HrPayloadUtils.stringValue;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDateTime;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.attendance.policy.AttendanceEditPolicy;
+import com.indice.erp.hr.attendance.policy.AttendanceEmployeeNumberPolicy;
+import com.indice.erp.hr.attendance.policy.AttendanceStatusPolicy;
+import com.indice.erp.hr.attendance.util.AttendanceDateParser;
+import com.indice.erp.hr.shared.HrPayloadUtils;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -142,6 +147,7 @@ public class HrAttendanceService {
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
             var scheduleRule = scheduleRulesByEmployee.get(employee.id());
             var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
+            var editLockReason = attendanceEditLockReason(employee, date);
 
             switch (effectiveStatus) {
                 case "on_time" -> onTimeCount++;
@@ -163,6 +169,9 @@ public class HrAttendanceService {
             item.put("unit_name", employee.unitName());
             item.put("business_id", employee.businessId());
             item.put("business_name", employee.businessName());
+            item.put("hire_date", dateString(employee.hireDate()));
+            item.put("attendance_editable", editLockReason == null);
+            item.put("edit_lock_reason", editLockReason);
             item.put("status", effectiveStatus);
             item.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, date));
             item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
@@ -183,6 +192,7 @@ public class HrAttendanceService {
             employeePayload.put("department", employee.department());
             employeePayload.put("unit_id", employee.unitId());
             employeePayload.put("unit_name", employee.unitName());
+            employeePayload.put("hire_date", dateString(employee.hireDate()));
             employeePayload.put("status", employee.status());
             employeesPayload.add(employeePayload);
         }
@@ -219,10 +229,13 @@ public class HrAttendanceService {
             var dailyRecord = dailyRecords.get(currentDate);
             var scheduleRule = resolveScheduleRule(scheduleWindows, currentDate);
             var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, currentDate);
+            var editLockReason = attendanceEditLockReason(employee, currentDate);
 
             var day = new LinkedHashMap<String, Object>();
             day.put("date", currentDate.toString());
             day.put("day", currentDate.getDayOfMonth());
+            day.put("attendance_editable", editLockReason == null);
+            day.put("edit_lock_reason", editLockReason);
             day.put("effective_status", effectiveStatus);
             day.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, currentDate));
             day.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
@@ -243,12 +256,13 @@ public class HrAttendanceService {
         }
 
         var body = new LinkedHashMap<String, Object>();
-        body.put("employee", Map.of(
-            "id", employee.id(),
-            "full_name", employee.fullName(),
-            "position_title", employee.positionTitle(),
-            "department", employee.department()
-        ));
+        var employeePayload = new LinkedHashMap<String, Object>();
+        employeePayload.put("id", employee.id());
+        employeePayload.put("full_name", employee.fullName());
+        employeePayload.put("position_title", employee.positionTitle());
+        employeePayload.put("department", employee.department());
+        employeePayload.put("hire_date", dateString(employee.hireDate()));
+        body.put("employee", employeePayload);
         body.put("month", month.toString());
         body.put("items", days);
         return body;
@@ -310,6 +324,7 @@ public class HrAttendanceService {
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
             var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
             var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
+            var editLockReason = attendanceEditLockReason(employee, date);
 
             if (assignment == null) {
                 unassignedEmployeesCount++;
@@ -340,6 +355,9 @@ public class HrAttendanceService {
             item.put("unit_name", employee.unitName());
             item.put("business_id", employee.businessId());
             item.put("business_name", employee.businessName());
+            item.put("hire_date", dateString(employee.hireDate()));
+            item.put("attendance_editable", editLockReason == null);
+            item.put("edit_lock_reason", editLockReason);
             item.put("schedule_template_id", assignment != null ? assignment.templateId() : null);
             item.put("schedule_template_name", assignment != null ? displayScheduleTemplateName(assignment.templateName()) : null);
             item.put("effective_start_date", assignment != null ? assignment.effectiveStartDate().toString() : null);
@@ -462,6 +480,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -1878,13 +1897,11 @@ public class HrAttendanceService {
 
     public Map<String, Object> updateDailyRecord(long companyId, long userId, long employeeId, LocalDate date, Map<String, Object> payload) {
         payload = normalizePayload(payload);
-        loadAttendanceEmployee(companyId, employeeId);
+        var employee = loadAttendanceEmployee(companyId, employeeId);
+        ensureAttendanceDateEditable(employee, date);
         var targetStatusRaw = stringValue(payload, "status", "corrected_status");
         var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
         var scheduleRule = loadScheduleRule(companyId, employeeId, date);
-        if (scheduleRule == null && correctedStatus != null) {
-            throw new IllegalArgumentException("There is no schedule rule active for the selected day.");
-        }
         var notes = nullable(stringValue(payload, "notes"));
         var correctionMetadata = new LinkedHashMap<String, Object>();
         correctionMetadata.put("corrected_status", correctedStatus);
@@ -1916,6 +1933,8 @@ public class HrAttendanceService {
         var body = new LinkedHashMap<String, Object>();
         body.put("employee_id", employeeId);
         body.put("date", date.toString());
+        body.put("attendance_editable", true);
+        body.put("edit_lock_reason", null);
         body.put("system_status", resolveSystemStatus(refreshed, scheduleRule, date));
         body.put("corrected_status", refreshed != null ? refreshed.correctedStatus() : null);
         body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule, date));
@@ -1938,6 +1957,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -1969,6 +1989,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        unit_ref.id AS unit_id,
                        unit_ref.name AS unit_name,
@@ -2003,6 +2024,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        unit_ref.id AS unit_id,
                        unit_ref.name AS unit_name,
@@ -2252,10 +2274,11 @@ public class HrAttendanceService {
     }
 
     private String formatAttendanceEmployeeNumber(String prefix, int padding, long nextNumber) {
-        var normalizedPrefix = prefix == null || prefix.isBlank() ? "EMP" : prefix.trim().toUpperCase(Locale.ROOT);
-        var effectivePadding = Math.max(padding, 4);
-        var digits = String.format(Locale.ROOT, "%0" + effectivePadding + "d", nextNumber);
-        return normalizedPrefix + "-" + digits;
+        return AttendanceEmployeeNumberPolicy.format(prefix, padding, nextNumber);
+    }
+
+    private String normalizeAttendanceEmployeeNumberPrefix(String prefix) {
+        return AttendanceEmployeeNumberPolicy.normalizePrefix(prefix);
     }
 
     private List<AttendanceEmployee> listAttendanceEmployees(long companyId) {
@@ -2266,6 +2289,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -2290,6 +2314,7 @@ public class HrAttendanceService {
             safe(rs.getString("full_name")),
             safe(rs.getString("position")),
             safe(rs.getString("department")),
+            rs.getObject("hire_date", LocalDate.class),
             safe(rs.getString("status")),
             getNullableLong(rs, "unit_id"),
             safe(rs.getString("unit_name")),
@@ -2310,6 +2335,7 @@ public class HrAttendanceService {
         item.put("unit_name", employee.unitName());
         item.put("business_id", employee.businessId());
         item.put("business_name", employee.businessName());
+        item.put("hire_date", dateString(employee.hireDate()));
         item.put("schedule_template_id", null);
         item.put("schedule_template_name", null);
         item.put("effective_start_date", null);
@@ -2341,6 +2367,7 @@ public class HrAttendanceService {
         var item = toScheduleCandidateMap(employee);
         var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
         var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
+        var editLockReason = attendanceEditLockReason(employee, date);
         var hasAttendanceActivity = dailyRecord != null
             && (dailyRecord.firstCheckInAt() != null || dailyRecord.lastCheckOutAt() != null);
         var busyReason = "";
@@ -2373,6 +2400,8 @@ public class HrAttendanceService {
 
         item.put("today_status", effectiveStatus);
         item.put("system_status", systemStatus);
+        item.put("attendance_editable", editLockReason == null);
+        item.put("edit_lock_reason", editLockReason);
         item.put("can_assign_schedule", busyReason.isBlank());
         item.put("schedule_busy_reason", busyReason.isBlank() ? null : busyReason);
         return item;
@@ -3659,49 +3688,35 @@ public class HrAttendanceService {
     }
 
     private String calculateSystemStatus(ScheduleRule scheduleRule, LocalDateTime firstCheckIn, LocalDate date) {
-        if (firstCheckIn == null) {
-            return inferSystemStatus(scheduleRule, date);
-        }
-        if (scheduleRule == null || scheduleRule.isRestDay() || scheduleRule.startTime() == null) {
-            return "on_time";
-        }
-
-        var scheduledStart = firstCheckIn.toLocalDate().atTime(scheduleRule.startTime());
-        var allowedStart = scheduledStart.plusMinutes(scheduleRule.lateAfterMinutes());
-        return firstCheckIn.isAfter(allowedStart) ? "late" : "on_time";
+        return AttendanceStatusPolicy.calculateSystemStatus(
+            scheduleRule != null,
+            scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.startTime(),
+            scheduleRule == null ? 0 : scheduleRule.lateAfterMinutes(),
+            scheduleRule == null ? null : scheduleRule.endTime(),
+            firstCheckIn,
+            date
+        );
     }
 
     private int calculateMinutesLate(ScheduleRule scheduleRule, LocalDateTime firstCheckIn) {
-        if (scheduleRule == null || scheduleRule.startTime() == null || firstCheckIn == null || scheduleRule.isRestDay()) {
-            return 0;
-        }
-        var scheduledStart = firstCheckIn.toLocalDate().atTime(scheduleRule.startTime());
-        if (!firstCheckIn.isAfter(scheduledStart)) {
-            return 0;
-        }
-        return (int) Duration.between(scheduledStart, firstCheckIn).toMinutes();
+        return AttendanceStatusPolicy.calculateMinutesLate(
+            scheduleRule != null,
+            scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.startTime(),
+            firstCheckIn
+        );
     }
 
     private String inferSystemStatus(ScheduleRule scheduleRule, LocalDate date) {
-        if (scheduleRule == null) {
-            return "not_scheduled";
-        }
-        if (scheduleRule.isRestDay()) {
-            return "rest";
-        }
-
-        var today = LocalDate.now();
-        if (date.isAfter(today)) {
-            return "pending";
-        }
-        if (date.isBefore(today)) {
-            return "absence";
-        }
-        if (scheduleRule.endTime() == null) {
-            return "pending";
-        }
-
-        return LocalDateTime.now().isAfter(date.atTime(scheduleRule.endTime())) ? "absence" : "pending";
+        return AttendanceStatusPolicy.inferSystemStatus(
+            scheduleRule != null,
+            scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.endTime(),
+            date,
+            LocalDate.now(),
+            LocalDateTime.now()
+        );
     }
 
     private String resolveSystemStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule, LocalDate date) {
@@ -3709,23 +3724,20 @@ public class HrAttendanceService {
             return inferSystemStatus(scheduleRule, date);
         }
 
-        if (
-            "absence".equals(dailyRecord.systemStatus())
-                && dailyRecord.firstCheckInAt() == null
-                && dailyRecord.lastCheckOutAt() == null
-                && HrPayloadUtils.isBlank(dailyRecord.correctedStatus())
-        ) {
-            return inferSystemStatus(scheduleRule, date);
-        }
-
-        return dailyRecord.systemStatus();
+        return AttendanceStatusPolicy.resolveSystemStatus(
+            dailyRecord.systemStatus(),
+            dailyRecord.correctedStatus(),
+            dailyRecord.firstCheckInAt() != null,
+            dailyRecord.lastCheckOutAt() != null,
+            inferSystemStatus(scheduleRule, date)
+        );
     }
 
     private String resolveEffectiveStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule, LocalDate date) {
-        if (dailyRecord != null && !HrPayloadUtils.isBlank(dailyRecord.correctedStatus())) {
-            return dailyRecord.correctedStatus();
-        }
-        return resolveSystemStatus(dailyRecord, scheduleRule, date);
+        return AttendanceStatusPolicy.resolveEffectiveStatus(
+            dailyRecord == null ? null : dailyRecord.correctedStatus(),
+            resolveSystemStatus(dailyRecord, scheduleRule, date)
+        );
     }
 
     private LocationRow mapLocation(ResultSet rs, String prefix) throws SQLException {
@@ -6007,6 +6019,18 @@ public class HrAttendanceService {
         return value == null ? null : value.toString();
     }
 
+    private String dateString(LocalDate value) {
+        return value == null ? null : value.toString();
+    }
+
+    private void ensureAttendanceDateEditable(AttendanceEmployee employee, LocalDate date) {
+        AttendanceEditPolicy.requireEditable(employee.hireDate(), date);
+    }
+
+    private String attendanceEditLockReason(AttendanceEmployee employee, LocalDate date) {
+        return AttendanceEditPolicy.lockReason(employee.hireDate(), date);
+    }
+
     private Long getNullableLong(ResultSet rs, String column) throws SQLException {
         var value = rs.getLong(column);
         return rs.wasNull() ? null : value;
@@ -6039,392 +6063,11 @@ public class HrAttendanceService {
     }
 
     public static LocalDate parseDate(String value) {
-        try {
-            return LocalDate.parse(value);
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("Date must use YYYY-MM-DD format.");
-        }
+        return AttendanceDateParser.parseDate(value);
     }
 
     public static YearMonth parseMonth(String value) {
-        try {
-            return YearMonth.parse(value);
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("Month must use YYYY-MM format.");
-        }
+        return AttendanceDateParser.parseMonth(value);
     }
 
-    private record AttendanceEmployee(
-        long id,
-        String employeeNumber,
-        String fullName,
-        String positionTitle,
-        String department,
-        String status,
-        Long unitId,
-        String unitName,
-        Long businessId,
-        String businessName
-    ) {
-    }
-
-    private record EmailMatchedAttendanceEmployee(
-        AttendanceEmployee employee,
-        Long linkedUserId
-    ) {
-    }
-
-    private record AttendanceSessionUser(
-        long userId,
-        String email,
-        String fullName
-    ) {
-    }
-
-    private record AttendanceNameParts(
-        String firstName,
-        String lastName
-    ) {
-    }
-
-    private record AttendanceEmployeeNumberSequence(
-        String prefix,
-        int padding,
-        long nextNumber
-    ) {
-    }
-
-    private record ScheduleRule(
-        long employeeId,
-        long templateId,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        LocalTime startTime,
-        LocalTime endTime,
-        int mealMinutes,
-        int restMinutes,
-        int lateAfterMinutes,
-        boolean isRestDay
-    ) {
-    }
-
-    private record ScheduleWindow(
-        long templateId,
-        LocalDate effectiveStartDate,
-        LocalDate effectiveEndDate,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        int dayOfWeek,
-        LocalTime startTime,
-        LocalTime endTime,
-        int mealMinutes,
-        int restMinutes,
-        int lateAfterMinutes,
-        boolean isRestDay
-    ) {
-    }
-
-    private record CurrentScheduleAssignment(
-        long employeeId,
-        long templateId,
-        String templateName,
-        LocalDate effectiveStartDate,
-        LocalDate effectiveEndDate
-    ) {
-    }
-
-    private record ScheduleTemplateJoinRow(
-        long templateId,
-        String templateName,
-        String templateStatus,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        Integer dayOfWeek,
-        LocalTime startTime,
-        LocalTime endTime,
-        Integer mealMinutes,
-        Integer restMinutes,
-        Integer lateAfterMinutes,
-        Boolean isRestDay
-    ) {
-    }
-
-    private record ScheduleTemplateAccumulator(
-        long templateId,
-        String templateName,
-        String templateStatus,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        List<ScheduleTemplateDayDefinition> days
-    ) {
-    }
-
-    private record ScheduleTemplateDefinition(
-        long templateId,
-        String templateName,
-        String status,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        List<ScheduleTemplateDayDefinition> days
-    ) {
-    }
-
-    private record ScheduleTemplateDayDefinition(
-        int dayOfWeek,
-        LocalTime startTime,
-        LocalTime endTime,
-        int mealMinutes,
-        int restMinutes,
-        int lateAfterMinutes,
-        boolean isRestDay
-    ) {
-    }
-
-    private record LocationRow(
-        long id,
-        Long unitId,
-        String unitName,
-        Long businessId,
-        String businessName,
-        LocalDate contractStartDate,
-        LocalDate contractEndDate,
-        String name,
-        BigDecimal latitude,
-	        BigDecimal longitude,
-	        int radiusMeters,
-	        BigDecimal requiredHoursPerDay,
-	        LocalTime requiredStartTime,
-	        LocalTime requiredEndTime,
-	        Integer requiredDaysPerWeek,
-            String managedSource,
-	        String status,
-        int assignedEmployeeCount,
-        String assignedEmployeeNames
-    ) {
-        private LocationRow(
-            long id,
-            Long unitId,
-            String unitName,
-            Long businessId,
-            String businessName,
-            LocalDate contractStartDate,
-            LocalDate contractEndDate,
-            String name,
-            BigDecimal latitude,
-            BigDecimal longitude,
-            int radiusMeters,
-            BigDecimal requiredHoursPerDay,
-            LocalTime requiredStartTime,
-            LocalTime requiredEndTime,
-            Integer requiredDaysPerWeek,
-            String status,
-            int assignedEmployeeCount,
-            String assignedEmployeeNames
-        ) {
-            this(
-                id,
-                unitId,
-                unitName,
-                businessId,
-                businessName,
-                contractStartDate,
-                contractEndDate,
-                name,
-                latitude,
-                longitude,
-                radiusMeters,
-                requiredHoursPerDay,
-                requiredStartTime,
-                requiredEndTime,
-                requiredDaysPerWeek,
-                "",
-                status,
-                assignedEmployeeCount,
-                assignedEmployeeNames
-            );
-        }
-    }
-
-    private record WorkSiteAssignmentRow(
-        long id,
-        long employeeId,
-        LocationRow location,
-        LocalDate effectiveStartDate,
-        LocalDate effectiveEndDate,
-        String status
-    ) {
-    }
-
-    private record ExistingAssignmentRow(
-        long id,
-        long assignmentTargetId,
-        LocalDate effectiveStartDate,
-        LocalDate effectiveEndDate
-    ) {
-    }
-
-    private record KioskDeviceRow(
-        long id,
-        long companyId,
-        Long unitId,
-        String unitName,
-        Long businessId,
-        String businessName,
-        Long locationId,
-        String locationName,
-        String code,
-        String name,
-        String status,
-        String publicAccessToken,
-        String metadataJson
-    ) {
-    }
-
-    private record PinThrottleState(
-        int failedAttempts,
-        Instant lockedUntil
-    ) {
-        boolean isLocked(Instant now) {
-            return lockedUntil != null && lockedUntil.isAfter(now);
-        }
-    }
-
-    private record AccessProfileRow(
-        long id,
-        long companyId,
-        long employeeId,
-        String status,
-        String defaultMethod,
-        LocalDateTime lastEnrolledAt,
-        String metadataJson,
-        String employeeNumber,
-        String employeeName,
-        List<AccessMethodRow> methods
-    ) {
-    }
-
-    private record AccessMethodRow(
-        long id,
-        long companyId,
-        long accessProfileId,
-        String methodType,
-        String credentialRef,
-        String secretHash,
-        String status,
-        int priority,
-        String metadataJson,
-        long employeeId,
-        String employeeNumber,
-        String employeeName
-    ) {
-    }
-
-    private record ControlActivityRow(
-        long id,
-        long employeeId,
-        String employeeNumber,
-        String employeeName,
-        Long kioskDeviceId,
-        String kioskDeviceName,
-        Long locationId,
-        String locationName,
-        String eventType,
-        String eventKind,
-        String authMethod,
-        String resultStatus,
-        LocalDateTime eventTimestamp,
-        String notes,
-        String metadataJson
-    ) {
-    }
-
-    private record ScopeBusinessRow(
-        long id,
-        Long unitId
-    ) {
-    }
-
-    private record AttendanceEventRow(
-        long id,
-        String eventType,
-        LocalDateTime eventTimestamp,
-        LocalDate attendanceDate,
-        Long locationId,
-        Long kioskDeviceId,
-        String authMethod,
-        String resultStatus,
-        String eventKind,
-        String notes,
-        String metadataJson,
-        Long supersedesEventId
-    ) {
-    }
-
-    private record AutoCheckoutCandidate(
-        long companyId,
-        long employeeId,
-        LocalDate attendanceDate,
-        LocalDateTime firstCheckInAt,
-        Long firstLocationId
-    ) {
-    }
-
-    private record AttendanceOperationalState(
-        boolean checkedIn,
-        boolean onBreak
-    ) {
-    }
-
-    private record PublicKioskIdentificationToken(
-        long employeeId,
-        String authMethod,
-        long expiresAtEpochSeconds
-    ) {
-    }
-
-    private record PublicKioskContext(
-        KioskDeviceRow kioskDevice,
-        AttendanceEmployee employee,
-        PublicKioskIdentificationToken tokenClaims
-    ) {
-    }
-
-    private record DailyRecordRow(
-        long id,
-        long employeeId,
-        LocalDate attendanceDate,
-        String systemStatus,
-        String correctedStatus,
-        LocalDateTime firstCheckInAt,
-        LocalDateTime lastCheckOutAt,
-        int minutesLate,
-        String notes,
-        String firstPhotoObjectKey,
-        String lastPhotoObjectKey,
-        LocationRow firstLocation,
-        LocationRow lastLocation
-    ) {
-    }
-
-    private record EffectiveDailyRecord(
-        String effectiveStatus,
-        LocalDateTime firstCheckInAt,
-        LocalDateTime lastCheckOutAt
-    ) {
-    }
 }

@@ -1,11 +1,11 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.payroll;
 
-import static com.indice.erp.hr.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.HrPayloadUtils.parseBigDecimal;
-import static com.indice.erp.hr.HrPayloadUtils.parseDate;
-import static com.indice.erp.hr.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.HrPayloadUtils.safe;
-import static com.indice.erp.hr.HrPayloadUtils.stringValue;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseBigDecimal;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDate;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

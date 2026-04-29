@@ -1,12 +1,13 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.employees;
 
-import static com.indice.erp.hr.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.HrPayloadUtils.parseBigDecimal;
-import static com.indice.erp.hr.HrPayloadUtils.parseDate;
-import static com.indice.erp.hr.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.HrPayloadUtils.safe;
-import static com.indice.erp.hr.HrPayloadUtils.stringValue;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseBigDecimal;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDate;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
+import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
@@ -1039,7 +1040,7 @@ public class HrEmployeeService {
         }
 
         var sequence = loadEmployeeNumberSequence(companyId);
-        var expectedPrefix = sequence.prefix().toUpperCase(Locale.ROOT) + "-";
+        var expectedPrefix = normalizeEmployeeNumberPrefix(sequence.prefix()) + "-";
         var normalizedUpper = normalized.toUpperCase(Locale.ROOT);
 
         if (!normalizedUpper.startsWith(expectedPrefix)) {
@@ -1073,10 +1074,18 @@ public class HrEmployeeService {
     }
 
     private String formatEmployeeNumber(String prefix, int padding, long nextNumber) {
-        var normalizedPrefix = prefix == null || prefix.isBlank() ? "EMP" : prefix.trim().toUpperCase(Locale.ROOT);
+        var normalizedPrefix = normalizeEmployeeNumberPrefix(prefix);
         var effectivePadding = Math.max(padding, 4);
         var digits = String.format(Locale.ROOT, "%0" + effectivePadding + "d", nextNumber);
         return normalizedPrefix + "-" + digits;
+    }
+
+    private String normalizeEmployeeNumberPrefix(String prefix) {
+        var normalizedPrefix = prefix == null ? "" : prefix.trim().toUpperCase(Locale.ROOT);
+        while (normalizedPrefix.endsWith("-")) {
+            normalizedPrefix = normalizedPrefix.substring(0, normalizedPrefix.length() - 1).trim();
+        }
+        return normalizedPrefix.isBlank() ? "EMP" : normalizedPrefix;
     }
 
     private boolean employeeNumberExists(long companyId, String employeeNumber, Long excludedEmployeeId) {

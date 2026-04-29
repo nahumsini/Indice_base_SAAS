@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.records.HrRecordApiController;
+import com.indice.erp.hr.records.HrRecordService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.LinkedHashMap;
 import java.util.List;

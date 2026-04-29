@@ -1,4 +1,4 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.employees;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
@@ -15,57 +15,47 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/hr/records")
-public class HrRecordApiController {
+@RequestMapping("/api/v1/hr/employees")
+public class HrEmployeeApiController {
 
     private final SessionAuthService sessionAuthService;
-    private final HrRecordService hrRecordService;
+    private final HrEmployeeService hrEmployeeService;
 
-    public HrRecordApiController(
+    public HrEmployeeApiController(
         SessionAuthService sessionAuthService,
-        HrRecordService hrRecordService
+        HrEmployeeService hrEmployeeService
     ) {
         this.sessionAuthService = sessionAuthService;
-        this.hrRecordService = hrRecordService;
+        this.hrEmployeeService = hrEmployeeService;
     }
 
     @GetMapping
-    public ResponseEntity<?> list(HttpSession session, @RequestParam Map<String, String> requestParams) {
+    public ResponseEntity<?> list(HttpSession session) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        try {
-            var filters = new LinkedHashMap<String, Object>(requestParams);
-            var result = hrRecordService.listRecords(user.get().companyId(), filters);
-            var body = new LinkedHashMap<String, Object>();
-            body.put("items", result.get("rows"));
-            body.put("count", ((java.util.List<?>) result.get("rows")).size());
-            body.put("page", result.get("page"));
-            body.put("size", result.get("size"));
-            body.put("total_count", result.get("total_count"));
-            body.put("total_pages", result.get("total_pages"));
-            body.put("summary", result.get("summary"));
-            return ResponseEntity.ok(body);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
-        }
+        var result = hrEmployeeService.listEmployees(user.get().companyId());
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", result.get("rows"));
+        body.put("count", ((java.util.List<?>) result.get("rows")).size());
+        body.put("summary", result.get("meta"));
+        return ResponseEntity.ok(body);
     }
 
-    @GetMapping("/{recordId}")
-    public ResponseEntity<?> details(HttpSession session, @PathVariable long recordId) {
+    @GetMapping("/{employeeId}")
+    public ResponseEntity<?> details(HttpSession session, @PathVariable long employeeId) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            return ResponseEntity.ok(hrRecordService.getRecordDetails(user.get().companyId(), recordId));
+            return ResponseEntity.ok(hrEmployeeService.getEmployeeDetails(user.get().companyId(), employeeId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -79,8 +69,8 @@ public class HrRecordApiController {
         }
 
         try {
-            var result = hrRecordService.createRecord(user.get().companyId(), user.get().userId(), payload);
-            return ResponseEntity.status(HttpStatus.CREATED).body(result.get("record"));
+            var result = hrEmployeeService.createEmployee(user.get().companyId(), user.get().userId(), payload);
+            return ResponseEntity.status(HttpStatus.CREATED).body(result.get("employee"));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -88,16 +78,17 @@ public class HrRecordApiController {
         }
     }
 
-    @PutMapping("/{recordId}")
-    public ResponseEntity<?> update(HttpSession session, @PathVariable long recordId, @RequestBody Map<String, Object> payload) {
+    @PutMapping("/{employeeId}")
+    public ResponseEntity<?> update(HttpSession session, @PathVariable long employeeId, @RequestBody Map<String, Object> payload) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            var result = hrRecordService.updateRecord(user.get().companyId(), user.get().userId(), recordId, payload);
-            return ResponseEntity.ok(result.get("record"));
+            payload.put("id", employeeId);
+            var result = hrEmployeeService.updateEmployee(user.get().companyId(), payload);
+            return ResponseEntity.ok(result.get("employee"));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -105,25 +96,10 @@ public class HrRecordApiController {
         }
     }
 
-    @DeleteMapping("/{recordId}")
-    public ResponseEntity<?> delete(HttpSession session, @PathVariable long recordId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
-        }
-
-        try {
-            hrRecordService.deleteRecord(user.get().companyId(), user.get().userId(), recordId);
-            return ResponseEntity.ok(Map.of("success", true));
-        } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-        }
-    }
-
-    @PostMapping("/{recordId}/attachments/presign-upload")
-    public ResponseEntity<?> createAttachmentUpload(
+    @PostMapping("/{employeeId}/documents/presign-upload")
+    public ResponseEntity<?> createDocumentUpload(
         HttpSession session,
-        @PathVariable long recordId,
+        @PathVariable long employeeId,
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
@@ -132,7 +108,9 @@ public class HrRecordApiController {
         }
 
         try {
-            return ResponseEntity.ok(hrRecordService.createAttachmentUpload(user.get().companyId(), recordId, payload));
+            return ResponseEntity.ok(
+                hrEmployeeService.createDocumentUpload(user.get().companyId(), employeeId, payload)
+            );
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -142,10 +120,10 @@ public class HrRecordApiController {
         }
     }
 
-    @PostMapping("/{recordId}/attachments")
-    public ResponseEntity<?> registerAttachment(
+    @PostMapping("/{employeeId}/documents")
+    public ResponseEntity<?> registerDocument(
         HttpSession session,
-        @PathVariable long recordId,
+        @PathVariable long employeeId,
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
@@ -155,10 +133,10 @@ public class HrRecordApiController {
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                hrRecordService.registerAttachment(
+                hrEmployeeService.registerEmployeeDocument(
                     user.get().companyId(),
                     user.get().userId(),
-                    recordId,
+                    employeeId,
                     payload
                 )
             );
@@ -171,11 +149,11 @@ public class HrRecordApiController {
         }
     }
 
-    @DeleteMapping("/{recordId}/attachments/{attachmentId}")
-    public ResponseEntity<?> deleteAttachment(
+    @DeleteMapping("/{employeeId}/documents/{documentId}")
+    public ResponseEntity<?> deleteDocument(
         HttpSession session,
-        @PathVariable long recordId,
-        @PathVariable long attachmentId
+        @PathVariable long employeeId,
+        @PathVariable long documentId
     ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
@@ -183,7 +161,47 @@ public class HrRecordApiController {
         }
 
         try {
-            hrRecordService.deleteAttachment(user.get().companyId(), user.get().userId(), recordId, attachmentId);
+            hrEmployeeService.deleteEmployeeDocument(user.get().companyId(), employeeId, documentId);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{employeeId}/terminate")
+    public ResponseEntity<?> terminate(
+        HttpSession session,
+        @PathVariable long employeeId,
+        @RequestBody(required = false) Map<String, Object> payload
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            var result = hrEmployeeService.terminateEmployee(
+                user.get().companyId(),
+                employeeId,
+                payload == null ? Map.of() : payload
+            );
+            return ResponseEntity.ok(result.get("employee"));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{employeeId}")
+    public ResponseEntity<?> delete(HttpSession session, @PathVariable long employeeId) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            hrEmployeeService.deleteEmployee(user.get().companyId(), employeeId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));

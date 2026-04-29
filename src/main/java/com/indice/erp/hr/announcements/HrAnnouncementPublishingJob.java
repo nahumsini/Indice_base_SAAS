@@ -1,4 +1,4 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.announcements;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

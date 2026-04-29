@@ -265,6 +265,9 @@ export interface AttendanceDashboardItem {
   unit_name?: string;
   business_id?: number | null;
   business_name?: string;
+  hire_date?: string | null;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
   status: AttendanceStatus;
   system_status: AttendanceStatus;
   corrected_status?: AttendanceCorrectionStatus | null;
@@ -287,6 +290,7 @@ export interface AttendanceEmployeeOption {
   department?: string;
   unit_id?: number | null;
   unit_name?: string;
+  hire_date?: string | null;
   status: 'active' | 'inactive' | 'terminated';
 }
 
@@ -310,6 +314,8 @@ export interface AttendanceDashboardResponse {
 export interface AttendanceCalendarDay {
   date: string;
   day: number;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
   effective_status: AttendanceStatus;
   system_status: AttendanceStatus;
   corrected_status?: AttendanceCorrectionStatus | null;
@@ -333,6 +339,7 @@ export interface AttendanceCalendarResponse {
     full_name: string;
     position_title?: string;
     department?: string;
+    hire_date?: string | null;
   };
   month: string;
   items: AttendanceCalendarDay[];
@@ -470,6 +477,9 @@ export interface AttendanceControlAssignment {
   unit_name?: string;
   business_id?: number | null;
   business_name?: string;
+  hire_date?: string | null;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
   schedule_template_id?: number | null;
   schedule_template_name?: string | null;
   effective_start_date?: string | null;
@@ -923,6 +933,8 @@ export interface AttendanceDailyRecordUpdateResponse {
   system_status: AttendanceStatus;
   corrected_status?: AttendanceCorrectionStatus | null;
   effective_status: AttendanceStatus;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
   notes?: string | null;
 }
 

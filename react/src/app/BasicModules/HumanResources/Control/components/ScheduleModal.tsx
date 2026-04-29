@@ -154,6 +154,30 @@ const payloadFromTemplate = (template: AttendanceControlTemplate): AttendanceCon
 
 const getBusinessUnitId = (business: BackendBusiness) => business.unit_id ?? business.unitId ?? null;
 
+const toPositiveNumber = (value: string | number | null | undefined) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const uniquePositiveNumbers = (values: Array<number | null | undefined>) =>
+  Array.from(new Set(values.filter((value): value is number => typeof value === 'number' && value > 0)));
+
+const formatPreviewList = (values: string[], fallback: string) => {
+  const cleaned = values.map((value) => value.trim()).filter(Boolean);
+  if (cleaned.length === 0) {
+    return fallback;
+  }
+  if (cleaned.length <= 2) {
+    return cleaned.join(', ');
+  }
+  return `${cleaned.slice(0, 2).join(', ')} +${cleaned.length - 2} more`;
+};
+
+const formatLocationOption = (location: AttendanceControlLocation) => {
+  const scope = location.business_name || location.unit_name || '';
+  return scope ? `${location.name} - ${scope}` : location.name;
+};
+
 export function ScheduleModal({
   isOpen,
   onClose,
@@ -176,6 +200,7 @@ export function ScheduleModal({
   const [availabilityDate, setAvailabilityDate] = useState(defaultAvailabilityDate);
   const [appliedAvailabilityDate, setAppliedAvailabilityDate] = useState(defaultAvailabilityDate);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  const [selectedEmployeeAssignments, setSelectedEmployeeAssignments] = useState<Record<number, AttendanceControlAssignment>>({});
   const [candidateAssignments, setCandidateAssignments] = useState<AttendanceControlAssignment[]>([]);
   const [organizationUnits, setOrganizationUnits] = useState<BackendUnit[]>([]);
   const [organizationBusinesses, setOrganizationBusinesses] = useState<BackendBusiness[]>([]);
@@ -221,6 +246,7 @@ export function ScheduleModal({
     setAvailabilityDate(defaultAvailabilityDate);
     setAppliedAvailabilityDate(defaultAvailabilityDate);
     setSelectedEmployeeIds([]);
+    setSelectedEmployeeAssignments({});
     setCandidateAssignments([]);
     setOrganizationUnits([]);
     setOrganizationBusinesses([]);
@@ -363,6 +389,16 @@ export function ScheduleModal({
     && visibleAssignableEmployeeIds.every((employeeId) => selectedEmployeeIds.includes(employeeId));
   const paginationStart = candidateTotalCount === 0 ? 0 : pageStartIndex + 1;
   const paginationEnd = candidateTotalCount === 0 ? 0 : pageStartIndex + paginatedAssignments.length;
+  const assignmentByEmployeeId = useMemo(
+    () => new Map(candidateAssignments.map((assignment) => [assignment.employee_id, assignment] as const)),
+    [candidateAssignments],
+  );
+  const selectedAssignments = useMemo(
+    () => selectedEmployeeIds
+      .map((employeeId) => selectedEmployeeAssignments[employeeId] ?? assignmentByEmployeeId.get(employeeId))
+      .filter((assignment): assignment is AttendanceControlAssignment => Boolean(assignment)),
+    [assignmentByEmployeeId, selectedEmployeeAssignments, selectedEmployeeIds],
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -416,6 +452,189 @@ export function ScheduleModal({
     return items;
   }, [safeCurrentPage, totalPages]);
 
+  const activeLocationOptions = useMemo(
+    () => locations.filter((location) => location.status !== 'inactive'),
+    [locations],
+  );
+  const selectedBusinessIds = useMemo(
+    () => uniquePositiveNumbers(selectedAssignments.map((assignment) => assignment.business_id)),
+    [selectedAssignments],
+  );
+  const selectedUnitIds = useMemo(
+    () => uniquePositiveNumbers(selectedAssignments.map((assignment) => assignment.unit_id)),
+    [selectedAssignments],
+  );
+  const selectedBusinessKey = selectedBusinessIds.join(',');
+  const selectedUnitKey = selectedUnitIds.join(',');
+  const appliedBusinessId = toPositiveNumber(appliedNegocioFilter);
+  const appliedUnitId = toPositiveNumber(appliedUnidadFilter);
+  const hasSelectedEmployees = selectedEmployeeIds.length > 0;
+  const scopedBusinessIds = hasSelectedEmployees
+    ? selectedBusinessIds.length === 1 || selectedUnitIds.length === 0
+      ? selectedBusinessIds
+      : []
+    : appliedBusinessId
+      ? [appliedBusinessId]
+      : [];
+  const scopedUnitIds = hasSelectedEmployees
+    ? scopedBusinessIds.length === 0
+      ? selectedUnitIds
+      : []
+    : scopedBusinessIds.length === 0 && appliedUnitId
+      ? [appliedUnitId]
+      : [];
+  const scopedBusinessKey = scopedBusinessIds.join(',');
+  const scopedUnitKey = scopedUnitIds.join(',');
+  const hasLocationScope = scopedBusinessIds.length > 0 || scopedUnitIds.length > 0;
+  const scopedExactLocationOptions = useMemo(() => {
+    if (scopedBusinessIds.length > 0) {
+      const scopedBusinessIdSet = new Set(scopedBusinessIds);
+      return activeLocationOptions.filter((location) => (
+        typeof location.business_id === 'number' && scopedBusinessIdSet.has(location.business_id)
+      ));
+    }
+
+    if (scopedUnitIds.length > 0) {
+      const scopedUnitIdSet = new Set(scopedUnitIds);
+      return activeLocationOptions.filter((location) => (
+        typeof location.unit_id === 'number' && scopedUnitIdSet.has(location.unit_id)
+      ));
+    }
+
+    return activeLocationOptions;
+  }, [activeLocationOptions, scopedBusinessKey, scopedUnitKey]);
+  const exactLocationOptions = hasLocationScope && scopedExactLocationOptions.length === 0
+    ? activeLocationOptions
+    : scopedExactLocationOptions;
+  const businessNameById = useMemo(() => {
+    const names = new Map<number, string>();
+    organizationBusinesses.forEach((business) => {
+      names.set(business.id, business.name || 'Business');
+    });
+    selectedAssignments.forEach((assignment) => {
+      if (typeof assignment.business_id === 'number' && assignment.business_id > 0 && assignment.business_name) {
+        names.set(assignment.business_id, assignment.business_name);
+      }
+    });
+    return names;
+  }, [organizationBusinesses, selectedAssignments]);
+  const unitNameById = useMemo(() => {
+    const names = new Map<number, string>();
+    organizationUnits.forEach((unit) => {
+      names.set(unit.id, unit.name || 'Unit');
+    });
+    selectedAssignments.forEach((assignment) => {
+      if (typeof assignment.unit_id === 'number' && assignment.unit_id > 0 && assignment.unit_name) {
+        names.set(assignment.unit_id, assignment.unit_name);
+      }
+    });
+    return names;
+  }, [organizationUnits, selectedAssignments]);
+  const selectedEmployeeBusinessWarning = useMemo(() => {
+    if (selectedEmployeeIds.length === 0 || selectedAssignments.length === 0) {
+      return '';
+    }
+
+    const missingBusinessCount = selectedAssignments.filter((assignment) => !assignment.business_id).length;
+    if (missingBusinessCount > 0) {
+      return `${missingBusinessCount} selected employee${missingBusinessCount === 1 ? '' : 's'} need an assigned business before business-location validation can work.`;
+    }
+
+    const businessIdsWithoutLocations = selectedBusinessIds.filter((businessId) =>
+      !activeLocationOptions.some((location) => location.business_id === businessId),
+    );
+    if (businessIdsWithoutLocations.length > 0) {
+      const businessNames = businessIdsWithoutLocations.map((businessId) => businessNameById.get(businessId) || `Business ${businessId}`);
+      return `No active attendance location is saved for ${formatPreviewList(businessNames, 'the selected business')}.`;
+    }
+
+    return '';
+  }, [activeLocationOptions, businessNameById, selectedAssignments, selectedBusinessIds, selectedEmployeeIds.length]);
+  const locationScopeSummary = useMemo(() => {
+    if (hasSelectedEmployees && selectedAssignments.length === 0) {
+      return 'Showing all active locations until selected employee details are available.';
+    }
+
+    if (scopedBusinessIds.length === 1) {
+      const businessId = scopedBusinessIds[0];
+      return `Showing locations for ${businessNameById.get(businessId) || 'the selected business'}.`;
+    }
+
+    if (scopedBusinessIds.length > 1) {
+      const businessNames = scopedBusinessIds.map((businessId) => businessNameById.get(businessId) || `Business ${businessId}`);
+      return `Showing locations from ${formatPreviewList(businessNames, 'selected businesses')}.`;
+    }
+
+    if (scopedUnitIds.length === 1) {
+      const unitId = scopedUnitIds[0];
+      return `Showing locations for ${unitNameById.get(unitId) || 'the selected unit'}.`;
+    }
+
+    if (scopedUnitIds.length > 1) {
+      const unitNames = scopedUnitIds.map((unitId) => unitNameById.get(unitId) || `Unit ${unitId}`);
+      return `Showing locations from ${formatPreviewList(unitNames, 'selected units')}.`;
+    }
+
+    if (appliedBusinessId) {
+      return `Showing locations for ${businessNameById.get(appliedBusinessId) || 'the current business filter'}.`;
+    }
+
+    if (appliedUnitId) {
+      return `Showing locations for ${unitNameById.get(appliedUnitId) || 'the current unit filter'}.`;
+    }
+
+    return 'Showing all active locations.';
+  }, [
+    appliedBusinessId,
+    appliedUnitId,
+    businessNameById,
+    hasSelectedEmployees,
+    selectedAssignments.length,
+    scopedBusinessIds,
+    scopedBusinessKey,
+    scopedUnitIds,
+    scopedUnitKey,
+    unitNameById,
+  ]);
+  const employeeBusinessLocationSummary = useMemo(() => {
+    if (selectedEmployeeIds.length === 0) {
+      return 'Selected employees will use the active Business Structure location saved for their assigned business.';
+    }
+
+    if (selectedAssignments.length === 0) {
+      return 'Selected employees will use their assigned business location once their business details are available.';
+    }
+
+    if (selectedBusinessIds.length === 1) {
+      const businessId = selectedBusinessIds[0];
+      return `Selected employees will use ${businessNameById.get(businessId) || 'their assigned business'} location.`;
+    }
+
+    if (selectedBusinessIds.length > 1) {
+      const businessNames = selectedBusinessIds.map((businessId) => businessNameById.get(businessId) || `Business ${businessId}`);
+      return `Selected employees cover ${formatPreviewList(businessNames, 'multiple businesses')}; each employee keeps their own business location.`;
+    }
+
+    return 'Selected employees need assigned businesses for business-location validation.';
+  }, [businessNameById, selectedAssignments.length, selectedBusinessIds, selectedBusinessKey, selectedEmployeeIds.length]);
+  const locationScopeFallbackMessage = hasLocationScope && scopedExactLocationOptions.length === 0 && activeLocationOptions.length > 0
+    ? 'No active location matched that business or unit, so all active locations are shown.'
+    : '';
+  const exactLocationWarning = selectedBusinessIds.length > 1
+    ? 'One exact location will apply to every selected employee, even when they belong to different businesses.'
+    : '';
+
+  useEffect(() => {
+    if (!noPermitirFueraUbicacion || !ubicacionSeleccionada) {
+      return;
+    }
+
+    const selectedLocationStillAvailable = exactLocationOptions.some((location) => String(location.id) === ubicacionSeleccionada);
+    if (!selectedLocationStillAvailable) {
+      setUbicacionSeleccionada('');
+    }
+  }, [exactLocationOptions, noPermitirFueraUbicacion, ubicacionSeleccionada]);
+
   if (!isOpen) {
     return (
       <FailureToast
@@ -430,9 +649,46 @@ export function ScheduleModal({
   const isEmployeeAssignable = (employeeId: number) =>
     candidateAssignments.find((assignment) => assignment.employee_id === employeeId)?.can_assign_schedule !== false;
 
+  const rememberSelectedAssignments = (assignments: AttendanceControlAssignment[]) => {
+    const assignableAssignments = assignments.filter((assignment) => assignment.can_assign_schedule !== false);
+    if (assignableAssignments.length === 0) {
+      return;
+    }
+
+    setSelectedEmployeeAssignments((current) => {
+      const next = { ...current };
+      assignableAssignments.forEach((assignment) => {
+        next[assignment.employee_id] = assignment;
+      });
+      return next;
+    });
+  };
+
+  const forgetSelectedAssignments = (employeeIds: number[]) => {
+    if (employeeIds.length === 0) {
+      return;
+    }
+
+    setSelectedEmployeeAssignments((current) => {
+      const next = { ...current };
+      employeeIds.forEach((employeeId) => {
+        delete next[employeeId];
+      });
+      return next;
+    });
+  };
+
   const toggleEmployee = (employeeId: number) => {
     if (!isEmployeeAssignable(employeeId)) {
       return;
+    }
+
+    const isSelected = selectedEmployeeIds.includes(employeeId);
+    const assignment = assignmentByEmployeeId.get(employeeId);
+    if (isSelected) {
+      forgetSelectedAssignments([employeeId]);
+    } else if (assignment) {
+      rememberSelectedAssignments([assignment]);
     }
 
     setSelectedEmployeeIds((current) =>
@@ -445,6 +701,15 @@ export function ScheduleModal({
   const setEmployeeSelection = (employeeId: number, shouldSelect: boolean) => {
     if (shouldSelect && !isEmployeeAssignable(employeeId)) {
       return;
+    }
+
+    if (shouldSelect) {
+      const assignment = assignmentByEmployeeId.get(employeeId);
+      if (assignment) {
+        rememberSelectedAssignments([assignment]);
+      }
+    } else {
+      forgetSelectedAssignments([employeeId]);
     }
 
     setSelectedEmployeeIds((current) => {
@@ -461,10 +726,20 @@ export function ScheduleModal({
 
   const toggleAll = () => {
     if (allVisibleSelected) {
+      forgetSelectedAssignments(visibleAssignableEmployeeIds);
       setSelectedEmployeeIds((current) => current.filter((id) => !visibleAssignableEmployeeIds.includes(id)));
       return;
     }
+    rememberSelectedAssignments(paginatedAssignments.filter((assignment) => visibleAssignableEmployeeIds.includes(assignment.employee_id)));
     setSelectedEmployeeIds((current) => Array.from(new Set([...current, ...visibleAssignableEmployeeIds])));
+  };
+
+  const handleLocationRuleChange = (value: string) => {
+    const useExactLocation = value === 'fixed';
+    setNoPermitirFueraUbicacion(useExactLocation);
+    if (!useExactLocation) {
+      setUbicacionSeleccionada('');
+    }
   };
 
   const updateHorario = (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => {
@@ -556,6 +831,7 @@ export function ScheduleModal({
     }
     applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, value);
     setSelectedEmployeeIds([]);
+    setSelectedEmployeeAssignments({});
   };
 
   const applySearchFilters = () => {
@@ -585,7 +861,7 @@ export function ScheduleModal({
       return null;
     }
 
-    if (noPermitirFueraUbicacion && !ubicacionSeleccionada) {
+    if (!isHorarioAbierto && noPermitirFueraUbicacion && !ubicacionSeleccionada) {
       const message = 'Select the allowed location for this schedule.';
       setErrorMessage(message);
       showFailureToast(message);
@@ -1044,39 +1320,67 @@ export function ScheduleModal({
                   </div>
 
                   <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/20">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={noPermitirFueraUbicacion}
-                        onCheckedChange={(checked) => setNoPermitirFueraUbicacion(checked === true)}
-                        id="location-restriction"
-                      />
-                      <div className="flex-1">
-                        <label htmlFor="location-restriction" className="cursor-pointer text-sm font-medium text-gray-900 dark:text-gray-100">
-                          Do not allow check-in outside the selected location
+                    <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Location rule
+                    </label>
+                    <select
+                      value={noPermitirFueraUbicacion ? 'fixed' : 'employee-business'}
+                      onChange={(event) => handleLocationRuleChange(event.target.value)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    >
+                      <option value="employee-business">Use each employee business location</option>
+                      <option value="fixed">Force one exact location</option>
+                    </select>
+                    <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                      {noPermitirFueraUbicacion
+                        ? 'Employees can only clock in from the selected location.'
+                        : 'Employees clock in from the Business Structure location assigned to their business.'}
+                    </p>
+
+                    {noPermitirFueraUbicacion ? (
+                      <div className="mt-3">
+                        <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          <MapPin className="mr-1 inline h-3 w-3" />
+                          Allowed location
                         </label>
-                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                          Employees can only clock in from the selected location.
+                        <select
+                          value={ubicacionSeleccionada}
+                          onChange={(event) => setUbicacionSeleccionada(event.target.value)}
+                          disabled={exactLocationOptions.length === 0}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        >
+                          <option value="">{exactLocationOptions.length === 0 ? 'No active locations available' : 'Select location'}</option>
+                          {exactLocationOptions.map((location) => (
+                            <option key={location.id} value={location.id}>{formatLocationOption(location)}</option>
+                          ))}
+                        </select>
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          {locationScopeSummary}
                         </p>
-                        {noPermitirFueraUbicacion ? (
-                          <div className="mt-3">
-                            <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                              <MapPin className="mr-1 inline h-3 w-3" />
-                              Allowed location
-                            </label>
-                            <select
-                              value={ubicacionSeleccionada}
-                              onChange={(event) => setUbicacionSeleccionada(event.target.value)}
-                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                            >
-                              <option value="">Select location</option>
-                              {locations.filter((location) => location.status !== 'inactive').map((location) => (
-                                <option key={location.id} value={location.id}>{location.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                        {locationScopeFallbackMessage ? (
+                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                            {locationScopeFallbackMessage}
+                          </p>
+                        ) : null}
+                        {exactLocationWarning ? (
+                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                            {exactLocationWarning}
+                          </p>
                         ) : null}
                       </div>
-                    </div>
+                    ) : (
+                      <div className="mt-3 flex items-start gap-2 rounded-md border border-blue-100 bg-white p-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
+                        <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                        <div>
+                          <p>{employeeBusinessLocationSummary}</p>
+                          {selectedEmployeeBusinessWarning ? (
+                            <p className="mt-1 text-amber-700 dark:text-amber-300">
+                              {selectedEmployeeBusinessWarning}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (

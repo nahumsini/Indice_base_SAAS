@@ -1,4 +1,4 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.attendance;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.FaceVerificationIntegrationException;
