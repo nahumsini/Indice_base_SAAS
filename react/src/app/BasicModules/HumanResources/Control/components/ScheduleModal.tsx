@@ -62,6 +62,7 @@ const defaultScheduleTemplateName = 'Default Schedule';
 const defaultScheduleStartTime = '08:00';
 const defaultScheduleEndTime = '16:00';
 const scheduleSaveMinimumLoadingMs = 2000;
+const isDefaultNoShiftDay = (dayOfWeek: number) => dayOfWeek === 6 || dayOfWeek === 7;
 
 const waitForNextPaint = () => (
   new Promise<void>((resolve) => {
@@ -84,7 +85,7 @@ const emptyScheduleDays = (): HorarioDiaDraft[] =>
     salida: defaultScheduleEndTime,
     comida: 0,
     descanso: 0,
-    isRestDay: false,
+    isRestDay: isDefaultNoShiftDay(day.dayOfWeek),
   }));
 
 const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
@@ -102,7 +103,7 @@ const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
       salida: timeToInput(day?.end_time) || defaultScheduleEndTime,
       comida: day?.meal_minutes ?? 0,
       descanso: day?.rest_minutes ?? 0,
-      isRestDay: day?.is_rest_day ?? false,
+      isRestDay: day?.is_rest_day ?? isDefaultNoShiftDay(config.dayOfWeek),
     };
   });
 
@@ -163,6 +164,7 @@ export function ScheduleModal({
   onApplied,
 }: ScheduleModalProps) {
   const copy = useHRLanguage().attendanceControl;
+  const defaultAvailabilityDate = effectiveStartDate?.trim() || new Date().toISOString().slice(0, 10);
   const [searchQuery, setSearchQuery] = useState('');
   const [unidadFilter, setUnidadFilter] = useState('');
   const [negocioFilter, setNegocioFilter] = useState('');
@@ -171,6 +173,8 @@ export function ScheduleModal({
   const [appliedUnidadFilter, setAppliedUnidadFilter] = useState('');
   const [appliedNegocioFilter, setAppliedNegocioFilter] = useState('');
   const [appliedAvailableOnly, setAppliedAvailableOnly] = useState(false);
+  const [availabilityDate, setAvailabilityDate] = useState(defaultAvailabilityDate);
+  const [appliedAvailabilityDate, setAppliedAvailabilityDate] = useState(defaultAvailabilityDate);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
   const [candidateAssignments, setCandidateAssignments] = useState<AttendanceControlAssignment[]>([]);
   const [organizationUnits, setOrganizationUnits] = useState<BackendUnit[]>([]);
@@ -198,7 +202,7 @@ export function ScheduleModal({
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
     [selectedTemplateId, templates],
   );
-  const assignmentEffectiveStartDate = effectiveStartDate?.trim() || new Date().toISOString().slice(0, 10);
+  const assignmentEffectiveStartDate = appliedAvailabilityDate || defaultAvailabilityDate;
 
   useEffect(() => {
     if (!isOpen) {
@@ -214,6 +218,8 @@ export function ScheduleModal({
     setAppliedUnidadFilter('');
     setAppliedNegocioFilter('');
     setAppliedAvailableOnly(false);
+    setAvailabilityDate(defaultAvailabilityDate);
+    setAppliedAvailabilityDate(defaultAvailabilityDate);
     setSelectedEmployeeIds([]);
     setCandidateAssignments([]);
     setOrganizationUnits([]);
@@ -232,7 +238,7 @@ export function ScheduleModal({
     setHorarios(templateDraft.horarios);
     setErrorMessage('');
     setFailureToastMessage('');
-  }, [isOpen]);
+  }, [defaultAvailabilityDate, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -326,6 +332,7 @@ export function ScheduleModal({
   }, [
     appliedNegocioFilter,
     appliedAvailableOnly,
+    appliedAvailabilityDate,
     appliedSearchQuery,
     appliedUnidadFilter,
     assignmentEffectiveStartDate,
@@ -359,7 +366,7 @@ export function ScheduleModal({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, isOpen]);
+  }, [appliedAvailabilityDate, appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, isOpen]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -499,15 +506,28 @@ export function ScheduleModal({
     return String(getBusinessUnitId(selectedBusiness) ?? '') === unitId ? businessId : '';
   };
 
+  const applyCandidateFilters = (
+    nextUnitFilter = unidadFilter,
+    nextBusinessFilter = negocioFilter,
+    nextAvailableOnly = availableOnly,
+    nextAvailabilityDate = availabilityDate,
+  ) => {
+    const resolvedBusinessFilter = resolveBusinessFilterForUnit(nextBusinessFilter, nextUnitFilter);
+    const resolvedAvailabilityDate = nextAvailabilityDate || defaultAvailabilityDate;
+    setNegocioFilter(resolvedBusinessFilter);
+    setCurrentPage(1);
+    setAppliedSearchQuery(searchQuery);
+    setAppliedUnidadFilter(nextUnitFilter);
+    setAppliedNegocioFilter(resolvedBusinessFilter);
+    setAppliedAvailableOnly(nextAvailableOnly);
+    setAppliedAvailabilityDate(resolvedAvailabilityDate);
+  };
+
   const handleUnitFilterChange = (value: string) => {
     const nextBusinessFilter = resolveBusinessFilterForUnit(negocioFilter, value);
     setUnidadFilter(value);
     setNegocioFilter(nextBusinessFilter);
-    setAppliedSearchQuery(searchQuery);
-    setAppliedUnidadFilter(value);
-    setAppliedNegocioFilter(nextBusinessFilter);
-    setAppliedAvailableOnly(availableOnly);
-    setCurrentPage(1);
+    applyCandidateFilters(value, nextBusinessFilter);
   };
 
   const handleBusinessFilterChange = (value: string) => {
@@ -519,32 +539,27 @@ export function ScheduleModal({
 
     setUnidadFilter(nextUnitFilter);
     setNegocioFilter(value);
-    setAppliedSearchQuery(searchQuery);
-    setAppliedUnidadFilter(nextUnitFilter);
-    setAppliedNegocioFilter(value);
-    setAppliedAvailableOnly(availableOnly);
-    setCurrentPage(1);
+    applyCandidateFilters(nextUnitFilter, value);
   };
 
   const handleAvailableOnlyChange = (checked: boolean) => {
     const nextBusinessFilter = resolveBusinessFilterForUnit(negocioFilter, unidadFilter);
     setAvailableOnly(checked);
     setNegocioFilter(nextBusinessFilter);
-    setAppliedSearchQuery(searchQuery);
-    setAppliedUnidadFilter(unidadFilter);
-    setAppliedNegocioFilter(nextBusinessFilter);
-    setAppliedAvailableOnly(checked);
-    setCurrentPage(1);
+    applyCandidateFilters(unidadFilter, nextBusinessFilter, checked);
+  };
+
+  const handleAvailabilityDateChange = (value: string) => {
+    setAvailabilityDate(value);
+    if (!value) {
+      return;
+    }
+    applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, value);
+    setSelectedEmployeeIds([]);
   };
 
   const applySearchFilters = () => {
-    const nextBusinessFilter = resolveBusinessFilterForUnit(negocioFilter, unidadFilter);
-    setNegocioFilter(nextBusinessFilter);
-    setCurrentPage(1);
-    setAppliedSearchQuery(searchQuery);
-    setAppliedUnidadFilter(unidadFilter);
-    setAppliedNegocioFilter(nextBusinessFilter);
-    setAppliedAvailableOnly(availableOnly);
+    applyCandidateFilters();
   };
 
   const limpiarHorarios = () => {
@@ -700,7 +715,7 @@ export function ScheduleModal({
             <Clock className="h-6 w-6 text-white" />
             <h2 className="text-xl font-semibold text-white">{copy.labels.setSchedules}</h2>
           </div>
-          <button onClick={onClose} className="text-white transition-colors hover:text-blue-100">
+          <button type="button" onClick={onClose} className="text-white transition-colors hover:text-blue-100">
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -717,6 +732,15 @@ export function ScheduleModal({
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Name or code"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+            <div className="xl:w-48 xl:flex-none">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Availability date</label>
+              <input
+                type="date"
+                value={availabilityDate}
+                onChange={(event) => handleAvailabilityDateChange(event.target.value)}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </div>
@@ -791,7 +815,8 @@ export function ScheduleModal({
                     Employees
                   </h3>
 	                <div className="flex flex-wrap justify-end gap-2 text-sm text-gray-500 dark:text-gray-400">
-	                  <span>Available to schedule: <span className="font-medium text-gray-900 dark:text-white">{candidateAvailableCount}</span></span>
+	                  <span>Available on {assignmentEffectiveStartDate}: <span className="font-medium text-gray-900 dark:text-white">{candidateAvailableCount}</span></span>
+	                  <span>Busy: <span className="font-medium text-amber-700 dark:text-amber-300">{candidateBusyCount}</span></span>
 	                  <span>Selected: <span className="font-medium text-blue-600 dark:text-blue-400">{selectedEmployeeIds.length}</span></span>
 	                </div>
 	              </div>
@@ -976,7 +1001,7 @@ export function ScheduleModal({
                   <option value="Horario abierto">Open schedule</option>
                 </select>
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Open: no fixed start or end time. Strict: employees follow the times below.
+                  Open: no fixed start/end time and check-in is allowed at any saved Business Structure location. Strict: employees follow the times below and check in only at their dedicated location.
                 </p>
               </div>
 
@@ -1061,7 +1086,7 @@ export function ScheduleModal({
                     <div>
                       <p className="text-sm font-medium text-green-900 dark:text-green-100">Open schedule enabled</p>
                       <p className="mt-1 text-xs text-green-700 dark:text-green-300">
-                        No fixed start or end time is stored. Attendance still follows same-day and location rules.
+                        No fixed start or end time is stored. Employees can check in from any active Business Structure location in the company profile.
                       </p>
                     </div>
                   </div>
@@ -1098,7 +1123,7 @@ export function ScheduleModal({
                               isWorkingDay ? 'text-green-700 dark:text-green-300' : 'text-gray-500 dark:text-gray-400'
                             }`}
                           >
-                            {isWorkingDay ? 'Working' : 'Rest'}
+                            {isWorkingDay ? 'Working' : 'No shift'}
                           </span>
                         </div>
                       );
@@ -1179,10 +1204,11 @@ export function ScheduleModal({
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/70">
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button
+            type="button"
             onClick={() => void aplicarHorarios()}
             className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
             disabled={selectedEmployeeIds.length === 0 || isSubmitting}

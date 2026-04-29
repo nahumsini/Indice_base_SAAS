@@ -16,7 +16,7 @@ import {
 } from '../../../../api/humanResources';
 import { useHRLanguage } from '../../HRLanguage';
 
-interface ScheduleOverviewModalProps {
+interface TimeTableModalProps {
   isOpen: boolean;
   onClose: () => void;
   assignments: AttendanceControlAssignment[];
@@ -37,12 +37,12 @@ const noAssignedSite = 'Not assigned';
 const noRule = 'No rule for this date';
 const openSchedule = 'Open shift - no fixed time';
 const notScheduled = 'Shift time not set';
-const restDay = 'Rest day';
+const noShiftDay = 'No shift';
 const attendanceLabels: Record<string, string> = {
   on_time: 'On time',
   late: 'Late',
   leave: 'Leave',
-  rest: 'Rest',
+  rest: 'No shift',
   absence: 'Absent',
   pending: 'Pending',
   not_scheduled: 'Not scheduled',
@@ -110,7 +110,7 @@ const calendarDayType = (day: AttendanceCalendarDay) => {
     return 'Unassigned';
   }
   if (day.schedule_rule.is_rest_day || day.effective_status === 'rest') {
-    return restDay;
+    return noShiftDay;
   }
   return 'Working';
 };
@@ -153,7 +153,7 @@ const scheduleRuleTimeLabel = (rule?: AttendanceControlRule | null) => {
     return noRule;
   }
   if (rule.is_rest_day) {
-    return restDay;
+    return noShiftDay;
   }
   if (rule.schedule_mode === 'open') {
     return openSchedule;
@@ -200,7 +200,7 @@ const periodScheduleLabel = (days: AttendanceCalendarDay[], rangeMode: ScheduleR
   }
 
   const working = days.filter((day) => calendarDayType(day) === 'Working').length;
-  const rest = days.filter((day) => calendarDayType(day) === restDay).length;
+  const rest = days.filter((day) => calendarDayType(day) === noShiftDay).length;
   const noShift = days.length - working - rest;
   const openShifts = days.filter((day) => day.schedule_rule && !day.schedule_rule.is_rest_day && day.schedule_rule.schedule_mode === 'open').length;
   const scheduledMinutes = days.reduce(
@@ -214,7 +214,7 @@ const periodScheduleLabel = (days: AttendanceCalendarDay[], rangeMode: ScheduleR
     openShifts ? pluralize(openShifts, 'open shift') : '',
   ].filter(Boolean).join(', ');
   const secondary = [
-    rest ? pluralize(rest, 'rest day') : '',
+    rest ? pluralize(rest, 'no-shift day') : '',
     noShift ? `${pluralize(noShift, 'day')} without shift` : '',
   ].filter(Boolean).join(', ');
   return secondary ? `${primary} (${secondary})` : primary;
@@ -248,7 +248,7 @@ const assignmentBusinessLocationName = (assignment: AttendanceControlAssignment)
 const assignmentContractSiteName = (assignment: AttendanceControlAssignment) =>
   assignment.active_work_site?.location_name || noAssignedSite;
 
-export function ScheduleOverviewModal({
+export function TimeTableModal({
   isOpen,
   onClose,
   assignments,
@@ -257,7 +257,7 @@ export function ScheduleOverviewModal({
   isSaving,
   onDateChange,
   onRemoveShift,
-}: ScheduleOverviewModalProps) {
+}: TimeTableModalProps) {
   const copy = useHRLanguage().attendanceControl;
   const [unitFilter, setUnitFilter] = useState('');
   const [rangeMode, setRangeMode] = useState<ScheduleRangeMode>('day');
@@ -498,13 +498,13 @@ export function ScheduleOverviewModal({
             <div>
               <DialogTitle className="flex items-center gap-2 text-2xl">
                 <CalendarDays className="h-5 w-5 text-[#143675] dark:text-[#8bb3ff]" />
-                {copy.labels.viewSchedules}
+                {copy.labels.timeTable}
               </DialogTitle>
               <DialogDescription className="mt-2">
                 Review active employees by organisation unit and date range.
               </DialogDescription>
             </div>
-            <Button variant="outline" size="icon" onClick={onClose}>
+            <Button type="button" variant="outline" size="icon" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -713,7 +713,7 @@ export function ScheduleOverviewModal({
                                   onClick={() => onRemoveShift(row.assignment, date)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
-                                  Remove day
+                                  {copy.labels.removeTimeTableDay}
                                 </Button>
                               ) : row.hasAttendance ? (
                                 <span className="text-xs text-gray-500 dark:text-gray-400">Attendance recorded</span>

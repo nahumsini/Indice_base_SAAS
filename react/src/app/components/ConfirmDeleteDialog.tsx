@@ -1,4 +1,11 @@
 import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 
 interface ConfirmDeleteDialogProps {
   isVisible: boolean;
@@ -21,32 +28,34 @@ export function ConfirmDeleteDialog({
   onConfirm,
   onCancel,
 }: ConfirmDeleteDialogProps) {
-  if (!isVisible) {
-    return null;
-  }
-
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="w-full max-w-md overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+    <Dialog
+      open={isVisible}
+      onOpenChange={(open) => {
+        if (!open) {
+          onCancel();
+        }
+      }}
+    >
+      <DialogContent
+        className="z-[100] w-full max-w-md overflow-hidden border-gray-200 bg-white p-0 shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+        hideCloseButton
       >
-        <div className="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <DialogHeader className="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+          <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">
             {title}
-          </h3>
+          </DialogTitle>
           {description ? (
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            <DialogDescription className="mt-2 text-sm text-gray-600 dark:text-gray-300">
               {description}
-            </p>
+            </DialogDescription>
           ) : null}
           {itemName ? (
             <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-800/60 dark:bg-red-900/20 dark:text-red-300">
               {itemName}
             </div>
           ) : null}
-        </div>
+        </DialogHeader>
 
         <div className="flex flex-col-reverse gap-3 bg-gray-50 px-5 py-4 dark:bg-gray-900/40 sm:flex-row sm:justify-end">
           <Button
@@ -66,7 +75,7 @@ export function ConfirmDeleteDialog({
             {confirmLabel}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

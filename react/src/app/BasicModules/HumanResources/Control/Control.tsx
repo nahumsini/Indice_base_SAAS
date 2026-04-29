@@ -15,9 +15,10 @@ import { Button } from '../../../components/ui/button';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { Skeleton } from '../../../components/ui/skeleton';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ContractSiteRegistrationModal } from './components/ContractSiteRegistrationModal';
 import { ScheduleModal } from './components/ScheduleModal';
-import { ScheduleOverviewModal } from './components/ScheduleOverviewModal';
+import { TimeTableModal } from './components/TimeTableModal';
 import { EmployeeAccessActions } from './components/EmployeeAccessActions';
 import {
   type AttendanceControlCopy,
@@ -76,6 +77,7 @@ const toMonthValue = (value: string | Date) => {
 
 const weekdayNumbers = [1, 2, 3, 4, 5, 6, 7] as const;
 const CONTROL_SAVE_MINIMUM_LOADING_MS = 2000;
+const isDefaultNoShiftDay = (dayOfWeek: number) => dayOfWeek === 6 || dayOfWeek === 7;
 
 const waitForNextPaint = () => (
   new Promise<void>((resolve) => {
@@ -101,7 +103,7 @@ const createDefaultTemplateDays = () =>
     meal_minutes: 0,
     rest_minutes: 0,
     late_after_minutes: 10,
-    is_rest_day: false,
+    is_rest_day: isDefaultNoShiftDay(day),
   }));
 
 const todayInputValue = () => new Date().toISOString().slice(0, 10);
@@ -234,6 +236,8 @@ export default function Control() {
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
   const [isUpdatingCalendarDay, setIsUpdatingCalendarDay] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemovingTimeTableDay, setIsRemovingTimeTableDay] = useState(false);
+  const [isClearingCalendarDaySchedule, setIsClearingCalendarDaySchedule] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [failureToastMessage, setFailureToastMessage] = useState('');
@@ -246,8 +250,17 @@ export default function Control() {
   const [locationForm, setLocationForm] = useState<AttendanceControlLocationPayload>(defaultLocationForm());
 
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [isScheduleOverviewModalOpen, setIsScheduleOverviewModalOpen] = useState(false);
+  const [isTimeTableModalOpen, setIsTimeTableModalOpen] = useState(false);
   const [isSchedulesModalOpen, setIsSchedulesModalOpen] = useState(false);
+  const [pendingTimeTableRemoval, setPendingTimeTableRemoval] = useState<{
+    assignment: AttendanceControlAssignment;
+    targetDate: string;
+  } | null>(null);
+  const [pendingCalendarScheduleClear, setPendingCalendarScheduleClear] = useState<{
+    employeeId: number;
+    employeeName: string;
+    targetDate: string;
+  } | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<AttendanceControlTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState<AttendanceControlTemplatePayload>(defaultTemplateForm());
 
@@ -710,41 +723,50 @@ export default function Control() {
       return false;
     }
 
-    if (typeof window !== 'undefined') {
-      const employeeName = selectedEmployee?.employee_name ?? 'this employee';
-      const confirmed = window.confirm(
-        `Clear ${employeeName}'s schedule for ${date}? Check-in and check-out records will stay saved.`,
-      );
-      if (!confirmed) {
-        return false;
-      }
+    setPendingCalendarScheduleClear({
+      employeeId: selectedEmployeeId,
+      employeeName: selectedEmployee?.employee_name ?? 'this employee',
+      targetDate: date,
+    });
+
+    return false;
+  };
+
+  const handleConfirmClearCalendarDaySchedule = async () => {
+    if (!pendingCalendarScheduleClear || isSaving || isUpdatingCalendarDay) {
+      return;
     }
 
+    const { employeeId, targetDate } = pendingCalendarScheduleClear;
+    setPendingCalendarScheduleClear(null);
+
     setIsUpdatingCalendarDay(true);
+    setIsClearingCalendarDaySchedule(true);
     clearControlMessages();
     await waitForNextPaint();
 
     try {
       await runWithMinimumDuration((async () => {
         await humanResourcesApi.clearAttendanceWorkAssignments({
-          employee_id: selectedEmployeeId,
-          date,
+          employee_id: employeeId,
+          date: targetDate,
         });
-        setControlDate(date);
+        const targetCalendarMonth = toMonthValue(targetDate);
+        setControlDate(targetDate);
+        setCalendarMonth(targetCalendarMonth);
 
         const [calendarResponse] = await Promise.all([
-          humanResourcesApi.getAttendanceCalendar(selectedEmployeeId, calendarMonth),
-          loadControl(date),
+          humanResourcesApi.getAttendanceCalendar(employeeId, targetCalendarMonth),
+          loadControl(targetDate),
         ]);
         setAttendanceCalendarDays(calendarResponse.items);
-        setSelectedCalendarDay(calendarResponse.items.find((day) => day.date === date) ?? null);
-        showSuccessToast('Schedule cleared for this day.');
+        setSelectedCalendarDay(null);
+        showSuccessToast(copy.labels.clearDayScheduleSuccess);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
-      return true;
     } catch (error) {
       showFailureToast(toErrorMessage(error, copy) || copy.saveError);
-      return false;
     } finally {
+      setIsClearingCalendarDaySchedule(false);
       setIsUpdatingCalendarDay(false);
     }
   };
@@ -1064,22 +1086,24 @@ export default function Control() {
     }
   };
 
-  const handleClearEmployeeShift = async (assignment: AttendanceControlAssignment, targetDate = controlDate) => {
+  const handleRequestClearEmployeeShift = (assignment: AttendanceControlAssignment, targetDate = controlDate) => {
     if (isSaving || !assignment.employee_id) {
       return;
     }
 
-    if (typeof window !== 'undefined') {
-      const siteText = assignment.active_work_site?.location_name
-        ? ` at ${assignment.active_work_site.location_name}`
-        : '';
-      const confirmed = window.confirm(`Remove ${assignment.employee_name}'s shift${siteText} from ${targetDate}?`);
-      if (!confirmed) {
-        return;
-      }
+    setPendingTimeTableRemoval({ assignment, targetDate });
+  };
+
+  const handleConfirmClearEmployeeShift = async () => {
+    if (!pendingTimeTableRemoval || isSaving) {
+      return;
     }
 
+    const { assignment, targetDate } = pendingTimeTableRemoval;
+    setPendingTimeTableRemoval(null);
+
     setIsSaving(true);
+    setIsRemovingTimeTableDay(true);
     clearControlMessages();
     await waitForNextPaint();
 
@@ -1089,12 +1113,13 @@ export default function Control() {
           employee_id: assignment.employee_id,
           date: targetDate,
         });
-        showSuccessToast('Shift removed for this date. Future dates stay assigned.');
+        showSuccessToast(copy.labels.removeTimeTableDaySuccess);
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
       showFailureToast(toErrorMessage(error, copy) || copy.saveError);
     } finally {
+      setIsRemovingTimeTableDay(false);
       setIsSaving(false);
     }
   };
@@ -1188,13 +1213,21 @@ export default function Control() {
     }
   };
 
-  const isControlOverlayVisible = isSaving || isUpdatingCalendarDay;
-  const loadingOverlayTitle = isUpdatingCalendarDay
-    ? copy.labels.savingDayStatus
-    : 'Saving changes';
-  const loadingOverlayDescription = isUpdatingCalendarDay
-    ? copy.labels.savingDayStatusDescription
-    : 'Please wait while the attendance control changes are saved.';
+  const isControlOverlayVisible = isSaving || isUpdatingCalendarDay || isRemovingTimeTableDay || isClearingCalendarDaySchedule;
+  const loadingOverlayTitle = isClearingCalendarDaySchedule
+    ? copy.labels.clearingDaySchedule
+    : isUpdatingCalendarDay
+      ? copy.labels.savingDayStatus
+      : isRemovingTimeTableDay
+      ? copy.labels.removingTimeTableDay
+      : 'Saving changes';
+  const loadingOverlayDescription = isClearingCalendarDaySchedule
+    ? copy.labels.clearingDayScheduleDescription
+    : isUpdatingCalendarDay
+      ? copy.labels.savingDayStatusDescription
+      : isRemovingTimeTableDay
+      ? copy.labels.removingTimeTableDayDescription
+      : 'Please wait while the attendance control changes are saved.';
 
   return (
     <>
@@ -1249,10 +1282,10 @@ export default function Control() {
             <Button
               variant="outline"
               className={headerActionButtonClassName}
-              onClick={() => setIsScheduleOverviewModalOpen(true)}
+              onClick={() => setIsTimeTableModalOpen(true)}
             >
               <Table2 className="h-3.5 w-3.5" />
-              {copy.labels.viewSchedules}
+              {copy.labels.timeTable}
             </Button>
             <Button
               variant="outline"
@@ -1627,15 +1660,15 @@ export default function Control() {
         onSaved={() => showSuccessToast(copy.locationSaved)}
       />
 
-      <ScheduleOverviewModal
-        isOpen={isScheduleOverviewModalOpen}
-        onClose={() => setIsScheduleOverviewModalOpen(false)}
+      <TimeTableModal
+        isOpen={isTimeTableModalOpen}
+        onClose={() => setIsTimeTableModalOpen(false)}
         assignments={overview?.assignments ?? []}
         date={controlDate}
         locale={currentLanguage.code}
         isSaving={isSaving}
         onDateChange={setControlDate}
-        onRemoveShift={(assignment, targetDate) => handleClearEmployeeShift(assignment, targetDate)}
+        onRemoveShift={(assignment, targetDate) => handleRequestClearEmployeeShift(assignment, targetDate)}
       />
 
       <ScheduleModal
@@ -1655,6 +1688,32 @@ export default function Control() {
           await loadControl(controlDate);
           showSuccessToast(copy.bulkAssignSuccess);
         }}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={pendingTimeTableRemoval !== null}
+        title={copy.labels.removeTimeTableDayTitle}
+        description={copy.labels.removeTimeTableDayDescription}
+        itemName={pendingTimeTableRemoval
+          ? `${pendingTimeTableRemoval.assignment.employee_name} - ${pendingTimeTableRemoval.targetDate}`
+          : undefined}
+        confirmLabel={copy.labels.removeTimeTableDayConfirm}
+        cancelLabel={copy.labels.cancel}
+        onConfirm={() => void handleConfirmClearEmployeeShift()}
+        onCancel={() => setPendingTimeTableRemoval(null)}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={pendingCalendarScheduleClear !== null}
+        title={copy.labels.clearDayScheduleTitle}
+        description={copy.labels.clearDayScheduleDescription}
+        itemName={pendingCalendarScheduleClear
+          ? `${pendingCalendarScheduleClear.employeeName} - ${pendingCalendarScheduleClear.targetDate}`
+          : undefined}
+        confirmLabel={copy.labels.clearDayScheduleConfirm}
+        cancelLabel={copy.labels.cancel}
+        onConfirm={() => void handleConfirmClearCalendarDaySchedule()}
+        onCancel={() => setPendingCalendarScheduleClear(null)}
       />
     </>
   );

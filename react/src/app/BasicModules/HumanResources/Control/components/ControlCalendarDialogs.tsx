@@ -165,9 +165,9 @@ export function ControlCalendarDayDialog({
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-900/50 dark:bg-rose-950/20">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-rose-900 dark:text-rose-200">Clear schedule for this day</p>
+                    <p className="text-sm font-semibold text-rose-900 dark:text-rose-200">{copy.labels.clearDaySchedule}</p>
                     <p className="mt-1 text-xs leading-5 text-rose-700 dark:text-rose-300">
-                      Removes the assigned schedule or contract site for this date only. Check-in and check-out records stay saved.
+                      {copy.labels.clearDayScheduleDescription}
                     </p>
                   </div>
                   <Button
@@ -182,12 +182,12 @@ export function ControlCalendarDayDialog({
                       }
                     }}
                   >
-                    Clear day schedule
+                    {copy.labels.clearDaySchedule}
                   </Button>
                 </div>
                 {!canClearScheduleForDay ? (
                   <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
-                    There is no schedule or contract site assigned on this date.
+                    {copy.labels.noScheduleToClear}
                   </p>
                 ) : null}
               </div>

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 
 @RestController
 @RequestMapping("/api/v1/config-center")
@@ -22,13 +23,16 @@ public class ConfigCenterApiController {
 
     private final SessionAuthService sessionAuthService;
     private final ConfigCenterService configCenterService;
+    private final GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
 
     public ConfigCenterApiController(
         SessionAuthService sessionAuthService,
-        ConfigCenterService configCenterService
+        ConfigCenterService configCenterService,
+        GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor
     ) {
         this.sessionAuthService = sessionAuthService;
         this.configCenterService = configCenterService;
+        this.googleMapsCoordinateExtractor = googleMapsCoordinateExtractor;
     }
 
     @GetMapping("/current-user")
@@ -158,7 +162,21 @@ public class ConfigCenterApiController {
         }
 
         try {
-            return ResponseEntity.ok(configCenterService.saveStructure(current.get().companyId(), payload));
+            return ResponseEntity.ok(configCenterService.saveStructure(current.get().companyId(), current.get().userId(), payload));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/locations/extract-coordinates")
+    public ResponseEntity<?> extractCoordinates(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var current = sessionAuthService.currentUser(session);
+        if (current.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(googleMapsCoordinateExtractor.extractCoordinatesFromMapLink(payload));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -173,7 +191,7 @@ public class ConfigCenterApiController {
 
         var result = new LinkedHashMap<String, Object>();
         result.put("logo", null);
-        result.put("data", configCenterService.saveEmpresa(current.get().companyId(), payload));
+        result.put("data", configCenterService.saveEmpresa(current.get().companyId(), current.get().userId(), payload));
         result.put("message", "Company data saved");
         return ResponseEntity.ok(result);
     }

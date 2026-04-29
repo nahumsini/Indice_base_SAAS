@@ -1,6 +1,24 @@
 export type EstructuraType = 'simple' | 'multi';
 
-export interface Negocio {
+export type CoordinateSource = 'google_maps_link' | 'current_location' | 'manual';
+
+export interface LocationCoordinateData {
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
+  coordinateSource?: CoordinateSource;
+  googleMapsUrl?: string;
+}
+
+export interface LocationCoordinateFormValues {
+  latitude: string;
+  longitude: string;
+  radiusMeters: string;
+  coordinateSource: CoordinateSource | '';
+  googleMapsUrl: string;
+}
+
+export interface Negocio extends LocationCoordinateData {
   id: string;
   name: string;
   legacyBusinessId?: number;
@@ -17,7 +35,7 @@ export interface Negocio {
   horario?: string;
 }
 
-export interface Unidad {
+export interface Unidad extends LocationCoordinateData {
   id: string;
   name: string;
   legacyUnitId?: number;

@@ -12,7 +12,16 @@ import { inputClassName } from './constants';
 import { BusinessIdentitySection } from './components/BusinessIdentitySection';
 import { OperationTypeSection } from './components/OperationTypeSection';
 import { UnitsSection } from './components/UnitsSection';
-import type { EditingNegocio, EstructuraType, Negocio, Unidad } from './types';
+import { LocationCoordinateFields } from './components/LocationCoordinateFields';
+import type {
+  CoordinateSource,
+  EditingNegocio,
+  EstructuraType,
+  LocationCoordinateData,
+  LocationCoordinateFormValues,
+  Negocio,
+  Unidad,
+} from './types';
 
 const readImageAsPreview = (
   event: ChangeEvent<HTMLInputElement>,
@@ -36,9 +45,10 @@ type BusinessStructureSnapshot = {
   companyName: string;
   industry: string;
   description: string;
+  companyLocation: LocationCoordinateFormValues;
 };
 
-type UnidadFormValues = {
+type UnidadFormValues = LocationCoordinateFormValues & {
   name: string;
   logo: string;
   industria: string;
@@ -51,7 +61,7 @@ type UnidadFormValues = {
   email: string;
 };
 
-type NegocioFormValues = {
+type NegocioFormValues = LocationCoordinateFormValues & {
   name: string;
   logo: string;
   industria: string;
@@ -83,7 +93,16 @@ const createDefaultUnidades = (): Unidad[] => [
   { id: '1', name: 'Principal', negocios: [] },
 ];
 
+const DEFAULT_LOCATION_COORDINATE_VALUES: LocationCoordinateFormValues = {
+  latitude: '',
+  longitude: '',
+  radiusMeters: '100',
+  coordinateSource: '',
+  googleMapsUrl: '',
+};
+
 const DEFAULT_UNIDAD_FORM_VALUES: UnidadFormValues = {
+  ...DEFAULT_LOCATION_COORDINATE_VALUES,
   name: '',
   logo: '',
   industria: '',
@@ -97,6 +116,7 @@ const DEFAULT_UNIDAD_FORM_VALUES: UnidadFormValues = {
 };
 
 const DEFAULT_NEGOCIO_FORM_VALUES: NegocioFormValues = {
+  ...DEFAULT_LOCATION_COORDINATE_VALUES,
   name: '',
   logo: '',
   industria: '',
@@ -121,15 +141,140 @@ const createBusinessStructureSnapshot = ({
   companyName,
   industry,
   description,
+  companyLocation,
 }: BusinessStructureSnapshot): BusinessStructureSnapshot => ({
   estructuraType,
   unidades,
   companyName,
   industry,
   description,
+  companyLocation,
+});
+
+const formatCoordinateValue = (value?: number | string | null) => {
+  if (value === undefined || value === null || value === '') {
+    return '';
+  }
+  return String(value);
+};
+
+const createLocationCoordinateFormValues = (
+  source?: {
+    latitude?: number;
+    longitude?: number;
+    radiusMeters?: number;
+    radius_meters?: number;
+    coordinateSource?: string;
+    coordinate_source?: string;
+    googleMapsUrl?: string;
+    google_maps_url?: string;
+  } | null,
+): LocationCoordinateFormValues => ({
+  latitude: formatCoordinateValue(source?.latitude),
+  longitude: formatCoordinateValue(source?.longitude),
+  radiusMeters: formatCoordinateValue(source?.radiusMeters ?? source?.radius_meters ?? 100),
+  coordinateSource: (source?.coordinateSource ?? source?.coordinate_source ?? '') as CoordinateSource | '',
+  googleMapsUrl: source?.googleMapsUrl ?? source?.google_maps_url ?? '',
+});
+
+const normalizeCoordinateSource = (value: string): CoordinateSource | undefined => (
+  value === 'google_maps_link' || value === 'current_location' || value === 'manual'
+    ? value
+    : undefined
+);
+
+const parseCoordinateNumber = (
+  value: string,
+  label: string,
+  min: number,
+  max: number,
+) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) {
+    return `${label} must be a valid number.`;
+  }
+  if (parsed < min || parsed > max) {
+    return `${label} is outside the supported range.`;
+  }
+  return parsed;
+};
+
+const buildCoordinateSaveValues = (values: LocationCoordinateFormValues): {
+  ok: true;
+  values: {
+    latitude?: number | null;
+    longitude?: number | null;
+    radiusMeters?: number | null;
+    coordinateSource?: CoordinateSource | null;
+    googleMapsUrl?: string | null;
+  };
+} | {
+  ok: false;
+  message: string;
+} => {
+  const hasLatitude = values.latitude.trim().length > 0;
+  const hasLongitude = values.longitude.trim().length > 0;
+
+  if (!hasLatitude && !hasLongitude) {
+    return {
+      ok: true,
+      values: {
+        latitude: null,
+        longitude: null,
+        radiusMeters: null,
+        coordinateSource: null,
+        googleMapsUrl: values.googleMapsUrl.trim() || null,
+      },
+    };
+  }
+
+  if (!hasLatitude || !hasLongitude) {
+    return { ok: false, message: 'Latitude and longitude must both be set.' };
+  }
+
+  const latitude = parseCoordinateNumber(values.latitude, 'Latitude', -90, 90);
+  if (typeof latitude === 'string') {
+    return { ok: false, message: latitude };
+  }
+
+  const longitude = parseCoordinateNumber(values.longitude, 'Longitude', -180, 180);
+  if (typeof longitude === 'string') {
+    return { ok: false, message: longitude };
+  }
+
+  const radiusText = values.radiusMeters.trim();
+  const radiusMeters = radiusText ? Number(radiusText) : 100;
+  if (!Number.isInteger(radiusMeters) || radiusMeters <= 0) {
+    return { ok: false, message: 'Radius meters must be a positive whole number.' };
+  }
+
+  return {
+    ok: true,
+    values: {
+      latitude,
+      longitude,
+      radiusMeters,
+      coordinateSource: normalizeCoordinateSource(values.coordinateSource) ?? 'manual',
+      googleMapsUrl: values.googleMapsUrl.trim() || null,
+    },
+  };
+};
+
+const buildConfigCoordinateFields = (source: LocationCoordinateData) => ({
+  latitude: source.latitude,
+  longitude: source.longitude,
+  radius_meters: source.radiusMeters,
+  coordinate_source: source.coordinateSource,
+  google_maps_url: source.googleMapsUrl,
 });
 
 const createUnidadFormValues = (unidad?: Unidad | null): UnidadFormValues => ({
+  ...createLocationCoordinateFormValues(unidad),
   name: unidad?.name ?? '',
   logo: unidad?.logo ?? '',
   industria: unidad?.industria ?? '',
@@ -143,6 +288,7 @@ const createUnidadFormValues = (unidad?: Unidad | null): UnidadFormValues => ({
 });
 
 const createNegocioFormValues = (negocio?: Partial<Negocio> | null): NegocioFormValues => ({
+  ...createLocationCoordinateFormValues(negocio),
   name: negocio?.name ?? '',
   logo: negocio?.logo ?? '',
   industria: negocio?.industria ?? '',
@@ -173,6 +319,9 @@ const unidadHasMultiData = (unidad: Unidad) => (
   || Boolean(unidad.cp)
   || Boolean(unidad.telefono)
   || Boolean(unidad.email)
+  || unidad.latitude !== undefined
+  || unidad.longitude !== undefined
+  || Boolean(unidad.googleMapsUrl)
   || unidad.negocios.length > 0
 );
 
@@ -203,6 +352,9 @@ const hasMeaningfulMultiStructureData = (unidades: Unidad[]) => {
     && !firstUnidad.cp
     && !firstUnidad.telefono
     && !firstUnidad.email
+    && firstUnidad.latitude === undefined
+    && firstUnidad.longitude === undefined
+    && !firstUnidad.googleMapsUrl
     && firstUnidad.negocios.length === 0;
 
   if (isDefaultPlaceholderUnit) {
@@ -226,6 +378,7 @@ const buildConfigMap = (estructuraType: EstructuraType, unidades: Unidad[]) => (
         cp: unidad.cp,
         telefono: unidad.telefono,
         email: unidad.email,
+        ...buildConfigCoordinateFields(unidad),
         businesses: unidad.negocios.map((negocio) => ({
           name: negocio.name,
           legacy_business_id: negocio.legacyBusinessId,
@@ -240,6 +393,7 @@ const buildConfigMap = (estructuraType: EstructuraType, unidades: Unidad[]) => (
           email: negocio.email,
           gerente: negocio.gerente,
           horario: negocio.horario,
+          ...buildConfigCoordinateFields(negocio),
         })),
       }))
     : []
@@ -253,6 +407,7 @@ export default function BusinessStructure() {
   const [companyName, setCompanyName] = useState('');
   const [industry, setIndustry] = useState('');
   const [description, setDescription] = useState('');
+  const [companyLocation, setCompanyLocation] = useState<LocationCoordinateFormValues>(DEFAULT_LOCATION_COORDINATE_VALUES);
   const [baselineSnapshot, setBaselineSnapshot] = useState<BusinessStructureSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -295,8 +450,9 @@ export default function BusinessStructure() {
       companyName,
       industry,
       description,
+      companyLocation,
     }),
-    [companyName, description, estructuraType, industry, unidades],
+    [companyLocation, companyName, description, estructuraType, industry, unidades],
   );
 
   const hasUnsavedChanges = useMemo(
@@ -326,6 +482,7 @@ export default function BusinessStructure() {
           companyName: previousSnapshot?.companyName ?? currentSnapshot.companyName,
           industry: previousSnapshot?.industry ?? currentSnapshot.industry,
           description: previousSnapshot?.description ?? currentSnapshot.description,
+          companyLocation: previousSnapshot?.companyLocation ?? currentSnapshot.companyLocation,
         }),
       ),
     );
@@ -396,6 +553,11 @@ export default function BusinessStructure() {
               cp: unidad.cp,
               telefono: unidad.telefono,
               email: unidad.email,
+              latitude: unidad.latitude,
+              longitude: unidad.longitude,
+              radiusMeters: unidad.radius_meters,
+              coordinateSource: normalizeCoordinateSource(unidad.coordinate_source ?? ''),
+              googleMapsUrl: unidad.google_maps_url,
               negocios: (unidad.businesses ?? []).map((negocio, negocioIndex) => ({
                 id: `biz-${unidadIndex}-${negocioIndex}-${negocio.name}`,
                 name: negocio.name,
@@ -411,17 +573,30 @@ export default function BusinessStructure() {
                 email: negocio.email,
                 gerente: negocio.gerente,
                 horario: negocio.horario,
+                latitude: negocio.latitude,
+                longitude: negocio.longitude,
+                radiusMeters: negocio.radius_meters,
+                coordinateSource: normalizeCoordinateSource(negocio.coordinate_source ?? ''),
+                googleMapsUrl: negocio.google_maps_url,
               })),
             }))
           : createDefaultUnidades();
         const loadedCompanyName = empresa?.nombre_empresa ?? '';
         const loadedIndustry = (empresa?.industria as string) ?? '';
         const loadedDescription = (empresa?.descripcion as string) ?? '';
+        const loadedCompanyLocation = createLocationCoordinateFormValues({
+          latitude: empresa?.latitude,
+          longitude: empresa?.longitude,
+          radius_meters: empresa?.radius_meters,
+          coordinate_source: empresa?.coordinate_source,
+          google_maps_url: empresa?.google_maps_url,
+        });
 
         setEstructuraType(resolvedStructure === 'multi' ? 'multi' : 'simple');
         setCompanyName(loadedCompanyName);
         setIndustry(loadedIndustry);
         setDescription(loadedDescription);
+        setCompanyLocation(loadedCompanyLocation);
         setUnidades(loadedUnidades);
         setBaselineSnapshot(
           cloneSnapshot(
@@ -431,6 +606,7 @@ export default function BusinessStructure() {
               companyName: loadedCompanyName,
               industry: loadedIndustry,
               description: loadedDescription,
+              companyLocation: loadedCompanyLocation,
             }),
           ),
         );
@@ -548,6 +724,12 @@ export default function BusinessStructure() {
       return;
     }
 
+    const coordinateValidation = buildCoordinateSaveValues(unidadFormValues);
+    if (coordinateValidation.ok === false) {
+      setLoadError(coordinateValidation.message);
+      return;
+    }
+
     const newUnidad: Unidad = {
       id: editingUnidad?.id || String(Date.now()),
       name: unidadFormValues.name.trim(),
@@ -560,6 +742,11 @@ export default function BusinessStructure() {
       cp: unidadFormValues.cp,
       telefono: unidadFormValues.telefono,
       email: emailValidation.normalized,
+      latitude: coordinateValidation.values.latitude ?? undefined,
+      longitude: coordinateValidation.values.longitude ?? undefined,
+      radiusMeters: coordinateValidation.values.radiusMeters ?? undefined,
+      coordinateSource: coordinateValidation.values.coordinateSource ?? undefined,
+      googleMapsUrl: coordinateValidation.values.googleMapsUrl ?? undefined,
       negocios: editingUnidad?.negocios || [],
     };
 
@@ -594,6 +781,12 @@ export default function BusinessStructure() {
       return;
     }
 
+    const coordinateValidation = buildCoordinateSaveValues(negocioFormValues);
+    if (coordinateValidation.ok === false) {
+      setLoadError(coordinateValidation.message);
+      return;
+    }
+
     const newNegocio: Negocio = {
       id: editingNegocio.id || String(Date.now()),
       name: negocioFormValues.name.trim(),
@@ -608,6 +801,11 @@ export default function BusinessStructure() {
       email: emailValidation.normalized,
       gerente: negocioFormValues.gerente,
       horario: negocioFormValues.horario,
+      latitude: coordinateValidation.values.latitude ?? undefined,
+      longitude: coordinateValidation.values.longitude ?? undefined,
+      radiusMeters: coordinateValidation.values.radiusMeters ?? undefined,
+      coordinateSource: coordinateValidation.values.coordinateSource ?? undefined,
+      googleMapsUrl: coordinateValidation.values.googleMapsUrl ?? undefined,
     };
 
     void runStructureFeedbackTask({
@@ -616,8 +814,8 @@ export default function BusinessStructure() {
       successMessage: editingNegocio.id
         ? structure.messages.updateBusinessSuccess
         : structure.messages.createBusinessSuccess,
-      task: async () => {
-        const nextUnidades = unidades.map((unidad) => {
+        task: async () => {
+          const nextUnidades = unidades.map((unidad) => {
             if (unidad.id !== editingNegocio.unidadId) {
               return unidad;
             }
@@ -679,6 +877,13 @@ export default function BusinessStructure() {
     setIsSaving(true);
     setLoadError('');
 
+    const companyCoordinateValidation = buildCoordinateSaveValues(companyLocation);
+    if (estructuraType === 'simple' && companyCoordinateValidation.ok === false) {
+      setLoadError(companyCoordinateValidation.message);
+      setIsSaving(false);
+      return;
+    }
+
     try {
       await runStructureFeedbackTask({
         title: structure.messages.saveOverlay,
@@ -692,6 +897,15 @@ export default function BusinessStructure() {
             nombre_empresa: companyName,
             industria: industry,
             descripcion: description,
+            ...(estructuraType === 'simple' && companyCoordinateValidation.ok
+              ? {
+                  latitude: companyCoordinateValidation.values.latitude ?? null,
+                  longitude: companyCoordinateValidation.values.longitude ?? null,
+                  radius_meters: companyCoordinateValidation.values.radiusMeters ?? null,
+                  coordinate_source: companyCoordinateValidation.values.coordinateSource ?? null,
+                  google_maps_url: companyCoordinateValidation.values.googleMapsUrl ?? null,
+                }
+              : {}),
           });
 
           setBaselineSnapshot(cloneSnapshot(currentSnapshot));
@@ -714,10 +928,11 @@ export default function BusinessStructure() {
     setLoadError('');
     setEstructuraType(baselineSnapshot.estructuraType);
     setUnidades(cloneSnapshot(baselineSnapshot).unidades);
-    setCompanyName(baselineSnapshot.companyName);
-    setIndustry(baselineSnapshot.industry);
-    setDescription(baselineSnapshot.description);
-  };
+      setCompanyName(baselineSnapshot.companyName);
+      setIndustry(baselineSnapshot.industry);
+      setDescription(baselineSnapshot.description);
+      setCompanyLocation(baselineSnapshot.companyLocation);
+    };
 
   return (
     <div className="space-y-6 pb-24">
@@ -774,13 +989,19 @@ export default function BusinessStructure() {
       <BusinessIdentitySection
         estructuraType={estructuraType}
         structure={structure}
-        companyName={companyName}
-        industry={industry}
-        description={description}
-        onCompanyNameChange={setCompanyName}
-        onIndustryChange={setIndustry}
-        onDescriptionChange={setDescription}
-      />
+          companyName={companyName}
+          industry={industry}
+          description={description}
+          locationCoordinateValues={companyLocation}
+          onCompanyNameChange={setCompanyName}
+          onIndustryChange={setIndustry}
+          onDescriptionChange={setDescription}
+          onLocationCoordinateChange={(updates) => setCompanyLocation((current) => ({
+            ...current,
+            ...updates,
+          }))}
+          disabled={loadingOverlay.isVisible}
+        />
 
       {showUnidadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1003,15 +1224,29 @@ export default function BusinessStructure() {
                         className={`${inputClassName} appearance-none cursor-pointer`}
                       >
                         <option value="">{structure.fields.selectCountry}</option>
-                        {structure.options.countries.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                          {structure.options.countries.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <h5 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Coordinates
+                        </h5>
+                        <LocationCoordinateFields
+                          values={unidadFormValues}
+                          onChange={(updates) => setUnidadFormValues((current) => ({
+                            ...current,
+                            ...updates,
+                          }))}
+                          disabled={loadingOverlay.isVisible}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
@@ -1289,25 +1524,39 @@ export default function BusinessStructure() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {structure.fields.country}
                       </label>
-                      <select
-                        name="pais"
-                        value={negocioFormValues.pais}
-                        onChange={(event) => setNegocioFormValues((current) => ({
-                          ...current,
-                          pais: event.target.value,
-                        }))}
-                        className={`${inputClassName} appearance-none cursor-pointer`}
-                      >
+                        <select
+                          name="pais"
+                          value={negocioFormValues.pais}
+                          onChange={(event) => setNegocioFormValues((current) => ({
+                            ...current,
+                            pais: event.target.value,
+                          }))}
+                          className={`${inputClassName} appearance-none cursor-pointer`}
+                        >
                         <option value="">{structure.fields.selectCountry}</option>
-                        {structure.options.countries.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                          {structure.options.countries.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <h5 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Coordinates
+                        </h5>
+                        <LocationCoordinateFields
+                          values={negocioFormValues}
+                          onChange={(updates) => setNegocioFormValues((current) => ({
+                            ...current,
+                            ...updates,
+                          }))}
+                          disabled={loadingOverlay.isVisible}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">

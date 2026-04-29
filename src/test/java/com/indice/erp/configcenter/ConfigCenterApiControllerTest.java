@@ -5,12 +5,14 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,6 +33,9 @@ class ConfigCenterApiControllerTest {
 
     @MockBean
     private ConfigCenterService configCenterService;
+
+    @MockBean
+    private GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
 
     @Test
     void currentUserReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
@@ -82,7 +87,7 @@ class ConfigCenterApiControllerTest {
         );
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.saveEmpresa(org.mockito.ArgumentMatchers.eq(7L), anyMap()))
+        given(configCenterService.saveEmpresa(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
             .willReturn(savedPayload);
 
         mockMvc.perform(put("/api/v1/config-center/company")
@@ -146,7 +151,7 @@ class ConfigCenterApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.saveStructure(org.mockito.ArgumentMatchers.eq(7L), anyMap()))
+        given(configCenterService.saveStructure(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
             .willThrow(new IllegalArgumentException("At least one unit is required in multi mode."));
 
         mockMvc.perform(put("/api/v1/config-center/business-structure")
@@ -159,6 +164,31 @@ class ConfigCenterApiControllerTest {
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("At least one unit is required in multi mode."));
+    }
+
+    @Test
+    void extractCoordinatesReturnsSharedGoogleMapsResult() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(googleMapsCoordinateExtractor.extractCoordinatesFromMapLink(anyMap()))
+            .willReturn(Map.of(
+                "latitude", 19.432608,
+                "longitude", -99.133209,
+                "resolved_url", "https://www.google.com/maps/@19.432608,-99.133209,17z"
+            ));
+
+        mockMvc.perform(post("/api/v1/config-center/locations/extract-coordinates")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "map_url": "https://www.google.com/maps/@19.432608,-99.133209,17z"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.latitude").value(19.432608))
+            .andExpect(jsonPath("$.longitude").value(-99.133209))
+            .andExpect(jsonPath("$.resolved_url").value("https://www.google.com/maps/@19.432608,-99.133209,17z"));
     }
 
     @Test

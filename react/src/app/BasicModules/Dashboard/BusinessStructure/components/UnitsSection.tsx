@@ -56,19 +56,24 @@ export function UnitsSection({
             key={unidad.id}
             className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 transition-all"
           >
-            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📍</span>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">{unidad.name}</h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {unidad.negocios.length}{' '}
-                    {unidad.negocios.length === 1
-                      ? structure.units.businessCountSingular
-                      : structure.units.businessCountPlural}
-                  </p>
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">📍</span>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">{unidad.name}</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      {unidad.negocios.length}{' '}
+                      {unidad.negocios.length === 1
+                        ? structure.units.businessCountSingular
+                        : structure.units.businessCountPlural}
+                    </p>
+                    {unidad.latitude !== undefined && unidad.longitude !== undefined ? (
+                      <p className="mt-1 font-mono text-[11px] text-emerald-700 dark:text-emerald-300">
+                        {unidad.latitude}, {unidad.longitude}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
               <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <button
                   type="button"
@@ -96,12 +101,17 @@ export function UnitsSection({
                     key={negocio.id}
                     className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                      <span className="text-sm">🏪</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {negocio.name}
-                      </span>
-                    </div>
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                        <span className="text-sm">🏪</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {negocio.name}
+                        </span>
+                        {negocio.latitude !== undefined && negocio.longitude !== undefined ? (
+                          <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-300">
+                            {negocio.latitude}, {negocio.longitude}
+                          </span>
+                        ) : null}
+                      </div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"

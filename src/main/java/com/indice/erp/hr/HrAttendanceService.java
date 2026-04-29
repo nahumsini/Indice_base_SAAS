@@ -9,18 +9,12 @@ import static com.indice.erp.hr.HrPayloadUtils.stringValue;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URLDecoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -44,13 +38,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -78,10 +70,6 @@ public class HrAttendanceService {
     private static final Duration EARLY_CHECK_IN_ALLOWANCE = Duration.ofMinutes(15);
     private static final String PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY = "_pin_throttle";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final Set<String> SUPPORTED_MAP_SHORTLINK_HOSTS = Set.of("maps.app.goo.gl");
-    private static final Pattern GOOGLE_MAPS_PLACE_COORDINATES_PATTERN = Pattern.compile("!3d(-?\\d+(?:\\.\\d+)?)!4d(-?\\d+(?:\\.\\d+)?)");
-    private static final Pattern GOOGLE_MAPS_QUERY_COORDINATES_PATTERN = Pattern.compile("[?&](?:q|ll|center|query|destination)=(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)");
-    private static final Pattern GOOGLE_MAPS_VIEWPORT_COORDINATES_PATTERN = Pattern.compile("@(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)");
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectStorageService objectStorageService;
@@ -89,7 +77,7 @@ public class HrAttendanceService {
     private final ObjectMapper objectMapper;
     private final BCryptPasswordEncoder passwordEncoder;
     private final HrFaceService hrFaceService;
-    private final HttpClient mapLinkHttpClient;
+    private final GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
     private final boolean enforceLocationRadius;
     private final String kioskIdentificationTokenSecret;
     private final int kioskIdentificationTokenTtlSeconds;
@@ -102,6 +90,7 @@ public class HrAttendanceService {
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         HrFaceService hrFaceService,
+        GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
         @Value("${app.hr.attendance.enforce-location-radius:false}") boolean enforceLocationRadius,
         @Value("${app.hr.kiosk.identification-token-secret:indice-kiosk-identification-secret}") String kioskIdentificationTokenSecret,
         @Value("${app.hr.kiosk.identification-token-ttl-seconds:120}") int kioskIdentificationTokenTtlSeconds,
@@ -113,10 +102,7 @@ public class HrAttendanceService {
         this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
         this.hrFaceService = hrFaceService;
-        this.mapLinkHttpClient = HttpClient.newBuilder()
-            .followRedirects(HttpClient.Redirect.ALWAYS)
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+        this.googleMapsCoordinateExtractor = googleMapsCoordinateExtractor;
         this.enforceLocationRadius = enforceLocationRadius;
         this.kioskIdentificationTokenSecret = kioskIdentificationTokenSecret == null || kioskIdentificationTokenSecret.isBlank()
             ? "indice-kiosk-identification-secret"
@@ -788,7 +774,6 @@ public class HrAttendanceService {
 
         var latitude = parseDecimalRequired(payload, "latitude");
         var longitude = parseDecimalRequired(payload, "longitude");
-        var location = resolveKioskLocation(kioskDevice.companyId(), kioskDevice.locationId(), latitude, longitude);
         var faceVerificationSessionId = normalizeOptionalForeignKey(parseLong(payload, "face_verification_session_id"));
         var photoObjectKey = normalizeAttendancePhotoObjectKey(kioskDevice.companyId(), employee.id(), stringValue(payload, "photo_url"));
         var hasFaceVerification = faceVerificationSessionId != null;
@@ -804,7 +789,17 @@ public class HrAttendanceService {
         var attendanceDate = eventTimestamp.toLocalDate();
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(kioskDevice.companyId(), employee.id(), attendanceDate);
-        validateScheduleRegistrationPolicy(kioskDevice.companyId(), employee, scheduleRule, eventType, eventTimestamp, location, activeWorkSite);
+        var location = resolveScheduleRegistrationLocation(
+            kioskDevice.companyId(),
+            employee,
+            scheduleRule,
+            eventType,
+            kioskDevice.locationId(),
+            latitude,
+            longitude,
+            activeWorkSite
+        );
+        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp);
         validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
 
         var metadataJson = mergeMetadataJson(
@@ -1288,24 +1283,7 @@ public class HrAttendanceService {
     }
 
     public Map<String, Object> extractCoordinatesFromMapLink(Map<String, Object> payload) {
-        payload = normalizePayload(payload);
-        var rawMapUrl = stringValue(payload, "map_url", "mapUrl", "url", "link");
-        if (rawMapUrl.isBlank()) {
-            throw new IllegalArgumentException("map_url is required.");
-        }
-
-        var mapUri = parseSupportedMapUri(rawMapUrl);
-        var resolvedUri = resolveSupportedMapUri(mapUri);
-        var coordinates = parseCoordinatesFromMapText(resolvedUri.toString());
-        if (coordinates == null) {
-            throw new IllegalArgumentException("Could not extract coordinates from the provided Google Maps link.");
-        }
-
-        var body = new LinkedHashMap<String, Object>();
-        body.put("latitude", coordinates.latitude());
-        body.put("longitude", coordinates.longitude());
-        body.put("resolved_url", resolvedUri.toString());
-        return body;
+        return googleMapsCoordinateExtractor.extractCoordinatesFromMapLink(normalizePayload(payload));
     }
 
     @Transactional
@@ -1360,16 +1338,19 @@ public class HrAttendanceService {
         validateOperationalScope(companyId, unitId, businessId, null);
 
         if (locationId == null || locationId <= 0) {
+            var insertRequiredStartTime = requiredStartTime;
+            var insertRequiredEndTime = requiredEndTime;
+            var insertRequiredDaysPerWeek = requiredDaysPerWeek;
             KeyHolder keyHolder = new GeneratedKeyHolder();
             jdbcTemplate.update(connection -> {
-	                var statement = connection.prepareStatement(
-	                    """
-	                        INSERT INTO hr_attendance_locations
-	                        (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters, required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, created_by)
-	                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	                        """,
-	                    new String[] {"id"}
-	                );
+                var statement = connection.prepareStatement(
+                    """
+                        INSERT INTO hr_attendance_locations
+                        (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters, required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, managed_source, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'contract_site', ?)
+                        """,
+                    new String[] {"id"}
+                );
                 statement.setLong(1, companyId);
                 setNullableLong(statement, 2, unitId);
                 setNullableLong(statement, 3, businessId);
@@ -1378,13 +1359,13 @@ public class HrAttendanceService {
                 statement.setString(6, name);
                 statement.setBigDecimal(7, latitude);
                 statement.setBigDecimal(8, longitude);
-	                statement.setInt(9, radiusMeters);
-	                statement.setBigDecimal(10, requiredHoursPerDay);
-	                statement.setObject(11, requiredStartTime);
-	                statement.setObject(12, requiredEndTime);
-	                statement.setInt(13, requiredDaysPerWeek);
-	                statement.setString(14, status);
-	                statement.setLong(15, userId);
+                statement.setInt(9, radiusMeters);
+                statement.setBigDecimal(10, requiredHoursPerDay);
+                statement.setObject(11, insertRequiredStartTime);
+                statement.setObject(12, insertRequiredEndTime);
+                statement.setInt(13, insertRequiredDaysPerWeek);
+                statement.setString(14, status);
+                statement.setLong(15, userId);
                 return statement;
             }, keyHolder);
             locationId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
@@ -1404,7 +1385,8 @@ public class HrAttendanceService {
 	                        required_start_time = ?,
 	                        required_end_time = ?,
 	                        required_days_per_week = ?,
-	                        status = ?
+	                        status = ?,
+                            managed_source = 'contract_site'
                     WHERE id = ? AND company_id = ?
                     """,
                 unitId,
@@ -1430,104 +1412,6 @@ public class HrAttendanceService {
 
         var location = loadLocation(companyId, locationId);
         return Map.of("location", toLocationMap(location));
-    }
-
-    private URI parseSupportedMapUri(String rawMapUrl) {
-        try {
-            var mapUri = new URI(rawMapUrl.trim());
-            var scheme = mapUri.getScheme() == null ? "" : mapUri.getScheme().trim().toLowerCase(Locale.ROOT);
-            if (!"https".equals(scheme) && !"http".equals(scheme)) {
-                throw new IllegalArgumentException("Only HTTP and HTTPS Google Maps links are supported.");
-            }
-
-            var host = normalizeMapHost(mapUri.getHost());
-            if (!isSupportedGoogleMapsHost(host)) {
-                throw new IllegalArgumentException("Only Google Maps links are supported for coordinate extraction.");
-            }
-            return mapUri;
-        } catch (URISyntaxException ex) {
-            throw new IllegalArgumentException("The provided map link is invalid.");
-        }
-    }
-
-    private URI resolveSupportedMapUri(URI mapUri) {
-        var host = normalizeMapHost(mapUri.getHost());
-        if (!SUPPORTED_MAP_SHORTLINK_HOSTS.contains(host)) {
-            return mapUri;
-        }
-
-        var request = HttpRequest.newBuilder(mapUri)
-            .timeout(Duration.ofSeconds(15))
-            .header("User-Agent", "Mozilla/5.0")
-            .GET()
-            .build();
-
-        try {
-            var response = mapLinkHttpClient.send(request, HttpResponse.BodyHandlers.discarding());
-            var resolvedUri = response.uri();
-            var resolvedHost = normalizeMapHost(resolvedUri.getHost());
-            if (!isSupportedGoogleMapsHost(resolvedHost)) {
-                throw new IllegalArgumentException("The provided map link did not resolve to a supported Google Maps URL.");
-            }
-            return resolvedUri;
-        } catch (IOException ex) {
-            throw new IllegalArgumentException("Could not resolve the provided Google Maps link.");
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new IllegalArgumentException("Coordinate extraction was interrupted while resolving the map link.");
-        }
-    }
-
-    private LocationCoordinates parseCoordinatesFromMapText(String rawText) {
-        if (rawText == null || rawText.isBlank()) {
-            return null;
-        }
-
-        var candidates = List.of(rawText, URLDecoder.decode(rawText, StandardCharsets.UTF_8));
-        for (var candidate : candidates) {
-            var coordinates = extractCoordinates(candidate, GOOGLE_MAPS_PLACE_COORDINATES_PATTERN);
-            if (coordinates != null) {
-                return coordinates;
-            }
-
-            coordinates = extractCoordinates(candidate, GOOGLE_MAPS_QUERY_COORDINATES_PATTERN);
-            if (coordinates != null) {
-                return coordinates;
-            }
-
-            coordinates = extractCoordinates(candidate, GOOGLE_MAPS_VIEWPORT_COORDINATES_PATTERN);
-            if (coordinates != null) {
-                return coordinates;
-            }
-        }
-
-        return null;
-    }
-
-    private LocationCoordinates extractCoordinates(String text, Pattern pattern) {
-        var matcher = pattern.matcher(text);
-        if (!matcher.find()) {
-            return null;
-        }
-
-        return new LocationCoordinates(
-            new BigDecimal(matcher.group(1)),
-            new BigDecimal(matcher.group(2))
-        );
-    }
-
-    private boolean isSupportedGoogleMapsHost(String host) {
-        if (host == null || host.isBlank()) {
-            return false;
-        }
-        if (SUPPORTED_MAP_SHORTLINK_HOSTS.contains(host)) {
-            return true;
-        }
-        return host.matches("(^|.*\\.)google\\.[a-z.]+$");
-    }
-
-    private String normalizeMapHost(String host) {
-        return host == null ? "" : host.trim().toLowerCase(Locale.ROOT);
     }
 
     public Map<String, Object> listScheduleTemplates(long companyId) {
@@ -1830,8 +1714,6 @@ public class HrAttendanceService {
         if (!"auth_attempt".equals(eventKind)) {
             latitude = parseDecimalRequired(payload, "latitude");
             longitude = parseDecimalRequired(payload, "longitude");
-            var resolvedLocationId = requestedLocationId == null && kioskDevice != null ? kioskDevice.locationId() : requestedLocationId;
-            location = resolveKioskLocation(companyId, resolvedLocationId, latitude, longitude);
         } else if (kioskDevice != null && kioskDevice.locationId() != null) {
             location = loadLocation(companyId, kioskDevice.locationId());
         }
@@ -1880,7 +1762,20 @@ public class HrAttendanceService {
         var attendanceDate = eventTimestamp.toLocalDate();
         var scheduleRule = loadScheduleRule(companyId, employeeId, attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(companyId, employeeId, attendanceDate);
-        validateScheduleRegistrationPolicy(companyId, employee, scheduleRule, eventKind, eventTimestamp, location, activeWorkSite);
+        if (!"auth_attempt".equals(eventKind)) {
+            var resolvedLocationId = requestedLocationId == null && kioskDevice != null ? kioskDevice.locationId() : requestedLocationId;
+            location = resolveScheduleRegistrationLocation(
+                companyId,
+                employee,
+                scheduleRule,
+                eventKind,
+                resolvedLocationId,
+                latitude,
+                longitude,
+                activeWorkSite
+            );
+        }
+        validateScheduleRegistrationPolicy(scheduleRule, eventKind, eventTimestamp);
         validateOperationalEventTransition(companyId, employeeId, eventTimestamp, eventKind);
 
         var operationalResultStatus = "manual_override".equals(authMethod) ? "overridden" : "success";
@@ -3335,6 +3230,102 @@ public class HrAttendanceService {
         );
     }
 
+    private List<LocationRow> loadCompanyBusinessStructureAttendanceLocations(long companyId) {
+        return jdbcTemplate.query(
+            """
+                SELECT l.id,
+                       l.unit_id,
+                       COALESCE(u.name, '') AS unit_name,
+                       l.business_id,
+                       COALESCE(b.name, '') AS business_name,
+                       l.contract_start_date,
+                       l.contract_end_date,
+                       l.name,
+                       l.latitude,
+                       l.longitude,
+                       l.radius_meters,
+                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                       COALESCE(l.managed_source, '') AS managed_source,
+                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ?
+                  AND l.managed_source = 'business_structure'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY l.name ASC
+                """,
+            (rs, rowNum) -> mapPolicyLocationRow(rs),
+            companyId
+        );
+    }
+
+    private List<LocationRow> loadBusinessStructureAttendanceLocations(long companyId, Long businessId) {
+        if (businessId == null) {
+            return List.of();
+        }
+
+        return jdbcTemplate.query(
+            """
+                SELECT l.id,
+                       l.unit_id,
+                       COALESCE(u.name, '') AS unit_name,
+                       l.business_id,
+                       COALESCE(b.name, '') AS business_name,
+                       l.contract_start_date,
+                       l.contract_end_date,
+                       l.name,
+                       l.latitude,
+                       l.longitude,
+                       l.radius_meters,
+                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                       COALESCE(l.managed_source, '') AS managed_source,
+                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ?
+                  AND l.business_id = ?
+                  AND l.managed_source = 'business_structure'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY l.name ASC
+                """,
+            (rs, rowNum) -> mapPolicyLocationRow(rs),
+            companyId,
+            businessId
+        );
+    }
+
+    private LocationRow mapPolicyLocationRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new LocationRow(
+            rs.getLong("id"),
+            getNullableLong(rs, "unit_id"),
+            safe(rs.getString("unit_name")),
+            getNullableLong(rs, "business_id"),
+            safe(rs.getString("business_name")),
+            rs.getObject("contract_start_date", LocalDate.class),
+            rs.getObject("contract_end_date", LocalDate.class),
+            safe(rs.getString("name")),
+            rs.getBigDecimal("latitude"),
+            rs.getBigDecimal("longitude"),
+            rs.getInt("radius_meters"),
+            rs.getBigDecimal("required_hours_per_day"),
+            rs.getObject("required_start_time", LocalTime.class),
+            rs.getObject("required_end_time", LocalTime.class),
+            rs.getInt("required_days_per_week"),
+            safe(rs.getString("managed_source")),
+            safe(rs.getString("status")),
+            0,
+            ""
+        );
+    }
+
     private List<LocationRow> loadAllowedLocations(long companyId, long employeeId) {
         return jdbcTemplate.query(
             """
@@ -3785,6 +3776,7 @@ public class HrAttendanceService {
 	        body.put("required_start_time", location.requiredStartTime() == null ? null : location.requiredStartTime().toString());
 	        body.put("required_end_time", location.requiredEndTime() == null ? null : location.requiredEndTime().toString());
 	        body.put("required_days_per_week", location.requiredDaysPerWeek());
+        body.put("managed_source", nullable(location.managedSource()));
         body.put("status", location.status());
         body.put("assigned_employee_count", location.assignedEmployeeCount());
         body.put("assigned_employee_names", location.assignedEmployeeNames());
@@ -5505,28 +5497,126 @@ public class HrAttendanceService {
         return endDate == null ? LocalDate.of(9999, 12, 31) : endDate;
     }
 
-    private void validateScheduleRegistrationPolicy(
+    private LocationRow resolveScheduleRegistrationLocation(
         long companyId,
         AttendanceEmployee employee,
         ScheduleRule scheduleRule,
         String eventType,
-        LocalDateTime eventTimestamp,
-        LocationRow location,
+        Long requestedLocationId,
+        BigDecimal latitude,
+        BigDecimal longitude,
         WorkSiteAssignmentRow activeWorkSite
     ) {
-        if (List.of("check_in", "check_out", "break_out", "break_in").contains(eventType)) {
-            if (activeWorkSite != null) {
-                if (location == null || !Objects.equals(location.id(), activeWorkSite.location().id())) {
-                    throw new IllegalArgumentException(
-                        "Attendance registration is restricted to today's assigned contract site: " + activeWorkSite.location().name() + "."
-                    );
-                }
-            } else {
-                validateBusinessAttendanceLocation(companyId, employee, location);
-            }
+        if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventType)) {
+            return resolveKioskLocation(companyId, requestedLocationId, latitude, longitude);
         }
 
+        if (activeWorkSite != null) {
+            return resolveAllowedAttendanceLocation(
+                List.of(activeWorkSite.location()),
+                requestedLocationId,
+                latitude,
+                longitude,
+                "Attendance registration is restricted to today's assigned contract site: " + activeWorkSite.location().name() + ".",
+                "Attendance registration is restricted to today's assigned contract site: " + activeWorkSite.location().name() + "."
+            );
+        }
+
+        if (isOpenSchedule(scheduleRule)) {
+            return resolveAllowedAttendanceLocation(
+                loadCompanyBusinessStructureAttendanceLocations(companyId),
+                requestedLocationId,
+                latitude,
+                longitude,
+                "Business Structure locations are not configured for this company.",
+                "Open schedule attendance is restricted to active Business Structure locations."
+            );
+        }
+
+        if (scheduleRule != null && scheduleRule.enforceLocation() && scheduleRule.locationId() != null) {
+            return resolveAllowedAttendanceLocation(
+                List.of(loadLocation(companyId, scheduleRule.locationId())),
+                requestedLocationId,
+                latitude,
+                longitude,
+                "Schedule location is not configured.",
+                "Attendance registration is restricted to the configured schedule location."
+            );
+        }
+
+        return resolveEmployeeBusinessAttendanceLocation(companyId, employee, requestedLocationId, latitude, longitude);
+    }
+
+    private LocationRow resolveEmployeeBusinessAttendanceLocation(
+        long companyId,
+        AttendanceEmployee employee,
+        Long requestedLocationId,
+        BigDecimal latitude,
+        BigDecimal longitude
+    ) {
+        if (employee.businessId() == null) {
+            throw new IllegalArgumentException("Employee business is not assigned. Set the employee business before recording attendance.");
+        }
+
+        return resolveAllowedAttendanceLocation(
+            loadBusinessStructureAttendanceLocations(companyId, employee.businessId()),
+            requestedLocationId,
+            latitude,
+            longitude,
+            "Business Structure location is not configured for " + employee.businessName() + ".",
+            "Attendance registration is restricted to the employee's assigned business location."
+        );
+    }
+
+    private LocationRow resolveAllowedAttendanceLocation(
+        List<LocationRow> allowedLocations,
+        Long requestedLocationId,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        String emptyMessage,
+        String restrictedMessage
+    ) {
+        if (allowedLocations.isEmpty()) {
+            throw new IllegalArgumentException(emptyMessage);
+        }
+
+        LocationRow location;
+        if (requestedLocationId != null && requestedLocationId > 0) {
+            location = allowedLocations.stream()
+                .filter(item -> Objects.equals(item.id(), requestedLocationId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(restrictedMessage));
+        } else {
+            location = allowedLocations.stream()
+                .min(Comparator.comparing(item -> distanceMeters(item.latitude(), item.longitude(), latitude, longitude)))
+                .orElseThrow(() -> new IllegalArgumentException(emptyMessage));
+        }
+
+        validateLocationRadius(location, latitude, longitude);
+        return location;
+    }
+
+    private void validateLocationRadius(LocationRow location, BigDecimal latitude, BigDecimal longitude) {
+        var distance = distanceMeters(location.latitude(), location.longitude(), latitude, longitude);
+        if (distance > location.radiusMeters()) {
+            throw new IllegalArgumentException("The device is outside the allowed attendance location radius.");
+        }
+    }
+
+    private boolean isOpenSchedule(ScheduleRule scheduleRule) {
+        return scheduleRule != null && "open".equalsIgnoreCase(safe(scheduleRule.scheduleMode()));
+    }
+
+    private void validateScheduleRegistrationPolicy(
+        ScheduleRule scheduleRule,
+        String eventType,
+        LocalDateTime eventTimestamp
+    ) {
         if (scheduleRule == null || scheduleRule.isRestDay() || !"check_in".equals(eventType)) {
+            return;
+        }
+
+        if (isOpenSchedule(scheduleRule)) {
             return;
         }
 
@@ -5538,41 +5628,12 @@ public class HrAttendanceService {
             }
         }
 
-        if (activeWorkSite == null && scheduleRule.enforceLocation() && scheduleRule.locationId() != null) {
-            if (location == null || location.id() != scheduleRule.locationId()) {
-                throw new IllegalArgumentException("Attendance registration is restricted to the configured location.");
-            }
-        }
-
         if (scheduleRule.blockAfterGracePeriod() && scheduleRule.startTime() != null) {
             var scheduledStart = eventTimestamp.toLocalDate().atTime(scheduleRule.startTime());
             var graceDeadline = scheduledStart.plusMinutes(scheduleRule.lateAfterMinutes());
             if (eventTimestamp.isAfter(graceDeadline)) {
                 throw new IllegalArgumentException("Attendance registration is blocked after the grace period expires.");
             }
-        }
-    }
-
-    private void validateBusinessAttendanceLocation(long companyId, AttendanceEmployee employee, LocationRow location) {
-        if (employee.businessId() == null) {
-            throw new IllegalArgumentException("Employee business is not assigned. Set the employee business before recording attendance.");
-        }
-
-        var businessLocations = loadBusinessAttendanceLocations(companyId, employee.businessId());
-        if (businessLocations.isEmpty()) {
-            throw new IllegalArgumentException("Business location is not configured for " + employee.businessName() + ".");
-        }
-
-        var allowedLocation = businessLocations.stream()
-            .anyMatch((businessLocation) -> location != null && Objects.equals(businessLocation.id(), location.id()));
-        if (!allowedLocation) {
-            var locationNames = businessLocations.stream()
-                .map(LocationRow::name)
-                .limit(3)
-                .toList();
-            throw new IllegalArgumentException(
-                "Attendance registration is restricted to the employee's business location: " + String.join(", ", locationNames) + "."
-            );
         }
     }
 
@@ -6134,12 +6195,6 @@ public class HrAttendanceService {
     ) {
     }
 
-    private record LocationCoordinates(
-        BigDecimal latitude,
-        BigDecimal longitude
-    ) {
-    }
-
     private record LocationRow(
         long id,
         Long unitId,
@@ -6156,10 +6211,53 @@ public class HrAttendanceService {
 	        LocalTime requiredStartTime,
 	        LocalTime requiredEndTime,
 	        Integer requiredDaysPerWeek,
+            String managedSource,
 	        String status,
         int assignedEmployeeCount,
         String assignedEmployeeNames
     ) {
+        private LocationRow(
+            long id,
+            Long unitId,
+            String unitName,
+            Long businessId,
+            String businessName,
+            LocalDate contractStartDate,
+            LocalDate contractEndDate,
+            String name,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            int radiusMeters,
+            BigDecimal requiredHoursPerDay,
+            LocalTime requiredStartTime,
+            LocalTime requiredEndTime,
+            Integer requiredDaysPerWeek,
+            String status,
+            int assignedEmployeeCount,
+            String assignedEmployeeNames
+        ) {
+            this(
+                id,
+                unitId,
+                unitName,
+                businessId,
+                businessName,
+                contractStartDate,
+                contractEndDate,
+                name,
+                latitude,
+                longitude,
+                radiusMeters,
+                requiredHoursPerDay,
+                requiredStartTime,
+                requiredEndTime,
+                requiredDaysPerWeek,
+                "",
+                status,
+                assignedEmployeeCount,
+                assignedEmployeeNames
+            );
+        }
     }
 
     private record WorkSiteAssignmentRow(

@@ -19,6 +19,7 @@ export const endpoints = {
     config: '/api/v1/config-center/config',
     saveConfig: '/api/v1/config-center/business-structure',
     saveEmpresa: '/api/v1/config-center/company',
+    locationCoordinateExtraction: '/api/v1/config-center/locations/extract-coordinates',
     saveCurrentUser: '/api/v1/config-center/current-user',
   },
   humanResources: {
