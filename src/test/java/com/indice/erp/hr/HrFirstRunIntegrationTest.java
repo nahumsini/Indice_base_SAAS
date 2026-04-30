@@ -51,8 +51,13 @@ class HrFirstRunIntegrationTest {
     private final List<Long> createdTemplateIds = new ArrayList<>();
     private final List<Long> createdPayrollRunIds = new ArrayList<>();
     private final List<Long> createdUserIds = new ArrayList<>();
+    private final List<Long> createdBusinessIds = new ArrayList<>();
+    private final List<Long> createdUnitIds = new ArrayList<>();
 
     private record BusinessFixture(long businessId, long unitId, String unitName) {
+    }
+
+    private record EmployeeScope(Long unitId, Long businessId) {
     }
 
     @AfterEach
@@ -92,6 +97,16 @@ class HrFirstRunIntegrationTest {
             jdbcTemplate.update("DELETE FROM hr_attendance_locations WHERE id = ?", locationId);
         }
         createdLocationIds.clear();
+
+        for (var businessId : createdBusinessIds) {
+            jdbcTemplate.update("DELETE FROM businesses WHERE id = ?", businessId);
+        }
+        createdBusinessIds.clear();
+
+        for (var unitId : createdUnitIds) {
+            jdbcTemplate.update("DELETE FROM units WHERE id = ?", unitId);
+        }
+        createdUnitIds.clear();
     }
 
     @Test
@@ -942,6 +957,130 @@ class HrFirstRunIntegrationTest {
     }
 
     @Test
+    void workSiteAndAttendanceDoNotChangeBaseUnitBusinessButEmployeeUpdateDoes() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var homeBusiness = createIsolatedBusinessFixture("Home Unit " + uniqueSuffix, "Home Business " + uniqueSuffix);
+        var transferBusiness = createIsolatedBusinessFixture("Transfer Unit " + uniqueSuffix, "Transfer Business " + uniqueSuffix);
+        var employeeId = createEmployeeForTests(session, uniqueSuffix, homeBusiness);
+        var today = java.time.LocalDate.now();
+
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/work-assignments/clear")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_id", employeeId,
+                    "date", today.toString()
+                )))
+        )
+            .andExpect(status().isOk());
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        var transferLocationId = createBusinessStructureLocation(
+            "Transfer Site " + uniqueSuffix,
+            transferBusiness.businessId(),
+            25.7000010,
+            -100.3000010
+        );
+
+        var assignResponse = mockMvc.perform(
+            post("/api/v1/hr/attendance/work-site-assignments/bulk")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_ids", List.of(employeeId),
+                    "location_id", transferLocationId,
+                    "effective_start_date", today.toString(),
+                    "effective_end_date", today.toString()
+                )))
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.assigned_count").value(1))
+            .andReturn();
+
+        var assignBody = readMap(assignResponse.getResponse().getContentAsString());
+        @SuppressWarnings("unchecked")
+        var assignments = (List<Map<String, Object>>) assignBody.get("assignments");
+        assertThat(assignments).hasSize(1);
+        assertThat(((Number) assignments.getFirst().get("location_id")).longValue()).isEqualTo(transferLocationId);
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        var activeWorkSiteLocationId = jdbcTemplate.queryForObject(
+            """
+                SELECT location_id
+                FROM hr_employee_work_site_assignments
+                WHERE company_id = 1
+                  AND employee_id = ?
+                  AND status = 'active'
+                  AND effective_start_date <= ?
+                  AND (effective_end_date IS NULL OR effective_end_date >= ?)
+                LIMIT 1
+                """,
+            Long.class,
+            employeeId,
+            today,
+            today
+        );
+        assertThat(activeWorkSiteLocationId).isEqualTo(transferLocationId);
+
+        var pin = "scope-" + uniqueSuffix;
+        activatePinAccess(session, employeeId, pin);
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/kiosk-events")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_id", employeeId,
+                    "event_kind", "check_in",
+                    "auth_method", "pin",
+                    "credential_payload", pin,
+                    "location_id", transferLocationId,
+                    "latitude", 25.7000010,
+                    "longitude", -100.3000010,
+                    "event_timestamp", today + "T09:00:00"
+                )))
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.active_work_site.location_id").value(transferLocationId))
+            .andExpect(jsonPath("$.location.id").value(transferLocationId));
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        mockMvc.perform(
+            put("/api/v1/hr/employees/{employeeId}", employeeId)
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.ofEntries(
+                    Map.entry("first_name", "Attendance"),
+                    Map.entry("last_name", "Employee" + uniqueSuffix),
+                    Map.entry("email", "attendance.employee." + uniqueSuffix + "@example.com"),
+                    Map.entry("position", "Operator"),
+                    Map.entry("department", "Operations"),
+                    Map.entry("unit_id", transferBusiness.unitId()),
+                    Map.entry("business_id", transferBusiness.businessId()),
+                    Map.entry("hire_date", "2026-04-06"),
+                    Map.entry("salary", "4800"),
+                    Map.entry("pay_period", "monthly"),
+                    Map.entry("salary_type", "daily"),
+                    Map.entry("contract_type", "permanent"),
+                    Map.entry("status", "active")
+                )))
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.unit_id").value((int) transferBusiness.unitId()))
+            .andExpect(jsonPath("$.business_id").value((int) transferBusiness.businessId()));
+
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(transferBusiness.unitId(), transferBusiness.businessId()));
+    }
+
+    @Test
     void kioskAuthFailureThenSuccessAndBreakEventsStayImmutable() throws Exception {
         var session = authenticatedSession();
         var uniqueSuffix = System.currentTimeMillis();
@@ -1759,6 +1898,43 @@ class HrFirstRunIntegrationTest {
 
     private BusinessFixture activeBusinessFixture() {
         return activeBusinessFixtures(1).getFirst();
+    }
+
+    private BusinessFixture createIsolatedBusinessFixture(String unitName, String businessName) {
+        jdbcTemplate.update(
+            "INSERT INTO units (company_id, name, status) VALUES (1, ?, 'active')",
+            unitName
+        );
+        var unitId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        assertThat(unitId).isNotNull();
+        createdUnitIds.add(unitId);
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO businesses (company_id, unit_id, name, status, created_by, updated_by)
+                VALUES (1, ?, ?, 'active', 1, 1)
+                """,
+            unitId,
+            businessName
+        );
+        var businessId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        assertThat(businessId).isNotNull();
+        createdBusinessIds.add(businessId);
+        return new BusinessFixture(businessId, unitId, unitName);
+    }
+
+    private EmployeeScope loadEmployeeScope(long employeeId) {
+        return jdbcTemplate.queryForObject(
+            "SELECT unit_id, business_id FROM hr_employees WHERE id = ?",
+            (rs, rowNum) -> {
+                var unitIdValue = rs.getLong("unit_id");
+                Long unitId = rs.wasNull() ? null : unitIdValue;
+                var businessIdValue = rs.getLong("business_id");
+                Long businessId = rs.wasNull() ? null : businessIdValue;
+                return new EmployeeScope(unitId, businessId);
+            },
+            employeeId
+        );
     }
 
     private List<BusinessFixture> activeBusinessFixtures(int count) {
