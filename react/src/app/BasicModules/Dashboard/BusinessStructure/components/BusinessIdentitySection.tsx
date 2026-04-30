@@ -1,5 +1,6 @@
 import { inputClassName, textareaClassName } from '../constants';
-import type { EstructuraType } from '../types';
+import type { EstructuraType, LocationCoordinateFormValues } from '../types';
+import { LocationCoordinateFields } from './LocationCoordinateFields';
 
 interface StructureCopy {
   identity: {
@@ -39,9 +40,12 @@ interface BusinessIdentitySectionProps {
   companyName: string;
   industry: string;
   description: string;
+  locationCoordinateValues: LocationCoordinateFormValues;
   onCompanyNameChange: (value: string) => void;
   onIndustryChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onLocationCoordinateChange: (updates: Partial<LocationCoordinateFormValues>) => void;
+  disabled?: boolean;
 }
 
 export function BusinessIdentitySection({
@@ -50,9 +54,12 @@ export function BusinessIdentitySection({
   companyName,
   industry,
   description,
+  locationCoordinateValues,
   onCompanyNameChange,
   onIndustryChange,
   onDescriptionChange,
+  onLocationCoordinateChange,
+  disabled = false,
 }: BusinessIdentitySectionProps) {
   const companyNameLabel = estructuraType === 'simple'
     ? structure.fields.companyName
@@ -147,6 +154,19 @@ export function BusinessIdentitySection({
           className={textareaClassName}
         />
       </div>
+
+      {estructuraType === 'simple' ? (
+        <div className="mt-5">
+          <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+            Location coordinates
+          </h4>
+          <LocationCoordinateFields
+            values={locationCoordinateValues}
+            onChange={onLocationCoordinateChange}
+            disabled={disabled}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

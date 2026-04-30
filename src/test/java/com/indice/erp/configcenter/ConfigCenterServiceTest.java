@@ -136,7 +136,7 @@ class ConfigCenterServiceTest {
         payload.put("moneda", "CAD");
         payload.put("zona_horaria", "America/Toronto");
 
-        var saved = service.saveEmpresa(1L, payload);
+        var saved = service.saveEmpresa(1L, 1L, payload);
 
         assertEquals("Nueva Empresa", saved.get("nombre_empresa"));
         assertEquals("Hospitality", saved.get("industria"));

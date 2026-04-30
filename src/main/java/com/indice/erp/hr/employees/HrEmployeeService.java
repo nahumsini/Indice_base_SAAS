@@ -1,12 +1,13 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.employees;
 
-import static com.indice.erp.hr.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.HrPayloadUtils.parseBigDecimal;
-import static com.indice.erp.hr.HrPayloadUtils.parseDate;
-import static com.indice.erp.hr.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.HrPayloadUtils.safe;
-import static com.indice.erp.hr.HrPayloadUtils.stringValue;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseBigDecimal;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDate;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
+import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
@@ -198,7 +199,6 @@ public class HrEmployeeService {
         var employeeId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
         upsertEmployeeProfile(companyId, employeeId, profileDraft);
         syncPortalAccess(companyId, createdBy, employeeId, draft.email(), draft.fullName(), accessDraft);
-        hrAttendanceService.ensureDefaultScheduleAssignment(companyId, employeeId, createdBy);
         hrAttendanceService.ensureDefaultAccessProfile(companyId, employeeId, createdBy);
         return employeeDetails(employeeId, companyId);
     }
@@ -274,7 +274,6 @@ public class HrEmployeeService {
 
         upsertEmployeeProfile(companyId, employeeId, profileDraft);
         syncPortalAccess(companyId, 0L, employeeId, draft.email(), draft.fullName(), accessDraft);
-        hrAttendanceService.ensureDefaultScheduleAssignment(companyId, employeeId, 0L);
         return employeeDetails(employeeId, companyId);
     }
 
@@ -608,6 +607,8 @@ public class HrEmployeeService {
             resolveTextField(payload, existingProfile.socialSecurityNumber(), "social_security_number", "socialSecurityNumber", "nss"),
             normalizeCountryCode(resolveTextField(payload, existingProfile.registrationCountry(), "registration_country", "registrationCountry", "paisRegistro")),
             resolveTextField(payload, existingProfile.stateProvince(), "state_province", "stateProvince", "provinciaEstado"),
+            resolveTextField(payload, existingProfile.city(), "city", "ciudad"),
+            resolveTextField(payload, existingProfile.postalCode(), "postal_code", "postalCode", "cp"),
             normalizePhoneValue(resolveTextField(payload, existingProfile.alternatePhone(), "alternate_phone", "alternatePhone", "telefonoAlterno")),
             resolveTextField(payload, existingProfile.emergencyContactName(), "emergency_contact_name", "emergencyContactName", "nombreContactoEmergencia"),
             resolveTextField(payload, existingProfile.emergencyContactRelationship(), "emergency_contact_relationship", "emergencyContactRelationship", "relacionContacto"),
@@ -629,8 +630,8 @@ public class HrEmployeeService {
         jdbcTemplate.update(
             """
                 INSERT INTO hr_employee_profiles
-                (employee_id, company_id, date_of_birth, address, national_id, tax_id, social_security_number, registration_country, state_province, alternate_phone, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, workday_hours)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (employee_id, company_id, date_of_birth, address, national_id, tax_id, social_security_number, registration_country, state_province, city, postal_code, alternate_phone, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, workday_hours)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                   company_id = VALUES(company_id),
                   date_of_birth = VALUES(date_of_birth),
@@ -640,6 +641,8 @@ public class HrEmployeeService {
                   social_security_number = VALUES(social_security_number),
                   registration_country = VALUES(registration_country),
                   state_province = VALUES(state_province),
+                  city = VALUES(city),
+                  postal_code = VALUES(postal_code),
                   alternate_phone = VALUES(alternate_phone),
                   emergency_contact_name = VALUES(emergency_contact_name),
                   emergency_contact_relationship = VALUES(emergency_contact_relationship),
@@ -656,6 +659,8 @@ public class HrEmployeeService {
             nullable(draft.socialSecurityNumber()),
             nullable(draft.registrationCountry()),
             nullable(draft.stateProvince()),
+            nullable(draft.city()),
+            nullable(draft.postalCode()),
             nullable(draft.alternatePhone()),
             nullable(draft.emergencyContactName()),
             nullable(draft.emergencyContactRelationship()),
@@ -728,6 +733,8 @@ public class HrEmployeeService {
                        social_security_number,
                        registration_country,
                        state_province,
+                       city,
+                       postal_code,
                        alternate_phone,
                        emergency_contact_name,
                        emergency_contact_relationship,
@@ -745,6 +752,8 @@ public class HrEmployeeService {
                 safe(rs.getString("social_security_number")),
                 safe(rs.getString("registration_country")),
                 safe(rs.getString("state_province")),
+                safe(rs.getString("city")),
+                safe(rs.getString("postal_code")),
                 safe(rs.getString("alternate_phone")),
                 safe(rs.getString("emergency_contact_name")),
                 safe(rs.getString("emergency_contact_relationship")),
@@ -1031,7 +1040,7 @@ public class HrEmployeeService {
         }
 
         var sequence = loadEmployeeNumberSequence(companyId);
-        var expectedPrefix = sequence.prefix().toUpperCase(Locale.ROOT) + "-";
+        var expectedPrefix = normalizeEmployeeNumberPrefix(sequence.prefix()) + "-";
         var normalizedUpper = normalized.toUpperCase(Locale.ROOT);
 
         if (!normalizedUpper.startsWith(expectedPrefix)) {
@@ -1065,10 +1074,18 @@ public class HrEmployeeService {
     }
 
     private String formatEmployeeNumber(String prefix, int padding, long nextNumber) {
-        var normalizedPrefix = prefix == null || prefix.isBlank() ? "EMP" : prefix.trim().toUpperCase(Locale.ROOT);
+        var normalizedPrefix = normalizeEmployeeNumberPrefix(prefix);
         var effectivePadding = Math.max(padding, 4);
         var digits = String.format(Locale.ROOT, "%0" + effectivePadding + "d", nextNumber);
         return normalizedPrefix + "-" + digits;
+    }
+
+    private String normalizeEmployeeNumberPrefix(String prefix) {
+        var normalizedPrefix = prefix == null ? "" : prefix.trim().toUpperCase(Locale.ROOT);
+        while (normalizedPrefix.endsWith("-")) {
+            normalizedPrefix = normalizedPrefix.substring(0, normalizedPrefix.length() - 1).trim();
+        }
+        return normalizedPrefix.isBlank() ? "EMP" : normalizedPrefix;
     }
 
     private boolean employeeNumberExists(long companyId, String employeeNumber, Long excludedEmployeeId) {
@@ -1205,6 +1222,8 @@ public class HrEmployeeService {
                        social_security_number,
                        registration_country,
                        state_province,
+                       city,
+                       postal_code,
                        alternate_phone,
                        emergency_contact_name,
                        emergency_contact_relationship,
@@ -1223,6 +1242,8 @@ public class HrEmployeeService {
                 profile.put("social_security_number", safe(rs.getString("social_security_number")));
                 profile.put("registration_country", safe(rs.getString("registration_country")));
                 profile.put("state_province", safe(rs.getString("state_province")));
+                profile.put("city", safe(rs.getString("city")));
+                profile.put("postal_code", safe(rs.getString("postal_code")));
                 profile.put("alternate_phone", safe(rs.getString("alternate_phone")));
                 profile.put("emergency_contact_name", safe(rs.getString("emergency_contact_name")));
                 profile.put("emergency_contact_relationship", safe(rs.getString("emergency_contact_relationship")));
@@ -1246,6 +1267,8 @@ public class HrEmployeeService {
         emptyProfile.put("social_security_number", "");
         emptyProfile.put("registration_country", "");
         emptyProfile.put("state_province", "");
+        emptyProfile.put("city", "");
+        emptyProfile.put("postal_code", "");
         emptyProfile.put("alternate_phone", "");
         emptyProfile.put("emergency_contact_name", "");
         emptyProfile.put("emergency_contact_relationship", "");
@@ -1803,6 +1826,8 @@ public class HrEmployeeService {
         String socialSecurityNumber,
         String registrationCountry,
         String stateProvince,
+        String city,
+        String postalCode,
         String alternatePhone,
         String emergencyContactName,
         String emergencyContactRelationship,
@@ -1812,6 +1837,8 @@ public class HrEmployeeService {
         static ProfileDraft empty() {
             return new ProfileDraft(
                 null,
+                "",
+                "",
                 "",
                 "",
                 "",

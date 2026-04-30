@@ -16,13 +16,17 @@ import {
   PROFILE_COUNTRY_OPTIONS,
   getProfileCountryLabel,
   resolveProfileCountry,
-  type ProfileCountry,
 } from '../shared/profileCountries';
 import { validateEmail } from '../shared/validation/email';
 import {
   normalizePhoneInputForCountry,
   validatePhoneForProfileCountry,
 } from '../shared/validation/phone';
+import {
+  ManualLocationFields,
+  validatePostalCodeForCountry,
+} from './ManualLocationFields';
+import type { AttendanceControlLocation } from '../api/humanResources';
 
 export type EmployeeDocumentType =
   | 'birth_certificate'
@@ -60,6 +64,8 @@ export interface EmployeeFormData {
   socialSecurityNumber: string;
   registrationCountry: string;
   stateProvince: string;
+  city: string;
+  postalCode: string;
   alternatePhone: string;
   emergencyContactName: string;
   emergencyContactRelationship: string;
@@ -69,6 +75,16 @@ export interface EmployeeFormData {
   businessUnitId: string;
   businessId: string;
   hireDate: string;
+  scheduleOnHire: boolean;
+  scheduleStartDate: string;
+  scheduleStartTime: string;
+  scheduleEndTime: string;
+  scheduleMealMinutes: string;
+  scheduleRestMinutes: string;
+  scheduleLateAfterMinutes: string;
+  scheduleBlockAfterGracePeriod: boolean;
+  scheduleLocationRule: 'business' | 'exact';
+  scheduleLocationId: string;
   salaryType: 'daily' | 'hourly';
   workdayHours: string;
   salary: string;
@@ -92,7 +108,8 @@ interface EmployeeModalProps {
   initialData?: EmployeeFormData | null;
   mode?: 'create' | 'edit';
   unitOptions?: Array<{ value: string; label: string }>;
-  businessOptions?: Array<{ value: string; label: string }>;
+  businessOptions?: Array<{ value: string; label: string; unitId?: string; unit_id?: string }>;
+  attendanceLocations?: AttendanceControlLocation[];
 }
 
 type EmployeeFieldKey =
@@ -101,12 +118,20 @@ type EmployeeFieldKey =
   | 'email'
   | 'mobilePhone'
   | 'registrationCountry'
+  | 'postalCode'
   | 'alternatePhone'
   | 'emergencyContactPhone'
   | 'department'
   | 'position'
   | 'businessUnitId'
   | 'businessId'
+  | 'scheduleStartDate'
+  | 'scheduleStartTime'
+  | 'scheduleEndTime'
+  | 'scheduleMealMinutes'
+  | 'scheduleRestMinutes'
+  | 'scheduleLateAfterMinutes'
+  | 'scheduleLocationId'
   | 'workdayHours'
   | 'salary'
   | 'hourlyRate'
@@ -148,6 +173,8 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
   socialSecurityNumber: '',
   registrationCountry: '',
   stateProvince: '',
+  city: '',
+  postalCode: '',
   alternatePhone: '',
   emergencyContactName: '',
   emergencyContactRelationship: '',
@@ -157,6 +184,16 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
   businessUnitId: '',
   businessId: '',
   hireDate: '',
+  scheduleOnHire: false,
+  scheduleStartDate: '',
+  scheduleStartTime: '08:00',
+  scheduleEndTime: '16:00',
+  scheduleMealMinutes: '0',
+  scheduleRestMinutes: '0',
+  scheduleLateAfterMinutes: '10',
+  scheduleBlockAfterGracePeriod: false,
+  scheduleLocationRule: 'business',
+  scheduleLocationId: '',
   salaryType: 'daily',
   workdayHours: '8',
   salary: '',
@@ -222,6 +259,8 @@ const modalCopy = {
       socialSecurityNumber: 'Social security number',
       registrationCountry: 'Registration country',
       stateProvince: 'Province / State',
+      city: 'City',
+      postalCode: 'Postal code',
       mobilePhone: 'Mobile phone',
       alternatePhone: 'Alternate phone',
       emergencyContactName: 'Emergency contact name',
@@ -232,6 +271,16 @@ const modalCopy = {
       businessUnitId: 'Business unit',
       businessId: 'Business',
       hireDate: 'Hire date',
+      scheduleOnHire: 'Add employee to schedule',
+      scheduleStartDate: 'Schedule start date',
+      scheduleStartTime: 'Start time',
+      scheduleEndTime: 'End time',
+      scheduleMealMinutes: 'Meal minutes',
+      scheduleRestMinutes: 'Rest minutes',
+      scheduleLateAfterMinutes: 'Entry tolerance',
+      scheduleBlockAfterGracePeriod: 'Block check-in after tolerance',
+      scheduleLocationRule: 'Location rule',
+      scheduleLocationId: 'Exact location',
       salaryType: 'Salary type',
       workdayHours: 'Workday hours',
       salary: 'Salary',
@@ -256,6 +305,10 @@ const modalCopy = {
       pending: 'Invitation is pending for this employee email.',
       notInvited: 'No invitation has been sent yet.',
       documentRemoved: 'The current document will be deleted when you save.',
+      scheduleOnHire: 'Creates a strict weekly schedule from the selected date. Standard working days are Monday to Friday.',
+      scheduleBusinessLocation: 'The employee will clock in from the Business Structure location assigned to their business.',
+      scheduleExactLocation: 'The selected exact location will be enforced for this employee schedule.',
+      noScheduleLocations: 'No active attendance locations are available for the selected business or unit.',
     },
     placeholders: {
       employeeNumber: 'Auto-generated on save',
@@ -270,9 +323,14 @@ const modalCopy = {
       emergencyContactName: 'e.g. Maria Perez',
       emergencyContactRelationship: 'e.g. Spouse',
       stateProvince: 'e.g. Ontario',
+      city: 'e.g. Toronto',
+      postalCode: 'e.g. M5V 2T6',
       workdayHours: 'e.g. 8',
       salary: 'e.g. 12000.00',
       hourlyRate: 'e.g. 75.00',
+      scheduleMealMinutes: 'e.g. 30',
+      scheduleRestMinutes: 'e.g. 0',
+      scheduleLateAfterMinutes: 'e.g. 10',
       select: 'Select...',
       noFile: 'No file selected',
     },
@@ -298,6 +356,10 @@ const modalCopy = {
         { value: 'manager', label: 'Manager' },
         { value: 'administrator', label: 'Administrator' },
       ],
+      scheduleLocationRules: [
+        { value: 'business', label: 'Use employee business location' },
+        { value: 'exact', label: 'Force one exact location' },
+      ],
     },
     permissionsByRole: {
       employee: ['View attendance', 'Register clock in / out', 'View personal payroll', 'Update own profile'],
@@ -318,6 +380,8 @@ const modalCopy = {
       invalidPhone: 'Enter a valid phone number.',
       invalidHours: 'Workday hours must be between 1 and 24.',
       invalidAmount: 'Enter an amount greater than zero.',
+      invalidScheduleTime: 'End time must be after start time.',
+      invalidMinutes: 'Enter zero or a positive number.',
       contractDates: 'Contract end date must be the same as or after the start date.',
       documentType: 'Only PDF, JPG, PNG, or WEBP files are allowed.',
       documentSize: 'Each file must be 5MB or smaller.',
@@ -366,6 +430,8 @@ const modalCopy = {
       socialSecurityNumber: 'NSS',
       registrationCountry: 'País de registro',
       stateProvince: 'Provincia / Estado',
+      city: 'Ciudad',
+      postalCode: 'Código postal',
       mobilePhone: 'Teléfono móvil',
       alternatePhone: 'Teléfono alterno',
       emergencyContactName: 'Nombre del contacto',
@@ -376,6 +442,16 @@ const modalCopy = {
       businessUnitId: 'Unidad de negocio',
       businessId: 'Negocio',
       hireDate: 'Fecha de ingreso',
+      scheduleOnHire: 'Agregar colaborador a horario',
+      scheduleStartDate: 'Fecha de inicio del horario',
+      scheduleStartTime: 'Hora de entrada',
+      scheduleEndTime: 'Hora de salida',
+      scheduleMealMinutes: 'Minutos de comida',
+      scheduleRestMinutes: 'Minutos de descanso',
+      scheduleLateAfterMinutes: 'Tolerancia de entrada',
+      scheduleBlockAfterGracePeriod: 'Bloquear entrada después de la tolerancia',
+      scheduleLocationRule: 'Regla de ubicación',
+      scheduleLocationId: 'Ubicación exacta',
       salaryType: 'Tipo de salario',
       workdayHours: 'Horas de jornada',
       salary: 'Salario',
@@ -399,6 +475,10 @@ const modalCopy = {
       pending: 'Hay una invitación pendiente para este correo.',
       notInvited: 'Aún no se ha enviado invitación.',
       documentRemoved: 'El documento actual se eliminará al guardar.',
+      scheduleOnHire: 'Crea un horario estricto semanal desde la fecha seleccionada. Los días estándar son lunes a viernes.',
+      scheduleBusinessLocation: 'El colaborador registrará asistencia desde la ubicación de Business Structure asignada a su negocio.',
+      scheduleExactLocation: 'La ubicación exacta seleccionada se aplicará para este horario.',
+      noScheduleLocations: 'No hay ubicaciones activas para el negocio o unidad seleccionada.',
     },
     placeholders: {
       employeeNumber: 'Se genera al guardar',
@@ -413,9 +493,14 @@ const modalCopy = {
       emergencyContactName: 'Ej. María Pérez',
       emergencyContactRelationship: 'Ej. Esposa',
       stateProvince: 'Ej. Ciudad de México',
+      city: 'Ej. Ciudad de México',
+      postalCode: 'Ej. 01000',
       workdayHours: 'Ej. 8',
       salary: 'Ej. 12000.00',
       hourlyRate: 'Ej. 75.00',
+      scheduleMealMinutes: 'Ej. 30',
+      scheduleRestMinutes: 'Ej. 0',
+      scheduleLateAfterMinutes: 'Ej. 10',
       select: 'Selecciona...',
       noFile: 'Ningún archivo seleccionado',
     },
@@ -441,6 +526,10 @@ const modalCopy = {
         { value: 'manager', label: 'Gerente' },
         { value: 'administrator', label: 'Administrador' },
       ],
+      scheduleLocationRules: [
+        { value: 'business', label: 'Usar ubicación del negocio del colaborador' },
+        { value: 'exact', label: 'Forzar una ubicación exacta' },
+      ],
     },
     permissionsByRole: {
       employee: ['Ver asistencia', 'Registrar entrada / salida', 'Ver nómina personal', 'Actualizar su perfil'],
@@ -461,6 +550,8 @@ const modalCopy = {
       invalidPhone: 'Ingresa un teléfono válido.',
       invalidHours: 'Las horas de jornada deben estar entre 1 y 24.',
       invalidAmount: 'Ingresa un monto mayor a cero.',
+      invalidScheduleTime: 'La salida debe ser posterior a la entrada.',
+      invalidMinutes: 'Ingresa cero o un número positivo.',
       contractDates: 'La fecha de fin debe ser igual o posterior a la de inicio.',
       documentType: 'Solo se permiten archivos PDF, JPG, PNG o WEBP.',
       documentSize: 'Cada archivo debe ser de 5MB o menos.',
@@ -471,6 +562,11 @@ const modalCopy = {
 
 const inputClassName =
   'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white';
+
+const formatAttendanceLocationOption = (location: AttendanceControlLocation) => {
+  const scope = location.business_name || location.unit_name || '';
+  return scope ? `${location.name} - ${scope}` : location.name;
+};
 
 function TextField({
   name,
@@ -586,6 +682,7 @@ export function EmployeeModal({
   mode = 'create',
   unitOptions,
   businessOptions,
+  attendanceLocations = [],
 }: EmployeeModalProps) {
   const { currentLanguage } = useLanguage();
   const copy = currentLanguage.code.startsWith('es') ? modalCopy.es : modalCopy.en;
@@ -626,6 +723,36 @@ export function EmployeeModal({
     () => (businessOptions ?? []).filter((option) => option.value !== 'all' && option.value !== 'all-businesses'),
     [businessOptions],
   );
+  const filteredBusinessOptions = useMemo(() => {
+    if (!formData.businessUnitId) {
+      return [];
+    }
+
+    return modalBusinessOptions.filter((option) => (
+      option.unitId === formData.businessUnitId
+      || option.unit_id === formData.businessUnitId
+    ));
+  }, [formData.businessUnitId, modalBusinessOptions]);
+  const activeAttendanceLocations = useMemo(
+    () => attendanceLocations.filter((location) => location.status !== 'inactive'),
+    [attendanceLocations],
+  );
+  const scheduleLocationOptions = useMemo(() => {
+    const matchingLocations = activeAttendanceLocations.filter((location) => {
+      if (formData.businessId) {
+        return String(location.business_id ?? '') === formData.businessId;
+      }
+      if (formData.businessUnitId) {
+        return String(location.unit_id ?? '') === formData.businessUnitId;
+      }
+      return true;
+    });
+
+    return matchingLocations.map((location) => ({
+      value: String(location.id),
+      label: formatAttendanceLocationOption(location),
+    }));
+  }, [activeAttendanceLocations, formData.businessId, formData.businessUnitId]);
   const countryOptions = useMemo(
     () => PROFILE_COUNTRY_OPTIONS.map((country) => ({
       value: country.code,
@@ -635,11 +762,15 @@ export function EmployeeModal({
   );
 
   const resolvedCountry = resolveProfileCountry(formData.registrationCountry);
+  const isCreateMode = mode === 'create';
 
   const readDomValue = (nativeFormData: FormData, field: keyof EmployeeFormData) => {
     const value = nativeFormData.get(String(field));
     return typeof value === 'string' ? value : '';
   };
+
+  const hasDomField = (field: keyof EmployeeFormData) =>
+    Boolean(formRef.current?.elements.namedItem(String(field)));
 
   const syncFormDataFromDom = () => {
     const formElement = formRef.current;
@@ -651,8 +782,9 @@ export function EmployeeModal({
     const currentFormData = formDataRef.current;
     const nextCountryValue = readDomValue(nativeFormData, 'registrationCountry') || currentFormData.registrationCountry;
     const nextCountry = resolveProfileCountry(nextCountryValue);
-    const normalizePhone = (value: string) =>
-      nextCountry ? normalizePhoneInputForCountry(value, nextCountry) : value;
+    const normalizePhone = (value: string) => (
+      nextCountry ? normalizePhoneInputForCountry(value, nextCountry) : value
+    );
 
     const nextFormData: EmployeeFormData = {
       ...currentFormData,
@@ -668,6 +800,8 @@ export function EmployeeModal({
       socialSecurityNumber: readDomValue(nativeFormData, 'socialSecurityNumber') || currentFormData.socialSecurityNumber,
       registrationCountry: nextCountryValue,
       stateProvince: readDomValue(nativeFormData, 'stateProvince') || currentFormData.stateProvince,
+      city: readDomValue(nativeFormData, 'city') || currentFormData.city,
+      postalCode: readDomValue(nativeFormData, 'postalCode') || currentFormData.postalCode,
       alternatePhone: normalizePhone(readDomValue(nativeFormData, 'alternatePhone') || currentFormData.alternatePhone),
       emergencyContactName:
         readDomValue(nativeFormData, 'emergencyContactName') || currentFormData.emergencyContactName,
@@ -680,6 +814,22 @@ export function EmployeeModal({
       businessUnitId: readDomValue(nativeFormData, 'businessUnitId') || currentFormData.businessUnitId,
       businessId: readDomValue(nativeFormData, 'businessId') || currentFormData.businessId,
       hireDate: readDomValue(nativeFormData, 'hireDate') || currentFormData.hireDate,
+      scheduleOnHire: hasDomField('scheduleOnHire')
+        ? nativeFormData.has('scheduleOnHire')
+        : currentFormData.scheduleOnHire,
+      scheduleStartDate: readDomValue(nativeFormData, 'scheduleStartDate') || currentFormData.scheduleStartDate,
+      scheduleStartTime: readDomValue(nativeFormData, 'scheduleStartTime') || currentFormData.scheduleStartTime,
+      scheduleEndTime: readDomValue(nativeFormData, 'scheduleEndTime') || currentFormData.scheduleEndTime,
+      scheduleMealMinutes: readDomValue(nativeFormData, 'scheduleMealMinutes') || currentFormData.scheduleMealMinutes,
+      scheduleRestMinutes: readDomValue(nativeFormData, 'scheduleRestMinutes') || currentFormData.scheduleRestMinutes,
+      scheduleLateAfterMinutes:
+        readDomValue(nativeFormData, 'scheduleLateAfterMinutes') || currentFormData.scheduleLateAfterMinutes,
+      scheduleBlockAfterGracePeriod: hasDomField('scheduleBlockAfterGracePeriod')
+        ? nativeFormData.has('scheduleBlockAfterGracePeriod')
+        : currentFormData.scheduleBlockAfterGracePeriod,
+      scheduleLocationRule:
+        (readDomValue(nativeFormData, 'scheduleLocationRule') as EmployeeFormData['scheduleLocationRule']) || currentFormData.scheduleLocationRule,
+      scheduleLocationId: readDomValue(nativeFormData, 'scheduleLocationId') || currentFormData.scheduleLocationId,
       salaryType:
         (readDomValue(nativeFormData, 'salaryType') as EmployeeFormData['salaryType']) || currentFormData.salaryType,
       workdayHours: readDomValue(nativeFormData, 'workdayHours') || currentFormData.workdayHours,
@@ -710,6 +860,9 @@ export function EmployeeModal({
         const next = {
           ...current,
           registrationCountry: String(value ?? ''),
+          stateProvince: '',
+          city: '',
+          postalCode: '',
           mobilePhone: nextCountry ? normalizePhoneInputForCountry(current.mobilePhone, nextCountry) : current.mobilePhone,
           alternatePhone: nextCountry ? normalizePhoneInputForCountry(current.alternatePhone, nextCountry) : current.alternatePhone,
           emergencyContactPhone: nextCountry ? normalizePhoneInputForCountry(current.emergencyContactPhone, nextCountry) : current.emergencyContactPhone,
@@ -733,6 +886,39 @@ export function EmployeeModal({
         ...current,
         [field]: value,
       };
+
+      if (field === 'businessUnitId') {
+        const nextUnitId = String(value ?? '').trim();
+        const currentBusinessMatchesUnit = modalBusinessOptions.some(
+          (option) => (
+            option.value === current.businessId
+            && (option.unitId === nextUnitId || option.unit_id === nextUnitId)
+          ),
+        );
+
+        next.businessId = currentBusinessMatchesUnit ? current.businessId : '';
+        next.scheduleLocationId = '';
+      }
+
+      if (field === 'businessId') {
+        next.scheduleLocationId = '';
+      }
+
+      if (field === 'hireDate') {
+        const nextHireDate = String(value ?? '').trim();
+        if (!current.scheduleStartDate || current.scheduleStartDate === current.hireDate) {
+          next.scheduleStartDate = nextHireDate;
+        }
+      }
+
+      if (field === 'scheduleOnHire' && value === true && !current.scheduleStartDate) {
+        next.scheduleStartDate = current.hireDate || new Date().toISOString().slice(0, 10);
+      }
+
+      if (field === 'scheduleLocationRule' && value !== 'exact') {
+        next.scheduleLocationId = '';
+      }
+
       formDataRef.current = next;
       return next;
     });
@@ -755,21 +941,61 @@ export function EmployeeModal({
     }));
   };
 
+  useEffect(() => {
+    if (formData.scheduleLocationRule !== 'exact' || !formData.scheduleLocationId) {
+      return;
+    }
+
+    const locationStillAvailable = scheduleLocationOptions.some((option) => option.value === formData.scheduleLocationId);
+    if (!locationStillAvailable) {
+      updateField('scheduleLocationId', '');
+    }
+  }, [formData.scheduleLocationId, formData.scheduleLocationRule, scheduleLocationOptions]);
+
   const validatePhoneField = (value: string) => {
     if (!value.trim()) {
       return true;
     }
 
-    if (resolvedCountry) {
-      return validatePhoneForProfileCountry(value, resolvedCountry).ok;
+    return resolvedCountry
+      ? validatePhoneForProfileCountry(value, resolvedCountry).ok
+      : false;
+  };
+
+  const populateScheduleValidationErrors = (
+    errors: Partial<Record<EmployeeFieldKey, string>>,
+    data: EmployeeFormData,
+  ) => {
+    if (!isCreateMode || !data.scheduleOnHire) {
+      return;
     }
 
-    if (!/^[\d\s()+-]+$/.test(value)) {
-      return false;
+    if (!data.scheduleStartDate) {
+      errors.scheduleStartDate = copy.validation.required;
+    }
+    if (!data.scheduleStartTime) {
+      errors.scheduleStartTime = copy.validation.required;
+    }
+    if (!data.scheduleEndTime) {
+      errors.scheduleEndTime = copy.validation.required;
+    } else if (data.scheduleStartTime && data.scheduleEndTime <= data.scheduleStartTime) {
+      errors.scheduleEndTime = copy.validation.invalidScheduleTime;
     }
 
-    const digits = value.replace(/\D/g, '');
-    return digits.length >= 7 && digits.length <= 15;
+    ([
+      ['scheduleMealMinutes', data.scheduleMealMinutes],
+      ['scheduleRestMinutes', data.scheduleRestMinutes],
+      ['scheduleLateAfterMinutes', data.scheduleLateAfterMinutes],
+    ] as const).forEach(([field, value]) => {
+      const parsed = Number(value);
+      if (!String(value).trim() || Number.isNaN(parsed) || parsed < 0) {
+        errors[field] = copy.validation.invalidMinutes;
+      }
+    });
+
+    if (data.scheduleLocationRule === 'exact' && !data.scheduleLocationId) {
+      errors.scheduleLocationId = copy.validation.required;
+    }
   };
 
   const validationErrors = useMemo(() => {
@@ -803,6 +1029,10 @@ export function EmployeeModal({
 
     if (!formData.registrationCountry.trim()) {
       errors.registrationCountry = copy.validation.required;
+    }
+    const postalValidation = validatePostalCodeForCountry(formData.registrationCountry, formData.postalCode);
+    if ('message' in postalValidation) {
+      errors.postalCode = postalValidation.message;
     }
 
     if (!formData.department.trim()) {
@@ -851,8 +1081,10 @@ export function EmployeeModal({
       }
     }
 
+    populateScheduleValidationErrors(errors, formData);
+
     return errors;
-  }, [copy.validation, formData, resolvedCountry]);
+  }, [copy.validation, formData, isCreateMode, resolvedCountry]);
 
   const contractStepFields: EmployeeFieldKey[] =
     formData.contractType === 'temporary'
@@ -862,11 +1094,23 @@ export function EmployeeModal({
     formData.salaryType === 'hourly'
       ? ['hourlyRate']
       : ['salary'];
+  const scheduleStepFields: EmployeeFieldKey[] =
+    isCreateMode && formData.scheduleOnHire
+      ? [
+        'scheduleStartDate',
+        'scheduleStartTime',
+        'scheduleEndTime',
+        'scheduleMealMinutes',
+        'scheduleRestMinutes',
+        'scheduleLateAfterMinutes',
+        ...(formData.scheduleLocationRule === 'exact' ? ['scheduleLocationId' as const] : []),
+      ]
+      : [];
 
   const stepFields: Record<number, EmployeeFieldKey[]> = {
     1: ['firstName', 'lastName', 'email'],
-    2: ['registrationCountry', 'mobilePhone', 'alternatePhone', 'emergencyContactPhone'],
-    3: ['department', 'position', 'businessUnitId', 'businessId', 'workdayHours', ...compensationStepFields, ...contractStepFields],
+    2: ['registrationCountry', 'postalCode', 'mobilePhone', 'alternatePhone', 'emergencyContactPhone'],
+    3: ['department', 'position', 'businessUnitId', 'businessId', 'workdayHours', ...scheduleStepFields, ...compensationStepFields, ...contractStepFields],
     4: [],
     5: [],
   };
@@ -922,22 +1166,13 @@ export function EmployeeModal({
     const nextValidationErrors = (() => {
       const errors: Partial<Record<EmployeeFieldKey, string>> = {};
       const nextResolvedCountry = resolveProfileCountry(nextFormData.registrationCountry);
-      const validatePhoneValue = (value: string) => {
-        if (!value.trim()) {
-          return true;
-        }
-
-        if (nextResolvedCountry) {
-          return validatePhoneForProfileCountry(value, nextResolvedCountry).ok;
-        }
-
-        if (!/^[\d\s()+-]+$/.test(value)) {
-          return false;
-        }
-
-        const digits = value.replace(/\D/g, '');
-        return digits.length >= 7 && digits.length <= 15;
-      };
+      const validatePhoneValue = (value: string) => (
+        !value.trim()
+          ? true
+          : nextResolvedCountry
+            ? validatePhoneForProfileCountry(value, nextResolvedCountry).ok
+            : false
+      );
 
       if (!nextFormData.firstName.trim()) {
         errors.firstName = copy.validation.required;
@@ -963,6 +1198,10 @@ export function EmployeeModal({
       }
       if (!nextFormData.registrationCountry.trim()) {
         errors.registrationCountry = copy.validation.required;
+      }
+      const postalValidation = validatePostalCodeForCountry(nextFormData.registrationCountry, nextFormData.postalCode);
+      if ('message' in postalValidation) {
+        errors.postalCode = postalValidation.message;
       }
       if (!nextFormData.department.trim()) {
         errors.department = copy.validation.required;
@@ -1019,6 +1258,8 @@ export function EmployeeModal({
           errors.contractEndDate = copy.validation.contractDates;
         }
       }
+
+      populateScheduleValidationErrors(errors, nextFormData);
 
       return errors;
     })();
@@ -1216,24 +1457,64 @@ export function EmployeeModal({
               </h3>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <SelectField
-                  name="registrationCountry"
-                  label={copy.labels.registrationCountry}
-                  value={formData.registrationCountry}
-                  onChange={(value) => updateField('registrationCountry', value)}
-                  options={countryOptions}
-                  placeholder={copy.placeholders.select}
-                  required
-                  error={touchedFields.registrationCountry ? validationErrors.registrationCountry : undefined}
-                />
-                <TextField
-                  name="stateProvince"
-                  label={copy.labels.stateProvince}
-                  value={formData.stateProvince}
-                  onChange={(value) => updateField('stateProvince', value)}
-                  placeholder={copy.placeholders.stateProvince}
-                  autoComplete="address-level1"
-                />
+                <div className="md:col-span-2">
+                  <ManualLocationFields
+                    values={{
+                      pais: formData.registrationCountry,
+                      estado: formData.stateProvince,
+                      ciudad: formData.city,
+                      cp: formData.postalCode,
+                    }}
+                    countries={countryOptions}
+                    labels={{
+                      country: copy.labels.registrationCountry,
+                      selectCountry: copy.placeholders.select,
+                      state: copy.labels.stateProvince,
+                      city: copy.labels.city,
+                      postalCode: copy.labels.postalCode,
+                    }}
+                    placeholders={{
+                      state: copy.placeholders.stateProvince,
+                      city: copy.placeholders.city,
+                      postalCode: copy.placeholders.postalCode,
+                    }}
+                    fieldNames={{
+                      pais: 'registrationCountry',
+                      estado: 'stateProvince',
+                      ciudad: 'city',
+                      cp: 'postalCode',
+                    }}
+                    countryError={touchedFields.registrationCountry ? validationErrors.registrationCountry : undefined}
+                    onChange={(updates) => {
+                      const next = {
+                        ...formDataRef.current,
+                        registrationCountry: updates.pais ?? formDataRef.current.registrationCountry,
+                        stateProvince: updates.estado ?? formDataRef.current.stateProvince,
+                        city: updates.ciudad ?? formDataRef.current.city,
+                        postalCode: updates.cp ?? formDataRef.current.postalCode,
+                      };
+                      if (updates.pais !== undefined) {
+                        const nextCountry = resolveProfileCountry(updates.pais);
+                        next.mobilePhone = nextCountry
+                          ? normalizePhoneInputForCountry(formDataRef.current.mobilePhone, nextCountry)
+                          : formDataRef.current.mobilePhone;
+                        next.alternatePhone = nextCountry
+                          ? normalizePhoneInputForCountry(formDataRef.current.alternatePhone, nextCountry)
+                          : formDataRef.current.alternatePhone;
+                        next.emergencyContactPhone = nextCountry
+                          ? normalizePhoneInputForCountry(formDataRef.current.emergencyContactPhone, nextCountry)
+                          : formDataRef.current.emergencyContactPhone;
+                      }
+                      formDataRef.current = next;
+                      setFormData(next);
+                    }}
+                  />
+                  {touchedFields.postalCode && validationErrors.postalCode ? (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {validationErrors.postalCode}
+                    </p>
+                  ) : null}
+                </div>
                 <TextField
                   name="mobilePhone"
                   label={copy.labels.mobilePhone}
@@ -1322,7 +1603,7 @@ export function EmployeeModal({
                   label={copy.labels.businessId}
                   value={formData.businessId}
                   onChange={(value) => updateField('businessId', value)}
-                  options={modalBusinessOptions}
+                  options={filteredBusinessOptions}
                   placeholder={copy.placeholders.select}
                   required
                   error={touchedFields.businessId ? validationErrors.businessId : undefined}
@@ -1334,6 +1615,135 @@ export function EmployeeModal({
                   onChange={(value) => updateField('hireDate', value)}
                   type="date"
                 />
+                {isCreateMode ? (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/40 dark:bg-blue-950/20 md:col-span-2">
+                    <label className="flex items-start gap-3">
+                      <input
+                        name="scheduleOnHire"
+                        type="checkbox"
+                        checked={formData.scheduleOnHire}
+                        onChange={(event) => updateField('scheduleOnHire', event.target.checked)}
+                        className="mt-1 h-4 w-4"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                          {copy.labels.scheduleOnHire}
+                        </span>
+                        <span className="mt-1 block text-xs text-gray-600 dark:text-gray-300">
+                          {copy.helpers.scheduleOnHire}
+                        </span>
+                      </span>
+                    </label>
+
+                    {formData.scheduleOnHire ? (
+                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <TextField
+                          name="scheduleStartDate"
+                          label={copy.labels.scheduleStartDate}
+                          value={formData.scheduleStartDate}
+                          onChange={(value) => updateField('scheduleStartDate', value)}
+                          type="date"
+                          required
+                          error={touchedFields.scheduleStartDate ? validationErrors.scheduleStartDate : undefined}
+                        />
+                        <TextField
+                          name="scheduleLateAfterMinutes"
+                          label={copy.labels.scheduleLateAfterMinutes}
+                          value={formData.scheduleLateAfterMinutes}
+                          onChange={(value) => updateField('scheduleLateAfterMinutes', value)}
+                          placeholder={copy.placeholders.scheduleLateAfterMinutes}
+                          type="number"
+                          required
+                          error={touchedFields.scheduleLateAfterMinutes ? validationErrors.scheduleLateAfterMinutes : undefined}
+                        />
+                        <TextField
+                          name="scheduleStartTime"
+                          label={copy.labels.scheduleStartTime}
+                          value={formData.scheduleStartTime}
+                          onChange={(value) => updateField('scheduleStartTime', value)}
+                          type="time"
+                          required
+                          error={touchedFields.scheduleStartTime ? validationErrors.scheduleStartTime : undefined}
+                        />
+                        <TextField
+                          name="scheduleEndTime"
+                          label={copy.labels.scheduleEndTime}
+                          value={formData.scheduleEndTime}
+                          onChange={(value) => updateField('scheduleEndTime', value)}
+                          type="time"
+                          required
+                          error={touchedFields.scheduleEndTime ? validationErrors.scheduleEndTime : undefined}
+                        />
+                        <TextField
+                          name="scheduleMealMinutes"
+                          label={copy.labels.scheduleMealMinutes}
+                          value={formData.scheduleMealMinutes}
+                          onChange={(value) => updateField('scheduleMealMinutes', value)}
+                          placeholder={copy.placeholders.scheduleMealMinutes}
+                          type="number"
+                          required
+                          error={touchedFields.scheduleMealMinutes ? validationErrors.scheduleMealMinutes : undefined}
+                        />
+                        <TextField
+                          name="scheduleRestMinutes"
+                          label={copy.labels.scheduleRestMinutes}
+                          value={formData.scheduleRestMinutes}
+                          onChange={(value) => updateField('scheduleRestMinutes', value)}
+                          placeholder={copy.placeholders.scheduleRestMinutes}
+                          type="number"
+                          required
+                          error={touchedFields.scheduleRestMinutes ? validationErrors.scheduleRestMinutes : undefined}
+                        />
+                        <SelectField
+                          name="scheduleLocationRule"
+                          label={copy.labels.scheduleLocationRule}
+                          value={formData.scheduleLocationRule}
+                          onChange={(value) => updateField('scheduleLocationRule', value as EmployeeFormData['scheduleLocationRule'])}
+                          options={copy.options.scheduleLocationRules}
+                        />
+                        {formData.scheduleLocationRule === 'exact' ? (
+                          <div>
+                            <SelectField
+                              name="scheduleLocationId"
+                              label={copy.labels.scheduleLocationId}
+                              value={formData.scheduleLocationId}
+                              onChange={(value) => updateField('scheduleLocationId', value)}
+                              options={scheduleLocationOptions}
+                              placeholder={copy.placeholders.select}
+                              required
+                              error={touchedFields.scheduleLocationId ? validationErrors.scheduleLocationId : undefined}
+                            />
+                            {scheduleLocationOptions.length === 0 ? (
+                              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                {copy.helpers.noScheduleLocations}
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                {copy.helpers.scheduleExactLocation}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="self-end rounded-md border border-blue-100 bg-white p-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
+                            {copy.helpers.scheduleBusinessLocation}
+                          </p>
+                        )}
+                        <label className="flex items-start gap-3 rounded-md border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900 md:col-span-2">
+                          <input
+                            name="scheduleBlockAfterGracePeriod"
+                            type="checkbox"
+                            checked={formData.scheduleBlockAfterGracePeriod}
+                            onChange={(event) => updateField('scheduleBlockAfterGracePeriod', event.target.checked)}
+                            className="mt-1 h-4 w-4"
+                          />
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {copy.labels.scheduleBlockAfterGracePeriod}
+                          </span>
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <SelectField
                   name="salaryType"
                   label={copy.labels.salaryType}

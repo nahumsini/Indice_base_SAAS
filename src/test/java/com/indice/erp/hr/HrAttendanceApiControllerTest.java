@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.attendance.HrAttendanceApiController;
+import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.Map;
 import java.util.Optional;

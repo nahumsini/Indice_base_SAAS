@@ -10,6 +10,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.indice.erp.storage.DisabledObjectStorageService;
+import com.indice.erp.hr.attendance.HrAttendanceService;
+import com.indice.erp.hr.employees.HrEmployeeService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;

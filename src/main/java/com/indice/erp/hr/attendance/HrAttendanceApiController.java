@@ -1,4 +1,4 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.attendance;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.FaceVerificationIntegrationException;
@@ -111,6 +111,20 @@ public class HrAttendanceApiController {
         return ResponseEntity.ok(hrAttendanceService.listControlLocations(currentUser.get().companyId()));
     }
 
+    @PostMapping("/locations/extract-coordinates")
+    public ResponseEntity<?> extractLocationCoordinates(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(hrAttendanceService.extractCoordinatesFromMapLink(payload));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/locations")
     public ResponseEntity<?> createLocation(HttpSession session, @RequestBody Map<String, Object> payload) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -176,6 +190,77 @@ public class HrAttendanceApiController {
         }
     }
 
+    @PutMapping("/employees/{employeeId}/allowed-locations")
+    public ResponseEntity<?> replaceEmployeeAllowedLocations(
+        HttpSession session,
+        @PathVariable long employeeId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.replaceEmployeeAllowedLocations(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    employeeId,
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/work-site-assignments/bulk")
+    public ResponseEntity<?> bulkAssignActiveWorkSite(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.bulkAssignActiveWorkSite(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/work-assignments/clear")
+    public ResponseEntity<?> clearEmployeeWorkAssignments(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.clearEmployeeWorkAssignments(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @GetMapping("/schedule-templates")
     public ResponseEntity<?> scheduleTemplates(HttpSession session) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -184,6 +269,41 @@ public class HrAttendanceApiController {
         }
 
         return ResponseEntity.ok(hrAttendanceService.listScheduleTemplates(currentUser.get().companyId()));
+    }
+
+    @GetMapping("/schedule-candidates")
+    public ResponseEntity<?> scheduleCandidates(
+        HttpSession session,
+        @RequestParam(required = false) String date,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(required = false) String search,
+        @RequestParam(name = "unit_id", required = false) Long unitId,
+        @RequestParam(name = "business_id", required = false) Long businessId,
+        @RequestParam(name = "available_only", defaultValue = "false") boolean availableOnly
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
+            return ResponseEntity.ok(
+                hrAttendanceService.scheduleCandidates(
+                    currentUser.get().companyId(),
+                    targetDate,
+                    page,
+                    size,
+                    search,
+                    unitId,
+                    businessId,
+                    availableOnly
+                )
+            );
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
     }
 
     @PostMapping("/schedule-templates")
@@ -354,6 +474,82 @@ public class HrAttendanceApiController {
             return ResponseEntity.ok(hrAttendanceService.publicKioskIdentify(deviceToken, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (KioskPinThrottleException ex) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/media/presign-upload")
+    public ResponseEntity<?> publicKioskPresignUpload(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+        try {
+            return ResponseEntity.ok(hrAttendanceService.createPublicKioskPhotoUpload(deviceToken, payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/face-verification-sessions")
+    public ResponseEntity<?> publicKioskCreateFaceVerificationSession(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                hrAttendanceService.createPublicKioskFaceVerificationSession(deviceToken, payload)
+            );
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/face-verification-sessions/{sessionId}/captures/presign-upload")
+    public ResponseEntity<?> publicKioskPresignFaceVerificationCapture(
+        @PathVariable String deviceToken,
+        @PathVariable long sessionId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.createPublicKioskFaceVerificationCaptureUpload(deviceToken, sessionId, payload)
+            );
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/public-kiosk/{deviceToken}/face-verification-sessions/{sessionId}/complete")
+    public ResponseEntity<?> publicKioskCompleteFaceVerificationSession(
+        @PathVariable String deviceToken,
+        @PathVariable long sessionId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.completePublicKioskFaceVerificationSession(deviceToken, sessionId, payload)
+            );
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (FaceVerificationIntegrationException ex) {
+            return ResponseEntity.status(ex.statusCode()).body(Map.of("message", ex.getMessage()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -363,6 +559,8 @@ public class HrAttendanceApiController {
     public ResponseEntity<?> publicKioskPunch(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(hrAttendanceService.publicKioskPunch(deviceToken, payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

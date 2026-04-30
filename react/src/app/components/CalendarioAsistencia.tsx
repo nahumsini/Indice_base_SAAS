@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Camera, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
-import type { AttendanceCalendarDay } from '../api/humanResources';
+import type { AttendanceCalendarDay, AttendanceCorrectionStatus } from '../api/humanResources';
 import { useLanguage } from '../shared/context';
 
 interface CalendarioAsistenciaProps {
@@ -13,7 +13,7 @@ interface CalendarioAsistenciaProps {
   onMonthChange: (month: string) => void;
   onUpdateStatus: (
     date: string,
-    status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | '',
+    status: AttendanceCorrectionStatus | '',
   ) => Promise<void>;
 }
 
@@ -28,6 +28,8 @@ const calendarCopy = {
       leave: 'Leave',
       rest: 'Rest',
       absence: 'No record',
+      pending: 'Pending',
+      not_scheduled: 'Not scheduled',
     },
     legend: {
       entry: 'Check-in',
@@ -57,6 +59,7 @@ const calendarCopy = {
       openLocation: 'Open in maps',
       overrideTools: 'Manual correction tools',
       overrideHint: 'Use these options only when the system result needs a back-office override.',
+      editUnavailable: "Attendance can only be edited on or after this employee's hire date.",
       clearSelection: 'Clear selection',
     },
     actions: {
@@ -67,6 +70,7 @@ const calendarCopy = {
       corrected: 'Correction active',
       entryRegistered: 'Check-in recorded',
       exitRegistered: 'Check-out recorded',
+      locked: 'Locked',
     },
   },
   es: {
@@ -79,6 +83,8 @@ const calendarCopy = {
       leave: 'Permiso',
       rest: 'Descanso',
       absence: 'Sin registro',
+      pending: 'Pendiente',
+      not_scheduled: 'Sin horario',
     },
     legend: {
       entry: 'Entrada',
@@ -108,6 +114,7 @@ const calendarCopy = {
       openLocation: 'Abrir en mapas',
       overrideTools: 'Herramientas de corrección manual',
       overrideHint: 'Usa estas opciones solo cuando el resultado del sistema necesite un ajuste administrativo.',
+      editUnavailable: 'La asistencia solo se puede editar desde la fecha de contratación del colaborador.',
       clearSelection: 'Limpiar selección',
     },
     actions: {
@@ -118,6 +125,7 @@ const calendarCopy = {
       corrected: 'Corrección activa',
       entryRegistered: 'Entrada registrada',
       exitRegistered: 'Salida registrada',
+      locked: 'Bloqueado',
     },
   },
 } as const;
@@ -151,7 +159,19 @@ const statusTones: Record<
     buttonTone: 'bg-rose-600 hover:bg-rose-700 text-white',
     subtleTone: 'bg-rose-500/10 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
   },
+  pending: {
+    chip: 'bg-blue-500',
+    buttonTone: 'bg-blue-600 hover:bg-blue-700 text-white',
+    subtleTone: 'bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+  },
+  not_scheduled: {
+    chip: 'bg-gray-400',
+    buttonTone: 'bg-gray-600 hover:bg-gray-700 text-white',
+    subtleTone: 'bg-gray-500/10 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300',
+  },
 };
+
+const manualCorrectionStatuses: AttendanceCorrectionStatus[] = ['on_time', 'late', 'leave', 'rest', 'absence'];
 
 const formatMonthLabel = (month: string, locale: string) => {
   const [year, monthIndex] = month.split('-').map(Number);
@@ -228,6 +248,8 @@ export function CalendarioAsistencia({
     correctedDays: days.filter((day) => Boolean(day.corrected_status)).length,
     noRecordDays: days.filter((day) => day.effective_status === 'absence').length,
   }), [days]);
+  const selectedDayEditLocked = selectedDay?.attendance_editable === false;
+  const selectedDayEditLockReason = selectedDay?.edit_lock_reason || copy.labels.editUnavailable;
 
   const calendarCells = useMemo(() => {
     const firstDay = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), 1);
@@ -280,8 +302,11 @@ export function CalendarioAsistencia({
     onMonthChange(toMonthValue(next));
   };
 
-  const handleUpdateStatus = async (status: AttendanceCalendarDay['effective_status'] | '') => {
+  const handleUpdateStatus = async (status: AttendanceCorrectionStatus | '') => {
     if (!selectedDay) {
+      return;
+    }
+    if (selectedDayEditLocked) {
       return;
     }
 
@@ -392,6 +417,7 @@ export function CalendarioAsistencia({
                   today.getMonth() === currentMonthDate.getMonth() &&
                   today.getDate() === day;
                 const isSelected = Boolean(dayData && selectedDay?.date === dayData.date);
+                const isLocked = dayData?.attendance_editable === false;
 
                 return (
                   <button
@@ -399,11 +425,12 @@ export function CalendarioAsistencia({
                     type="button"
                     disabled={!dayData}
                     onClick={() => dayData && setSelectedDay(dayData)}
+                    title={isLocked ? dayData?.edit_lock_reason ?? copy.labels.editUnavailable : undefined}
                     className={`min-h-[92px] rounded-lg border p-2 text-left transition-all ${
                       dayData
                         ? 'border-gray-200 hover:border-[#143675]/40 hover:shadow-sm dark:border-gray-700'
                         : 'cursor-default border-transparent bg-gray-50 dark:bg-gray-900/40'
-                    } ${isToday ? 'ring-2 ring-[#143675]/35' : ''} ${isSelected ? 'border-[#143675] ring-2 ring-[#143675]/25' : ''}`}
+                    } ${isLocked ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800/70 dark:bg-amber-950/20' : ''} ${isToday ? 'ring-2 ring-[#143675]/35' : ''} ${isSelected ? 'border-[#143675] ring-2 ring-[#143675]/25' : ''}`}
                   >
                     {day ? (
                       <div className="flex h-full flex-col">
@@ -431,10 +458,19 @@ export function CalendarioAsistencia({
                               {statusLabel}
                             </div>
 
-                            {dayData.corrected_status ? (
-                              <p className="mt-auto pt-2 text-[10px] text-[#143675] dark:text-[#8bb3ff]">
-                                {copy.badges.corrected}
-                              </p>
+                            {dayData.corrected_status || isLocked ? (
+                              <div className="mt-auto space-y-1 pt-2">
+                                {dayData.corrected_status ? (
+                                  <p className="text-[10px] text-[#143675] dark:text-[#8bb3ff]">
+                                    {copy.badges.corrected}
+                                  </p>
+                                ) : null}
+                                {isLocked ? (
+                                  <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                                    {copy.badges.locked}
+                                  </p>
+                                ) : null}
+                              </div>
                             ) : null}
                           </>
                         ) : null}
@@ -634,13 +670,18 @@ export function CalendarioAsistencia({
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   {copy.labels.overrideHint}
                 </p>
+                {selectedDayEditLocked ? (
+                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
+                    {selectedDayEditLockReason}
+                  </div>
+                ) : null}
 
                 <div className="mt-4 grid gap-2">
-                  {(Object.keys(statusTones) as Array<AttendanceCalendarDay['effective_status']>).map((status) => (
+                  {manualCorrectionStatuses.map((status) => (
                     <Button
                       key={status}
                       type="button"
-                      disabled={isSaving}
+                      disabled={isSaving || selectedDayEditLocked}
                       onClick={() => {
                         void handleUpdateStatus(status);
                       }}
@@ -655,7 +696,7 @@ export function CalendarioAsistencia({
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={isSaving}
+                      disabled={isSaving || selectedDayEditLocked}
                       onClick={() => {
                         void handleUpdateStatus('');
                       }}

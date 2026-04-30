@@ -40,6 +40,9 @@ import { useLanguage } from '../../../shared/context';
 import { dashboardApi } from '../../../api/dashboard';
 import {
   humanResourcesApi,
+  type AttendanceControlLocation,
+  type AttendanceControlTemplate,
+  type AttendanceControlTemplatePayload,
   type BackendEmployee,
   type EmployeeDetailsResponse,
 } from '../../../api/humanResources';
@@ -103,6 +106,7 @@ const employeePageCopy = {
     deleteLoadingDescription: 'We are removing the terminated employee record.',
     successMessages: {
       created: 'Employee created successfully.',
+      createdWithSchedule: 'Employee created and schedule assigned successfully.',
       updated: 'Employee updated successfully.',
       terminated: 'Employee terminated successfully.',
       deleted: 'Employee deleted successfully.',
@@ -111,6 +115,7 @@ const employeePageCopy = {
       load: 'Unable to load employees.',
       detail: 'Unable to load employee details.',
       save: 'Unable to save employee.',
+      scheduleAssign: 'Employee was created, but the schedule could not be assigned.',
       delete: 'Unable to delete employee.',
       terminate: 'Unable to terminate employee.',
     },
@@ -181,6 +186,7 @@ const employeePageCopy = {
     deleteLoadingDescription: 'Estamos removiendo el expediente terminado.',
     successMessages: {
       created: 'Colaborador creado correctamente.',
+      createdWithSchedule: 'Colaborador creado y horario asignado correctamente.',
       updated: 'Colaborador actualizado correctamente.',
       terminated: 'Contrato terminado correctamente.',
       deleted: 'Colaborador eliminado correctamente.',
@@ -189,6 +195,7 @@ const employeePageCopy = {
       load: 'No se pudo cargar colaboradores.',
       detail: 'No se pudo cargar el detalle del colaborador.',
       save: 'No se pudo guardar el colaborador.',
+      scheduleAssign: 'El colaborador se creó, pero no se pudo asignar el horario.',
       delete: 'No se pudo eliminar el colaborador.',
       terminate: 'No se pudo terminar el contrato.',
     },
@@ -332,6 +339,75 @@ const normalizeErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const weekdayConfig = [1, 2, 3, 4, 5, 6, 7] as const;
+
+const normalizeScheduleTemplatePayload = (payload: AttendanceControlTemplatePayload) =>
+  JSON.stringify({
+    schedule_mode: payload.schedule_mode ?? 'strict',
+    block_after_grace_period: Boolean(payload.block_after_grace_period),
+    enforce_location: Boolean(payload.enforce_location),
+    location_id: payload.location_id ?? null,
+    days: payload.days.map((day) => ({
+      day_of_week: day.day_of_week,
+      start_time: day.start_time ?? null,
+      end_time: day.end_time ?? null,
+      meal_minutes: day.meal_minutes,
+      rest_minutes: day.rest_minutes,
+      late_after_minutes: day.late_after_minutes,
+      is_rest_day: day.is_rest_day,
+    })),
+  });
+
+const payloadFromAttendanceTemplate = (template: AttendanceControlTemplate): AttendanceControlTemplatePayload => ({
+  name: template.name,
+  status: template.status === 'inactive' ? 'inactive' : 'active',
+  schedule_mode: template.schedule_mode === 'open' ? 'open' : 'strict',
+  block_after_grace_period: Boolean(template.block_after_grace_period),
+  enforce_location: Boolean(template.enforce_location),
+  location_id: template.location_id ?? null,
+  days: template.days.map((day) => ({
+    day_of_week: day.day_of_week,
+    start_time: day.start_time ?? null,
+    end_time: day.end_time ?? null,
+    meal_minutes: day.meal_minutes ?? 0,
+    rest_minutes: day.rest_minutes ?? 0,
+    late_after_minutes: day.late_after_minutes,
+    is_rest_day: day.is_rest_day,
+  })),
+});
+
+const buildHireScheduleTemplatePayload = (data: EmployeeFormData): AttendanceControlTemplatePayload => {
+  const startTime = `${data.scheduleStartTime}:00`;
+  const endTime = `${data.scheduleEndTime}:00`;
+  const mealMinutes = Math.max(0, Number(data.scheduleMealMinutes) || 0);
+  const restMinutes = Math.max(0, Number(data.scheduleRestMinutes) || 0);
+  const lateAfterMinutes = Math.max(0, Number(data.scheduleLateAfterMinutes) || 0);
+  const enforceLocation = data.scheduleLocationRule === 'exact' && Boolean(data.scheduleLocationId);
+  const locationId = enforceLocation ? Number(data.scheduleLocationId) : null;
+  const templateScope = enforceLocation ? `Location ${locationId}` : 'Employee business location';
+
+  return {
+    name: `Hire schedule ${data.scheduleStartTime}-${data.scheduleEndTime} ${templateScope}`,
+    status: 'active',
+    schedule_mode: 'strict',
+    block_after_grace_period: data.scheduleBlockAfterGracePeriod,
+    enforce_location: enforceLocation,
+    location_id: locationId,
+    days: weekdayConfig.map((dayOfWeek) => {
+      const isRestDay = dayOfWeek > 5;
+      return {
+        day_of_week: dayOfWeek,
+        start_time: isRestDay ? null : startTime,
+        end_time: isRestDay ? null : endTime,
+        meal_minutes: isRestDay ? 0 : mealMinutes,
+        rest_minutes: isRestDay ? 0 : restMinutes,
+        late_after_minutes: isRestDay ? 0 : lateAfterMinutes,
+        is_rest_day: isRestDay,
+      };
+    }),
+  };
+};
+
 const getStatusClasses = (status: EmployeeStatus) => {
   switch (status) {
     case 'active':
@@ -403,6 +479,8 @@ const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeF
     socialSecurityNumber: details.profile.social_security_number ?? '',
     registrationCountry: details.profile.registration_country ?? '',
     stateProvince: details.profile.state_province ?? '',
+    city: details.profile.city ?? '',
+    postalCode: details.profile.postal_code ?? '',
     alternatePhone: details.profile.alternate_phone ?? '',
     emergencyContactName: details.profile.emergency_contact_name ?? '',
     emergencyContactRelationship: details.profile.emergency_contact_relationship ?? '',
@@ -474,7 +552,8 @@ export default function Colaboradores() {
     total_payroll_amount_monthly: 0,
   });
   const [unitOptions, setUnitOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [businessOptions, setBusinessOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [businessOptions, setBusinessOptions] = useState<Array<{ value: string; label: string; unitId?: string; unit_id?: string }>>([]);
+  const [attendanceLocations, setAttendanceLocations] = useState<AttendanceControlLocation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [unitFilter, setUnitFilter] = useState(allFilterValue);
   const [businessFilter, setBusinessFilter] = useState(allFilterValue);
@@ -527,10 +606,11 @@ export default function Colaboradores() {
     setLoadError('');
 
     try {
-      const [employeesResponse, unitsResponse, businessesResponse] = await Promise.all([
+      const [employeesResponse, unitsResponse, businessesResponse, locationsResponse] = await Promise.all([
         humanResourcesApi.listEmployees(),
         dashboardApi.listUnits().catch(() => []),
         dashboardApi.listBusinesses().catch(() => []),
+        humanResourcesApi.listAttendanceControlLocations().catch(() => ({ items: [] })),
       ]);
 
       setEmployees(
@@ -545,8 +625,14 @@ export default function Colaboradores() {
       ]);
       setBusinessOptions([
         { value: allFilterValue, label: copy.filters.all },
-        ...businessesResponse.map((business) => ({ value: String(business.id), label: business.name })),
+        ...businessesResponse.map((business) => ({
+          value: String(business.id),
+          label: business.name,
+          unitId: business.unitId ? String(business.unitId) : business.unit_id ? String(business.unit_id) : undefined,
+          unit_id: business.unit_id ? String(business.unit_id) : business.unitId ? String(business.unitId) : undefined,
+        })),
       ]);
+      setAttendanceLocations(locationsResponse.items);
     } catch (error) {
       setLoadError(normalizeErrorMessage(error, copy.errorMessages.load));
     } finally {
@@ -730,6 +816,35 @@ export default function Colaboradores() {
     return documentErrors;
   };
 
+  const assignHireSchedule = async (employeeId: number, data: EmployeeFormData) => {
+    const payload = buildHireScheduleTemplatePayload(data);
+    const normalizedPayload = normalizeScheduleTemplatePayload(payload);
+    const latestTemplatesResponse = await humanResourcesApi.listAttendanceControlTemplates();
+    const latestTemplates = latestTemplatesResponse.items;
+    const reusableTemplate = latestTemplates.find((template) =>
+      template.status !== 'inactive' &&
+      normalizedPayload === normalizeScheduleTemplatePayload(payloadFromAttendanceTemplate(template)),
+    ) ?? null;
+
+    let templateId = reusableTemplate?.id ?? null;
+    if (!templateId) {
+      const templateName = latestTemplates.some((template) => template.name === payload.name)
+        ? `${payload.name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+        : payload.name;
+      const response = await humanResourcesApi.createAttendanceControlTemplate({
+        ...payload,
+        name: templateName,
+      });
+      templateId = response.template.id;
+    }
+
+    await humanResourcesApi.bulkAssignAttendanceSchedule({
+      employee_ids: [employeeId],
+      template_id: templateId,
+      effective_start_date: data.scheduleStartDate || data.hireDate,
+    });
+  };
+
   const handleSaveEmployee = async (data: EmployeeFormData) => {
     const trimmedFirstName = data.firstName.trim();
     const trimmedLastName = data.lastName.trim();
@@ -746,6 +861,8 @@ export default function Colaboradores() {
     const trimmedTaxId = data.taxId.trim();
     const trimmedSocialSecurityNumber = data.socialSecurityNumber.trim();
     const trimmedStateProvince = data.stateProvince.trim();
+    const trimmedCity = data.city.trim();
+    const trimmedPostalCode = data.postalCode.trim();
     const trimmedAlternatePhone = data.alternatePhone.trim();
     const trimmedEmergencyContactName = data.emergencyContactName.trim();
     const trimmedEmergencyContactRelationship = data.emergencyContactRelationship.trim();
@@ -796,6 +913,8 @@ export default function Colaboradores() {
       social_security_number: trimmedSocialSecurityNumber,
       registration_country: data.registrationCountry,
       state_province: trimmedStateProvince,
+      city: trimmedCity,
+      postal_code: trimmedPostalCode,
       alternate_phone: trimmedAlternatePhone,
       emergency_contact_name: trimmedEmergencyContactName,
       emergency_contact_relationship: trimmedEmergencyContactRelationship,
@@ -809,6 +928,8 @@ export default function Colaboradores() {
         social_security_number: trimmedSocialSecurityNumber,
         registration_country: data.registrationCountry,
         state_province: trimmedStateProvince,
+        city: trimmedCity,
+        postal_code: trimmedPostalCode,
         alternate_phone: trimmedAlternatePhone,
         emergency_contact_name: trimmedEmergencyContactName,
         emergency_contact_relationship: trimmedEmergencyContactRelationship,
@@ -827,6 +948,7 @@ export default function Colaboradores() {
     try {
       let savedEmployeeId = editingEmployee?.id ?? 0;
       let documentErrors: string[] = [];
+      let scheduleAssignmentError = '';
 
       await runMutation({
         title: copy.loadingTitle,
@@ -838,6 +960,13 @@ export default function Colaboradores() {
 
           savedEmployeeId = savedEmployee.id;
           documentErrors = await syncEmployeeDocuments(savedEmployeeId, data);
+          if (!editingEmployee && data.scheduleOnHire) {
+            try {
+              await assignHireSchedule(savedEmployeeId, data);
+            } catch (error) {
+              scheduleAssignmentError = normalizeErrorMessage(error, copy.errorMessages.scheduleAssign);
+            }
+          }
           if (editingEmployee) {
             setEditingEmployee((current) => (current ? { ...current, id: savedEmployeeId } : current));
           } else {
@@ -851,8 +980,16 @@ export default function Colaboradores() {
         setFailureToastMessage(
           `${editingEmployee ? copy.successMessages.updated : copy.successMessages.created} ${documentErrors[0]}`,
         );
+      } else if (scheduleAssignmentError) {
+        setFailureToastMessage(`${copy.successMessages.created} ${scheduleAssignmentError}`);
       } else {
-        setSuccessToastMessage(editingEmployee ? copy.successMessages.updated : copy.successMessages.created);
+        setSuccessToastMessage(
+          editingEmployee
+            ? copy.successMessages.updated
+            : data.scheduleOnHire
+              ? copy.successMessages.createdWithSchedule
+              : copy.successMessages.created,
+        );
       }
       setEditingEmployee(null);
       setModalInitialData(createEmptyEmployeeFormData());
@@ -1401,6 +1538,7 @@ export default function Colaboradores() {
         mode={editingEmployee ? 'edit' : 'create'}
         unitOptions={unitOptions}
         businessOptions={businessOptions}
+        attendanceLocations={attendanceLocations}
       />
 
       <TerminarContratoModal

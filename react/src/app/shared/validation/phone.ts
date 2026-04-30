@@ -124,6 +124,21 @@ export function normalizePhoneInputForCountry(
     return rawNumber;
   }
 
+  const trimmedNumber = rawNumber.trim();
+  if (!trimmedNumber) {
+    return '';
+  }
+
+  // Keep explicit international inputs in international format so a number
+  // from the wrong country can't be silently coerced into a local-looking
+  // number for the selected country.
+  if (trimmedNumber.startsWith('+')) {
+    const explicitInternationalNumber = parsePhoneNumberFromString(trimmedNumber);
+    return explicitInternationalNumber
+      ? explicitInternationalNumber.formatInternational()
+      : trimmedNumber;
+  }
+
   const nationalDigits = extractNationalDigitsForCountry(rawNumber, normalizedCountry);
   if (!nationalDigits) {
     return '';
@@ -152,7 +167,7 @@ export function validatePhoneForCountry(
   }
 
   const phoneNumber = parsePhoneNumberFromString(normalized, normalizedCountry);
-  if (!phoneNumber || !phoneNumber.isValid()) {
+  if (!phoneNumber || (!phoneNumber.isValid() && !phoneNumber.isPossible())) {
     return { ok: false, error: 'invalid_phone' };
   }
 

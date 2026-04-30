@@ -1,14 +1,20 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.attendance;
 
-import static com.indice.erp.hr.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.HrPayloadUtils.parseDateTime;
-import static com.indice.erp.hr.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.HrPayloadUtils.safe;
-import static com.indice.erp.hr.HrPayloadUtils.stringValue;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDateTime;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.attendance.policy.AttendanceEditPolicy;
+import com.indice.erp.hr.attendance.policy.AttendanceEmployeeNumberPolicy;
+import com.indice.erp.hr.attendance.policy.AttendanceStatusPolicy;
+import com.indice.erp.hr.attendance.util.AttendanceDateParser;
+import com.indice.erp.hr.shared.HrPayloadUtils;
+import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
@@ -46,6 +52,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,9 +65,15 @@ public class HrAttendanceService {
         "late",
         "leave",
         "rest",
-        "absence"
+        "absence",
+        "pending",
+        "not_scheduled"
     );
-    private static final List<String> PUBLIC_KIOSK_AUTH_METHODS = List.of("pin", "badge");
+    private static final List<String> PUBLIC_KIOSK_AUTH_METHODS = List.of("pin");
+    private static final int PUBLIC_KIOSK_PIN_FAILURE_LIMIT = 5;
+    private static final Duration PUBLIC_KIOSK_PIN_LOCK_DURATION = Duration.ofMinutes(15);
+    private static final Duration EARLY_CHECK_IN_ALLOWANCE = Duration.ofMinutes(15);
+    private static final String PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY = "_pin_throttle";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JdbcTemplate jdbcTemplate;
@@ -69,6 +82,7 @@ public class HrAttendanceService {
     private final ObjectMapper objectMapper;
     private final BCryptPasswordEncoder passwordEncoder;
     private final HrFaceService hrFaceService;
+    private final GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
     private final boolean enforceLocationRadius;
     private final String kioskIdentificationTokenSecret;
     private final int kioskIdentificationTokenTtlSeconds;
@@ -81,6 +95,7 @@ public class HrAttendanceService {
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         HrFaceService hrFaceService,
+        GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
         @Value("${app.hr.attendance.enforce-location-radius:false}") boolean enforceLocationRadius,
         @Value("${app.hr.kiosk.identification-token-secret:indice-kiosk-identification-secret}") String kioskIdentificationTokenSecret,
         @Value("${app.hr.kiosk.identification-token-ttl-seconds:120}") int kioskIdentificationTokenTtlSeconds,
@@ -92,6 +107,7 @@ public class HrAttendanceService {
         this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
         this.hrFaceService = hrFaceService;
+        this.googleMapsCoordinateExtractor = googleMapsCoordinateExtractor;
         this.enforceLocationRadius = enforceLocationRadius;
         this.kioskIdentificationTokenSecret = kioskIdentificationTokenSecret == null || kioskIdentificationTokenSecret.isBlank()
             ? "indice-kiosk-identification-secret"
@@ -130,13 +146,16 @@ public class HrAttendanceService {
         for (var employee : employees) {
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
             var scheduleRule = scheduleRulesByEmployee.get(employee.id());
-            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule);
+            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
+            var editLockReason = attendanceEditLockReason(employee, date);
 
             switch (effectiveStatus) {
                 case "on_time" -> onTimeCount++;
                 case "late" -> lateCount++;
                 case "leave" -> leaveCount++;
                 case "rest" -> restCount++;
+                case "pending", "not_scheduled" -> {
+                }
                 default -> absenceCount++;
             }
 
@@ -150,14 +169,17 @@ public class HrAttendanceService {
             item.put("unit_name", employee.unitName());
             item.put("business_id", employee.businessId());
             item.put("business_name", employee.businessName());
+            item.put("hire_date", dateString(employee.hireDate()));
+            item.put("attendance_editable", editLockReason == null);
+            item.put("edit_lock_reason", editLockReason);
             item.put("status", effectiveStatus);
-            item.put("system_status", dailyRecord != null ? dailyRecord.systemStatus() : inferSystemStatus(scheduleRule));
+            item.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, date));
             item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
             item.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
             item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
-            item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : calculateMinutesLate(scheduleRule, null));
             item.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
             item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
+            item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : calculateMinutesLate(scheduleRule, null));
             item.put("first_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
             item.put("last_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
             items.add(item);
@@ -170,6 +192,7 @@ public class HrAttendanceService {
             employeePayload.put("department", employee.department());
             employeePayload.put("unit_id", employee.unitId());
             employeePayload.put("unit_name", employee.unitName());
+            employeePayload.put("hire_date", dateString(employee.hireDate()));
             employeePayload.put("status", employee.status());
             employeesPayload.add(employeePayload);
         }
@@ -199,18 +222,22 @@ public class HrAttendanceService {
         var endDate = month.atEndOfMonth();
         var dailyRecords = loadDailyRecords(companyId, employeeId, startDate, endDate);
         var scheduleWindows = loadScheduleWindows(companyId, employeeId, startDate, endDate);
+        var activeWorkSitesByDate = loadActiveWorkSiteAssignments(companyId, employeeId, startDate, endDate);
 
         var days = new ArrayList<Map<String, Object>>();
         for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
             var dailyRecord = dailyRecords.get(currentDate);
             var scheduleRule = resolveScheduleRule(scheduleWindows, currentDate);
-            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule);
+            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, currentDate);
+            var editLockReason = attendanceEditLockReason(employee, currentDate);
 
             var day = new LinkedHashMap<String, Object>();
             day.put("date", currentDate.toString());
             day.put("day", currentDate.getDayOfMonth());
+            day.put("attendance_editable", editLockReason == null);
+            day.put("edit_lock_reason", editLockReason);
             day.put("effective_status", effectiveStatus);
-            day.put("system_status", dailyRecord != null ? dailyRecord.systemStatus() : inferSystemStatus(scheduleRule));
+            day.put("system_status", resolveSystemStatus(dailyRecord, scheduleRule, currentDate));
             day.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
             day.put("entry_registered", dailyRecord != null && dailyRecord.firstCheckInAt() != null);
             day.put("exit_registered", dailyRecord != null && dailyRecord.lastCheckOutAt() != null);
@@ -219,6 +246,9 @@ public class HrAttendanceService {
             day.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : 0);
             day.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
             day.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
+            day.put("schedule_rule", scheduleRule == null ? null : toScheduleRuleMap(scheduleRule));
+            var activeWorkSite = activeWorkSitesByDate.get(currentDate);
+            day.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
             day.put("first_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
             day.put("last_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
             day.put("notes", dailyRecord != null ? dailyRecord.notes() : null);
@@ -226,12 +256,13 @@ public class HrAttendanceService {
         }
 
         var body = new LinkedHashMap<String, Object>();
-        body.put("employee", Map.of(
-            "id", employee.id(),
-            "full_name", employee.fullName(),
-            "position_title", employee.positionTitle(),
-            "department", employee.department()
-        ));
+        var employeePayload = new LinkedHashMap<String, Object>();
+        employeePayload.put("id", employee.id());
+        employeePayload.put("full_name", employee.fullName());
+        employeePayload.put("position_title", employee.positionTitle());
+        employeePayload.put("department", employee.department());
+        employeePayload.put("hire_date", dateString(employee.hireDate()));
+        body.put("employee", employeePayload);
         body.put("month", month.toString());
         body.put("items", days);
         return body;
@@ -250,6 +281,9 @@ public class HrAttendanceService {
         var currentAssignments = loadCurrentAssignments(companyId, date);
         var scheduleRulesByEmployee = loadScheduleRules(companyId, date);
         var dailyRecordsByEmployee = loadDailyRecords(companyId, date);
+        var allowedLocationsByEmployee = loadAllowedLocationsByEmployee(companyId);
+        var businessLocationsByBusiness = groupLocationsByBusiness(locations);
+        var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, date);
         var accessProfilesByEmployee = loadAccessProfilesByEmployee(companyId);
         var kioskDevices = listKioskDevicesRows(companyId);
         var recentEvents = loadRecentControlActivity(companyId, date, 25);
@@ -288,8 +322,9 @@ public class HrAttendanceService {
             var assignment = currentAssignments.get(employee.id());
             var scheduleRule = scheduleRulesByEmployee.get(employee.id());
             var dailyRecord = dailyRecordsByEmployee.get(employee.id());
-            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule);
-            var systemStatus = dailyRecord != null ? dailyRecord.systemStatus() : inferSystemStatus(scheduleRule);
+            var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
+            var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
+            var editLockReason = attendanceEditLockReason(employee, date);
 
             if (assignment == null) {
                 unassignedEmployeesCount++;
@@ -320,8 +355,11 @@ public class HrAttendanceService {
             item.put("unit_name", employee.unitName());
             item.put("business_id", employee.businessId());
             item.put("business_name", employee.businessName());
+            item.put("hire_date", dateString(employee.hireDate()));
+            item.put("attendance_editable", editLockReason == null);
+            item.put("edit_lock_reason", editLockReason);
             item.put("schedule_template_id", assignment != null ? assignment.templateId() : null);
-            item.put("schedule_template_name", assignment != null ? assignment.templateName() : null);
+            item.put("schedule_template_name", assignment != null ? displayScheduleTemplateName(assignment.templateName()) : null);
             item.put("effective_start_date", assignment != null ? assignment.effectiveStartDate().toString() : null);
             item.put("effective_end_date", assignment != null && assignment.effectiveEndDate() != null
                 ? assignment.effectiveEndDate().toString()
@@ -332,7 +370,21 @@ public class HrAttendanceService {
             item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
             item.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
             item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
+            item.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
+            item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
             item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : calculateMinutesLate(scheduleRule, null));
+            item.put(
+                "allowed_locations",
+                allowedLocationsByEmployee.getOrDefault(employee.id(), List.of()).stream().map(this::toLocationMap).toList()
+            );
+            item.put(
+                "business_locations",
+                employee.businessId() == null
+                    ? List.of()
+                    : businessLocationsByBusiness.getOrDefault(employee.businessId(), List.of()).stream().map(this::toLocationMap).toList()
+            );
+            var activeWorkSite = activeWorkSitesByEmployee.get(employee.id());
+            item.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
             var accessProfile = accessProfilesByEmployee.get(employee.id());
             item.put("access_profile", accessProfile == null ? null : toAccessProfileMap(accessProfile));
             var latestEvent = latestEventByEmployee.get(employee.id());
@@ -344,7 +396,7 @@ public class HrAttendanceService {
         for (var template : templates) {
             var body = new LinkedHashMap<String, Object>();
             body.put("id", template.templateId());
-            body.put("name", template.templateName());
+            body.put("name", displayScheduleTemplateName(template.templateName()));
             body.put("status", template.status());
             body.put("employees_assigned_count", assignedCountsByTemplate.getOrDefault(template.templateId(), 0));
             body.put("days", template.days().stream().map(this::toTemplateDayMap).toList());
@@ -375,12 +427,146 @@ public class HrAttendanceService {
         return body;
     }
 
+    public Map<String, Object> scheduleCandidates(
+        long companyId,
+        LocalDate date,
+        int page,
+        int size,
+        String search,
+        Long unitId,
+        Long businessId,
+        boolean availableOnly
+    ) {
+        var safePage = Math.max(1, page);
+        var safeSize = Math.max(5, Math.min(size, 50));
+        var normalizedSearch = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
+        var normalizedUnitId = unitId != null && unitId > 0 ? unitId : null;
+        var normalizedBusinessId = businessId != null && businessId > 0 ? businessId : null;
+        var baseWhere = scheduleCandidateBaseWhere();
+
+        var filteredWhere = new StringBuilder(baseWhere);
+        var filteredParams = scheduleCandidateBaseParams(companyId, date);
+        appendScheduleCandidateFilters(filteredWhere, filteredParams, normalizedSearch, normalizedUnitId, normalizedBusinessId);
+
+        Integer availableCountValue = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM hr_employees e LEFT JOIN units u ON u.id = e.unit_id LEFT JOIN businesses b ON b.id = e.business_id WHERE " + filteredWhere,
+            Integer.class,
+            filteredParams.toArray()
+        );
+        var allFilteredWhere = new StringBuilder(scheduleCandidateEmployeeBaseWhere());
+        var allFilteredParams = scheduleCandidateEmployeeBaseParams(companyId);
+        appendScheduleCandidateFilters(allFilteredWhere, allFilteredParams, normalizedSearch, normalizedUnitId, normalizedBusinessId);
+        Integer allFilteredEmployeesCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM hr_employees e LEFT JOIN units u ON u.id = e.unit_id LEFT JOIN businesses b ON b.id = e.business_id WHERE " + allFilteredWhere,
+            Integer.class,
+            allFilteredParams.toArray()
+        );
+        var availableCount = availableCountValue == null ? 0 : availableCountValue;
+        var allFilteredCount = allFilteredEmployeesCount == null ? 0 : allFilteredEmployeesCount;
+        var totalCount = availableOnly ? availableCount : allFilteredCount;
+        var totalPages = Math.max(1, (int) Math.ceil((double) totalCount / safeSize));
+        safePage = Math.min(safePage, totalPages);
+        var offset = (safePage - 1) * safeSize;
+
+        var listWhere = availableOnly ? filteredWhere : allFilteredWhere;
+        var listParams = availableOnly ? filteredParams : allFilteredParams;
+        var itemsParams = new ArrayList<>(listParams);
+        itemsParams.add(safeSize);
+        itemsParams.add(offset);
+        var pageEmployees = jdbcTemplate.query(
+            """
+                SELECT e.id,
+                       COALESCE(e.employee_number, '') AS employee_number,
+                       TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
+                       COALESCE(e.position, '') AS position,
+                       COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
+                       COALESCE(LOWER(e.status), 'active') AS status,
+                       u.id AS unit_id,
+                       u.name AS unit_name,
+                       b.id AS business_id,
+                       b.name AS business_name
+                FROM hr_employees e
+                LEFT JOIN units u ON u.id = e.unit_id
+                LEFT JOIN businesses b ON b.id = e.business_id
+                WHERE %s
+                ORDER BY full_name ASC, e.id ASC
+                LIMIT ? OFFSET ?
+                """.formatted(listWhere),
+            (rs, rowNum) -> mapAttendanceEmployee(rs),
+            itemsParams.toArray()
+        );
+        var currentAssignments = loadCurrentAssignments(companyId, date);
+        var scheduleRulesByEmployee = loadScheduleRules(companyId, date);
+        var dailyRecordsByEmployee = loadDailyRecords(companyId, date);
+        var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, date);
+        var items = pageEmployees.stream()
+            .map((employee) -> toScheduleCandidateMap(
+                employee,
+                date,
+                currentAssignments.get(employee.id()),
+                scheduleRulesByEmployee.get(employee.id()),
+                dailyRecordsByEmployee.get(employee.id()),
+                activeWorkSitesByEmployee.get(employee.id())
+            ))
+            .toList();
+
+        var unitOptions = jdbcTemplate.query(
+            """
+                SELECT id, name
+                FROM units
+                WHERE (company_id = ? OR company_id IS NULL)
+                  AND (status = 'active' OR status IS NULL OR status = '')
+                ORDER BY name ASC
+                """,
+            (rs, rowNum) -> Map.<String, Object>of(
+                "id", rs.getLong("id"),
+                "name", safe(rs.getString("name"))
+            ),
+            companyId
+        );
+
+        var businessOptions = jdbcTemplate.query(
+            """
+                SELECT b.id, b.name, u.id AS unit_id, u.name AS unit_name
+                FROM businesses b
+                LEFT JOIN units u ON u.id = b.unit_id
+                WHERE (b.company_id = ? OR b.company_id IS NULL)
+                  AND (b.status = 'active' OR b.status IS NULL OR b.status = '')
+                ORDER BY b.name ASC
+                """,
+            (rs, rowNum) -> {
+                var option = new LinkedHashMap<String, Object>();
+                option.put("id", rs.getLong("id"));
+                option.put("name", safe(rs.getString("name")));
+                option.put("unit_id", getNullableLong(rs, "unit_id"));
+                option.put("unit_name", safe(rs.getString("unit_name")));
+                return option;
+            },
+            companyId
+        );
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("date", date.toString());
+        body.put("items", items);
+        body.put("page", safePage);
+        body.put("size", safeSize);
+        body.put("total_count", totalCount);
+        body.put("total_pages", totalPages);
+        body.put("available_count", availableCount);
+        body.put("busy_count", Math.max(0, allFilteredCount - availableCount));
+        body.put("unit_options", unitOptions);
+        body.put("business_options", businessOptions);
+        return body;
+    }
+
     public Map<String, Object> listKioskDevices(long companyId) {
         return Map.of("items", listKioskDevicesRows(companyId).stream().map(this::toKioskDeviceMap).toList());
     }
 
     @Transactional
     public Map<String, Object> saveKioskDevice(long companyId, long userId, Long kioskDeviceId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var code = stringValue(payload, "code");
         var name = stringValue(payload, "name", "nombre");
         if (code.isBlank() || name.isBlank()) {
@@ -395,11 +581,17 @@ public class HrAttendanceService {
         ensureUniqueKioskCode(companyId, kioskDeviceId, code);
 
         var metadataJson = toJson(payload.get("metadata"));
-        var publicAccessToken = kioskDeviceId == null || kioskDeviceId <= 0
-            ? generateUniqueKioskPublicAccessToken()
-            : loadKioskDevice(companyId, kioskDeviceId).publicAccessToken();
+        KioskDeviceRow existingKioskDevice = null;
+        var publicAccessToken = generateUniqueKioskPublicAccessToken();
+        if (kioskDeviceId != null && kioskDeviceId > 0) {
+            existingKioskDevice = loadKioskDevice(companyId, kioskDeviceId);
+            publicAccessToken = existingKioskDevice.publicAccessToken();
+            metadataJson = mergeKioskInternalMetadata(metadataJson, existingKioskDevice.metadataJson());
+        }
         if (kioskDeviceId == null || kioskDeviceId <= 0) {
             KeyHolder keyHolder = new GeneratedKeyHolder();
+            var insertPublicAccessToken = publicAccessToken;
+            var insertMetadataJson = metadataJson;
             jdbcTemplate.update(connection -> {
                 var statement = connection.prepareStatement(
                     """
@@ -416,8 +608,8 @@ public class HrAttendanceService {
                 statement.setString(5, code);
                 statement.setString(6, name);
                 statement.setString(7, status);
-                statement.setString(8, publicAccessToken);
-                statement.setString(9, metadataJson);
+                statement.setString(8, insertPublicAccessToken);
+                statement.setString(9, insertMetadataJson);
                 statement.setLong(10, userId);
                 return statement;
             }, keyHolder);
@@ -473,6 +665,8 @@ public class HrAttendanceService {
             throw new NoSuchElementException("Kiosk device not found.");
         }
 
+        var kioskDevice = loadKioskDevice(companyId, kioskDeviceId);
+        clearPublicKioskPinFailures(kioskDevice);
         return Map.of("kiosk_device", toKioskDeviceMap(loadKioskDevice(companyId, kioskDeviceId)));
     }
 
@@ -493,20 +687,25 @@ public class HrAttendanceService {
         return body;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = { IllegalArgumentException.class, KioskPinThrottleException.class })
     public Map<String, Object> publicKioskIdentify(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
         var location = requirePublicKioskLocation(kioskDevice);
-        var authMethod = normalizePublicKioskAuthMethod(stringValue(payload, "auth_method", "method_type"));
+        var requestedAuthMethod = stringValue(payload, "auth_method", "method_type");
+        var authMethod = normalizePublicKioskAuthMethod(requestedAuthMethod.isBlank() ? "pin" : requestedAuthMethod);
         var credentialPayload = nullable(stringValue(payload, "credential_payload", "credential", "pin", "badge_code"));
         if (credentialPayload == null || credentialPayload.isBlank()) {
             throw new IllegalArgumentException("credential_payload is required.");
         }
 
+        ensurePublicKioskPinAttemptAllowed(kioskDevice);
         var resolvedMethod = resolvePublicKioskAccessMethod(kioskDevice.companyId(), authMethod, credentialPayload);
         if (resolvedMethod == null) {
+            recordPublicKioskPinFailure(kioskDevice);
             throw new IllegalArgumentException("Credential validation failed.");
         }
+        clearPublicKioskPinFailures(kioskDevice);
 
         var employee = loadAttendanceEmployee(kioskDevice.companyId(), resolvedMethod.employeeId());
         if ("terminated".equals(employee.status())) {
@@ -547,6 +746,9 @@ public class HrAttendanceService {
         );
 
         var expiresAtEpochSeconds = Instant.now().getEpochSecond() + kioskIdentificationTokenTtlSeconds;
+        var activityDate = eventTimestamp.toLocalDate();
+        var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), activityDate);
+        var dailyRecord = loadDailyRecord(kioskDevice.companyId(), employee.id(), activityDate);
         var body = new LinkedHashMap<String, Object>();
         body.put("auth_attempt_event_id", authAttemptId);
         body.put("auth_method", authMethod);
@@ -562,13 +764,15 @@ public class HrAttendanceService {
             createPublicKioskIdentificationToken(deviceToken, employee.id(), authMethod, expiresAtEpochSeconds)
         );
         body.put("expires_at", Instant.ofEpochSecond(expiresAtEpochSeconds).toString());
+        body.put("today_activity", toPublicKioskDayActivity(activityDate, dailyRecord, scheduleRule));
         return body;
     }
 
     @Transactional
     public Map<String, Object> publicKioskPunch(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
-        var location = requirePublicKioskLocation(kioskDevice);
+        requirePublicKioskLocation(kioskDevice);
         var identificationToken = stringValue(payload, "identification_token");
         if (identificationToken.isBlank()) {
             throw new IllegalArgumentException("identification_token is required.");
@@ -585,16 +789,46 @@ public class HrAttendanceService {
         if (eventTimestamp == null) {
             eventTimestamp = LocalDateTime.now();
         }
+        validateOperationalEventDate(eventType, eventTimestamp);
 
-        var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), eventTimestamp.toLocalDate());
-        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, location);
+        var latitude = parseDecimalRequired(payload, "latitude");
+        var longitude = parseDecimalRequired(payload, "longitude");
+        var faceVerificationSessionId = normalizeOptionalForeignKey(parseLong(payload, "face_verification_session_id"));
+        var photoObjectKey = normalizeAttendancePhotoObjectKey(kioskDevice.companyId(), employee.id(), stringValue(payload, "photo_url"));
+        var hasFaceVerification = faceVerificationSessionId != null;
+        var hasFallbackPhoto = photoObjectKey != null && !photoObjectKey.isBlank();
+
+        if (!hasFaceVerification && !hasFallbackPhoto) {
+            throw new IllegalArgumentException("Face verification or fallback photo is required.");
+        }
+        if (hasFaceVerification) {
+            hrFaceService.consumeSuccessfulVerificationSession(kioskDevice.companyId(), employee.id(), faceVerificationSessionId);
+        }
+
+        var attendanceDate = eventTimestamp.toLocalDate();
+        var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), attendanceDate);
+        var activeWorkSite = loadActiveWorkSiteAssignment(kioskDevice.companyId(), employee.id(), attendanceDate);
+        var location = resolveScheduleRegistrationLocation(
+            kioskDevice.companyId(),
+            employee,
+            scheduleRule,
+            eventType,
+            kioskDevice.locationId(),
+            latitude,
+            longitude,
+            activeWorkSite
+        );
+        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp);
         validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
 
         var metadataJson = mergeMetadataJson(
             toJson(payload.get("metadata")),
             Map.of(
                 "public_kiosk", true,
-                "identified_employee_id", employee.id()
+                "identified_employee_id", employee.id(),
+                "pin_verified", true,
+                "identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback",
+                "requires_review", !hasFaceVerification
             )
         );
         var operationalEventId = appendAttendanceEvent(
@@ -604,9 +838,9 @@ public class HrAttendanceService {
             eventTimestamp,
             location.id(),
             kioskDevice.id(),
-            location.latitude(),
-            location.longitude(),
-            null,
+            latitude,
+            longitude,
+            photoObjectKey,
             "kiosk_public",
             tokenClaims.authMethod(),
             "success",
@@ -617,18 +851,62 @@ public class HrAttendanceService {
             0L
         );
 
-        var dailyRecord = rebuildDailyRecordProjection(kioskDevice.companyId(), employee.id(), eventTimestamp.toLocalDate());
+        var dailyRecord = rebuildDailyRecordProjection(kioskDevice.companyId(), employee.id(), attendanceDate);
         var result = new LinkedHashMap<String, Object>();
         result.put("event_id", operationalEventId);
         result.put("employee_id", employee.id());
         result.put("event_kind", eventType);
         result.put("auth_method", tokenClaims.authMethod());
         result.put("result_status", "success");
-        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule));
+        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule, attendanceDate));
         result.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
         result.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
         result.put("location", toLocationMap(location));
+        result.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
+        result.put("photo_object_key", photoObjectKey);
+        result.put("identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback");
+        result.put("today_activity", toPublicKioskDayActivity(attendanceDate, dailyRecord, scheduleRule));
         return result;
+    }
+
+    public Map<String, Object> createPublicKioskPhotoUpload(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        var normalizedPayload = new LinkedHashMap<String, Object>(payload);
+        normalizedPayload.put("employee_id", context.employee().id());
+        return createPhotoUpload(context.kioskDevice().companyId(), normalizedPayload);
+    }
+
+    public Map<String, Object> createPublicKioskFaceVerificationSession(String deviceToken, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        return hrFaceService.createVerificationSession(
+            context.kioskDevice().companyId(),
+            0L,
+            Map.of("employee_id", context.employee().id())
+        );
+    }
+
+    public Map<String, Object> createPublicKioskFaceVerificationCaptureUpload(
+        String deviceToken,
+        long sessionId,
+        Map<String, Object> payload
+    ) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        ensureFaceVerificationSessionBelongsTo(context.kioskDevice().companyId(), context.employee().id(), sessionId);
+        return hrFaceService.createVerificationCaptureUpload(context.kioskDevice().companyId(), sessionId, payload);
+    }
+
+    public Map<String, Object> completePublicKioskFaceVerificationSession(
+        String deviceToken,
+        long sessionId,
+        Map<String, Object> payload
+    ) {
+        payload = normalizePayload(payload);
+        var context = requirePublicKioskIdentificationContext(deviceToken, payload);
+        ensureFaceVerificationSessionBelongsTo(context.kioskDevice().companyId(), context.employee().id(), sessionId);
+        return hrFaceService.completeVerificationSession(context.kioskDevice().companyId(), 0L, sessionId);
     }
 
     public Map<String, Object> listAccessProfiles(long companyId) {
@@ -638,6 +916,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveAccessProfile(long companyId, long userId, Long profileId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employeeId = parseLong(payload, "employee_id");
         if (employeeId == null || employeeId <= 0) {
             throw new IllegalArgumentException("employee_id is required.");
@@ -705,7 +984,6 @@ public class HrAttendanceService {
             }
         }
 
-        ensureManualOverrideMethod(companyId, profileId);
         return Map.of("access_profile", toAccessProfileMap(loadAccessProfile(companyId, profileId)));
     }
 
@@ -716,6 +994,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveAccessMethod(long companyId, Long methodId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var accessProfileId = parseLong(payload, "access_profile_id");
         if (accessProfileId == null || accessProfileId <= 0) {
             throw new IllegalArgumentException("access_profile_id is required.");
@@ -736,7 +1015,13 @@ public class HrAttendanceService {
         if ("badge".equals(methodType) && credentialRef == null) {
             throw new IllegalArgumentException("credential_ref is required for badge methods.");
         }
-        if (!"badge".equals(methodType)) {
+        if ("pin".equals(methodType)) {
+            if (secretRaw != null) {
+                credentialRef = pinCredentialReference(companyId, secretRaw);
+            } else if (methodId != null && methodId > 0) {
+                credentialRef = loadAccessMethod(companyId, methodId).credentialRef();
+            }
+        } else if (!"badge".equals(methodType)) {
             credentialRef = null;
         }
         if (!"pin".equals(methodType) && !"password".equals(methodType)) {
@@ -812,7 +1097,6 @@ public class HrAttendanceService {
     public void ensureDefaultAccessProfile(long companyId, long employeeId, long createdBy) {
         var existingProfile = loadAccessProfileByEmployee(companyId, employeeId);
         if (existingProfile != null) {
-            ensureManualOverrideMethod(companyId, existingProfile.id());
             return;
         }
 
@@ -822,7 +1106,7 @@ public class HrAttendanceService {
                 """
                     INSERT INTO hr_employee_access_profiles
                     (company_id, employee_id, status, default_method, last_enrolled_at, metadata_json, created_by)
-                    VALUES (?, ?, 'active', 'manual_override', ?, CAST(? AS JSON), ?)
+                    VALUES (?, ?, 'active', 'pin', ?, CAST(? AS JSON), ?)
                     """,
                 new String[] {"id"}
             );
@@ -833,11 +1117,6 @@ public class HrAttendanceService {
             statement.setLong(5, createdBy);
             return statement;
         }, keyHolder);
-
-        var profileId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
-        if (profileId != null) {
-            ensureManualOverrideMethod(companyId, profileId);
-        }
     }
 
     public Map<String, Object> listControlLocations(long companyId) {
@@ -847,7 +1126,188 @@ public class HrAttendanceService {
     }
 
     @Transactional
+    public Map<String, Object> replaceEmployeeAllowedLocations(
+        long companyId,
+        long userId,
+        long employeeId,
+        Map<String, Object> payload
+    ) {
+        payload = normalizePayload(payload);
+        var employee = loadAttendanceEmployee(companyId, employeeId);
+        if ("terminated".equals(employee.status())) {
+            throw new IllegalArgumentException("Terminated employees cannot receive attendance locations.");
+        }
+
+        var locationIds = HrPayloadUtils.longList(payload, "location_ids", "allowed_location_ids");
+        var uniqueLocationIds = locationIds.stream()
+            .filter((locationId) -> locationId != null && locationId > 0)
+            .distinct()
+            .toList();
+
+        var locations = new ArrayList<LocationRow>();
+        for (var locationId : uniqueLocationIds) {
+            locations.add(loadLocation(companyId, locationId));
+        }
+
+        jdbcTemplate.update(
+            """
+                UPDATE hr_employee_allowed_locations
+                SET status = 'inactive'
+                WHERE company_id = ?
+                  AND employee_id = ?
+                """,
+            companyId,
+            employeeId
+        );
+
+        for (var location : locations) {
+            ensureEmployeeAllowedLocation(companyId, userId, employeeId, location.id());
+        }
+
+        return Map.of(
+            "employee_id", employeeId,
+            "allowed_locations", loadAllowedLocations(companyId, employeeId).stream().map(this::toLocationMap).toList()
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> bulkAssignActiveWorkSite(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var locationId = normalizeOptionalForeignKey(parseLong(payload, "location_id", "work_site_location_id"));
+        if (locationId == null) {
+            throw new IllegalArgumentException("location_id is required.");
+        }
+        var location = loadLocation(companyId, locationId);
+        validateLocationCanBeAssigned(location);
+        var templateId = normalizeOptionalForeignKey(parseLong(payload, "template_id", "schedule_template_id"));
+        ScheduleTemplateDefinition template = null;
+        if (templateId != null) {
+            template = loadExistingTemplate(companyId, templateId);
+            if (!"active".equals(template.status())) {
+                throw new IllegalArgumentException("Only active schedule templates can be assigned.");
+            }
+            validateScheduleTemplateWorkSiteCompatibility(template, location);
+        }
+
+        var employeeIds = HrPayloadUtils.longList(payload, "employee_ids");
+        var singleEmployeeId = parseLong(payload, "employee_id");
+        if (employeeIds.isEmpty() && singleEmployeeId != null) {
+            employeeIds = List.of(singleEmployeeId);
+        }
+        var uniqueEmployeeIds = employeeIds.stream()
+            .filter((employeeId) -> employeeId != null && employeeId > 0)
+            .distinct()
+            .toList();
+        if (uniqueEmployeeIds.isEmpty()) {
+            throw new IllegalArgumentException("employee_ids is required.");
+        }
+        if (uniqueEmployeeIds.size() > 1) {
+            throw new IllegalArgumentException("A contract site can only be assigned to one employee at a time.");
+        }
+
+        var effectiveStartDate = HrPayloadUtils.parseDate(payload, "effective_start_date", "start_date");
+        if (effectiveStartDate == null) {
+            throw new IllegalArgumentException("effective_start_date is required.");
+        }
+        var effectiveEndDate = HrPayloadUtils.parseDate(payload, "effective_end_date", "end_date");
+        if (effectiveEndDate != null && effectiveEndDate.isBefore(effectiveStartDate)) {
+            throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
+        }
+        if (hasActiveWorkSiteLocationAssignmentOverlap(companyId, location.id(), effectiveStartDate, effectiveEndDate)) {
+            throw new IllegalArgumentException("This contract site is already assigned to another employee in this date range.");
+        }
+
+        var assignments = new ArrayList<Map<String, Object>>();
+        for (var employeeId : uniqueEmployeeIds) {
+            var employee = loadAttendanceEmployee(companyId, employeeId);
+            if ("terminated".equals(employee.status())) {
+                throw new IllegalArgumentException("Terminated employees cannot receive contract site assignments.");
+            }
+
+            validateEmployeeIsFreeForAssignment(companyId, employeeId, effectiveStartDate, effectiveEndDate);
+            ensureEmployeeAllowedLocation(companyId, userId, employeeId, location.id());
+            var assignmentId = insertWorkSiteAssignment(
+                companyId,
+                userId,
+                employeeId,
+                location.id(),
+                effectiveStartDate,
+                effectiveEndDate
+            );
+            if (template != null) {
+                jdbcTemplate.update(
+                    """
+                        INSERT INTO hr_employee_schedule_assignments
+                        (company_id, employee_id, template_id, effective_start_date, effective_end_date, status, created_by)
+                        VALUES (?, ?, ?, ?, ?, 'active', ?)
+                        """,
+                    companyId,
+                    employeeId,
+                    template.templateId(),
+                    effectiveStartDate,
+                    effectiveEndDate,
+                    userId
+                );
+            }
+
+            var assignment = new LinkedHashMap<String, Object>();
+            assignment.put("id", assignmentId);
+            assignment.put("employee_id", employeeId);
+            assignment.put("employee_name", employee.fullName());
+            assignment.put("location_id", location.id());
+            assignment.put("location_name", location.name());
+            assignment.put("location", toLocationMap(location));
+            assignment.put("template_id", template == null ? null : template.templateId());
+            assignment.put("template_name", template == null ? null : displayScheduleTemplateName(template.templateName()));
+            assignment.put("effective_start_date", effectiveStartDate.toString());
+            assignment.put("effective_end_date", effectiveEndDate == null ? null : effectiveEndDate.toString());
+            assignment.put("status", "active");
+            assignments.add(assignment);
+        }
+
+        return Map.of(
+            "assigned_count", assignments.size(),
+            "location", toLocationMap(location),
+            "assignments", assignments
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> clearEmployeeWorkAssignments(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var employeeId = parseLong(payload, "employee_id");
+        if (employeeId == null || employeeId <= 0) {
+            throw new IllegalArgumentException("employee_id is required.");
+        }
+        var date = HrPayloadUtils.parseDate(payload, "date", "effective_start_date", "start_date");
+        if (date == null) {
+            throw new IllegalArgumentException("date is required.");
+        }
+
+        var employee = loadAttendanceEmployee(companyId, employeeId);
+        if ("terminated".equals(employee.status())) {
+            throw new IllegalArgumentException("Terminated employees cannot have work assignments updated.");
+        }
+
+        var scheduleAssignmentsCleared = closeOverlappingAssignments(companyId, userId, employeeId, date, date);
+        var workSiteAssignmentsCleared = closeOverlappingWorkSiteAssignments(companyId, userId, employeeId, date, date);
+
+        return Map.of(
+            "employee_id", employeeId,
+            "employee_name", employee.fullName(),
+            "date", date.toString(),
+            "schedule_assignments_cleared", scheduleAssignmentsCleared,
+            "work_site_assignments_cleared", workSiteAssignmentsCleared
+        );
+    }
+
+    public Map<String, Object> extractCoordinatesFromMapLink(Map<String, Object> payload) {
+        return googleMapsCoordinateExtractor.extractCoordinatesFromMapLink(normalizePayload(payload));
+    }
+
+    @Transactional
     public Map<String, Object> saveLocation(long companyId, long userId, Long locationId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var name = stringValue(payload, "name", "nombre");
         if (name.isBlank()) {
             throw new IllegalArgumentException("name is required.");
@@ -859,28 +1319,72 @@ public class HrAttendanceService {
         if (radiusMeters == null || radiusMeters <= 0) {
             throw new IllegalArgumentException("radius_meters must be greater than zero.");
         }
+        var contractStartDate = HrPayloadUtils.parseDate(payload, "contract_start_date", "contractStartDate");
+        if (contractStartDate == null) {
+            throw new IllegalArgumentException("contract_start_date is required.");
+        }
+        var contractEndDate = HrPayloadUtils.parseDate(payload, "contract_end_date", "contractEndDate");
+        if (contractEndDate == null) {
+            throw new IllegalArgumentException("contract_end_date is required.");
+        }
+        if (contractEndDate.isBefore(contractStartDate)) {
+            throw new IllegalArgumentException("contract_end_date must be on or after contract_start_date.");
+        }
+        var requiredStartTime = parseTime(payload, "required_start_time");
+        if (requiredStartTime == null) {
+            requiredStartTime = LocalTime.of(8, 0);
+        }
+        var requiredEndTime = parseTime(payload, "required_end_time");
+        if (requiredEndTime == null) {
+            requiredEndTime = LocalTime.of(16, 0);
+        }
+        validatePreferredTimeRange(requiredStartTime, requiredEndTime);
+        var requiredHoursPerDay = normalizeRequiredHoursPerDay(
+            HrPayloadUtils.parseBigDecimal(payload, "required_hours_per_day", "requiredHoursPerDay")
+        );
+        var requiredDaysPerWeek = HrPayloadUtils.parseInteger(payload, "required_days_per_week", "requiredDaysPerWeek");
+        if (requiredDaysPerWeek == null) {
+            requiredDaysPerWeek = 5;
+        }
+        if (requiredDaysPerWeek < 1 || requiredDaysPerWeek > 7) {
+            throw new IllegalArgumentException("required_days_per_week must be between 1 and 7.");
+        }
+        var unitId = normalizeOptionalForeignKey(parseLong(payload, "unit_id", "unitId"));
+        var businessId = normalizeOptionalForeignKey(parseLong(payload, "business_id", "businessId"));
 
         var status = normalizeManagedStatus(stringValue(payload, "status"));
         ensureUniqueLocationName(companyId, locationId, name);
+        validateOperationalScope(companyId, unitId, businessId, null);
 
         if (locationId == null || locationId <= 0) {
+            var insertRequiredStartTime = requiredStartTime;
+            var insertRequiredEndTime = requiredEndTime;
+            var insertRequiredDaysPerWeek = requiredDaysPerWeek;
             KeyHolder keyHolder = new GeneratedKeyHolder();
             jdbcTemplate.update(connection -> {
                 var statement = connection.prepareStatement(
                     """
                         INSERT INTO hr_attendance_locations
-                        (company_id, name, latitude, longitude, radius_meters, status, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters, required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, managed_source, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'contract_site', ?)
                         """,
                     new String[] {"id"}
                 );
                 statement.setLong(1, companyId);
-                statement.setString(2, name);
-                statement.setBigDecimal(3, latitude);
-                statement.setBigDecimal(4, longitude);
-                statement.setInt(5, radiusMeters);
-                statement.setString(6, status);
-                statement.setLong(7, userId);
+                setNullableLong(statement, 2, unitId);
+                setNullableLong(statement, 3, businessId);
+                statement.setObject(4, contractStartDate);
+                statement.setObject(5, contractEndDate);
+                statement.setString(6, name);
+                statement.setBigDecimal(7, latitude);
+                statement.setBigDecimal(8, longitude);
+                statement.setInt(9, radiusMeters);
+                statement.setBigDecimal(10, requiredHoursPerDay);
+                statement.setObject(11, insertRequiredStartTime);
+                statement.setObject(12, insertRequiredEndTime);
+                statement.setInt(13, insertRequiredDaysPerWeek);
+                statement.setString(14, status);
+                statement.setLong(15, userId);
                 return statement;
             }, keyHolder);
             locationId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
@@ -888,17 +1392,34 @@ public class HrAttendanceService {
             var updated = jdbcTemplate.update(
                 """
                     UPDATE hr_attendance_locations
-                    SET name = ?,
+                    SET unit_id = ?,
+                        business_id = ?,
+                        contract_start_date = ?,
+                        contract_end_date = ?,
+                        name = ?,
                         latitude = ?,
-                        longitude = ?,
-                        radius_meters = ?,
-                        status = ?
+	                        longitude = ?,
+	                        radius_meters = ?,
+	                        required_hours_per_day = ?,
+	                        required_start_time = ?,
+	                        required_end_time = ?,
+	                        required_days_per_week = ?,
+	                        status = ?,
+                            managed_source = 'contract_site'
                     WHERE id = ? AND company_id = ?
                     """,
+                unitId,
+                businessId,
+                contractStartDate,
+                contractEndDate,
                 name,
                 latitude,
-                longitude,
-                radiusMeters,
+	                longitude,
+	                radiusMeters,
+	                requiredHoursPerDay,
+	                requiredStartTime,
+	                requiredEndTime,
+	                requiredDaysPerWeek,
                 status,
                 locationId,
                 companyId
@@ -920,7 +1441,7 @@ public class HrAttendanceService {
         body.put("items", templates.stream().map((template) -> {
             var item = new LinkedHashMap<String, Object>();
             item.put("id", template.templateId());
-            item.put("name", template.templateName());
+            item.put("name", displayScheduleTemplateName(template.templateName()));
             item.put("status", template.status());
             item.put("schedule_mode", template.scheduleMode());
             item.put("block_after_grace_period", template.blockAfterGracePeriod());
@@ -936,6 +1457,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> saveScheduleTemplate(long companyId, long userId, Long templateId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var name = stringValue(payload, "name", "nombre");
         if (name.isBlank()) {
             throw new IllegalArgumentException("name is required.");
@@ -1061,6 +1583,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> bulkAssignScheduleTemplate(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var templateId = parseLong(payload, "template_id");
         if (templateId == null || templateId <= 0) {
             throw new IllegalArgumentException("template_id is required.");
@@ -1093,7 +1616,7 @@ public class HrAttendanceService {
                 throw new IllegalArgumentException("Terminated employees cannot receive schedule assignments.");
             }
 
-            closeOverlappingAssignments(companyId, employeeId, effectiveStartDate, effectiveEndDate);
+            validateEmployeeIsFreeForAssignment(companyId, employeeId, effectiveStartDate, effectiveEndDate);
             jdbcTemplate.update(
                 """
                     INSERT INTO hr_employee_schedule_assignments
@@ -1112,7 +1635,7 @@ public class HrAttendanceService {
             assignment.put("employee_id", employeeId);
             assignment.put("employee_name", employee.fullName());
             assignment.put("template_id", templateId);
-            assignment.put("template_name", template.templateName());
+            assignment.put("template_name", displayScheduleTemplateName(template.templateName()));
             assignment.put("effective_start_date", effectiveStartDate.toString());
             assignment.put("effective_end_date", effectiveEndDate == null ? null : effectiveEndDate.toString());
             assignments.add(assignment);
@@ -1121,12 +1644,13 @@ public class HrAttendanceService {
         return Map.of(
             "assigned_count", assignments.size(),
             "template_id", templateId,
-            "template_name", template.templateName(),
+            "template_name", displayScheduleTemplateName(template.templateName()),
             "assignments", assignments
         );
     }
 
     public Map<String, Object> createPhotoUpload(long companyId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         if (!objectStorageService.isEnabled()) {
             throw new ObjectStorageDisabledException("Object storage is not enabled.");
         }
@@ -1164,6 +1688,7 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> createSelfPhotoUpload(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employee = resolveSessionAttendanceEmployee(companyId, userId);
         var normalizedPayload = new LinkedHashMap<String, Object>(payload);
         normalizedPayload.put("employee_id", employee.id());
@@ -1171,6 +1696,7 @@ public class HrAttendanceService {
     }
 
     public Map<String, Object> recordKioskEvent(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employeeId = parseLong(payload, "employee_id");
         if (employeeId == null || employeeId <= 0) {
             throw new IllegalArgumentException("employee_id is required.");
@@ -1187,6 +1713,7 @@ public class HrAttendanceService {
         if (eventTimestamp == null) {
             eventTimestamp = LocalDateTime.now();
         }
+        validateOperationalEventDate(eventKind, eventTimestamp);
         var accessProfile = loadOrCreateAccessProfile(companyId, employeeId, userId);
         var authMethod = resolveRequestedAuthMethod(payload, accessProfile.defaultMethod());
         var kioskDeviceId = normalizeOptionalForeignKey(parseLong(payload, "kiosk_device_id"));
@@ -1206,8 +1733,6 @@ public class HrAttendanceService {
         if (!"auth_attempt".equals(eventKind)) {
             latitude = parseDecimalRequired(payload, "latitude");
             longitude = parseDecimalRequired(payload, "longitude");
-            var resolvedLocationId = requestedLocationId == null && kioskDevice != null ? kioskDevice.locationId() : requestedLocationId;
-            location = resolveKioskLocation(companyId, resolvedLocationId, latitude, longitude);
         } else if (kioskDevice != null && kioskDevice.locationId() != null) {
             location = loadLocation(companyId, kioskDevice.locationId());
         }
@@ -1253,8 +1778,23 @@ public class HrAttendanceService {
         if ("facial_recognition".equals(authMethod)) {
             hrFaceService.consumeSuccessfulVerificationSession(companyId, employeeId, faceVerificationSessionId);
         }
-        var scheduleRule = loadScheduleRule(companyId, employeeId, eventTimestamp.toLocalDate());
-        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, location);
+        var attendanceDate = eventTimestamp.toLocalDate();
+        var scheduleRule = loadScheduleRule(companyId, employeeId, attendanceDate);
+        var activeWorkSite = loadActiveWorkSiteAssignment(companyId, employeeId, attendanceDate);
+        if (!"auth_attempt".equals(eventKind)) {
+            var resolvedLocationId = requestedLocationId == null && kioskDevice != null ? kioskDevice.locationId() : requestedLocationId;
+            location = resolveScheduleRegistrationLocation(
+                companyId,
+                employee,
+                scheduleRule,
+                eventKind,
+                resolvedLocationId,
+                latitude,
+                longitude,
+                activeWorkSite
+            );
+        }
+        validateScheduleRegistrationPolicy(scheduleRule, eventKind, eventTimestamp);
         validateOperationalEventTransition(companyId, employeeId, eventTimestamp, eventKind);
 
         var operationalResultStatus = "manual_override".equals(authMethod) ? "overridden" : "success";
@@ -1278,7 +1818,7 @@ public class HrAttendanceService {
             userId
         );
 
-        var dailyRecord = rebuildDailyRecordProjection(companyId, employeeId, eventTimestamp.toLocalDate());
+        var dailyRecord = rebuildDailyRecordProjection(companyId, employeeId, attendanceDate);
         var result = new LinkedHashMap<String, Object>();
         result.put("event_id", operationalEventId);
         result.put("auth_attempt_event_id", authAttemptId);
@@ -1286,26 +1826,82 @@ public class HrAttendanceService {
         result.put("event_kind", eventKind);
         result.put("auth_method", authMethod);
         result.put("result_status", operationalResultStatus);
-        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule));
+        result.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule, attendanceDate));
         result.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
         result.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
         result.put("location", toLocationMap(location));
+        result.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
         result.put("photo_object_key", photoObjectKey);
         return result;
     }
 
     @Transactional
     public Map<String, Object> recordSelfKioskEvent(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employee = resolveSessionAttendanceEmployee(companyId, userId);
         var normalizedPayload = new LinkedHashMap<String, Object>(payload);
         normalizedPayload.put("employee_id", employee.id());
         return recordKioskEvent(companyId, userId, normalizedPayload);
     }
 
+    @Scheduled(fixedDelayString = "${app.hr.attendance.auto-checkout-delay-ms:300000}")
+    @Transactional
+    public void autoCheckoutOpenAttendanceRecords() {
+        var now = LocalDateTime.now();
+        var candidates = loadAutoCheckoutCandidates(now.toLocalDate());
+
+        for (var candidate : candidates) {
+            var scheduleRule = loadScheduleRule(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate());
+            if (scheduleRule == null || scheduleRule.isRestDay() || scheduleRule.endTime() == null) {
+                continue;
+            }
+
+            var checkoutAt = candidate.attendanceDate().atTime(scheduleRule.endTime());
+            if (checkoutAt.isAfter(now)) {
+                continue;
+            }
+            if (candidate.firstCheckInAt() != null && checkoutAt.isBefore(candidate.firstCheckInAt())) {
+                checkoutAt = candidate.firstCheckInAt();
+            }
+            if (hasSuccessfulCheckoutEvent(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate())) {
+                rebuildDailyRecordProjection(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate());
+                continue;
+            }
+
+            appendAttendanceEvent(
+                candidate.companyId(),
+                candidate.employeeId(),
+                "check_out",
+                checkoutAt,
+                candidate.firstLocationId(),
+                null,
+                null,
+                null,
+                null,
+                "system",
+                "auto_checkout",
+                "success",
+                "check_out",
+                toJson(Map.of(
+                    "auto_checkout", true,
+                    "reason", "missing_checkout",
+                    "scheduled_end_time", scheduleRule.endTime().toString()
+                )),
+                "Auto checkout at scheduled end time.",
+                null,
+                0L
+            );
+            rebuildDailyRecordProjection(candidate.companyId(), candidate.employeeId(), candidate.attendanceDate());
+        }
+    }
+
     public Map<String, Object> updateDailyRecord(long companyId, long userId, long employeeId, LocalDate date, Map<String, Object> payload) {
-        loadAttendanceEmployee(companyId, employeeId);
+        payload = normalizePayload(payload);
+        var employee = loadAttendanceEmployee(companyId, employeeId);
+        ensureAttendanceDateEditable(employee, date);
         var targetStatusRaw = stringValue(payload, "status", "corrected_status");
         var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
+        var scheduleRule = loadScheduleRule(companyId, employeeId, date);
         var notes = nullable(stringValue(payload, "notes"));
         var correctionMetadata = new LinkedHashMap<String, Object>();
         correctionMetadata.put("corrected_status", correctedStatus);
@@ -1333,84 +1929,24 @@ public class HrAttendanceService {
         );
 
         var refreshed = rebuildDailyRecordProjection(companyId, employeeId, date);
-        var scheduleRule = loadScheduleRule(companyId, employeeId, date);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("employee_id", employeeId);
         body.put("date", date.toString());
-        body.put("system_status", refreshed != null ? refreshed.systemStatus() : inferSystemStatus(scheduleRule));
+        body.put("attendance_editable", true);
+        body.put("edit_lock_reason", null);
+        body.put("system_status", resolveSystemStatus(refreshed, scheduleRule, date));
         body.put("corrected_status", refreshed != null ? refreshed.correctedStatus() : null);
-        body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule));
+        body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule, date));
         body.put("notes", refreshed != null ? refreshed.notes() : null);
         return body;
     }
 
     @Transactional
     public Map<String, Object> updateSelfDailyRecord(long companyId, long userId, LocalDate date, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
         var employee = resolveSessionAttendanceEmployee(companyId, userId);
         return updateDailyRecord(companyId, userId, employee.id(), date, payload);
-    }
-
-    public void ensureDefaultScheduleAssignment(long companyId, long employeeId, long createdBy) {
-        var existingCount = jdbcTemplate.queryForObject(
-            """
-                SELECT COUNT(*)
-                FROM hr_employee_schedule_assignments
-                WHERE company_id = ?
-                  AND employee_id = ?
-                  AND LOWER(COALESCE(status, 'active')) = 'active'
-                """,
-            Integer.class,
-            companyId,
-            employeeId
-        );
-        if (existingCount != null && existingCount > 0) {
-            return;
-        }
-
-        var templateIds = jdbcTemplate.query(
-            """
-                SELECT id
-                FROM hr_schedule_templates
-                WHERE company_id = ?
-                  AND LOWER(COALESCE(status, 'active')) = 'active'
-                ORDER BY CASE WHEN name = 'Spring Default Schedule' THEN 0 ELSE 1 END, id ASC
-                LIMIT 1
-                """,
-            (rs, rowNum) -> rs.getLong("id"),
-            companyId
-        );
-        if (templateIds.isEmpty()) {
-            return;
-        }
-
-        var startDates = jdbcTemplate.query(
-            """
-                SELECT COALESCE(hire_date, CURRENT_DATE()) AS hire_date
-                FROM hr_employees
-                WHERE id = ? AND company_id = ?
-                LIMIT 1
-                """,
-            (rs, rowNum) -> rs.getObject("hire_date", LocalDate.class),
-            employeeId,
-            companyId
-        );
-        var effectiveStartDate = startDates.isEmpty() || startDates.getFirst() == null
-            ? LocalDate.now()
-            : startDates.getFirst();
-
-        jdbcTemplate.update(
-            """
-                INSERT INTO hr_employee_schedule_assignments
-                (company_id, employee_id, template_id, effective_start_date, status, created_by)
-                VALUES (?, ?, ?, ?, 'active', ?)
-                """,
-            companyId,
-            employeeId,
-            templateIds.getFirst(),
-            effectiveStartDate,
-            createdBy
-        );
     }
 
     private AttendanceEmployee loadAttendanceEmployee(long companyId, long employeeId) {
@@ -1421,6 +1957,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -1452,6 +1989,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        unit_ref.id AS unit_id,
                        unit_ref.name AS unit_name,
@@ -1486,6 +2024,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        unit_ref.id AS unit_id,
                        unit_ref.name AS unit_name,
@@ -1624,7 +2163,6 @@ public class HrAttendanceService {
             employeeId,
             companyId
         );
-        ensureDefaultScheduleAssignment(companyId, employeeId, userId);
         ensureDefaultAccessProfile(companyId, employeeId, userId);
     }
 
@@ -1736,10 +2274,11 @@ public class HrAttendanceService {
     }
 
     private String formatAttendanceEmployeeNumber(String prefix, int padding, long nextNumber) {
-        var normalizedPrefix = prefix == null || prefix.isBlank() ? "EMP" : prefix.trim().toUpperCase(Locale.ROOT);
-        var effectivePadding = Math.max(padding, 4);
-        var digits = String.format(Locale.ROOT, "%0" + effectivePadding + "d", nextNumber);
-        return normalizedPrefix + "-" + digits;
+        return AttendanceEmployeeNumberPolicy.format(prefix, padding, nextNumber);
+    }
+
+    private String normalizeAttendanceEmployeeNumberPrefix(String prefix) {
+        return AttendanceEmployeeNumberPolicy.normalizePrefix(prefix);
     }
 
     private List<AttendanceEmployee> listAttendanceEmployees(long companyId) {
@@ -1750,6 +2289,7 @@ public class HrAttendanceService {
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
+                       e.hire_date AS hire_date,
                        COALESCE(LOWER(e.status), 'active') AS status,
                        u.id AS unit_id,
                        u.name AS unit_name,
@@ -1774,12 +2314,201 @@ public class HrAttendanceService {
             safe(rs.getString("full_name")),
             safe(rs.getString("position")),
             safe(rs.getString("department")),
+            rs.getObject("hire_date", LocalDate.class),
             safe(rs.getString("status")),
             getNullableLong(rs, "unit_id"),
             safe(rs.getString("unit_name")),
             getNullableLong(rs, "business_id"),
             safe(rs.getString("business_name"))
         );
+    }
+
+    private Map<String, Object> toScheduleCandidateMap(AttendanceEmployee employee) {
+        var item = new LinkedHashMap<String, Object>();
+        item.put("employee_id", employee.id());
+        item.put("employee_number", employee.employeeNumber());
+        item.put("employee_name", employee.fullName());
+        item.put("position_title", employee.positionTitle());
+        item.put("department", employee.department());
+        item.put("employee_status", employee.status());
+        item.put("unit_id", employee.unitId());
+        item.put("unit_name", employee.unitName());
+        item.put("business_id", employee.businessId());
+        item.put("business_name", employee.businessName());
+        item.put("hire_date", dateString(employee.hireDate()));
+        item.put("schedule_template_id", null);
+        item.put("schedule_template_name", null);
+        item.put("effective_start_date", null);
+        item.put("effective_end_date", null);
+        item.put("today_rule", null);
+        item.put("today_status", "not_scheduled");
+        item.put("system_status", "not_scheduled");
+        item.put("corrected_status", null);
+        item.put("first_check_in_at", null);
+        item.put("last_check_out_at", null);
+        item.put("first_location", null);
+        item.put("last_location", null);
+        item.put("minutes_late", 0);
+        item.put("allowed_locations", List.of());
+        item.put("active_work_site", null);
+        item.put("access_profile", null);
+        item.put("latest_event", null);
+        return item;
+    }
+
+    private Map<String, Object> toScheduleCandidateMap(
+        AttendanceEmployee employee,
+        LocalDate date,
+        CurrentScheduleAssignment assignment,
+        ScheduleRule scheduleRule,
+        DailyRecordRow dailyRecord,
+        WorkSiteAssignmentRow activeWorkSite
+    ) {
+        var item = toScheduleCandidateMap(employee);
+        var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
+        var systemStatus = resolveSystemStatus(dailyRecord, scheduleRule, date);
+        var editLockReason = attendanceEditLockReason(employee, date);
+        var hasAttendanceActivity = dailyRecord != null
+            && (dailyRecord.firstCheckInAt() != null || dailyRecord.lastCheckOutAt() != null);
+        var busyReason = "";
+
+        if (assignment != null) {
+            item.put("schedule_template_id", assignment.templateId());
+            item.put("schedule_template_name", displayScheduleTemplateName(assignment.templateName()));
+            item.put("effective_start_date", assignment.effectiveStartDate().toString());
+            item.put("effective_end_date", assignment.effectiveEndDate() == null ? null : assignment.effectiveEndDate().toString());
+            busyReason = "Schedule already assigned";
+        }
+        if (scheduleRule != null) {
+            item.put("today_rule", toScheduleRuleMap(scheduleRule));
+        }
+        if (dailyRecord != null) {
+            item.put("corrected_status", dailyRecord.correctedStatus());
+            item.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
+            item.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
+            item.put("first_location", toLocationMap(dailyRecord.firstLocation()));
+            item.put("last_location", toLocationMap(dailyRecord.lastLocation()));
+            item.put("minutes_late", dailyRecord.minutesLate());
+        }
+        if (activeWorkSite != null) {
+            item.put("active_work_site", toWorkSiteAssignmentMap(activeWorkSite));
+            busyReason = "Contract site assigned";
+        }
+        if (hasAttendanceActivity) {
+            busyReason = "Attendance already recorded";
+        }
+
+        item.put("today_status", effectiveStatus);
+        item.put("system_status", systemStatus);
+        item.put("attendance_editable", editLockReason == null);
+        item.put("edit_lock_reason", editLockReason);
+        item.put("can_assign_schedule", busyReason.isBlank());
+        item.put("schedule_busy_reason", busyReason.isBlank() ? null : busyReason);
+        return item;
+    }
+
+    private String scheduleCandidateBaseWhere() {
+        return """
+            e.company_id = ?
+              AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM hr_employee_schedule_assignments schedule_assignment
+                  JOIN hr_schedule_templates schedule_template ON schedule_template.id = schedule_assignment.template_id
+                  WHERE schedule_assignment.company_id = e.company_id
+                    AND schedule_assignment.employee_id = e.id
+                    AND LOWER(COALESCE(schedule_assignment.status, 'active')) = 'active'
+                    AND LOWER(COALESCE(schedule_template.status, 'active')) = 'active'
+                    AND schedule_assignment.effective_start_date <= ?
+                    AND (schedule_assignment.effective_end_date IS NULL OR schedule_assignment.effective_end_date >= ?)
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM hr_employee_work_site_assignments work_site_assignment
+                  JOIN hr_attendance_locations work_site_location ON work_site_location.id = work_site_assignment.location_id
+                  WHERE work_site_assignment.company_id = e.company_id
+                    AND work_site_assignment.employee_id = e.id
+                    AND LOWER(COALESCE(work_site_assignment.status, 'active')) = 'active'
+                    AND LOWER(COALESCE(work_site_location.status, 'active')) = 'active'
+                    AND work_site_assignment.effective_start_date <= ?
+                    AND (work_site_assignment.effective_end_date IS NULL OR work_site_assignment.effective_end_date >= ?)
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM hr_attendance_events attendance_event
+                  WHERE attendance_event.company_id = e.company_id
+                    AND attendance_event.employee_id = e.id
+                    AND attendance_event.attendance_date = ?
+                    AND attendance_event.event_type IN ('check_in', 'check_out', 'break_out', 'break_in')
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM hr_attendance_daily_records daily_record
+                  WHERE daily_record.company_id = e.company_id
+                    AND daily_record.employee_id = e.id
+                    AND daily_record.attendance_date = ?
+                    AND (daily_record.first_check_in_at IS NOT NULL OR daily_record.last_check_out_at IS NOT NULL)
+              )
+            """;
+    }
+
+    private String scheduleCandidateEmployeeBaseWhere() {
+        return """
+            e.company_id = ?
+              AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
+            """;
+    }
+
+    private ArrayList<Object> scheduleCandidateBaseParams(long companyId, LocalDate date) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.add(date);
+        params.add(date);
+        params.add(date);
+        params.add(date);
+        params.add(date);
+        params.add(date);
+        return params;
+    }
+
+    private ArrayList<Object> scheduleCandidateEmployeeBaseParams(long companyId) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        return params;
+    }
+
+    private void appendScheduleCandidateFilters(
+        StringBuilder where,
+        List<Object> params,
+        String normalizedSearch,
+        Long unitId,
+        Long businessId
+    ) {
+        if (normalizedSearch != null && !normalizedSearch.isBlank()) {
+            var like = "%" + normalizedSearch + "%";
+            where.append(
+                """
+                  AND (
+                    LOWER(TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, '')))) LIKE ?
+                    OR LOWER(COALESCE(e.employee_number, '')) LIKE ?
+                    OR LOWER(COALESCE(e.position, '')) LIKE ?
+                    OR LOWER(COALESCE(e.department, '')) LIKE ?
+                  )
+                """
+            );
+            params.add(like);
+            params.add(like);
+            params.add(like);
+            params.add(like);
+        }
+        if (unitId != null) {
+            where.append(" AND e.unit_id = ?");
+            params.add(unitId);
+        }
+        if (businessId != null) {
+            where.append(" AND e.business_id = ?");
+            params.add(businessId);
+        }
     }
 
     private Map<Long, DailyRecordRow> loadDailyRecords(long companyId, LocalDate date) {
@@ -1915,6 +2644,18 @@ public class HrAttendanceService {
         return loadDailyRecords(companyId, employeeId, date, date).get(date);
     }
 
+    private Map<String, Object> toPublicKioskDayActivity(LocalDate attendanceDate, DailyRecordRow dailyRecord, ScheduleRule scheduleRule) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("attendance_date", attendanceDate.toString());
+        body.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule, attendanceDate));
+        body.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
+        body.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
+        body.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : 0);
+        body.put("has_check_in", dailyRecord != null && dailyRecord.firstCheckInAt() != null);
+        body.put("has_check_out", dailyRecord != null && dailyRecord.lastCheckOutAt() != null);
+        return body;
+    }
+
     private DailyRecordRow mapDailyRecord(ResultSet rs) throws SQLException {
         return new DailyRecordRow(
             rs.getLong("id"),
@@ -1959,6 +2700,7 @@ public class HrAttendanceService {
                 LEFT JOIN hr_attendance_locations l ON l.id = t.location_id
                 WHERE a.company_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
                 ORDER BY a.employee_id ASC, a.effective_start_date DESC, a.id DESC
@@ -2007,6 +2749,7 @@ public class HrAttendanceService {
                 JOIN hr_schedule_templates t ON t.id = a.template_id
                 WHERE a.company_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
                 ORDER BY a.employee_id ASC, a.effective_start_date DESC, a.id DESC
@@ -2033,11 +2776,13 @@ public class HrAttendanceService {
     private Map<Long, Integer> loadActiveAssignmentCountsByTemplate(long companyId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT template_id, COUNT(*) AS total_count
-                FROM hr_employee_schedule_assignments
-                WHERE company_id = ?
-                  AND LOWER(COALESCE(status, 'active')) = 'active'
-                GROUP BY template_id
+                SELECT a.template_id, COUNT(*) AS total_count
+                FROM hr_employee_schedule_assignments a
+                JOIN hr_schedule_templates t ON t.id = a.template_id
+                WHERE a.company_id = ?
+                  AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
+                GROUP BY a.template_id
                 """,
             (rs, rowNum) -> Map.entry(rs.getLong("template_id"), rs.getInt("total_count")),
             companyId
@@ -2150,7 +2895,7 @@ public class HrAttendanceService {
         var template = loadExistingTemplate(companyId, templateId);
         var body = new LinkedHashMap<String, Object>();
         body.put("id", template.templateId());
-        body.put("name", template.templateName());
+        body.put("name", displayScheduleTemplateName(template.templateName()));
         body.put("status", template.status());
         body.put("schedule_mode", template.scheduleMode());
         body.put("block_after_grace_period", template.blockAfterGracePeriod());
@@ -2187,6 +2932,7 @@ public class HrAttendanceService {
                 WHERE a.company_id = ?
                   AND a.employee_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
                 ORDER BY a.effective_start_date DESC, a.id DESC
@@ -2247,7 +2993,7 @@ public class HrAttendanceService {
         var refreshed = rebuildDailyRecordProjection(companyId, employeeId, date);
         var scheduleRule = loadScheduleRule(companyId, employeeId, date);
         return new EffectiveDailyRecord(
-            resolveEffectiveStatus(refreshed, scheduleRule),
+            resolveEffectiveStatus(refreshed, scheduleRule, date),
             refreshed != null ? refreshed.firstCheckInAt() : null,
             refreshed != null ? refreshed.lastCheckOutAt() : null
         );
@@ -2257,29 +3003,123 @@ public class HrAttendanceService {
         return loadLocationRows(companyId, true);
     }
 
+    private Map<Long, List<LocationRow>> groupLocationsByBusiness(List<LocationRow> locations) {
+        var grouped = new HashMap<Long, List<LocationRow>>();
+        for (var location : locations) {
+            if (location.businessId() != null) {
+                grouped.computeIfAbsent(location.businessId(), ignored -> new ArrayList<>()).add(location);
+            }
+        }
+        return grouped;
+    }
+
     private List<LocationRow> loadLocationRows(long companyId, boolean activeOnly) {
         return jdbcTemplate.query(
             activeOnly
                 ? """
-                    SELECT id, name, latitude, longitude, radius_meters, COALESCE(LOWER(status), 'active') AS status
-                    FROM hr_attendance_locations
-                    WHERE company_id = ?
-                      AND LOWER(COALESCE(status, 'active')) = 'active'
-                    ORDER BY name ASC
+                    SELECT l.id,
+                           l.unit_id,
+                           COALESCE(u.name, '') AS unit_name,
+                           l.business_id,
+                           COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+                           l.name,
+                           l.latitude,
+                           l.longitude,
+	                           l.radius_meters,
+	                           COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                           COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                           COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                           COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                           COALESCE(LOWER(l.status), 'active') AS status,
+                           (
+                               SELECT COUNT(DISTINCT a.employee_id)
+                               FROM hr_employee_work_site_assignments a
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_count,
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))), ''), CONCAT('Employee ', e.id)) ORDER BY e.first_name ASC, e.last_name ASC SEPARATOR ', ')
+                               FROM hr_employee_work_site_assignments a
+                               JOIN hr_employees e ON e.id = a.employee_id
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_names
+                    FROM hr_attendance_locations l
+                    LEFT JOIN units u ON u.id = l.unit_id
+                    LEFT JOIN businesses b ON b.id = l.business_id
+                    WHERE l.company_id = ?
+                      AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                    ORDER BY l.name ASC
                     """
                 : """
-                    SELECT id, name, latitude, longitude, radius_meters, COALESCE(LOWER(status), 'active') AS status
-                    FROM hr_attendance_locations
-                    WHERE company_id = ?
-                    ORDER BY CASE LOWER(COALESCE(status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, name ASC
+                    SELECT l.id,
+                           l.unit_id,
+                           COALESCE(u.name, '') AS unit_name,
+                           l.business_id,
+                           COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+                           l.name,
+                           l.latitude,
+                           l.longitude,
+	                           l.radius_meters,
+	                           COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                           COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                           COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                           COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                           COALESCE(LOWER(l.status), 'active') AS status,
+                           (
+                               SELECT COUNT(DISTINCT a.employee_id)
+                               FROM hr_employee_work_site_assignments a
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_count,
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))), ''), CONCAT('Employee ', e.id)) ORDER BY e.first_name ASC, e.last_name ASC SEPARATOR ', ')
+                               FROM hr_employee_work_site_assignments a
+                               JOIN hr_employees e ON e.id = a.employee_id
+                               WHERE a.company_id = l.company_id
+                                 AND a.location_id = l.id
+                                 AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                                 AND a.effective_start_date <= CURRENT_DATE
+                                 AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                           ) AS assigned_employee_names
+                    FROM hr_attendance_locations l
+                    LEFT JOIN units u ON u.id = l.unit_id
+                    LEFT JOIN businesses b ON b.id = l.business_id
+                    WHERE l.company_id = ?
+                    ORDER BY CASE LOWER(COALESCE(l.status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, l.name ASC
                     """,
             (rs, rowNum) -> new LocationRow(
                 rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                safe(rs.getString("unit_name")),
+                getNullableLong(rs, "business_id"),
+                safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
                 safe(rs.getString("name")),
                 rs.getBigDecimal("latitude"),
                 rs.getBigDecimal("longitude"),
-                rs.getInt("radius_meters"),
-                safe(rs.getString("status"))
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+                safe(rs.getString("status")),
+                rs.getInt("assigned_employee_count"),
+                safe(rs.getString("assigned_employee_names"))
             ),
             companyId
         );
@@ -2292,18 +3132,66 @@ public class HrAttendanceService {
 
         var rows = jdbcTemplate.query(
             """
-                SELECT id, name, latitude, longitude, radius_meters, COALESCE(LOWER(status), 'active') AS status
-                FROM hr_attendance_locations
-                WHERE company_id = ? AND id = ?
+                SELECT l.id,
+                       l.unit_id,
+                       COALESCE(u.name, '') AS unit_name,
+                       l.business_id,
+                       COALESCE(b.name, '') AS business_name,
+                       l.contract_start_date,
+                       l.contract_end_date,
+                       l.name,
+                       l.latitude,
+                       l.longitude,
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                       COALESCE(LOWER(l.status), 'active') AS status,
+                       (
+                           SELECT COUNT(DISTINCT a.employee_id)
+                           FROM hr_employee_work_site_assignments a
+                           WHERE a.company_id = l.company_id
+                             AND a.location_id = l.id
+                             AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                             AND a.effective_start_date <= CURRENT_DATE
+                             AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                       ) AS assigned_employee_count,
+                       (
+                           SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))), ''), CONCAT('Employee ', e.id)) ORDER BY e.first_name ASC, e.last_name ASC SEPARATOR ', ')
+                           FROM hr_employee_work_site_assignments a
+                           JOIN hr_employees e ON e.id = a.employee_id
+                           WHERE a.company_id = l.company_id
+                             AND a.location_id = l.id
+                             AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                             AND a.effective_start_date <= CURRENT_DATE
+                             AND (a.effective_end_date IS NULL OR a.effective_end_date >= CURRENT_DATE)
+                       ) AS assigned_employee_names
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ? AND l.id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> new LocationRow(
                 rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                safe(rs.getString("unit_name")),
+                getNullableLong(rs, "business_id"),
+                safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
                 safe(rs.getString("name")),
                 rs.getBigDecimal("latitude"),
                 rs.getBigDecimal("longitude"),
-                rs.getInt("radius_meters"),
-                safe(rs.getString("status"))
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+                safe(rs.getString("status")),
+                rs.getInt("assigned_employee_count"),
+                safe(rs.getString("assigned_employee_names"))
             ),
             companyId,
             locationId
@@ -2313,6 +3201,464 @@ public class HrAttendanceService {
             throw new NoSuchElementException("Attendance location not found.");
         }
         return rows.getFirst();
+    }
+
+    private List<LocationRow> loadBusinessAttendanceLocations(long companyId, Long businessId) {
+        if (businessId == null) {
+            return List.of();
+        }
+
+        return jdbcTemplate.query(
+            """
+                SELECT l.id,
+	                       l.unit_id,
+	                       COALESCE(u.name, '') AS unit_name,
+	                       l.business_id,
+	                       COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+	                       l.name,
+	                       l.latitude,
+	                       l.longitude,
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ?
+                  AND l.business_id = ?
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY l.name ASC
+                """,
+            (rs, rowNum) -> new LocationRow(
+                rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                safe(rs.getString("unit_name")),
+                getNullableLong(rs, "business_id"),
+                safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
+                safe(rs.getString("name")),
+                rs.getBigDecimal("latitude"),
+	                rs.getBigDecimal("longitude"),
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+	                safe(rs.getString("status")),
+                0,
+                ""
+            ),
+            companyId,
+            businessId
+        );
+    }
+
+    private List<LocationRow> loadCompanyBusinessStructureAttendanceLocations(long companyId) {
+        return jdbcTemplate.query(
+            """
+                SELECT l.id,
+                       l.unit_id,
+                       COALESCE(u.name, '') AS unit_name,
+                       l.business_id,
+                       COALESCE(b.name, '') AS business_name,
+                       l.contract_start_date,
+                       l.contract_end_date,
+                       l.name,
+                       l.latitude,
+                       l.longitude,
+                       l.radius_meters,
+                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                       COALESCE(l.managed_source, '') AS managed_source,
+                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ?
+                  AND l.managed_source = 'business_structure'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY l.name ASC
+                """,
+            (rs, rowNum) -> mapPolicyLocationRow(rs),
+            companyId
+        );
+    }
+
+    private List<LocationRow> loadBusinessStructureAttendanceLocations(long companyId, Long businessId) {
+        if (businessId == null) {
+            return List.of();
+        }
+
+        return jdbcTemplate.query(
+            """
+                SELECT l.id,
+                       l.unit_id,
+                       COALESCE(u.name, '') AS unit_name,
+                       l.business_id,
+                       COALESCE(b.name, '') AS business_name,
+                       l.contract_start_date,
+                       l.contract_end_date,
+                       l.name,
+                       l.latitude,
+                       l.longitude,
+                       l.radius_meters,
+                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                       COALESCE(l.managed_source, '') AS managed_source,
+                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_attendance_locations l
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE l.company_id = ?
+                  AND l.business_id = ?
+                  AND l.managed_source = 'business_structure'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY l.name ASC
+                """,
+            (rs, rowNum) -> mapPolicyLocationRow(rs),
+            companyId,
+            businessId
+        );
+    }
+
+    private LocationRow mapPolicyLocationRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new LocationRow(
+            rs.getLong("id"),
+            getNullableLong(rs, "unit_id"),
+            safe(rs.getString("unit_name")),
+            getNullableLong(rs, "business_id"),
+            safe(rs.getString("business_name")),
+            rs.getObject("contract_start_date", LocalDate.class),
+            rs.getObject("contract_end_date", LocalDate.class),
+            safe(rs.getString("name")),
+            rs.getBigDecimal("latitude"),
+            rs.getBigDecimal("longitude"),
+            rs.getInt("radius_meters"),
+            rs.getBigDecimal("required_hours_per_day"),
+            rs.getObject("required_start_time", LocalTime.class),
+            rs.getObject("required_end_time", LocalTime.class),
+            rs.getInt("required_days_per_week"),
+            safe(rs.getString("managed_source")),
+            safe(rs.getString("status")),
+            0,
+            ""
+        );
+    }
+
+    private List<LocationRow> loadAllowedLocations(long companyId, long employeeId) {
+        return jdbcTemplate.query(
+            """
+                SELECT l.id,
+	                       l.unit_id,
+	                       COALESCE(u.name, '') AS unit_name,
+	                       l.business_id,
+	                       COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+	                       l.name,
+	                       l.latitude,
+	                       l.longitude,
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_employee_allowed_locations al
+                JOIN hr_attendance_locations l ON l.id = al.location_id
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE al.company_id = ?
+                  AND al.employee_id = ?
+                  AND LOWER(COALESCE(al.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY l.name ASC
+                """,
+            (rs, rowNum) -> new LocationRow(
+                rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                safe(rs.getString("unit_name")),
+                getNullableLong(rs, "business_id"),
+                safe(rs.getString("business_name")),
+                rs.getObject("contract_start_date", LocalDate.class),
+                rs.getObject("contract_end_date", LocalDate.class),
+                safe(rs.getString("name")),
+                rs.getBigDecimal("latitude"),
+	                rs.getBigDecimal("longitude"),
+	                rs.getInt("radius_meters"),
+	                rs.getBigDecimal("required_hours_per_day"),
+	                rs.getObject("required_start_time", LocalTime.class),
+	                rs.getObject("required_end_time", LocalTime.class),
+	                rs.getInt("required_days_per_week"),
+	                safe(rs.getString("status")),
+                0,
+                ""
+            ),
+            companyId,
+            employeeId
+        );
+    }
+
+    private Map<Long, List<LocationRow>> loadAllowedLocationsByEmployee(long companyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT al.employee_id,
+                       l.id,
+	                       l.unit_id,
+	                       COALESCE(u.name, '') AS unit_name,
+	                       l.business_id,
+	                       COALESCE(b.name, '') AS business_name,
+                           l.contract_start_date,
+                           l.contract_end_date,
+	                       l.name,
+	                       l.latitude,
+	                       l.longitude,
+	                       l.radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS status
+                FROM hr_employee_allowed_locations al
+                JOIN hr_attendance_locations l ON l.id = al.location_id
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE al.company_id = ?
+                  AND LOWER(COALESCE(al.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                ORDER BY al.employee_id ASC, l.name ASC
+                """,
+            (rs, rowNum) -> Map.entry(
+                rs.getLong("employee_id"),
+                new LocationRow(
+                    rs.getLong("id"),
+                    getNullableLong(rs, "unit_id"),
+                    safe(rs.getString("unit_name")),
+                    getNullableLong(rs, "business_id"),
+                    safe(rs.getString("business_name")),
+                    rs.getObject("contract_start_date", LocalDate.class),
+                    rs.getObject("contract_end_date", LocalDate.class),
+                    safe(rs.getString("name")),
+                    rs.getBigDecimal("latitude"),
+	                    rs.getBigDecimal("longitude"),
+	                    rs.getInt("radius_meters"),
+	                    rs.getBigDecimal("required_hours_per_day"),
+	                    rs.getObject("required_start_time", LocalTime.class),
+	                    rs.getObject("required_end_time", LocalTime.class),
+	                    rs.getInt("required_days_per_week"),
+	                    safe(rs.getString("status")),
+                    0,
+                    ""
+                )
+            ),
+            companyId
+        );
+
+        var grouped = new HashMap<Long, List<LocationRow>>();
+        for (var row : rows) {
+            grouped.computeIfAbsent(row.getKey(), ignored -> new ArrayList<>()).add(row.getValue());
+        }
+        return grouped;
+    }
+
+    private void ensureEmployeeAllowedLocation(long companyId, long userId, long employeeId, long locationId) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO hr_employee_allowed_locations
+                (company_id, employee_id, location_id, status, created_by)
+                VALUES (?, ?, ?, 'active', ?)
+                ON DUPLICATE KEY UPDATE
+                  status = 'active',
+                  updated_at = CURRENT_TIMESTAMP
+                """,
+            companyId,
+            employeeId,
+            locationId,
+            userId
+        );
+    }
+
+    private long insertWorkSiteAssignment(
+        long companyId,
+        long userId,
+        long employeeId,
+        long locationId,
+        LocalDate effectiveStartDate,
+        LocalDate effectiveEndDate
+    ) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO hr_employee_work_site_assignments
+                    (company_id, employee_id, location_id, effective_start_date, effective_end_date, status, created_by)
+                    VALUES (?, ?, ?, ?, ?, 'active', ?)
+                    """,
+                new String[] {"id"}
+            );
+            statement.setLong(1, companyId);
+            statement.setLong(2, employeeId);
+            statement.setLong(3, locationId);
+            statement.setObject(4, effectiveStartDate);
+            statement.setObject(5, effectiveEndDate);
+            statement.setLong(6, userId);
+            return statement;
+        }, keyHolder);
+        return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+    }
+
+    private Map<Long, WorkSiteAssignmentRow> loadActiveWorkSiteAssignments(long companyId, LocalDate date) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT a.id,
+                       a.employee_id,
+                       a.effective_start_date,
+                       a.effective_end_date,
+                       COALESCE(LOWER(a.status), 'active') AS assignment_status,
+                       l.id AS location_id,
+	                       l.unit_id AS location_unit_id,
+	                       COALESCE(u.name, '') AS location_unit_name,
+	                       l.business_id AS location_business_id,
+	                       COALESCE(b.name, '') AS location_business_name,
+                           l.contract_start_date AS location_contract_start_date,
+                           l.contract_end_date AS location_contract_end_date,
+	                       l.name AS location_name,
+	                       l.latitude AS location_latitude,
+	                       l.longitude AS location_longitude,
+	                       l.radius_meters AS location_radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS location_required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS location_required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS location_required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS location_required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS location_status
+                FROM hr_employee_work_site_assignments a
+                JOIN hr_attendance_locations l ON l.id = a.location_id
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE a.company_id = ?
+                  AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                  AND a.effective_start_date <= ?
+                  AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
+                ORDER BY a.employee_id ASC, a.effective_start_date DESC, a.id DESC
+                """,
+            (rs, rowNum) -> mapWorkSiteAssignment(rs),
+            companyId,
+            date,
+            date
+        );
+
+        var result = new HashMap<Long, WorkSiteAssignmentRow>();
+        for (var row : rows) {
+            result.putIfAbsent(row.employeeId(), row);
+        }
+        return result;
+    }
+
+    private WorkSiteAssignmentRow loadActiveWorkSiteAssignment(long companyId, long employeeId, LocalDate date) {
+        return loadActiveWorkSiteAssignments(companyId, date).get(employeeId);
+    }
+
+    private Map<LocalDate, WorkSiteAssignmentRow> loadActiveWorkSiteAssignments(
+        long companyId,
+        long employeeId,
+        LocalDate startDate,
+        LocalDate endDate
+    ) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT a.id,
+                       a.employee_id,
+                       a.effective_start_date,
+                       a.effective_end_date,
+                       COALESCE(LOWER(a.status), 'active') AS assignment_status,
+                       l.id AS location_id,
+	                       l.unit_id AS location_unit_id,
+	                       COALESCE(u.name, '') AS location_unit_name,
+	                       l.business_id AS location_business_id,
+	                       COALESCE(b.name, '') AS location_business_name,
+                           l.contract_start_date AS location_contract_start_date,
+                           l.contract_end_date AS location_contract_end_date,
+	                       l.name AS location_name,
+	                       l.latitude AS location_latitude,
+	                       l.longitude AS location_longitude,
+	                       l.radius_meters AS location_radius_meters,
+	                       COALESCE(l.required_hours_per_day, 8.00) AS location_required_hours_per_day,
+	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS location_required_start_time,
+	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS location_required_end_time,
+	                       COALESCE(l.required_days_per_week, 5) AS location_required_days_per_week,
+	                       COALESCE(LOWER(l.status), 'active') AS location_status
+                FROM hr_employee_work_site_assignments a
+                JOIN hr_attendance_locations l ON l.id = a.location_id
+                LEFT JOIN units u ON u.id = l.unit_id
+                LEFT JOIN businesses b ON b.id = l.business_id
+                WHERE a.company_id = ?
+                  AND a.employee_id = ?
+                  AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                  AND a.effective_start_date <= ?
+                  AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
+                ORDER BY a.effective_start_date DESC, a.id DESC
+                """,
+            (rs, rowNum) -> mapWorkSiteAssignment(rs),
+            companyId,
+            employeeId,
+            endDate,
+            startDate
+        );
+
+        var result = new HashMap<LocalDate, WorkSiteAssignmentRow>();
+        for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
+            for (var row : rows) {
+                if (!currentDate.isBefore(row.effectiveStartDate())
+                    && (row.effectiveEndDate() == null || !currentDate.isAfter(row.effectiveEndDate()))) {
+                    result.put(currentDate, row);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    private WorkSiteAssignmentRow mapWorkSiteAssignment(ResultSet rs) throws SQLException {
+        var location = new LocationRow(
+            rs.getLong("location_id"),
+            getNullableLong(rs, "location_unit_id"),
+            safe(rs.getString("location_unit_name")),
+            getNullableLong(rs, "location_business_id"),
+            safe(rs.getString("location_business_name")),
+            rs.getObject("location_contract_start_date", LocalDate.class),
+            rs.getObject("location_contract_end_date", LocalDate.class),
+            safe(rs.getString("location_name")),
+            rs.getBigDecimal("location_latitude"),
+            rs.getBigDecimal("location_longitude"),
+            rs.getInt("location_radius_meters"),
+            rs.getBigDecimal("location_required_hours_per_day"),
+            rs.getObject("location_required_start_time", LocalTime.class),
+            rs.getObject("location_required_end_time", LocalTime.class),
+            rs.getInt("location_required_days_per_week"),
+            safe(rs.getString("location_status")),
+            0,
+            ""
+        );
+        return new WorkSiteAssignmentRow(
+            rs.getLong("id"),
+            rs.getLong("employee_id"),
+            location,
+            rs.getObject("effective_start_date", LocalDate.class),
+            rs.getObject("effective_end_date", LocalDate.class),
+            safe(rs.getString("assignment_status"))
+        );
     }
 
     private LocationRow resolveKioskLocation(long companyId, Long locationId, BigDecimal latitude, BigDecimal longitude) {
@@ -2341,45 +3687,57 @@ public class HrAttendanceService {
         return location;
     }
 
-    private String calculateSystemStatus(ScheduleRule scheduleRule, LocalDateTime firstCheckIn) {
-        if (firstCheckIn == null) {
-            return inferSystemStatus(scheduleRule);
-        }
-        if (scheduleRule == null || scheduleRule.isRestDay() || scheduleRule.startTime() == null) {
-            return "on_time";
-        }
-
-        var scheduledStart = firstCheckIn.toLocalDate().atTime(scheduleRule.startTime());
-        var allowedStart = scheduledStart.plusMinutes(scheduleRule.lateAfterMinutes());
-        return firstCheckIn.isAfter(allowedStart) ? "late" : "on_time";
+    private String calculateSystemStatus(ScheduleRule scheduleRule, LocalDateTime firstCheckIn, LocalDate date) {
+        return AttendanceStatusPolicy.calculateSystemStatus(
+            scheduleRule != null,
+            scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.startTime(),
+            scheduleRule == null ? 0 : scheduleRule.lateAfterMinutes(),
+            scheduleRule == null ? null : scheduleRule.endTime(),
+            firstCheckIn,
+            date
+        );
     }
 
     private int calculateMinutesLate(ScheduleRule scheduleRule, LocalDateTime firstCheckIn) {
-        if (scheduleRule == null || scheduleRule.startTime() == null || firstCheckIn == null || scheduleRule.isRestDay()) {
-            return 0;
-        }
-        var scheduledStart = firstCheckIn.toLocalDate().atTime(scheduleRule.startTime());
-        if (!firstCheckIn.isAfter(scheduledStart)) {
-            return 0;
-        }
-        return (int) Duration.between(scheduledStart, firstCheckIn).toMinutes();
+        return AttendanceStatusPolicy.calculateMinutesLate(
+            scheduleRule != null,
+            scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.startTime(),
+            firstCheckIn
+        );
     }
 
-    private String inferSystemStatus(ScheduleRule scheduleRule) {
-        if (scheduleRule != null && scheduleRule.isRestDay()) {
-            return "rest";
-        }
-        return "absence";
+    private String inferSystemStatus(ScheduleRule scheduleRule, LocalDate date) {
+        return AttendanceStatusPolicy.inferSystemStatus(
+            scheduleRule != null,
+            scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.endTime(),
+            date,
+            LocalDate.now(),
+            LocalDateTime.now()
+        );
     }
 
-    private String resolveEffectiveStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule) {
-        if (dailyRecord != null && !HrPayloadUtils.isBlank(dailyRecord.correctedStatus())) {
-            return dailyRecord.correctedStatus();
+    private String resolveSystemStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule, LocalDate date) {
+        if (dailyRecord == null) {
+            return inferSystemStatus(scheduleRule, date);
         }
-        if (dailyRecord != null && !HrPayloadUtils.isBlank(dailyRecord.systemStatus())) {
-            return dailyRecord.systemStatus();
-        }
-        return inferSystemStatus(scheduleRule);
+
+        return AttendanceStatusPolicy.resolveSystemStatus(
+            dailyRecord.systemStatus(),
+            dailyRecord.correctedStatus(),
+            dailyRecord.firstCheckInAt() != null,
+            dailyRecord.lastCheckOutAt() != null,
+            inferSystemStatus(scheduleRule, date)
+        );
+    }
+
+    private String resolveEffectiveStatus(DailyRecordRow dailyRecord, ScheduleRule scheduleRule, LocalDate date) {
+        return AttendanceStatusPolicy.resolveEffectiveStatus(
+            dailyRecord == null ? null : dailyRecord.correctedStatus(),
+            resolveSystemStatus(dailyRecord, scheduleRule, date)
+        );
     }
 
     private LocationRow mapLocation(ResultSet rs, String prefix) throws SQLException {
@@ -2389,11 +3747,23 @@ public class HrAttendanceService {
         }
         return new LocationRow(
             id,
+            null,
+            "",
+            null,
+            "",
+            null,
+            null,
             safe(rs.getString(prefix + "_name")),
             rs.getBigDecimal(prefix + "_latitude"),
             rs.getBigDecimal(prefix + "_longitude"),
             rs.getInt(prefix + "_radius_meters"),
-            "active"
+            null,
+            null,
+            null,
+            null,
+            "active",
+            0,
+            ""
         );
     }
 
@@ -2404,11 +3774,41 @@ public class HrAttendanceService {
 
         var body = new LinkedHashMap<String, Object>();
         body.put("id", location.id());
+        body.put("unit_id", location.unitId());
+        body.put("unit_name", nullable(location.unitName()));
+        body.put("business_id", location.businessId());
+        body.put("business_name", nullable(location.businessName()));
+        body.put("contract_start_date", location.contractStartDate() == null ? null : location.contractStartDate().toString());
+        body.put("contract_end_date", location.contractEndDate() == null ? null : location.contractEndDate().toString());
         body.put("name", location.name());
         body.put("latitude", location.latitude());
-        body.put("longitude", location.longitude());
-        body.put("radius_meters", location.radiusMeters());
+	        body.put("longitude", location.longitude());
+	        body.put("radius_meters", location.radiusMeters());
+	        body.put("required_hours_per_day", location.requiredHoursPerDay());
+	        body.put("required_start_time", location.requiredStartTime() == null ? null : location.requiredStartTime().toString());
+	        body.put("required_end_time", location.requiredEndTime() == null ? null : location.requiredEndTime().toString());
+	        body.put("required_days_per_week", location.requiredDaysPerWeek());
+        body.put("managed_source", nullable(location.managedSource()));
         body.put("status", location.status());
+        body.put("assigned_employee_count", location.assignedEmployeeCount());
+        body.put("assigned_employee_names", location.assignedEmployeeNames());
+        return body;
+    }
+
+    private Map<String, Object> toWorkSiteAssignmentMap(WorkSiteAssignmentRow assignment) {
+        if (assignment == null) {
+            return null;
+        }
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("id", assignment.id());
+        body.put("employee_id", assignment.employeeId());
+        body.put("location_id", assignment.location().id());
+        body.put("location_name", assignment.location().name());
+        body.put("location", toLocationMap(assignment.location()));
+        body.put("effective_start_date", assignment.effectiveStartDate().toString());
+        body.put("effective_end_date", assignment.effectiveEndDate() == null ? null : assignment.effectiveEndDate().toString());
+        body.put("status", assignment.status());
         return body;
     }
 
@@ -2492,6 +3892,41 @@ public class HrAttendanceService {
                 WHERE d.company_id = ?
                   AND d.id = ?
                 LIMIT 1
+                """,
+            (rs, rowNum) -> mapKioskDeviceRow(rs),
+            companyId,
+            kioskDeviceId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Kiosk device not found.");
+        }
+        return rows.getFirst();
+    }
+
+    private KioskDeviceRow loadKioskDeviceForUpdate(long companyId, long kioskDeviceId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT d.id,
+                       d.company_id,
+                       d.unit_id,
+                       u.name AS unit_name,
+                       d.business_id,
+                       b.name AS business_name,
+                       d.location_id,
+                       l.name AS location_name,
+                       d.code,
+                       d.name,
+                       COALESCE(LOWER(d.status), 'active') AS status,
+                       d.public_access_token,
+                       d.metadata_json
+                FROM hr_kiosk_devices d
+                LEFT JOIN units u ON u.id = d.unit_id
+                LEFT JOIN businesses b ON b.id = d.business_id
+                LEFT JOIN hr_attendance_locations l ON l.id = d.location_id
+                WHERE d.company_id = ?
+                  AND d.id = ?
+                LIMIT 1
+                FOR UPDATE
                 """,
             (rs, rowNum) -> mapKioskDeviceRow(rs),
             companyId,
@@ -2766,18 +4201,11 @@ public class HrAttendanceService {
         }
 
         return switch (authMethod) {
-            case "badge" -> {
-                var matches = candidateMethods.stream()
-                    .filter((method) -> Objects.equals(nullable(method.credentialRef()), nullable(credentialPayload)))
-                    .toList();
-                if (matches.size() > 1) {
-                    throw new IllegalArgumentException("Badge credential is assigned to more than one employee.");
-                }
-                yield matches.isEmpty() ? null : matches.getFirst();
-            }
             case "pin" -> {
+                var credentialRef = pinCredentialReference(companyId, credentialPayload);
                 var matches = candidateMethods.stream()
                     .filter((method) -> method.secretHash() != null && !method.secretHash().isBlank())
+                    .filter((method) -> method.credentialRef() == null || method.credentialRef().isBlank() || Objects.equals(method.credentialRef(), credentialRef))
                     .filter((method) -> passwordEncoder.matches(credentialPayload, method.secretHash()))
                     .toList();
                 if (matches.size() > 1) {
@@ -2789,23 +4217,124 @@ public class HrAttendanceService {
         };
     }
 
-    private void ensureManualOverrideMethod(long companyId, long accessProfileId) {
-        var existing = loadAccessMethods(companyId, accessProfileId).stream()
-            .anyMatch((method) -> "manual_override".equals(method.methodType()));
-        if (existing) {
+    private void ensurePublicKioskPinAttemptAllowed(KioskDeviceRow kioskDevice) {
+        var state = loadPublicKioskPinThrottle(kioskDevice);
+        if (state == null) {
             return;
+        }
+
+        var now = Instant.now();
+        if (!state.isLocked(now)) {
+            if (state.lockedUntil() != null) {
+                clearPublicKioskPinFailures(kioskDevice);
+            }
+            return;
+        }
+
+        throw new KioskPinThrottleException(pinThrottleMessage(state, now));
+    }
+
+    private void recordPublicKioskPinFailure(KioskDeviceRow kioskDevice) {
+        var now = Instant.now();
+        var current = loadPublicKioskPinThrottle(kioskDevice);
+        if (current != null && current.isLocked(now)) {
+            throw new KioskPinThrottleException(pinThrottleMessage(current, now));
+        }
+
+        var nextFailedAttempts = current == null || current.lockedUntil() != null
+            ? 1
+            : current.failedAttempts() + 1;
+        var lockedUntil = nextFailedAttempts >= PUBLIC_KIOSK_PIN_FAILURE_LIMIT
+            ? now.plus(PUBLIC_KIOSK_PIN_LOCK_DURATION)
+            : null;
+        var nextState = new PinThrottleState(nextFailedAttempts, lockedUntil);
+        updatePublicKioskPinThrottle(kioskDevice, nextState);
+
+        if (nextState.isLocked(now)) {
+            throw new KioskPinThrottleException(pinThrottleMessage(nextState, now));
+        }
+    }
+
+    private void clearPublicKioskPinFailures(KioskDeviceRow kioskDevice) {
+        updatePublicKioskPinThrottle(kioskDevice, null);
+    }
+
+    private PinThrottleState loadPublicKioskPinThrottle(KioskDeviceRow kioskDevice) {
+        var latestKioskDevice = loadKioskDeviceForUpdate(kioskDevice.companyId(), kioskDevice.id());
+        var metadata = parseJsonMap(latestKioskDevice.metadataJson());
+        var rawThrottle = metadata.get(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY);
+        if (!(rawThrottle instanceof Map<?, ?> throttleMap)) {
+            return null;
+        }
+
+        var failedAttempts = parseMetadataInt(throttleMap.get("failed_attempts"));
+        var lockedUntil = parseMetadataInstant(throttleMap.get("locked_until"));
+        if (failedAttempts <= 0 && lockedUntil == null) {
+            return null;
+        }
+        return new PinThrottleState(Math.max(failedAttempts, 0), lockedUntil);
+    }
+
+    private void updatePublicKioskPinThrottle(KioskDeviceRow kioskDevice, PinThrottleState state) {
+        var latestKioskDevice = loadKioskDeviceForUpdate(kioskDevice.companyId(), kioskDevice.id());
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.putAll(parseJsonMap(latestKioskDevice.metadataJson()));
+
+        if (state == null) {
+            metadata.remove(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY);
+        } else {
+            var throttleMetadata = new LinkedHashMap<String, Object>();
+            throttleMetadata.put("failed_attempts", state.failedAttempts());
+            if (state.lockedUntil() != null) {
+                throttleMetadata.put("locked_until", state.lockedUntil().toString());
+            }
+            metadata.put(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY, throttleMetadata);
         }
 
         jdbcTemplate.update(
             """
-                INSERT INTO hr_employee_access_methods
-                (company_id, access_profile_id, method_type, credential_ref, secret_hash, status, priority, metadata_json)
-                VALUES (?, ?, 'manual_override', NULL, NULL, 'active', 100, CAST(? AS JSON))
+                UPDATE hr_kiosk_devices
+                SET metadata_json = CAST(? AS JSON)
+                WHERE id = ? AND company_id = ?
                 """,
-            companyId,
-            accessProfileId,
-            "{\"label\":\"Manual override\"}"
+            toJson(metadata),
+            kioskDevice.id(),
+            kioskDevice.companyId()
         );
+    }
+
+    private String pinThrottleMessage(PinThrottleState state, Instant now) {
+        var remainingSeconds = Duration.between(now, state.lockedUntil()).toSeconds();
+        var remainingMinutes = Math.max(1L, (remainingSeconds + 59L) / 60L);
+        return "Too many failed PIN attempts. Try again in " + remainingMinutes
+            + (remainingMinutes == 1 ? " minute." : " minutes.");
+    }
+
+    private int parseMetadataInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        var text = metadataTextValue(value);
+        if (text == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
+    }
+
+    private Instant parseMetadataInstant(Object value) {
+        var text = metadataTextValue(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(text);
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
     }
 
     private Map<String, Object> toKioskDeviceMap(KioskDeviceRow device) {
@@ -2822,7 +4351,10 @@ public class HrAttendanceService {
         body.put("name", device.name());
         body.put("status", device.status());
         body.put("public_access_token", device.publicAccessToken());
-        body.put("metadata", parseJsonMap(device.metadataJson()));
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.putAll(parseJsonMap(device.metadataJson()));
+        metadata.remove(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY);
+        body.put("metadata", metadata);
         return body;
     }
 
@@ -2850,7 +4382,7 @@ public class HrAttendanceService {
         body.put("employee_number", method.employeeNumber());
         body.put("employee_name", method.employeeName());
         body.put("method_type", method.methodType());
-        body.put("credential_ref", method.credentialRef());
+        body.put("credential_ref", "badge".equals(method.methodType()) ? method.credentialRef() : null);
         body.put("status", method.status());
         body.put("priority", method.priority());
         body.put("metadata", parseJsonMap(method.metadataJson()));
@@ -2958,6 +4490,16 @@ public class HrAttendanceService {
             }
             default -> {
             }
+        }
+    }
+
+    private void validateOperationalEventDate(String eventKind, LocalDateTime eventTimestamp) {
+        if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventKind)) {
+            return;
+        }
+
+        if (!eventTimestamp.toLocalDate().equals(LocalDate.now())) {
+            throw new IllegalArgumentException("Attendance can only be recorded for today.");
         }
     }
 
@@ -3157,7 +4699,7 @@ public class HrAttendanceService {
             }
         }
 
-        var systemStatus = calculateSystemStatus(scheduleRule, firstCheckIn);
+        var systemStatus = calculateSystemStatus(scheduleRule, firstCheckIn, date);
         var minutesLate = calculateMinutesLate(scheduleRule, firstCheckIn);
 
         if (existing == null) {
@@ -3258,6 +4800,51 @@ public class HrAttendanceService {
         );
     }
 
+    private List<AutoCheckoutCandidate> loadAutoCheckoutCandidates(LocalDate latestAttendanceDate) {
+        return jdbcTemplate.query(
+            """
+                SELECT company_id,
+                       employee_id,
+                       attendance_date,
+                       first_check_in_at,
+                       first_location_id
+                FROM hr_attendance_daily_records
+                WHERE first_check_in_at IS NOT NULL
+                  AND last_check_out_at IS NULL
+                  AND attendance_date <= ?
+                ORDER BY attendance_date ASC, company_id ASC, employee_id ASC
+                LIMIT 500
+                """,
+            (rs, rowNum) -> new AutoCheckoutCandidate(
+                rs.getLong("company_id"),
+                rs.getLong("employee_id"),
+                rs.getObject("attendance_date", LocalDate.class),
+                toLocalDateTime(rs.getTimestamp("first_check_in_at")),
+                getNullableLong(rs, "first_location_id")
+            ),
+            latestAttendanceDate
+        );
+    }
+
+    private boolean hasSuccessfulCheckoutEvent(long companyId, long employeeId, LocalDate date) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_attendance_events
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND attendance_date = ?
+                  AND event_kind = 'check_out'
+                  AND result_status IN ('success', 'overridden')
+                """,
+            Integer.class,
+            companyId,
+            employeeId,
+            date
+        );
+        return count != null && count > 0;
+    }
+
     private void ensureUniqueKioskCode(long companyId, Long kioskDeviceId, String code) {
         var count = jdbcTemplate.queryForObject(
             """
@@ -3346,6 +4933,37 @@ public class HrAttendanceService {
         }
     }
 
+    private PublicKioskContext requirePublicKioskIdentificationContext(String deviceToken, Map<String, Object> payload) {
+        var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
+        requirePublicKioskLocation(kioskDevice);
+        var identificationToken = stringValue(payload, "identification_token");
+        var tokenClaims = verifyPublicKioskIdentificationToken(deviceToken, identificationToken);
+        var employee = loadAttendanceEmployee(kioskDevice.companyId(), tokenClaims.employeeId());
+        if ("terminated".equals(employee.status())) {
+            throw new IllegalArgumentException("This employee is terminated and cannot record attendance.");
+        }
+        return new PublicKioskContext(kioskDevice, employee, tokenClaims);
+    }
+
+    private void ensureFaceVerificationSessionBelongsTo(long companyId, long employeeId, long sessionId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_face_verification_sessions
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND id = ?
+                """,
+            Integer.class,
+            companyId,
+            employeeId,
+            sessionId
+        );
+        if (count == null || count == 0) {
+            throw new NoSuchElementException("Face verification session not found.");
+        }
+    }
+
     private void validateOperationalScope(long companyId, Long unitId, Long businessId, Long locationId) {
         if (unitId != null) {
             var count = jdbcTemplate.queryForObject(
@@ -3390,6 +5008,10 @@ public class HrAttendanceService {
         return value == null || value <= 0 ? null : value;
     }
 
+    private Map<String, Object> normalizePayload(Map<String, Object> payload) {
+        return payload == null ? Map.of() : payload;
+    }
+
     private String normalizeAuthMethod(String value) {
         var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         normalized = switch (normalized) {
@@ -3410,7 +5032,7 @@ public class HrAttendanceService {
     private String normalizePublicKioskAuthMethod(String value) {
         var normalized = normalizeEnabledAuthMethod(value);
         if (!PUBLIC_KIOSK_AUTH_METHODS.contains(normalized)) {
-            throw new IllegalArgumentException("Public kiosk auth_method must be pin or badge.");
+            throw new IllegalArgumentException("Public kiosk auth_method must be pin.");
         }
         return normalized;
     }
@@ -3524,6 +5146,25 @@ public class HrAttendanceService {
         }
     }
 
+    private String pinCredentialReference(long companyId, String rawPin) {
+        var normalizedPin = nullable(rawPin);
+        if (normalizedPin == null) {
+            throw new IllegalArgumentException("PIN is required.");
+        }
+
+        try {
+            var mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(kioskIdentificationTokenSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            var payload = companyId + ":" + normalizedPin;
+            var digest = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+            return "pin:v1:" + digest;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to prepare PIN credential reference.", ex);
+        }
+    }
+
     private Map<String, Object> parseJsonMap(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();
@@ -3549,6 +5190,16 @@ public class HrAttendanceService {
         merged.putAll(parseJsonMap(baseJson));
         merged.putAll(additions);
         return toJson(merged);
+    }
+
+    private String mergeKioskInternalMetadata(String candidateJson, String existingJson) {
+        var candidate = new LinkedHashMap<String, Object>();
+        candidate.putAll(parseJsonMap(candidateJson));
+        var existing = parseJsonMap(existingJson);
+        if (existing.containsKey(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY)) {
+            candidate.put(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY, existing.get(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY));
+        }
+        return toJson(candidate);
     }
 
     private String metadataTextValue(Object value) {
@@ -3627,6 +5278,7 @@ public class HrAttendanceService {
     }
 
     private List<ScheduleTemplateDayDefinition> parseTemplateDays(Map<String, Object> payload, String scheduleMode) {
+        payload = normalizePayload(payload);
         var rawDays = payload.get("days");
         if (!(rawDays instanceof List<?> daysList) || daysList.isEmpty()) {
             throw new IllegalArgumentException("days is required.");
@@ -3677,6 +5329,10 @@ public class HrAttendanceService {
                 if (!endTime.isAfter(startTime)) {
                     throw new IllegalArgumentException("end_time must be after start_time.");
                 }
+            } else if ("open".equals(scheduleMode) && !isRestDay) {
+                if (startTime != null || endTime != null) {
+                    throw new IllegalArgumentException("start_time and end_time are not allowed for open schedule days.");
+                }
             } else {
                 if (isRestDay) {
                     startTime = null;
@@ -3701,19 +5357,286 @@ public class HrAttendanceService {
         };
     }
 
+    private String displayScheduleTemplateName(String name) {
+        if (name == null) {
+            return null;
+        }
+        return name.startsWith("Spring Default Schedule")
+            ? "Default Schedule" + name.substring("Spring Default Schedule".length())
+            : name;
+    }
+
+    private void validateScheduleTemplateWorkSiteCompatibility(ScheduleTemplateDefinition template, LocationRow workSite) {
+        if (template == null || workSite == null || !template.enforceLocation() || template.locationId() == null) {
+            return;
+        }
+
+        if (!Objects.equals(template.locationId(), workSite.id())) {
+            throw new IllegalArgumentException("The selected schedule location does not match the assigned contract site.");
+        }
+    }
+
+    private void validateScheduleTemplateWorkSiteCompatibility(ScheduleTemplateDefinition template, WorkSiteAssignmentRow workSiteAssignment) {
+        validateScheduleTemplateWorkSiteCompatibility(template, workSiteAssignment == null ? null : workSiteAssignment.location());
+    }
+
+    private void validateLocationCanBeAssigned(LocationRow location) {
+        if (location == null || "inactive".equalsIgnoreCase(location.status())) {
+            throw new IllegalArgumentException("Only active locations can be assigned.");
+        }
+    }
+
+    private void validateEmployeeIsFreeForAssignment(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
+        if (hasAttendanceActivityInRange(companyId, employeeId, startDate, endDate)) {
+            throw new IllegalArgumentException("Employee already has attendance activity in this date range. Remove the existing shift or choose another date.");
+        }
+        if (hasActiveWorkSiteAssignmentOverlap(companyId, employeeId, startDate, endDate)) {
+            throw new IllegalArgumentException("Employee already has an active contract site assignment in this date range. Remove the existing shift before assigning a contract site.");
+        }
+        if (hasActiveScheduleAssignmentOverlap(companyId, employeeId, startDate, endDate)) {
+            throw new IllegalArgumentException("Employee already has an active schedule in this date range. Remove the existing shift before assigning new work.");
+        }
+    }
+
+    private boolean hasAttendanceActivityInRange(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
+        var rangeEnd = assignmentRangeEnd(endDate);
+        Integer eventCount = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_attendance_events
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND attendance_date BETWEEN ? AND ?
+                  AND event_type IN ('check_in', 'check_out', 'break_out', 'break_in')
+                """,
+            Integer.class,
+            companyId,
+            employeeId,
+            startDate,
+            rangeEnd
+        );
+        if (eventCount != null && eventCount > 0) {
+            return true;
+        }
+
+        Integer recordCount = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_attendance_daily_records
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND attendance_date BETWEEN ? AND ?
+                  AND (first_check_in_at IS NOT NULL OR last_check_out_at IS NOT NULL)
+                """,
+            Integer.class,
+            companyId,
+            employeeId,
+            startDate,
+            rangeEnd
+        );
+        return recordCount != null && recordCount > 0;
+    }
+
+    private boolean hasActiveScheduleAssignmentOverlap(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
+        return hasActiveAssignmentOverlap(
+            "hr_employee_schedule_assignments",
+            companyId,
+            employeeId,
+            startDate,
+            endDate
+        );
+    }
+
+    private boolean hasActiveWorkSiteAssignmentOverlap(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
+        return hasActiveAssignmentOverlap(
+            "hr_employee_work_site_assignments",
+            companyId,
+            employeeId,
+            startDate,
+            endDate
+        );
+    }
+
+    private boolean hasActiveWorkSiteLocationAssignmentOverlap(long companyId, long locationId, LocalDate startDate, LocalDate endDate) {
+        var rangeEnd = assignmentRangeEnd(endDate);
+        Integer count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_employee_work_site_assignments
+                WHERE company_id = ?
+                  AND location_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                  AND effective_start_date <= ?
+                  AND (effective_end_date IS NULL OR effective_end_date >= ?)
+                """,
+            Integer.class,
+            companyId,
+            locationId,
+            rangeEnd,
+            startDate
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean hasActiveAssignmentOverlap(
+        String tableName,
+        long companyId,
+        long employeeId,
+        LocalDate startDate,
+        LocalDate endDate
+    ) {
+        var rangeEnd = assignmentRangeEnd(endDate);
+        Integer count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM %s
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                  AND effective_start_date <= ?
+                  AND (effective_end_date IS NULL OR effective_end_date >= ?)
+                """.formatted(tableName),
+            Integer.class,
+            companyId,
+            employeeId,
+            rangeEnd,
+            startDate
+        );
+        return count != null && count > 0;
+    }
+
+    private LocalDate assignmentRangeEnd(LocalDate endDate) {
+        return endDate == null ? LocalDate.of(9999, 12, 31) : endDate;
+    }
+
+    private LocationRow resolveScheduleRegistrationLocation(
+        long companyId,
+        AttendanceEmployee employee,
+        ScheduleRule scheduleRule,
+        String eventType,
+        Long requestedLocationId,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        WorkSiteAssignmentRow activeWorkSite
+    ) {
+        if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventType)) {
+            return resolveKioskLocation(companyId, requestedLocationId, latitude, longitude);
+        }
+
+        if (activeWorkSite != null) {
+            return resolveAllowedAttendanceLocation(
+                List.of(activeWorkSite.location()),
+                requestedLocationId,
+                latitude,
+                longitude,
+                "Attendance registration is restricted to today's assigned contract site: " + activeWorkSite.location().name() + ".",
+                "Attendance registration is restricted to today's assigned contract site: " + activeWorkSite.location().name() + "."
+            );
+        }
+
+        if (isOpenSchedule(scheduleRule)) {
+            return resolveAllowedAttendanceLocation(
+                loadCompanyBusinessStructureAttendanceLocations(companyId),
+                requestedLocationId,
+                latitude,
+                longitude,
+                "Business Structure locations are not configured for this company.",
+                "Open schedule attendance is restricted to active Business Structure locations."
+            );
+        }
+
+        if (scheduleRule != null && scheduleRule.enforceLocation() && scheduleRule.locationId() != null) {
+            return resolveAllowedAttendanceLocation(
+                List.of(loadLocation(companyId, scheduleRule.locationId())),
+                requestedLocationId,
+                latitude,
+                longitude,
+                "Schedule location is not configured.",
+                "Attendance registration is restricted to the configured schedule location."
+            );
+        }
+
+        return resolveEmployeeBusinessAttendanceLocation(companyId, employee, requestedLocationId, latitude, longitude);
+    }
+
+    private LocationRow resolveEmployeeBusinessAttendanceLocation(
+        long companyId,
+        AttendanceEmployee employee,
+        Long requestedLocationId,
+        BigDecimal latitude,
+        BigDecimal longitude
+    ) {
+        if (employee.businessId() == null) {
+            throw new IllegalArgumentException("Employee business is not assigned. Set the employee business before recording attendance.");
+        }
+
+        return resolveAllowedAttendanceLocation(
+            loadBusinessStructureAttendanceLocations(companyId, employee.businessId()),
+            requestedLocationId,
+            latitude,
+            longitude,
+            "Business Structure location is not configured for " + employee.businessName() + ".",
+            "Attendance registration is restricted to the employee's assigned business location."
+        );
+    }
+
+    private LocationRow resolveAllowedAttendanceLocation(
+        List<LocationRow> allowedLocations,
+        Long requestedLocationId,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        String emptyMessage,
+        String restrictedMessage
+    ) {
+        if (allowedLocations.isEmpty()) {
+            throw new IllegalArgumentException(emptyMessage);
+        }
+
+        LocationRow location;
+        if (requestedLocationId != null && requestedLocationId > 0) {
+            location = allowedLocations.stream()
+                .filter(item -> Objects.equals(item.id(), requestedLocationId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(restrictedMessage));
+        } else {
+            location = allowedLocations.stream()
+                .min(Comparator.comparing(item -> distanceMeters(item.latitude(), item.longitude(), latitude, longitude)))
+                .orElseThrow(() -> new IllegalArgumentException(emptyMessage));
+        }
+
+        validateLocationRadius(location, latitude, longitude);
+        return location;
+    }
+
+    private void validateLocationRadius(LocationRow location, BigDecimal latitude, BigDecimal longitude) {
+        var distance = distanceMeters(location.latitude(), location.longitude(), latitude, longitude);
+        if (distance > location.radiusMeters()) {
+            throw new IllegalArgumentException("The device is outside the allowed attendance location radius.");
+        }
+    }
+
+    private boolean isOpenSchedule(ScheduleRule scheduleRule) {
+        return scheduleRule != null && "open".equalsIgnoreCase(safe(scheduleRule.scheduleMode()));
+    }
+
     private void validateScheduleRegistrationPolicy(
         ScheduleRule scheduleRule,
         String eventType,
-        LocalDateTime eventTimestamp,
-        LocationRow location
+        LocalDateTime eventTimestamp
     ) {
         if (scheduleRule == null || scheduleRule.isRestDay() || !"check_in".equals(eventType)) {
             return;
         }
 
-        if (scheduleRule.enforceLocation() && scheduleRule.locationId() != null) {
-            if (location == null || location.id() != scheduleRule.locationId()) {
-                throw new IllegalArgumentException("Attendance registration is restricted to the configured location.");
+        if (isOpenSchedule(scheduleRule)) {
+            return;
+        }
+
+        if (scheduleRule.startTime() != null) {
+            var scheduledStart = eventTimestamp.toLocalDate().atTime(scheduleRule.startTime());
+            var earliestAllowedCheckIn = scheduledStart.minus(EARLY_CHECK_IN_ALLOWANCE);
+            if (eventTimestamp.isBefore(earliestAllowedCheckIn)) {
+                throw new IllegalArgumentException("Check-in opens 15 minutes before the scheduled start time.");
             }
         }
 
@@ -3727,6 +5650,7 @@ public class HrAttendanceService {
     }
 
     private boolean parseBoolean(Map<String, Object> payload, String key) {
+        payload = normalizePayload(payload);
         var value = payload.get(key);
         if (value instanceof Boolean bool) {
             return bool;
@@ -3757,11 +5681,14 @@ public class HrAttendanceService {
         }
     }
 
-    private void closeOverlappingAssignments(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
-        var overlapEnd = endDate == null ? LocalDate.of(9999, 12, 31) : endDate;
+    private int closeOverlappingAssignments(long companyId, long userId, long employeeId, LocalDate startDate, LocalDate endDate) {
+        var overlapEnd = assignmentRangeEnd(endDate);
         var rows = jdbcTemplate.query(
             """
-                SELECT id, effective_start_date, effective_end_date
+                SELECT id,
+                       template_id AS assignment_target_id,
+                       effective_start_date,
+                       effective_end_date
                 FROM hr_employee_schedule_assignments
                 WHERE company_id = ?
                   AND employee_id = ?
@@ -3772,6 +5699,7 @@ public class HrAttendanceService {
                 """,
             (rs, rowNum) -> new ExistingAssignmentRow(
                 rs.getLong("id"),
+                rs.getLong("assignment_target_id"),
                 rs.getObject("effective_start_date", LocalDate.class),
                 rs.getObject("effective_end_date", LocalDate.class)
             ),
@@ -3781,30 +5709,155 @@ public class HrAttendanceService {
             startDate
         );
 
+        int updatedCount = 0;
         for (var row : rows) {
-            if (row.effectiveStartDate().isBefore(startDate)) {
-                jdbcTemplate.update(
-                    """
-                        UPDATE hr_employee_schedule_assignments
-                        SET effective_end_date = ?
-                        WHERE id = ?
-                        """,
-                    startDate.minusDays(1),
-                    row.id()
-                );
-            } else {
-                jdbcTemplate.update(
-                    """
-                        UPDATE hr_employee_schedule_assignments
-                        SET status = 'inactive',
-                            effective_end_date = ?
-                        WHERE id = ?
-                        """,
-                    row.effectiveEndDate() != null ? row.effectiveEndDate() : row.effectiveStartDate(),
-                    row.id()
+            updatedCount += removeAssignmentDateFromRange(
+                "hr_employee_schedule_assignments",
+                "template_id",
+                row,
+                companyId,
+                userId,
+                employeeId,
+                startDate,
+                overlapEnd
+            );
+        }
+        return updatedCount;
+    }
+
+    private int closeOverlappingWorkSiteAssignments(long companyId, long userId, long employeeId, LocalDate startDate, LocalDate endDate) {
+        var overlapEnd = assignmentRangeEnd(endDate);
+        var rows = jdbcTemplate.query(
+            """
+                SELECT id,
+                       location_id AS assignment_target_id,
+                       effective_start_date,
+                       effective_end_date
+                FROM hr_employee_work_site_assignments
+                WHERE company_id = ?
+                  AND employee_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                  AND effective_start_date <= ?
+                  AND (effective_end_date IS NULL OR effective_end_date >= ?)
+                ORDER BY effective_start_date ASC, id ASC
+                """,
+            (rs, rowNum) -> new ExistingAssignmentRow(
+                rs.getLong("id"),
+                rs.getLong("assignment_target_id"),
+                rs.getObject("effective_start_date", LocalDate.class),
+                rs.getObject("effective_end_date", LocalDate.class)
+            ),
+            companyId,
+            employeeId,
+            overlapEnd,
+            startDate
+        );
+
+        int updatedCount = 0;
+        for (var row : rows) {
+            updatedCount += removeAssignmentDateFromRange(
+                "hr_employee_work_site_assignments",
+                "location_id",
+                row,
+                companyId,
+                userId,
+                employeeId,
+                startDate,
+                overlapEnd
+            );
+        }
+        return updatedCount;
+    }
+
+    private int removeAssignmentDateFromRange(
+        String tableName,
+        String assignmentColumn,
+        ExistingAssignmentRow row,
+        long companyId,
+        long userId,
+        long employeeId,
+        LocalDate removeStartDate,
+        LocalDate removeEndDate
+    ) {
+        var rowEnd = assignmentRangeEnd(row.effectiveEndDate());
+        var afterStart = removeEndDate.plusDays(1);
+        var operations = 0;
+
+        if (row.effectiveStartDate().isBefore(removeStartDate)) {
+            operations += jdbcTemplate.update(
+                """
+                    UPDATE %s
+                    SET effective_end_date = ?
+                    WHERE id = ?
+                    """.formatted(tableName),
+                removeStartDate.minusDays(1),
+                row.id()
+            );
+
+            if (rowEnd.isAfter(removeEndDate)) {
+                operations += insertAssignmentRemainder(
+                    tableName,
+                    assignmentColumn,
+                    companyId,
+                    userId,
+                    employeeId,
+                    row.assignmentTargetId(),
+                    afterStart,
+                    row.effectiveEndDate()
                 );
             }
+            return operations;
         }
+
+        if (rowEnd.isAfter(removeEndDate)) {
+            operations += jdbcTemplate.update(
+                """
+                    UPDATE %s
+                    SET effective_start_date = ?
+                    WHERE id = ?
+                    """.formatted(tableName),
+                afterStart,
+                row.id()
+            );
+            return operations;
+        }
+
+        operations += jdbcTemplate.update(
+            """
+                UPDATE %s
+                SET status = 'inactive',
+                    effective_end_date = ?
+                WHERE id = ?
+                """.formatted(tableName),
+            row.effectiveEndDate() != null ? row.effectiveEndDate() : row.effectiveStartDate(),
+            row.id()
+        );
+        return operations;
+    }
+
+    private int insertAssignmentRemainder(
+        String tableName,
+        String assignmentColumn,
+        long companyId,
+        long userId,
+        long employeeId,
+        long assignmentTargetId,
+        LocalDate effectiveStartDate,
+        LocalDate effectiveEndDate
+    ) {
+        return jdbcTemplate.update(
+            """
+                INSERT INTO %s
+                (company_id, employee_id, %s, effective_start_date, effective_end_date, status, created_by)
+                VALUES (?, ?, ?, ?, ?, 'active', ?)
+                """.formatted(tableName, assignmentColumn),
+            companyId,
+            employeeId,
+            assignmentTargetId,
+            effectiveStartDate,
+            effectiveEndDate,
+            userId
+        );
     }
 
     private String signedPhotoUrl(String objectKey) {
@@ -3896,6 +5949,8 @@ public class HrAttendanceService {
             case "permiso", "leave" -> "leave";
             case "descanso", "rest" -> "rest";
             case "falta", "absence" -> "absence";
+            case "pendiente", "scheduled", "pending" -> "pending";
+            case "sin_horario", "not_scheduled", "unassigned" -> "not_scheduled";
             default -> normalized;
         };
 
@@ -3924,6 +5979,23 @@ public class HrAttendanceService {
         }
     }
 
+    private BigDecimal normalizeRequiredHoursPerDay(BigDecimal value) {
+        var resolved = value == null ? new BigDecimal("8.00") : value;
+        if (resolved.compareTo(BigDecimal.ZERO) <= 0 || resolved.compareTo(new BigDecimal("24.00")) > 0) {
+            throw new IllegalArgumentException("required_hours_per_day must be greater than zero and no more than 24.");
+        }
+        return resolved.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void validatePreferredTimeRange(LocalTime startTime, LocalTime endTime) {
+        if (startTime == null || endTime == null) {
+            throw new IllegalArgumentException("required_start_time and required_end_time are required.");
+        }
+        if (!endTime.isAfter(startTime)) {
+            throw new IllegalArgumentException("required_end_time must be after required_start_time.");
+        }
+    }
+
     private double distanceMeters(BigDecimal latitudeA, BigDecimal longitudeA, BigDecimal latitudeB, BigDecimal longitudeB) {
         var earthRadiusMeters = 6_371_000d;
         var lat1 = Math.toRadians(latitudeA.doubleValue());
@@ -3945,6 +6017,18 @@ public class HrAttendanceService {
 
     private String toIsoString(LocalDateTime value) {
         return value == null ? null : value.toString();
+    }
+
+    private String dateString(LocalDate value) {
+        return value == null ? null : value.toString();
+    }
+
+    private void ensureAttendanceDateEditable(AttendanceEmployee employee, LocalDate date) {
+        AttendanceEditPolicy.requireEditable(employee.hireDate(), date);
+    }
+
+    private String attendanceEditLockReason(AttendanceEmployee employee, LocalDate date) {
+        return AttendanceEditPolicy.lockReason(employee.hireDate(), date);
     }
 
     private Long getNullableLong(ResultSet rs, String column) throws SQLException {
@@ -3979,301 +6063,11 @@ public class HrAttendanceService {
     }
 
     public static LocalDate parseDate(String value) {
-        try {
-            return LocalDate.parse(value);
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("Date must use YYYY-MM-DD format.");
-        }
+        return AttendanceDateParser.parseDate(value);
     }
 
     public static YearMonth parseMonth(String value) {
-        try {
-            return YearMonth.parse(value);
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("Month must use YYYY-MM format.");
-        }
+        return AttendanceDateParser.parseMonth(value);
     }
 
-    private record AttendanceEmployee(
-        long id,
-        String employeeNumber,
-        String fullName,
-        String positionTitle,
-        String department,
-        String status,
-        Long unitId,
-        String unitName,
-        Long businessId,
-        String businessName
-    ) {
-    }
-
-    private record EmailMatchedAttendanceEmployee(
-        AttendanceEmployee employee,
-        Long linkedUserId
-    ) {
-    }
-
-    private record AttendanceSessionUser(
-        long userId,
-        String email,
-        String fullName
-    ) {
-    }
-
-    private record AttendanceNameParts(
-        String firstName,
-        String lastName
-    ) {
-    }
-
-    private record AttendanceEmployeeNumberSequence(
-        String prefix,
-        int padding,
-        long nextNumber
-    ) {
-    }
-
-    private record ScheduleRule(
-        long employeeId,
-        long templateId,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        LocalTime startTime,
-        LocalTime endTime,
-        int mealMinutes,
-        int restMinutes,
-        int lateAfterMinutes,
-        boolean isRestDay
-    ) {
-    }
-
-    private record ScheduleWindow(
-        long templateId,
-        LocalDate effectiveStartDate,
-        LocalDate effectiveEndDate,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        int dayOfWeek,
-        LocalTime startTime,
-        LocalTime endTime,
-        int mealMinutes,
-        int restMinutes,
-        int lateAfterMinutes,
-        boolean isRestDay
-    ) {
-    }
-
-    private record CurrentScheduleAssignment(
-        long employeeId,
-        long templateId,
-        String templateName,
-        LocalDate effectiveStartDate,
-        LocalDate effectiveEndDate
-    ) {
-    }
-
-    private record ScheduleTemplateJoinRow(
-        long templateId,
-        String templateName,
-        String templateStatus,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        Integer dayOfWeek,
-        LocalTime startTime,
-        LocalTime endTime,
-        Integer mealMinutes,
-        Integer restMinutes,
-        Integer lateAfterMinutes,
-        Boolean isRestDay
-    ) {
-    }
-
-    private record ScheduleTemplateAccumulator(
-        long templateId,
-        String templateName,
-        String templateStatus,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        List<ScheduleTemplateDayDefinition> days
-    ) {
-    }
-
-    private record ScheduleTemplateDefinition(
-        long templateId,
-        String templateName,
-        String status,
-        String scheduleMode,
-        boolean blockAfterGracePeriod,
-        boolean enforceLocation,
-        Long locationId,
-        String locationName,
-        List<ScheduleTemplateDayDefinition> days
-    ) {
-    }
-
-    private record ScheduleTemplateDayDefinition(
-        int dayOfWeek,
-        LocalTime startTime,
-        LocalTime endTime,
-        int mealMinutes,
-        int restMinutes,
-        int lateAfterMinutes,
-        boolean isRestDay
-    ) {
-    }
-
-    private record LocationRow(
-        long id,
-        String name,
-        BigDecimal latitude,
-        BigDecimal longitude,
-        int radiusMeters,
-        String status
-    ) {
-    }
-
-    private record ExistingAssignmentRow(
-        long id,
-        LocalDate effectiveStartDate,
-        LocalDate effectiveEndDate
-    ) {
-    }
-
-    private record KioskDeviceRow(
-        long id,
-        long companyId,
-        Long unitId,
-        String unitName,
-        Long businessId,
-        String businessName,
-        Long locationId,
-        String locationName,
-        String code,
-        String name,
-        String status,
-        String publicAccessToken,
-        String metadataJson
-    ) {
-    }
-
-    private record AccessProfileRow(
-        long id,
-        long companyId,
-        long employeeId,
-        String status,
-        String defaultMethod,
-        LocalDateTime lastEnrolledAt,
-        String metadataJson,
-        String employeeNumber,
-        String employeeName,
-        List<AccessMethodRow> methods
-    ) {
-    }
-
-    private record AccessMethodRow(
-        long id,
-        long companyId,
-        long accessProfileId,
-        String methodType,
-        String credentialRef,
-        String secretHash,
-        String status,
-        int priority,
-        String metadataJson,
-        long employeeId,
-        String employeeNumber,
-        String employeeName
-    ) {
-    }
-
-    private record ControlActivityRow(
-        long id,
-        long employeeId,
-        String employeeNumber,
-        String employeeName,
-        Long kioskDeviceId,
-        String kioskDeviceName,
-        Long locationId,
-        String locationName,
-        String eventType,
-        String eventKind,
-        String authMethod,
-        String resultStatus,
-        LocalDateTime eventTimestamp,
-        String notes,
-        String metadataJson
-    ) {
-    }
-
-    private record ScopeBusinessRow(
-        long id,
-        Long unitId
-    ) {
-    }
-
-    private record AttendanceEventRow(
-        long id,
-        String eventType,
-        LocalDateTime eventTimestamp,
-        LocalDate attendanceDate,
-        Long locationId,
-        Long kioskDeviceId,
-        String authMethod,
-        String resultStatus,
-        String eventKind,
-        String notes,
-        String metadataJson,
-        Long supersedesEventId
-    ) {
-    }
-
-    private record AttendanceOperationalState(
-        boolean checkedIn,
-        boolean onBreak
-    ) {
-    }
-
-    private record PublicKioskIdentificationToken(
-        long employeeId,
-        String authMethod,
-        long expiresAtEpochSeconds
-    ) {
-    }
-
-    private record DailyRecordRow(
-        long id,
-        long employeeId,
-        LocalDate attendanceDate,
-        String systemStatus,
-        String correctedStatus,
-        LocalDateTime firstCheckInAt,
-        LocalDateTime lastCheckOutAt,
-        int minutesLate,
-        String notes,
-        String firstPhotoObjectKey,
-        String lastPhotoObjectKey,
-        LocationRow firstLocation,
-        LocationRow lastLocation
-    ) {
-    }
-
-    private record EffectiveDailyRecord(
-        String effectiveStatus,
-        LocalDateTime firstCheckInAt,
-        LocalDateTime lastCheckOutAt
-    ) {
-    }
 }

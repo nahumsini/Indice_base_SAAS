@@ -87,6 +87,11 @@ export interface ConfigCenterEmpresaMapBusiness {
   email?: string;
   gerente?: string;
   horario?: string;
+  latitude?: number;
+  longitude?: number;
+  radius_meters?: number;
+  coordinate_source?: string;
+  google_maps_url?: string;
 }
 
 export interface ConfigCenterEmpresaMapUnit {
@@ -101,6 +106,11 @@ export interface ConfigCenterEmpresaMapUnit {
   cp?: string;
   telefono?: string;
   email?: string;
+  latitude?: number;
+  longitude?: number;
+  radius_meters?: number;
+  coordinate_source?: string;
+  google_maps_url?: string;
   businesses: ConfigCenterEmpresaMapBusiness[];
 }
 
@@ -118,6 +128,11 @@ export interface ConfigCenterEmpresa {
   colaboradores?: number;
   estructura?: 'simple' | 'multi';
   empresa_template?: Record<string, unknown>;
+  latitude?: number;
+  longitude?: number;
+  radius_meters?: number;
+  coordinate_source?: string;
+  google_maps_url?: string;
   map?: ConfigCenterEmpresaMapUnit[];
 }
 
@@ -164,6 +179,11 @@ export interface SaveStructurePayload {
     cp?: string;
     telefono?: string;
     email?: string;
+    latitude?: number;
+    longitude?: number;
+    radius_meters?: number;
+    coordinate_source?: string;
+    google_maps_url?: string;
     businesses: Array<{
       name: string;
       legacy_business_id?: number;
@@ -178,6 +198,11 @@ export interface SaveStructurePayload {
       email?: string;
       gerente?: string;
       horario?: string;
+      latitude?: number;
+      longitude?: number;
+      radius_meters?: number;
+      coordinate_source?: string;
+      google_maps_url?: string;
     }>;
   }>;
 }
@@ -190,6 +215,21 @@ export interface SaveEmpresaPayload {
   modelo_negocio?: string;
   moneda?: string;
   zona_horaria?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  radius_meters?: number | null;
+  coordinate_source?: string | null;
+  google_maps_url?: string | null;
+}
+
+export interface ConfigCenterCoordinateExtractionPayload {
+  map_url: string;
+}
+
+export interface ConfigCenterCoordinateExtractionResponse {
+  latitude: number;
+  longitude: number;
+  resolved_url: string;
 }
 
 export const configCenterApi = {
@@ -255,5 +295,15 @@ export const configCenterApi = {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
+  },
+
+  extractLocationCoordinates(payload: ConfigCenterCoordinateExtractionPayload) {
+    return apiClient<ConfigCenterCoordinateExtractionResponse>(
+      endpoints.configCenter.locationCoordinateExtraction,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 };

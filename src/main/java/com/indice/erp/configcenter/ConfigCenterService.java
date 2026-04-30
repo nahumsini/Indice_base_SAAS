@@ -5,7 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -93,6 +97,11 @@ public class ConfigCenterService {
             stringValue(empresaTemplate.get("tamano_empresa")),
             readOptionalText(configCenterNode, "tamano_empresa")
         ));
+        putIfPresent(empresa, "latitude", empresaTemplate.get("latitude"));
+        putIfPresent(empresa, "longitude", empresaTemplate.get("longitude"));
+        putIfPresent(empresa, "radius_meters", empresaTemplate.get("radius_meters"));
+        putIfPresent(empresa, "coordinate_source", empresaTemplate.get("coordinate_source"));
+        putIfPresent(empresa, "google_maps_url", empresaTemplate.get("google_maps_url"));
         empresa.put("colaboradores", resolveCollaborators(companyId, readOptionalInt(configCenterNode, "colaboradores")));
         empresa.put("estructura", "multi".equals(estructura) ? "multi" : "simple");
         empresa.put("empresa_template", empresaTemplate);
@@ -460,7 +469,7 @@ public class ConfigCenterService {
     }
 
     @Transactional
-    public Map<String, Object> saveStructure(long companyId, Map<String, Object> payload) {
+    public Map<String, Object> saveStructure(long companyId, long userId, Map<String, Object> payload) {
         var estructura = value(payload, "modo", "estructura");
         if (!"multi".equals(estructura)) {
             estructura = "simple";
@@ -471,7 +480,7 @@ public class ConfigCenterService {
             throw new IllegalArgumentException("At least one unit is required in multi mode.");
         }
 
-        persistStructure(companyId, map);
+        persistStructure(companyId, userId, map);
 
         var settingsRoot = loadSettingsRoot(companyId);
         var configCenterNode = ensureConfigCenterNode(settingsRoot);
@@ -489,7 +498,7 @@ public class ConfigCenterService {
     }
 
     @Transactional
-    public Map<String, Object> saveEmpresa(long companyId, Map<String, Object> payload) {
+    public Map<String, Object> saveEmpresa(long companyId, long userId, Map<String, Object> payload) {
         var name = value(payload, "nombre_empresa");
         if (!name.isBlank()) {
             jdbcTemplate.update("UPDATE companies SET name = ? WHERE id = ?", name, companyId);
@@ -508,6 +517,11 @@ public class ConfigCenterService {
         if (!name.isBlank()) {
             empresaTemplateNode.put("display_name", name);
         }
+        CoordinateInput companyCoordinates = null;
+        if (hasCoordinatePayload(payload)) {
+            companyCoordinates = normalizeCoordinateInput(payload);
+            putCoordinateInput(empresaTemplateNode, companyCoordinates);
+        }
 
         if (!configCenterNode.hasNonNull("estructura")) {
             configCenterNode.put("estructura", buildStructureMap(companyId).isEmpty() ? "simple" : "multi");
@@ -518,6 +532,9 @@ public class ConfigCenterService {
         configCenterNode.put("tamano_empresa", value(payload, "tamano_empresa"));
 
         upsertSettingsRoot(companyId, settingsRoot);
+        if (companyCoordinates != null) {
+            syncCompanyStructureAttendanceLocation(companyId, userId, name, companyCoordinates);
+        }
 
         var data = new LinkedHashMap<String, Object>();
         data.put("nombre_empresa", name);
@@ -527,10 +544,18 @@ public class ConfigCenterService {
         data.put("modelo_negocio", value(payload, "modelo_negocio"));
         data.put("moneda", value(payload, "moneda"));
         data.put("zona_horaria", value(payload, "zona_horaria", "tz"));
+        putIfPresent(data, "latitude", readOptionalDecimal(payload, "latitude", "latitud"));
+        putIfPresent(data, "longitude", readOptionalDecimal(payload, "longitude", "longitud", "lng"));
+        putIfPresent(data, "radius_meters", readOptionalInteger(payload, "radius_meters", "radiusMeters", "radius", "radio"));
+        putIfPresent(data, "coordinate_source", firstNonBlank(
+            objectString(payload, "coordinate_source", "coordinateSource"),
+            objectString(payload, "source")
+        ));
+        putIfPresent(data, "google_maps_url", objectString(payload, "google_maps_url", "googleMapsUrl", "map_url", "mapUrl"));
         return data;
     }
 
-    private void persistStructure(long companyId, List<UnitInput> desiredUnits) {
+    private void persistStructure(long companyId, long userId, List<UnitInput> desiredUnits) {
         var existingUnits = loadExistingUnits(companyId);
         var existingBusinesses = loadExistingBusinesses(companyId);
 
@@ -576,30 +601,61 @@ public class ConfigCenterService {
 
             for (var desiredBusiness : desiredUnit.businesses()) {
                 var businessId = matchBusinessId(desiredBusiness, unitId, existingBusinessesById, existingBusinessesByKey);
+                var coordinates = desiredBusiness.coordinates();
                 if (businessId == null) {
                     jdbcTemplate.update(
-                        "INSERT INTO businesses (company_id, unit_id, name, status) VALUES (?, ?, ?, 'active')",
+                        """
+                            INSERT INTO businesses
+                            (company_id, unit_id, name, address, latitude, longitude, radius_meters, coordinate_source, google_maps_url, status)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                            """,
                         companyId,
                         unitId,
-                        desiredBusiness.name()
+                        desiredBusiness.name(),
+                        nullableText(desiredBusiness.direccion()),
+                        coordinateLatitude(coordinates),
+                        coordinateLongitude(coordinates),
+                        coordinateRadius(coordinates),
+                        coordinateSource(coordinates),
+                        nullableText(coordinates == null ? "" : coordinates.googleMapsUrl())
                     );
                     businessId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
                 } else {
                     jdbcTemplate.update(
-                        "UPDATE businesses SET name = ?, unit_id = ?, status = 'active' WHERE id = ? AND company_id = ?",
+                        """
+                            UPDATE businesses
+                            SET name = ?,
+                                unit_id = ?,
+                                address = ?,
+                                latitude = ?,
+                                longitude = ?,
+                                radius_meters = ?,
+                                coordinate_source = ?,
+                                google_maps_url = ?,
+                                status = 'active'
+                            WHERE id = ? AND company_id = ?
+                            """,
                         desiredBusiness.name(),
                         unitId,
+                        nullableText(desiredBusiness.direccion()),
+                        coordinateLatitude(coordinates),
+                        coordinateLongitude(coordinates),
+                        coordinateRadius(coordinates),
+                        coordinateSource(coordinates),
+                        nullableText(coordinates == null ? "" : coordinates.googleMapsUrl()),
                         businessId,
                         companyId
                     );
                 }
 
                 keptBusinessIds.add(businessId);
+                syncBusinessStructureAttendanceLocation(companyId, userId, unitId, businessId, desiredBusiness);
             }
         }
 
         for (var business : existingBusinesses) {
             if (!keptBusinessIds.contains(business.id())) {
+                deactivateBusinessStructureAttendanceLocation(companyId, business.id());
                 jdbcTemplate.update("DELETE FROM businesses WHERE id = ? AND company_id = ?", business.id(), companyId);
             }
         }
@@ -630,7 +686,14 @@ public class ConfigCenterService {
     private List<ExistingBusiness> loadExistingBusinesses(long companyId) {
         return jdbcTemplate.query(
             """
-                SELECT id, unit_id, name
+                SELECT id,
+                       unit_id,
+                       name,
+                       latitude,
+                       longitude,
+                       radius_meters,
+                       coordinate_source,
+                       google_maps_url
                 FROM businesses
                 WHERE company_id = ?
                 ORDER BY id ASC
@@ -638,7 +701,12 @@ public class ConfigCenterService {
             (rs, rowNum) -> new ExistingBusiness(
                 rs.getLong("id"),
                 getNullableLong(rs, "unit_id"),
-                safe(rs.getString("name"))
+                safe(rs.getString("name")),
+                rs.getBigDecimal("latitude"),
+                rs.getBigDecimal("longitude"),
+                getNullableInt(rs, "radius_meters"),
+                safe(rs.getString("coordinate_source")),
+                safe(rs.getString("google_maps_url"))
             ),
             companyId
         );
@@ -671,6 +739,233 @@ public class ConfigCenterService {
         return existingBusiness == null ? null : existingBusiness.id();
     }
 
+    private void syncBusinessStructureAttendanceLocation(
+        long companyId,
+        long userId,
+        long unitId,
+        long businessId,
+        BusinessInput business
+    ) {
+        var coordinates = business.coordinates();
+        if (coordinates == null || !coordinates.hasCoordinates()) {
+            deactivateBusinessStructureAttendanceLocation(companyId, businessId);
+            return;
+        }
+
+        var existingLocationId = findBusinessStructureAttendanceLocationId(companyId, businessId);
+        if (existingLocationId == null) {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO hr_attendance_locations
+                    (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters,
+                     required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, managed_source, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'business_structure', ?)
+                    """,
+                companyId,
+                unitId,
+                businessId,
+                LocalDate.of(1970, 1, 1),
+                LocalDate.of(9999, 12, 31),
+                business.name(),
+                coordinates.latitude(),
+                coordinates.longitude(),
+                coordinates.radiusMeters(),
+                new BigDecimal("8.00"),
+                LocalTime.of(8, 0),
+                LocalTime.of(16, 0),
+                5,
+                userId
+            );
+            return;
+        }
+
+        jdbcTemplate.update(
+            """
+                UPDATE hr_attendance_locations
+                SET unit_id = ?,
+                    business_id = ?,
+                    contract_start_date = ?,
+                    contract_end_date = ?,
+                    name = ?,
+                    latitude = ?,
+                    longitude = ?,
+                    radius_meters = ?,
+                    required_hours_per_day = ?,
+                    required_start_time = ?,
+                    required_end_time = ?,
+                    required_days_per_week = ?,
+                    status = 'active',
+                    managed_source = 'business_structure'
+                WHERE id = ? AND company_id = ?
+                """,
+            unitId,
+            businessId,
+            LocalDate.of(1970, 1, 1),
+            LocalDate.of(9999, 12, 31),
+            business.name(),
+            coordinates.latitude(),
+            coordinates.longitude(),
+            coordinates.radiusMeters(),
+            new BigDecimal("8.00"),
+            LocalTime.of(8, 0),
+            LocalTime.of(16, 0),
+            5,
+            existingLocationId,
+            companyId
+        );
+    }
+
+    private void syncCompanyStructureAttendanceLocation(
+        long companyId,
+        long userId,
+        String companyName,
+        CoordinateInput coordinates
+    ) {
+        if (coordinates == null || !coordinates.hasCoordinates()) {
+            deactivateCompanyStructureAttendanceLocation(companyId);
+            return;
+        }
+
+        var locationName = firstNonBlank(companyName, "Company location");
+        var existingLocationId = findCompanyStructureAttendanceLocationId(companyId);
+        if (existingLocationId == null) {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO hr_attendance_locations
+                    (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters,
+                     required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, managed_source, created_by)
+                    VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'business_structure', ?)
+                    """,
+                companyId,
+                LocalDate.of(1970, 1, 1),
+                LocalDate.of(9999, 12, 31),
+                locationName,
+                coordinates.latitude(),
+                coordinates.longitude(),
+                coordinates.radiusMeters(),
+                new BigDecimal("8.00"),
+                LocalTime.of(8, 0),
+                LocalTime.of(16, 0),
+                5,
+                userId
+            );
+            return;
+        }
+
+        jdbcTemplate.update(
+            """
+                UPDATE hr_attendance_locations
+                SET unit_id = NULL,
+                    business_id = NULL,
+                    contract_start_date = ?,
+                    contract_end_date = ?,
+                    name = ?,
+                    latitude = ?,
+                    longitude = ?,
+                    radius_meters = ?,
+                    required_hours_per_day = ?,
+                    required_start_time = ?,
+                    required_end_time = ?,
+                    required_days_per_week = ?,
+                    status = 'active',
+                    managed_source = 'business_structure'
+                WHERE id = ? AND company_id = ?
+                """,
+            LocalDate.of(1970, 1, 1),
+            LocalDate.of(9999, 12, 31),
+            locationName,
+            coordinates.latitude(),
+            coordinates.longitude(),
+            coordinates.radiusMeters(),
+            new BigDecimal("8.00"),
+            LocalTime.of(8, 0),
+            LocalTime.of(16, 0),
+            5,
+            existingLocationId,
+            companyId
+        );
+    }
+
+    private Long findBusinessStructureAttendanceLocationId(long companyId, long businessId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT id
+                FROM hr_attendance_locations
+                WHERE company_id = ?
+                  AND business_id = ?
+                  AND managed_source = 'business_structure'
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            companyId,
+            businessId
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    private Long findCompanyStructureAttendanceLocationId(long companyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT id
+                FROM hr_attendance_locations
+                WHERE company_id = ?
+                  AND business_id IS NULL
+                  AND unit_id IS NULL
+                  AND managed_source = 'business_structure'
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            companyId
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    private void deactivateBusinessStructureAttendanceLocation(long companyId, long businessId) {
+        jdbcTemplate.update(
+            """
+                UPDATE hr_attendance_locations
+                SET status = 'inactive'
+                WHERE company_id = ?
+                  AND business_id = ?
+                  AND managed_source = 'business_structure'
+                """,
+            companyId,
+            businessId
+        );
+    }
+
+    private void deactivateCompanyStructureAttendanceLocation(long companyId) {
+        jdbcTemplate.update(
+            """
+                UPDATE hr_attendance_locations
+                SET status = 'inactive'
+                WHERE company_id = ?
+                  AND business_id IS NULL
+                  AND unit_id IS NULL
+                  AND managed_source = 'business_structure'
+                """,
+            companyId
+        );
+    }
+
+    private BigDecimal coordinateLatitude(CoordinateInput coordinates) {
+        return coordinates == null || !coordinates.hasCoordinates() ? null : coordinates.latitude();
+    }
+
+    private BigDecimal coordinateLongitude(CoordinateInput coordinates) {
+        return coordinates == null || !coordinates.hasCoordinates() ? null : coordinates.longitude();
+    }
+
+    private Integer coordinateRadius(CoordinateInput coordinates) {
+        return coordinates == null || !coordinates.hasCoordinates() ? null : coordinates.radiusMeters();
+    }
+
+    private String coordinateSource(CoordinateInput coordinates) {
+        return coordinates == null || !coordinates.hasCoordinates() ? null : firstNonBlank(coordinates.coordinateSource(), "manual");
+    }
+
     private List<String> listModuleSlugs(long userCompanyId) {
         return jdbcTemplate.query(
             "SELECT DISTINCT module_slug FROM user_company_module_roles WHERE user_company_id = ? ORDER BY module_slug ASC",
@@ -683,7 +978,14 @@ public class ConfigCenterService {
         var businessesByUnit = new LinkedHashMap<Long, List<Map<String, Object>>>();
         jdbcTemplate.query(
             """
-                SELECT id, unit_id, name
+                SELECT id,
+                       unit_id,
+                       name,
+                       latitude,
+                       longitude,
+                       radius_meters,
+                       coordinate_source,
+                       google_maps_url
                 FROM businesses
                 WHERE company_id = ?
                   AND (status = 'active' OR status IS NULL OR status = '')
@@ -694,6 +996,11 @@ public class ConfigCenterService {
                 var business = new LinkedHashMap<String, Object>();
                 business.put("name", safe(rs.getString("name")));
                 business.put("legacy_business_id", rs.getLong("id"));
+                putIfPresent(business, "latitude", rs.getBigDecimal("latitude"));
+                putIfPresent(business, "longitude", rs.getBigDecimal("longitude"));
+                putIfPresent(business, "radius_meters", getNullableInt(rs, "radius_meters"));
+                putIfPresent(business, "coordinate_source", safe(rs.getString("coordinate_source")));
+                putIfPresent(business, "google_maps_url", safe(rs.getString("google_maps_url")));
                 businessesByUnit.computeIfAbsent(unitId, ignored -> new ArrayList<>()).add(business);
             },
             companyId
@@ -761,6 +1068,7 @@ public class ConfigCenterService {
                 readOptionalText(unitNode, "email"),
                 readOptionalText(unitNode.path("unit_profile"), "email")
             ));
+            putCoordinateFields(unit, unitNode);
 
             var businesses = new ArrayList<Map<String, Object>>();
             if (unitNode.path("businesses").isArray()) {
@@ -802,6 +1110,7 @@ public class ConfigCenterService {
                     ));
                     putIfPresent(business, "gerente", readOptionalText(businessNode, "gerente"));
                     putIfPresent(business, "horario", readOptionalText(businessNode, "horario"));
+                    putCoordinateFields(business, businessNode);
                     businesses.add(business);
                 }
             }
@@ -855,6 +1164,7 @@ public class ConfigCenterService {
             putText(storedUnit, "cp", desiredUnit.cp());
             putText(storedUnit, "telefono", desiredUnit.telefono());
             putText(storedUnit, "email", desiredUnit.email());
+            putCoordinateInput(storedUnit, desiredUnit.coordinates());
             if (mergedLegacyUnitId != null) {
                 storedUnit.put("legacy_unit_id", mergedLegacyUnitId);
             }
@@ -900,6 +1210,7 @@ public class ConfigCenterService {
                 putText(storedBusiness, "email", desiredBusiness.email());
                 putText(storedBusiness, "gerente", desiredBusiness.gerente());
                 putText(storedBusiness, "horario", desiredBusiness.horario());
+                putCoordinateInput(storedBusiness, desiredBusiness.coordinates());
                 if (mergedLegacyBusinessId != null) {
                     storedBusiness.put("legacy_business_id", mergedLegacyBusinessId);
                 }
@@ -953,6 +1264,7 @@ public class ConfigCenterService {
         ));
         putIfPresent(template, "tamano_empresa", readOptionalText(templateNode, "tamano_empresa"));
         putIfPresent(template, "display_name", readOptionalText(templateNode, "display_name"));
+        putCoordinateFields(template, templateNode);
         return template;
     }
 
@@ -1060,6 +1372,11 @@ public class ConfigCenterService {
                 normalizedUnitMap.put("cp", unitMap.get("cp"));
                 normalizedUnitMap.put("telefono", unitMap.get("telefono"));
                 normalizedUnitMap.put("email", unitMap.get("email"));
+                normalizedUnitMap.put("latitude", firstNonNull(unitMap.get("latitude"), unitMap.get("latitud")));
+                normalizedUnitMap.put("longitude", firstNonNull(unitMap.get("longitude"), unitMap.get("longitud"), unitMap.get("lng")));
+                normalizedUnitMap.put("radius_meters", firstNonNull(unitMap.get("radius_meters"), unitMap.get("radiusMeters"), unitMap.get("radio")));
+                normalizedUnitMap.put("coordinate_source", firstNonNull(unitMap.get("coordinate_source"), unitMap.get("coordinateSource"), unitMap.get("source")));
+                normalizedUnitMap.put("google_maps_url", firstNonNull(unitMap.get("google_maps_url"), unitMap.get("googleMapsUrl"), unitMap.get("map_url"), unitMap.get("mapUrl")));
                 normalizedUnitMap.put("businesses", unitMap.get("negocios"));
 
                 var unit = normalizeUnitMap(normalizedUnitMap);
@@ -1108,6 +1425,7 @@ public class ConfigCenterService {
             objectString(unitMap.get("cp")),
             objectString(unitMap.get("telefono")),
             objectString(unitMap.get("email")),
+            normalizeCoordinateInput(unitMap),
             businesses
         );
     }
@@ -1135,7 +1453,8 @@ public class ConfigCenterService {
                 objectString(businessMap.get("telefono")),
                 objectString(businessMap.get("email")),
                 objectString(businessMap.get("gerente")),
-                objectString(businessMap.get("horario"))
+                objectString(businessMap.get("horario")),
+                normalizeCoordinateInput(businessMap)
             );
         }
 
@@ -1157,7 +1476,8 @@ public class ConfigCenterService {
             "",
             "",
             "",
-            ""
+            "",
+            new CoordinateInput(null, null, null, "", "")
         );
     }
 
@@ -1294,6 +1614,20 @@ public class ConfigCenterService {
         return value == null ? "" : String.valueOf(value).trim();
     }
 
+    private String objectString(Map<?, ?> values, String... fields) {
+        for (var field : fields) {
+            if (!values.containsKey(field)) {
+                continue;
+            }
+
+            var value = objectString(values.get(field));
+            if (!value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
     private String safe(String value) {
         return value == null ? "" : value;
     }
@@ -1308,6 +1642,10 @@ public class ConfigCenterService {
 
     private Object nullable(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private Object nullableText(String value) {
+        return nullable(value);
     }
 
     private String stringValue(Object value) {
@@ -1325,6 +1663,15 @@ public class ConfigCenterService {
             }
         }
         return "";
+    }
+
+    private Object firstNonNull(Object... values) {
+        for (var value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private String readOptionalText(JsonNode node, String... fields) {
@@ -1411,6 +1758,200 @@ public class ConfigCenterService {
         return null;
     }
 
+    private BigDecimal readOptionalDecimal(JsonNode node, String... fields) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+
+        for (var field : fields) {
+            var childNode = node.get(field);
+            if (childNode == null || childNode.isNull()) {
+                continue;
+            }
+
+            var text = childNode.asText("").trim();
+            if (text.isBlank()) {
+                continue;
+            }
+
+            try {
+                return new BigDecimal(text).setScale(7, RoundingMode.HALF_UP);
+            } catch (NumberFormatException ignored) {
+                // continue to next field
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal readOptionalDecimal(Map<?, ?> values, String... fields) {
+        for (var field : fields) {
+            if (!values.containsKey(field)) {
+                continue;
+            }
+
+            var value = values.get(field);
+            if (value == null) {
+                continue;
+            }
+
+            var text = value instanceof Number ? value.toString() : objectString(value);
+            if (text.isBlank()) {
+                continue;
+            }
+
+            try {
+                return new BigDecimal(text).setScale(7, RoundingMode.HALF_UP);
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException(field + " must be a valid decimal.");
+            }
+        }
+        return null;
+    }
+
+    private Integer readOptionalInteger(JsonNode node, String... fields) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+
+        for (var field : fields) {
+            var childNode = node.get(field);
+            if (childNode == null || childNode.isNull()) {
+                continue;
+            }
+
+            if (childNode.isInt() || childNode.isLong()) {
+                return childNode.asInt();
+            }
+
+            var text = childNode.asText("").trim();
+            if (text.isBlank()) {
+                continue;
+            }
+
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
+                // continue to next field
+            }
+        }
+        return null;
+    }
+
+    private Integer readOptionalInteger(Map<?, ?> values, String... fields) {
+        for (var field : fields) {
+            if (!values.containsKey(field)) {
+                continue;
+            }
+
+            var value = values.get(field);
+            if (value instanceof Number number) {
+                return number.intValue();
+            }
+
+            var text = objectString(value);
+            if (text.isBlank()) {
+                continue;
+            }
+
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException(field + " must be a valid integer.");
+            }
+        }
+        return null;
+    }
+
+    private boolean hasCoordinatePayload(Map<?, ?> values) {
+        return values.containsKey("latitude")
+            || values.containsKey("latitud")
+            || values.containsKey("longitude")
+            || values.containsKey("longitud")
+            || values.containsKey("lng")
+            || values.containsKey("radius_meters")
+            || values.containsKey("radiusMeters")
+            || values.containsKey("radius")
+            || values.containsKey("radio")
+            || values.containsKey("coordinate_source")
+            || values.containsKey("coordinateSource")
+            || values.containsKey("source")
+            || values.containsKey("google_maps_url")
+            || values.containsKey("googleMapsUrl")
+            || values.containsKey("map_url")
+            || values.containsKey("mapUrl");
+    }
+
+    private CoordinateInput normalizeCoordinateInput(Map<?, ?> values) {
+        var latitude = readOptionalDecimal(values, "latitude", "latitud");
+        var longitude = readOptionalDecimal(values, "longitude", "longitud", "lng");
+        var radiusMeters = readOptionalInteger(values, "radius_meters", "radiusMeters", "radius", "radio");
+        var coordinateSource = normalizeCoordinateSource(firstNonBlank(
+            objectString(values, "coordinate_source", "coordinateSource"),
+            objectString(values, "source")
+        ));
+        var googleMapsUrl = objectString(values, "google_maps_url", "googleMapsUrl", "map_url", "mapUrl");
+
+        if (latitude == null && longitude == null) {
+            return new CoordinateInput(null, null, null, "", googleMapsUrl);
+        }
+
+        if (latitude == null || longitude == null) {
+            throw new IllegalArgumentException("latitude and longitude must both be provided.");
+        }
+
+        validateCoordinateRange(latitude, new BigDecimal("-90"), new BigDecimal("90"), "latitude");
+        validateCoordinateRange(longitude, new BigDecimal("-180"), new BigDecimal("180"), "longitude");
+
+        if (radiusMeters == null) {
+            radiusMeters = 100;
+        }
+        if (radiusMeters <= 0) {
+            throw new IllegalArgumentException("radius_meters must be greater than zero.");
+        }
+
+        return new CoordinateInput(
+            latitude,
+            longitude,
+            radiusMeters,
+            coordinateSource.isBlank() ? "manual" : coordinateSource,
+            googleMapsUrl
+        );
+    }
+
+    private void validateCoordinateRange(BigDecimal value, BigDecimal minimum, BigDecimal maximum, String label) {
+        if (value.compareTo(minimum) < 0 || value.compareTo(maximum) > 0) {
+            throw new IllegalArgumentException(label + " is outside the supported range.");
+        }
+    }
+
+    private String normalizeCoordinateSource(String value) {
+        var normalized = safe(value).trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "google_maps_link", "google_maps", "maps_link" -> "google_maps_link";
+            case "current_location", "device_location", "here" -> "current_location";
+            case "manual" -> "manual";
+            default -> "";
+        };
+    }
+
+    private void putCoordinateFields(Map<String, Object> target, JsonNode sourceNode) {
+        var latitude = readOptionalDecimal(sourceNode, "latitude", "latitud");
+        var longitude = readOptionalDecimal(sourceNode, "longitude", "longitud", "lng");
+        if (latitude == null || longitude == null) {
+            putIfPresent(target, "google_maps_url", readOptionalText(sourceNode, "google_maps_url", "googleMapsUrl", "map_url", "mapUrl"));
+            return;
+        }
+
+        putIfPresent(target, "latitude", latitude);
+        putIfPresent(target, "longitude", longitude);
+        putIfPresent(target, "radius_meters", readOptionalInteger(sourceNode, "radius_meters", "radiusMeters", "radius", "radio"));
+        putIfPresent(target, "coordinate_source", normalizeCoordinateSource(firstNonBlank(
+            readOptionalText(sourceNode, "coordinate_source", "coordinateSource"),
+            readOptionalText(sourceNode, "source")
+        )));
+        putIfPresent(target, "google_maps_url", readOptionalText(sourceNode, "google_maps_url", "googleMapsUrl", "map_url", "mapUrl"));
+    }
+
     private void putIfPresent(Map<String, Object> target, String key, Object value) {
         if (value == null) {
             return;
@@ -1427,8 +1968,51 @@ public class ConfigCenterService {
         node.put(fieldName, safe(value));
     }
 
+    private void putCoordinateInput(ObjectNode node, CoordinateInput coordinates) {
+        if (coordinates == null || !coordinates.hasCoordinates()) {
+            node.remove(List.of("latitude", "longitude", "radius_meters", "coordinate_source"));
+            putOptionalText(node, "google_maps_url", coordinates == null ? "" : coordinates.googleMapsUrl());
+            return;
+        }
+
+        putDecimal(node, "latitude", coordinates.latitude());
+        putDecimal(node, "longitude", coordinates.longitude());
+        putInteger(node, "radius_meters", coordinates.radiusMeters());
+        putOptionalText(node, "coordinate_source", firstNonBlank(coordinates.coordinateSource(), "manual"));
+        putOptionalText(node, "google_maps_url", coordinates.googleMapsUrl());
+    }
+
+    private void putDecimal(ObjectNode node, String fieldName, BigDecimal value) {
+        if (value == null) {
+            node.remove(fieldName);
+        } else {
+            node.put(fieldName, value);
+        }
+    }
+
+    private void putInteger(ObjectNode node, String fieldName, Integer value) {
+        if (value == null) {
+            node.remove(fieldName);
+        } else {
+            node.put(fieldName, value);
+        }
+    }
+
+    private void putOptionalText(ObjectNode node, String fieldName, String value) {
+        if (value == null || value.isBlank()) {
+            node.remove(fieldName);
+        } else {
+            node.put(fieldName, value);
+        }
+    }
+
     private Long getNullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
         var value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private Integer getNullableInt(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        var value = rs.getInt(column);
         return rs.wasNull() ? null : value;
     }
 
@@ -1463,6 +2047,7 @@ public class ConfigCenterService {
         String cp,
         String telefono,
         String email,
+        CoordinateInput coordinates,
         List<BusinessInput> businesses
     ) {
     }
@@ -1480,8 +2065,21 @@ public class ConfigCenterService {
         String telefono,
         String email,
         String gerente,
-        String horario
+        String horario,
+        CoordinateInput coordinates
     ) {
+    }
+
+    private record CoordinateInput(
+        BigDecimal latitude,
+        BigDecimal longitude,
+        Integer radiusMeters,
+        String coordinateSource,
+        String googleMapsUrl
+    ) {
+        private boolean hasCoordinates() {
+            return latitude != null && longitude != null;
+        }
     }
 
     private record ExistingUnit(
@@ -1493,7 +2091,12 @@ public class ConfigCenterService {
     private record ExistingBusiness(
         Long id,
         Long unitId,
-        String name
+        String name,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        Integer radiusMeters,
+        String coordinateSource,
+        String googleMapsUrl
     ) {
     }
 }

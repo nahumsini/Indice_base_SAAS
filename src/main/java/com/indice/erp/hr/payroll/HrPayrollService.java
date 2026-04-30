@@ -1,11 +1,11 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.payroll;
 
-import static com.indice.erp.hr.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.HrPayloadUtils.parseBigDecimal;
-import static com.indice.erp.hr.HrPayloadUtils.parseDate;
-import static com.indice.erp.hr.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.HrPayloadUtils.safe;
-import static com.indice.erp.hr.HrPayloadUtils.stringValue;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseBigDecimal;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDate;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -852,9 +852,7 @@ public class HrPayrollService {
                     } else {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
                         regularHours = regularHours.add(workedHours.min(scheduledHours.compareTo(BigDecimal.ZERO) > 0 ? scheduledHours : workedHours));
-                        if (workedHours.compareTo(scheduledHours) > 0 && scheduledHours.compareTo(BigDecimal.ZERO) > 0) {
-                            overtimeHours = overtimeHours.add(workedHours.subtract(scheduledHours));
-                        } else if (scheduledHours.compareTo(BigDecimal.ZERO) <= 0) {
+                        if (scheduledHours.compareTo(BigDecimal.ZERO) <= 0) {
                             regularHours = regularHours.add(BigDecimal.ZERO);
                         }
                     }
@@ -867,9 +865,6 @@ public class HrPayrollService {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
                         if (scheduledHours.compareTo(BigDecimal.ZERO) > 0) {
                             regularHours = regularHours.add(workedHours.min(scheduledHours));
-                            if (workedHours.compareTo(scheduledHours) > 0) {
-                                overtimeHours = overtimeHours.add(workedHours.subtract(scheduledHours));
-                            }
                         } else {
                             regularHours = regularHours.add(workedHours);
                         }

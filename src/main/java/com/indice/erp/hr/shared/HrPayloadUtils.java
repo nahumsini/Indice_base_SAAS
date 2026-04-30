@@ -1,4 +1,4 @@
-package com.indice.erp.hr;
+package com.indice.erp.hr.shared;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -8,12 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-final class HrPayloadUtils {
+public final class HrPayloadUtils {
 
     private HrPayloadUtils() {
     }
 
-    static String stringValue(Map<String, Object> payload, String... keys) {
+    public static String stringValue(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return "";
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof String string && !string.isBlank()) {
@@ -26,7 +29,10 @@ final class HrPayloadUtils {
         return "";
     }
 
-    static Long parseLong(Map<String, Object> payload, String... keys) {
+    public static Long parseLong(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return null;
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof Number number) {
@@ -43,7 +49,10 @@ final class HrPayloadUtils {
         return null;
     }
 
-    static Integer parseInteger(Map<String, Object> payload, String... keys) {
+    public static Integer parseInteger(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return null;
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof Number number) {
@@ -60,7 +69,7 @@ final class HrPayloadUtils {
         return null;
     }
 
-    static BigDecimal parseBigDecimal(Map<String, Object> payload, String... keys) {
+    public static BigDecimal parseBigDecimal(Map<String, Object> payload, String... keys) {
         var raw = stringValue(payload, keys);
         if (raw.isBlank()) {
             return null;
@@ -72,7 +81,7 @@ final class HrPayloadUtils {
         }
     }
 
-    static LocalDate parseDate(Map<String, Object> payload, String... keys) {
+    public static LocalDate parseDate(Map<String, Object> payload, String... keys) {
         var raw = stringValue(payload, keys);
         if (raw.isBlank()) {
             return null;
@@ -84,7 +93,7 @@ final class HrPayloadUtils {
         }
     }
 
-    static LocalDateTime parseDateTime(Map<String, Object> payload, String... keys) {
+    public static LocalDateTime parseDateTime(Map<String, Object> payload, String... keys) {
         var raw = stringValue(payload, keys);
         if (raw.isBlank()) {
             return null;
@@ -101,7 +110,10 @@ final class HrPayloadUtils {
         }
     }
 
-    static List<String> stringList(Map<String, Object> payload, String... keys) {
+    public static List<String> stringList(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return List.of();
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof List<?> list) {
@@ -121,7 +133,10 @@ final class HrPayloadUtils {
         return List.of();
     }
 
-    static List<Long> longList(Map<String, Object> payload, String... keys) {
+    public static List<Long> longList(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return List.of();
+        }
         for (var key : keys) {
             var value = payload.get(key);
             if (value instanceof List<?> list) {
@@ -143,15 +158,15 @@ final class HrPayloadUtils {
         return List.of();
     }
 
-    static String safe(String value) {
+    public static String safe(String value) {
         return value == null ? "" : value;
     }
 
-    static String nullable(String value) {
+    public static String nullable(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    static boolean isBlank(String value) {
+    public static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 }

@@ -24,6 +24,7 @@ export interface BackendUnit {
 export interface BackendBusiness {
   id: number;
   unitId?: number | null;
+  unit_id?: number | null;
   name: string;
   address?: string | null;
   description?: string | null;

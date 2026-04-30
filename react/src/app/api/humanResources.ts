@@ -40,6 +40,8 @@ export interface BackendEmployeeProfile {
   social_security_number?: string;
   registration_country?: string;
   state_province?: string;
+  city?: string;
+  postal_code?: string;
   alternate_phone?: string;
   emergency_contact_name?: string;
   emergency_contact_relationship?: string;
@@ -250,6 +252,9 @@ export interface AttendanceLocation {
   radius_meters: number;
 }
 
+export type AttendanceStatus = 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | 'pending' | 'not_scheduled';
+export type AttendanceCorrectionStatus = Exclude<AttendanceStatus, 'pending' | 'not_scheduled'>;
+
 export interface AttendanceDashboardItem {
   employee_id: number;
   employee_number?: string;
@@ -260,14 +265,19 @@ export interface AttendanceDashboardItem {
   unit_name?: string;
   business_id?: number | null;
   business_name?: string;
-  status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
+  hire_date?: string | null;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
+  status: AttendanceStatus;
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   minutes_late: number;
   first_location?: AttendanceLocation | null;
   last_location?: AttendanceLocation | null;
+  schedule_rule?: AttendanceControlRule | null;
+  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
   first_photo_url?: string | null;
   last_photo_url?: string | null;
 }
@@ -280,6 +290,7 @@ export interface AttendanceEmployeeOption {
   department?: string;
   unit_id?: number | null;
   unit_name?: string;
+  hire_date?: string | null;
   status: 'active' | 'inactive' | 'terminated';
 }
 
@@ -303,9 +314,11 @@ export interface AttendanceDashboardResponse {
 export interface AttendanceCalendarDay {
   date: string;
   day: number;
-  effective_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
+  effective_status: AttendanceStatus;
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   entry_registered: boolean;
   exit_registered: boolean;
   first_check_in_at?: string | null;
@@ -313,6 +326,8 @@ export interface AttendanceCalendarDay {
   minutes_late: number;
   first_location?: AttendanceLocation | null;
   last_location?: AttendanceLocation | null;
+  schedule_rule?: AttendanceControlRule | null;
+  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
   first_photo_url?: string | null;
   last_photo_url?: string | null;
   notes?: string | null;
@@ -324,6 +339,7 @@ export interface AttendanceCalendarResponse {
     full_name: string;
     position_title?: string;
     department?: string;
+    hire_date?: string | null;
   };
   month: string;
   items: AttendanceCalendarDay[];
@@ -346,11 +362,23 @@ export interface AttendanceControlRule {
 
 export interface AttendanceControlLocation {
   id: number;
+  unit_id?: number | null;
+  unit_name?: string | null;
+  business_id?: number | null;
+  business_name?: string | null;
+  contract_start_date?: string | null;
+  contract_end_date?: string | null;
   name: string;
   latitude: number;
   longitude: number;
   radius_meters: number;
+  required_hours_per_day?: number | null;
+  required_start_time?: string | null;
+  required_end_time?: string | null;
+  required_days_per_week?: number | null;
   status?: string;
+  assigned_employee_count?: number;
+  assigned_employee_names?: string | null;
 }
 
 export interface AttendanceControlTemplateDay {
@@ -374,6 +402,19 @@ export interface AttendanceControlTemplate {
   location_name?: string | null;
   employees_assigned_count: number;
   days: AttendanceControlTemplateDay[];
+}
+
+export interface AttendanceEmployeeWorkSiteAssignment {
+  id: number;
+  employee_id: number;
+  location_id: number;
+  location_name: string;
+  location: AttendanceControlLocation;
+  template_id?: number | null;
+  template_name?: string | null;
+  effective_start_date: string;
+  effective_end_date?: string | null;
+  status: 'active' | 'inactive';
 }
 
 export interface AttendanceKioskDevice {
@@ -436,19 +477,29 @@ export interface AttendanceControlAssignment {
   unit_name?: string;
   business_id?: number | null;
   business_name?: string;
+  hire_date?: string | null;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
   schedule_template_id?: number | null;
   schedule_template_name?: string | null;
   effective_start_date?: string | null;
   effective_end_date?: string | null;
   today_rule?: AttendanceControlRule | null;
-  today_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
+  today_status: AttendanceStatus;
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
+  first_location?: AttendanceControlLocation | null;
+  last_location?: AttendanceControlLocation | null;
   minutes_late: number;
+  allowed_locations?: AttendanceControlLocation[];
+  business_locations?: AttendanceControlLocation[];
+  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
   access_profile?: AttendanceAccessProfile | null;
   latest_event?: AttendanceControlRecentEvent | null;
+  can_assign_schedule?: boolean;
+  schedule_busy_reason?: string | null;
 }
 
 export interface AttendanceControlRecentEvent {
@@ -491,16 +542,54 @@ export interface AttendanceControlOverviewResponse {
   recent_events: AttendanceControlRecentEvent[];
 }
 
+export interface AttendanceScheduleCandidateOption {
+  id: number;
+  name: string;
+  unit_id?: number | null;
+  unit_name?: string | null;
+}
+
+export interface AttendanceScheduleCandidatesResponse {
+  date: string;
+  items: AttendanceControlAssignment[];
+  page: number;
+  size: number;
+  total_count: number;
+  total_pages: number;
+  available_count: number;
+  busy_count: number;
+  unit_options: AttendanceScheduleCandidateOption[];
+  business_options: AttendanceScheduleCandidateOption[];
+}
+
 export interface AttendanceControlLocationsResponse {
   items: AttendanceControlLocation[];
 }
 
 export interface AttendanceControlLocationPayload {
+  unit_id?: number | null;
+  business_id?: number | null;
+  contract_start_date: string;
+  contract_end_date: string;
   name: string;
   latitude: number;
   longitude: number;
   radius_meters: number;
+  required_hours_per_day: number;
+  required_start_time?: string | null;
+  required_end_time?: string | null;
+  required_days_per_week?: number | null;
   status: 'active' | 'inactive';
+}
+
+export interface AttendanceLocationCoordinateExtractionPayload {
+  map_url: string;
+}
+
+export interface AttendanceLocationCoordinateExtractionResponse {
+  latitude: number;
+  longitude: number;
+  resolved_url: string;
 }
 
 export interface AttendanceControlTemplatePayload {
@@ -530,6 +619,37 @@ export interface AttendanceControlAssignmentPayload {
   template_id: number;
   effective_start_date: string;
   effective_end_date?: string;
+}
+
+export interface AttendanceEmployeeAllowedLocationsPayload {
+  location_ids: number[];
+}
+
+export interface AttendanceWorkSiteAssignmentPayload {
+  employee_ids: number[];
+  location_id: number;
+  template_id?: number;
+  effective_start_date: string;
+  effective_end_date?: string;
+}
+
+export interface AttendanceWorkSiteAssignmentResponse {
+  assigned_count: number;
+  location: AttendanceControlLocation;
+  assignments: AttendanceEmployeeWorkSiteAssignment[];
+}
+
+export interface AttendanceWorkAssignmentClearPayload {
+  employee_id: number;
+  date: string;
+}
+
+export interface AttendanceWorkAssignmentClearResponse {
+  employee_id: number;
+  employee_name: string;
+  date: string;
+  schedule_assignments_cleared: number;
+  work_site_assignments_cleared: number;
 }
 
 export interface AttendanceControlAssignmentResult {
@@ -728,18 +848,28 @@ export interface PublicKioskBootstrapResponse {
     name: string;
   };
   location: AttendanceLocation;
-  auth_methods: Array<'pin' | 'badge'>;
+  auth_methods: Array<'pin'>;
   inactivity_timeout_seconds: number;
 }
 
 export interface PublicKioskIdentifyRequest {
-  auth_method: 'pin' | 'badge';
+  auth_method: 'pin';
   credential_payload: string;
+}
+
+export interface PublicKioskDayActivity {
+  attendance_date: string;
+  status: AttendanceStatus;
+  first_check_in_at?: string | null;
+  last_check_out_at?: string | null;
+  minutes_late?: number;
+  has_check_in?: boolean;
+  has_check_out?: boolean;
 }
 
 export interface PublicKioskIdentifyResponse {
   auth_attempt_event_id: number;
-  auth_method: 'pin' | 'badge';
+  auth_method: 'pin';
   employee: {
     id: number;
     employee_number?: string;
@@ -749,24 +879,33 @@ export interface PublicKioskIdentifyResponse {
   };
   identification_token: string;
   expires_at: string;
+  today_activity?: PublicKioskDayActivity;
 }
 
 export interface PublicKioskPunchRequest {
   identification_token: string;
   event_type: 'check_in' | 'check_out';
   event_timestamp?: string;
+  latitude: number;
+  longitude: number;
+  face_verification_session_id?: number;
+  photo_url?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PublicKioskPunchResponse {
   event_id: number;
   employee_id: number;
   event_kind: 'check_in' | 'check_out';
-  auth_method: 'pin' | 'badge';
+  auth_method: 'pin';
   result_status: 'success';
-  status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
+  status: AttendanceStatus;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   location: AttendanceLocation;
+  photo_object_key?: string | null;
+  identity_evidence?: 'face_verified' | 'photo_fallback';
+  today_activity?: PublicKioskDayActivity;
 }
 
 export interface AttendanceMediaPresignRequest {
@@ -784,16 +923,18 @@ export interface AttendanceMediaPresignResponse {
 }
 
 export interface AttendanceCorrectionPayload {
-  status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | '';
+  status: AttendanceCorrectionStatus | '';
   notes?: string;
 }
 
 export interface AttendanceDailyRecordUpdateResponse {
   employee_id: number;
   date: string;
-  system_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
-  corrected_status?: 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | null;
-  effective_status: 'on_time' | 'late' | 'leave' | 'rest' | 'absence';
+  system_status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
+  effective_status: AttendanceStatus;
+  attendance_editable?: boolean;
+  edit_lock_reason?: string | null;
   notes?: string | null;
 }
 
@@ -1006,6 +1147,13 @@ export const humanResourcesApi = {
     return apiClient<AttendanceControlLocationsResponse>(endpoints.humanResources.attendanceLocations);
   },
 
+  extractAttendanceLocationCoordinates(payload: AttendanceLocationCoordinateExtractionPayload) {
+    return apiClient<AttendanceLocationCoordinateExtractionResponse>(endpoints.humanResources.attendanceLocationCoordinateExtraction, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   createAttendanceControlLocation(payload: AttendanceControlLocationPayload) {
     return apiClient<{ location: AttendanceControlLocation }>(endpoints.humanResources.attendanceLocations, {
       method: 'POST',
@@ -1030,6 +1178,20 @@ export const humanResourcesApi = {
     return apiClient<AttendanceControlTemplatesResponse>(endpoints.humanResources.attendanceScheduleTemplates);
   },
 
+  listAttendanceScheduleCandidates(params: {
+    date: string;
+    page?: number;
+    size?: number;
+    search?: string;
+    unit_id?: string | number;
+    business_id?: string | number;
+    available_only?: string | number;
+  }) {
+    return apiClient<AttendanceScheduleCandidatesResponse>(
+      `${endpoints.humanResources.attendanceScheduleCandidates}${toQueryString(params)}`,
+    );
+  },
+
   createAttendanceControlTemplate(payload: AttendanceControlTemplatePayload) {
     return apiClient<{ template: AttendanceControlTemplate }>(endpoints.humanResources.attendanceScheduleTemplates, {
       method: 'POST',
@@ -1046,6 +1208,30 @@ export const humanResourcesApi = {
 
   bulkAssignAttendanceSchedule(payload: AttendanceControlAssignmentPayload) {
     return apiClient<AttendanceControlBulkAssignmentResponse>(endpoints.humanResources.attendanceScheduleAssignmentsBulk, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  replaceAttendanceEmployeeAllowedLocations(employeeId: string | number, payload: AttendanceEmployeeAllowedLocationsPayload) {
+    return apiClient<{ employee_id: number; allowed_locations: AttendanceControlLocation[] }>(
+      `${endpoints.humanResources.attendanceCalendar}/${employeeId}/allowed-locations`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  bulkAssignAttendanceWorkSite(payload: AttendanceWorkSiteAssignmentPayload) {
+    return apiClient<AttendanceWorkSiteAssignmentResponse>(endpoints.humanResources.attendanceWorkSiteAssignmentsBulk, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  clearAttendanceWorkAssignments(payload: AttendanceWorkAssignmentClearPayload) {
+    return apiClient<AttendanceWorkAssignmentClearResponse>(endpoints.humanResources.attendanceWorkAssignmentsClear, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -1193,6 +1379,55 @@ export const humanResourcesApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  presignPublicKioskAttendancePhotoUpload(
+    deviceToken: string,
+    payload: Omit<AttendanceMediaPresignRequest, 'employee_id'> & { identification_token: string },
+  ) {
+    return apiClient<AttendanceMediaPresignResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/media/presign-upload`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  createPublicKioskFaceVerificationSession(deviceToken: string, identificationToken: string) {
+    return apiClient<FaceVerificationSessionResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ identification_token: identificationToken }),
+      },
+    );
+  },
+
+  presignPublicKioskFaceVerificationCapture(
+    deviceToken: string,
+    sessionId: number,
+    identificationToken: string,
+    step: string,
+    contentType: string,
+  ) {
+    return apiClient<FaceCapturePresignResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/captures/presign-upload`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ identification_token: identificationToken, step, content_type: contentType }),
+      },
+    );
+  },
+
+  completePublicKioskFaceVerificationSession(deviceToken: string, sessionId: number, identificationToken: string) {
+    return apiClient<FaceVerificationResultResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/complete`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ identification_token: identificationToken }),
+      },
+    );
   },
 
   createFaceEnrollmentSession(employeeId: number) {
