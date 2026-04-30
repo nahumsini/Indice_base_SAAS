@@ -358,6 +358,7 @@ export interface AttendanceControlRule {
   rest_minutes?: number;
   late_after_minutes: number;
   is_rest_day: boolean;
+  is_overnight?: boolean;
 }
 
 export interface AttendanceControlLocation {
@@ -1180,6 +1181,7 @@ export const humanResourcesApi = {
 
   listAttendanceScheduleCandidates(params: {
     date: string;
+    effective_end_date?: string;
     page?: number;
     size?: number;
     search?: string;

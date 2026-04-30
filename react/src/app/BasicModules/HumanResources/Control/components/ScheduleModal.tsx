@@ -199,6 +199,8 @@ export function ScheduleModal({
   const [appliedAvailableOnly, setAppliedAvailableOnly] = useState(false);
   const [availabilityDate, setAvailabilityDate] = useState(defaultAvailabilityDate);
   const [appliedAvailabilityDate, setAppliedAvailabilityDate] = useState(defaultAvailabilityDate);
+  const [assignmentEndDate, setAssignmentEndDate] = useState('');
+  const [appliedAssignmentEndDate, setAppliedAssignmentEndDate] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
   const [selectedEmployeeAssignments, setSelectedEmployeeAssignments] = useState<Record<number, AttendanceControlAssignment>>({});
   const [candidateAssignments, setCandidateAssignments] = useState<AttendanceControlAssignment[]>([]);
@@ -228,6 +230,10 @@ export function ScheduleModal({
     [selectedTemplateId, templates],
   );
   const assignmentEffectiveStartDate = appliedAvailabilityDate || defaultAvailabilityDate;
+  const assignmentEffectiveEndDate = appliedAssignmentEndDate.trim();
+  const hasInvalidAssignmentDateRange = Boolean(
+    assignmentEffectiveEndDate && assignmentEffectiveEndDate < assignmentEffectiveStartDate,
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -245,6 +251,8 @@ export function ScheduleModal({
     setAppliedAvailableOnly(false);
     setAvailabilityDate(defaultAvailabilityDate);
     setAppliedAvailabilityDate(defaultAvailabilityDate);
+    setAssignmentEndDate('');
+    setAppliedAssignmentEndDate('');
     setSelectedEmployeeIds([]);
     setSelectedEmployeeAssignments({});
     setCandidateAssignments([]);
@@ -307,12 +315,24 @@ export function ScheduleModal({
       return;
     }
 
+    if (hasInvalidAssignmentDateRange) {
+      setIsLoadingCandidates(false);
+      setCandidateAssignments([]);
+      setCandidateTotalCount(0);
+      setCandidateTotalPages(1);
+      setCandidateAvailableCount(0);
+      setCandidateBusyCount(0);
+      setErrorMessage('End date must be on or after start date.');
+      return;
+    }
+
     let active = true;
     setIsLoadingCandidates(true);
     setErrorMessage('');
 
     humanResourcesApi.listAttendanceScheduleCandidates({
       date: assignmentEffectiveStartDate,
+      effective_end_date: assignmentEffectiveEndDate || undefined,
       page: currentPage,
       size: employeesPerPage,
       search: appliedSearchQuery,
@@ -361,8 +381,10 @@ export function ScheduleModal({
     appliedAvailabilityDate,
     appliedSearchQuery,
     appliedUnidadFilter,
+    assignmentEffectiveEndDate,
     assignmentEffectiveStartDate,
     currentPage,
+    hasInvalidAssignmentDateRange,
     isOpen,
   ]);
 
@@ -786,6 +808,7 @@ export function ScheduleModal({
     nextBusinessFilter = negocioFilter,
     nextAvailableOnly = availableOnly,
     nextAvailabilityDate = availabilityDate,
+    nextAssignmentEndDate = assignmentEndDate,
   ) => {
     const resolvedBusinessFilter = resolveBusinessFilterForUnit(nextBusinessFilter, nextUnitFilter);
     const resolvedAvailabilityDate = nextAvailabilityDate || defaultAvailabilityDate;
@@ -796,6 +819,7 @@ export function ScheduleModal({
     setAppliedNegocioFilter(resolvedBusinessFilter);
     setAppliedAvailableOnly(nextAvailableOnly);
     setAppliedAvailabilityDate(resolvedAvailabilityDate);
+    setAppliedAssignmentEndDate(nextAssignmentEndDate);
   };
 
   const handleUnitFilterChange = (value: string) => {
@@ -830,6 +854,13 @@ export function ScheduleModal({
       return;
     }
     applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, value);
+    setSelectedEmployeeIds([]);
+    setSelectedEmployeeAssignments({});
+  };
+
+  const handleAssignmentEndDateChange = (value: string) => {
+    setAssignmentEndDate(value);
+    applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, availabilityDate, value);
     setSelectedEmployeeIds([]);
     setSelectedEmployeeAssignments({});
   };
@@ -876,8 +907,8 @@ export function ScheduleModal({
         if (!startTime || !endTime) {
           throw new Error(`Provide entry and exit times for ${horario.dia}.`);
         }
-        if (endTime <= startTime) {
-          throw new Error(`Exit time must be after entry time for ${horario.dia}.`);
+        if (endTime === startTime) {
+          throw new Error(`Exit time cannot equal entry time for ${horario.dia}.`);
         }
       }
 
@@ -915,6 +946,12 @@ export function ScheduleModal({
         if (!payload) {
           return null;
         }
+        if (hasInvalidAssignmentDateRange) {
+          const message = 'End date must be on or after start date.';
+          setErrorMessage(message);
+          showFailureToast(message);
+          return null;
+        }
 
         const normalizedPayload = normalizeTemplatePayload(payload);
         const sameAsSelectedTemplate = selectedTemplate
@@ -945,6 +982,7 @@ export function ScheduleModal({
           employee_ids: selectedEmployeeIds,
           template_id: templateId,
           effective_start_date: assignmentEffectiveStartDate,
+          effective_end_date: assignmentEffectiveEndDate || undefined,
         });
 
         return {
@@ -1012,11 +1050,20 @@ export function ScheduleModal({
               />
             </div>
             <div className="xl:w-48 xl:flex-none">
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Availability date</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start date</label>
               <input
                 type="date"
                 value={availabilityDate}
                 onChange={(event) => handleAvailabilityDateChange(event.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+            <div className="xl:w-48 xl:flex-none">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End date</label>
+              <input
+                type="date"
+                value={assignmentEndDate}
+                onChange={(event) => handleAssignmentEndDateChange(event.target.value)}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </div>
@@ -1086,16 +1133,23 @@ export function ScheduleModal({
               className="min-h-0 bg-white dark:bg-gray-950"
             >
               <div ref={leftPanelScrollRef} className="p-6 lg:h-full lg:overflow-y-auto">
-	              <div className="mb-4 flex items-center justify-between gap-3">
-	                <h3 id="available-employees-heading" className="font-semibold text-gray-900 dark:text-white">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 id="available-employees-heading" className="font-semibold text-gray-900 dark:text-white">
                     Employees
                   </h3>
-	                <div className="flex flex-wrap justify-end gap-2 text-sm text-gray-500 dark:text-gray-400">
-	                  <span>Available on {assignmentEffectiveStartDate}: <span className="font-medium text-gray-900 dark:text-white">{candidateAvailableCount}</span></span>
-	                  <span>Busy: <span className="font-medium text-amber-700 dark:text-amber-300">{candidateBusyCount}</span></span>
-	                  <span>Selected: <span className="font-medium text-blue-600 dark:text-blue-400">{selectedEmployeeIds.length}</span></span>
-	                </div>
-	              </div>
+                  <div className="flex flex-wrap justify-end gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span>
+                      {`Available ${
+                        assignmentEffectiveEndDate
+                          ? `${assignmentEffectiveStartDate} to ${assignmentEffectiveEndDate}`
+                          : `on ${assignmentEffectiveStartDate}`
+                      }: `}
+                      <span className="font-medium text-gray-900 dark:text-white">{candidateAvailableCount}</span>
+                    </span>
+                    <span>Busy: <span className="font-medium text-amber-700 dark:text-amber-300">{candidateBusyCount}</span></span>
+                    <span>Selected: <span className="font-medium text-blue-600 dark:text-blue-400">{selectedEmployeeIds.length}</span></span>
+                  </div>
+                </div>
 
               <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="w-full">
@@ -1253,7 +1307,8 @@ export function ScheduleModal({
                   Schedule details
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  This schedule will be applied to every selected employee starting on {assignmentEffectiveStartDate}.
+                  This schedule will be applied to every selected employee from {assignmentEffectiveStartDate}
+                  {assignmentEffectiveEndDate ? ` to ${assignmentEffectiveEndDate}` : ' onward'}.
                 </p>
               </div>
 
@@ -1515,8 +1570,14 @@ export function ScheduleModal({
             type="button"
             onClick={() => void aplicarHorarios()}
             className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
-            disabled={selectedEmployeeIds.length === 0 || isSubmitting}
-            title={selectedEmployeeIds.length === 0 ? 'Select at least one employee first.' : undefined}
+            disabled={selectedEmployeeIds.length === 0 || isSubmitting || hasInvalidAssignmentDateRange}
+            title={
+              selectedEmployeeIds.length === 0
+                ? 'Select at least one employee first.'
+                : hasInvalidAssignmentDateRange
+                  ? 'End date must be on or after start date.'
+                  : undefined
+            }
           >
             Apply schedule
           </Button>
