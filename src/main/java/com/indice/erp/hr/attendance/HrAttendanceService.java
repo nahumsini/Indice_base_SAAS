@@ -429,7 +429,8 @@ public class HrAttendanceService {
 
     public Map<String, Object> scheduleCandidates(
         long companyId,
-        LocalDate date,
+        LocalDate startDate,
+        LocalDate endDate,
         int page,
         int size,
         String search,
@@ -442,10 +443,13 @@ public class HrAttendanceService {
         var normalizedSearch = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
         var normalizedUnitId = unitId != null && unitId > 0 ? unitId : null;
         var normalizedBusinessId = businessId != null && businessId > 0 ? businessId : null;
+        if (endDate != null && endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
+        }
         var baseWhere = scheduleCandidateBaseWhere();
 
         var filteredWhere = new StringBuilder(baseWhere);
-        var filteredParams = scheduleCandidateBaseParams(companyId, date);
+        var filteredParams = scheduleCandidateBaseParams(companyId, startDate, endDate);
         appendScheduleCandidateFilters(filteredWhere, filteredParams, normalizedSearch, normalizedUnitId, normalizedBusinessId);
 
         Integer availableCountValue = jdbcTemplate.queryForObject(
@@ -496,14 +500,16 @@ public class HrAttendanceService {
             (rs, rowNum) -> mapAttendanceEmployee(rs),
             itemsParams.toArray()
         );
-        var currentAssignments = loadCurrentAssignments(companyId, date);
-        var scheduleRulesByEmployee = loadScheduleRules(companyId, date);
-        var dailyRecordsByEmployee = loadDailyRecords(companyId, date);
-        var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, date);
+        var currentAssignments = loadCurrentAssignments(companyId, startDate);
+        var scheduleRulesByEmployee = loadScheduleRules(companyId, startDate);
+        var dailyRecordsByEmployee = loadDailyRecords(companyId, startDate);
+        var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, startDate);
         var items = pageEmployees.stream()
             .map((employee) -> toScheduleCandidateMap(
+                companyId,
                 employee,
-                date,
+                startDate,
+                endDate,
                 currentAssignments.get(employee.id()),
                 scheduleRulesByEmployee.get(employee.id()),
                 dailyRecordsByEmployee.get(employee.id()),
@@ -547,7 +553,8 @@ public class HrAttendanceService {
         );
 
         var body = new LinkedHashMap<String, Object>();
-        body.put("date", date.toString());
+        body.put("date", startDate.toString());
+        body.put("effective_end_date", endDate == null ? null : endDate.toString());
         body.put("items", items);
         body.put("page", safePage);
         body.put("size", safeSize);
@@ -730,6 +737,7 @@ public class HrAttendanceService {
             employee.id(),
             "auth_attempt",
             eventTimestamp,
+            eventTimestamp.toLocalDate(),
             location.id(),
             kioskDevice.id(),
             location.latitude(),
@@ -746,7 +754,7 @@ public class HrAttendanceService {
         );
 
         var expiresAtEpochSeconds = Instant.now().getEpochSecond() + kioskIdentificationTokenTtlSeconds;
-        var activityDate = eventTimestamp.toLocalDate();
+        var activityDate = resolveOperationalAttendanceDate(kioskDevice.companyId(), employee.id(), eventTimestamp, "check_out");
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), activityDate);
         var dailyRecord = loadDailyRecord(kioskDevice.companyId(), employee.id(), activityDate);
         var body = new LinkedHashMap<String, Object>();
@@ -805,7 +813,7 @@ public class HrAttendanceService {
             hrFaceService.consumeSuccessfulVerificationSession(kioskDevice.companyId(), employee.id(), faceVerificationSessionId);
         }
 
-        var attendanceDate = eventTimestamp.toLocalDate();
+        var attendanceDate = resolveOperationalAttendanceDate(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(kioskDevice.companyId(), employee.id(), attendanceDate);
         var location = resolveScheduleRegistrationLocation(
@@ -818,8 +826,8 @@ public class HrAttendanceService {
             longitude,
             activeWorkSite
         );
-        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp);
-        validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
+        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, attendanceDate);
+        validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), attendanceDate, eventTimestamp, eventType);
 
         var metadataJson = mergeMetadataJson(
             toJson(payload.get("metadata")),
@@ -836,6 +844,7 @@ public class HrAttendanceService {
             employee.id(),
             eventType,
             eventTimestamp,
+            attendanceDate,
             location.id(),
             kioskDevice.id(),
             latitude,
@@ -1668,7 +1677,9 @@ public class HrAttendanceService {
         var contentType = normalizeImageContentType(stringValue(payload, "content_type"));
         var eventType = stringValue(payload, "event_type");
         var eventTimestamp = parseDateTime(payload, "event_timestamp", "recorded_at");
-        var attendanceDate = eventTimestamp != null ? eventTimestamp.toLocalDate() : LocalDate.now();
+        var resolvedEventTimestamp = eventTimestamp == null ? LocalDateTime.now() : eventTimestamp;
+        var normalizedEventType = normalizeEventType(eventType.isBlank() ? "check_in" : eventType);
+        var attendanceDate = resolveOperationalAttendanceDate(companyId, employeeId, resolvedEventTimestamp, normalizedEventType);
         var objectKey = buildAttendancePhotoObjectKey(companyId, employeeId, contentType, eventType, attendanceDate);
         var bucketName = attendanceBucket();
         var upload = objectStorageService.presignUpload(
@@ -1747,6 +1758,7 @@ public class HrAttendanceService {
             employeeId,
             "auth_attempt",
             eventTimestamp,
+            eventTimestamp.toLocalDate(),
             location == null ? null : location.id(),
             kioskDevice == null ? null : kioskDevice.id(),
             latitude,
@@ -1778,7 +1790,7 @@ public class HrAttendanceService {
         if ("facial_recognition".equals(authMethod)) {
             hrFaceService.consumeSuccessfulVerificationSession(companyId, employeeId, faceVerificationSessionId);
         }
-        var attendanceDate = eventTimestamp.toLocalDate();
+        var attendanceDate = resolveOperationalAttendanceDate(companyId, employeeId, eventTimestamp, eventKind);
         var scheduleRule = loadScheduleRule(companyId, employeeId, attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(companyId, employeeId, attendanceDate);
         if (!"auth_attempt".equals(eventKind)) {
@@ -1794,8 +1806,8 @@ public class HrAttendanceService {
                 activeWorkSite
             );
         }
-        validateScheduleRegistrationPolicy(scheduleRule, eventKind, eventTimestamp);
-        validateOperationalEventTransition(companyId, employeeId, eventTimestamp, eventKind);
+        validateScheduleRegistrationPolicy(scheduleRule, eventKind, eventTimestamp, attendanceDate);
+        validateOperationalEventTransition(companyId, employeeId, attendanceDate, eventTimestamp, eventKind);
 
         var operationalResultStatus = "manual_override".equals(authMethod) ? "overridden" : "success";
         var operationalEventId = appendAttendanceEvent(
@@ -1803,6 +1815,7 @@ public class HrAttendanceService {
             employeeId,
             eventType,
             eventTimestamp,
+            attendanceDate,
             location == null ? null : location.id(),
             kioskDevice == null ? null : kioskDevice.id(),
             latitude,
@@ -1856,7 +1869,7 @@ public class HrAttendanceService {
                 continue;
             }
 
-            var checkoutAt = candidate.attendanceDate().atTime(scheduleRule.endTime());
+            var checkoutAt = scheduledEndDateTime(candidate.attendanceDate(), scheduleRule);
             if (checkoutAt.isAfter(now)) {
                 continue;
             }
@@ -1873,6 +1886,7 @@ public class HrAttendanceService {
                 candidate.employeeId(),
                 "check_out",
                 checkoutAt,
+                candidate.attendanceDate(),
                 candidate.firstLocationId(),
                 null,
                 null,
@@ -1913,6 +1927,7 @@ public class HrAttendanceService {
             employeeId,
             "correction",
             date.atTime(23, 59, 59),
+            date,
             null,
             null,
             null,
@@ -2357,8 +2372,10 @@ public class HrAttendanceService {
     }
 
     private Map<String, Object> toScheduleCandidateMap(
+        long companyId,
         AttendanceEmployee employee,
         LocalDate date,
+        LocalDate endDate,
         CurrentScheduleAssignment assignment,
         ScheduleRule scheduleRule,
         DailyRecordRow dailyRecord,
@@ -2371,6 +2388,7 @@ public class HrAttendanceService {
         var hasAttendanceActivity = dailyRecord != null
             && (dailyRecord.firstCheckInAt() != null || dailyRecord.lastCheckOutAt() != null);
         var busyReason = "";
+        var hasRangeAttendanceActivity = hasAttendanceActivityInRange(companyId, employee.id(), date, endDate);
 
         if (assignment != null) {
             item.put("schedule_template_id", assignment.templateId());
@@ -2394,8 +2412,12 @@ public class HrAttendanceService {
             item.put("active_work_site", toWorkSiteAssignmentMap(activeWorkSite));
             busyReason = "Contract site assigned";
         }
-        if (hasAttendanceActivity) {
+        if (hasRangeAttendanceActivity || hasAttendanceActivity) {
             busyReason = "Attendance already recorded";
+        } else if (hasActiveWorkSiteAssignmentOverlap(companyId, employee.id(), date, endDate)) {
+            busyReason = "Contract site assigned";
+        } else if (hasActiveScheduleAssignmentOverlap(companyId, employee.id(), date, endDate)) {
+            busyReason = "Schedule already assigned";
         }
 
         item.put("today_status", effectiveStatus);
@@ -2438,7 +2460,7 @@ public class HrAttendanceService {
                   FROM hr_attendance_events attendance_event
                   WHERE attendance_event.company_id = e.company_id
                     AND attendance_event.employee_id = e.id
-                    AND attendance_event.attendance_date = ?
+                    AND attendance_event.attendance_date BETWEEN ? AND ?
                     AND attendance_event.event_type IN ('check_in', 'check_out', 'break_out', 'break_in')
               )
               AND NOT EXISTS (
@@ -2446,7 +2468,7 @@ public class HrAttendanceService {
                   FROM hr_attendance_daily_records daily_record
                   WHERE daily_record.company_id = e.company_id
                     AND daily_record.employee_id = e.id
-                    AND daily_record.attendance_date = ?
+                    AND daily_record.attendance_date BETWEEN ? AND ?
                     AND (daily_record.first_check_in_at IS NOT NULL OR daily_record.last_check_out_at IS NOT NULL)
               )
             """;
@@ -2459,15 +2481,18 @@ public class HrAttendanceService {
             """;
     }
 
-    private ArrayList<Object> scheduleCandidateBaseParams(long companyId, LocalDate date) {
+    private ArrayList<Object> scheduleCandidateBaseParams(long companyId, LocalDate startDate, LocalDate endDate) {
+        var rangeEnd = assignmentRangeEnd(endDate);
         var params = new ArrayList<Object>();
         params.add(companyId);
-        params.add(date);
-        params.add(date);
-        params.add(date);
-        params.add(date);
-        params.add(date);
-        params.add(date);
+        params.add(rangeEnd);
+        params.add(startDate);
+        params.add(rangeEnd);
+        params.add(startDate);
+        params.add(startDate);
+        params.add(rangeEnd);
+        params.add(startDate);
+        params.add(rangeEnd);
         return params;
     }
 
@@ -3700,11 +3725,17 @@ public class HrAttendanceService {
     }
 
     private int calculateMinutesLate(ScheduleRule scheduleRule, LocalDateTime firstCheckIn) {
+        var attendanceDate = firstCheckIn == null ? LocalDate.now() : firstCheckIn.toLocalDate();
+        return calculateMinutesLate(scheduleRule, firstCheckIn, attendanceDate);
+    }
+
+    private int calculateMinutesLate(ScheduleRule scheduleRule, LocalDateTime firstCheckIn, LocalDate attendanceDate) {
         return AttendanceStatusPolicy.calculateMinutesLate(
             scheduleRule != null,
             scheduleRule != null && scheduleRule.isRestDay(),
             scheduleRule == null ? null : scheduleRule.startTime(),
-            firstCheckIn
+            firstCheckIn,
+            attendanceDate
         );
     }
 
@@ -3712,6 +3743,7 @@ public class HrAttendanceService {
         return AttendanceStatusPolicy.inferSystemStatus(
             scheduleRule != null,
             scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.startTime(),
             scheduleRule == null ? null : scheduleRule.endTime(),
             date,
             LocalDate.now(),
@@ -3826,6 +3858,7 @@ public class HrAttendanceService {
         body.put("rest_minutes", rule.restMinutes());
         body.put("late_after_minutes", rule.lateAfterMinutes());
         body.put("is_rest_day", rule.isRestDay());
+        body.put("is_overnight", isOvernightSchedule(rule));
         return body;
     }
 
@@ -4448,12 +4481,47 @@ public class HrAttendanceService {
             .orElse(null);
     }
 
-    private void validateOperationalEventTransition(long companyId, long employeeId, LocalDateTime eventTimestamp, String eventKind) {
+    private LocalDate resolveOperationalAttendanceDate(
+        long companyId,
+        long employeeId,
+        LocalDateTime eventTimestamp,
+        String eventKind
+    ) {
+        var eventDate = eventTimestamp.toLocalDate();
+        if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventKind)) {
+            return eventDate;
+        }
+
+        var previousDate = eventDate.minusDays(1);
+        var previousRule = loadScheduleRule(companyId, employeeId, previousDate);
+        if (!isOvernightSchedule(previousRule)) {
+            return eventDate;
+        }
+
+        var previousDayEvents = loadAttendanceEventRows(companyId, employeeId, previousDate).stream()
+            .filter((event) -> !event.eventTimestamp().isAfter(eventTimestamp))
+            .toList();
+        var previousState = resolveOperationalState(previousDayEvents);
+        if (previousState.checkedIn()) {
+            return previousDate;
+        }
+
+        var previousScheduledEnd = scheduledEndDateTime(previousDate, previousRule);
+        return eventTimestamp.isAfter(previousScheduledEnd) ? eventDate : previousDate;
+    }
+
+    private void validateOperationalEventTransition(
+        long companyId,
+        long employeeId,
+        LocalDate attendanceDate,
+        LocalDateTime eventTimestamp,
+        String eventKind
+    ) {
         if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventKind)) {
             return;
         }
 
-        var dayEvents = loadAttendanceEventRows(companyId, employeeId, eventTimestamp.toLocalDate());
+        var dayEvents = loadAttendanceEventRows(companyId, employeeId, attendanceDate);
         var priorEvents = dayEvents.stream()
             .filter((event) -> !event.eventTimestamp().isAfter(eventTimestamp))
             .toList();
@@ -4464,7 +4532,7 @@ public class HrAttendanceService {
         switch (eventKind) {
             case "check_in" -> {
                 if (checkInAlreadyRecorded) {
-                    throw new IllegalArgumentException("Check-in has already been recorded for this employee today.");
+                    throw new IllegalArgumentException("Check-in has already been recorded for this employee shift.");
                 }
             }
             case "break_out" -> {
@@ -4544,6 +4612,7 @@ public class HrAttendanceService {
         long employeeId,
         String eventType,
         LocalDateTime eventTimestamp,
+        LocalDate attendanceDate,
         Long locationId,
         Long kioskDeviceId,
         BigDecimal latitude,
@@ -4573,7 +4642,7 @@ public class HrAttendanceService {
             statement.setLong(2, employeeId);
             statement.setString(3, eventType);
             statement.setTimestamp(4, Timestamp.valueOf(eventTimestamp));
-            statement.setObject(5, eventTimestamp.toLocalDate());
+            statement.setObject(5, attendanceDate == null ? eventTimestamp.toLocalDate() : attendanceDate);
             setNullableLong(statement, 6, locationId);
             setNullableLong(statement, 7, kioskDeviceId);
             if (latitude == null) {
@@ -4700,7 +4769,7 @@ public class HrAttendanceService {
         }
 
         var systemStatus = calculateSystemStatus(scheduleRule, firstCheckIn, date);
-        var minutesLate = calculateMinutesLate(scheduleRule, firstCheckIn);
+        var minutesLate = calculateMinutesLate(scheduleRule, firstCheckIn, date);
 
         if (existing == null) {
             jdbcTemplate.update(
@@ -5326,8 +5395,8 @@ public class HrAttendanceService {
                 if (startTime == null || endTime == null) {
                     throw new IllegalArgumentException("start_time and end_time are required when is_rest_day is false.");
                 }
-                if (!endTime.isAfter(startTime)) {
-                    throw new IllegalArgumentException("end_time must be after start_time.");
+                if (endTime.equals(startTime)) {
+                    throw new IllegalArgumentException("end_time cannot equal start_time.");
                 }
             } else if ("open".equals(scheduleMode) && !isRestDay) {
                 if (startTime != null || endTime != null) {
@@ -5619,10 +5688,25 @@ public class HrAttendanceService {
         return scheduleRule != null && "open".equalsIgnoreCase(safe(scheduleRule.scheduleMode()));
     }
 
+    private boolean isOvernightSchedule(ScheduleRule scheduleRule) {
+        return scheduleRule != null
+            && !scheduleRule.isRestDay()
+            && !isOpenSchedule(scheduleRule)
+            && scheduleRule.startTime() != null
+            && scheduleRule.endTime() != null
+            && scheduleRule.endTime().isBefore(scheduleRule.startTime());
+    }
+
+    private LocalDateTime scheduledEndDateTime(LocalDate attendanceDate, ScheduleRule scheduleRule) {
+        var scheduledEnd = attendanceDate.atTime(scheduleRule.endTime());
+        return isOvernightSchedule(scheduleRule) ? scheduledEnd.plusDays(1) : scheduledEnd;
+    }
+
     private void validateScheduleRegistrationPolicy(
         ScheduleRule scheduleRule,
         String eventType,
-        LocalDateTime eventTimestamp
+        LocalDateTime eventTimestamp,
+        LocalDate attendanceDate
     ) {
         if (scheduleRule == null || scheduleRule.isRestDay() || !"check_in".equals(eventType)) {
             return;
@@ -5633,7 +5717,7 @@ public class HrAttendanceService {
         }
 
         if (scheduleRule.startTime() != null) {
-            var scheduledStart = eventTimestamp.toLocalDate().atTime(scheduleRule.startTime());
+            var scheduledStart = attendanceDate.atTime(scheduleRule.startTime());
             var earliestAllowedCheckIn = scheduledStart.minus(EARLY_CHECK_IN_ALLOWANCE);
             if (eventTimestamp.isBefore(earliestAllowedCheckIn)) {
                 throw new IllegalArgumentException("Check-in opens 15 minutes before the scheduled start time.");
@@ -5641,7 +5725,7 @@ public class HrAttendanceService {
         }
 
         if (scheduleRule.blockAfterGracePeriod() && scheduleRule.startTime() != null) {
-            var scheduledStart = eventTimestamp.toLocalDate().atTime(scheduleRule.startTime());
+            var scheduledStart = attendanceDate.atTime(scheduleRule.startTime());
             var graceDeadline = scheduledStart.plusMinutes(scheduleRule.lateAfterMinutes());
             if (eventTimestamp.isAfter(graceDeadline)) {
                 throw new IllegalArgumentException("Attendance registration is blocked after the grace period expires.");
@@ -5991,8 +6075,8 @@ public class HrAttendanceService {
         if (startTime == null || endTime == null) {
             throw new IllegalArgumentException("required_start_time and required_end_time are required.");
         }
-        if (!endTime.isAfter(startTime)) {
-            throw new IllegalArgumentException("required_end_time must be after required_start_time.");
+        if (endTime.equals(startTime)) {
+            throw new IllegalArgumentException("required_end_time cannot equal required_start_time.");
         }
     }
 

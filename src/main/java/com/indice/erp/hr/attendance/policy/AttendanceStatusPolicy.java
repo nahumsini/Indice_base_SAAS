@@ -20,22 +20,28 @@ public final class AttendanceStatusPolicy {
         LocalDate attendanceDate
     ) {
         if (firstCheckIn == null) {
-            return inferSystemStatus(hasScheduleRule, isRestDay, endTime, attendanceDate, LocalDate.now(), LocalDateTime.now());
+            return inferSystemStatus(hasScheduleRule, isRestDay, startTime, endTime, attendanceDate, LocalDate.now(), LocalDateTime.now());
         }
         if (!hasScheduleRule || isRestDay || startTime == null) {
             return "on_time";
         }
 
-        var scheduledStart = firstCheckIn.toLocalDate().atTime(startTime);
+        var scheduledStart = attendanceDate.atTime(startTime);
         var allowedStart = scheduledStart.plusMinutes(lateAfterMinutes);
         return firstCheckIn.isAfter(allowedStart) ? "late" : "on_time";
     }
 
-    public static int calculateMinutesLate(boolean hasScheduleRule, boolean isRestDay, LocalTime startTime, LocalDateTime firstCheckIn) {
+    public static int calculateMinutesLate(
+        boolean hasScheduleRule,
+        boolean isRestDay,
+        LocalTime startTime,
+        LocalDateTime firstCheckIn,
+        LocalDate attendanceDate
+    ) {
         if (!hasScheduleRule || startTime == null || firstCheckIn == null || isRestDay) {
             return 0;
         }
-        var scheduledStart = firstCheckIn.toLocalDate().atTime(startTime);
+        var scheduledStart = attendanceDate.atTime(startTime);
         if (!firstCheckIn.isAfter(scheduledStart)) {
             return 0;
         }
@@ -45,6 +51,7 @@ public final class AttendanceStatusPolicy {
     public static String inferSystemStatus(
         boolean hasScheduleRule,
         boolean isRestDay,
+        LocalTime startTime,
         LocalTime endTime,
         LocalDate attendanceDate,
         LocalDate today,
@@ -60,14 +67,16 @@ public final class AttendanceStatusPolicy {
         if (attendanceDate.isAfter(today)) {
             return "pending";
         }
-        if (attendanceDate.isBefore(today)) {
-            return "absence";
-        }
         if (endTime == null) {
-            return "pending";
+            return attendanceDate.isBefore(today) ? "absence" : "pending";
         }
 
-        return now.isAfter(attendanceDate.atTime(endTime)) ? "absence" : "pending";
+        var scheduledEnd = attendanceDate.atTime(endTime);
+        if (startTime != null && endTime.isBefore(startTime)) {
+            scheduledEnd = scheduledEnd.plusDays(1);
+        }
+
+        return now.isAfter(scheduledEnd) ? "absence" : "pending";
     }
 
     public static String resolveSystemStatus(
