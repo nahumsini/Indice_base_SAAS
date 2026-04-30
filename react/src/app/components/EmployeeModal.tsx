@@ -380,7 +380,7 @@ const modalCopy = {
       invalidPhone: 'Enter a valid phone number.',
       invalidHours: 'Workday hours must be between 1 and 24.',
       invalidAmount: 'Enter an amount greater than zero.',
-      invalidScheduleTime: 'End time must be after start time.',
+      invalidScheduleTime: 'End time cannot equal start time.',
       invalidMinutes: 'Enter zero or a positive number.',
       contractDates: 'Contract end date must be the same as or after the start date.',
       documentType: 'Only PDF, JPG, PNG, or WEBP files are allowed.',
@@ -550,7 +550,7 @@ const modalCopy = {
       invalidPhone: 'Ingresa un teléfono válido.',
       invalidHours: 'Las horas de jornada deben estar entre 1 y 24.',
       invalidAmount: 'Ingresa un monto mayor a cero.',
-      invalidScheduleTime: 'La salida debe ser posterior a la entrada.',
+      invalidScheduleTime: 'La salida no puede ser igual a la entrada.',
       invalidMinutes: 'Ingresa cero o un número positivo.',
       contractDates: 'La fecha de fin debe ser igual o posterior a la de inicio.',
       documentType: 'Solo se permiten archivos PDF, JPG, PNG o WEBP.',
@@ -978,7 +978,7 @@ export function EmployeeModal({
     }
     if (!data.scheduleEndTime) {
       errors.scheduleEndTime = copy.validation.required;
-    } else if (data.scheduleStartTime && data.scheduleEndTime <= data.scheduleStartTime) {
+    } else if (data.scheduleStartTime && data.scheduleEndTime === data.scheduleStartTime) {
       errors.scheduleEndTime = copy.validation.invalidScheduleTime;
     }
 
