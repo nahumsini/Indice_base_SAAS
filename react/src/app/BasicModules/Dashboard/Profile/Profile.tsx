@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Eye, EyeOff, KeyRound, ShieldCheck } from 'lucide-react';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../../../api/configCenter';
 import {
   LoadingBarOverlay,
@@ -170,12 +170,18 @@ export default function Profile() {
   const trimmedNewPassword = formValues.newPassword.trim();
   const trimmedPasswordConfirmation = formValues.confirmNewPassword.trim();
   const hasPasswordChangeInProgress = trimmedNewPassword.length > 0 || trimmedPasswordConfirmation.length > 0;
+  const hasPasswordMinLengthError = trimmedNewPassword.length > 0 && trimmedNewPassword.length < 8;
   const hasPasswordMismatch = useMemo(() => {
     return (
       trimmedPasswordConfirmation.length > 0
       && trimmedNewPassword !== trimmedPasswordConfirmation
     );
   }, [trimmedNewPassword, trimmedPasswordConfirmation]);
+  const isPasswordReady = (
+    trimmedNewPassword.length >= 8
+    && trimmedPasswordConfirmation.length > 0
+    && trimmedNewPassword === trimmedPasswordConfirmation
+  );
   const isSaveDisabled = hasPasswordChangeInProgress
     && (
       trimmedNewPassword.length === 0
@@ -481,64 +487,167 @@ export default function Profile() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {profileCopy.fields.newPassword}
-              </label>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  value={formValues.newPassword}
-                  onChange={(event) => updateFormValue('newPassword', event.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  aria-invalid={hasPasswordMismatch}
-                  className={`${inputClassName} pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword((current) => !current)}
-                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
-                  aria-label={showNewPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}
-                >
-                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+          <div className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/80 via-white to-blue-50/70 p-4 dark:border-purple-700/30 dark:from-purple-900/10 dark:via-gray-800 dark:to-blue-900/10 sm:p-5">
+            <div className="flex flex-col gap-4 xl:flex-row">
+              <div className="xl:w-[280px] xl:flex-shrink-0">
+                <div className="rounded-2xl border border-purple-100 bg-white/90 p-4 shadow-sm dark:border-purple-700/30 dark:bg-gray-800/90">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                      {profileCopy.sections.securitySubtitle}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 rounded-xl border border-purple-100 bg-purple-50/70 px-3 py-3 dark:border-purple-700/30 dark:bg-purple-900/10">
+                      <KeyRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-purple-600 dark:text-purple-300" />
+                      <p className="text-xs leading-5 text-gray-600 dark:text-gray-300">
+                        {profileCopy.messages.passwordMinLength}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-800/80">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-300" />
+                      <p className="text-xs leading-5 text-gray-600 dark:text-gray-300">
+                        {profileCopy.hints.password}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className={`rounded-2xl border p-4 shadow-sm transition-colors ${
+                  isPasswordReady
+                    ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-700/40 dark:bg-emerald-900/10'
+                    : hasPasswordMinLengthError
+                    ? 'border-amber-300 bg-amber-50/80 dark:border-amber-700/40 dark:bg-amber-900/10'
+                    : trimmedNewPassword.length > 0
+                      ? 'border-purple-200 bg-white dark:border-purple-700/40 dark:bg-gray-800'
+                      : 'border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-gray-800/90'
+                }`}>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-sm font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+                        1
+                      </span>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {profileCopy.fields.newPassword}
+                        </label>
+                        <p className="mt-1 text-[11px] leading-5 text-gray-500 dark:text-gray-400">
+                          {profileCopy.messages.passwordMinLength}
+                        </p>
+                      </div>
+                    </div>
+                    {isPasswordReady ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-300" />
+                    ) : null}
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={formValues.newPassword}
+                      onChange={(event) => updateFormValue('newPassword', event.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      aria-invalid={hasPasswordMismatch || hasPasswordMinLengthError}
+                      className={`${inputClassName} pr-12 ${
+                        isPasswordReady
+                          ? 'border-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/10'
+                          : hasPasswordMinLengthError
+                          ? 'border-amber-300 focus:ring-amber-500'
+                          : trimmedNewPassword.length > 0
+                            ? 'border-purple-300 bg-purple-50/40 dark:bg-purple-900/10'
+                            : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((current) => !current)}
+                      className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
+                      aria-label={showNewPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`rounded-2xl border p-4 shadow-sm transition-colors ${
+                  isPasswordReady
+                    ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-700/40 dark:bg-emerald-900/10'
+                    : hasPasswordMismatch
+                    ? 'border-red-300 bg-red-50/80 dark:border-red-700/40 dark:bg-red-900/10'
+                    : trimmedPasswordConfirmation.length > 0
+                      ? 'border-purple-200 bg-white dark:border-purple-700/40 dark:bg-gray-800'
+                      : 'border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-gray-800/90'
+                }`}>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                        2
+                      </span>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {profileCopy.fields.confirmNewPassword}
+                        </label>
+                        <p className="mt-1 text-[11px] leading-5 text-gray-500 dark:text-gray-400">
+                          {hasPasswordMismatch ? profileCopy.messages.passwordMismatch : profileCopy.hints.password}
+                        </p>
+                      </div>
+                    </div>
+                    {isPasswordReady ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-300" />
+                    ) : null}
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={formValues.confirmNewPassword}
+                      onChange={(event) => updateFormValue('confirmNewPassword', event.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      aria-invalid={hasPasswordMismatch}
+                      className={`${inputClassName} pr-12 ${
+                        isPasswordReady
+                          ? 'border-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/10'
+                          : hasPasswordMismatch
+                          ? 'border-red-300 focus:ring-red-500'
+                          : trimmedPasswordConfirmation.length > 0
+                            ? 'border-purple-300 bg-purple-50/40 dark:bg-purple-900/10'
+                            : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((current) => !current)}
+                      className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
+                      aria-label={showConfirmPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {profileCopy.fields.confirmNewPassword}
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={formValues.confirmNewPassword}
-                  onChange={(event) => updateFormValue('confirmNewPassword', event.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  aria-invalid={hasPasswordMismatch}
-                  className={`${inputClassName} pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((current) => !current)}
-                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
-                  aria-label={showConfirmPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+
+            {hasPasswordMismatch || hasPasswordMinLengthError ? (
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-700/40 dark:bg-red-900/15 dark:text-red-200">
+                <CircleAlert className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <div className="space-y-1 text-sm leading-5">
+                  {hasPasswordMinLengthError ? (
+                    <p>{profileCopy.messages.passwordMinLength}</p>
+                  ) : null}
+                  {hasPasswordMismatch ? (
+                    <p>{profileCopy.messages.passwordMismatch}</p>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
-          {hasPasswordMismatch ? (
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-              {profileCopy.messages.passwordMismatch}
-            </p>
-          ) : null}
-          <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-            {profileCopy.hints.password}
-          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">

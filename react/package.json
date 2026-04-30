@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "scaffold:module": "node ./scripts/scaffold-module.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
