@@ -97,11 +97,11 @@ const employeePageCopy = {
     addEmployee: 'Add employee',
     configureColumns: 'Columns',
     detailLoadingTitle: 'Loading employee details',
-    detailLoadingDescription: 'We are retrieving the complete employee profile, documents, and access settings.',
+    detailLoadingDescription: 'We are retrieving the complete employee profile and documents.',
     loadingTitle: 'Saving employee changes',
     loadingDescription: 'We are updating the HR record and refreshing the employee table.',
     terminateLoadingTitle: 'Terminating employee',
-    terminateLoadingDescription: 'We are recording the termination details and refreshing attendance access.',
+    terminateLoadingDescription: 'We are recording the termination details and refreshing attendance records.',
     deleteLoadingTitle: 'Deleting employee',
     deleteLoadingDescription: 'We are removing the terminated employee record.',
     successMessages: {
@@ -177,11 +177,11 @@ const employeePageCopy = {
     addEmployee: 'Agregar colaborador',
     configureColumns: 'Columnas',
     detailLoadingTitle: 'Cargando detalle del colaborador',
-    detailLoadingDescription: 'Estamos obteniendo el perfil completo, documentos y accesos del colaborador.',
+    detailLoadingDescription: 'Estamos obteniendo el perfil completo y documentos del colaborador.',
     loadingTitle: 'Guardando colaborador',
     loadingDescription: 'Estamos actualizando el expediente y refrescando la tabla.',
     terminateLoadingTitle: 'Terminando contrato',
-    terminateLoadingDescription: 'Estamos guardando la baja y actualizando el acceso a asistencia.',
+    terminateLoadingDescription: 'Estamos guardando la baja y actualizando los registros de asistencia.',
     deleteLoadingTitle: 'Eliminando colaborador',
     deleteLoadingDescription: 'Estamos removiendo el expediente terminado.',
     successMessages: {
@@ -507,11 +507,6 @@ const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeF
     contractType: details.employee.contract_type ?? 'permanent',
     contractStartDate: details.employee.contract_start_date ? String(details.employee.contract_start_date) : '',
     contractEndDate: details.employee.contract_end_date ? String(details.employee.contract_end_date) : '',
-    accessRole: details.access.access_role ?? 'employee',
-    inviteOnSave: false,
-    invitationStatus: details.access.invitation_status ?? 'not_invited',
-    linkedUserName: details.access.linked_user_name ?? '',
-    linkedUserEmail: details.access.linked_user_email ?? '',
   } satisfies EmployeeFormData;
 
   documentTypeOrder.forEach((documentType) => {
@@ -935,12 +930,6 @@ export default function Colaboradores() {
         emergency_contact_relationship: trimmedEmergencyContactRelationship,
         emergency_contact_phone: trimmedEmergencyContactPhone,
         workday_hours: trimmedWorkdayHours,
-      },
-      access_role: data.accessRole,
-      invite_on_save: data.inviteOnSave,
-      access: {
-        access_role: data.accessRole,
-        invite_on_save: data.inviteOnSave,
       },
       status: editingEmployee?.status ?? 'active',
     };

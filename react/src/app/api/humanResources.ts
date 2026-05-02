@@ -49,16 +49,6 @@ export interface BackendEmployeeProfile {
   workday_hours?: number | null;
 }
 
-export interface BackendEmployeePortalAccess {
-  access_role: 'employee' | 'coordinator' | 'manager' | 'administrator';
-  linked_user_id?: number | null;
-  linked_user_name?: string;
-  linked_user_email?: string;
-  invitation_id?: number | null;
-  invitation_status: 'not_invited' | 'pending' | 'linked';
-  last_invited_at?: string | null;
-}
-
 export interface BackendEmployeeDocument {
   id: number;
   document_type: 'birth_certificate' | 'government_id' | 'proof_of_address' | 'resume' | 'profile_photo';
@@ -76,7 +66,6 @@ export interface EmployeeDetailsResponse {
   employee_id: number;
   employee: BackendEmployee;
   profile: BackendEmployeeProfile;
-  access: BackendEmployeePortalAccess;
   documents: BackendEmployeeDocument[];
 }
 
@@ -247,6 +236,10 @@ export interface TerminationPayload {
 export interface AttendanceLocation {
   id: number;
   name: string;
+  unit_id?: number | null;
+  unit_name?: string | null;
+  business_id?: number | null;
+  business_name?: string | null;
   latitude: number;
   longitude: number;
   radius_meters: number;
@@ -256,6 +249,9 @@ export type AttendanceStatus = 'on_time' | 'late' | 'leave' | 'rest' | 'absence'
 export type AttendanceCorrectionStatus = Exclude<AttendanceStatus, 'pending' | 'not_scheduled'>;
 
 export interface AttendanceDashboardItem {
+  subject_type?: 'employee' | 'user';
+  user_id?: number;
+  user_company_id?: number;
   employee_id: number;
   employee_number?: string;
   employee_name: string;
@@ -283,6 +279,9 @@ export interface AttendanceDashboardItem {
 }
 
 export interface AttendanceEmployeeOption {
+  subject_type?: 'employee' | 'user';
+  user_id?: number;
+  user_company_id?: number;
   id: number;
   employee_number?: string;
   full_name: string;
@@ -298,6 +297,7 @@ export interface AttendanceDashboardResponse {
   date: string;
   summary: {
     total_employees: number;
+    total_users?: number;
     on_time_count: number;
     late_count: number;
     leave_count: number;
