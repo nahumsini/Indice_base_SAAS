@@ -22,29 +22,13 @@ record AttendanceEmployee(
 ) {
 }
 
-record EmailMatchedAttendanceEmployee(
-    AttendanceEmployee employee,
-    Long linkedUserId
-) {
-}
-
-record AttendanceSessionUser(
+record AttendanceUser(
     long userId,
+    long userCompanyId,
     String email,
-    String fullName
-) {
-}
-
-record AttendanceNameParts(
-    String firstName,
-    String lastName
-) {
-}
-
-record AttendanceEmployeeNumberSequence(
-    String prefix,
-    int padding,
-    long nextNumber
+    String fullName,
+    String role,
+    String status
 ) {
 }
 
