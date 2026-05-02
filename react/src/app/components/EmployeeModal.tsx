@@ -3,7 +3,6 @@ import {
   Briefcase,
   FileText,
   Phone,
-  Shield,
   Trash2,
   Upload,
   User,
@@ -34,12 +33,6 @@ export type EmployeeDocumentType =
   | 'proof_of_address'
   | 'resume'
   | 'profile_photo';
-
-export type EmployeeAccessRole =
-  | 'employee'
-  | 'coordinator'
-  | 'manager'
-  | 'administrator';
 
 export interface EmployeeDocumentSlot {
   documentType: EmployeeDocumentType;
@@ -93,11 +86,6 @@ export interface EmployeeFormData {
   contractType: 'permanent' | 'temporary';
   contractStartDate: string;
   contractEndDate: string;
-  accessRole: EmployeeAccessRole;
-  inviteOnSave: boolean;
-  invitationStatus: 'not_invited' | 'pending' | 'linked';
-  linkedUserName: string;
-  linkedUserEmail: string;
   documents: Record<EmployeeDocumentType, EmployeeDocumentSlot>;
 }
 
@@ -202,11 +190,6 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
   contractType: 'permanent',
   contractStartDate: '',
   contractEndDate: '',
-  accessRole: 'employee',
-  inviteOnSave: false,
-  invitationStatus: 'not_invited',
-  linkedUserName: '',
-  linkedUserEmail: '',
   documents: {
     birth_certificate: createDocumentSlot('birth_certificate'),
     government_id: createDocumentSlot('government_id'),
@@ -221,13 +204,12 @@ const modalCopy = {
     titleCreate: 'Add employee',
     titleEdit: 'Edit employee',
     subtitle:
-      'Create the complete HR profile, contact data, assignment, documents, and portal access in one flow.',
+      'Create the complete HR profile, contact data, assignment, and documents in one flow.',
     steps: [
       { id: 1, label: 'Employee', icon: User },
       { id: 2, label: 'Contact', icon: Phone },
       { id: 3, label: 'Role', icon: Briefcase },
       { id: 4, label: 'Documents', icon: FileText },
-      { id: 5, label: 'Permissions', icon: Shield },
     ],
     buttons: {
       cancel: 'Cancel',
@@ -245,7 +227,6 @@ const modalCopy = {
       contact: 'Contact details',
       role: 'Position and compensation',
       documents: 'Employee documents',
-      permissions: 'Portal access',
     },
     labels: {
       employeeNumber: 'Employee number',
@@ -289,21 +270,12 @@ const modalCopy = {
       contractType: 'Contract type',
       contractStartDate: 'Contract start date',
       contractEndDate: 'Contract end date',
-      accessRole: 'Access role',
-      inviteOnSave: 'Send invitation after save',
-      linkedAccount: 'Linked account',
-      invitationStatus: 'Invitation status',
     },
     helpers: {
-      email: 'If no account exists, we can send an invitation to connect the employee later in the flow.',
+      email: 'Used only for the HR employee record. System access is managed from Users.',
       employeeNumberAuto: 'Generated automatically when the employee is saved.',
       alternatePhone: 'Optional. Useful if the primary mobile phone is unavailable.',
       documents: 'Allowed formats: PDF, JPG, PNG, WEBP. Maximum 5MB per file.',
-      role:
-        'Permissions are summarized below and aligned to the selected access role.',
-      linked: 'Already linked to an existing user account.',
-      pending: 'Invitation is pending for this employee email.',
-      notInvited: 'No invitation has been sent yet.',
       documentRemoved: 'The current document will be deleted when you save.',
       scheduleOnHire: 'Creates a strict weekly schedule from the selected date. Standard working days are Monday to Friday.',
       scheduleBusinessLocation: 'The employee will clock in from the Business Structure location assigned to their business.',
@@ -350,22 +322,10 @@ const modalCopy = {
         { value: 'permanent', label: 'Permanent' },
         { value: 'temporary', label: 'Temporary' },
       ],
-      accessRoles: [
-        { value: 'employee', label: 'Employee' },
-        { value: 'coordinator', label: 'Coordinator' },
-        { value: 'manager', label: 'Manager' },
-        { value: 'administrator', label: 'Administrator' },
-      ],
       scheduleLocationRules: [
         { value: 'business', label: 'Use employee business location' },
         { value: 'exact', label: 'Force one exact location' },
       ],
-    },
-    permissionsByRole: {
-      employee: ['View attendance', 'Register clock in / out', 'View personal payroll', 'Update own profile'],
-      coordinator: ['Everything in Employee', 'Review attendance', 'View team information', 'Support schedule follow-up'],
-      manager: ['Everything in Coordinator', 'Approve corrections', 'Review broader payroll context', 'Manage team assignments'],
-      administrator: ['Everything in Manager', 'Full HR visibility', 'Manage employee access roles', 'Oversee documents and setup'],
     },
     documents: {
       birth_certificate: 'Birth certificate',
@@ -380,7 +340,7 @@ const modalCopy = {
       invalidPhone: 'Enter a valid phone number.',
       invalidHours: 'Workday hours must be between 1 and 24.',
       invalidAmount: 'Enter an amount greater than zero.',
-      invalidScheduleTime: 'End time must be after start time.',
+      invalidScheduleTime: 'End time cannot equal start time.',
       invalidMinutes: 'Enter zero or a positive number.',
       contractDates: 'Contract end date must be the same as or after the start date.',
       documentType: 'Only PDF, JPG, PNG, or WEBP files are allowed.',
@@ -392,13 +352,12 @@ const modalCopy = {
     titleCreate: 'Agregar colaborador',
     titleEdit: 'Editar colaborador',
     subtitle:
-      'Crea el perfil completo de RH, contacto, asignación, documentos y acceso al portal en un solo flujo.',
+      'Crea el perfil completo de RH, contacto, asignación y documentos en un solo flujo.',
     steps: [
       { id: 1, label: 'Colaborador', icon: User },
       { id: 2, label: 'Contacto', icon: Phone },
       { id: 3, label: 'Puesto', icon: Briefcase },
       { id: 4, label: 'Documentos', icon: FileText },
-      { id: 5, label: 'Permisos', icon: Shield },
     ],
     buttons: {
       cancel: 'Cancelar',
@@ -416,7 +375,6 @@ const modalCopy = {
       contact: 'Datos de contacto',
       role: 'Puesto y compensación',
       documents: 'Documentos del colaborador',
-      permissions: 'Acceso al portal',
     },
     labels: {
       employeeNumber: 'Número de colaborador',
@@ -460,20 +418,12 @@ const modalCopy = {
       contractType: 'Tipo de contrato',
       contractStartDate: 'Inicio de contrato',
       contractEndDate: 'Fin de contrato',
-      accessRole: 'Rol de acceso',
-      inviteOnSave: 'Enviar invitación al guardar',
-      linkedAccount: 'Cuenta vinculada',
-      invitationStatus: 'Estado de la invitación',
     },
     helpers: {
-      email: 'Si no existe una cuenta, podemos enviar una invitación para conectar al colaborador más adelante en el flujo.',
+      email: 'Se usa solo para el registro de RH. El acceso al sistema se administra desde Usuarios.',
       employeeNumberAuto: 'Se genera automáticamente cuando se guarda el colaborador.',
       alternatePhone: 'Opcional. Útil si el teléfono principal no está disponible.',
       documents: 'Formatos permitidos: PDF, JPG, PNG, WEBP. Máximo 5MB por archivo.',
-      role: 'Los permisos se resumen abajo y se alinean al rol de acceso seleccionado.',
-      linked: 'Ya está vinculado a una cuenta existente.',
-      pending: 'Hay una invitación pendiente para este correo.',
-      notInvited: 'Aún no se ha enviado invitación.',
       documentRemoved: 'El documento actual se eliminará al guardar.',
       scheduleOnHire: 'Crea un horario estricto semanal desde la fecha seleccionada. Los días estándar son lunes a viernes.',
       scheduleBusinessLocation: 'El colaborador registrará asistencia desde la ubicación de Business Structure asignada a su negocio.',
@@ -520,22 +470,10 @@ const modalCopy = {
         { value: 'permanent', label: 'Permanente' },
         { value: 'temporary', label: 'Temporal' },
       ],
-      accessRoles: [
-        { value: 'employee', label: 'Colaborador' },
-        { value: 'coordinator', label: 'Coordinador' },
-        { value: 'manager', label: 'Gerente' },
-        { value: 'administrator', label: 'Administrador' },
-      ],
       scheduleLocationRules: [
         { value: 'business', label: 'Usar ubicación del negocio del colaborador' },
         { value: 'exact', label: 'Forzar una ubicación exacta' },
       ],
-    },
-    permissionsByRole: {
-      employee: ['Ver asistencia', 'Registrar entrada / salida', 'Ver nómina personal', 'Actualizar su perfil'],
-      coordinator: ['Todo lo del colaborador', 'Revisar asistencia', 'Ver información del equipo', 'Dar seguimiento a horarios'],
-      manager: ['Todo lo del coordinador', 'Aprobar correcciones', 'Revisar contexto de nómina', 'Gestionar asignaciones'],
-      administrator: ['Todo lo del gerente', 'Visibilidad total de RH', 'Gestionar accesos del personal', 'Supervisar documentos y configuración'],
     },
     documents: {
       birth_certificate: 'Acta de nacimiento',
@@ -550,7 +488,7 @@ const modalCopy = {
       invalidPhone: 'Ingresa un teléfono válido.',
       invalidHours: 'Las horas de jornada deben estar entre 1 y 24.',
       invalidAmount: 'Ingresa un monto mayor a cero.',
-      invalidScheduleTime: 'La salida debe ser posterior a la entrada.',
+      invalidScheduleTime: 'La salida no puede ser igual a la entrada.',
       invalidMinutes: 'Ingresa cero o un número positivo.',
       contractDates: 'La fecha de fin debe ser igual o posterior a la de inicio.',
       documentType: 'Solo se permiten archivos PDF, JPG, PNG o WEBP.',
@@ -841,9 +779,6 @@ export function EmployeeModal({
         (readDomValue(nativeFormData, 'contractType') as EmployeeFormData['contractType']) || currentFormData.contractType,
       contractStartDate: readDomValue(nativeFormData, 'contractStartDate') || currentFormData.contractStartDate,
       contractEndDate: readDomValue(nativeFormData, 'contractEndDate') || currentFormData.contractEndDate,
-      accessRole:
-        (readDomValue(nativeFormData, 'accessRole') as EmployeeAccessRole) || currentFormData.accessRole,
-      inviteOnSave: nativeFormData.has('inviteOnSave'),
     };
 
     formDataRef.current = nextFormData;
@@ -978,7 +913,7 @@ export function EmployeeModal({
     }
     if (!data.scheduleEndTime) {
       errors.scheduleEndTime = copy.validation.required;
-    } else if (data.scheduleStartTime && data.scheduleEndTime <= data.scheduleStartTime) {
+    } else if (data.scheduleStartTime && data.scheduleEndTime === data.scheduleStartTime) {
       errors.scheduleEndTime = copy.validation.invalidScheduleTime;
     }
 
@@ -1112,7 +1047,6 @@ export function EmployeeModal({
     2: ['registrationCountry', 'postalCode', 'mobilePhone', 'alternatePhone', 'emergencyContactPhone'],
     3: ['department', 'position', 'businessUnitId', 'businessId', 'workdayHours', ...scheduleStepFields, ...compensationStepFields, ...contractStepFields],
     4: [],
-    5: [],
   };
 
   const currentStepFields = stepFields[currentStep] ?? [];
@@ -1282,7 +1216,6 @@ export function EmployeeModal({
     return null;
   }
 
-  const currentPermissions = copy.permissionsByRole[formData.accessRole];
   const currentStepValid = currentStepFields.every((field) => !validationErrors[field]);
 
   return (
@@ -1900,75 +1833,6 @@ export function EmployeeModal({
             </div>
           ) : null}
 
-          {currentStep === 5 ? (
-            <div className="space-y-6">
-              <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
-                <Shield className="h-4 w-4" />
-                {copy.sections.permissions}
-              </h3>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <SelectField
-                  name="accessRole"
-                  label={copy.labels.accessRole}
-                  value={formData.accessRole}
-                  onChange={(value) => updateField('accessRole', value as EmployeeAccessRole)}
-                  options={copy.options.accessRoles}
-                />
-
-                <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.labels.invitationStatus}</p>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                    {formData.invitationStatus === 'linked'
-                      ? copy.helpers.linked
-                      : formData.invitationStatus === 'pending'
-                        ? copy.helpers.pending
-                        : copy.helpers.notInvited}
-                  </p>
-                  {formData.linkedUserName || formData.linkedUserEmail ? (
-                    <div className="mt-3 text-sm text-gray-700 dark:text-gray-200">
-                      <div>{copy.labels.linkedAccount}</div>
-                      <div className="mt-1 font-medium">
-                        {formData.linkedUserName || formData.linkedUserEmail}
-                      </div>
-                      {formData.linkedUserEmail && formData.linkedUserName ? (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {formData.linkedUserEmail}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <label className="flex items-start gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                <input
-                  name="inviteOnSave"
-                  type="checkbox"
-                  checked={formData.inviteOnSave}
-                  onChange={(event) => updateField('inviteOnSave', event.target.checked)}
-                  className="mt-1 h-4 w-4"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.labels.inviteOnSave}</p>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {copy.helpers.role}
-                  </p>
-                </div>
-              </label>
-
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.labels.accessRole}</p>
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  {currentPermissions.map((permission) => (
-                    <div key={permission} className="text-sm text-gray-700 dark:text-gray-300">
-                      ✓ {permission}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/50">

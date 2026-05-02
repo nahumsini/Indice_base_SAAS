@@ -275,6 +275,8 @@ public class HrAttendanceApiController {
     public ResponseEntity<?> scheduleCandidates(
         HttpSession session,
         @RequestParam(required = false) String date,
+        @RequestParam(name = "effective_end_date", required = false) String effectiveEndDate,
+        @RequestParam(name = "end_date", required = false) String endDate,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "10") int size,
         @RequestParam(required = false) String search,
@@ -289,10 +291,14 @@ public class HrAttendanceApiController {
 
         try {
             var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
+            var targetEndDate = effectiveEndDate != null && !effectiveEndDate.isBlank()
+                ? HrAttendanceService.parseDate(effectiveEndDate)
+                : endDate == null || endDate.isBlank() ? null : HrAttendanceService.parseDate(endDate);
             return ResponseEntity.ok(
                 hrAttendanceService.scheduleCandidates(
                     currentUser.get().companyId(),
                     targetDate,
+                    targetEndDate,
                     page,
                     size,
                     search,

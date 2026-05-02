@@ -23,8 +23,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(HrEmployeeApiController.class)
@@ -33,10 +33,10 @@ class HrEmployeeApiControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private SessionAuthService sessionAuthService;
 
-    @MockBean
+    @MockitoBean
     private HrEmployeeService hrEmployeeService;
 
     @Test
@@ -113,10 +113,6 @@ class HrEmployeeApiControllerTest {
             "registration_country", "CA",
             "state_province", "Ontario"
         ));
-        detailBody.put("access", Map.of(
-            "access_role", "manager",
-            "invitation_status", "not_invited"
-        ));
         detailBody.put("documents", List.of());
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
@@ -127,7 +123,8 @@ class HrEmployeeApiControllerTest {
             .andExpect(jsonPath("$.employee_id").value(12))
             .andExpect(jsonPath("$.employee.full_name").value("Jordan Smith"))
             .andExpect(jsonPath("$.profile.registration_country").value("CA"))
-            .andExpect(jsonPath("$.access.access_role").value("manager"));
+            .andExpect(jsonPath("$.access").doesNotExist())
+            .andExpect(jsonPath("$.documents").isArray());
     }
 
     @Test

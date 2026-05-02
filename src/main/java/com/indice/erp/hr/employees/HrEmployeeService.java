@@ -15,11 +15,9 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.Normalizer;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -135,13 +133,11 @@ public class HrEmployeeService {
     public Map<String, Object> createEmployee(long companyId, long createdBy, Map<String, Object> payload) {
         var employeePayload = mergedSectionPayload(payload, "employee");
         var profilePayload = mergedSectionPayload(payload, "profile");
-        var accessPayload = mergedSectionPayload(payload, "access");
 
         var draft = buildEmployeeDraft(companyId, employeePayload);
         draft = draft.withEmployeeNumber(resolveEmployeeNumberForCreate(companyId, draft.employeeNumber()));
         var employeeDraft = draft;
         var profileDraft = buildProfileDraft(profilePayload, ProfileDraft.empty());
-        var accessDraft = buildPortalAccessDraft(accessPayload, PortalAccessDraft.defaults());
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -198,7 +194,6 @@ public class HrEmployeeService {
 
         var employeeId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
         upsertEmployeeProfile(companyId, employeeId, profileDraft);
-        syncPortalAccess(companyId, createdBy, employeeId, draft.email(), draft.fullName(), accessDraft);
         hrAttendanceService.ensureDefaultAccessProfile(companyId, employeeId, createdBy);
         return employeeDetails(employeeId, companyId);
     }
@@ -214,14 +209,11 @@ public class HrEmployeeService {
 
         var employeePayload = mergedSectionPayload(payload, "employee");
         var profilePayload = mergedSectionPayload(payload, "profile");
-        var accessPayload = mergedSectionPayload(payload, "access");
 
         var draft = buildEmployeeDraft(companyId, employeePayload);
         draft = draft.withEmployeeNumber(resolveEmployeeNumberForUpdate(companyId, employeeId, draft.employeeNumber()));
         var currentProfile = loadProfileDraft(companyId, employeeId);
-        var currentAccess = loadPortalAccessDraft(companyId, employeeId);
         var profileDraft = buildProfileDraft(profilePayload, currentProfile);
-        var accessDraft = buildPortalAccessDraft(accessPayload, currentAccess);
 
         var rowsUpdated = jdbcTemplate.update(
             """
@@ -273,7 +265,6 @@ public class HrEmployeeService {
         }
 
         upsertEmployeeProfile(companyId, employeeId, profileDraft);
-        syncPortalAccess(companyId, 0L, employeeId, draft.email(), draft.fullName(), accessDraft);
         return employeeDetails(employeeId, companyId);
     }
 
@@ -617,15 +608,6 @@ public class HrEmployeeService {
         );
     }
 
-    private PortalAccessDraft buildPortalAccessDraft(Map<String, Object> payload, PortalAccessDraft existingAccess) {
-        return new PortalAccessDraft(
-            hasAnyKey(payload, "access_role", "accessRole", "role", "rol")
-                ? normalizeAccessRole(stringValue(payload, "access_role", "accessRole", "role", "rol"))
-                : existingAccess.accessRole(),
-            parseBoolean(payload, existingAccess.inviteOnSave(), "invite_on_save", "inviteOnSave", "send_invitation", "sendInvitation")
-        );
-    }
-
     private void upsertEmployeeProfile(long companyId, long employeeId, ProfileDraft draft) {
         jdbcTemplate.update(
             """
@@ -666,60 +648,6 @@ public class HrEmployeeService {
             nullable(draft.emergencyContactRelationship()),
             nullable(draft.emergencyContactPhone()),
             draft.workdayHours()
-        );
-    }
-
-    private void syncPortalAccess(
-        long companyId,
-        long actingUserId,
-        long employeeId,
-        String employeeEmail,
-        String employeeFullName,
-        PortalAccessDraft draft
-    ) {
-        var linkedUserId = findLinkedUserId(companyId, employeeEmail);
-        Long invitationId = null;
-        String invitationStatus = linkedUserId != null ? "linked" : "not_invited";
-        LocalDateTime lastInvitedAt = null;
-
-        if (linkedUserId == null) {
-            var pendingInvitation = findPendingInvitation(companyId, employeeEmail);
-            if (pendingInvitation != null) {
-                invitationId = pendingInvitation.id();
-                invitationStatus = "pending";
-                lastInvitedAt = pendingInvitation.lastInvitedAt();
-            }
-
-            if (draft.inviteOnSave()) {
-                var invitation = upsertPendingInvitation(companyId, actingUserId, employeeEmail, employeeFullName, draft.accessRole());
-                invitationId = invitation.id();
-                invitationStatus = "pending";
-                lastInvitedAt = invitation.lastInvitedAt();
-            }
-        }
-
-        jdbcTemplate.update(
-            """
-                INSERT INTO hr_employee_portal_access
-                (employee_id, company_id, access_role, linked_user_id, invitation_id, invitation_status, last_invited_at, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                  company_id = VALUES(company_id),
-                  access_role = VALUES(access_role),
-                  linked_user_id = VALUES(linked_user_id),
-                  invitation_id = VALUES(invitation_id),
-                  invitation_status = VALUES(invitation_status),
-                  last_invited_at = VALUES(last_invited_at),
-                  updated_at = CURRENT_TIMESTAMP
-                """,
-            employeeId,
-            companyId,
-            draft.accessRole(),
-            linkedUserId,
-            invitationId,
-            invitationStatus,
-            lastInvitedAt,
-            actingUserId > 0 ? actingUserId : null
         );
     }
 
@@ -765,136 +693,6 @@ public class HrEmployeeService {
         );
 
         return rows.isEmpty() ? ProfileDraft.empty() : rows.getFirst();
-    }
-
-    private PortalAccessDraft loadPortalAccessDraft(long companyId, long employeeId) {
-        var rows = jdbcTemplate.query(
-            """
-                SELECT access_role
-                FROM hr_employee_portal_access
-                WHERE employee_id = ? AND company_id = ?
-                LIMIT 1
-                """,
-            (rs, rowNum) -> new PortalAccessDraft(normalizeAccessRole(rs.getString("access_role")), false),
-            employeeId,
-            companyId
-        );
-
-        return rows.isEmpty() ? PortalAccessDraft.defaults() : rows.getFirst();
-    }
-
-    private Long findLinkedUserId(long companyId, String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-
-        var rows = jdbcTemplate.query(
-            """
-                SELECT uc.user_id
-                FROM users u
-                INNER JOIN user_companies uc ON uc.user_id = u.id
-                WHERE uc.company_id = ?
-                  AND LOWER(u.email) = ?
-                LIMIT 1
-                """,
-            (rs, rowNum) -> rs.getLong("user_id"),
-            companyId,
-            email.toLowerCase(Locale.ROOT)
-        );
-
-        return rows.isEmpty() ? null : rows.getFirst();
-    }
-
-    private PendingInvitationRef findPendingInvitation(long companyId, String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-
-        var rows = jdbcTemplate.query(
-            """
-                SELECT id, updated_at, created_at
-                FROM user_invitations
-                WHERE company_id = ?
-                  AND LOWER(email) = ?
-                  AND COALESCE(status, 'pending') = 'pending'
-                ORDER BY id DESC
-                LIMIT 1
-                """,
-            (rs, rowNum) -> new PendingInvitationRef(
-                rs.getLong("id"),
-                timestampToLocalDateTime(rs.getTimestamp("updated_at"), rs.getTimestamp("created_at"))
-            ),
-            companyId,
-            email.toLowerCase(Locale.ROOT)
-        );
-
-        return rows.isEmpty() ? null : rows.getFirst();
-    }
-
-    private PendingInvitationRef upsertPendingInvitation(
-        long companyId,
-        long invitedByUserId,
-        String email,
-        String fullName,
-        String accessRole
-    ) {
-        var existingInvitation = findPendingInvitation(companyId, email);
-        var token = UUID.randomUUID().toString().replace("-", "");
-        var expiresAt = LocalDateTime.now().plusDays(7);
-        var lastInvitedAt = LocalDateTime.now();
-
-        if (existingInvitation != null) {
-            jdbcTemplate.update(
-                """
-                    UPDATE user_invitations
-                    SET full_name = ?,
-                        role = ?,
-                        module_slugs_json = ?,
-                        token = ?,
-                        invited_by = ?,
-                        expires_at = ?,
-                        status = 'pending'
-                    WHERE id = ? AND company_id = ?
-                    """,
-                fullName,
-                normalizeInvitationRole(accessRole),
-                "[\"human_resources\"]",
-                token,
-                invitedByUserId > 0 ? invitedByUserId : null,
-                Timestamp.valueOf(expiresAt),
-                existingInvitation.id(),
-                companyId
-            );
-            return new PendingInvitationRef(existingInvitation.id(), lastInvitedAt);
-        }
-
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            var statement = connection.prepareStatement(
-                """
-                    INSERT INTO user_invitations
-                    (company_id, email, full_name, role, module_slugs_json, token, status, invited_by, expires_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-                    """,
-                new String[] {"id"}
-            );
-            statement.setLong(1, companyId);
-            statement.setString(2, email);
-            statement.setString(3, fullName);
-            statement.setString(4, normalizeInvitationRole(accessRole));
-            statement.setString(5, "[\"human_resources\"]");
-            statement.setString(6, token);
-            if (invitedByUserId > 0) {
-                statement.setLong(7, invitedByUserId);
-            } else {
-                statement.setNull(7, Types.BIGINT);
-            }
-            statement.setTimestamp(8, Timestamp.valueOf(expiresAt));
-            return statement;
-        }, keyHolder);
-
-        var invitationId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
-        return new PendingInvitationRef(invitationId, lastInvitedAt);
     }
 
     private void validateOrganizationRefs(long companyId, Long unitId, Long businessId) {
@@ -1207,7 +1005,6 @@ public class HrEmployeeService {
         result.put("employee_id", employeeId);
         result.put("employee", rows.getFirst());
         result.put("profile", loadEmployeeProfile(companyId, employeeId));
-        result.put("access", loadEmployeePortalAccess(companyId, employeeId));
         result.put("documents", loadEmployeeDocuments(companyId, employeeId));
         return result;
     }
@@ -1275,51 +1072,6 @@ public class HrEmployeeService {
         emptyProfile.put("emergency_contact_phone", "");
         emptyProfile.put("workday_hours", new BigDecimal("8.00"));
         return emptyProfile;
-    }
-
-    private Map<String, Object> loadEmployeePortalAccess(long companyId, long employeeId) {
-        var rows = jdbcTemplate.query(
-            """
-                SELECT a.access_role,
-                       a.linked_user_id,
-                       COALESCE(u.full_name, '') AS linked_user_name,
-                       COALESCE(u.email, '') AS linked_user_email,
-                       a.invitation_id,
-                       a.invitation_status,
-                       a.last_invited_at
-                FROM hr_employee_portal_access a
-                LEFT JOIN users u ON u.id = a.linked_user_id
-                WHERE a.employee_id = ? AND a.company_id = ?
-                LIMIT 1
-                """,
-            (rs, rowNum) -> {
-                var access = new LinkedHashMap<String, Object>();
-                access.put("access_role", normalizeAccessRole(rs.getString("access_role")));
-                access.put("linked_user_id", getNullableLong(rs, "linked_user_id"));
-                access.put("linked_user_name", safe(rs.getString("linked_user_name")));
-                access.put("linked_user_email", safe(rs.getString("linked_user_email")));
-                access.put("invitation_id", getNullableLong(rs, "invitation_id"));
-                access.put("invitation_status", normalizeInvitationStatus(rs.getString("invitation_status")));
-                access.put("last_invited_at", timestampToLocalDateTime(rs.getTimestamp("last_invited_at")));
-                return access;
-            },
-            employeeId,
-            companyId
-        );
-
-        if (!rows.isEmpty()) {
-            return rows.getFirst();
-        }
-
-        var emptyAccess = new LinkedHashMap<String, Object>();
-        emptyAccess.put("access_role", "employee");
-        emptyAccess.put("linked_user_id", null);
-        emptyAccess.put("linked_user_name", "");
-        emptyAccess.put("linked_user_email", "");
-        emptyAccess.put("invitation_id", null);
-        emptyAccess.put("invitation_status", "not_invited");
-        emptyAccess.put("last_invited_at", null);
-        return emptyAccess;
     }
 
     private List<Map<String, Object>> loadEmployeeDocuments(long companyId, long employeeId) {
@@ -1498,29 +1250,6 @@ public class HrEmployeeService {
         return parsed;
     }
 
-    private boolean parseBoolean(Map<String, Object> payload, boolean fallback, String... keys) {
-        for (var key : keys) {
-            if (!payload.containsKey(key)) {
-                continue;
-            }
-
-            var value = payload.get(key);
-            if (value instanceof Boolean bool) {
-                return bool;
-            }
-            if (value instanceof String string) {
-                var normalized = string.trim().toLowerCase(Locale.ROOT);
-                if (normalized.equals("true") || normalized.equals("1") || normalized.equals("yes")) {
-                    return true;
-                }
-                if (normalized.equals("false") || normalized.equals("0") || normalized.equals("no")) {
-                    return false;
-                }
-            }
-        }
-        return fallback;
-    }
-
     private Long normalizeOptionalForeignKey(Long value) {
         return value == null || value <= 0 ? null : value;
     }
@@ -1568,32 +1297,6 @@ public class HrEmployeeService {
         return switch (normalized) {
             case "resignation", "termination_for_cause", "contract_end", "mutual_agreement", "other" -> normalized;
             default -> throw new IllegalArgumentException("Unsupported reason_type.");
-        };
-    }
-
-    private String normalizeAccessRole(String value) {
-        var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "", "employee", "colaborador" -> "employee";
-            case "coordinator", "coordinador" -> "coordinator";
-            case "manager", "gerente" -> "manager";
-            case "administrator", "admin", "administrador" -> "administrator";
-            default -> throw new IllegalArgumentException("Unsupported access_role.");
-        };
-    }
-
-    private String normalizeInvitationRole(String accessRole) {
-        return switch (normalizeAccessRole(accessRole)) {
-            case "administrator" -> "admin";
-            default -> "user";
-        };
-    }
-
-    private String normalizeInvitationStatus(String value) {
-        var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "linked", "pending", "not_invited" -> normalized;
-            default -> "not_invited";
         };
     }
 
@@ -1748,15 +1451,6 @@ public class HrEmployeeService {
         return objectStorageProperties.getMinio().getBucketDocuments();
     }
 
-    private LocalDateTime timestampToLocalDateTime(Timestamp primary, Timestamp fallback) {
-        var value = primary != null ? primary : fallback;
-        return value == null ? null : value.toLocalDateTime();
-    }
-
-    private LocalDateTime timestampToLocalDateTime(Timestamp value) {
-        return value == null ? null : value.toLocalDateTime();
-    }
-
     private Long getNullableLong(ResultSet rs, String column) throws SQLException {
         var value = rs.getLong(column);
         return rs.wasNull() ? null : value;
@@ -1856,21 +1550,6 @@ public class HrEmployeeService {
         private String dateOfBirthRaw() {
             return dateOfBirth == null ? null : dateOfBirth.toString();
         }
-    }
-
-    private record PortalAccessDraft(
-        String accessRole,
-        boolean inviteOnSave
-    ) {
-        static PortalAccessDraft defaults() {
-            return new PortalAccessDraft("employee", false);
-        }
-    }
-
-    private record PendingInvitationRef(
-        long id,
-        LocalDateTime lastInvitedAt
-    ) {
     }
 
     private record BusinessRef(

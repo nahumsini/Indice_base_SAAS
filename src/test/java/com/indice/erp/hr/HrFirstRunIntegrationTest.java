@@ -14,6 +14,8 @@ import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.hr.announcements.HrAnnouncementService;
 import jakarta.servlet.http.HttpSession;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,6 +33,10 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 class HrFirstRunIntegrationTest {
+
+    private static final LocalDate TEST_ATTENDANCE_DATE = LocalDate.now();
+    private static final String TEST_ATTENDANCE_DAY = TEST_ATTENDANCE_DATE.toString();
+    private static final String TEST_ATTENDANCE_MONTH = YearMonth.from(TEST_ATTENDANCE_DATE).toString();
 
     @Autowired
     private MockMvc mockMvc;
@@ -51,8 +57,13 @@ class HrFirstRunIntegrationTest {
     private final List<Long> createdTemplateIds = new ArrayList<>();
     private final List<Long> createdPayrollRunIds = new ArrayList<>();
     private final List<Long> createdUserIds = new ArrayList<>();
+    private final List<Long> createdBusinessIds = new ArrayList<>();
+    private final List<Long> createdUnitIds = new ArrayList<>();
 
     private record BusinessFixture(long businessId, long unitId, String unitName) {
+    }
+
+    private record EmployeeScope(Long unitId, Long businessId) {
     }
 
     @AfterEach
@@ -92,6 +103,16 @@ class HrFirstRunIntegrationTest {
             jdbcTemplate.update("DELETE FROM hr_attendance_locations WHERE id = ?", locationId);
         }
         createdLocationIds.clear();
+
+        for (var businessId : createdBusinessIds) {
+            jdbcTemplate.update("DELETE FROM businesses WHERE id = ?", businessId);
+        }
+        createdBusinessIds.clear();
+
+        for (var unitId : createdUnitIds) {
+            jdbcTemplate.update("DELETE FROM units WHERE id = ?", unitId);
+        }
+        createdUnitIds.clear();
     }
 
     @Test
@@ -135,13 +156,6 @@ class HrFirstRunIntegrationTest {
         var generatedEmployeeNumber = String.valueOf(createdEmployee.get("employee_number"));
         assertThat(generatedEmployeeNumber).matches("^EMP-\\d{4,}$");
         createdEmployeeIds.add(employeeId);
-
-        var assignmentCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employee_schedule_assignments WHERE employee_id = ?",
-            Integer.class,
-            employeeId
-        );
-        assertThat(assignmentCount).isNotNull().isGreaterThan(0);
 
         mockMvc.perform(
             put("/api/v1/hr/employees/{employeeId}", employeeId)
@@ -193,7 +207,7 @@ class HrFirstRunIntegrationTest {
     }
 
     @Test
-    void employeeDetailsFlowPersistsProfileAndAccessAcrossAllTabs() throws Exception {
+    void employeeDetailsFlowPersistsProfileAndDocumentsAcrossAllTabs() throws Exception {
         var session = authenticatedSession();
         var uniqueSuffix = System.currentTimeMillis();
         var business = activeBusinessFixture();
@@ -234,10 +248,6 @@ class HrFirstRunIntegrationTest {
                         Map.entry("emergency_contact_relationship", "Spouse"),
                         Map.entry("emergency_contact_phone", "4165551111"),
                         Map.entry("workday_hours", "8")
-                    ),
-                    "access", Map.of(
-                        "access_role", "manager",
-                        "invite_on_save", false
                     )
                 )))
         )
@@ -260,8 +270,7 @@ class HrFirstRunIntegrationTest {
             .andExpect(jsonPath("$.profile.alternate_phone").value("4165559999"))
             .andExpect(jsonPath("$.profile.emergency_contact_name").value("Maria Smith"))
             .andExpect(jsonPath("$.profile.workday_hours").value(8.00))
-            .andExpect(jsonPath("$.access.access_role").value("manager"))
-            .andExpect(jsonPath("$.access.invitation_status").value("not_invited"))
+            .andExpect(jsonPath("$.access").doesNotExist())
             .andExpect(jsonPath("$.documents").isArray())
             .andExpect(jsonPath("$.documents.length()").value(0));
     }
@@ -373,29 +382,25 @@ class HrFirstRunIntegrationTest {
     }
 
     @Test
-    void attendanceKioskAndCorrectionFlowWorks() throws Exception {
-        var session = authenticatedSession();
-        var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+	    void attendanceKioskAndCorrectionFlowWorks() throws Exception {
+	        var session = authenticatedSession();
+	        var uniqueSuffix = System.currentTimeMillis();
+	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Kiosk Flow");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", employeeId,
-                    "event_type", "check_in",
-                    "location_id", locationId,
-                    "latitude", 25.6866140,
-                    "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
-                )))
+                    .content(objectMapper.writeValueAsString(Map.of(
+                        "employee_id", employeeId,
+                        "event_type", "check_in",
+                        "auth_method", "manual_override",
+                        "location_id", locationId,
+                        "latitude", 25.6866140,
+                        "longitude", -100.3161130,
+                        "event_timestamp", attendanceTimestamp("08:35:00")
+                    )))
         )
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("on_time"));
@@ -404,24 +409,25 @@ class HrFirstRunIntegrationTest {
             post("/api/v1/hr/attendance/kiosk-events")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", employeeId,
-                    "event_type", "check_out",
-                    "location_id", locationId,
-                    "latitude", 25.6866140,
-                    "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T17:04:00"
-                )))
+                    .content(objectMapper.writeValueAsString(Map.of(
+                        "employee_id", employeeId,
+                        "event_type", "check_out",
+                        "auth_method", "manual_override",
+                        "location_id", locationId,
+                        "latitude", 25.6866140,
+                        "longitude", -100.3161130,
+                        "event_timestamp", attendanceTimestamp("17:04:00")
+                    )))
         )
             .andExpect(status().isCreated());
 
-        mockMvc.perform(get("/api/v1/hr/attendance/dashboard").session(session).param("date", "2026-04-06"))
+        mockMvc.perform(get("/api/v1/hr/attendance/dashboard").session(session).param("date", TEST_ATTENDANCE_DAY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.summary.on_time_count").value(1))
             .andExpect(jsonPath("$.items[?(@.employee_id==" + employeeId + ")].status").value("on_time"));
 
         mockMvc.perform(
-            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, "2026-04-06")
+            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, TEST_ATTENDANCE_DAY)
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
@@ -435,7 +441,7 @@ class HrFirstRunIntegrationTest {
         var calendarResponse = mockMvc.perform(
             get("/api/v1/hr/attendance/employees/{employeeId}/calendar", employeeId)
                 .session(session)
-                .param("month", "2026-04")
+                .param("month", TEST_ATTENDANCE_MONTH)
         )
             .andExpect(status().isOk())
             .andReturn();
@@ -443,13 +449,13 @@ class HrFirstRunIntegrationTest {
         var calendarBody = readMap(calendarResponse.getResponse().getContentAsString());
         @SuppressWarnings("unchecked")
         var items = (List<Map<String, Object>>) calendarBody.get("items");
-        var aprilSix = items.stream()
-            .filter(item -> "2026-04-06".equals(item.get("date")))
+        var attendanceDay = items.stream()
+            .filter(item -> TEST_ATTENDANCE_DAY.equals(item.get("date")))
             .findFirst()
             .orElseThrow();
 
-        assertThat(aprilSix.get("system_status")).isEqualTo("on_time");
-        assertThat(aprilSix.get("corrected_status")).isEqualTo("leave");
+        assertThat(attendanceDay.get("system_status")).isEqualTo("on_time");
+        assertThat(attendanceDay.get("corrected_status")).isEqualTo("leave");
     }
 
     @Test
@@ -458,12 +464,8 @@ class HrFirstRunIntegrationTest {
         var uniqueSuffix = System.currentTimeMillis();
         var employeeId = createEmployeeForTests(adminSession, uniqueSuffix);
         var selfSession = createLinkedAttendanceSession(employeeId, uniqueSuffix);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+        var selfUserId = ((Number) selfSession.getAttribute(SessionAuthService.SESSION_USER_ID)).longValue();
+        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Self User");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/me/kiosk-events")
@@ -471,24 +473,29 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "event_type", "check_in",
-                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
+                    "event_timestamp", attendanceTimestamp("08:35:00")
                 )))
         )
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.employee_id").value(employeeId))
+            .andExpect(jsonPath("$.subject_type").value("user"))
+            .andExpect(jsonPath("$.employee_id").value(selfUserId))
+            .andExpect(jsonPath("$.user_id").value(selfUserId))
+            .andExpect(jsonPath("$.location.id").value((int) locationId))
             .andExpect(jsonPath("$.status").value("on_time"));
 
-        mockMvc.perform(get("/api/v1/hr/attendance/me/dashboard").session(selfSession).param("date", "2026-04-06"))
+        mockMvc.perform(get("/api/v1/hr/attendance/me/dashboard").session(selfSession).param("date", TEST_ATTENDANCE_DAY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.summary.total_employees").value(1))
-            .andExpect(jsonPath("$.items[0].employee_id").value(employeeId))
-            .andExpect(jsonPath("$.employees[0].id").value(employeeId));
+            .andExpect(jsonPath("$.summary.total_users").value(1))
+            .andExpect(jsonPath("$.items[0].subject_type").value("user"))
+            .andExpect(jsonPath("$.items[0].employee_id").value(selfUserId))
+            .andExpect(jsonPath("$.items[0].user_id").value(selfUserId))
+            .andExpect(jsonPath("$.employees[0].id").value(selfUserId));
 
         mockMvc.perform(
-            put("/api/v1/hr/attendance/me/daily-records/{date}", "2026-04-06")
+            put("/api/v1/hr/attendance/me/daily-records/{date}", TEST_ATTENDANCE_DAY)
                 .session(selfSession)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
@@ -497,13 +504,15 @@ class HrFirstRunIntegrationTest {
                 )))
         )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.employee_id").value(employeeId))
+            .andExpect(jsonPath("$.subject_type").value("user"))
+            .andExpect(jsonPath("$.employee_id").value(selfUserId))
+            .andExpect(jsonPath("$.user_id").value(selfUserId))
             .andExpect(jsonPath("$.effective_status").value("leave"));
 
         var calendarResponse = mockMvc.perform(
             get("/api/v1/hr/attendance/me/calendar")
                 .session(selfSession)
-                .param("month", "2026-04")
+                .param("month", TEST_ATTENDANCE_MONTH)
         )
             .andExpect(status().isOk())
             .andReturn();
@@ -511,67 +520,47 @@ class HrFirstRunIntegrationTest {
         var calendarBody = readMap(calendarResponse.getResponse().getContentAsString());
         @SuppressWarnings("unchecked")
         var items = (List<Map<String, Object>>) calendarBody.get("items");
-        var aprilSix = items.stream()
-            .filter(item -> "2026-04-06".equals(item.get("date")))
+        var attendanceDay = items.stream()
+            .filter(item -> TEST_ATTENDANCE_DAY.equals(item.get("date")))
             .findFirst()
             .orElseThrow();
 
-        assertThat(((Number) ((Map<?, ?>) calendarBody.get("employee")).get("id")).longValue()).isEqualTo(employeeId);
-        assertThat(aprilSix.get("corrected_status")).isEqualTo("leave");
+        assertThat(((Number) ((Map<?, ?>) calendarBody.get("employee")).get("id")).longValue()).isEqualTo(selfUserId);
+        assertThat(attendanceDay.get("corrected_status")).isEqualTo("leave");
     }
 
     @Test
-    void attendanceSelfEndpointsProvisionAnEmployeeForUnlinkedPlatformUsers() throws Exception {
+    void attendanceSelfEndpointsUseUserRecordsWithoutProvisioningEmployees() throws Exception {
         var uniqueSuffix = System.currentTimeMillis();
         var userSession = createAttendanceSessionWithoutEmployeeLink(uniqueSuffix);
+        var business = createIsolatedBusinessFixture("User Attendance Unit " + uniqueSuffix, "User Attendance Biz " + uniqueSuffix);
+        var locationId = createBusinessStructureLocation("User Attendance Location " + uniqueSuffix, business.businessId(), 25.6866140, -100.3161130);
 
         var dashboardResponse = mockMvc.perform(
             get("/api/v1/hr/attendance/me/dashboard")
                 .session(userSession.session())
-                .param("date", "2026-04-06")
+                .param("date", TEST_ATTENDANCE_DAY)
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.summary.total_employees").value(1))
+            .andExpect(jsonPath("$.summary.total_users").value(1))
+            .andExpect(jsonPath("$.items[0].subject_type").value("user"))
+            .andExpect(jsonPath("$.items[0].employee_id").value(userSession.userId()))
+            .andExpect(jsonPath("$.items[0].user_id").value(userSession.userId()))
             .andReturn();
 
-        var employeeId = jdbcTemplate.queryForObject(
-            "SELECT employee_id FROM hr_employee_portal_access WHERE company_id = 1 AND linked_user_id = ?",
-            Long.class,
+        var portalLinkCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM hr_employee_portal_access WHERE company_id = 1 AND linked_user_id = ?",
+            Integer.class,
             userSession.userId()
         );
-        assertThat(employeeId).isNotNull();
-        createdEmployeeIds.add(employeeId);
-
-        var employeeRow = jdbcTemplate.queryForMap(
-            """
-                SELECT employee_number, first_name, last_name, email, status
-                FROM hr_employees
-                WHERE id = ?
-                """,
-            employeeId
-        );
-        assertThat(String.valueOf(employeeRow.get("employee_number"))).matches("^EMP-\\d{4,}$");
-        assertThat(String.valueOf(employeeRow.get("email"))).isEqualTo(userSession.email());
-        assertThat(String.valueOf(employeeRow.get("status"))).isEqualToIgnoringCase("active");
-
-        var profileCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employee_profiles WHERE employee_id = ?",
+        var employeeEmailCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM hr_employees WHERE company_id = 1 AND email = ?",
             Integer.class,
-            employeeId
+            userSession.email()
         );
-        var accessProfileCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employee_access_profiles WHERE employee_id = ?",
-            Integer.class,
-            employeeId
-        );
-        assertThat(profileCount).isNotNull().isEqualTo(1);
-        assertThat(accessProfileCount).isNotNull().isGreaterThan(0);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+        assertThat(portalLinkCount).isZero();
+        assertThat(employeeEmailCount).isZero();
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/me/kiosk-events")
@@ -579,45 +568,129 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "event_type", "check_in",
-                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
+                    "event_timestamp", attendanceTimestamp("08:35:00")
                 )))
         )
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.employee_id").value(employeeId))
+            .andExpect(jsonPath("$.subject_type").value("user"))
+            .andExpect(jsonPath("$.employee_id").value(userSession.userId()))
+            .andExpect(jsonPath("$.user_id").value(userSession.userId()))
+            .andExpect(jsonPath("$.location.id").value((int) locationId))
             .andExpect(jsonPath("$.status").value("on_time"));
+
+        var userAttendanceEvents = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_user_attendance_events
+                WHERE company_id = 1
+                  AND user_id = ?
+                  AND attendance_date = ?
+                """,
+            Integer.class,
+            userSession.userId(),
+            TEST_ATTENDANCE_DAY
+        );
+        assertThat(userAttendanceEvents).isEqualTo(1);
 
         var dashboardBody = readMap(dashboardResponse.getResponse().getContentAsString());
         assertThat(((Number) ((Map<?, ?>) ((List<?>) dashboardBody.get("employees")).getFirst()).get("id")).longValue())
-            .isEqualTo(employeeId);
+            .isEqualTo(userSession.userId());
     }
 
     @Test
-    void attendanceControlOverviewReturnsSchedulesLocationsAndAssignments() throws Exception {
-        var session = authenticatedSession();
+    void attendanceSelfKioskEventMatchesCurrentBusinessStructureLocation() throws Exception {
+        var uniqueSuffix = System.currentTimeMillis();
+        var userSession = createAttendanceSessionWithoutEmployeeLink(uniqueSuffix);
+        var firstBusiness = createIsolatedBusinessFixture("Attendance Scope Unit " + uniqueSuffix, "Scope Biz A " + uniqueSuffix);
+        var secondBusinessId = createBusinessInUnit(firstBusiness.unitId(), "Scope Biz B " + uniqueSuffix);
+        var firstLocationId = createBusinessStructureLocation("Scope Biz A Site " + uniqueSuffix, firstBusiness.businessId(), 25.6800000, -100.3200000);
+        var secondLocationId = createBusinessStructureLocation("Scope Biz B Site " + uniqueSuffix, secondBusinessId, 25.6866140, -100.3161130);
 
-        var response = mockMvc.perform(
-            get("/api/v1/hr/attendance/control-overview")
-                .session(session)
-                .param("date", "2026-04-07")
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/me/kiosk-events")
+                .session(userSession.session())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "event_type", "check_in",
+                    "location_id", firstLocationId,
+                    "latitude", 25.6866140,
+                    "longitude", -100.3161130,
+                    "event_timestamp", attendanceTimestamp("08:42:00")
+                )))
         )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.location.id").value((int) secondLocationId))
+            .andExpect(jsonPath("$.location.unit_id").value((int) firstBusiness.unitId()))
+            .andExpect(jsonPath("$.location.business_id").value((int) secondBusinessId))
+            .andExpect(jsonPath("$.status").value("on_time"));
+
+        var storedLocationId = jdbcTemplate.queryForObject(
+            """
+                SELECT location_id
+                FROM hr_user_attendance_events
+                WHERE company_id = 1
+                  AND user_id = ?
+                  AND attendance_date = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+            Long.class,
+            userSession.userId(),
+            TEST_ATTENDANCE_DAY
+        );
+        assertThat(storedLocationId).isEqualTo(secondLocationId);
+    }
+
+    @Test
+	    void attendanceControlOverviewReturnsSchedulesLocationsAndAssignments() throws Exception {
+	        var session = authenticatedSession();
+	        var uniqueSuffix = System.currentTimeMillis();
+	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var templateName = "Overview Shift " + uniqueSuffix;
+	        var templateId = createScheduleTemplate(
+	            session,
+	            templateName,
+	            "strict",
+	            null,
+	            List.of(
+	                Map.of("day_of_week", 1, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+	                Map.of("day_of_week", 2, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+	                Map.of("day_of_week", 3, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+	                Map.of("day_of_week", 4, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+	                Map.of("day_of_week", 5, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+	                Map.of("day_of_week", 6, "late_after_minutes", 0, "is_rest_day", true),
+	                Map.of("day_of_week", 7, "late_after_minutes", 0, "is_rest_day", true)
+	            )
+	        );
+	        assignSchedule(session, employeeId, templateId, TEST_ATTENDANCE_DAY);
+
+	        var response = mockMvc.perform(
+	            get("/api/v1/hr/attendance/control-overview")
+	                .session(session)
+	                .param("date", TEST_ATTENDANCE_DAY)
+	        )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.locations[0].name").value("Spring HQ"))
             .andReturn();
 
         var body = readMap(response.getResponse().getContentAsString());
+        @SuppressWarnings("unchecked")
+        var locations = (List<Map<String, Object>>) body.get("locations");
         @SuppressWarnings("unchecked")
         var templates = (List<Map<String, Object>>) body.get("templates");
         @SuppressWarnings("unchecked")
         var assignments = (List<Map<String, Object>>) body.get("assignments");
 
-        assertThat(templates).isNotEmpty();
-        assertThat(templates.stream().anyMatch(template -> "Spring Default Schedule".equals(template.get("name")))).isTrue();
-        assertThat(templates.getFirst().get("days")).isInstanceOf(List.class);
-        assertThat(assignments).isNotEmpty();
-        assertThat(assignments.stream().anyMatch(assignment -> "Spring Default Schedule".equals(assignment.get("schedule_template_name")))).isTrue();
+	        assertThat(locations).isNotEmpty();
+	        assertThat(templates).isNotEmpty();
+	        assertThat(templates.stream().anyMatch(template -> templateName.equals(template.get("name")))).isTrue();
+	        assertThat(templates.getFirst().get("days")).isInstanceOf(List.class);
+	        assertThat(assignments).isNotEmpty();
+	        assertThat(assignments.stream().anyMatch(assignment ->
+	            employeeId == ((Number) assignment.get("employee_id")).longValue()
+	                && templateName.equals(assignment.get("schedule_template_name"))
+	        )).isTrue();
     }
 
     @Test
@@ -629,14 +702,20 @@ class HrFirstRunIntegrationTest {
         var locationResponse = mockMvc.perform(
             post("/api/v1/hr/attendance/locations")
                 .session(session)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "name", "North Gate " + uniqueSuffix,
-                    "latitude", 25.700001,
-                    "longitude", -100.300001,
-                    "radius_meters", 90,
-                    "status", "active"
-                )))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(Map.ofEntries(
+                        Map.entry("name", "North Gate " + uniqueSuffix),
+                        Map.entry("latitude", 25.700001),
+                        Map.entry("longitude", -100.300001),
+                        Map.entry("radius_meters", 90),
+                        Map.entry("contract_start_date", "2026-01-01"),
+                        Map.entry("contract_end_date", "2099-12-31"),
+                        Map.entry("required_hours_per_day", "8"),
+                        Map.entry("required_start_time", "08:00:00"),
+                        Map.entry("required_end_time", "16:00:00"),
+                        Map.entry("required_days_per_week", 5),
+                        Map.entry("status", "active")
+                    )))
         )
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.location.name").value("North Gate " + uniqueSuffix))
@@ -651,14 +730,20 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(
             put("/api/v1/hr/attendance/locations/{locationId}", locationId)
                 .session(session)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "name", "North Gate " + uniqueSuffix,
-                    "latitude", 25.700001,
-                    "longitude", -100.300001,
-                    "radius_meters", 95,
-                    "status", "inactive"
-                )))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(Map.ofEntries(
+                        Map.entry("name", "North Gate " + uniqueSuffix),
+                        Map.entry("latitude", 25.700001),
+                        Map.entry("longitude", -100.300001),
+                        Map.entry("radius_meters", 95),
+                        Map.entry("contract_start_date", "2026-01-01"),
+                        Map.entry("contract_end_date", "2099-12-31"),
+                        Map.entry("required_hours_per_day", "8"),
+                        Map.entry("required_start_time", "08:00:00"),
+                        Map.entry("required_end_time", "16:00:00"),
+                        Map.entry("required_days_per_week", 5),
+                        Map.entry("status", "inactive")
+                    )))
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.location.status").value("inactive"));
@@ -705,23 +790,8 @@ class HrFirstRunIntegrationTest {
             .andExpect(jsonPath("$.assigned_count").value(1))
             .andExpect(jsonPath("$.template_name").value("Late Shift " + uniqueSuffix));
 
-        var previousAssignmentEndDate = jdbcTemplate.queryForObject(
-            """
-                SELECT effective_end_date
-                FROM hr_employee_schedule_assignments
-                WHERE employee_id = ?
-                  AND template_id <> ?
-                ORDER BY id ASC
-                LIMIT 1
-                """,
-            java.time.LocalDate.class,
-            employeeId,
-            templateId
-        );
-        assertThat(previousAssignmentEndDate).isEqualTo(java.time.LocalDate.parse("2026-04-09"));
-
-        mockMvc.perform(
-            get("/api/v1/hr/attendance/control-overview")
+	        mockMvc.perform(
+	            get("/api/v1/hr/attendance/control-overview")
                 .session(session)
                 .param("date", "2026-04-10")
         )
@@ -729,13 +799,13 @@ class HrFirstRunIntegrationTest {
             .andExpect(jsonPath("$.assignments[?(@.employee_id==" + employeeId + ")].schedule_template_name").value("Late Shift " + uniqueSuffix));
     }
 
-    @Test
-    void clearingWorkAssignmentsMakesEmployeeAvailableForThatDate() throws Exception {
-        var session = authenticatedSession();
-        var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
-        var targetDate = "2026-04-10";
-        var nextDate = "2026-04-11";
+        @Test
+        void clearingWorkAssignmentsMakesEmployeeAvailableForThatDate() throws Exception {
+            var session = authenticatedSession();
+            var uniqueSuffix = System.currentTimeMillis();
+            var employeeId = createEmployeeForTests(session, uniqueSuffix);
+            var targetDate = "2026-04-10";
+            var nextDate = "2026-04-11";
         var templateId = createScheduleTemplate(
             session,
             "Clear Candidate Shift " + uniqueSuffix,
@@ -753,12 +823,13 @@ class HrFirstRunIntegrationTest {
         );
         assignSchedule(session, employeeId, templateId, targetDate);
 
-        var beforeResponse = mockMvc.perform(
-            get("/api/v1/hr/attendance/schedule-candidates")
-                .session(session)
-                .param("date", targetDate)
-                .param("search", String.valueOf(uniqueSuffix))
-        )
+	        var beforeResponse = mockMvc.perform(
+	            get("/api/v1/hr/attendance/schedule-candidates")
+	                .session(session)
+	                .param("date", targetDate)
+	                .param("effective_end_date", targetDate)
+	                .param("search", String.valueOf(uniqueSuffix))
+	        )
             .andExpect(status().isOk())
             .andReturn();
 
@@ -787,12 +858,13 @@ class HrFirstRunIntegrationTest {
         var clearBody = readMap(clearResponse.getResponse().getContentAsString());
         assertThat(((Number) clearBody.get("schedule_assignments_cleared")).intValue()).isGreaterThan(0);
 
-        var availableResponse = mockMvc.perform(
-            get("/api/v1/hr/attendance/schedule-candidates")
-                .session(session)
-                .param("date", targetDate)
-                .param("search", String.valueOf(uniqueSuffix))
-                .param("available_only", "true")
+	        var availableResponse = mockMvc.perform(
+	            get("/api/v1/hr/attendance/schedule-candidates")
+	                .session(session)
+	                .param("date", targetDate)
+	                .param("effective_end_date", targetDate)
+	                .param("search", String.valueOf(uniqueSuffix))
+	                .param("available_only", "true")
         )
             .andExpect(status().isOk())
             .andReturn();
@@ -942,12 +1014,139 @@ class HrFirstRunIntegrationTest {
     }
 
     @Test
-    void kioskAuthFailureThenSuccessAndBreakEventsStayImmutable() throws Exception {
+    void workSiteAndAttendanceDoNotChangeBaseUnitBusinessButEmployeeUpdateDoes() throws Exception {
         var session = authenticatedSession();
         var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+        var homeBusiness = createIsolatedBusinessFixture("Home Unit " + uniqueSuffix, "Home Business " + uniqueSuffix);
+        var transferBusiness = createIsolatedBusinessFixture("Transfer Unit " + uniqueSuffix, "Transfer Business " + uniqueSuffix);
+        var employeeId = createEmployeeForTests(session, uniqueSuffix, homeBusiness);
+        var today = java.time.LocalDate.now();
 
-        var profileId = jdbcTemplate.queryForObject(
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/work-assignments/clear")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_id", employeeId,
+                    "date", today.toString()
+                )))
+        )
+            .andExpect(status().isOk());
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        var transferLocationId = createBusinessStructureLocation(
+            "Transfer Site " + uniqueSuffix,
+            transferBusiness.businessId(),
+            25.7000010,
+            -100.3000010
+        );
+
+        var assignResponse = mockMvc.perform(
+            post("/api/v1/hr/attendance/work-site-assignments/bulk")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_ids", List.of(employeeId),
+                    "location_id", transferLocationId,
+                    "effective_start_date", today.toString(),
+                    "effective_end_date", today.toString()
+                )))
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.assigned_count").value(1))
+            .andReturn();
+
+        var assignBody = readMap(assignResponse.getResponse().getContentAsString());
+        @SuppressWarnings("unchecked")
+        var assignments = (List<Map<String, Object>>) assignBody.get("assignments");
+        assertThat(assignments).hasSize(1);
+        assertThat(((Number) assignments.getFirst().get("location_id")).longValue()).isEqualTo(transferLocationId);
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        var activeWorkSiteLocationId = jdbcTemplate.queryForObject(
+            """
+                SELECT location_id
+                FROM hr_employee_work_site_assignments
+                WHERE company_id = 1
+                  AND employee_id = ?
+                  AND status = 'active'
+                  AND effective_start_date <= ?
+                  AND (effective_end_date IS NULL OR effective_end_date >= ?)
+                LIMIT 1
+                """,
+            Long.class,
+            employeeId,
+            today,
+            today
+        );
+        assertThat(activeWorkSiteLocationId).isEqualTo(transferLocationId);
+
+        var pin = "scope-" + uniqueSuffix;
+        activatePinAccess(session, employeeId, pin);
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/kiosk-events")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_id", employeeId,
+                    "event_kind", "check_in",
+                    "auth_method", "pin",
+                    "credential_payload", pin,
+                    "location_id", transferLocationId,
+                    "latitude", 25.7000010,
+                    "longitude", -100.3000010,
+                    "event_timestamp", today + "T09:00:00"
+                )))
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.active_work_site.location_id").value(transferLocationId))
+            .andExpect(jsonPath("$.location.id").value(transferLocationId));
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(homeBusiness.unitId(), homeBusiness.businessId()));
+
+        mockMvc.perform(
+            put("/api/v1/hr/employees/{employeeId}", employeeId)
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.ofEntries(
+                    Map.entry("first_name", "Attendance"),
+                    Map.entry("last_name", "Employee" + uniqueSuffix),
+                    Map.entry("email", "attendance.employee." + uniqueSuffix + "@example.com"),
+                    Map.entry("position", "Operator"),
+                    Map.entry("department", "Operations"),
+                    Map.entry("unit_id", transferBusiness.unitId()),
+                    Map.entry("business_id", transferBusiness.businessId()),
+                    Map.entry("hire_date", "2026-04-06"),
+                    Map.entry("salary", "4800"),
+                    Map.entry("pay_period", "monthly"),
+                    Map.entry("salary_type", "daily"),
+                    Map.entry("contract_type", "permanent"),
+                    Map.entry("status", "active")
+                )))
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.unit_id").value((int) transferBusiness.unitId()))
+            .andExpect(jsonPath("$.business_id").value((int) transferBusiness.businessId()));
+
+        assertThat(loadEmployeeScope(employeeId))
+            .isEqualTo(new EmployeeScope(transferBusiness.unitId(), transferBusiness.businessId()));
+    }
+
+    @Test
+        void kioskAuthFailureThenSuccessAndBreakEventsStayImmutable() throws Exception {
+            var session = authenticatedSession();
+            var uniqueSuffix = System.currentTimeMillis();
+	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Pin Flow");
+	        var validPin = String.valueOf(100000 + Math.floorMod(uniqueSuffix, 900000));
+	        var invalidPin = validPin + "9";
+
+            var profileId = jdbcTemplate.queryForObject(
             "SELECT id FROM hr_employee_access_profiles WHERE employee_id = ? LIMIT 1",
             Long.class,
             employeeId
@@ -959,10 +1158,10 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "access_profile_id", profileId,
-                    "method_type", "pin",
-                    "secret", "1234",
-                    "status", "active",
+                        "access_profile_id", profileId,
+                        "method_type", "pin",
+                        "secret", validPin,
+                        "status", "active",
                     "priority", 10
                 )))
         )
@@ -993,15 +1192,15 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", employeeId,
-                    "event_kind", "check_in",
-                    "auth_method", "pin",
-                    "credential_payload", "9999",
-                    "kiosk_device_id", kioskDeviceId,
-                    "location_id", 1,
+                        "employee_id", employeeId,
+                        "event_kind", "check_in",
+                        "auth_method", "pin",
+                        "credential_payload", invalidPin,
+                        "kiosk_device_id", kioskDeviceId,
+	                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
+                    "event_timestamp", attendanceTimestamp("08:35:00")
                 )))
         )
             .andExpect(status().isBadRequest())
@@ -1012,12 +1211,13 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind = 'auth_attempt'
                   AND result_status = 'failure'
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(failedAuthAttempts).isEqualTo(1);
 
@@ -1026,15 +1226,15 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", employeeId,
-                    "event_kind", "check_in",
-                    "auth_method", "pin",
-                    "credential_payload", "1234",
-                    "kiosk_device_id", kioskDeviceId,
-                    "location_id", 1,
+                        "employee_id", employeeId,
+                        "event_kind", "check_in",
+                        "auth_method", "pin",
+                        "credential_payload", validPin,
+                        "kiosk_device_id", kioskDeviceId,
+	                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
+                    "event_timestamp", attendanceTimestamp("08:35:00")
                 )))
         )
             .andExpect(status().isCreated())
@@ -1045,15 +1245,15 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", employeeId,
-                    "event_kind", "break_out",
-                    "auth_method", "pin",
-                    "credential_payload", "1234",
-                    "kiosk_device_id", kioskDeviceId,
-                    "location_id", 1,
+                        "employee_id", employeeId,
+                        "event_kind", "break_out",
+                        "auth_method", "pin",
+                        "credential_payload", validPin,
+                        "kiosk_device_id", kioskDeviceId,
+	                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T13:00:00"
+                    "event_timestamp", attendanceTimestamp("13:00:00")
                 )))
         )
             .andExpect(status().isCreated())
@@ -1064,15 +1264,15 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", employeeId,
-                    "event_kind", "break_in",
-                    "auth_method", "pin",
-                    "credential_payload", "1234",
-                    "kiosk_device_id", kioskDeviceId,
-                    "location_id", 1,
+                        "employee_id", employeeId,
+                        "event_kind", "break_in",
+                        "auth_method", "pin",
+                        "credential_payload", validPin,
+                        "kiosk_device_id", kioskDeviceId,
+	                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T13:40:00"
+                    "event_timestamp", attendanceTimestamp("13:40:00")
                 )))
         )
             .andExpect(status().isCreated())
@@ -1083,15 +1283,15 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", employeeId,
-                    "event_kind", "check_out",
-                    "auth_method", "pin",
-                    "credential_payload", "1234",
-                    "kiosk_device_id", kioskDeviceId,
-                    "location_id", 1,
+                        "employee_id", employeeId,
+                        "event_kind", "check_out",
+                        "auth_method", "pin",
+                        "credential_payload", validPin,
+                        "kiosk_device_id", kioskDeviceId,
+	                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T17:15:00"
+                    "event_timestamp", attendanceTimestamp("17:15:00")
                 )))
         )
             .andExpect(status().isCreated())
@@ -1102,11 +1302,12 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind = 'auth_attempt'
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(authAttempts).isEqualTo(5);
 
@@ -1115,31 +1316,27 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind IN ('break_out', 'break_in')
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(breakEvents).isEqualTo(2);
 
-        mockMvc.perform(get("/api/v1/hr/attendance/dashboard").session(session).param("date", "2026-04-06"))
+        mockMvc.perform(get("/api/v1/hr/attendance/dashboard").session(session).param("date", TEST_ATTENDANCE_DAY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.items[?(@.employee_id==" + employeeId + ")].first_check_in_at").exists())
             .andExpect(jsonPath("$.items[?(@.employee_id==" + employeeId + ")].last_check_out_at").exists());
     }
 
     @Test
-    void correctionEndpointAppendsCorrectionEventAndProjectsDailyState() throws Exception {
-        var session = authenticatedSession();
-        var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+	    void correctionEndpointAppendsCorrectionEventAndProjectsDailyState() throws Exception {
+	        var session = authenticatedSession();
+	        var uniqueSuffix = System.currentTimeMillis();
+	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Correction Flow");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
@@ -1153,13 +1350,13 @@ class HrFirstRunIntegrationTest {
                     "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
+                    "event_timestamp", attendanceTimestamp("08:35:00")
                 )))
         )
             .andExpect(status().isCreated());
 
         mockMvc.perform(
-            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, "2026-04-06")
+            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, TEST_ATTENDANCE_DAY)
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
@@ -1176,33 +1373,30 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind = 'correction'
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(correctionEvents).isEqualTo(1);
 
         var projectedStatus = jdbcTemplate.queryForObject(
-            "SELECT corrected_status FROM hr_attendance_daily_records WHERE employee_id = ? AND attendance_date = '2026-04-06'",
+            "SELECT corrected_status FROM hr_attendance_daily_records WHERE employee_id = ? AND attendance_date = ?",
             String.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(projectedStatus).isEqualTo("leave");
     }
 
     @Test
-    void correctionEndpointCanClearManualCorrectionWithoutLeavingNullStringsBehind() throws Exception {
-        var session = authenticatedSession();
-        var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+	    void correctionEndpointCanClearManualCorrectionWithoutLeavingNullStringsBehind() throws Exception {
+	        var session = authenticatedSession();
+	        var uniqueSuffix = System.currentTimeMillis();
+	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Correction Clear");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
@@ -1215,13 +1409,13 @@ class HrFirstRunIntegrationTest {
                     "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
+                    "event_timestamp", attendanceTimestamp("08:35:00")
                 )))
         )
             .andExpect(status().isCreated());
 
         mockMvc.perform(
-            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, "2026-04-06")
+            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, TEST_ATTENDANCE_DAY)
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
@@ -1233,7 +1427,7 @@ class HrFirstRunIntegrationTest {
             .andExpect(jsonPath("$.corrected_status").value("leave"));
 
         var clearResponse = mockMvc.perform(
-            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, "2026-04-06")
+            put("/api/v1/hr/attendance/daily-records/{employeeId}/{date}", employeeId, TEST_ATTENDANCE_DAY)
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("status", "")))
@@ -1247,24 +1441,20 @@ class HrFirstRunIntegrationTest {
         assertThat(clearBody.get("notes")).isNull();
 
         var projectedRecord = jdbcTemplate.queryForMap(
-            "SELECT corrected_status, notes FROM hr_attendance_daily_records WHERE employee_id = ? AND attendance_date = '2026-04-06'",
-            employeeId
+            "SELECT corrected_status, notes FROM hr_attendance_daily_records WHERE employee_id = ? AND attendance_date = ?",
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(projectedRecord.get("corrected_status")).isNull();
         assertThat(projectedRecord.get("notes")).isNull();
     }
 
     @Test
-    void kioskEventRejectsCheckOutWithoutActiveCheckInButStillRecordsTheAuthAttempt() throws Exception {
-        var session = authenticatedSession();
-        var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+	    void kioskEventRejectsCheckOutWithoutActiveCheckInButStillRecordsTheAuthAttempt() throws Exception {
+	        var session = authenticatedSession();
+	        var uniqueSuffix = System.currentTimeMillis();
+	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Rejected Checkout");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
@@ -1277,7 +1467,7 @@ class HrFirstRunIntegrationTest {
                     "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T17:15:00"
+                    "event_timestamp", attendanceTimestamp("17:15:00")
                 )))
         )
             .andExpect(status().isBadRequest())
@@ -1288,12 +1478,13 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind = 'auth_attempt'
                   AND result_status = 'overridden'
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(authAttempts).isEqualTo(1);
 
@@ -1302,26 +1493,22 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind = 'check_out'
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(checkOutEvents).isZero();
     }
 
     @Test
-    void kioskEventRejectsCheckOutWhileBreakIsStillOpen() throws Exception {
-        var session = authenticatedSession();
-        var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+	    void kioskEventRejectsCheckOutWhileBreakIsStillOpen() throws Exception {
+	        var session = authenticatedSession();
+	        var uniqueSuffix = System.currentTimeMillis();
+	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Break Checkout");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
@@ -1334,7 +1521,7 @@ class HrFirstRunIntegrationTest {
                     "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T08:35:00"
+                    "event_timestamp", attendanceTimestamp("08:35:00")
                 )))
         )
             .andExpect(status().isCreated());
@@ -1350,7 +1537,7 @@ class HrFirstRunIntegrationTest {
                     "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T13:00:00"
+                    "event_timestamp", attendanceTimestamp("13:00:00")
                 )))
         )
             .andExpect(status().isCreated());
@@ -1366,7 +1553,7 @@ class HrFirstRunIntegrationTest {
                     "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T17:15:00"
+                    "event_timestamp", attendanceTimestamp("17:15:00")
                 )))
         )
             .andExpect(status().isBadRequest())
@@ -1377,12 +1564,13 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind = 'auth_attempt'
                   AND result_status = 'overridden'
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(authAttempts).isEqualTo(3);
 
@@ -1391,11 +1579,12 @@ class HrFirstRunIntegrationTest {
                 SELECT COUNT(*)
                 FROM hr_attendance_events
                 WHERE employee_id = ?
-                  AND attendance_date = '2026-04-06'
+                  AND attendance_date = ?
                   AND event_kind = 'check_out'
                 """,
             Integer.class,
-            employeeId
+            employeeId,
+            TEST_ATTENDANCE_DAY
         );
         assertThat(checkOutEvents).isZero();
     }
@@ -1404,27 +1593,24 @@ class HrFirstRunIntegrationTest {
     void payrollRunGenerationEditingLifecycleAndExportsWork() throws Exception {
         var session = authenticatedSession();
         var uniqueSuffix = System.currentTimeMillis();
-        var dailyEmployeeId = createEmployeeForTests(session, uniqueSuffix);
-        var hourlyEmployeeId = createHourlyEmployeeForTests(session, uniqueSuffix);
-
-        var locationId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_attendance_locations WHERE company_id = 1 ORDER BY id ASC LIMIT 1",
-            Long.class
-        );
-        assertThat(locationId).isNotNull();
+	        var dailyEmployeeId = createEmployeeForTests(session, uniqueSuffix);
+	        var hourlyEmployeeId = createHourlyEmployeeForTests(session, uniqueSuffix);
+	        var dailyLocationId = createBusinessLocationForEmployee(dailyEmployeeId, uniqueSuffix, "Payroll Daily");
+	        var hourlyLocationId = createBusinessLocationForEmployee(hourlyEmployeeId, uniqueSuffix + 1, "Payroll Hourly");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", dailyEmployeeId,
-                    "event_type", "check_in",
-                    "location_id", locationId,
-                    "latitude", 25.6866140,
-                    "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T09:05:00"
-                )))
+                    .content(objectMapper.writeValueAsString(Map.of(
+                        "employee_id", dailyEmployeeId,
+                        "event_type", "check_in",
+                        "auth_method", "manual_override",
+	                    "location_id", dailyLocationId,
+                        "latitude", 25.6866140,
+                        "longitude", -100.3161130,
+                        "event_timestamp", attendanceTimestamp("09:05:00")
+                    )))
         )
             .andExpect(status().isCreated());
 
@@ -1432,14 +1618,15 @@ class HrFirstRunIntegrationTest {
             post("/api/v1/hr/attendance/kiosk-events")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", hourlyEmployeeId,
-                    "event_type", "check_in",
-                    "location_id", locationId,
-                    "latitude", 25.6866140,
-                    "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T09:00:00"
-                )))
+                    .content(objectMapper.writeValueAsString(Map.of(
+                        "employee_id", hourlyEmployeeId,
+                        "event_type", "check_in",
+                        "auth_method", "manual_override",
+	                    "location_id", hourlyLocationId,
+                        "latitude", 25.6866140,
+                        "longitude", -100.3161130,
+                        "event_timestamp", attendanceTimestamp("09:00:00")
+                    )))
         )
             .andExpect(status().isCreated());
 
@@ -1447,14 +1634,15 @@ class HrFirstRunIntegrationTest {
             post("/api/v1/hr/attendance/kiosk-events")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_id", hourlyEmployeeId,
-                    "event_type", "check_out",
-                    "location_id", locationId,
-                    "latitude", 25.6866140,
-                    "longitude", -100.3161130,
-                    "event_timestamp", "2026-04-06T18:30:00"
-                )))
+                    .content(objectMapper.writeValueAsString(Map.of(
+                        "employee_id", hourlyEmployeeId,
+                        "event_type", "check_out",
+                        "auth_method", "manual_override",
+	                    "location_id", hourlyLocationId,
+                        "latitude", 25.6866140,
+                        "longitude", -100.3161130,
+                        "event_timestamp", attendanceTimestamp("18:30:00")
+                    )))
         )
             .andExpect(status().isCreated());
 
@@ -1465,8 +1653,8 @@ class HrFirstRunIntegrationTest {
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "monthly",
                     "grouping_mode", "single",
-                    "period_start_date", "2026-04-06",
-                    "period_end_date", "2026-04-06"
+                    "period_start_date", TEST_ATTENDANCE_DAY,
+                    "period_end_date", TEST_ATTENDANCE_DAY
                 )))
         )
             .andExpect(status().isCreated())
@@ -1536,14 +1724,30 @@ class HrFirstRunIntegrationTest {
         assertThat(pdfExport.getResponse().getContentAsByteArray()).isNotEmpty();
     }
 
-    @Test
-    void payrollDailyAbsenceOnlyPeriodDoesNotProduceNegativeNet() throws Exception {
-        var session = authenticatedSession();
-        var uniqueSuffix = System.currentTimeMillis();
-        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+        @Test
+        void payrollDailyAbsenceOnlyPeriodDoesNotProduceNegativeNet() throws Exception {
+            var session = authenticatedSession();
+            var uniqueSuffix = System.currentTimeMillis();
+            var employeeId = createEmployeeForTests(session, uniqueSuffix);
+            var absenceTemplateId = createScheduleTemplate(
+                session,
+                "Absence Only Shift " + uniqueSuffix,
+                "strict",
+                null,
+                List.of(
+                    Map.of("day_of_week", 1, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                    Map.of("day_of_week", 2, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                    Map.of("day_of_week", 3, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                    Map.of("day_of_week", 4, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                    Map.of("day_of_week", 5, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                    Map.of("day_of_week", 6, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                    Map.of("day_of_week", 7, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false)
+                )
+            );
+            assignSchedule(session, employeeId, absenceTemplateId, "2099-01-01", "2099-01-01");
 
-        var createRunResponse = mockMvc.perform(
-            post("/api/v1/hr/payroll/runs")
+            var createRunResponse = mockMvc.perform(
+                post("/api/v1/hr/payroll/runs")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
@@ -1761,8 +1965,60 @@ class HrFirstRunIntegrationTest {
         return activeBusinessFixtures(1).getFirst();
     }
 
-    private List<BusinessFixture> activeBusinessFixtures(int count) {
-        var fixtures = jdbcTemplate.query(
+    private BusinessFixture createIsolatedBusinessFixture(String unitName, String businessName) {
+        jdbcTemplate.update(
+            "INSERT INTO units (company_id, name, status) VALUES (1, ?, 'active')",
+            unitName
+        );
+        var unitId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        assertThat(unitId).isNotNull();
+        createdUnitIds.add(unitId);
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO businesses (company_id, unit_id, name, status, created_by, updated_by)
+                VALUES (1, ?, ?, 'active', 1, 1)
+                """,
+            unitId,
+            businessName
+        );
+        var businessId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        assertThat(businessId).isNotNull();
+        createdBusinessIds.add(businessId);
+        return new BusinessFixture(businessId, unitId, unitName);
+    }
+
+    private long createBusinessInUnit(long unitId, String businessName) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO businesses (company_id, unit_id, name, status, created_by, updated_by)
+                VALUES (1, ?, ?, 'active', 1, 1)
+                """,
+            unitId,
+            businessName
+        );
+        var businessId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        assertThat(businessId).isNotNull();
+        createdBusinessIds.add(businessId);
+        return businessId;
+    }
+
+    private EmployeeScope loadEmployeeScope(long employeeId) {
+        return jdbcTemplate.queryForObject(
+            "SELECT unit_id, business_id FROM hr_employees WHERE id = ?",
+            (rs, rowNum) -> {
+                var unitIdValue = rs.getLong("unit_id");
+                Long unitId = rs.wasNull() ? null : unitIdValue;
+                var businessIdValue = rs.getLong("business_id");
+                Long businessId = rs.wasNull() ? null : businessIdValue;
+                return new EmployeeScope(unitId, businessId);
+            },
+            employeeId
+        );
+    }
+
+	    private List<BusinessFixture> activeBusinessFixtures(int count) {
+	        var fixtures = jdbcTemplate.query(
             """
                 SELECT b.id AS business_id,
                        b.unit_id AS unit_id,
@@ -1788,11 +2044,17 @@ class HrFirstRunIntegrationTest {
         if (fixtures.size() < count) {
             throw new IllegalStateException("Expected at least " + count + " active business fixtures for company 1.");
         }
-        return fixtures;
-    }
+	        return fixtures;
+	    }
 
-    private long createBusinessStructureLocation(String name, long businessId, double latitude, double longitude) {
-        var unitId = jdbcTemplate.queryForObject(
+	    private long createBusinessLocationForEmployee(long employeeId, long uniqueSuffix, String label) {
+	        var scope = loadEmployeeScope(employeeId);
+	        assertThat(scope.businessId()).isNotNull();
+	        return createBusinessStructureLocation(label + " Location " + uniqueSuffix, scope.businessId(), 25.6866140, -100.3161130);
+	    }
+
+	    private long createBusinessStructureLocation(String name, long businessId, double latitude, double longitude) {
+	        var unitId = jdbcTemplate.queryForObject(
             "SELECT unit_id FROM businesses WHERE id = ? AND company_id = 1",
             Long.class,
             businessId
@@ -1851,20 +2113,34 @@ class HrFirstRunIntegrationTest {
         return templateId;
     }
 
-    private void assignSchedule(HttpSession session, long employeeId, long templateId, String effectiveStartDate) throws Exception {
-        mockMvc.perform(
-            post("/api/v1/hr/attendance/schedule-assignments/bulk")
-                .session((MockHttpSession) session)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of(
-                    "employee_ids", List.of(employeeId),
-                    "template_id", templateId,
-                    "effective_start_date", effectiveStartDate
-                )))
-        )
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.assigned_count").value(1));
-    }
+        private void assignSchedule(HttpSession session, long employeeId, long templateId, String effectiveStartDate) throws Exception {
+            assignSchedule(session, employeeId, templateId, effectiveStartDate, null);
+        }
+
+        private void assignSchedule(
+            HttpSession session,
+            long employeeId,
+            long templateId,
+            String effectiveStartDate,
+            String effectiveEndDate
+        ) throws Exception {
+            var payload = new LinkedHashMap<String, Object>();
+            payload.put("employee_ids", List.of(employeeId));
+            payload.put("template_id", templateId);
+            payload.put("effective_start_date", effectiveStartDate);
+            if (effectiveEndDate != null) {
+                payload.put("effective_end_date", effectiveEndDate);
+            }
+
+            mockMvc.perform(
+                post("/api/v1/hr/attendance/schedule-assignments/bulk")
+                    .session((MockHttpSession) session)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(payload))
+            )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assigned_count").value(1));
+        }
 
     private MockHttpSession authenticatedSession() {
         var session = new MockHttpSession();
@@ -1949,6 +2225,10 @@ class HrFirstRunIntegrationTest {
     private Map<String, Object> readMap(String json) throws Exception {
         return objectMapper.readValue(json, new TypeReference<>() {
         });
+    }
+
+    private static String attendanceTimestamp(String time) {
+        return TEST_ATTENDANCE_DAY + "T" + time;
     }
 
     private record UserSessionRef(

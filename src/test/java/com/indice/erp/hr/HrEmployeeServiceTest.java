@@ -3,7 +3,6 @@ package com.indice.erp.hr;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -44,7 +43,7 @@ class HrEmployeeServiceTest {
     void listEmployeesAllowsNullOptionalColumns() throws Exception {
         var service = createService();
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L)))
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(), eq(1L)))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
                 var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
@@ -52,7 +51,7 @@ class HrEmployeeServiceTest {
                 return List.of(rowMapper.mapRow(rs, 0));
             });
 
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), eq(1L)))
+        when(jdbcTemplate.queryForObject(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(), eq(1L)))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
                 var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
@@ -145,7 +144,7 @@ class HrEmployeeServiceTest {
             .thenReturn(1);
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(5L), eq(1L)))
             .thenReturn(1);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(5L), eq(1L)))
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(), eq(5L), eq(1L)))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
                 var rowMapper = (RowMapper<Object>) invocation.getArgument(1);

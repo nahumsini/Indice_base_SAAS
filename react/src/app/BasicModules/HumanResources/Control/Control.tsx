@@ -1016,7 +1016,7 @@ export default function Control() {
       !workSiteForm.effective_start_date ||
       !workSiteForm.start_time ||
       !workSiteForm.end_time ||
-      workSiteForm.end_time <= workSiteForm.start_time
+      workSiteForm.end_time === workSiteForm.start_time
     ) {
       showFailureToast(copy.saveError);
       return;

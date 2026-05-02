@@ -10,7 +10,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
 import com.indice.erp.hr.attendance.policy.AttendanceEditPolicy;
-import com.indice.erp.hr.attendance.policy.AttendanceEmployeeNumberPolicy;
 import com.indice.erp.hr.attendance.policy.AttendanceStatusPolicy;
 import com.indice.erp.hr.attendance.util.AttendanceDateParser;
 import com.indice.erp.hr.shared.HrPayloadUtils;
@@ -122,12 +121,12 @@ public class HrAttendanceService {
 
     @Transactional
     public Map<String, Object> selfDashboard(long companyId, long userId, LocalDate date) {
-        return buildDashboard(companyId, date, List.of(resolveSessionAttendanceEmployee(companyId, userId)));
+        return buildUserDashboard(companyId, loadAttendanceSessionUser(companyId, userId), date);
     }
 
     @Transactional
     public long resolveSelfEmployeeId(long companyId, long userId) {
-        return resolveSessionAttendanceEmployee(companyId, userId).id();
+        return resolveLinkedAttendanceEmployee(companyId, userId).id();
     }
 
     private Map<String, Object> buildDashboard(long companyId, LocalDate date, List<AttendanceEmployee> employees) {
@@ -216,6 +215,73 @@ public class HrAttendanceService {
         return body;
     }
 
+    private Map<String, Object> buildUserDashboard(long companyId, AttendanceUser user, LocalDate date) {
+        var dailyRecord = loadUserDailyRecord(companyId, user.userId(), date);
+        var effectiveStatus = resolveEffectiveStatus(dailyRecord, null, date);
+        var locations = loadUserAttendanceLocations(companyId);
+
+        var item = new LinkedHashMap<String, Object>();
+        item.put("subject_type", "user");
+        item.put("user_id", user.userId());
+        item.put("user_company_id", user.userCompanyId());
+        item.put("employee_id", user.userId());
+        item.put("employee_number", user.email());
+        item.put("employee_name", user.fullName());
+        item.put("position_title", displayUserRole(user.role()));
+        item.put("department", "User account");
+        item.put("unit_id", null);
+        item.put("unit_name", "");
+        item.put("business_id", null);
+        item.put("business_name", "");
+        item.put("hire_date", null);
+        item.put("attendance_editable", true);
+        item.put("edit_lock_reason", null);
+        item.put("status", effectiveStatus);
+        item.put("system_status", resolveSystemStatus(dailyRecord, null, date));
+        item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
+        item.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
+        item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
+        item.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
+        item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
+        item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : 0);
+        item.put("first_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
+        item.put("last_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
+
+        var userPayload = new LinkedHashMap<String, Object>();
+        userPayload.put("subject_type", "user");
+        userPayload.put("id", user.userId());
+        userPayload.put("user_id", user.userId());
+        userPayload.put("user_company_id", user.userCompanyId());
+        userPayload.put("employee_number", user.email());
+        userPayload.put("full_name", user.fullName());
+        userPayload.put("position_title", displayUserRole(user.role()));
+        userPayload.put("department", "User account");
+        userPayload.put("unit_id", null);
+        userPayload.put("unit_name", "");
+        userPayload.put("hire_date", null);
+        userPayload.put("status", user.status());
+
+        var summary = new LinkedHashMap<String, Object>();
+        summary.put("total_employees", 1);
+        summary.put("total_users", 1);
+        summary.put("on_time_count", "on_time".equals(effectiveStatus) ? 1 : 0);
+        summary.put("late_count", "late".equals(effectiveStatus) ? 1 : 0);
+        summary.put("leave_count", "leave".equals(effectiveStatus) ? 1 : 0);
+        summary.put("rest_count", "rest".equals(effectiveStatus) ? 1 : 0);
+        summary.put("absence_count", "absence".equals(effectiveStatus) ? 1 : 0);
+        summary.put("locations_count", locations.size());
+        summary.put("kiosk_enabled", !locations.isEmpty());
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("date", date.toString());
+        body.put("subject_type", "user");
+        body.put("summary", summary);
+        body.put("items", List.of(item));
+        body.put("employees", List.of(userPayload));
+        body.put("locations", locations.stream().map(this::toLocationMap).toList());
+        return body;
+    }
+
     public Map<String, Object> employeeCalendar(long companyId, long employeeId, YearMonth month) {
         var employee = loadAttendanceEmployee(companyId, employeeId);
         var startDate = month.atDay(1);
@@ -268,10 +334,61 @@ public class HrAttendanceService {
         return body;
     }
 
+    private Map<String, Object> userCalendar(long companyId, AttendanceUser user, YearMonth month) {
+        var startDate = month.atDay(1);
+        var endDate = month.atEndOfMonth();
+        var dailyRecords = loadUserDailyRecords(companyId, user.userId(), startDate, endDate);
+
+        var days = new ArrayList<Map<String, Object>>();
+        for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
+            var dailyRecord = dailyRecords.get(currentDate);
+            var effectiveStatus = resolveEffectiveStatus(dailyRecord, null, currentDate);
+
+            var day = new LinkedHashMap<String, Object>();
+            day.put("date", currentDate.toString());
+            day.put("day", currentDate.getDayOfMonth());
+            day.put("attendance_editable", true);
+            day.put("edit_lock_reason", null);
+            day.put("effective_status", effectiveStatus);
+            day.put("system_status", resolveSystemStatus(dailyRecord, null, currentDate));
+            day.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
+            day.put("entry_registered", dailyRecord != null && dailyRecord.firstCheckInAt() != null);
+            day.put("exit_registered", dailyRecord != null && dailyRecord.lastCheckOutAt() != null);
+            day.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
+            day.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
+            day.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : 0);
+            day.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
+            day.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
+            day.put("schedule_rule", null);
+            day.put("active_work_site", null);
+            day.put("first_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
+            day.put("last_photo_url", dailyRecord != null ? signedPhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
+            day.put("notes", dailyRecord != null ? dailyRecord.notes() : null);
+            days.add(day);
+        }
+
+        var userPayload = new LinkedHashMap<String, Object>();
+        userPayload.put("subject_type", "user");
+        userPayload.put("id", user.userId());
+        userPayload.put("user_id", user.userId());
+        userPayload.put("user_company_id", user.userCompanyId());
+        userPayload.put("full_name", user.fullName());
+        userPayload.put("position_title", displayUserRole(user.role()));
+        userPayload.put("department", "User account");
+        userPayload.put("hire_date", null);
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("subject_type", "user");
+        body.put("employee", userPayload);
+        body.put("user", userPayload);
+        body.put("month", month.toString());
+        body.put("items", days);
+        return body;
+    }
+
     @Transactional
     public Map<String, Object> selfCalendar(long companyId, long userId, YearMonth month) {
-        var employee = resolveSessionAttendanceEmployee(companyId, userId);
-        return employeeCalendar(companyId, employee.id(), month);
+        return userCalendar(companyId, loadAttendanceSessionUser(companyId, userId), month);
     }
 
     public Map<String, Object> controlOverview(long companyId, LocalDate date) {
@@ -429,7 +546,8 @@ public class HrAttendanceService {
 
     public Map<String, Object> scheduleCandidates(
         long companyId,
-        LocalDate date,
+        LocalDate startDate,
+        LocalDate endDate,
         int page,
         int size,
         String search,
@@ -442,10 +560,13 @@ public class HrAttendanceService {
         var normalizedSearch = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
         var normalizedUnitId = unitId != null && unitId > 0 ? unitId : null;
         var normalizedBusinessId = businessId != null && businessId > 0 ? businessId : null;
+        if (endDate != null && endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
+        }
         var baseWhere = scheduleCandidateBaseWhere();
 
         var filteredWhere = new StringBuilder(baseWhere);
-        var filteredParams = scheduleCandidateBaseParams(companyId, date);
+        var filteredParams = scheduleCandidateBaseParams(companyId, startDate, endDate);
         appendScheduleCandidateFilters(filteredWhere, filteredParams, normalizedSearch, normalizedUnitId, normalizedBusinessId);
 
         Integer availableCountValue = jdbcTemplate.queryForObject(
@@ -496,14 +617,16 @@ public class HrAttendanceService {
             (rs, rowNum) -> mapAttendanceEmployee(rs),
             itemsParams.toArray()
         );
-        var currentAssignments = loadCurrentAssignments(companyId, date);
-        var scheduleRulesByEmployee = loadScheduleRules(companyId, date);
-        var dailyRecordsByEmployee = loadDailyRecords(companyId, date);
-        var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, date);
+        var currentAssignments = loadCurrentAssignments(companyId, startDate);
+        var scheduleRulesByEmployee = loadScheduleRules(companyId, startDate);
+        var dailyRecordsByEmployee = loadDailyRecords(companyId, startDate);
+        var activeWorkSitesByEmployee = loadActiveWorkSiteAssignments(companyId, startDate);
         var items = pageEmployees.stream()
             .map((employee) -> toScheduleCandidateMap(
+                companyId,
                 employee,
-                date,
+                startDate,
+                endDate,
                 currentAssignments.get(employee.id()),
                 scheduleRulesByEmployee.get(employee.id()),
                 dailyRecordsByEmployee.get(employee.id()),
@@ -547,7 +670,8 @@ public class HrAttendanceService {
         );
 
         var body = new LinkedHashMap<String, Object>();
-        body.put("date", date.toString());
+        body.put("date", startDate.toString());
+        body.put("effective_end_date", endDate == null ? null : endDate.toString());
         body.put("items", items);
         body.put("page", safePage);
         body.put("size", safeSize);
@@ -730,6 +854,7 @@ public class HrAttendanceService {
             employee.id(),
             "auth_attempt",
             eventTimestamp,
+            eventTimestamp.toLocalDate(),
             location.id(),
             kioskDevice.id(),
             location.latitude(),
@@ -746,7 +871,7 @@ public class HrAttendanceService {
         );
 
         var expiresAtEpochSeconds = Instant.now().getEpochSecond() + kioskIdentificationTokenTtlSeconds;
-        var activityDate = eventTimestamp.toLocalDate();
+        var activityDate = resolveOperationalAttendanceDate(kioskDevice.companyId(), employee.id(), eventTimestamp, "check_out");
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), activityDate);
         var dailyRecord = loadDailyRecord(kioskDevice.companyId(), employee.id(), activityDate);
         var body = new LinkedHashMap<String, Object>();
@@ -805,7 +930,7 @@ public class HrAttendanceService {
             hrFaceService.consumeSuccessfulVerificationSession(kioskDevice.companyId(), employee.id(), faceVerificationSessionId);
         }
 
-        var attendanceDate = eventTimestamp.toLocalDate();
+        var attendanceDate = resolveOperationalAttendanceDate(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(kioskDevice.companyId(), employee.id(), attendanceDate);
         var location = resolveScheduleRegistrationLocation(
@@ -818,8 +943,8 @@ public class HrAttendanceService {
             longitude,
             activeWorkSite
         );
-        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp);
-        validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), eventTimestamp, eventType);
+        validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, attendanceDate);
+        validateOperationalEventTransition(kioskDevice.companyId(), employee.id(), attendanceDate, eventTimestamp, eventType);
 
         var metadataJson = mergeMetadataJson(
             toJson(payload.get("metadata")),
@@ -836,6 +961,7 @@ public class HrAttendanceService {
             employee.id(),
             eventType,
             eventTimestamp,
+            attendanceDate,
             location.id(),
             kioskDevice.id(),
             latitude,
@@ -1668,7 +1794,9 @@ public class HrAttendanceService {
         var contentType = normalizeImageContentType(stringValue(payload, "content_type"));
         var eventType = stringValue(payload, "event_type");
         var eventTimestamp = parseDateTime(payload, "event_timestamp", "recorded_at");
-        var attendanceDate = eventTimestamp != null ? eventTimestamp.toLocalDate() : LocalDate.now();
+        var resolvedEventTimestamp = eventTimestamp == null ? LocalDateTime.now() : eventTimestamp;
+        var normalizedEventType = normalizeEventType(eventType.isBlank() ? "check_in" : eventType);
+        var attendanceDate = resolveOperationalAttendanceDate(companyId, employeeId, resolvedEventTimestamp, normalizedEventType);
         var objectKey = buildAttendancePhotoObjectKey(companyId, employeeId, contentType, eventType, attendanceDate);
         var bucketName = attendanceBucket();
         var upload = objectStorageService.presignUpload(
@@ -1686,13 +1814,39 @@ public class HrAttendanceService {
         return body;
     }
 
+    private Map<String, Object> createUserPhotoUpload(long companyId, AttendanceUser user, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        if (!objectStorageService.isEnabled()) {
+            throw new ObjectStorageDisabledException("Object storage is not enabled.");
+        }
+
+        var contentType = normalizeImageContentType(stringValue(payload, "content_type"));
+        var eventType = stringValue(payload, "event_type");
+        var eventTimestamp = parseDateTime(payload, "event_timestamp", "recorded_at");
+        var resolvedEventTimestamp = eventTimestamp == null ? LocalDateTime.now() : eventTimestamp;
+        var normalizedEventType = normalizeEventType(eventType.isBlank() ? "check_in" : eventType);
+        var attendanceDate = resolveUserOperationalAttendanceDate(companyId, user.userId(), resolvedEventTimestamp, normalizedEventType);
+        var objectKey = buildUserAttendancePhotoObjectKey(companyId, user.userId(), contentType, eventType, attendanceDate);
+        var upload = objectStorageService.presignUpload(
+            attendanceBucket(),
+            objectKey,
+            contentType,
+            objectStorageProperties.getMinio().getPresignExpirySeconds()
+        );
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("object_key", upload.objectKey());
+        body.put("upload_url", upload.uploadUrl());
+        body.put("expires_at", upload.expiresAt().toString());
+        body.put("upload_headers", upload.uploadHeaders());
+        return body;
+    }
+
     @Transactional
     public Map<String, Object> createSelfPhotoUpload(long companyId, long userId, Map<String, Object> payload) {
         payload = normalizePayload(payload);
-        var employee = resolveSessionAttendanceEmployee(companyId, userId);
-        var normalizedPayload = new LinkedHashMap<String, Object>(payload);
-        normalizedPayload.put("employee_id", employee.id());
-        return createPhotoUpload(companyId, normalizedPayload);
+        var user = loadAttendanceSessionUser(companyId, userId);
+        return createUserPhotoUpload(companyId, user, payload);
     }
 
     public Map<String, Object> recordKioskEvent(long companyId, long userId, Map<String, Object> payload) {
@@ -1747,6 +1901,7 @@ public class HrAttendanceService {
             employeeId,
             "auth_attempt",
             eventTimestamp,
+            eventTimestamp.toLocalDate(),
             location == null ? null : location.id(),
             kioskDevice == null ? null : kioskDevice.id(),
             latitude,
@@ -1778,7 +1933,7 @@ public class HrAttendanceService {
         if ("facial_recognition".equals(authMethod)) {
             hrFaceService.consumeSuccessfulVerificationSession(companyId, employeeId, faceVerificationSessionId);
         }
-        var attendanceDate = eventTimestamp.toLocalDate();
+        var attendanceDate = resolveOperationalAttendanceDate(companyId, employeeId, eventTimestamp, eventKind);
         var scheduleRule = loadScheduleRule(companyId, employeeId, attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(companyId, employeeId, attendanceDate);
         if (!"auth_attempt".equals(eventKind)) {
@@ -1794,8 +1949,8 @@ public class HrAttendanceService {
                 activeWorkSite
             );
         }
-        validateScheduleRegistrationPolicy(scheduleRule, eventKind, eventTimestamp);
-        validateOperationalEventTransition(companyId, employeeId, eventTimestamp, eventKind);
+        validateScheduleRegistrationPolicy(scheduleRule, eventKind, eventTimestamp, attendanceDate);
+        validateOperationalEventTransition(companyId, employeeId, attendanceDate, eventTimestamp, eventKind);
 
         var operationalResultStatus = "manual_override".equals(authMethod) ? "overridden" : "success";
         var operationalEventId = appendAttendanceEvent(
@@ -1803,6 +1958,7 @@ public class HrAttendanceService {
             employeeId,
             eventType,
             eventTimestamp,
+            attendanceDate,
             location == null ? null : location.id(),
             kioskDevice == null ? null : kioskDevice.id(),
             latitude,
@@ -1838,10 +1994,74 @@ public class HrAttendanceService {
     @Transactional
     public Map<String, Object> recordSelfKioskEvent(long companyId, long userId, Map<String, Object> payload) {
         payload = normalizePayload(payload);
-        var employee = resolveSessionAttendanceEmployee(companyId, userId);
-        var normalizedPayload = new LinkedHashMap<String, Object>(payload);
-        normalizedPayload.put("employee_id", employee.id());
-        return recordKioskEvent(companyId, userId, normalizedPayload);
+        return recordUserAttendanceEvent(companyId, loadAttendanceSessionUser(companyId, userId), payload);
+    }
+
+    private Map<String, Object> recordUserAttendanceEvent(long companyId, AttendanceUser user, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var eventKind = normalizeEventKind(stringValue(payload, "event_kind", "event_type", "registro_tipo"));
+        var eventType = normalizeEventTypeForStorage(eventKind);
+        var eventTimestamp = parseDateTime(payload, "event_timestamp", "recorded_at");
+        if (eventTimestamp == null) {
+            eventTimestamp = LocalDateTime.now();
+        }
+        validateOperationalEventDate(eventKind, eventTimestamp);
+
+        var latitude = parseDecimalRequired(payload, "latitude");
+        var longitude = parseDecimalRequired(payload, "longitude");
+        var photoObjectKey = normalizeUserAttendancePhotoObjectKey(companyId, user.userId(), stringValue(payload, "photo_url"));
+        var attendanceDate = resolveUserOperationalAttendanceDate(companyId, user.userId(), eventTimestamp, eventKind);
+        var location = resolveUserAttendanceLocation(companyId, latitude, longitude);
+        validateUserOperationalEventTransition(companyId, user.userId(), attendanceDate, eventTimestamp, eventKind);
+
+        var metadataJson = mergeMetadataJson(
+            toJson(payload.get("metadata")),
+            Map.of(
+                "subject_type", "user",
+                "user_id", user.userId(),
+                "user_company_id", user.userCompanyId(),
+                "event_kind", eventKind
+            )
+        );
+
+        var eventId = appendUserAttendanceEvent(
+            companyId,
+            user,
+            eventType,
+            eventTimestamp,
+            attendanceDate,
+            location.id(),
+            null,
+            latitude,
+            longitude,
+            photoObjectKey,
+            "web_self",
+            "session",
+            "success",
+            eventKind,
+            metadataJson,
+            nullable(stringValue(payload, "notes")),
+            null,
+            user.userId()
+        );
+
+        var dailyRecord = rebuildUserDailyRecordProjection(companyId, user, attendanceDate);
+        var result = new LinkedHashMap<String, Object>();
+        result.put("event_id", eventId);
+        result.put("subject_type", "user");
+        result.put("user_id", user.userId());
+        result.put("user_company_id", user.userCompanyId());
+        result.put("employee_id", user.userId());
+        result.put("event_kind", eventKind);
+        result.put("auth_method", "session");
+        result.put("result_status", "success");
+        result.put("status", resolveEffectiveStatus(dailyRecord, null, attendanceDate));
+        result.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
+        result.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
+        result.put("location", toLocationMap(location));
+        result.put("active_work_site", null);
+        result.put("photo_object_key", photoObjectKey);
+        return result;
     }
 
     @Scheduled(fixedDelayString = "${app.hr.attendance.auto-checkout-delay-ms:300000}")
@@ -1856,7 +2076,7 @@ public class HrAttendanceService {
                 continue;
             }
 
-            var checkoutAt = candidate.attendanceDate().atTime(scheduleRule.endTime());
+            var checkoutAt = scheduledEndDateTime(candidate.attendanceDate(), scheduleRule);
             if (checkoutAt.isAfter(now)) {
                 continue;
             }
@@ -1873,6 +2093,7 @@ public class HrAttendanceService {
                 candidate.employeeId(),
                 "check_out",
                 checkoutAt,
+                candidate.attendanceDate(),
                 candidate.firstLocationId(),
                 null,
                 null,
@@ -1913,6 +2134,7 @@ public class HrAttendanceService {
             employeeId,
             "correction",
             date.atTime(23, 59, 59),
+            date,
             null,
             null,
             null,
@@ -1945,8 +2167,54 @@ public class HrAttendanceService {
     @Transactional
     public Map<String, Object> updateSelfDailyRecord(long companyId, long userId, LocalDate date, Map<String, Object> payload) {
         payload = normalizePayload(payload);
-        var employee = resolveSessionAttendanceEmployee(companyId, userId);
-        return updateDailyRecord(companyId, userId, employee.id(), date, payload);
+        return updateUserDailyRecord(companyId, loadAttendanceSessionUser(companyId, userId), date, payload);
+    }
+
+    private Map<String, Object> updateUserDailyRecord(long companyId, AttendanceUser user, LocalDate date, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var targetStatusRaw = stringValue(payload, "status", "corrected_status");
+        var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
+        var notes = nullable(stringValue(payload, "notes"));
+        var correctionMetadata = new LinkedHashMap<String, Object>();
+        correctionMetadata.put("subject_type", "user");
+        correctionMetadata.put("user_id", user.userId());
+        correctionMetadata.put("corrected_status", correctedStatus);
+        correctionMetadata.put("notes", notes);
+        correctionMetadata.put("clear_correction", correctedStatus == null);
+        appendUserAttendanceEvent(
+            companyId,
+            user,
+            "correction",
+            date.atTime(23, 59, 59),
+            date,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "self",
+            "session",
+            "overridden",
+            "correction",
+            toJson(correctionMetadata),
+            notes,
+            null,
+            user.userId()
+        );
+
+        var refreshed = rebuildUserDailyRecordProjection(companyId, user, date);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("subject_type", "user");
+        body.put("user_id", user.userId());
+        body.put("employee_id", user.userId());
+        body.put("date", date.toString());
+        body.put("attendance_editable", true);
+        body.put("edit_lock_reason", null);
+        body.put("system_status", resolveSystemStatus(refreshed, null, date));
+        body.put("corrected_status", refreshed != null ? refreshed.correctedStatus() : null);
+        body.put("effective_status", resolveEffectiveStatus(refreshed, null, date));
+        body.put("notes", refreshed != null ? refreshed.notes() : null);
+        return body;
     }
 
     private AttendanceEmployee loadAttendanceEmployee(long companyId, long employeeId) {
@@ -1981,7 +2249,7 @@ public class HrAttendanceService {
         return employees.getFirst();
     }
 
-    private AttendanceEmployee resolveSessionAttendanceEmployee(long companyId, long userId) {
+    private AttendanceEmployee resolveLinkedAttendanceEmployee(long companyId, long userId) {
         var linkedEmployees = jdbcTemplate.query(
             """
                 SELECT e.id,
@@ -2016,62 +2284,18 @@ public class HrAttendanceService {
             return linkedEmployees.getFirst();
         }
 
-        var sessionUser = loadAttendanceSessionUser(companyId, userId);
-        var emailMatchedEmployees = jdbcTemplate.query(
-            """
-                SELECT e.id,
-                       COALESCE(e.employee_number, '') AS employee_number,
-                       TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
-                       COALESCE(e.position, '') AS position,
-                       COALESCE(e.department, '') AS department,
-                       e.hire_date AS hire_date,
-                       COALESCE(LOWER(e.status), 'active') AS status,
-                       unit_ref.id AS unit_id,
-                       unit_ref.name AS unit_name,
-                       business_ref.id AS business_id,
-                       business_ref.name AS business_name,
-                       access_ref.linked_user_id
-                FROM hr_employees e
-                LEFT JOIN hr_employee_portal_access access_ref ON access_ref.employee_id = e.id
-                LEFT JOIN units unit_ref ON unit_ref.id = e.unit_id
-                LEFT JOIN businesses business_ref ON business_ref.id = e.business_id
-                WHERE e.company_id = ?
-                  AND LOWER(COALESCE(e.email, '')) = ?
-                ORDER BY e.id ASC
-                LIMIT 1
-                """,
-            (rs, rowNum) -> new EmailMatchedAttendanceEmployee(
-                mapAttendanceEmployee(rs),
-                getNullableLong(rs, "linked_user_id")
-            ),
-            companyId,
-            sessionUser.email()
-        );
-
-        if (!emailMatchedEmployees.isEmpty()) {
-            var matchedEmployee = emailMatchedEmployees.getFirst();
-            if ("terminated".equals(matchedEmployee.employee().status())) {
-                throw new IllegalArgumentException("Your HR employee profile is terminated. Contact an administrator.");
-            }
-            if (matchedEmployee.linkedUserId() != null && matchedEmployee.linkedUserId() != userId) {
-                throw new IllegalArgumentException("Your employee profile is already linked to another user.");
-            }
-
-            bindEmployeeToPlatformUser(companyId, matchedEmployee.employee().id(), userId);
-            ensureAttendanceProfileDependencies(companyId, matchedEmployee.employee().id(), userId);
-            return loadAttendanceEmployee(companyId, matchedEmployee.employee().id());
-        }
-
-        var provisionedEmployeeId = provisionAttendanceEmployeeForUser(companyId, userId, sessionUser);
-        return loadAttendanceEmployee(companyId, provisionedEmployeeId);
+        throw new NoSuchElementException("No HR employee profile is linked to this user.");
     }
 
-    private AttendanceSessionUser loadAttendanceSessionUser(long companyId, long userId) {
+    private AttendanceUser loadAttendanceSessionUser(long companyId, long userId) {
         var rows = jdbcTemplate.query(
             """
                 SELECT u.id,
+                       uc.id AS user_company_id,
                        LOWER(TRIM(COALESCE(u.email, ''))) AS email,
-                       COALESCE(NULLIF(TRIM(u.full_name), ''), TRIM(u.email), CONCAT('User ', u.id)) AS full_name
+                       COALESCE(NULLIF(TRIM(u.full_name), ''), TRIM(u.email), CONCAT('User ', u.id)) AS full_name,
+                       COALESCE(LOWER(uc.role), 'user') AS role,
+                       COALESCE(LOWER(uc.status), 'active') AS status
                 FROM users u
                 JOIN user_companies uc ON uc.user_id = u.id
                 WHERE u.id = ?
@@ -2079,10 +2303,13 @@ public class HrAttendanceService {
                   AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
                 LIMIT 1
                 """,
-            (rs, rowNum) -> new AttendanceSessionUser(
+            (rs, rowNum) -> new AttendanceUser(
                 rs.getLong("id"),
+                rs.getLong("user_company_id"),
                 safe(rs.getString("email")),
-                safe(rs.getString("full_name"))
+                safe(rs.getString("full_name")),
+                safe(rs.getString("role")),
+                safe(rs.getString("status"))
             ),
             userId,
             companyId
@@ -2097,188 +2324,6 @@ public class HrAttendanceService {
             throw new IllegalArgumentException("Your user account must have an email address to use Attendance.");
         }
         return sessionUser;
-    }
-
-    private long provisionAttendanceEmployeeForUser(long companyId, long userId, AttendanceSessionUser sessionUser) {
-        var nameParts = deriveEmployeeName(sessionUser.fullName(), sessionUser.email());
-        var employeeNumber = generateNextAttendanceEmployeeNumber(companyId);
-
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            var statement = connection.prepareStatement(
-                """
-                    INSERT INTO hr_employees
-                    (company_id, employee_number, first_name, last_name, email, hire_date, pay_period, salary_type, contract_type, status, created_by)
-                    VALUES (?, ?, ?, ?, ?, CURRENT_DATE(), 'weekly', 'daily', 'permanent', 'active', ?)
-                    """,
-                new String[] {"id"}
-            );
-            statement.setLong(1, companyId);
-            statement.setString(2, employeeNumber);
-            statement.setString(3, nameParts.firstName());
-            statement.setString(4, nameParts.lastName());
-            statement.setString(5, sessionUser.email());
-            statement.setLong(6, userId);
-            return statement;
-        }, keyHolder);
-
-        var employeeId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
-        if (employeeId <= 0) {
-            throw new IllegalStateException("The employee profile could not be provisioned.");
-        }
-
-        bindEmployeeToPlatformUser(companyId, employeeId, userId);
-        ensureAttendanceProfileDependencies(companyId, employeeId, userId);
-        return employeeId;
-    }
-
-    private void bindEmployeeToPlatformUser(long companyId, long employeeId, long userId) {
-        jdbcTemplate.update(
-            """
-                INSERT INTO hr_employee_portal_access
-                (employee_id, company_id, access_role, linked_user_id, invitation_status, created_by)
-                VALUES (?, ?, 'employee', ?, 'linked', ?)
-                ON DUPLICATE KEY UPDATE
-                  company_id = VALUES(company_id),
-                  linked_user_id = VALUES(linked_user_id),
-                  invitation_status = VALUES(invitation_status),
-                  updated_at = CURRENT_TIMESTAMP
-                """,
-            employeeId,
-            companyId,
-            userId,
-            userId
-        );
-    }
-
-    private void ensureAttendanceProfileDependencies(long companyId, long employeeId, long userId) {
-        jdbcTemplate.update(
-            """
-                INSERT INTO hr_employee_profiles (employee_id, company_id, workday_hours)
-                VALUES (?, ?, 8.00)
-                ON DUPLICATE KEY UPDATE
-                  company_id = VALUES(company_id),
-                  updated_at = CURRENT_TIMESTAMP
-                """,
-            employeeId,
-            companyId
-        );
-        ensureDefaultAccessProfile(companyId, employeeId, userId);
-    }
-
-    private AttendanceNameParts deriveEmployeeName(String fullName, String email) {
-        var normalizedFullName = fullName == null ? "" : fullName.trim().replaceAll("\\s+", " ");
-        if (normalizedFullName.isBlank()) {
-            var emailLocalPart = email == null ? "" : email.trim();
-            var atIndex = emailLocalPart.indexOf('@');
-            normalizedFullName = atIndex > 0 ? emailLocalPart.substring(0, atIndex) : emailLocalPart;
-            normalizedFullName = normalizedFullName.replace('.', ' ').replace('_', ' ').replace('-', ' ').trim();
-        }
-
-        if (normalizedFullName.isBlank()) {
-            return new AttendanceNameParts("User", "Attendance");
-        }
-
-        var parts = normalizedFullName.split("\\s+");
-        var firstName = parts[0].trim();
-        var lastName = parts.length > 1
-            ? String.join(" ", java.util.Arrays.copyOfRange(parts, 1, parts.length)).trim()
-            : "User";
-
-        if (firstName.isBlank()) {
-            firstName = "User";
-        }
-        if (lastName.isBlank()) {
-            lastName = "User";
-        }
-        return new AttendanceNameParts(firstName, lastName);
-    }
-
-    private void ensureAttendanceEmployeeNumberSequenceRow(long companyId) {
-        jdbcTemplate.update(
-            """
-                INSERT INTO hr_employee_number_sequences (company_id, prefix, padding, next_number)
-                SELECT ?, 'EMP', 4,
-                       COALESCE(MAX(
-                         CASE
-                           WHEN TRIM(COALESCE(employee_number, '')) REGEXP '^EMP-[0-9]+$'
-                             THEN CAST(SUBSTRING(TRIM(employee_number), 5) AS UNSIGNED)
-                           ELSE 0
-                         END
-                       ), 0) + 1
-                FROM hr_employees
-                WHERE company_id = ?
-                ON DUPLICATE KEY UPDATE
-                  next_number = GREATEST(hr_employee_number_sequences.next_number, VALUES(next_number))
-                """,
-            companyId,
-            companyId
-        );
-    }
-
-    private AttendanceEmployeeNumberSequence loadAttendanceEmployeeNumberSequence(long companyId) {
-        ensureAttendanceEmployeeNumberSequenceRow(companyId);
-
-        var rows = jdbcTemplate.query(
-            """
-                SELECT prefix, padding, next_number
-                FROM hr_employee_number_sequences
-                WHERE company_id = ?
-                FOR UPDATE
-                """,
-            (rs, rowNum) -> new AttendanceEmployeeNumberSequence(
-                safe(rs.getString("prefix")),
-                rs.getInt("padding"),
-                rs.getLong("next_number")
-            ),
-            companyId
-        );
-
-        if (rows.isEmpty()) {
-            throw new IllegalStateException("Employee number sequence could not be initialized.");
-        }
-
-        return rows.getFirst();
-    }
-
-    private String generateNextAttendanceEmployeeNumber(long companyId) {
-        while (true) {
-            var sequence = loadAttendanceEmployeeNumberSequence(companyId);
-            var candidate = formatAttendanceEmployeeNumber(sequence.prefix(), sequence.padding(), sequence.nextNumber());
-
-            jdbcTemplate.update(
-                """
-                    UPDATE hr_employee_number_sequences
-                    SET next_number = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE company_id = ?
-                    """,
-                sequence.nextNumber() + 1,
-                companyId
-            );
-
-            Integer count = jdbcTemplate.queryForObject(
-                """
-                    SELECT COUNT(*)
-                    FROM hr_employees
-                    WHERE company_id = ?
-                      AND employee_number = ?
-                    """,
-                Integer.class,
-                companyId,
-                candidate
-            );
-            if (count == null || count == 0) {
-                return candidate;
-            }
-        }
-    }
-
-    private String formatAttendanceEmployeeNumber(String prefix, int padding, long nextNumber) {
-        return AttendanceEmployeeNumberPolicy.format(prefix, padding, nextNumber);
-    }
-
-    private String normalizeAttendanceEmployeeNumberPrefix(String prefix) {
-        return AttendanceEmployeeNumberPolicy.normalizePrefix(prefix);
     }
 
     private List<AttendanceEmployee> listAttendanceEmployees(long companyId) {
@@ -2357,8 +2402,10 @@ public class HrAttendanceService {
     }
 
     private Map<String, Object> toScheduleCandidateMap(
+        long companyId,
         AttendanceEmployee employee,
         LocalDate date,
+        LocalDate endDate,
         CurrentScheduleAssignment assignment,
         ScheduleRule scheduleRule,
         DailyRecordRow dailyRecord,
@@ -2371,6 +2418,7 @@ public class HrAttendanceService {
         var hasAttendanceActivity = dailyRecord != null
             && (dailyRecord.firstCheckInAt() != null || dailyRecord.lastCheckOutAt() != null);
         var busyReason = "";
+        var hasRangeAttendanceActivity = hasAttendanceActivityInRange(companyId, employee.id(), date, endDate);
 
         if (assignment != null) {
             item.put("schedule_template_id", assignment.templateId());
@@ -2394,8 +2442,12 @@ public class HrAttendanceService {
             item.put("active_work_site", toWorkSiteAssignmentMap(activeWorkSite));
             busyReason = "Contract site assigned";
         }
-        if (hasAttendanceActivity) {
+        if (hasRangeAttendanceActivity || hasAttendanceActivity) {
             busyReason = "Attendance already recorded";
+        } else if (hasActiveWorkSiteAssignmentOverlap(companyId, employee.id(), date, endDate)) {
+            busyReason = "Contract site assigned";
+        } else if (hasActiveScheduleAssignmentOverlap(companyId, employee.id(), date, endDate)) {
+            busyReason = "Schedule already assigned";
         }
 
         item.put("today_status", effectiveStatus);
@@ -2438,7 +2490,7 @@ public class HrAttendanceService {
                   FROM hr_attendance_events attendance_event
                   WHERE attendance_event.company_id = e.company_id
                     AND attendance_event.employee_id = e.id
-                    AND attendance_event.attendance_date = ?
+                    AND attendance_event.attendance_date BETWEEN ? AND ?
                     AND attendance_event.event_type IN ('check_in', 'check_out', 'break_out', 'break_in')
               )
               AND NOT EXISTS (
@@ -2446,7 +2498,7 @@ public class HrAttendanceService {
                   FROM hr_attendance_daily_records daily_record
                   WHERE daily_record.company_id = e.company_id
                     AND daily_record.employee_id = e.id
-                    AND daily_record.attendance_date = ?
+                    AND daily_record.attendance_date BETWEEN ? AND ?
                     AND (daily_record.first_check_in_at IS NOT NULL OR daily_record.last_check_out_at IS NOT NULL)
               )
             """;
@@ -2459,15 +2511,18 @@ public class HrAttendanceService {
             """;
     }
 
-    private ArrayList<Object> scheduleCandidateBaseParams(long companyId, LocalDate date) {
+    private ArrayList<Object> scheduleCandidateBaseParams(long companyId, LocalDate startDate, LocalDate endDate) {
+        var rangeEnd = assignmentRangeEnd(endDate);
         var params = new ArrayList<Object>();
         params.add(companyId);
-        params.add(date);
-        params.add(date);
-        params.add(date);
-        params.add(date);
-        params.add(date);
-        params.add(date);
+        params.add(rangeEnd);
+        params.add(startDate);
+        params.add(rangeEnd);
+        params.add(startDate);
+        params.add(startDate);
+        params.add(rangeEnd);
+        params.add(startDate);
+        params.add(rangeEnd);
         return params;
     }
 
@@ -2642,6 +2697,76 @@ public class HrAttendanceService {
 
     private DailyRecordRow loadDailyRecord(long companyId, long employeeId, LocalDate date) {
         return loadDailyRecords(companyId, employeeId, date, date).get(date);
+    }
+
+    private Map<LocalDate, DailyRecordRow> loadUserDailyRecords(long companyId, long userId, LocalDate startDate, LocalDate endDate) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT r.id,
+                       r.user_id AS employee_id,
+                       r.attendance_date,
+                       r.system_status,
+                       r.corrected_status,
+                       r.first_check_in_at,
+                       r.last_check_out_at,
+                       r.minutes_late,
+                       r.notes,
+                       (
+                           SELECT e.photo_url
+                           FROM hr_user_attendance_events e
+                           WHERE e.company_id = r.company_id
+                             AND e.user_id = r.user_id
+                             AND e.attendance_date = r.attendance_date
+                             AND e.event_type = 'check_in'
+                           ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
+                                    e.event_timestamp ASC,
+                                    e.id ASC
+                           LIMIT 1
+                       ) AS first_photo_object_key,
+                       (
+                           SELECT e.photo_url
+                           FROM hr_user_attendance_events e
+                           WHERE e.company_id = r.company_id
+                             AND e.user_id = r.user_id
+                             AND e.attendance_date = r.attendance_date
+                             AND e.event_type = 'check_out'
+                           ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
+                                    e.event_timestamp DESC,
+                                    e.id DESC
+                           LIMIT 1
+                       ) AS last_photo_object_key,
+                       fl.id AS first_location_id,
+                       fl.name AS first_location_name,
+                       fl.latitude AS first_location_latitude,
+                       fl.longitude AS first_location_longitude,
+                       fl.radius_meters AS first_location_radius_meters,
+                       ll.id AS last_location_id,
+                       ll.name AS last_location_name,
+                       ll.latitude AS last_location_latitude,
+                       ll.longitude AS last_location_longitude,
+                       ll.radius_meters AS last_location_radius_meters
+                FROM hr_user_attendance_daily_records r
+                LEFT JOIN hr_attendance_locations fl ON fl.id = r.first_location_id
+                LEFT JOIN hr_attendance_locations ll ON ll.id = r.last_location_id
+                WHERE r.company_id = ?
+                  AND r.user_id = ?
+                  AND r.attendance_date BETWEEN ? AND ?
+                """,
+            (rs, rowNum) -> mapDailyRecord(rs),
+            companyId,
+            userId,
+            startDate,
+            endDate
+        );
+        var result = new HashMap<LocalDate, DailyRecordRow>();
+        for (var row : rows) {
+            result.put(row.attendanceDate(), row);
+        }
+        return result;
+    }
+
+    private DailyRecordRow loadUserDailyRecord(long companyId, long userId, LocalDate date) {
+        return loadUserDailyRecords(companyId, userId, date, date).get(date);
     }
 
     private Map<String, Object> toPublicKioskDayActivity(LocalDate attendanceDate, DailyRecordRow dailyRecord, ScheduleRule scheduleRule) {
@@ -3292,6 +3417,11 @@ public class HrAttendanceService {
         );
     }
 
+    private List<LocationRow> loadUserAttendanceLocations(long companyId) {
+        var businessStructureLocations = loadCompanyBusinessStructureAttendanceLocations(companyId);
+        return businessStructureLocations.isEmpty() ? listLocations(companyId) : businessStructureLocations;
+    }
+
     private List<LocationRow> loadBusinessStructureAttendanceLocations(long companyId, Long businessId) {
         if (businessId == null) {
             return List.of();
@@ -3700,11 +3830,17 @@ public class HrAttendanceService {
     }
 
     private int calculateMinutesLate(ScheduleRule scheduleRule, LocalDateTime firstCheckIn) {
+        var attendanceDate = firstCheckIn == null ? LocalDate.now() : firstCheckIn.toLocalDate();
+        return calculateMinutesLate(scheduleRule, firstCheckIn, attendanceDate);
+    }
+
+    private int calculateMinutesLate(ScheduleRule scheduleRule, LocalDateTime firstCheckIn, LocalDate attendanceDate) {
         return AttendanceStatusPolicy.calculateMinutesLate(
             scheduleRule != null,
             scheduleRule != null && scheduleRule.isRestDay(),
             scheduleRule == null ? null : scheduleRule.startTime(),
-            firstCheckIn
+            firstCheckIn,
+            attendanceDate
         );
     }
 
@@ -3712,6 +3848,7 @@ public class HrAttendanceService {
         return AttendanceStatusPolicy.inferSystemStatus(
             scheduleRule != null,
             scheduleRule != null && scheduleRule.isRestDay(),
+            scheduleRule == null ? null : scheduleRule.startTime(),
             scheduleRule == null ? null : scheduleRule.endTime(),
             date,
             LocalDate.now(),
@@ -3826,6 +3963,7 @@ public class HrAttendanceService {
         body.put("rest_minutes", rule.restMinutes());
         body.put("late_after_minutes", rule.lateAfterMinutes());
         body.put("is_rest_day", rule.isRestDay());
+        body.put("is_overnight", isOvernightSchedule(rule));
         return body;
     }
 
@@ -4425,12 +4563,15 @@ public class HrAttendanceService {
             return "rejected";
         }
 
+        if ("manual_override".equals(authMethod)) {
+            return "overridden";
+        }
+
         if (activeAccessMethod == null || !"active".equals(activeAccessMethod.status())) {
             return "rejected";
         }
 
         return switch (authMethod) {
-            case "manual_override" -> "overridden";
             case "badge" -> Objects.equals(activeAccessMethod.credentialRef(), credentialPayload) ? "success" : "failure";
             case "pin", "password" -> credentialPayload != null && passwordEncoder.matches(credentialPayload, activeAccessMethod.secretHash())
                 ? "success"
@@ -4448,12 +4589,66 @@ public class HrAttendanceService {
             .orElse(null);
     }
 
-    private void validateOperationalEventTransition(long companyId, long employeeId, LocalDateTime eventTimestamp, String eventKind) {
+    private LocalDate resolveOperationalAttendanceDate(
+        long companyId,
+        long employeeId,
+        LocalDateTime eventTimestamp,
+        String eventKind
+    ) {
+        var eventDate = eventTimestamp.toLocalDate();
+        if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventKind)) {
+            return eventDate;
+        }
+
+        var previousDate = eventDate.minusDays(1);
+        var previousRule = loadScheduleRule(companyId, employeeId, previousDate);
+        if (!isOvernightSchedule(previousRule)) {
+            return eventDate;
+        }
+
+        var previousDayEvents = loadAttendanceEventRows(companyId, employeeId, previousDate).stream()
+            .filter((event) -> !event.eventTimestamp().isAfter(eventTimestamp))
+            .toList();
+        var previousState = resolveOperationalState(previousDayEvents);
+        if (previousState.checkedIn()) {
+            return previousDate;
+        }
+
+        var previousScheduledEnd = scheduledEndDateTime(previousDate, previousRule);
+        return eventTimestamp.isAfter(previousScheduledEnd) ? eventDate : previousDate;
+    }
+
+    private LocalDate resolveUserOperationalAttendanceDate(
+        long companyId,
+        long userId,
+        LocalDateTime eventTimestamp,
+        String eventKind
+    ) {
+        var eventDate = eventTimestamp.toLocalDate();
+        if (!List.of("check_out", "break_out", "break_in").contains(eventKind)) {
+            return eventDate;
+        }
+
+        var previousDate = eventDate.minusDays(1);
+        var previousDayEvents = loadUserAttendanceEventRows(companyId, userId, previousDate).stream()
+            .filter((event) -> !event.eventTimestamp().isAfter(eventTimestamp))
+            .toList();
+        var previousState = resolveOperationalState(previousDayEvents);
+        return previousState.checkedIn() ? previousDate : eventDate;
+    }
+
+    private void validateOperationalEventTransition(
+        long companyId,
+        long employeeId,
+        LocalDate attendanceDate,
+        LocalDateTime eventTimestamp,
+        String eventKind
+    ) {
         if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventKind)) {
             return;
         }
 
-        var dayEvents = loadAttendanceEventRows(companyId, employeeId, eventTimestamp.toLocalDate());
+        var dayEvents = loadAttendanceEventRows(companyId, employeeId, attendanceDate);
         var priorEvents = dayEvents.stream()
             .filter((event) -> !event.eventTimestamp().isAfter(eventTimestamp))
             .toList();
@@ -4464,7 +4659,7 @@ public class HrAttendanceService {
         switch (eventKind) {
             case "check_in" -> {
                 if (checkInAlreadyRecorded) {
-                    throw new IllegalArgumentException("Check-in has already been recorded for this employee today.");
+                    throw new IllegalArgumentException("Check-in has already been recorded for this employee shift.");
                 }
             }
             case "break_out" -> {
@@ -4473,6 +4668,57 @@ public class HrAttendanceService {
                 }
                 if (state.onBreak()) {
                     throw new IllegalArgumentException("A break is already active for this employee.");
+                }
+            }
+            case "break_in" -> {
+                if (!state.checkedIn() || !state.onBreak()) {
+                    throw new IllegalArgumentException("Break-in requires an active break.");
+                }
+            }
+            case "check_out" -> {
+                if (!state.checkedIn()) {
+                    throw new IllegalArgumentException("Check-out requires an active check-in.");
+                }
+                if (state.onBreak()) {
+                    throw new IllegalArgumentException("Close the active break before checking out.");
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void validateUserOperationalEventTransition(
+        long companyId,
+        long userId,
+        LocalDate attendanceDate,
+        LocalDateTime eventTimestamp,
+        String eventKind
+    ) {
+        if (!List.of("check_in", "check_out", "break_out", "break_in").contains(eventKind)) {
+            return;
+        }
+
+        var dayEvents = loadUserAttendanceEventRows(companyId, userId, attendanceDate);
+        var priorEvents = dayEvents.stream()
+            .filter((event) -> !event.eventTimestamp().isAfter(eventTimestamp))
+            .toList();
+        var state = resolveOperationalState(priorEvents);
+        var checkInAlreadyRecorded = dayEvents.stream()
+            .anyMatch((event) -> "check_in".equals(event.eventKind()) || "check_in".equals(event.eventType()));
+
+        switch (eventKind) {
+            case "check_in" -> {
+                if (checkInAlreadyRecorded) {
+                    throw new IllegalArgumentException("Check-in has already been recorded for this user shift.");
+                }
+            }
+            case "break_out" -> {
+                if (!state.checkedIn()) {
+                    throw new IllegalArgumentException("Break-out requires an active check-in.");
+                }
+                if (state.onBreak()) {
+                    throw new IllegalArgumentException("A break is already active for this user.");
                 }
             }
             case "break_in" -> {
@@ -4544,6 +4790,7 @@ public class HrAttendanceService {
         long employeeId,
         String eventType,
         LocalDateTime eventTimestamp,
+        LocalDate attendanceDate,
         Long locationId,
         Long kioskDeviceId,
         BigDecimal latitude,
@@ -4573,7 +4820,7 @@ public class HrAttendanceService {
             statement.setLong(2, employeeId);
             statement.setString(3, eventType);
             statement.setTimestamp(4, Timestamp.valueOf(eventTimestamp));
-            statement.setObject(5, eventTimestamp.toLocalDate());
+            statement.setObject(5, attendanceDate == null ? eventTimestamp.toLocalDate() : attendanceDate);
             setNullableLong(statement, 6, locationId);
             setNullableLong(statement, 7, kioskDeviceId);
             if (latitude == null) {
@@ -4595,6 +4842,70 @@ public class HrAttendanceService {
             statement.setString(16, metadataJson);
             setNullableLong(statement, 17, supersedesEventId);
             statement.setLong(18, createdBy);
+            return statement;
+        }, keyHolder);
+
+        return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+    }
+
+    private long appendUserAttendanceEvent(
+        long companyId,
+        AttendanceUser user,
+        String eventType,
+        LocalDateTime eventTimestamp,
+        LocalDate attendanceDate,
+        Long locationId,
+        Long kioskDeviceId,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        String photoObjectKey,
+        String source,
+        String authMethod,
+        String resultStatus,
+        String eventKind,
+        String metadataJson,
+        String notes,
+        Long supersedesEventId,
+        long createdBy
+    ) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO hr_user_attendance_events
+                    (company_id, user_id, user_company_id, event_type, event_timestamp, attendance_date, location_id, kiosk_device_id,
+                     latitude, longitude, photo_url, source, auth_method, result_status, event_kind, notes, metadata_json, supersedes_event_id, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?)
+                    """,
+                new String[] {"id"}
+            );
+            statement.setLong(1, companyId);
+            statement.setLong(2, user.userId());
+            statement.setLong(3, user.userCompanyId());
+            statement.setString(4, eventType);
+            statement.setTimestamp(5, Timestamp.valueOf(eventTimestamp));
+            statement.setObject(6, attendanceDate == null ? eventTimestamp.toLocalDate() : attendanceDate);
+            setNullableLong(statement, 7, locationId);
+            setNullableLong(statement, 8, kioskDeviceId);
+            if (latitude == null) {
+                statement.setNull(9, Types.DECIMAL);
+            } else {
+                statement.setBigDecimal(9, latitude);
+            }
+            if (longitude == null) {
+                statement.setNull(10, Types.DECIMAL);
+            } else {
+                statement.setBigDecimal(10, longitude);
+            }
+            statement.setString(11, nullable(photoObjectKey));
+            statement.setString(12, source);
+            statement.setString(13, authMethod);
+            statement.setString(14, resultStatus);
+            statement.setString(15, eventKind);
+            statement.setString(16, nullable(notes));
+            statement.setString(17, metadataJson);
+            setNullableLong(statement, 18, supersedesEventId);
+            statement.setLong(19, createdBy);
             return statement;
         }, keyHolder);
 
@@ -4700,7 +5011,7 @@ public class HrAttendanceService {
         }
 
         var systemStatus = calculateSystemStatus(scheduleRule, firstCheckIn, date);
-        var minutesLate = calculateMinutesLate(scheduleRule, firstCheckIn);
+        var minutesLate = calculateMinutesLate(scheduleRule, firstCheckIn, date);
 
         if (existing == null) {
             jdbcTemplate.update(
@@ -4759,6 +5070,113 @@ public class HrAttendanceService {
         return Objects.requireNonNull(loadDailyRecord(companyId, employeeId, date));
     }
 
+    private DailyRecordRow rebuildUserDailyRecordProjection(long companyId, AttendanceUser user, LocalDate date) {
+        var events = loadUserAttendanceEventRows(companyId, user.userId(), date);
+        var existing = loadUserDailyRecord(companyId, user.userId(), date);
+
+        LocalDateTime firstCheckIn = null;
+        LocalDateTime lastCheckOut = null;
+        Long firstLocationId = null;
+        Long lastLocationId = null;
+        String correctedStatus = null;
+        String notes = null;
+        boolean correctionStateTouched = false;
+
+        for (var event : events) {
+            if (!"success".equals(event.resultStatus()) && !"overridden".equals(event.resultStatus())) {
+                continue;
+            }
+
+            if ("check_in".equals(event.eventKind()) && firstCheckIn == null) {
+                firstCheckIn = event.eventTimestamp();
+                firstLocationId = event.locationId();
+            }
+            if ("check_out".equals(event.eventKind())) {
+                lastCheckOut = event.eventTimestamp();
+                lastLocationId = event.locationId();
+            }
+            if ("correction".equals(event.eventKind()) || "manual_override".equals(event.eventKind())) {
+                var metadata = parseJsonMap(event.metadataJson());
+                if (metadata.containsKey("corrected_status")) {
+                    correctionStateTouched = true;
+                    correctedStatus = normalizeNullableAttendanceStatus(metadataTextValue(metadata.get("corrected_status")));
+                }
+                if (metadata.containsKey("notes")) {
+                    correctionStateTouched = true;
+                    notes = metadataTextValue(metadata.get("notes"));
+                } else if (!HrPayloadUtils.isBlank(event.notes())) {
+                    notes = event.notes();
+                }
+            }
+        }
+
+        if (!correctionStateTouched && correctedStatus == null && existing != null) {
+            correctedStatus = existing.correctedStatus();
+            if (notes == null) {
+                notes = existing.notes();
+            }
+        }
+
+        var systemStatus = calculateSystemStatus(null, firstCheckIn, date);
+        var minutesLate = calculateMinutesLate(null, firstCheckIn, date);
+
+        if (existing == null) {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO hr_user_attendance_daily_records
+                    (company_id, user_id, user_company_id, attendance_date, system_status, corrected_status, corrected_by, corrected_at, first_check_in_at, last_check_out_at, first_location_id, last_location_id, minutes_late, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                companyId,
+                user.userId(),
+                user.userCompanyId(),
+                date,
+                systemStatus,
+                correctedStatus,
+                correctedStatus == null ? null : user.userId(),
+                correctedStatus == null ? null : Timestamp.valueOf(LocalDateTime.now()),
+                firstCheckIn == null ? null : Timestamp.valueOf(firstCheckIn),
+                lastCheckOut == null ? null : Timestamp.valueOf(lastCheckOut),
+                firstLocationId,
+                lastLocationId,
+                minutesLate,
+                notes
+            );
+        } else {
+            jdbcTemplate.update(
+                """
+                    UPDATE hr_user_attendance_daily_records
+                    SET user_company_id = ?,
+                        system_status = ?,
+                        corrected_status = ?,
+                        corrected_by = ?,
+                        corrected_at = ?,
+                        first_check_in_at = ?,
+                        last_check_out_at = ?,
+                        first_location_id = ?,
+                        last_location_id = ?,
+                        minutes_late = ?,
+                        notes = ?
+                    WHERE id = ?
+                    """,
+                user.userCompanyId(),
+                systemStatus,
+                correctedStatus,
+                correctedStatus == null ? null : user.userId(),
+                correctedStatus == null ? null : Timestamp.valueOf(LocalDateTime.now()),
+                firstCheckIn == null ? null : Timestamp.valueOf(firstCheckIn),
+                lastCheckOut == null ? null : Timestamp.valueOf(lastCheckOut),
+                firstLocationId,
+                lastLocationId,
+                minutesLate,
+                notes,
+                existing.id()
+            );
+        }
+
+        return Objects.requireNonNull(loadUserDailyRecord(companyId, user.userId(), date));
+    }
+
     private List<AttendanceEventRow> loadAttendanceEventRows(long companyId, long employeeId, LocalDate date) {
         return jdbcTemplate.query(
             """
@@ -4796,6 +5214,47 @@ public class HrAttendanceService {
             ),
             companyId,
             employeeId,
+            date
+        );
+    }
+
+    private List<AttendanceEventRow> loadUserAttendanceEventRows(long companyId, long userId, LocalDate date) {
+        return jdbcTemplate.query(
+            """
+                SELECT id,
+                       event_type,
+                       event_timestamp,
+                       attendance_date,
+                       location_id,
+                       kiosk_device_id,
+                       auth_method,
+                       result_status,
+                       event_kind,
+                       notes,
+                       metadata_json,
+                       supersedes_event_id
+                FROM hr_user_attendance_events
+                WHERE company_id = ?
+                  AND user_id = ?
+                  AND attendance_date = ?
+                ORDER BY event_timestamp ASC, id ASC
+                """,
+            (rs, rowNum) -> new AttendanceEventRow(
+                rs.getLong("id"),
+                safe(rs.getString("event_type")),
+                toLocalDateTime(rs.getTimestamp("event_timestamp")),
+                rs.getObject("attendance_date", LocalDate.class),
+                getNullableLong(rs, "location_id"),
+                getNullableLong(rs, "kiosk_device_id"),
+                safe(rs.getString("auth_method")),
+                safe(rs.getString("result_status")),
+                safe(rs.getString("event_kind")),
+                safe(rs.getString("notes")),
+                safe(rs.getString("metadata_json")),
+                getNullableLong(rs, "supersedes_event_id")
+            ),
+            companyId,
+            userId,
             date
         );
     }
@@ -5326,8 +5785,8 @@ public class HrAttendanceService {
                 if (startTime == null || endTime == null) {
                     throw new IllegalArgumentException("start_time and end_time are required when is_rest_day is false.");
                 }
-                if (!endTime.isAfter(startTime)) {
-                    throw new IllegalArgumentException("end_time must be after start_time.");
+                if (endTime.equals(startTime)) {
+                    throw new IllegalArgumentException("end_time cannot equal start_time.");
                 }
             } else if ("open".equals(scheduleMode) && !isRestDay) {
                 if (startTime != null || endTime != null) {
@@ -5580,6 +6039,21 @@ public class HrAttendanceService {
         );
     }
 
+    private LocationRow resolveUserAttendanceLocation(
+        long companyId,
+        BigDecimal latitude,
+        BigDecimal longitude
+    ) {
+        return resolveAllowedAttendanceLocation(
+            loadUserAttendanceLocations(companyId),
+            null,
+            latitude,
+            longitude,
+            "Attendance locations are not configured for this company.",
+            "Attendance registration is restricted to active company locations."
+        );
+    }
+
     private LocationRow resolveAllowedAttendanceLocation(
         List<LocationRow> allowedLocations,
         Long requestedLocationId,
@@ -5619,10 +6093,25 @@ public class HrAttendanceService {
         return scheduleRule != null && "open".equalsIgnoreCase(safe(scheduleRule.scheduleMode()));
     }
 
+    private boolean isOvernightSchedule(ScheduleRule scheduleRule) {
+        return scheduleRule != null
+            && !scheduleRule.isRestDay()
+            && !isOpenSchedule(scheduleRule)
+            && scheduleRule.startTime() != null
+            && scheduleRule.endTime() != null
+            && scheduleRule.endTime().isBefore(scheduleRule.startTime());
+    }
+
+    private LocalDateTime scheduledEndDateTime(LocalDate attendanceDate, ScheduleRule scheduleRule) {
+        var scheduledEnd = attendanceDate.atTime(scheduleRule.endTime());
+        return isOvernightSchedule(scheduleRule) ? scheduledEnd.plusDays(1) : scheduledEnd;
+    }
+
     private void validateScheduleRegistrationPolicy(
         ScheduleRule scheduleRule,
         String eventType,
-        LocalDateTime eventTimestamp
+        LocalDateTime eventTimestamp,
+        LocalDate attendanceDate
     ) {
         if (scheduleRule == null || scheduleRule.isRestDay() || !"check_in".equals(eventType)) {
             return;
@@ -5633,7 +6122,7 @@ public class HrAttendanceService {
         }
 
         if (scheduleRule.startTime() != null) {
-            var scheduledStart = eventTimestamp.toLocalDate().atTime(scheduleRule.startTime());
+            var scheduledStart = attendanceDate.atTime(scheduleRule.startTime());
             var earliestAllowedCheckIn = scheduledStart.minus(EARLY_CHECK_IN_ALLOWANCE);
             if (eventTimestamp.isBefore(earliestAllowedCheckIn)) {
                 throw new IllegalArgumentException("Check-in opens 15 minutes before the scheduled start time.");
@@ -5641,7 +6130,7 @@ public class HrAttendanceService {
         }
 
         if (scheduleRule.blockAfterGracePeriod() && scheduleRule.startTime() != null) {
-            var scheduledStart = eventTimestamp.toLocalDate().atTime(scheduleRule.startTime());
+            var scheduledStart = attendanceDate.atTime(scheduleRule.startTime());
             var graceDeadline = scheduledStart.plusMinutes(scheduleRule.lateAfterMinutes());
             if (eventTimestamp.isAfter(graceDeadline)) {
                 throw new IllegalArgumentException("Attendance registration is blocked after the grace period expires.");
@@ -5894,6 +6383,28 @@ public class HrAttendanceService {
         return trimmed;
     }
 
+    private String normalizeUserAttendancePhotoObjectKey(long companyId, long userId, String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return null;
+        }
+
+        var trimmed = objectKey.trim();
+        var expectedPrefix = "hr/user-attendance/" + companyId + "/" + userId + "/";
+        if (!trimmed.startsWith(expectedPrefix)) {
+            throw new IllegalArgumentException("photo_url must match the expected user attendance upload prefix.");
+        }
+
+        if (!objectStorageService.isEnabled()) {
+            throw new ObjectStorageDisabledException("Object storage is not enabled.");
+        }
+
+        if (!objectStorageService.objectExists(attendanceBucket(), trimmed)) {
+            throw new IllegalArgumentException("photo_url does not reference an existing uploaded object.");
+        }
+
+        return trimmed;
+    }
+
     private String normalizeImageContentType(String value) {
         var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
@@ -5909,6 +6420,19 @@ public class HrAttendanceService {
         return "hr/attendance/"
             + companyId + "/"
             + employeeId + "/"
+            + targetDate.getYear() + "/"
+            + String.format("%02d", targetDate.getMonthValue()) + "/"
+            + String.format("%02d", targetDate.getDayOfMonth()) + "/"
+            + normalizeEventType(eventType.isBlank() ? "check_in" : eventType) + "-"
+            + UUID.randomUUID()
+            + extensionForContentType(contentType);
+    }
+
+    private String buildUserAttendancePhotoObjectKey(long companyId, long userId, String contentType, String eventType, LocalDate attendanceDate) {
+        var targetDate = attendanceDate == null ? LocalDate.now() : attendanceDate;
+        return "hr/user-attendance/"
+            + companyId + "/"
+            + userId + "/"
             + targetDate.getYear() + "/"
             + String.format("%02d", targetDate.getMonthValue()) + "/"
             + String.format("%02d", targetDate.getDayOfMonth()) + "/"
@@ -5937,6 +6461,21 @@ public class HrAttendanceService {
             case "break_out", "salida_descanso", "lunch_out" -> "break_out";
             case "break_in", "regreso_descanso", "lunch_in" -> "break_in";
             default -> throw new IllegalArgumentException("event_type must be check_in, check_out, break_out, or break_in.");
+        };
+    }
+
+    private String displayUserRole(String role) {
+        var normalized = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "root" -> "Root user";
+            case "superadmin" -> "Super admin";
+            case "owner", "dueno" -> "Owner";
+            case "admin" -> "Admin";
+            case "manager" -> "Manager";
+            case "approver" -> "Approver";
+            case "contributor" -> "Contributor";
+            case "viewer" -> "Viewer";
+            default -> "User";
         };
     }
 
@@ -5991,8 +6530,8 @@ public class HrAttendanceService {
         if (startTime == null || endTime == null) {
             throw new IllegalArgumentException("required_start_time and required_end_time are required.");
         }
-        if (!endTime.isAfter(startTime)) {
-            throw new IllegalArgumentException("required_end_time must be after required_start_time.");
+        if (endTime.equals(startTime)) {
+            throw new IllegalArgumentException("required_end_time cannot equal required_start_time.");
         }
     }
 
