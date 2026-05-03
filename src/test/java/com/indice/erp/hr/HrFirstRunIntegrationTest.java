@@ -15,6 +15,7 @@ import com.indice.erp.hr.announcements.HrAnnouncementService;
 import jakarta.servlet.http.HttpSession;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -382,11 +383,11 @@ class HrFirstRunIntegrationTest {
     }
 
     @Test
-	    void attendanceKioskAndCorrectionFlowWorks() throws Exception {
-	        var session = authenticatedSession();
-	        var uniqueSuffix = System.currentTimeMillis();
-	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
-	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Kiosk Flow");
+    void attendanceKioskAndCorrectionFlowWorks() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Kiosk Flow");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
@@ -456,6 +457,211 @@ class HrFirstRunIntegrationTest {
 
         assertThat(attendanceDay.get("system_status")).isEqualTo("on_time");
         assertThat(attendanceDay.get("corrected_status")).isEqualTo("leave");
+    }
+
+    @Test
+    void overnightScheduleCheckoutAfterMidnightUsesOriginalAttendanceDateAndPayrollTotals() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var business = createIsolatedBusinessFixture(
+            "Overnight Unit " + uniqueSuffix,
+            "Overnight Business " + uniqueSuffix
+        );
+        var dailyEmployeeId = createEmployeeForTests(session, uniqueSuffix, business);
+        var hourlyEmployeeId = createHourlyEmployeeForTests(session, uniqueSuffix);
+        jdbcTemplate.update(
+            "UPDATE hr_employees SET unit_id = ?, business_id = ?, pay_period = 'weekly' WHERE id IN (?, ?)",
+            business.unitId(),
+            business.businessId(),
+            dailyEmployeeId,
+            hourlyEmployeeId
+        );
+        var dailyLocationId = createBusinessLocationForEmployee(dailyEmployeeId, uniqueSuffix, "Overnight Daily");
+        var hourlyLocationId = createBusinessLocationForEmployee(hourlyEmployeeId, uniqueSuffix + 1, "Overnight Hourly");
+        var overnightDate = LocalDate.now().minusDays(1);
+        var checkoutDate = overnightDate.plusDays(1);
+        var effectiveEndDate = overnightDate.plusMonths(1);
+        var overnightDayOfWeek = overnightDate.getDayOfWeek().getValue();
+        var days = new ArrayList<Map<String, Object>>();
+        for (var dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek++) {
+            days.add(dayOfWeek == overnightDayOfWeek
+                ? Map.of(
+                    "day_of_week", dayOfWeek,
+                    "start_time", "18:00:00",
+                    "end_time", "06:00:00",
+                    "late_after_minutes", 10,
+                    "is_rest_day", false
+                )
+                : Map.of("day_of_week", dayOfWeek, "late_after_minutes", 0, "is_rest_day", true));
+        }
+
+        var templateId = createScheduleTemplate(
+            session,
+            "Overnight Shift " + uniqueSuffix,
+            "strict",
+            null,
+            days
+        );
+        assignSchedule(session, dailyEmployeeId, templateId, overnightDate.toString(), effectiveEndDate.toString());
+        assignSchedule(session, hourlyEmployeeId, templateId, overnightDate.toString(), effectiveEndDate.toString());
+        seedAttendanceCheckIn(
+            dailyEmployeeId,
+            dailyLocationId,
+            overnightDate,
+            overnightDate.atTime(18, 0)
+        );
+        seedAttendanceCheckIn(
+            hourlyEmployeeId,
+            hourlyLocationId,
+            overnightDate,
+            overnightDate.atTime(18, 0)
+        );
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/kiosk-events")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_id", dailyEmployeeId,
+                    "event_type", "check_out",
+                    "auth_method", "manual_override",
+                    "location_id", dailyLocationId,
+                    "latitude", 25.6866140,
+                    "longitude", -100.3161130,
+                    "event_timestamp", checkoutDate + "T06:00:00"
+                )))
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("on_time"))
+            .andExpect(jsonPath("$.last_check_out_at").value(checkoutDate + "T06:00"));
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/kiosk-events")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "employee_id", hourlyEmployeeId,
+                    "event_type", "check_out",
+                    "auth_method", "manual_override",
+                    "location_id", hourlyLocationId,
+                    "latitude", 25.6866140,
+                    "longitude", -100.3161130,
+                    "event_timestamp", checkoutDate + "T06:00:00"
+                )))
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("on_time"))
+            .andExpect(jsonPath("$.last_check_out_at").value(checkoutDate + "T06:00"));
+
+        var assignmentEndDate = jdbcTemplate.queryForObject(
+            """
+                SELECT effective_end_date
+                FROM hr_employee_schedule_assignments
+                WHERE company_id = 1
+                  AND employee_id = ?
+                  AND template_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+            LocalDate.class,
+            dailyEmployeeId,
+            templateId
+        );
+        assertThat(assignmentEndDate).isEqualTo(effectiveEndDate);
+
+        var checkoutAttendanceDate = jdbcTemplate.queryForObject(
+            """
+                SELECT attendance_date
+                FROM hr_attendance_events
+                WHERE company_id = 1
+                  AND employee_id = ?
+                  AND event_kind = 'check_out'
+                  AND result_status IN ('success', 'overridden')
+                ORDER BY id DESC
+                LIMIT 1
+            """,
+            LocalDate.class,
+            dailyEmployeeId
+        );
+        assertThat(checkoutAttendanceDate).isEqualTo(overnightDate);
+
+        var dailyRecord = jdbcTemplate.queryForMap(
+            """
+                SELECT attendance_date, system_status
+                FROM hr_attendance_daily_records
+                WHERE company_id = 1
+                  AND employee_id = ?
+                  AND attendance_date = ?
+                """,
+            dailyEmployeeId,
+            overnightDate
+        );
+        assertThat(dailyRecord.get("system_status")).isEqualTo("on_time");
+
+        var nextDayDailyRecords = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_attendance_daily_records
+                WHERE company_id = 1
+                  AND employee_id = ?
+                  AND attendance_date = ?
+                """,
+            Integer.class,
+            dailyEmployeeId,
+            checkoutDate
+        );
+        assertThat(nextDayDailyRecords).isZero();
+
+        var payrollRunResponse = mockMvc.perform(
+            post("/api/v1/hr/payroll/runs")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "pay_period", "weekly",
+                    "grouping_mode", "business",
+                    "period_start_date", overnightDate,
+                    "period_end_date", overnightDate
+                )))
+        )
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        var payrollRunBody = readMap(payrollRunResponse.getResponse().getContentAsString());
+        @SuppressWarnings("unchecked")
+        var payrollRuns = (List<Map<String, Object>>) payrollRunBody.get("items");
+        payrollRuns.stream()
+            .filter(run -> !Boolean.TRUE.equals(run.get("reused")))
+            .map(run -> ((Number) run.get("id")).longValue())
+            .forEach(createdPayrollRunIds::add);
+        var payrollRun = payrollRuns.stream()
+            .filter(run -> ("business:" + business.businessId()).equals(run.get("grouping_key")))
+            .findFirst()
+            .orElseThrow();
+        var runId = ((Number) payrollRun.get("id")).longValue();
+
+        var payrollDetailResponse = mockMvc.perform(
+            get("/api/v1/hr/payroll/runs/{runId}", runId)
+                .session(session)
+        )
+            .andExpect(status().isOk())
+            .andReturn();
+
+        var payrollDetailBody = readMap(payrollDetailResponse.getResponse().getContentAsString());
+        @SuppressWarnings("unchecked")
+        var lines = (List<Map<String, Object>>) payrollDetailBody.get("lines");
+        var dailyLine = lines.stream()
+            .filter(line -> dailyEmployeeId == ((Number) line.get("employee_id")).longValue())
+            .findFirst()
+            .orElseThrow();
+        var hourlyLine = lines.stream()
+            .filter(line -> hourlyEmployeeId == ((Number) line.get("employee_id")).longValue())
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(((Number) dailyLine.get("days_payable")).doubleValue()).isEqualTo(1.0);
+        assertThat(((Number) dailyLine.get("absence_days")).doubleValue()).isZero();
+        assertThat(((Number) hourlyLine.get("regular_hours")).doubleValue()).isEqualTo(12.0);
+        assertThat(((Number) hourlyLine.get("overtime_hours")).doubleValue()).isZero();
     }
 
     @Test
@@ -648,6 +854,7 @@ class HrFirstRunIntegrationTest {
 	        var session = authenticatedSession();
 	        var uniqueSuffix = System.currentTimeMillis();
 	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
+	        createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Overview");
 	        var templateName = "Overview Shift " + uniqueSuffix;
 	        var templateId = createScheduleTemplate(
 	            session,
@@ -2017,8 +2224,8 @@ class HrFirstRunIntegrationTest {
         );
     }
 
-	    private List<BusinessFixture> activeBusinessFixtures(int count) {
-	        var fixtures = jdbcTemplate.query(
+    private List<BusinessFixture> activeBusinessFixtures(int count) {
+        var fixtures = jdbcTemplate.query(
             """
                 SELECT b.id AS business_id,
                        b.unit_id AS unit_id,
@@ -2041,20 +2248,24 @@ class HrFirstRunIntegrationTest {
             ),
             count
         );
-        if (fixtures.size() < count) {
-            throw new IllegalStateException("Expected at least " + count + " active business fixtures for company 1.");
+        while (fixtures.size() < count) {
+            var suffix = System.currentTimeMillis() + fixtures.size();
+            fixtures.add(createIsolatedBusinessFixture(
+                "HR Test Unit " + suffix,
+                "HR Test Business " + suffix
+            ));
         }
-	        return fixtures;
-	    }
+        return fixtures;
+    }
 
-	    private long createBusinessLocationForEmployee(long employeeId, long uniqueSuffix, String label) {
-	        var scope = loadEmployeeScope(employeeId);
-	        assertThat(scope.businessId()).isNotNull();
-	        return createBusinessStructureLocation(label + " Location " + uniqueSuffix, scope.businessId(), 25.6866140, -100.3161130);
-	    }
+    private long createBusinessLocationForEmployee(long employeeId, long uniqueSuffix, String label) {
+        var scope = loadEmployeeScope(employeeId);
+        assertThat(scope.businessId()).isNotNull();
+        return createBusinessStructureLocation(label + " Location " + uniqueSuffix, scope.businessId(), 25.6866140, -100.3161130);
+    }
 
-	    private long createBusinessStructureLocation(String name, long businessId, double latitude, double longitude) {
-	        var unitId = jdbcTemplate.queryForObject(
+    private long createBusinessStructureLocation(String name, long businessId, double latitude, double longitude) {
+        var unitId = jdbcTemplate.queryForObject(
             "SELECT unit_id FROM businesses WHERE id = ? AND company_id = 1",
             Long.class,
             businessId
@@ -2076,6 +2287,27 @@ class HrFirstRunIntegrationTest {
         assertThat(locationId).isNotNull();
         createdLocationIds.add(locationId);
         return locationId;
+    }
+
+    private void seedAttendanceCheckIn(
+        long employeeId,
+        long locationId,
+        LocalDate attendanceDate,
+        LocalDateTime checkInAt
+    ) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO hr_attendance_events
+                (company_id, employee_id, event_type, event_timestamp, attendance_date, location_id,
+                 latitude, longitude, source, auth_method, result_status, event_kind, created_by)
+                VALUES (1, ?, 'check_in', ?, ?, ?, 25.6866140, -100.3161130,
+                        'kiosk', 'manual_override', 'overridden', 'check_in', 1)
+                """,
+            employeeId,
+            Timestamp.valueOf(checkInAt),
+            attendanceDate,
+            locationId
+        );
     }
 
     private long createScheduleTemplate(
