@@ -104,6 +104,46 @@ class ConfigCenterServiceTest {
     }
 
     @Test
+    void getEmpresaKeepsExplicitEmptyStructureMap() throws Exception {
+        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+
+        when(jdbcTemplate.query(
+            eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(1L);
+            when(rs.getString("name")).thenReturn("Empresa Demo Spring");
+            when(rs.getString("logo_url")).thenReturn(null);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("""
+            {
+              "config_center": {
+                "estructura": "multi",
+                "map": []
+              }
+            }
+            """));
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_employees WHERE company_id = ?", Integer.class, 1L))
+            .thenReturn(0);
+
+        @SuppressWarnings("unchecked")
+        var empresa = (Map<String, Object>) service.getEmpresa(1L);
+
+        assertEquals("multi", empresa.get("estructura"));
+        assertEquals(List.of(), empresa.get("map"));
+    }
+
+    @Test
     void saveEmpresaPersistsSettingsJsonAndKeepsExistingTemplateFields() {
         var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
 
@@ -149,6 +189,63 @@ class ConfigCenterServiceTest {
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"industria\":\"Hospitality\""));
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"timezone\":\"America/Toronto\""));
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"canales_venta\":[\"Mayoristas\"]"));
+    }
+
+    @Test
+    void saveStructureAllowsEmptyMultiModeForOnboarding() {
+        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id, name
+                FROM units
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id,
+                       unit_id,
+                       name,
+                       latitude,
+                       longitude,
+                       radius_meters,
+                       coordinate_source,
+                       google_maps_url
+                FROM businesses
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_employees WHERE company_id = ?", Integer.class, 1L))
+            .thenReturn(0);
+        when(jdbcTemplate.update(anyString(), eq(1L), anyString())).thenReturn(1);
+
+        var saved = service.saveStructure(1L, 1L, Map.of(
+            "estructura", "multi",
+            "map", List.of()
+        ));
+
+        assertEquals("multi", saved.get("modo"));
+        assertEquals(0, saved.get("colaboradores"));
+        assertEquals(0, saved.get("unidades_aprox"));
+        assertEquals(List.of(), saved.get("map"));
+
+        ArgumentCaptor<String> settingsCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(startsWith("INSERT INTO company_settings"), eq(1L), settingsCaptor.capture());
+        var serializedSettings = settingsCaptor.getValue();
+        org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"estructura\":\"multi\""));
+        org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"map\":[]"));
     }
 
     @Test

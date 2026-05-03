@@ -152,18 +152,30 @@ class ConfigCenterApiControllerTest {
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(configCenterService.saveStructure(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
-            .willThrow(new IllegalArgumentException("At least one unit is required in multi mode."));
+            .willThrow(new IllegalArgumentException("radius_meters must be greater than zero."));
 
         mockMvc.perform(put("/api/v1/config-center/business-structure")
                 .contentType(APPLICATION_JSON)
                 .content("""
                     {
                       "estructura": "multi",
-                      "map": []
+                      "map": [
+                        {
+                          "name": "Unit",
+                          "businesses": [
+                            {
+                              "name": "Business",
+                              "latitude": 25.6866140,
+                              "longitude": -100.3161130,
+                              "radius_meters": 0
+                            }
+                          ]
+                        }
+                      ]
                     }
                     """))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("At least one unit is required in multi mode."));
+            .andExpect(jsonPath("$.message").value("radius_meters must be greater than zero."));
     }
 
     @Test

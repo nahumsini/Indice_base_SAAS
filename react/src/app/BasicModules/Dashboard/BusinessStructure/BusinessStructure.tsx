@@ -93,9 +93,7 @@ type PendingDeleteTarget =
       name: string;
     };
 
-const createDefaultUnidades = (): Unidad[] => [
-  { id: '1', name: 'Principal', negocios: [] },
-];
+const createDefaultUnidades = (): Unidad[] => [];
 
 const DEFAULT_LOCATION_COORDINATE_VALUES: LocationCoordinateFormValues = {
   latitude: '',

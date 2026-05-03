@@ -63,8 +63,9 @@ public class ConfigCenterService {
         var settingsRoot = loadSettingsRoot(companyId);
         var configCenterNode = settingsRoot.path(CONFIG_CENTER_KEY);
         var empresaTemplate = normalizeEmpresaTemplate(configCenterNode.path("empresa_template"));
-        var storedMap = normalizeStoredMap(configCenterNode.path("map"));
-        var map = storedMap.isEmpty() ? buildStructureMap(companyId) : storedMap;
+        var mapNode = configCenterNode.path("map");
+        var storedMap = normalizeStoredMap(mapNode);
+        var map = mapNode.isArray() ? storedMap : buildStructureMap(companyId);
 
         var estructura = firstNonBlank(
             readOptionalText(configCenterNode, "estructura"),
@@ -476,9 +477,6 @@ public class ConfigCenterService {
         }
 
         var map = normalizeMap(payload);
-        if ("multi".equals(estructura) && map.isEmpty()) {
-            throw new IllegalArgumentException("At least one unit is required in multi mode.");
-        }
 
         persistStructure(companyId, userId, map);
 
