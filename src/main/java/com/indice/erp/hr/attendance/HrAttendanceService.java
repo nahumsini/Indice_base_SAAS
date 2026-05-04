@@ -227,6 +227,7 @@ public class HrAttendanceService {
         item.put("employee_id", user.userId());
         item.put("employee_number", user.email());
         item.put("employee_name", user.fullName());
+        item.put("avatar_url", user.avatarUrl());
         item.put("position_title", displayUserRole(user.role()));
         item.put("department", "User account");
         item.put("unit_id", null);
@@ -254,6 +255,7 @@ public class HrAttendanceService {
         userPayload.put("user_company_id", user.userCompanyId());
         userPayload.put("employee_number", user.email());
         userPayload.put("full_name", user.fullName());
+        userPayload.put("avatar_url", user.avatarUrl());
         userPayload.put("position_title", displayUserRole(user.role()));
         userPayload.put("department", "User account");
         userPayload.put("unit_id", null);
@@ -373,6 +375,7 @@ public class HrAttendanceService {
         userPayload.put("user_id", user.userId());
         userPayload.put("user_company_id", user.userCompanyId());
         userPayload.put("full_name", user.fullName());
+        userPayload.put("avatar_url", user.avatarUrl());
         userPayload.put("position_title", displayUserRole(user.role()));
         userPayload.put("department", "User account");
         userPayload.put("hire_date", null);
@@ -2295,9 +2298,12 @@ public class HrAttendanceService {
                        LOWER(TRIM(COALESCE(u.email, ''))) AS email,
                        COALESCE(NULLIF(TRIM(u.full_name), ''), TRIM(u.email), CONCAT('User ', u.id)) AS full_name,
                        COALESCE(LOWER(uc.role), 'user') AS role,
-                       COALESCE(LOWER(uc.status), 'active') AS status
+                       COALESCE(LOWER(uc.status), 'active') AS status,
+                       COALESCE(p.avatar_url, '') AS avatar_url,
+                       COALESCE(p.avatar_object_key, '') AS avatar_object_key
                 FROM users u
                 JOIN user_companies uc ON uc.user_id = u.id
+                LEFT JOIN user_profiles p ON p.user_id = u.id
                 WHERE u.id = ?
                   AND uc.company_id = ?
                   AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
@@ -2309,7 +2315,11 @@ public class HrAttendanceService {
                 safe(rs.getString("email")),
                 safe(rs.getString("full_name")),
                 safe(rs.getString("role")),
-                safe(rs.getString("status"))
+                safe(rs.getString("status")),
+                firstNonBlank(
+                    safe(signedProfileAvatarUrl(rs.getString("avatar_object_key"))),
+                    safe(rs.getString("avatar_url"))
+                )
             ),
             userId,
             companyId
@@ -6359,6 +6369,35 @@ public class HrAttendanceService {
             objectKey,
             objectStorageProperties.getMinio().getPresignExpirySeconds()
         );
+    }
+
+    private String signedProfileAvatarUrl(String objectKey) {
+        if (objectKey == null || objectKey.isBlank() || !objectStorageService.isEnabled()) {
+            return null;
+        }
+
+        try {
+            return objectStorageService.presignDownload(
+                documentsBucket(),
+                objectKey,
+                objectStorageProperties.getMinio().getPresignExpirySeconds()
+            );
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String documentsBucket() {
+        return objectStorageProperties.getMinio().getBucketDocuments();
     }
 
     private String normalizeAttendancePhotoObjectKey(long companyId, long employeeId, String objectKey) {
