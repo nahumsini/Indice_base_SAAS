@@ -415,6 +415,7 @@ export default function Attendance() {
     [selectedItem],
   );
   const latestRecordedPhotoUrl = selectedItem?.last_photo_url || selectedItem?.first_photo_url || null;
+  const selectedUserAvatarUrl = selectedItem?.avatar_url || selectedEmployeeOption?.avatar_url || '';
   const statusBadgeLabel = punchState.hasActiveCheckIn
     ? copy.labels.statusLoggedIn
     : punchState.hasCheckOut
@@ -863,9 +864,17 @@ export default function Attendance() {
             <>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                    <User className="h-5 w-5" />
-                  </div>
+                  {selectedUserAvatarUrl ? (
+                    <img
+                      src={selectedUserAvatarUrl}
+                      alt={selectedItem.employee_name}
+                      className="h-12 w-12 rounded-full border border-blue-100 object-cover shadow-sm dark:border-blue-900/50"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                      <User className="h-5 w-5" />
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{copy.labels.collaborator}</p>
                     <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{selectedItem.employee_name}</p>

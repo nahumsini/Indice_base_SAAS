@@ -255,6 +255,7 @@ export interface AttendanceDashboardItem {
   employee_id: number;
   employee_number?: string;
   employee_name: string;
+  avatar_url?: string | null;
   position_title?: string;
   department?: string;
   unit_id?: number | null;
@@ -285,6 +286,7 @@ export interface AttendanceEmployeeOption {
   id: number;
   employee_number?: string;
   full_name: string;
+  avatar_url?: string | null;
   position_title?: string;
   department?: string;
   unit_id?: number | null;
@@ -337,6 +339,7 @@ export interface AttendanceCalendarResponse {
   employee: {
     id: number;
     full_name: string;
+    avatar_url?: string | null;
     position_title?: string;
     department?: string;
     hire_date?: string | null;
