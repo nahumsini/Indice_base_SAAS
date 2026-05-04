@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
+import com.indice.erp.storage.ObjectStorageDisabledException;
 
 @RestController
 @RequestMapping("/api/v1/config-center")
@@ -53,9 +54,37 @@ public class ConfigCenterApiController {
         }
 
         try {
-            return ResponseEntity.ok(
-                configCenterService.saveCurrentUser(current.get().userId(), current.get().role(), payload)
+            var savedUser = configCenterService.saveCurrentUser(
+                current.get().companyId(),
+                current.get().userId(),
+                current.get().role(),
+                payload
             );
+            var displayName = displayName(savedUser);
+            if (!displayName.isBlank()) {
+                session.setAttribute(SessionAuthService.SESSION_USER_NAME, displayName);
+            }
+            return ResponseEntity.ok(savedUser);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/current-user/avatar/presign-upload")
+    public ResponseEntity<?> createCurrentUserAvatarUpload(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var current = sessionAuthService.currentUser(session);
+        if (current.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(configCenterService.createCurrentUserAvatarUpload(
+                current.get().companyId(),
+                current.get().userId(),
+                payload
+            ));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -201,5 +230,17 @@ public class ConfigCenterApiController {
             .path("/invite/")
             .path(token)
             .toUriString();
+    }
+
+    private String displayName(Map<String, Object> user) {
+        return String.join(
+            " ",
+            text(user.get("primer_nombre")),
+            text(user.get("apellido_paterno"))
+        ).trim();
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 }

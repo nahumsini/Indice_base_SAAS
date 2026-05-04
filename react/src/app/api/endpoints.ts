@@ -21,6 +21,7 @@ export const endpoints = {
     saveEmpresa: '/api/v1/config-center/company',
     locationCoordinateExtraction: '/api/v1/config-center/locations/extract-coordinates',
     saveCurrentUser: '/api/v1/config-center/current-user',
+    currentUserAvatarPresignUpload: '/api/v1/config-center/current-user/avatar/presign-upload',
   },
   humanResources: {
     employeesList: '/api/v1/hr/employees',

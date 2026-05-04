@@ -9,11 +9,11 @@ import {
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 import { Badge } from './ui/badge';
-import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useLanguage, languages } from '../shared/context';
 import { NotificationCenter } from './NotificationCenter';
 import { useEffect, useState } from 'react';
 import { authApi } from '../api/auth';
+import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCenter';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -22,30 +22,69 @@ interface HeaderProps {
   onToggleDarkMode: () => void;
 }
 
+const USER_PROFILE_UPDATED_EVENT = 'indice:user-profile-updated';
+
+const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
+  return [
+    user.primer_nombre || user.nombres,
+    user.apellido_paterno || user.apellidos,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || user.email || 'User';
+};
+
 export function Header({ learningModeActive, onToggleLearningMode, darkMode, onToggleDarkMode }: HeaderProps) {
   const navigate = useNavigate();
   const { currentLanguage, setCurrentLanguage, t } = useLanguage();
   const currentHour = new Date().getHours();
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [currentUserName, setCurrentUserName] = useState('Nahum Peña');
+  const [currentUserName, setCurrentUserName] = useState('User');
+  const [currentUserEmail, setCurrentUserEmail] = useState('');
+  const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState('');
 
   useEffect(() => {
     let active = true;
+    const applyUserProfile = (user: ConfigCenterCurrentUser) => {
+      setCurrentUserName(getProfileDisplayName(user));
+      setCurrentUserEmail(user.email || '');
+      setCurrentUserAvatarUrl(user.avatar_url || '');
+    };
 
-    authApi.getSessionOrNull()
-      .then((session) => {
-        if (!active || !session?.user?.name) {
+    const handleProfileUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ user?: ConfigCenterCurrentUser }>).detail;
+      if (detail?.user) {
+        applyUserProfile(detail.user);
+      }
+    };
+
+    window.addEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
+
+    configCenterApi.getCurrentUser()
+      .then((user) => {
+        if (!active) {
           return;
         }
-        setCurrentUserName(session.user.name);
+        applyUserProfile(user);
       })
       .catch(() => {
-        // Keep the fallback header content if the session call fails.
+        authApi.getSessionOrNull()
+          .then((session) => {
+            if (!active || !session?.user?.name) {
+              return;
+            }
+            setCurrentUserName(session.user.name);
+            setCurrentUserEmail('');
+          })
+          .catch(() => {
+            // Keep the fallback header content if both profile calls fail.
+          });
       });
 
     return () => {
       active = false;
+      window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
     };
   }, []);
   
@@ -121,6 +160,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   ];
 
   const unreadCount = notifications.filter(n => n.isUnread).length;
+  const currentUserInitials = currentUserName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase() || 'U';
 
   const getModuleColorClasses = (color: string) => {
     const colorMap: Record<string, { bg: string; text: string; border: string }> = {
@@ -157,11 +203,18 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         <div className="flex items-center justify-between gap-3">
           {/* Sección izquierda - Avatar y Saludo */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <ImageWithFallback 
-              src="https://images.unsplash.com/photo-1629507208649-70919ca33793?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMG1hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc3MzQxMDM4M3ww&ixlib=rb-4.1.0&q=80&w=1080"
-              alt="Nahum Peña"
-              className="h-12 w-12 sm:h-14 sm:w-14 rounded-full object-cover border-2 border-blue-500 shadow-sm flex-shrink-0"
-            />
+            {currentUserAvatarUrl ? (
+              <img
+                src={currentUserAvatarUrl}
+                alt={currentUserName}
+                onError={() => setCurrentUserAvatarUrl('')}
+                className="h-12 w-12 flex-shrink-0 rounded-full border-2 border-blue-500 object-cover shadow-sm sm:h-14 sm:w-14"
+              />
+            ) : (
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border-2 border-blue-500 bg-blue-50 text-sm font-semibold text-blue-700 shadow-sm dark:bg-blue-900/30 dark:text-blue-200 sm:h-14 sm:w-14 sm:text-base">
+                {currentUserInitials}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <span className="hidden sm:inline">{getGreetingIcon()}</span>
@@ -314,17 +367,24 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 {/* Header del perfil */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#558DBD]">
                   <div className="flex items-center gap-3">
-                    <ImageWithFallback 
-                      src="https://images.unsplash.com/photo-1629507208649-70919ca33793?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMG1hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc3MzQxMDM4M3ww&ixlib=rb-4.1.0&q=80&w=1080"
-                      alt="Nahum Peña"
-                      className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm"
-                    />
+                    {currentUserAvatarUrl ? (
+                      <img
+                        src={currentUserAvatarUrl}
+                        alt={currentUserName}
+                        onError={() => setCurrentUserAvatarUrl('')}
+                        className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white bg-white/20 text-sm font-semibold text-white shadow-sm">
+                        {currentUserInitials}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-base text-white truncate">
-                        Nahum Peña
+                        {currentUserName}
                       </h3>
                       <p className="text-xs text-white/80 truncate">
-                        nahum@indice.com
+                        {currentUserEmail}
                       </p>
                     </div>
                   </div>

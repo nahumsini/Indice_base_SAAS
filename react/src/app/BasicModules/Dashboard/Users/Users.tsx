@@ -30,6 +30,7 @@ interface User {
   source: 'user' | 'invitation';
   name: string;
   email: string;
+  avatarUrl?: string | null;
   role: 'Super Admin' | 'Admin' | 'User';
   status: 'active' | 'pending' | 'inactive';
   modules: string[];
@@ -706,13 +707,21 @@ export default function Users() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`w-10 h-10 rounded-full ${getRoleColorClasses(
-                              user.role,
-                            )} flex items-center justify-center font-semibold`}
-                          >
-                            {initials}
-                          </div>
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.name}
+                              className="h-10 w-10 rounded-full border border-gray-200 object-cover shadow-sm dark:border-gray-700"
+                            />
+                          ) : (
+                            <div
+                              className={`w-10 h-10 rounded-full ${getRoleColorClasses(
+                                user.role,
+                              )} flex items-center justify-center font-semibold`}
+                            >
+                              {initials}
+                            </div>
+                          )}
                           <div>
                             <div className="font-medium text-gray-900 dark:text-white">
                               {user.name}
@@ -1253,6 +1262,7 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     source: user.source === 'invitation' ? 'invitation' : 'user',
     name: fullName,
     email: user.email,
+    avatarUrl: user.avatar_url ?? null,
     role,
     status,
     modules: user.module_slugs
