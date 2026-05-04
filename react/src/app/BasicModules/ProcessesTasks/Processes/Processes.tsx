@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   ArrowUpDown,
   Columns3,
@@ -42,8 +42,8 @@ import {
   frequencyOptions,
   normalizeRecurrenceConfig,
   priorityLabels,
-  processRecordsSeed,
 } from './processesData';
+import { createProcess, deleteProcess, listProcesses, updateProcess } from './processesApi';
 import { ProcessColumnsDialog } from './components/ProcessColumnsDialog';
 import { ProcessFormDialog } from './components/ProcessFormDialog';
 import type {
@@ -61,8 +61,6 @@ type FrequencyFilter = 'all' | ProcessFrequency;
 type CollaboratorFilter = 'all' | string;
 type BusinessFilter = 'all' | string;
 type UnitFilter = 'all' | string;
-
-const currentActorName = 'Andrea Molina';
 
 const actionButtonBaseClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors';
@@ -82,15 +80,21 @@ function formatDate(date: string) {
   }).format(new Date(`${date}T00:00:00`));
 }
 
-function buildProcessFolio(records: ProcessRecord[]) {
-  const currentYear = new Date().getFullYear();
-  const nextSequence =
-    records.reduce((maxValue, record) => {
-      const parsedSequence = Number(record.folio.split('-').pop() ?? '0');
-      return Number.isFinite(parsedSequence) ? Math.max(maxValue, parsedSequence) : maxValue;
-    }, 0) + 1;
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
-  return `PR-${currentYear}-${String(nextSequence).padStart(3, '0')}`;
+function toProcessFormState(record: ProcessRecord): ProcessFormState {
+  return {
+    unit: record.unit,
+    business: record.business,
+    title: record.title,
+    description: record.description,
+    frequency: record.frequency,
+    responsible: record.responsible,
+    priority: record.priority,
+    recurrence: cloneRecurrenceConfig(record.recurrence),
+  };
 }
 
 function FilterSelect<T extends string>({
@@ -129,15 +133,17 @@ function InlineSelectField<T extends string>({
   onChange,
   className,
   renderValue,
+  disabled,
 }: {
   value: T;
   options: Option<T>[];
   onChange: (value: T) => void;
   className?: string;
   renderValue?: (value: T) => ReactNode;
+  disabled?: boolean;
 }) {
   return (
-    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
+    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)} disabled={disabled}>
       <SelectTrigger
         className={cn(
           'h-10 min-w-[148px] rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100',
@@ -159,24 +165,93 @@ function InlineSelectField<T extends string>({
 
 function InlineTextCell({
   value,
-  onChange,
+  onCommit,
   placeholder,
   className,
+  disabled,
 }: {
   value: string;
-  onChange: (value: string) => void;
+  onCommit: (value: string) => Promise<boolean> | boolean;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const handleBlur = async () => {
+    const nextValue = draft.trim();
+    if (nextValue === value) {
+      return;
+    }
+
+    const didCommit = await onCommit(nextValue);
+    if (!didCommit) {
+      setDraft(value);
+    }
+  };
+
   return (
     <Input
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        void handleBlur();
+      }}
       placeholder={placeholder}
+      disabled={disabled}
       className={cn(
         'h-10 min-w-[220px] rounded-xl border-slate-200 bg-white text-base text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400',
         className,
       )}
+    />
+  );
+}
+
+function InlineTextareaCell({
+  value,
+  onCommit,
+  placeholder,
+  className,
+  disabled,
+}: {
+  value: string;
+  onCommit: (value: string) => Promise<boolean> | boolean;
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const handleBlur = async () => {
+    const nextValue = draft.trim();
+    if (nextValue === value) {
+      return;
+    }
+
+    const didCommit = await onCommit(nextValue);
+    if (!didCommit) {
+      setDraft(value);
+    }
+  };
+
+  return (
+    <Textarea
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        void handleBlur();
+      }}
+      placeholder={placeholder}
+      disabled={disabled}
+      className={className}
     />
   );
 }
@@ -186,11 +261,13 @@ function ProcessActionButton({
   icon,
   label,
   onClick,
+  disabled,
 }: {
   className: string;
   icon: ReactNode;
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -198,7 +275,8 @@ function ProcessActionButton({
       title={label}
       aria-label={label}
       onClick={onClick}
-      className={cn(actionButtonBaseClass, className)}
+      disabled={disabled}
+      className={cn(actionButtonBaseClass, className, disabled && 'cursor-not-allowed opacity-60')}
     >
       {icon}
     </button>
@@ -206,7 +284,11 @@ function ProcessActionButton({
 }
 
 export default function Processes() {
-  const [records, setRecords] = useState<ProcessRecord[]>(processRecordsSeed);
+  const [records, setRecords] = useState<ProcessRecord[]>([]);
+  const [isLoadingProcesses, setIsLoadingProcesses] = useState(true);
+  const [processesError, setProcessesError] = useState<string | null>(null);
+  const [isSubmittingProcess, setIsSubmittingProcess] = useState(false);
+  const [pendingRecordIds, setPendingRecordIds] = useState<number[]>([]);
   const [columns, setColumns] = useState<ProcessColumnConfig[]>(defaultColumns);
   const [searchQuery, setSearchQuery] = useState('');
   const [unitFilter, setUnitFilter] = useState<UnitFilter>('all');
@@ -250,6 +332,25 @@ export default function Processes() {
   const [form, setForm] = useState<ProcessFormState>(() =>
     createDefaultProcessForm(unitOptions, businessOptions, collaboratorOptions),
   );
+
+  const loadProcesses = async () => {
+    setIsLoadingProcesses(true);
+    setProcessesError(null);
+
+    try {
+      const items = await listProcesses();
+      setRecords(items);
+    } catch (error) {
+      setProcessesError(getErrorMessage(error, 'Unable to load processes.'));
+      setRecords([]);
+    } finally {
+      setIsLoadingProcesses(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadProcesses();
+  }, []);
 
   const visibleColumns = columns.filter((column) => column.visible);
 
@@ -349,13 +450,66 @@ export default function Processes() {
   const inactiveCount = records.filter((record) => !record.isActive).length;
   const visibleCount = sortedRecords.length;
 
-  const updateRecord = (
+  const setRecordPendingState = (recordId: number, isPending: boolean) => {
+    setPendingRecordIds((currentIds) =>
+      isPending
+        ? currentIds.includes(recordId)
+          ? currentIds
+          : [...currentIds, recordId]
+        : currentIds.filter((currentId) => currentId !== recordId),
+    );
+  };
+
+  const isRecordPending = (recordId: number) => pendingRecordIds.includes(recordId);
+
+  const persistRecordChange = async (
     recordId: number,
     updater: (record: ProcessRecord) => ProcessRecord,
   ) => {
+    let previousRecord: ProcessRecord | null = null;
+    let nextRecord: ProcessRecord | null = null;
+
     setRecords((currentRecords) =>
-      currentRecords.map((record) => (record.id === recordId ? updater(record) : record)),
+      currentRecords.map((record) => {
+        if (record.id !== recordId) {
+          return record;
+        }
+
+        previousRecord = record;
+        nextRecord = updater(record);
+        return nextRecord;
+      }),
     );
+
+    if (!previousRecord || !nextRecord) {
+      return false;
+    }
+
+    const originalRecord: ProcessRecord = previousRecord;
+    const updatedRecord: ProcessRecord = nextRecord;
+
+    setRecordPendingState(recordId, true);
+    setProcessesError(null);
+
+    try {
+      const savedRecord = await updateProcess(recordId, {
+        ...toProcessFormState(updatedRecord),
+        isActive: updatedRecord.isActive,
+      });
+
+      setRecords((currentRecords) =>
+        currentRecords.map((record) => (record.id === recordId ? savedRecord : record)),
+      );
+      return true;
+    } catch (error) {
+      setRecords((currentRecords) =>
+        currentRecords.map((record) => (record.id === recordId ? originalRecord : record)),
+      );
+      setProcessesError(getErrorMessage(error, 'Unable to save process changes.'));
+      return false;
+    } finally {
+      setRecordPendingState(recordId, false);
+    }
   };
 
   const resetForm = () => {
@@ -393,75 +547,106 @@ export default function Processes() {
     }));
   };
 
-  const handleToggleActive = (recordId: number) => {
-    updateRecord(recordId, (record) => ({
+  const handleToggleActive = async (recordId: number) => {
+    await persistRecordChange(recordId, (record) => ({
       ...record,
       isActive: !record.isActive,
     }));
   };
 
-  const handleDelete = (recordId: number) => {
-    setRecords((currentRecords) => currentRecords.filter((record) => record.id !== recordId));
+  const handleDelete = async (recordId: number) => {
+    setRecordPendingState(recordId, true);
+    setProcessesError(null);
+
+    try {
+      await deleteProcess(recordId);
+      setRecords((currentRecords) => currentRecords.filter((record) => record.id !== recordId));
+    } catch (error) {
+      setProcessesError(getErrorMessage(error, 'Unable to delete process.'));
+    } finally {
+      setRecordPendingState(recordId, false);
+    }
   };
 
-  const handleDuplicate = (record: ProcessRecord) => {
-    const duplicatedRecord: ProcessRecord = {
+  const handleDuplicate = async (record: ProcessRecord) => {
+    setRecordPendingState(record.id, true);
+    setProcessesError(null);
+
+    try {
+      const duplicatedRecord = await createProcess({
+        ...toProcessFormState(record),
+        title: `${record.title} Copy`,
+        recurrence: cloneRecurrenceConfig(record.recurrence),
+      });
+
+      setRecords((currentRecords) => [duplicatedRecord, ...currentRecords]);
+    } catch (error) {
+      setProcessesError(getErrorMessage(error, 'Unable to duplicate process.'));
+    } finally {
+      setRecordPendingState(record.id, false);
+    }
+  };
+
+  const handleInlineTextCommit = async (
+    recordId: number,
+    field: 'title' | 'description',
+    nextValue: string,
+  ) => {
+    if (!nextValue) {
+      setProcessesError(`${field === 'title' ? 'Title' : 'Description'} is required.`);
+      return false;
+    }
+
+    return persistRecordChange(recordId, (record) => ({
       ...record,
-      id: records.reduce((maxValue, currentRecord) => Math.max(maxValue, currentRecord.id), 0) + 1,
-      folio: buildProcessFolio(records),
-      title: `${record.title} Copy`,
-      createdAt: new Date().toISOString().slice(0, 10),
-      creator: currentActorName,
-      recurrence: cloneRecurrenceConfig(record.recurrence),
-      isActive: true,
-    };
-
-    setRecords((currentRecords) => [duplicatedRecord, ...currentRecords]);
+      [field]: nextValue,
+    }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!form.title.trim() || !form.description.trim()) {
       return;
     }
 
-    const normalizedRecurrence = normalizeRecurrenceConfig(form.frequency, form.recurrence);
+    const normalizedForm: ProcessFormState = {
+      unit: form.unit,
+      business: form.business,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      frequency: form.frequency,
+      responsible: form.responsible,
+      priority: form.priority,
+      recurrence: normalizeRecurrenceConfig(form.frequency, form.recurrence),
+    };
 
-    if (editorMode === 'edit' && editingProcessId !== null) {
-      updateRecord(editingProcessId, (record) => ({
-        ...record,
-        unit: form.unit,
-        business: form.business,
-        title: form.title.trim(),
-        description: form.description.trim(),
-        frequency: form.frequency,
-        responsible: form.responsible,
-        priority: form.priority,
-        recurrence: normalizedRecurrence,
-      }));
-    } else {
-      const newRecord: ProcessRecord = {
-        id: records.reduce((maxValue, record) => Math.max(maxValue, record.id), 0) + 1,
-        folio: buildProcessFolio(records),
-        unit: form.unit,
-        business: form.business,
-        title: form.title.trim(),
-        description: form.description.trim(),
-        createdAt: new Date().toISOString().slice(0, 10),
-        frequency: form.frequency,
-        creator: currentActorName,
-        responsible: form.responsible,
-        priority: form.priority,
-        recurrence: normalizedRecurrence,
-        isActive: true,
-      };
+    setIsSubmittingProcess(true);
+    setProcessesError(null);
 
-      setRecords((currentRecords) => [newRecord, ...currentRecords]);
+    try {
+      if (editorMode === 'edit' && editingProcessId !== null) {
+        const existingRecord = records.find((record) => record.id === editingProcessId);
+        const updatedRecord = await updateProcess(editingProcessId, {
+          ...normalizedForm,
+          isActive: existingRecord?.isActive ?? true,
+        });
+
+        setRecords((currentRecords) =>
+          currentRecords.map((record) => (record.id === editingProcessId ? updatedRecord : record)),
+        );
+      } else {
+        const createdRecord = await createProcess(normalizedForm);
+        setRecords((currentRecords) => [createdRecord, ...currentRecords]);
+      }
+
+      setProcessEditorOpen(false);
+      resetForm();
+    } catch (error) {
+      setProcessesError(getErrorMessage(error, 'Unable to save process.'));
+    } finally {
+      setIsSubmittingProcess(false);
     }
-
-    setProcessEditorOpen(false);
-    resetForm();
   };
 
   const handleEditorOpenChange = (open: boolean) => {
@@ -481,7 +666,10 @@ export default function Processes() {
           <InlineSelectField
             value={record.unit}
             options={inlineUnitOptions}
-            onChange={(nextValue) => updateRecord(record.id, (currentRecord) => ({ ...currentRecord, unit: nextValue }))}
+            onChange={(nextValue) =>
+              void persistRecordChange(record.id, (currentRecord) => ({ ...currentRecord, unit: nextValue }))
+            }
+            disabled={isRecordPending(record.id)}
           />
         );
       case 'business':
@@ -490,8 +678,9 @@ export default function Processes() {
             value={record.business}
             options={inlineBusinessOptions}
             onChange={(nextValue) =>
-              updateRecord(record.id, (currentRecord) => ({ ...currentRecord, business: nextValue }))
+              void persistRecordChange(record.id, (currentRecord) => ({ ...currentRecord, business: nextValue }))
             }
+            disabled={isRecordPending(record.id)}
           />
         );
       case 'title':
@@ -499,14 +688,10 @@ export default function Processes() {
           <div className="min-w-[240px] space-y-2">
             <InlineTextCell
               value={record.title}
-              onChange={(nextValue) =>
-                updateRecord(record.id, (currentRecord) => ({
-                  ...currentRecord,
-                  title: nextValue,
-                }))
-              }
+              onCommit={(nextValue) => handleInlineTextCommit(record.id, 'title', nextValue)}
               placeholder="Enter process title"
               className="font-semibold text-slate-900 dark:text-white"
+              disabled={isRecordPending(record.id)}
             />
             <span
               className={cn(
@@ -522,16 +707,12 @@ export default function Processes() {
         );
       case 'description':
         return (
-          <Textarea
+          <InlineTextareaCell
             value={record.description}
-            onChange={(event) =>
-              updateRecord(record.id, (currentRecord) => ({
-                ...currentRecord,
-                description: event.target.value,
-              }))
-            }
+            onCommit={(nextValue) => handleInlineTextCommit(record.id, 'description', nextValue)}
             placeholder="Describe the recurring process"
             className="min-h-[96px] min-w-[320px] rounded-xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-600 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+            disabled={isRecordPending(record.id)}
           />
         );
       case 'createdAt':
@@ -543,7 +724,7 @@ export default function Processes() {
               value={record.frequency}
               options={frequencyOptions}
               onChange={(nextValue) =>
-                updateRecord(record.id, (currentRecord) => ({
+                void persistRecordChange(record.id, (currentRecord) => ({
                   ...currentRecord,
                   frequency: nextValue,
                   recurrence: normalizeRecurrenceConfig(nextValue, currentRecord.recurrence),
@@ -551,6 +732,7 @@ export default function Processes() {
               }
               className="min-w-[180px]"
               renderValue={(value) => <span className="font-semibold">{frequencyLabels[value]}</span>}
+              disabled={isRecordPending(record.id)}
             />
             <p className="px-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
               {describeProcessFrequency(record.frequency, record.recurrence)}
@@ -569,8 +751,9 @@ export default function Processes() {
             value={record.responsible}
             options={inlineCollaboratorOptions}
             onChange={(nextValue) =>
-              updateRecord(record.id, (currentRecord) => ({ ...currentRecord, responsible: nextValue }))
+              void persistRecordChange(record.id, (currentRecord) => ({ ...currentRecord, responsible: nextValue }))
             }
+            disabled={isRecordPending(record.id)}
           />
         );
       case 'priority':
@@ -582,10 +765,11 @@ export default function Processes() {
               label,
             }))}
             onChange={(nextValue) =>
-              updateRecord(record.id, (currentRecord) => ({ ...currentRecord, priority: nextValue }))
+              void persistRecordChange(record.id, (currentRecord) => ({ ...currentRecord, priority: nextValue }))
             }
             className={cn('min-w-[136px] border font-semibold', prioritySelectClasses[record.priority])}
             renderValue={(value) => <span className="font-semibold">{priorityLabels[value]}</span>}
+            disabled={isRecordPending(record.id)}
           />
         );
       default:
@@ -611,17 +795,40 @@ export default function Processes() {
               variant="outline"
               className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-4 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsDialogOpen(true)}
+              disabled={isLoadingProcesses}
             >
               <Columns3 className="h-4 w-4" />
               Columns
             </Button>
-            <Button className={cn('h-11 gap-2 rounded-xl px-4', accentButtonClass)} onClick={openCreateDialog}>
+            <Button
+              className={cn('h-11 gap-2 rounded-xl px-4', accentButtonClass)}
+              onClick={openCreateDialog}
+              disabled={isLoadingProcesses}
+            >
               <Plus className="h-4 w-4" />
               Add process
             </Button>
           </div>
         </div>
       </section>
+
+      {processesError ? (
+        <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{processesError}</span>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-red-200 bg-white px-4 text-red-700 shadow-none dark:border-red-900/60 dark:bg-slate-800 dark:text-red-200"
+              onClick={() => {
+                void loadProcesses();
+              }}
+            >
+              Retry
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">Filters</h3>
@@ -728,7 +935,10 @@ export default function Processes() {
                   <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
                     <ProcessActionButton
                       label={record.isActive ? 'Deactivate process' : 'Activate process'}
-                      onClick={() => handleToggleActive(record.id)}
+                      onClick={() => {
+                        void handleToggleActive(record.id);
+                      }}
+                      disabled={isRecordPending(record.id)}
                       className={
                         record.isActive
                           ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60'
@@ -745,18 +955,25 @@ export default function Processes() {
                     <ProcessActionButton
                       label="Edit process"
                       onClick={() => openEditDialog(record)}
+                      disabled={isRecordPending(record.id)}
                       className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
                       icon={<Pencil className="h-4 w-4" />}
                     />
                     <ProcessActionButton
                       label="Copy process"
-                      onClick={() => handleDuplicate(record)}
+                      onClick={() => {
+                        void handleDuplicate(record);
+                      }}
+                      disabled={isRecordPending(record.id)}
                       className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
                       icon={<Copy className="h-4 w-4" />}
                     />
                     <ProcessActionButton
                       label="Delete process"
-                      onClick={() => handleDelete(record.id)}
+                      onClick={() => {
+                        void handleDelete(record.id);
+                      }}
+                      disabled={isRecordPending(record.id)}
                       className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60"
                       icon={<Trash2 className="h-4 w-4" />}
                     />
@@ -764,7 +981,17 @@ export default function Processes() {
                 </TableCell>
               </TableRow>
             ))}
-            {sortedRecords.length === 0 ? (
+            {isLoadingProcesses ? (
+              <TableRow>
+                <TableCell
+                  colSpan={visibleColumns.length + 1}
+                  className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
+                >
+                  Loading recurring processes...
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {!isLoadingProcesses && sortedRecords.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={visibleColumns.length + 1}
@@ -784,6 +1011,7 @@ export default function Processes() {
         mode={editorMode}
         onSubmit={handleSubmit}
         form={form}
+        isSubmitting={isSubmittingProcess}
         setForm={setForm}
         unitOptions={unitOptions}
         businessOptions={businessOptions}

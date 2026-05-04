@@ -44,6 +44,7 @@ interface ProcessFormDialogProps {
   businessOptions: string[];
   collaboratorOptions: string[];
   form: ProcessFormState;
+  isSubmitting?: boolean;
   mode: 'create' | 'edit';
   onOpenChange: (open: boolean) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -122,6 +123,7 @@ export function ProcessFormDialog({
   businessOptions,
   collaboratorOptions,
   form,
+  isSubmitting = false,
   mode,
   onOpenChange,
   onSubmit,
@@ -500,6 +502,7 @@ export function ProcessFormDialog({
                 type="button"
                 variant="outline"
                 className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
@@ -507,10 +510,10 @@ export function ProcessFormDialog({
             <Button
               type="submit"
               className={`h-10 rounded-xl px-4 text-sm font-semibold ${accentButtonClass}`}
-              disabled={!isFormValid}
+              disabled={!isFormValid || isSubmitting}
             >
               {mode === 'create' ? <Plus className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
-              {submitLabel}
+              {isSubmitting ? 'Saving...' : submitLabel}
             </Button>
           </DialogFooter>
         </form>
