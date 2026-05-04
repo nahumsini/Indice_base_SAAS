@@ -45,12 +45,18 @@ const DEFAULT_PROFILE_FORM_VALUES = {
 } as const;
 
 const PROFILE_SAVE_MINIMUM_LOADING_MS = 2500;
-const PROFILE_AVATAR_MAX_SOURCE_SIZE_BYTES = 10 * 1024 * 1024;
+const PROFILE_AVATAR_MAX_SOURCE_SIZE_BYTES = 25 * 1024 * 1024;
 const PROFILE_AVATAR_MAX_UPLOAD_SIZE_BYTES = 1024 * 1024;
 const PROFILE_AVATAR_MAX_DIMENSION_PIXELS = 768;
 const PROFILE_AVATAR_COMPRESSION_QUALITIES = [0.82, 0.72, 0.62] as const;
 const PROFILE_AVATAR_COMPRESSION_DIMENSIONS = [768, 512, 384] as const;
 const PROFILE_AVATAR_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PROFILE_AVATAR_SOURCE_CONTENT_TYPES = new Set([
+  ...PROFILE_AVATAR_CONTENT_TYPES,
+  'image/heic',
+  'image/heif',
+  'image/avif',
+]);
 const USER_PROFILE_UPDATED_EVENT = 'indice:user-profile-updated';
 
 type ProfileFormValues = {
@@ -71,18 +77,18 @@ type CompressedProfileAvatar = {
   fileName: string;
 };
 
-const normalizeAvatarContentType = (file: File) => {
+const normalizeAvatarSourceContentType = (file: File) => {
   const browserType = file.type.trim().toLowerCase();
-  if (browserType === 'image/jpg') {
+  if (browserType === 'image/jpg' || browserType === 'image/pjpeg') {
     return 'image/jpeg';
   }
 
-  if (PROFILE_AVATAR_CONTENT_TYPES.has(browserType)) {
+  if (PROFILE_AVATAR_SOURCE_CONTENT_TYPES.has(browserType)) {
     return browserType;
   }
 
   const fileName = file.name.toLowerCase();
-  if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+  if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.jfif')) {
     return 'image/jpeg';
   }
   if (fileName.endsWith('.png')) {
@@ -90,6 +96,15 @@ const normalizeAvatarContentType = (file: File) => {
   }
   if (fileName.endsWith('.webp')) {
     return 'image/webp';
+  }
+  if (fileName.endsWith('.heic')) {
+    return 'image/heic';
+  }
+  if (fileName.endsWith('.heif')) {
+    return 'image/heif';
+  }
+  if (fileName.endsWith('.avif')) {
+    return 'image/avif';
   }
 
   return '';
@@ -120,7 +135,7 @@ const loadImageFile = (file: File) => new Promise<HTMLImageElement>((resolve, re
   };
   image.onerror = () => {
     URL.revokeObjectURL(imageUrl);
-    reject(new Error('Unable to read selected profile photo.'));
+    reject(new Error('Unable to read that image. Try a JPG, PNG, WebP, or HEIC photo.'));
   };
 
   image.src = imageUrl;
@@ -428,9 +443,9 @@ export default function Profile() {
       return;
     }
 
-    const contentType = normalizeAvatarContentType(file);
-    if (!contentType) {
-      setErrorMessage('Profile photos must be JPG, PNG, or WebP images.');
+    const sourceContentType = normalizeAvatarSourceContentType(file);
+    if (!sourceContentType) {
+      setErrorMessage('Profile photos must be JPG, PNG, WebP, HEIC, or AVIF images.');
       setSaveMessage('');
       return;
     }
@@ -628,7 +643,7 @@ export default function Profile() {
                 <input
                   ref={avatarInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.jfif,.png,.webp,.heic,.heif,.avif"
                   className="sr-only"
                   onChange={handleAvatarFileChange}
                   disabled={isLoading || isSaving || isUploadingAvatar}

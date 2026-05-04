@@ -11,7 +11,8 @@ Users can now upload a profile photo from the Profile panel. The uploaded file i
 ## What Changed
 
 - Enabled the Profile photo action in the Home Panel profile form.
-- Added client-side validation for supported image types and a 10MB original file limit.
+- Added client-side validation for supported image types and a 25MB original file limit.
+- Accepts common phone/browser source formats, including HEIC and AVIF when the browser can decode them.
 - Added browser-side avatar compression before requesting the upload URL, so large camera photos are resized before crossing the network.
 - Added presigned upload support for current-user avatar uploads.
 - Saved avatar object metadata on the profile record instead of storing a raw public URL.
