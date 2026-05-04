@@ -10,6 +10,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.storage.DisabledObjectStorageService;
+import com.indice.erp.storage.ObjectStorageProperties;
 import java.sql.ResultSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +36,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void getEmpresaReadsConfigCenterSettingsFromCompanySettings() throws Exception {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
@@ -105,7 +107,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void getEmpresaKeepsExplicitEmptyStructureMap() throws Exception {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
@@ -145,7 +147,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void saveEmpresaPersistsSettingsJsonAndKeepsExistingTemplateFields() {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
@@ -193,7 +195,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void saveStructureAllowsEmptyMultiModeForOnboarding() {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("""
@@ -250,7 +252,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void saveCurrentUserUpdatesPasswordHashWhenNewPasswordIsProvided() {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(passwordEncoder.encode("newSecret123")).thenReturn("encoded-password");
         when(jdbcTemplate.update("UPDATE users SET full_name = ? WHERE id = ?", "Ada Demo", 1L)).thenReturn(1);
@@ -263,7 +265,9 @@ class ConfigCenterServiceTest {
                        COALESCE(p.phone, '') AS phone,
                        COALESCE(p.country, '') AS country,
                        COALESCE(p.preferred_language, 'es-419') AS preferred_language,
-                       COALESCE(p.avatar_url, '') AS avatar_url
+                       COALESCE(p.avatar_url, '') AS avatar_url,
+                       COALESCE(p.avatar_object_key, '') AS avatar_object_key,
+                       COALESCE(p.avatar_content_type, '') AS avatar_content_type
                 FROM users u
                 LEFT JOIN user_profiles p ON p.user_id = u.id
                 WHERE u.id = ?
@@ -282,10 +286,12 @@ class ConfigCenterServiceTest {
             when(rs.getString("country")).thenReturn("CA");
             when(rs.getString("preferred_language")).thenReturn("en-US");
             when(rs.getString("avatar_url")).thenReturn(null);
+            when(rs.getString("avatar_object_key")).thenReturn(null);
+            when(rs.getString("avatar_content_type")).thenReturn(null);
             return List.of(rowMapper.mapRow(rs, 0));
         });
 
-        var saved = service.saveCurrentUser(1L, "admin", Map.of(
+        var saved = service.saveCurrentUser(7L, 1L, "admin", Map.of(
             "primer_nombre", "Ada",
             "apellido_paterno", "Demo",
             "country", "CA",
@@ -298,5 +304,15 @@ class ConfigCenterServiceTest {
         verify(jdbcTemplate).update("UPDATE users SET password_hash = ? WHERE id = ?", "encoded-password", 1L);
         assertEquals("ada@example.com", saved.get("email"));
         assertEquals("CA", saved.get("country"));
+    }
+
+    private ConfigCenterService newService() {
+        return new ConfigCenterService(
+            jdbcTemplate,
+            new ObjectMapper(),
+            passwordEncoder,
+            new DisabledObjectStorageService(),
+            new ObjectStorageProperties()
+        );
     }
 }

@@ -123,7 +123,12 @@ class ConfigCenterApiControllerTest {
         );
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.saveCurrentUser(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq("admin"), anyMap()))
+        given(configCenterService.saveCurrentUser(
+            org.mockito.ArgumentMatchers.eq(7L),
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq("admin"),
+            anyMap()
+        ))
             .willReturn(savedUser);
 
         mockMvc.perform(put("/api/v1/config-center/current-user")

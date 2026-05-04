@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, CircleAlert, Eye, EyeOff, KeyRound, ShieldCheck } from 'lucide-react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Camera, CheckCircle2, CircleAlert, Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../../../api/configCenter';
 import {
   LoadingBarOverlay,
@@ -38,11 +38,16 @@ const DEFAULT_PROFILE_FORM_VALUES = {
   country: DEFAULT_PROFILE_COUNTRY,
   phoneNumber: '',
   preferredLanguage: DEFAULT_PREFERRED_LANGUAGE,
+  avatarObjectKey: '',
+  avatarContentType: '',
   newPassword: '',
   confirmNewPassword: '',
 } as const;
 
 const PROFILE_SAVE_MINIMUM_LOADING_MS = 2500;
+const PROFILE_AVATAR_MAX_SIZE_BYTES = 1024 * 1024;
+const PROFILE_AVATAR_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const USER_PROFILE_UPDATED_EVENT = 'indice:user-profile-updated';
 
 type ProfileFormValues = {
   firstName: string;
@@ -50,8 +55,34 @@ type ProfileFormValues = {
   country: string;
   phoneNumber: string;
   preferredLanguage: string;
+  avatarObjectKey: string;
+  avatarContentType: string;
   newPassword: string;
   confirmNewPassword: string;
+};
+
+const normalizeAvatarContentType = (file: File) => {
+  const browserType = file.type.trim().toLowerCase();
+  if (browserType === 'image/jpg') {
+    return 'image/jpeg';
+  }
+
+  if (PROFILE_AVATAR_CONTENT_TYPES.has(browserType)) {
+    return browserType;
+  }
+
+  const fileName = file.name.toLowerCase();
+  if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+  if (fileName.endsWith('.png')) {
+    return 'image/png';
+  }
+  if (fileName.endsWith('.webp')) {
+    return 'image/webp';
+  }
+
+  return '';
 };
 
 const normalizePreferredLanguage = (languageCode?: string) => {
@@ -80,6 +111,8 @@ const createProfileFormValues = (user?: ConfigCenterCurrentUser | null): Profile
     country: phoneParts.country,
     phoneNumber: phoneParts.number,
     preferredLanguage: normalizePreferredLanguage(user.preferred_language),
+    avatarObjectKey: user.avatar_object_key ?? '',
+    avatarContentType: user.avatar_content_type ?? '',
     newPassword: '',
     confirmNewPassword: '',
   };
@@ -94,6 +127,8 @@ const areProfileFormValuesEqual = (
   && currentValues.country === baselineValues.country
   && currentValues.phoneNumber === baselineValues.phoneNumber
   && currentValues.preferredLanguage === baselineValues.preferredLanguage
+  && currentValues.avatarObjectKey === baselineValues.avatarObjectKey
+  && currentValues.avatarContentType === baselineValues.avatarContentType
   && currentValues.newPassword === baselineValues.newPassword
   && currentValues.confirmNewPassword === baselineValues.confirmNewPassword
 );
@@ -101,15 +136,28 @@ const areProfileFormValuesEqual = (
 export default function Profile() {
   const { currentLanguage, t } = useLanguage();
   const profileCopy = t.panelInicial.profile;
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarPreviewRef = useRef('');
   const [user, setUser] = useState<ConfigCenterCurrentUser | null>(null);
   const [formValues, setFormValues] = useState<ProfileFormValues>({ ...DEFAULT_PROFILE_FORM_VALUES });
   const [baselineValues, setBaselineValues] = useState<ProfileFormValues | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const replaceAvatarPreview = (nextPreviewUrl: string) => {
+    if (avatarPreviewRef.current) {
+      URL.revokeObjectURL(avatarPreviewRef.current);
+    }
+
+    avatarPreviewRef.current = nextPreviewUrl;
+    setAvatarPreviewUrl(nextPreviewUrl);
+  };
 
   useEffect(() => {
     let active = true;
@@ -144,6 +192,14 @@ export default function Profile() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewRef.current) {
+        URL.revokeObjectURL(avatarPreviewRef.current);
+      }
+    };
+  }, []);
+
   const firstNames = useMemo(
     () => formValues.firstName.trim(),
     [formValues.firstName],
@@ -166,6 +222,8 @@ export default function Profile() {
   );
 
   const initials = ((firstNames[0] ?? '') + (lastNames[0] ?? '')).trim().toUpperCase() || 'U';
+  const avatarDisplayUrl = avatarPreviewUrl || user?.avatar_url || '';
+  const uploadPhotoLabel = currentLanguage.code.startsWith('es') ? 'Subiendo foto...' : 'Uploading photo...';
   const hasUnsavedChanges = baselineValues !== null && !areProfileFormValuesEqual(formValues, baselineValues);
   const trimmedNewPassword = formValues.newPassword.trim();
   const trimmedPasswordConfirmation = formValues.confirmNewPassword.trim();
@@ -182,11 +240,14 @@ export default function Profile() {
     && trimmedPasswordConfirmation.length > 0
     && trimmedNewPassword === trimmedPasswordConfirmation
   );
-  const isSaveDisabled = hasPasswordChangeInProgress
-    && (
-      trimmedNewPassword.length === 0
-      || trimmedPasswordConfirmation.length === 0
-      || trimmedNewPassword !== trimmedPasswordConfirmation
+  const isSaveDisabled = isUploadingAvatar
+    || (
+      hasPasswordChangeInProgress
+      && (
+        trimmedNewPassword.length === 0
+        || trimmedPasswordConfirmation.length === 0
+        || trimmedNewPassword !== trimmedPasswordConfirmation
+      )
     );
 
   const updateFormValue = <Key extends keyof ProfileFormValues>(
@@ -237,18 +298,73 @@ export default function Profile() {
     updateFormValue('phoneNumber', normalizePhoneInputForCountry(value, formValues.country));
   };
 
+  const handleAvatarFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file || isSaving || isUploadingAvatar) {
+      return;
+    }
+
+    const contentType = normalizeAvatarContentType(file);
+    if (!contentType) {
+      setErrorMessage('Profile photos must be JPG, PNG, or WebP images.');
+      setSaveMessage('');
+      return;
+    }
+
+    if (file.size > PROFILE_AVATAR_MAX_SIZE_BYTES) {
+      setErrorMessage(profileCopy.hints.photoFormat);
+      setSaveMessage('');
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    replaceAvatarPreview(previewUrl);
+    setIsUploadingAvatar(true);
+    setErrorMessage('');
+    setSaveMessage('');
+
+    try {
+      const presign = await configCenterApi.presignCurrentUserAvatarUpload({
+        file_name: file.name || 'profile-photo',
+        content_type: contentType,
+        size_bytes: file.size,
+      });
+
+      await configCenterApi.uploadCurrentUserAvatar(
+        presign.upload_url,
+        file,
+        presign.content_type || contentType,
+        presign.upload_headers ?? {},
+      );
+
+      setFormValues((currentValues) => ({
+        ...currentValues,
+        avatarObjectKey: presign.object_key,
+        avatarContentType: presign.content_type || contentType,
+      }));
+    } catch (error) {
+      replaceAvatarPreview('');
+      setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.saveError);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleDiscardChanges = () => {
     if (!baselineValues || isSaving) {
       return;
     }
 
     setFormValues({ ...baselineValues });
+    replaceAvatarPreview('');
     setErrorMessage('');
     setSaveMessage('');
   };
 
   const handleSaveProfile = async () => {
-    if (!user || !hasUnsavedChanges) {
+    if (!user || !hasUnsavedChanges || isUploadingAvatar) {
       return;
     }
 
@@ -300,6 +416,12 @@ export default function Profile() {
           telefono: formattedPhone,
           country: formValues.country,
           preferred_language: formValues.preferredLanguage,
+          ...(baselineValues && formValues.avatarObjectKey !== baselineValues.avatarObjectKey
+            ? {
+                avatar_object_key: formValues.avatarObjectKey,
+                avatar_content_type: formValues.avatarContentType,
+              }
+            : {}),
           ...(trimmedNewPassword
             ? {
                 new_password: trimmedNewPassword,
@@ -315,7 +437,9 @@ export default function Profile() {
       setUser(response);
       setBaselineValues(nextValues);
       setFormValues(nextValues);
+      replaceAvatarPreview('');
       setSaveMessage(profileCopy.messages.saveSuccess);
+      window.dispatchEvent(new CustomEvent(USER_PROFILE_UPDATED_EVENT, { detail: { user: response } }));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.saveError);
     } finally {
@@ -365,12 +489,38 @@ export default function Profile() {
               {t.panelInicial.profile.fields.profilePhoto}
             </label>
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-xl font-semibold text-white shadow-md">
-                {initials}
-              </div>
+              {avatarDisplayUrl ? (
+                <img
+                  src={avatarDisplayUrl}
+                  alt={t.panelInicial.profile.fields.profilePhoto}
+                  className="h-16 w-16 rounded-full border-2 border-purple-200 object-cover shadow-md dark:border-purple-700/50"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-xl font-semibold text-white shadow-md">
+                  {initials}
+                </div>
+              )}
               <div>
-                <button disabled className="cursor-not-allowed rounded-lg bg-purple-600/70 px-4 py-2 text-sm font-medium text-white">
-                  📷 {t.panelInicial.profile.fields.uploadPhoto}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={handleAvatarFileChange}
+                  disabled={isLoading || isSaving || isUploadingAvatar}
+                />
+                <button
+                  type="button"
+                  disabled={isLoading || isSaving || isUploadingAvatar}
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-600/60"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                  {isUploadingAvatar ? uploadPhotoLabel : t.panelInicial.profile.fields.uploadPhoto}
                 </button>
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                   {profileCopy.hints.photoFormat}
