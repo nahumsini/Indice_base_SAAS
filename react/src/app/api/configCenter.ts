@@ -185,6 +185,14 @@ interface ConfigResponse {
   } | null;
 }
 
+export interface SaveStructureResponse {
+  modo?: 'simple' | 'multi';
+  estructura?: 'simple' | 'multi';
+  colaboradores?: number;
+  unidades_aprox?: number;
+  map?: ConfigCenterEmpresaMapUnit[];
+}
+
 export interface SaveStructurePayload {
   estructura: 'simple' | 'multi';
   map: Array<{
@@ -229,6 +237,8 @@ export interface SaveStructurePayload {
 
 export interface SaveEmpresaPayload {
   nombre_empresa: string;
+  logo_url?: string | null;
+  logo?: string | null;
   industria?: string;
   descripcion?: string;
   tamano_empresa?: string;
@@ -240,6 +250,14 @@ export interface SaveEmpresaPayload {
   radius_meters?: number | null;
   coordinate_source?: string | null;
   google_maps_url?: string | null;
+  sync_company_location?: boolean;
+  syncCompanyLocation?: boolean;
+}
+
+interface SaveEmpresaResponse {
+  logo: string | null;
+  data: Partial<ConfigCenterEmpresa>;
+  message: string;
 }
 
 export interface ConfigCenterCoordinateExtractionPayload {
@@ -334,14 +352,14 @@ export const configCenterApi = {
   },
 
   saveConfig(payload: SaveStructurePayload) {
-    return apiClient(endpoints.configCenter.saveConfig, {
+    return apiClient<SaveStructureResponse>(endpoints.configCenter.saveConfig, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
   },
 
   saveEmpresa(payload: SaveEmpresaPayload) {
-    return apiClient(endpoints.configCenter.saveEmpresa, {
+    return apiClient<SaveEmpresaResponse>(endpoints.configCenter.saveEmpresa, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });

@@ -6,7 +6,7 @@ import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/L
 import { SaveChangesBar } from '../../../components/SaveChangesBar';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLanguage } from '../../../shared/context';
-import { configCenterApi } from '../../../api/configCenter';
+import { configCenterApi, type ConfigCenterEmpresaMapUnit } from '../../../api/configCenter';
 import { validateOptionalEmail } from '../../../shared/validation/email';
 import { inputClassName } from './constants';
 import { BusinessIdentitySection } from './components/BusinessIdentitySection';
@@ -47,6 +47,7 @@ type BusinessStructureSnapshot = {
   estructuraType: EstructuraType;
   unidades: Unidad[];
   companyName: string;
+  companyLogo: string;
   industry: string;
   description: string;
   companyLocation: LocationCoordinateFormValues;
@@ -102,6 +103,9 @@ const DEFAULT_LOCATION_COORDINATE_VALUES: LocationCoordinateFormValues = {
   coordinateSource: '',
   googleMapsUrl: '',
 };
+const HEADQUARTERS_UNIT_NAME = 'Headquarter';
+const LEGACY_HEADQUARTERS_LOCATION_NAME = 'Headquarters';
+const HEADQUARTERS_BUSINESS_FALLBACK_NAME = 'Company headquarters';
 
 const DEFAULT_UNIDAD_FORM_VALUES: UnidadFormValues = {
   ...DEFAULT_LOCATION_COORDINATE_VALUES,
@@ -141,6 +145,7 @@ const createBusinessStructureSnapshot = ({
   estructuraType,
   unidades,
   companyName,
+  companyLogo,
   industry,
   description,
   companyLocation,
@@ -148,6 +153,7 @@ const createBusinessStructureSnapshot = ({
   estructuraType,
   unidades,
   companyName,
+  companyLogo,
   industry,
   description,
   companyLocation,
@@ -337,6 +343,12 @@ const arePlainObjectsEqual = <T extends object>(left: T, right: T) => (
   JSON.stringify(left) === JSON.stringify(right)
 );
 
+const isHeadquartersName = (value?: string | null) => (
+  [HEADQUARTERS_UNIT_NAME, LEGACY_HEADQUARTERS_LOCATION_NAME].some(
+    (name) => (value ?? '').trim().toLowerCase() === name.toLowerCase(),
+  )
+);
+
 const unidadHasMultiData = (unidad: Unidad) => (
   Boolean(unidad.legacyUnitId)
   || unidad.name.trim() !== ''
@@ -356,12 +368,12 @@ const unidadHasMultiData = (unidad: Unidad) => (
 );
 
 const hasMeaningfulMultiStructureData = (unidades: Unidad[]) => {
-  if (unidades.length > 1) {
-    return true;
-  }
-
   if (unidades.length === 0) {
     return false;
+  }
+
+  if (unidades.length > 1) {
+    return true;
   }
 
   const [firstUnidad] = unidades;
@@ -391,14 +403,26 @@ const hasMeaningfulMultiStructureData = (unidades: Unidad[]) => {
     return false;
   }
 
+  const isDefaultHeadquartersUnit = isHeadquartersName(firstUnidad.name)
+    && firstUnidad.negocios.every((negocio) => isHeadquartersName(negocio.name));
+
+  if (isDefaultHeadquartersUnit) {
+    return false;
+  }
+
+  if (firstUnidad.negocios.length <= 1) {
+    return false;
+  }
+
   return unidadHasMultiData(firstUnidad);
 };
 
-const buildConfigMap = (estructuraType: EstructuraType, unidades: Unidad[]) => (
-  estructuraType === 'multi'
-    ? unidades.map((unidad) => ({
+const mapConfigUnitsToState = (resolvedMap?: ConfigCenterEmpresaMapUnit[] | null): Unidad[] => (
+  Array.isArray(resolvedMap) && resolvedMap.length > 0
+    ? resolvedMap.map((unidad, unidadIndex) => ({
+        id: `unit-${unidadIndex}-${unidad.name}`,
         name: unidad.name,
-        legacy_unit_id: unidad.legacyUnitId,
+        legacyUnitId: unidad.legacy_unit_id,
         logo: unidad.logo,
         industria: unidad.industria,
         direccion: unidad.direccion,
@@ -408,10 +432,15 @@ const buildConfigMap = (estructuraType: EstructuraType, unidades: Unidad[]) => (
         cp: unidad.cp,
         telefono: unidad.telefono,
         email: unidad.email,
-        ...buildConfigCoordinateFields(unidad),
-        businesses: unidad.negocios.map((negocio) => ({
+        latitude: unidad.latitude,
+        longitude: unidad.longitude,
+        radiusMeters: unidad.radius_meters,
+        coordinateSource: normalizeCoordinateSource(unidad.coordinate_source ?? ''),
+        googleMapsUrl: unidad.google_maps_url,
+        negocios: (unidad.businesses ?? []).map((negocio, negocioIndex) => ({
+          id: `biz-${unidadIndex}-${negocioIndex}-${negocio.name}`,
           name: negocio.name,
-          legacy_business_id: negocio.legacyBusinessId,
+          legacyBusinessId: negocio.legacy_business_id,
           logo: negocio.logo,
           industria: negocio.industria,
           direccion: negocio.direccion,
@@ -423,10 +452,173 @@ const buildConfigMap = (estructuraType: EstructuraType, unidades: Unidad[]) => (
           email: negocio.email,
           gerente: negocio.gerente,
           horario: negocio.horario,
-          ...buildConfigCoordinateFields(negocio),
+          latitude: negocio.latitude,
+          longitude: negocio.longitude,
+          radiusMeters: negocio.radius_meters,
+          coordinateSource: normalizeCoordinateSource(negocio.coordinate_source ?? ''),
+          googleMapsUrl: negocio.google_maps_url,
         })),
       }))
-    : []
+    : createDefaultUnidades()
+);
+
+const buildHeadquartersUnidad = ({
+  existingUnidad,
+  existingNegocio,
+  companyName,
+  companyLogo,
+  industry,
+  coordinates,
+  additionalNegocios = [],
+}: {
+  existingUnidad?: Unidad;
+  existingNegocio?: Negocio;
+  companyName: string;
+  companyLogo: string;
+  industry: string;
+  coordinates: {
+    latitude?: number | null;
+    longitude?: number | null;
+    radiusMeters?: number | null;
+    coordinateSource?: CoordinateSource | null;
+    googleMapsUrl?: string | null;
+  };
+  additionalNegocios?: Negocio[];
+}): Unidad => {
+  const businessName = companyName.trim() || HEADQUARTERS_BUSINESS_FALLBACK_NAME;
+  const coordinateFields: LocationCoordinateData = {
+    latitude: coordinates.latitude ?? undefined,
+    longitude: coordinates.longitude ?? undefined,
+    radiusMeters: coordinates.radiusMeters ?? undefined,
+    coordinateSource: coordinates.coordinateSource ?? undefined,
+    googleMapsUrl: coordinates.googleMapsUrl ?? undefined,
+  };
+
+  return {
+    id: existingUnidad?.id || 'headquarters-default-unit',
+    legacyUnitId: existingUnidad?.legacyUnitId,
+    name: HEADQUARTERS_UNIT_NAME,
+    logo: companyLogo,
+    industria: industry,
+    direccion: existingUnidad?.direccion ?? '',
+    ciudad: existingUnidad?.ciudad ?? '',
+    estado: existingUnidad?.estado ?? '',
+    pais: existingUnidad?.pais ?? '',
+    cp: existingUnidad?.cp ?? '',
+    telefono: existingUnidad?.telefono ?? '',
+    email: existingUnidad?.email ?? '',
+    ...coordinateFields,
+    negocios: [
+      {
+        id: existingNegocio?.id || 'headquarters-default-business',
+        legacyBusinessId: existingNegocio?.legacyBusinessId,
+        name: businessName,
+        logo: companyLogo,
+        industria: industry,
+        direccion: existingNegocio?.direccion ?? existingUnidad?.direccion ?? '',
+        ciudad: existingNegocio?.ciudad ?? existingUnidad?.ciudad ?? '',
+        estado: existingNegocio?.estado ?? existingUnidad?.estado ?? '',
+        pais: existingNegocio?.pais ?? existingUnidad?.pais ?? '',
+        cp: existingNegocio?.cp ?? existingUnidad?.cp ?? '',
+        telefono: existingNegocio?.telefono ?? existingUnidad?.telefono ?? '',
+        email: existingNegocio?.email ?? existingUnidad?.email ?? '',
+        gerente: existingNegocio?.gerente ?? '',
+        horario: existingNegocio?.horario ?? '',
+        ...coordinateFields,
+      },
+      ...additionalNegocios,
+    ],
+  };
+};
+
+const buildUnidadesWithHeadquarters = ({
+  existingUnidades,
+  companyName,
+  companyLogo,
+  industry,
+  coordinates,
+  includeOtherUnits,
+}: {
+  existingUnidades: Unidad[];
+  companyName: string;
+  companyLogo: string;
+  industry: string;
+  coordinates: {
+    latitude?: number | null;
+    longitude?: number | null;
+    radiusMeters?: number | null;
+    coordinateSource?: CoordinateSource | null;
+    googleMapsUrl?: string | null;
+  };
+  includeOtherUnits: boolean;
+}): Unidad[] => {
+  const headquartersUnidad = existingUnidades.find((unidad) => (
+    unidad.id === 'headquarters-default-unit'
+    || unidad.id === 'holding-default-unit'
+    || isHeadquartersName(unidad.name)
+  )) ?? (includeOtherUnits ? undefined : existingUnidades[0]);
+  const headquartersNegocio = headquartersUnidad?.negocios.find((negocio) => (
+    negocio.id === 'headquarters-default-business'
+    || negocio.id === 'holding-default-business'
+    || isHeadquartersName(negocio.name)
+  )) ?? headquartersUnidad?.negocios[0];
+  const additionalHeadquartersNegocios = includeOtherUnits && headquartersUnidad
+    ? headquartersUnidad.negocios.filter((negocio) => (
+        negocio.id !== headquartersNegocio?.id
+        && !isHeadquartersName(negocio.name)
+      ))
+    : [];
+  const headquarters = buildHeadquartersUnidad({
+    existingUnidad: headquartersUnidad,
+    existingNegocio: headquartersNegocio,
+    companyName,
+    companyLogo,
+    industry,
+    coordinates,
+    additionalNegocios: additionalHeadquartersNegocios,
+  });
+
+  if (!includeOtherUnits) {
+    return [headquarters];
+  }
+
+  return [
+    headquarters,
+    ...existingUnidades.filter((unidad) => unidad.id !== headquartersUnidad?.id),
+  ];
+};
+
+const buildConfigMap = (_estructuraType: EstructuraType, unidades: Unidad[]) => (
+  unidades.map((unidad) => ({
+    name: unidad.name,
+    legacy_unit_id: unidad.legacyUnitId,
+    logo: unidad.logo,
+    industria: unidad.industria,
+    direccion: unidad.direccion,
+    ciudad: unidad.ciudad,
+    estado: unidad.estado,
+    pais: unidad.pais,
+    cp: unidad.cp,
+    telefono: unidad.telefono,
+    email: unidad.email,
+    ...buildConfigCoordinateFields(unidad),
+    businesses: unidad.negocios.map((negocio) => ({
+      name: negocio.name,
+      legacy_business_id: negocio.legacyBusinessId,
+      logo: negocio.logo,
+      industria: negocio.industria,
+      direccion: negocio.direccion,
+      ciudad: negocio.ciudad,
+      estado: negocio.estado,
+      pais: negocio.pais,
+      cp: negocio.cp,
+      telefono: negocio.telefono,
+      email: negocio.email,
+      gerente: negocio.gerente,
+      horario: negocio.horario,
+      ...buildConfigCoordinateFields(negocio),
+    })),
+  }))
 );
 
 export default function BusinessStructure() {
@@ -435,6 +627,7 @@ export default function BusinessStructure() {
   const [estructuraType, setEstructuraType] = useState<EstructuraType>('simple');
   const [unidades, setUnidades] = useState<Unidad[]>(createDefaultUnidades);
   const [companyName, setCompanyName] = useState('');
+  const [companyLogo, setCompanyLogo] = useState('');
   const [industry, setIndustry] = useState('');
   const [description, setDescription] = useState('');
   const [companyLocation, setCompanyLocation] = useState<LocationCoordinateFormValues>(DEFAULT_LOCATION_COORDINATE_VALUES);
@@ -478,11 +671,12 @@ export default function BusinessStructure() {
       estructuraType,
       unidades,
       companyName,
+      companyLogo,
       industry,
       description,
       companyLocation,
     }),
-    [companyLocation, companyName, description, estructuraType, industry, unidades],
+    [companyLocation, companyLogo, companyName, description, estructuraType, industry, unidades],
   );
 
   const hasUnsavedChanges = useMemo(
@@ -491,8 +685,8 @@ export default function BusinessStructure() {
     [baselineSnapshot, currentSnapshot],
   );
   const isSimpleModeDisabled = useMemo(
-    () => hasMeaningfulMultiStructureData(unidades),
-    [unidades],
+    () => estructuraType !== 'simple' && hasMeaningfulMultiStructureData(unidades),
+    [estructuraType, unidades],
   );
   const isUnidadModalDirty = useMemo(
     () => !arePlainObjectsEqual(unidadFormValues, unidadInitialValues),
@@ -510,6 +704,7 @@ export default function BusinessStructure() {
           estructuraType: nextEstructuraType,
           unidades: nextUnidades,
           companyName: previousSnapshot?.companyName ?? currentSnapshot.companyName,
+          companyLogo: previousSnapshot?.companyLogo ?? currentSnapshot.companyLogo,
           industry: previousSnapshot?.industry ?? currentSnapshot.industry,
           description: previousSnapshot?.description ?? currentSnapshot.description,
           companyLocation: previousSnapshot?.companyLocation ?? currentSnapshot.companyLocation,
@@ -519,7 +714,7 @@ export default function BusinessStructure() {
   };
 
   const persistStructureConfig = async (nextEstructuraType: EstructuraType, nextUnidades: Unidad[]) => {
-    await configCenterApi.saveConfig({
+    return configCenterApi.saveConfig({
       estructura: nextEstructuraType,
       map: buildConfigMap(nextEstructuraType, nextUnidades),
     });
@@ -569,49 +764,9 @@ export default function BusinessStructure() {
 
         const resolvedStructure = (config?.estructura ?? empresa?.estructura ?? 'simple') as EstructuraType;
         const resolvedMap = config?.map ?? empresa?.map ?? [];
-        const loadedUnidades = Array.isArray(resolvedMap) && resolvedMap.length > 0
-          ? resolvedMap.map((unidad, unidadIndex) => ({
-              id: `unit-${unidadIndex}-${unidad.name}`,
-              name: unidad.name,
-              legacyUnitId: unidad.legacy_unit_id,
-              logo: unidad.logo,
-              industria: unidad.industria,
-              direccion: unidad.direccion,
-              ciudad: unidad.ciudad,
-              estado: unidad.estado,
-              pais: unidad.pais,
-              cp: unidad.cp,
-              telefono: unidad.telefono,
-              email: unidad.email,
-              latitude: unidad.latitude,
-              longitude: unidad.longitude,
-              radiusMeters: unidad.radius_meters,
-              coordinateSource: normalizeCoordinateSource(unidad.coordinate_source ?? ''),
-              googleMapsUrl: unidad.google_maps_url,
-              negocios: (unidad.businesses ?? []).map((negocio, negocioIndex) => ({
-                id: `biz-${unidadIndex}-${negocioIndex}-${negocio.name}`,
-                name: negocio.name,
-                legacyBusinessId: negocio.legacy_business_id,
-                logo: negocio.logo,
-                industria: negocio.industria,
-                direccion: negocio.direccion,
-                ciudad: negocio.ciudad,
-                estado: negocio.estado,
-                pais: negocio.pais,
-                cp: negocio.cp,
-                telefono: negocio.telefono,
-                email: negocio.email,
-                gerente: negocio.gerente,
-                horario: negocio.horario,
-                latitude: negocio.latitude,
-                longitude: negocio.longitude,
-                radiusMeters: negocio.radius_meters,
-                coordinateSource: normalizeCoordinateSource(negocio.coordinate_source ?? ''),
-                googleMapsUrl: negocio.google_maps_url,
-              })),
-            }))
-          : createDefaultUnidades();
+        const loadedUnidades = mapConfigUnitsToState(resolvedMap);
         const loadedCompanyName = empresa?.nombre_empresa ?? '';
+        const loadedCompanyLogo = empresa?.logo_url ?? '';
         const loadedIndustry = (empresa?.industria as string) ?? '';
         const loadedDescription = (empresa?.descripcion as string) ?? '';
         const loadedCompanyLocation = createLocationCoordinateFormValues({
@@ -624,6 +779,7 @@ export default function BusinessStructure() {
 
         setEstructuraType(resolvedStructure === 'multi' ? 'multi' : 'simple');
         setCompanyName(loadedCompanyName);
+        setCompanyLogo(loadedCompanyLogo);
         setIndustry(loadedIndustry);
         setDescription(loadedDescription);
         setCompanyLocation(loadedCompanyLocation);
@@ -634,6 +790,7 @@ export default function BusinessStructure() {
               estructuraType: resolvedStructure === 'multi' ? 'multi' : 'simple',
               unidades: loadedUnidades,
               companyName: loadedCompanyName,
+              companyLogo: loadedCompanyLogo,
               industry: loadedIndustry,
               description: loadedDescription,
               companyLocation: loadedCompanyLocation,
@@ -797,9 +954,11 @@ export default function BusinessStructure() {
           ? unidades.map((unidad) => (unidad.id === editingUnidad.id ? newUnidad : unidad))
           : [...unidades, newUnidad];
 
-        await persistStructureConfig(estructuraType, nextUnidades);
-        setUnidades(nextUnidades);
-        syncSavedStructure(estructuraType, nextUnidades);
+        const response = await persistStructureConfig(estructuraType, nextUnidades);
+        const savedUnidades = mapConfigUnitsToState(response.map);
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+        setUnidades(committedUnidades);
+        syncSavedStructure(estructuraType, committedUnidades);
         closeUnidadModal();
       },
     });
@@ -877,9 +1036,11 @@ export default function BusinessStructure() {
             };
           });
 
-        await persistStructureConfig(estructuraType, nextUnidades);
-        setUnidades(nextUnidades);
-        syncSavedStructure(estructuraType, nextUnidades);
+        const response = await persistStructureConfig(estructuraType, nextUnidades);
+        const savedUnidades = mapConfigUnitsToState(response.map);
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+        setUnidades(committedUnidades);
+        syncSavedStructure(estructuraType, committedUnidades);
         closeNegocioModal();
       },
     });
@@ -920,8 +1081,16 @@ export default function BusinessStructure() {
     setLoadError('');
 
     const companyCoordinateValidation = buildCoordinateSaveValues(companyLocation);
-    if (estructuraType === 'simple' && companyCoordinateValidation.ok === false) {
+    if (companyCoordinateValidation.ok === false) {
       setLoadError(companyCoordinateValidation.message);
+      setIsSaving(false);
+      return;
+    }
+    if (
+      companyCoordinateValidation.ok
+      && (companyCoordinateValidation.values.latitude == null || companyCoordinateValidation.values.longitude == null)
+    ) {
+      setLoadError('Company Headquarters coordinates are required before saving.');
       setIsSaving(false);
       return;
     }
@@ -933,24 +1102,52 @@ export default function BusinessStructure() {
         successMessage: structure.messages.saveSuccess,
         minimumDurationMs: 2500,
         task: async () => {
-          await persistStructureConfig(estructuraType, unidades);
+          const nextUnidades = companyCoordinateValidation.ok
+            ? buildUnidadesWithHeadquarters({
+                existingUnidades: unidades,
+                companyName,
+                companyLogo,
+                industry,
+                coordinates: companyCoordinateValidation.values,
+                includeOtherUnits: estructuraType === 'multi',
+              })
+            : unidades;
+
+          const response = await persistStructureConfig(estructuraType, nextUnidades);
+          const savedUnidades = mapConfigUnitsToState(response.map);
+          const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
 
           await configCenterApi.saveEmpresa({
             nombre_empresa: companyName,
+            logo_url: companyLogo || null,
             industria: industry,
             descripcion: description,
-            ...(estructuraType === 'simple' && companyCoordinateValidation.ok
+            ...(companyCoordinateValidation.ok
               ? {
                   latitude: companyCoordinateValidation.values.latitude ?? null,
                   longitude: companyCoordinateValidation.values.longitude ?? null,
                   radius_meters: companyCoordinateValidation.values.radiusMeters ?? null,
                   coordinate_source: companyCoordinateValidation.values.coordinateSource ?? null,
                   google_maps_url: companyCoordinateValidation.values.googleMapsUrl ?? null,
+                  sync_company_location: false,
                 }
               : {}),
           });
 
-          setBaselineSnapshot(cloneSnapshot(currentSnapshot));
+          setUnidades(committedUnidades);
+          setBaselineSnapshot(
+            cloneSnapshot(
+              createBusinessStructureSnapshot({
+                estructuraType,
+                unidades: committedUnidades,
+                companyName,
+                companyLogo,
+                industry,
+                description,
+                companyLocation,
+              }),
+            ),
+          );
         },
       });
     } catch (error) {
@@ -970,11 +1167,12 @@ export default function BusinessStructure() {
     setLoadError('');
     setEstructuraType(baselineSnapshot.estructuraType);
     setUnidades(cloneSnapshot(baselineSnapshot).unidades);
-      setCompanyName(baselineSnapshot.companyName);
-      setIndustry(baselineSnapshot.industry);
-      setDescription(baselineSnapshot.description);
-      setCompanyLocation(baselineSnapshot.companyLocation);
-    };
+    setCompanyName(baselineSnapshot.companyName);
+    setCompanyLogo(baselineSnapshot.companyLogo);
+    setIndustry(baselineSnapshot.industry);
+    setDescription(baselineSnapshot.description);
+    setCompanyLocation(baselineSnapshot.companyLocation);
+  };
 
   return (
     <div className="space-y-6 pb-24">
@@ -1008,6 +1206,25 @@ export default function BusinessStructure() {
         </div>
       ) : null}
 
+      <BusinessIdentitySection
+        estructuraType={estructuraType}
+        structure={structure}
+        companyName={companyName}
+        logo={companyLogo}
+        industry={industry}
+        description={description}
+        locationCoordinateValues={companyLocation}
+        onCompanyNameChange={setCompanyName}
+        onLogoChange={setCompanyLogo}
+        onIndustryChange={setIndustry}
+        onDescriptionChange={setDescription}
+        onLocationCoordinateChange={(updates) => setCompanyLocation((current) => ({
+          ...current,
+          ...updates,
+        }))}
+        disabled={loadingOverlay.isVisible}
+      />
+
       <OperationTypeSection
         estructuraType={estructuraType}
         structure={structure}
@@ -1027,23 +1244,6 @@ export default function BusinessStructure() {
           onCreateUnidad={handleCreateUnidad}
         />
       )}
-
-      <BusinessIdentitySection
-        estructuraType={estructuraType}
-        structure={structure}
-          companyName={companyName}
-          industry={industry}
-          description={description}
-          locationCoordinateValues={companyLocation}
-          onCompanyNameChange={setCompanyName}
-          onIndustryChange={setIndustry}
-          onDescriptionChange={setDescription}
-          onLocationCoordinateChange={(updates) => setCompanyLocation((current) => ({
-            ...current,
-            ...updates,
-          }))}
-          disabled={loadingOverlay.isVisible}
-        />
 
       {showUnidadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
