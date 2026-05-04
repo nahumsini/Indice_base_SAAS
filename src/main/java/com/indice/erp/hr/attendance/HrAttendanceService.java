@@ -2012,9 +2012,10 @@ public class HrAttendanceService {
 
         var latitude = parseDecimalRequired(payload, "latitude");
         var longitude = parseDecimalRequired(payload, "longitude");
+        var requestedLocationId = parseLong(payload, "location_id");
         var photoObjectKey = normalizeUserAttendancePhotoObjectKey(companyId, user.userId(), stringValue(payload, "photo_url"));
         var attendanceDate = resolveUserOperationalAttendanceDate(companyId, user.userId(), eventTimestamp, eventKind);
-        var location = resolveUserAttendanceLocation(companyId, latitude, longitude);
+        var location = resolveUserAttendanceLocation(companyId, requestedLocationId, latitude, longitude);
         validateUserOperationalEventTransition(companyId, user.userId(), attendanceDate, eventTimestamp, eventKind);
 
         var metadataJson = mergeMetadataJson(
@@ -6051,12 +6052,13 @@ public class HrAttendanceService {
 
     private LocationRow resolveUserAttendanceLocation(
         long companyId,
+        Long requestedLocationId,
         BigDecimal latitude,
         BigDecimal longitude
     ) {
         return resolveAllowedAttendanceLocation(
             loadUserAttendanceLocations(companyId),
-            null,
+            requestedLocationId,
             latitude,
             longitude,
             "Attendance locations are not configured for this company.",
