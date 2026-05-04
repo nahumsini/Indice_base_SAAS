@@ -11,7 +11,8 @@ Users can now upload a profile photo from the Profile panel. The uploaded file i
 ## What Changed
 
 - Enabled the Profile photo action in the Home Panel profile form.
-- Added client-side validation for supported image types and a 1MB upload limit.
+- Added client-side validation for supported image types and a 10MB original file limit.
+- Added browser-side avatar compression before requesting the upload URL, so large camera photos are resized before crossing the network.
 - Added presigned upload support for current-user avatar uploads.
 - Saved avatar object metadata on the profile record instead of storing a raw public URL.
 - Returned signed avatar URLs when reading the current user or user list.
@@ -53,6 +54,7 @@ Updated Config Center:
 Updated Profile:
 
 - Added local preview support while a new avatar is pending save.
+- Compresses selected photos to a smaller WebP avatar first, with JPEG fallback when WebP encoding is unavailable.
 - Uploads selected images with the presigned URL helper.
 - Saves returned avatar object metadata with the rest of the profile changes.
 - Reverts unsaved avatar previews on discard.

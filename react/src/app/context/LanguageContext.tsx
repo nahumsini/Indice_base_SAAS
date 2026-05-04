@@ -1283,7 +1283,7 @@ const translations: Translations = {
           nameGroup: 'Nombre y apellidos',
         },
         hints: {
-          photoFormat: 'JPG/PNG, Máx 1MB',
+          photoFormat: 'JPG/PNG/WebP, máx. 10MB; se comprime al subir',
           firstNames: 'En algunos países puedes usar uno o varios nombres.',
           lastNames: 'Puede ser 1 (USA/Canadá) o 2 (México/Colombia).',
           phone: 'El país define la clave telefónica automáticamente.',
@@ -2111,7 +2111,7 @@ const translations: Translations = {
           nameGroup: 'Nombre y apellidos',
         },
         hints: {
-          photoFormat: 'JPG/PNG, Máx 1MB',
+          photoFormat: 'JPG/PNG/WebP, máx. 10MB; se comprime al subir',
           firstNames: 'En algunos países puedes usar uno o varios nombres.',
           lastNames: 'Puede ser 1 (USA/Canadá) o 2 (México/Colombia).',
           phone: 'El país define la clave telefónica automáticamente.',
@@ -2851,7 +2851,7 @@ const translations: Translations = {
           nameGroup: 'First and last names',
         },
         hints: {
-          photoFormat: 'JPG/PNG, max 1MB',
+          photoFormat: 'JPG/PNG/WebP, max 10MB; compressed before upload',
           firstNames: 'In some countries you may use one or more given names.',
           lastNames: 'This may be 1 surname (USA/Canada) or 2 surnames (Mexico/Colombia).',
           phone: 'The country updates the phone code automatically.',
@@ -3591,7 +3591,7 @@ const translations: Translations = {
           nameGroup: 'First and last names',
         },
         hints: {
-          photoFormat: 'JPG/PNG, max 1MB',
+          photoFormat: 'JPG/PNG/WebP, max 10MB; compressed before upload',
           firstNames: 'In some countries you may use one or more given names.',
           lastNames: 'This may be 1 surname (USA/Canada) or 2 surnames (Mexico/Colombia).',
           phone: 'The country updates the phone code automatically.',
@@ -4331,7 +4331,7 @@ const translations: Translations = {
           nameGroup: 'Prénoms et noms',
         },
         hints: {
-          photoFormat: 'JPG/PNG, max. 1 Mo',
+          photoFormat: 'JPG/PNG/WebP, max. 10 Mo; compressée avant l’envoi',
           firstNames: 'Dans certains pays, vous pouvez utiliser un ou plusieurs prénoms.',
           lastNames: 'Cela peut être 1 nom de famille (USA/Canada) ou 2 noms de famille (Mexique/Colombie).',
           phone: 'Le pays met automatiquement l’indicatif téléphonique à jour.',
@@ -5071,7 +5071,7 @@ const translations: Translations = {
           nameGroup: 'Nome e sobrenomes',
         },
         hints: {
-          photoFormat: 'JPG/PNG, máx. 1 MB',
+          photoFormat: 'JPG/PNG/WebP, máx. 10 MB; compactada antes do envio',
           firstNames: 'Em alguns países você pode usar um ou mais nomes.',
           lastNames: 'Pode ser 1 sobrenome (EUA/Canadá) ou 2 sobrenomes (México/Colômbia).',
           phone: 'O país atualiza o código telefônico automaticamente.',
@@ -5811,7 +5811,7 @@ const translations: Translations = {
           nameGroup: '이름과 성',
         },
         hints: {
-          photoFormat: 'JPG/PNG, 최대 1MB',
+          photoFormat: 'JPG/PNG/WebP, 최대 10MB; 업로드 전 압축됨',
           firstNames: '일부 국가에서는 하나 이상의 이름을 사용할 수 있습니다.',
           lastNames: '성은 1개(미국/캐나다) 또는 2개(멕시코/콜롬비아)일 수 있습니다.',
           phone: '국가를 변경하면 전화 국가 코드가 자동으로 바뀝니다.',
@@ -6551,7 +6551,7 @@ const translations: Translations = {
           nameGroup: '名字和姓氏',
         },
         hints: {
-          photoFormat: 'JPG/PNG，最大 1MB',
+          photoFormat: 'JPG/PNG/WebP，最大 10MB；上传前压缩',
           firstNames: '在某些国家/地区，您可以使用一个或多个名字。',
           lastNames: '可以是 1 个姓氏（美国/加拿大）或 2 个姓氏（墨西哥/哥伦比亚）。',
           phone: '国家会自动更新电话区号。',

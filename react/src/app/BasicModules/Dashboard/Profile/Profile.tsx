@@ -45,7 +45,11 @@ const DEFAULT_PROFILE_FORM_VALUES = {
 } as const;
 
 const PROFILE_SAVE_MINIMUM_LOADING_MS = 2500;
-const PROFILE_AVATAR_MAX_SIZE_BYTES = 1024 * 1024;
+const PROFILE_AVATAR_MAX_SOURCE_SIZE_BYTES = 10 * 1024 * 1024;
+const PROFILE_AVATAR_MAX_UPLOAD_SIZE_BYTES = 1024 * 1024;
+const PROFILE_AVATAR_MAX_DIMENSION_PIXELS = 768;
+const PROFILE_AVATAR_COMPRESSION_QUALITIES = [0.82, 0.72, 0.62] as const;
+const PROFILE_AVATAR_COMPRESSION_DIMENSIONS = [768, 512, 384] as const;
 const PROFILE_AVATAR_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const USER_PROFILE_UPDATED_EVENT = 'indice:user-profile-updated';
 
@@ -59,6 +63,12 @@ type ProfileFormValues = {
   avatarContentType: string;
   newPassword: string;
   confirmNewPassword: string;
+};
+
+type CompressedProfileAvatar = {
+  blob: Blob;
+  contentType: string;
+  fileName: string;
 };
 
 const normalizeAvatarContentType = (file: File) => {
@@ -83,6 +93,118 @@ const normalizeAvatarContentType = (file: File) => {
   }
 
   return '';
+};
+
+const extensionForAvatarContentType = (contentType: string) => {
+  if (contentType === 'image/webp') {
+    return 'webp';
+  }
+  if (contentType === 'image/png') {
+    return 'png';
+  }
+  return 'jpg';
+};
+
+const avatarFileNameForContentType = (fileName: string, contentType: string) => {
+  const baseName = fileName.trim().replace(/\.[^/.]+$/, '') || 'profile-photo';
+  return `${baseName}.${extensionForAvatarContentType(contentType)}`;
+};
+
+const loadImageFile = (file: File) => new Promise<HTMLImageElement>((resolve, reject) => {
+  const imageUrl = URL.createObjectURL(file);
+  const image = new Image();
+
+  image.onload = () => {
+    URL.revokeObjectURL(imageUrl);
+    resolve(image);
+  };
+  image.onerror = () => {
+    URL.revokeObjectURL(imageUrl);
+    reject(new Error('Unable to read selected profile photo.'));
+  };
+
+  image.src = imageUrl;
+});
+
+const canvasToBlob = (
+  canvas: HTMLCanvasElement,
+  contentType: string,
+  quality: number,
+) => new Promise<Blob | null>((resolve) => {
+  canvas.toBlob((blob) => resolve(blob), contentType, quality);
+});
+
+const drawAvatarToCanvas = (
+  image: HTMLImageElement,
+  maxDimension: number,
+  backgroundColor?: string,
+) => {
+  const scale = Math.min(
+    1,
+    maxDimension / Math.max(image.naturalWidth, 1),
+    maxDimension / Math.max(image.naturalHeight, 1),
+  );
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('Unable to prepare profile photo for upload.');
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  if (backgroundColor) {
+    context.fillStyle = backgroundColor;
+    context.fillRect(0, 0, width, height);
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  return canvas;
+};
+
+const encodeAvatarCandidate = async (
+  canvas: HTMLCanvasElement,
+  contentType: string,
+) => {
+  for (const quality of PROFILE_AVATAR_COMPRESSION_QUALITIES) {
+    const blob = await canvasToBlob(canvas, contentType, quality);
+    if (blob?.type === contentType && blob.size <= PROFILE_AVATAR_MAX_UPLOAD_SIZE_BYTES) {
+      return blob;
+    }
+  }
+
+  return null;
+};
+
+const compressProfileAvatar = async (file: File): Promise<CompressedProfileAvatar> => {
+  const image = await loadImageFile(file);
+
+  for (const maxDimension of PROFILE_AVATAR_COMPRESSION_DIMENSIONS) {
+    const transparentCanvas = drawAvatarToCanvas(image, maxDimension);
+    const webpBlob = await encodeAvatarCandidate(transparentCanvas, 'image/webp');
+    if (webpBlob) {
+      return {
+        blob: webpBlob,
+        contentType: 'image/webp',
+        fileName: avatarFileNameForContentType(file.name, 'image/webp'),
+      };
+    }
+
+    const jpegCanvas = drawAvatarToCanvas(image, maxDimension, '#ffffff');
+    const jpegBlob = await encodeAvatarCandidate(jpegCanvas, 'image/jpeg');
+    if (jpegBlob) {
+      return {
+        blob: jpegBlob,
+        contentType: 'image/jpeg',
+        fileName: avatarFileNameForContentType(file.name, 'image/jpeg'),
+      };
+    }
+  }
+
+  throw new Error('Unable to compress the profile photo under 1MB. Try a smaller image.');
 };
 
 const normalizePreferredLanguage = (languageCode?: string) => {
@@ -313,36 +435,38 @@ export default function Profile() {
       return;
     }
 
-    if (file.size > PROFILE_AVATAR_MAX_SIZE_BYTES) {
+    if (file.size > PROFILE_AVATAR_MAX_SOURCE_SIZE_BYTES) {
       setErrorMessage(profileCopy.hints.photoFormat);
       setSaveMessage('');
       return;
     }
 
-    const previewUrl = URL.createObjectURL(file);
-    replaceAvatarPreview(previewUrl);
     setIsUploadingAvatar(true);
     setErrorMessage('');
     setSaveMessage('');
 
     try {
+      const compressedAvatar = await compressProfileAvatar(file);
+      const previewUrl = URL.createObjectURL(compressedAvatar.blob);
+      replaceAvatarPreview(previewUrl);
+
       const presign = await configCenterApi.presignCurrentUserAvatarUpload({
-        file_name: file.name || 'profile-photo',
-        content_type: contentType,
-        size_bytes: file.size,
+        file_name: compressedAvatar.fileName,
+        content_type: compressedAvatar.contentType,
+        size_bytes: compressedAvatar.blob.size,
       });
 
       await configCenterApi.uploadCurrentUserAvatar(
         presign.upload_url,
-        file,
-        presign.content_type || contentType,
+        compressedAvatar.blob,
+        presign.content_type || compressedAvatar.contentType,
         presign.upload_headers ?? {},
       );
 
       setFormValues((currentValues) => ({
         ...currentValues,
         avatarObjectKey: presign.object_key,
-        avatarContentType: presign.content_type || contentType,
+        avatarContentType: presign.content_type || compressedAvatar.contentType,
       }));
     } catch (error) {
       replaceAvatarPreview('');
