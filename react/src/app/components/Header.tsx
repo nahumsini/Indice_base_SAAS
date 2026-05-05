@@ -197,7 +197,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5 shadow-sm transition-colors">
+    <header className="bg-gradient-to-r from-[#e8ebff] via-[#f6f0e5] to-[#ddf7ed] dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5 shadow-sm transition-colors">
       <div className="max-w-[1600px] mx-auto">
         {/* Layout móvil y desktop */}
         <div className="flex items-center justify-between gap-3">
@@ -320,8 +320,8 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 {languages.map((language) => (
-                  <DropdownMenuItem 
-                    key={language.code} 
+                  <DropdownMenuItem
+                    key={language.code}
                     onClick={() => setCurrentLanguage(language)}
                     className={currentLanguage.code === language.code ? 'bg-gray-100' : ''}
                   >
