@@ -70,13 +70,6 @@ const moduleMetaBySlug: Record<
     category: 'basic',
     title: (t) => t.modules.puntoVenta,
   },
-  processes: {
-    route: 'processes-tasks',
-    emoji: '✅',
-    color: 'yellow',
-    category: 'basic',
-    title: (t) => t.modules.procesosTareas,
-  },
   crm: {
     route: 'sales',
     emoji: '💵',
@@ -90,6 +83,13 @@ const moduleMetaBySlug: Record<
     color: 'orange',
     category: 'basic',
     title: (t) => t.modules.ventas,
+  },
+  processes: {
+    route: 'processes-tasks',
+    emoji: '✅',
+    color: 'yellow',
+    category: 'basic',
+    title: (t) => t.modules.procesosTareas,
   },
   kpis: {
     route: 'kpis',
@@ -257,7 +257,7 @@ export function mapBackendModuleToCard(
     title: meta.title(t, module.name),
     color: meta.color,
     route: meta.route,
-    category: normalizeCategory(module.category, meta.category),
+    category: meta.route === 'sales' ? 'basic' : normalizeCategory(module.category, meta.category),
     locked: Boolean(module.locked),
   };
 }

@@ -59,6 +59,9 @@ const getNavigationSuccessToast = (state: unknown) => {
   return typeof successToast === 'string' ? successToast : '';
 };
 
+const HOME_PANEL_ROUTE: PageId = 'home-panel';
+const HOME_PANEL_MODULE_TARGET = 'home-panel';
+
 function StandaloneModuleShell({
   children,
   onBack,
@@ -86,15 +89,11 @@ function Dashboard({
   learningModeActive,
   learningModeVisible,
   setLearningModeVisible,
-  learningStep,
-  setLearningStep,
   onNavigate,
 }: {
   learningModeActive: boolean;
   learningModeVisible: boolean;
   setLearningModeVisible: (visible: boolean) => void;
-  learningStep: number;
-  setLearningStep: (step: number) => void;
   onNavigate: (page: PageId) => void;
 }) {
   const { t } = useLanguage();
@@ -110,24 +109,41 @@ function Dashboard({
     'monthlyExpenses'
   ]);
 
-  const handleNextStep = () => {
-    if (learningStep < 7) {
-      setLearningStep(learningStep + 1);
-    }
-  };
-
-  const handlePreviousStep = () => {
-    if (learningStep > 0) {
-      setLearningStep(learningStep - 1);
-    }
-  };
-
   const handleSaveKPIs = (kpis: string[]) => {
     setSelectedKPIIds(kpis);
   };
 
   const handleModuleClick = (moduleRoute: PageId) => {
     onNavigate(moduleRoute);
+  };
+
+  const handleFocusHomePanelModule = () => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const homePanelModules = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-onboarding-target="${HOME_PANEL_MODULE_TARGET}"]`),
+    );
+    const homePanelModule = homePanelModules.find((element) => {
+      const style = window.getComputedStyle(element);
+
+      return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+    }) ?? homePanelModules[0];
+
+    if (!homePanelModule) {
+      return;
+    }
+
+    homePanelModule.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'center',
+    });
+
+    window.setTimeout(() => {
+      homePanelModule.focus({ preventScroll: true });
+    }, 350);
   };
 
   useEffect(() => {
@@ -222,10 +238,9 @@ function Dashboard({
         <LearningModeBanner
           isVisible={learningModeVisible}
           onHide={() => setLearningModeVisible(false)}
-          currentStep={learningStep}
-          totalSteps={8}
-          onNext={handleNextStep}
-          onPrevious={handlePreviousStep}
+          currentStep={0}
+          totalSteps={10}
+          onPrimaryAction={handleFocusHomePanelModule}
         />
       )}
 
@@ -287,10 +302,10 @@ function Dashboard({
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.quickAccess}</span>
           </div>
-          <ModuleCarousel gridClasses="grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10">
-            {favoriteModules.map((module, index) => (
+          <ModuleCarousel>
+            {favoriteModules.map((module) => (
               <ModuleCard
-                key={index}
+                key={module.id}
                 {...module}
                 isFavorite={true}
                 onToggleFavorite={() => toggleFavorite(module.id)}
@@ -310,19 +325,23 @@ function Dashboard({
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.main}</span>
         </div>
-        <ModuleCarousel gridClasses="grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10">
-          {mainModules.map((module, index) => (
-            <ModuleCard
-              key={index}
-              {...module}
-              isFavorite={favorites.includes(module.id)}
-              onToggleFavorite={() => toggleFavorite(module.id)}
-              onClick={() => handleModuleClick(module.route)}
-              size="small"
-              stepNumber={isGuidedLearningVisible ? index + 1 : undefined}
-              isHighlighted={isGuidedLearningVisible && learningStep === index}
-            />
-          ))}
+        <ModuleCarousel>
+          {mainModules.map((module) => {
+            const isHomePanelModule = module.route === HOME_PANEL_ROUTE;
+
+            return (
+              <ModuleCard
+                key={module.id}
+                {...module}
+                onboardingTarget={isHomePanelModule ? HOME_PANEL_MODULE_TARGET : undefined}
+                isFavorite={favorites.includes(module.id)}
+                onToggleFavorite={() => toggleFavorite(module.id)}
+                onClick={() => handleModuleClick(module.route)}
+                size="small"
+                isHighlighted={isGuidedLearningVisible && isHomePanelModule}
+              />
+            );
+          })}
         </ModuleCarousel>
       </section>
 
@@ -335,9 +354,9 @@ function Dashboard({
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.additional}</span>
         </div>
         <ModuleCarousel singleRow={true}>
-          {complementaryModules.map((module, index) => (
+          {complementaryModules.map((module) => (
             <ModuleCard
-              key={index}
+              key={module.id}
               {...module}
               isFavorite={favorites.includes(module.id)}
               onToggleFavorite={() => toggleFavorite(module.id)}
@@ -356,10 +375,10 @@ function Dashboard({
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.aiLabel}</span>
         </div>
-        <ModuleCarousel gridClasses="grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10">
-          {aiModules.map((module, index) => (
+        <ModuleCarousel>
+          {aiModules.map((module) => (
             <ModuleCard
-              key={index}
+              key={module.id}
               {...module}
               isFavorite={favorites.includes(module.id)}
               onToggleFavorite={() => toggleFavorite(module.id)}
@@ -380,7 +399,6 @@ export default function App() {
   const { pageId, '*': wildcardPath } = useParams();
   const [learningModeActive, setLearningModeActive] = useLocalStorageState('indice.app.learningModeActive', true);
   const [learningModeVisible, setLearningModeVisible] = useLocalStorageState('indice.app.learningModeVisible', true);
-  const [learningStep, setLearningStep] = useLocalStorageState('indice.app.learningStep', 0);
   const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const currentPage = resolvePageId(pageId);
@@ -468,8 +486,6 @@ export default function App() {
         learningModeActive={learningModeActive}
         learningModeVisible={learningModeVisible}
         setLearningModeVisible={setLearningModeVisible}
-        learningStep={learningStep}
-        setLearningStep={setLearningStep}
         onNavigate={(page) => handleModuleNavigation(page)}
       />
     ) : currentPage === 'human-resources' ? (

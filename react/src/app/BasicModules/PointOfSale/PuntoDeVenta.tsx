@@ -1,15 +1,14 @@
+import { useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { usePuntoDeVentaTranslations } from '../../hooks/usePuntoDeVentaTranslations';
-import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import Facturacion from './Facturacion';
-import Inventario from './Inventario';
-import Historial from './Historial';
-import Precios from './Precios';
-import Arqueos from './Arqueos';
-import Turnos from './Turnos';
+import Sale from './Sale/Sale';
+import Cortes from './Cortes';
 import Clientes from './Clientes';
 import Productos from './Productos';
+import Inventario from './Inventario';
+import OrdenesCompra from './OrdenesCompra';
+import Facturacion from './Facturacion';
 import Descuentos from './Descuentos';
 import KPIs from './KPIs';
 
@@ -17,56 +16,24 @@ interface PuntoDeVentaProps {
   onNavigate: (page?: string) => void;
 }
 
-const pointOfSaleTabIds = [
-  'billing',
-  'inventory',
-  'history',
-  'pricing',
-  'cash-counts',
-  'shifts',
-  'customers',
-  'products',
-  'discounts',
-  'kpis',
-] as const;
-
-type PointOfSaleTabId = (typeof pointOfSaleTabIds)[number];
-
-const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
-  facturacion: 'billing',
-  inventario: 'inventory',
-  historial: 'history',
-  precios: 'pricing',
-  arqueos: 'cash-counts',
-  turnos: 'shifts',
-  clientes: 'customers',
-  productos: 'products',
-  descuentos: 'discounts',
-};
-
 export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
   const t = usePuntoDeVentaTranslations();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
-    'billing',
-    pointOfSaleTabIds,
-    legacyPointOfSaleTabAliases,
-  );
+  const [activeTab, setActiveTab] = useState<'sale' | 'cortes' | 'clientes' | 'productos' | 'inventario' | 'ordenesCompra' | 'facturacion' | 'descuentos' | 'kpis'>('sale');
 
   const tabs = [
-    { id: 'billing', label: t.tabs.facturacion, emoji: '🧾', component: Facturacion },
-    { id: 'inventory', label: t.tabs.inventario, emoji: '📦', component: Inventario },
-    { id: 'history', label: t.tabs.historial, emoji: '📜', component: Historial },
-    { id: 'pricing', label: t.tabs.precios, emoji: '💵', component: Precios },
-    { id: 'cash-counts', label: t.tabs.arqueos, emoji: '💰', component: Arqueos },
-    { id: 'shifts', label: t.tabs.turnos, emoji: '🔄', component: Turnos },
-    { id: 'customers', label: t.tabs.clientes, emoji: '👥', component: Clientes },
-    { id: 'products', label: t.tabs.productos, emoji: '🛍️', component: Productos },
-    { id: 'discounts', label: t.tabs.descuentos, emoji: '🎁', component: Descuentos },
+    { id: 'sale', label: 'Venta', emoji: '🛒', component: Sale },
+    { id: 'cortes', label: t.tabs.cortes, emoji: '💰', component: Cortes },
+    { id: 'clientes', label: t.tabs.clientes, emoji: '👥', component: Clientes },
+    { id: 'productos', label: t.tabs.productos, emoji: '🛍️', component: Productos },
+    { id: 'inventario', label: t.tabs.inventario, emoji: '📦', component: Inventario },
+    { id: 'ordenesCompra', label: t.tabs.ordenesCompra, emoji: '📋', component: OrdenesCompra },
+    { id: 'facturacion', label: t.tabs.facturacion, emoji: '🧾', component: Facturacion },
+    { id: 'descuentos', label: t.tabs.descuentos, emoji: '🎁', component: Descuentos },
     { id: 'kpis', label: t.tabs.kpis, emoji: '📊', component: KPIs },
   ];
 
   // Get the active component
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Facturacion;
+  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Sale;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -76,10 +43,10 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
           {/* Barra de Favoritos */}
           <FavoritesBar 
             onNavigate={(page) => {
-              if (page === 'point-of-sale') return;
+              if (page === 'punto-de-venta') return; // Ya estamos aquí
               onNavigate(page);
             }} 
-            currentModule="point-of-sale" 
+            currentModule="punto-de-venta" 
           />
           
           <div className="flex items-start justify-between">
@@ -105,7 +72,7 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as PointOfSaleTabId)}
+                onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-orange-500 text-white shadow-md'
