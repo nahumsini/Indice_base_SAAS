@@ -324,7 +324,7 @@ export default function BusinessProfile() {
   useEffect(() => {
     let active = true;
 
-    businessProfileApi.getBusinessProfile()
+    runWithMinimumDuration(businessProfileApi.getBusinessProfile())
       .then((response) => {
         if (!active) {
           return;
@@ -518,6 +518,10 @@ export default function BusinessProfile() {
   };
 
   const handleStartPillar = (pillarId: PillarId) => {
+    if (activePillar === pillarId) {
+      return;
+    }
+
     setActivePillar(pillarId);
     setCurrentQuestion(getSectionEntryQuestionIndex(sectionState[pillarId], diagnosticoQuestions[pillarId]));
   };

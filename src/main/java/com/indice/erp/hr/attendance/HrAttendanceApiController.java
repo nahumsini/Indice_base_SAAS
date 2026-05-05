@@ -275,6 +275,8 @@ public class HrAttendanceApiController {
     public ResponseEntity<?> scheduleCandidates(
         HttpSession session,
         @RequestParam(required = false) String date,
+        @RequestParam(name = "effective_end_date", required = false) String effectiveEndDate,
+        @RequestParam(name = "end_date", required = false) String endDate,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "10") int size,
         @RequestParam(required = false) String search,
@@ -289,10 +291,14 @@ public class HrAttendanceApiController {
 
         try {
             var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
+            var targetEndDate = effectiveEndDate != null && !effectiveEndDate.isBlank()
+                ? HrAttendanceService.parseDate(effectiveEndDate)
+                : endDate == null || endDate.isBlank() ? null : HrAttendanceService.parseDate(endDate);
             return ResponseEntity.ok(
                 hrAttendanceService.scheduleCandidates(
                     currentUser.get().companyId(),
                     targetDate,
+                    targetEndDate,
                     page,
                     size,
                     search,
@@ -435,6 +441,21 @@ public class HrAttendanceApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/kiosk-devices/{kioskDeviceId}")
+    public ResponseEntity<?> deleteKioskDevice(HttpSession session, @PathVariable long kioskDeviceId) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            hrAttendanceService.deleteKioskDevice(currentUser.get().companyId(), kioskDeviceId);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
     }
 
@@ -939,6 +960,36 @@ public class HrAttendanceApiController {
             var targetDate = HrAttendanceService.parseDate(date);
             return ResponseEntity.ok(
                 hrAttendanceService.updateDailyRecord(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    employeeId,
+                    targetDate,
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/daily-records/{employeeId}/{date}/manual-events")
+    public ResponseEntity<?> recordManualDailyEvent(
+        HttpSession session,
+        @PathVariable long employeeId,
+        @PathVariable String date,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            var targetDate = HrAttendanceService.parseDate(date);
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                hrAttendanceService.recordManualAttendanceEvent(
                     currentUser.get().companyId(),
                     currentUser.get().userId(),
                     employeeId,

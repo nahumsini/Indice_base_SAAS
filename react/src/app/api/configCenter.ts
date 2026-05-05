@@ -13,6 +13,8 @@ export interface ConfigCenterCurrentUser {
   country?: string;
   preferred_language?: string;
   avatar_url?: string;
+  avatar_object_key?: string;
+  avatar_content_type?: string;
   role?: string | null;
 }
 
@@ -22,9 +24,24 @@ export interface SaveCurrentUserPayload {
   telefono?: string;
   country?: string;
   preferred_language?: string;
-  avatar_url?: string;
+  avatar_object_key?: string;
+  avatar_content_type?: string;
   new_password?: string;
   confirm_new_password?: string;
+}
+
+export interface CurrentUserAvatarPresignPayload {
+  file_name: string;
+  content_type: string;
+  size_bytes: number;
+}
+
+export interface CurrentUserAvatarPresignResponse {
+  object_key: string;
+  upload_url: string;
+  expires_at: string;
+  upload_headers: Record<string, string>;
+  content_type: string;
 }
 
 export interface ConfigCenterUser {
@@ -36,6 +53,9 @@ export interface ConfigCenterUser {
   apellidos: string;
   email: string;
   telefono?: string | null;
+  avatar_url?: string | null;
+  avatar_object_key?: string | null;
+  avatar_content_type?: string | null;
   role: string;
   department?: string | null;
   status: string;
@@ -165,6 +185,14 @@ interface ConfigResponse {
   } | null;
 }
 
+export interface SaveStructureResponse {
+  modo?: 'simple' | 'multi';
+  estructura?: 'simple' | 'multi';
+  colaboradores?: number;
+  unidades_aprox?: number;
+  map?: ConfigCenterEmpresaMapUnit[];
+}
+
 export interface SaveStructurePayload {
   estructura: 'simple' | 'multi';
   map: Array<{
@@ -209,6 +237,8 @@ export interface SaveStructurePayload {
 
 export interface SaveEmpresaPayload {
   nombre_empresa: string;
+  logo_url?: string | null;
+  logo?: string | null;
   industria?: string;
   descripcion?: string;
   tamano_empresa?: string;
@@ -220,6 +250,14 @@ export interface SaveEmpresaPayload {
   radius_meters?: number | null;
   coordinate_source?: string | null;
   google_maps_url?: string | null;
+  sync_company_location?: boolean;
+  syncCompanyLocation?: boolean;
+}
+
+interface SaveEmpresaResponse {
+  logo: string | null;
+  data: Partial<ConfigCenterEmpresa>;
+  message: string;
 }
 
 export interface ConfigCenterCoordinateExtractionPayload {
@@ -242,6 +280,36 @@ export const configCenterApi = {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
+  },
+
+  presignCurrentUserAvatarUpload(payload: CurrentUserAvatarPresignPayload) {
+    return apiClient<CurrentUserAvatarPresignResponse>(endpoints.configCenter.currentUserAvatarPresignUpload, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async uploadCurrentUserAvatar(
+    uploadUrl: string,
+    file: Blob,
+    contentType: string,
+    uploadHeaders: Record<string, string> = {},
+  ) {
+    const headers = new Headers(uploadHeaders);
+
+    if (contentType && !headers.has('Content-Type')) {
+      headers.set('Content-Type', contentType);
+    }
+
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers,
+      body: file,
+    });
+
+    if (!response.ok) {
+      throw new Error('Profile photo upload failed.');
+    }
   },
 
   getUsers() {
@@ -284,14 +352,14 @@ export const configCenterApi = {
   },
 
   saveConfig(payload: SaveStructurePayload) {
-    return apiClient(endpoints.configCenter.saveConfig, {
+    return apiClient<SaveStructureResponse>(endpoints.configCenter.saveConfig, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
   },
 
   saveEmpresa(payload: SaveEmpresaPayload) {
-    return apiClient(endpoints.configCenter.saveEmpresa, {
+    return apiClient<SaveEmpresaResponse>(endpoints.configCenter.saveEmpresa, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });

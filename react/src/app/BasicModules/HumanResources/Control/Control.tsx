@@ -51,6 +51,7 @@ import {
   type AttendanceCalendarDay,
   type AttendanceAccessProfile,
   type AttendanceCorrectionStatus,
+  type AttendanceManualEventKind,
   humanResourcesApi,
   type AttendanceControlAssignment,
   type AttendanceControlAssignmentPayload,
@@ -76,7 +77,7 @@ const toMonthValue = (value: string | Date) => {
 };
 
 const weekdayNumbers = [1, 2, 3, 4, 5, 6, 7] as const;
-const CONTROL_SAVE_MINIMUM_LOADING_MS = 2000;
+const CONTROL_SAVE_MINIMUM_LOADING_MS = 1000;
 const isDefaultNoShiftDay = (dayOfWeek: number) => dayOfWeek === 6 || dayOfWeek === 7;
 
 const waitForNextPaint = () => (
@@ -137,7 +138,7 @@ const defaultAssignmentForm = (): AttendanceControlAssignmentPayload => ({
   employee_ids: [],
   template_id: 0,
   effective_start_date: todayIsoDate(),
-  effective_end_date: '',
+  effective_end_date: todayIsoDate(),
 });
 
 const defaultWorkSiteForm = (): ControlWorkSiteForm => ({
@@ -145,10 +146,36 @@ const defaultWorkSiteForm = (): ControlWorkSiteForm => ({
   location_ids: [],
   location_id: 0,
   effective_start_date: todayIsoDate(),
-  effective_end_date: '',
+  effective_end_date: todayIsoDate(),
   start_time: '08:00',
   end_time: '16:00',
 });
+
+const laterDate = (...dates: Array<string | null | undefined>) => {
+  const values = dates.filter((date): date is string => Boolean(date));
+  values.sort();
+  return values.length > 0 ? values[values.length - 1] : '';
+};
+
+const isDateWithinContractSiteWindow = (location: AttendanceControlLocation, date: string) => (
+  (!location.contract_start_date || date >= location.contract_start_date) &&
+  (!location.contract_end_date || date <= location.contract_end_date)
+);
+
+const contractSiteAssignmentDates = (location: AttendanceControlLocation | undefined, requestedDate: string) => {
+  const today = todayIsoDate();
+  if (!location) {
+    const startDate = laterDate(today, requestedDate) || today;
+    return { startDate, endDate: startDate };
+  }
+
+  const minimumStartDate = laterDate(today, location.contract_start_date);
+  const requestedStartDate = requestedDate && requestedDate >= minimumStartDate ? requestedDate : minimumStartDate;
+  const maximumEndDate = location.contract_end_date;
+  const startDate = maximumEndDate && requestedStartDate > maximumEndDate ? maximumEndDate : requestedStartDate;
+  const endDate = maximumEndDate && maximumEndDate >= startDate ? maximumEndDate : startDate;
+  return { startDate, endDate };
+};
 
 const defaultKioskForm = (): AttendanceKioskDevicePayload => ({
   code: '',
@@ -158,6 +185,7 @@ const defaultKioskForm = (): AttendanceKioskDevicePayload => ({
   location_id: null,
   status: 'active',
   metadata: {
+    kiosk_type: 'business_unit',
     supports_face_recognition: false,
   },
 });
@@ -272,6 +300,7 @@ export default function Control() {
   const [isKioskDialogOpen, setIsKioskDialogOpen] = useState(false);
   const [editingKiosk, setEditingKiosk] = useState<AttendanceKioskDevice | null>(null);
   const [kioskForm, setKioskForm] = useState<AttendanceKioskDevicePayload>(defaultKioskForm());
+  const [kioskDeviceToDelete, setKioskDeviceToDelete] = useState<AttendanceKioskDevice | null>(null);
 
   const showSuccessToast = (message: string) => {
     setErrorMessage('');
@@ -297,13 +326,16 @@ export default function Control() {
     clearControlMessages();
 
     try {
-      const [overviewResponse, locationsResponse, templatesResponse, kioskDevicesResponse, accessProfilesResponse] = await Promise.all([
-        humanResourcesApi.getAttendanceControlOverview(date),
-        humanResourcesApi.listAttendanceControlLocations(),
-        humanResourcesApi.listAttendanceControlTemplates(),
-        humanResourcesApi.listAttendanceKioskDevices(),
-        humanResourcesApi.listAttendanceAccessProfiles(),
-      ]);
+      const [overviewResponse, locationsResponse, templatesResponse, kioskDevicesResponse, accessProfilesResponse] = await runWithMinimumDuration(
+        Promise.all([
+          humanResourcesApi.getAttendanceControlOverview(date),
+          humanResourcesApi.listAttendanceControlLocations(),
+          humanResourcesApi.listAttendanceControlTemplates(),
+          humanResourcesApi.listAttendanceKioskDevices(),
+          humanResourcesApi.listAttendanceAccessProfiles(),
+        ]),
+        CONTROL_SAVE_MINIMUM_LOADING_MS,
+      );
 
       setOverview(overviewResponse);
       setLocations(locationsResponse.items);
@@ -376,7 +408,10 @@ export default function Control() {
     let active = true;
     setIsLoadingCalendar(true);
 
-    humanResourcesApi.getAttendanceCalendar(selectedEmployeeId, calendarMonth)
+    runWithMinimumDuration(
+      humanResourcesApi.getAttendanceCalendar(selectedEmployeeId, calendarMonth),
+      CONTROL_SAVE_MINIMUM_LOADING_MS,
+    )
       .then((response) => {
         if (active) {
           setAttendanceCalendarDays(response.items);
@@ -504,8 +539,12 @@ export default function Control() {
     return locationIds;
   }, [overview?.assignments, selectedEmployeeId]);
   const availableContractSiteLocations = useMemo(
-    () => locations.filter((location) => location.status !== 'inactive' && !occupiedContractSiteLocationIds.has(location.id)),
-    [locations, occupiedContractSiteLocationIds],
+    () => locations.filter((location) =>
+      location.status !== 'inactive' &&
+      isDateWithinContractSiteWindow(location, controlDate) &&
+      !occupiedContractSiteLocationIds.has(location.id),
+    ),
+    [controlDate, locations, occupiedContractSiteLocationIds],
   );
 
   const selectedTemplate = useMemo(
@@ -663,6 +702,10 @@ export default function Control() {
     if (!selectedEmployeeId) {
       return false;
     }
+    if (date > todayIsoDate()) {
+      showFailureToast(copy.labels.futureAttendanceLocked);
+      return false;
+    }
 
     const targetDay = selectedCalendarDay?.date === date
       ? selectedCalendarDay
@@ -717,6 +760,72 @@ export default function Control() {
       setAttendanceCalendarDays(calendarResponse.items);
       setSelectedCalendarDay(calendarResponse.items.find((day) => day.date === date) ?? null);
       showSuccessToast(status ? copy.labels.correctionApplied : copy.labels.correctionCleared);
+      return true;
+    } catch (error) {
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
+      return false;
+    } finally {
+      setIsUpdatingCalendarDay(false);
+    }
+  };
+
+  const handleManualCalendarPunch = async (
+    date: string,
+    eventKind: AttendanceManualEventKind,
+    eventDate: string,
+    eventTime: string,
+  ) => {
+    if (!selectedEmployeeId) {
+      return false;
+    }
+    if (date > todayIsoDate() || eventDate > todayIsoDate()) {
+      showFailureToast(copy.labels.futureAttendanceLocked);
+      return false;
+    }
+
+    const targetDay = selectedCalendarDay?.date === date
+      ? selectedCalendarDay
+      : attendanceCalendarDays.find((day) => day.date === date);
+    if (targetDay?.attendance_editable === false) {
+      showFailureToast(targetDay.edit_lock_reason || copy.labels.notModifiable);
+      return false;
+    }
+    if (!eventDate || !eventTime) {
+      showFailureToast(copy.saveError);
+      return false;
+    }
+
+    try {
+      setIsUpdatingCalendarDay(true);
+      clearControlMessages();
+      await waitForNextPaint();
+      const result = await runWithMinimumDuration(
+        humanResourcesApi.recordManualAttendanceEvent(selectedEmployeeId, date, {
+          event_kind: eventKind,
+          event_date: eventDate,
+          event_time: eventTime,
+        }),
+        CONTROL_SAVE_MINIMUM_LOADING_MS,
+      );
+      const targetCalendarMonth = toMonthValue(date);
+      setControlDate(date);
+      setCalendarMonth(targetCalendarMonth);
+
+      setAttendanceCalendarDays((current) =>
+        current.map((day) => (day.date === date ? applyCalendarDayUpdate(day, result) : day)),
+      );
+      setSelectedCalendarDay((current) =>
+        current && current.date === date ? applyCalendarDayUpdate(current, result) : current,
+      );
+
+      const [calendarResponse] = await Promise.all([
+        humanResourcesApi.getAttendanceCalendar(selectedEmployeeId, targetCalendarMonth),
+        loadControl(date),
+      ]);
+
+      setAttendanceCalendarDays(calendarResponse.items);
+      setSelectedCalendarDay(calendarResponse.items.find((day) => day.date === date) ?? null);
+      showSuccessToast(copy.labels.manualPunchSaved);
       return true;
     } catch (error) {
       showFailureToast(toErrorMessage(error, copy) || copy.saveError);
@@ -816,7 +925,7 @@ export default function Control() {
       name: template.name,
       status: template.status === 'inactive' ? 'inactive' : 'active',
       schedule_mode: template.schedule_mode === 'open' ? 'open' : 'strict',
-      block_after_grace_period: Boolean(template.block_after_grace_period),
+      block_after_grace_period: false,
       enforce_location: Boolean(template.enforce_location),
       location_id: template.location_id ?? null,
       days: weekdayNumbers.map((dayOfWeek) => {
@@ -838,17 +947,23 @@ export default function Control() {
   };
 
   const openAssignmentDialog = () => {
+    const today = todayIsoDate();
+    const effectiveStartDate = controlDate < today ? today : controlDate;
     setAssignmentForm({
       employee_ids: selectedEmployee && !getAssignmentBusyReason(selectedEmployee) ? [selectedEmployee.employee_id] : [],
       template_id: selectedEmployee?.schedule_template_id ?? selectedTemplate?.id ?? templates[0]?.id ?? 0,
-      effective_start_date: controlDate,
-      effective_end_date: '',
+      effective_start_date: effectiveStartDate,
+      effective_end_date: effectiveStartDate,
     });
     setIsAssignmentDialogOpen(true);
   };
 
   const openWorkSiteDialog = () => {
     if (!selectedEmployee) {
+      return;
+    }
+    if (controlDate < todayIsoDate()) {
+      showFailureToast('Choose today or a future date before assigning a new shift.');
       return;
     }
     const busyReason = getAssignmentBusyReason(selectedEmployee);
@@ -858,7 +973,7 @@ export default function Control() {
     }
 
     if (availableContractSiteLocations.length === 0) {
-      showFailureToast('No available contract sites for this date. Sites already assigned to another employee are hidden.');
+      showFailureToast('No available contract sites for this date. Sites outside their contract window or already assigned to another employee are hidden.');
     }
 
     const availableLocationIds = new Set(availableContractSiteLocations.map((location) => location.id));
@@ -866,6 +981,7 @@ export default function Control() {
     const firstAvailableLocationId = availableContractSiteLocations[0]?.id ?? 0;
     const activeLocationId = allowedLocationIds.find((locationId) => availableLocationIds.has(locationId)) ?? firstAvailableLocationId;
     const activeLocation = locations.find((location) => location.id === activeLocationId);
+    const assignmentDates = contractSiteAssignmentDates(activeLocation, controlDate);
     const nextAllowedLocationIds = Array.from(new Set([
       ...allowedLocationIds,
       ...(activeLocationId > 0 ? [activeLocationId] : []),
@@ -875,10 +991,10 @@ export default function Control() {
       employee_ids: [selectedEmployee.employee_id],
       location_ids: nextAllowedLocationIds,
       location_id: activeLocationId,
-      effective_start_date: controlDate,
-      effective_end_date: '',
-      start_time: timeInputValue(selectedRuleForDate?.start_time) || timeInputValue(activeLocation?.required_start_time) || '08:00',
-      end_time: timeInputValue(selectedRuleForDate?.end_time) || timeInputValue(activeLocation?.required_end_time) || '16:00',
+      effective_start_date: assignmentDates.startDate,
+      effective_end_date: assignmentDates.endDate,
+      start_time: timeInputValue(activeLocation?.required_start_time) || timeInputValue(selectedRuleForDate?.start_time) || '08:00',
+      end_time: timeInputValue(activeLocation?.required_end_time) || timeInputValue(selectedRuleForDate?.end_time) || '16:00',
     });
     setIsWorkSiteDialogOpen(true);
   };
@@ -898,7 +1014,11 @@ export default function Control() {
       business_id: device.business_id ?? null,
       location_id: device.location_id ?? null,
       status: device.status,
-      metadata: device.metadata ?? { supports_face_recognition: false },
+      metadata: {
+        supports_face_recognition: false,
+        kiosk_type: 'business_unit',
+        ...(device.metadata ?? {}),
+      },
     });
     setSelectedKioskDeviceId(device.id);
     setIsKioskDialogOpen(true);
@@ -953,6 +1073,20 @@ export default function Control() {
   };
 
   const handleBulkAssign = async () => {
+    const today = todayIsoDate();
+    if (!assignmentForm.effective_start_date || !assignmentForm.effective_end_date) {
+      showFailureToast('Start date and end date are required.');
+      return;
+    }
+    if (assignmentForm.effective_start_date < today) {
+      showFailureToast('Start date cannot be in the past.');
+      return;
+    }
+    if (assignmentForm.effective_end_date < assignmentForm.effective_start_date) {
+      showFailureToast('End date must be on or after start date.');
+      return;
+    }
+
     setIsSaving(true);
     clearControlMessages();
     await waitForNextPaint();
@@ -963,7 +1097,7 @@ export default function Control() {
           employee_ids: assignmentForm.employee_ids,
           template_id: Number(assignmentForm.template_id),
           effective_start_date: assignmentForm.effective_start_date,
-          effective_end_date: assignmentForm.effective_end_date || undefined,
+          effective_end_date: assignmentForm.effective_end_date,
         });
 
         setIsAssignmentDialogOpen(false);
@@ -1010,15 +1144,25 @@ export default function Control() {
 
   const handleSaveWorkSite = async () => {
     const employeeId = workSiteForm.employee_ids[0];
+    const today = todayIsoDate();
     if (
       !employeeId ||
       workSiteForm.location_id <= 0 ||
       !workSiteForm.effective_start_date ||
+      !workSiteForm.effective_end_date ||
       !workSiteForm.start_time ||
       !workSiteForm.end_time ||
-      workSiteForm.end_time <= workSiteForm.start_time
+      workSiteForm.end_time === workSiteForm.start_time
     ) {
       showFailureToast(copy.saveError);
+      return;
+    }
+    if (workSiteForm.effective_start_date < today) {
+      showFailureToast('Start date cannot be in the past.');
+      return;
+    }
+    if (workSiteForm.effective_end_date < workSiteForm.effective_start_date) {
+      showFailureToast('End date must be on or after start date.');
       return;
     }
 
@@ -1029,6 +1173,13 @@ export default function Control() {
     }
     if (selectedLocation.status === 'inactive') {
       showFailureToast('Only active contract sites can be assigned.');
+      return;
+    }
+    if (
+      (selectedLocation.contract_start_date && workSiteForm.effective_start_date < selectedLocation.contract_start_date) ||
+      (selectedLocation.contract_end_date && workSiteForm.effective_end_date > selectedLocation.contract_end_date)
+    ) {
+      showFailureToast(`Contract site is only open from ${selectedLocation.contract_start_date ?? 'the first configured day'} to ${selectedLocation.contract_end_date ?? 'the last configured day'}.`);
       return;
     }
 
@@ -1080,7 +1231,7 @@ export default function Control() {
           location_id: workSiteForm.location_id,
           template_id: templateId,
           effective_start_date: workSiteForm.effective_start_date,
-          effective_end_date: workSiteForm.effective_end_date || undefined,
+          effective_end_date: workSiteForm.effective_end_date,
         });
 
         setIsWorkSiteDialogOpen(false);
@@ -1221,21 +1372,53 @@ export default function Control() {
     }
   };
 
-  const isControlOverlayVisible = isSaving || isUpdatingCalendarDay || isRemovingTimeTableDay || isClearingCalendarDaySchedule;
+  const handleDeleteKiosk = async () => {
+    if (!kioskDeviceToDelete) {
+      return;
+    }
+
+    setIsSaving(true);
+    clearControlMessages();
+    await waitForNextPaint();
+
+    try {
+      await runWithMinimumDuration((async () => {
+        await humanResourcesApi.deleteAttendanceKioskDevice(kioskDeviceToDelete.id);
+        setIsKioskQrDialogOpen(false);
+        setKioskDeviceToDelete(null);
+        showSuccessToast(copy.labels.kioskDeleted);
+        await loadControl(controlDate);
+      })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
+    } catch (error) {
+      showFailureToast(toErrorMessage(error, copy) || copy.saveError);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const isControlOverlayVisible = isSaving || isUpdatingCalendarDay || isRemovingTimeTableDay || isClearingCalendarDaySchedule || isLoadingCalendar || isLoading;
   const loadingOverlayTitle = isClearingCalendarDaySchedule
-    ? copy.labels.clearingDaySchedule
-    : isUpdatingCalendarDay
-      ? copy.labels.savingDayStatus
-      : isRemovingTimeTableDay
-      ? copy.labels.removingTimeTableDay
-      : 'Saving changes';
+      ? copy.labels.clearingDaySchedule
+      : isUpdatingCalendarDay
+        ? copy.labels.savingDayStatus
+        : isRemovingTimeTableDay
+          ? copy.labels.removingTimeTableDay
+          : isLoadingCalendar
+            ? copy.labels.loadingCalendar
+            : isLoading
+              ? copy.loading
+            : 'Saving changes';
   const loadingOverlayDescription = isClearingCalendarDaySchedule
-    ? copy.labels.clearingDayScheduleDescription
-    : isUpdatingCalendarDay
-      ? copy.labels.savingDayStatusDescription
-      : isRemovingTimeTableDay
-      ? copy.labels.removingTimeTableDayDescription
-      : 'Please wait while the attendance control changes are saved.';
+      ? copy.labels.clearingDayScheduleDescription
+      : isUpdatingCalendarDay
+        ? copy.labels.savingDayStatusDescription
+        : isRemovingTimeTableDay
+          ? copy.labels.removingTimeTableDayDescription
+          : isLoadingCalendar
+            ? copy.labels.loadingCalendarDescription
+            : isLoading
+              ? copy.labels.loadingControlDescription
+            : 'Please wait while the attendance control changes are saved.';
 
   return (
     <>
@@ -1568,11 +1751,12 @@ export default function Control() {
         locale={currentLanguage.code}
         pendingStatus={pendingCalendarStatus}
         isSaving={isUpdatingCalendarDay}
-	        onPendingStatusChange={setPendingCalendarStatus}
-	        onClose={() => setSelectedCalendarDay(null)}
-	        onSave={handleCalendarStatusUpdate}
-	        onClearDaySchedule={handleClearCalendarDaySchedule}
-	      />
+        onPendingStatusChange={setPendingCalendarStatus}
+        onClose={() => setSelectedCalendarDay(null)}
+        onSave={handleCalendarStatusUpdate}
+        onClearDaySchedule={handleClearCalendarDaySchedule}
+        onManualPunch={handleManualCalendarPunch}
+      />
 
       <ControlKioskQrDialog
         copy={copy}
@@ -1596,6 +1780,7 @@ export default function Control() {
         onCopy={(device) => void handleCopyKioskLink(device)}
         onQr={handleShowKioskQr}
         onRotate={(device) => void handleRotateKioskLink(device)}
+        onDelete={setKioskDeviceToDelete}
       />
 
       <ControlContractSiteDialog
@@ -1722,6 +1907,17 @@ export default function Control() {
         cancelLabel={copy.labels.cancel}
         onConfirm={() => void handleConfirmClearCalendarDaySchedule()}
         onCancel={() => setPendingCalendarScheduleClear(null)}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={kioskDeviceToDelete !== null}
+        title={copy.labels.deleteKioskTitle}
+        description={copy.labels.deleteKioskDescription}
+        itemName={kioskDeviceToDelete?.name}
+        confirmLabel={copy.labels.deleteKiosk}
+        cancelLabel={copy.labels.cancel}
+        onConfirm={() => void handleDeleteKiosk()}
+        onCancel={() => setKioskDeviceToDelete(null)}
       />
     </>
   );

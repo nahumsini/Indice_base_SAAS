@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.indice.erp.storage.ObjectStorageDisabledException;
+import com.indice.erp.storage.ObjectStorageProperties;
+import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -28,19 +31,31 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConfigCenterService {
 
     private static final String CONFIG_CENTER_KEY = "config_center";
+    private static final long MAX_PROFILE_AVATAR_SIZE_BYTES = 1024 * 1024;
+    private static final Set<String> PROFILE_AVATAR_CONTENT_TYPES = Set.of(
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+    );
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final ObjectStorageService objectStorageService;
+    private final ObjectStorageProperties objectStorageProperties;
 
     public ConfigCenterService(
         JdbcTemplate jdbcTemplate,
         ObjectMapper objectMapper,
-        BCryptPasswordEncoder passwordEncoder
+        BCryptPasswordEncoder passwordEncoder,
+        ObjectStorageService objectStorageService,
+        ObjectStorageProperties objectStorageProperties
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
+        this.objectStorageService = objectStorageService;
+        this.objectStorageProperties = objectStorageProperties;
     }
 
     public Map<String, Object> getEmpresa(long companyId) {
@@ -63,8 +78,9 @@ public class ConfigCenterService {
         var settingsRoot = loadSettingsRoot(companyId);
         var configCenterNode = settingsRoot.path(CONFIG_CENTER_KEY);
         var empresaTemplate = normalizeEmpresaTemplate(configCenterNode.path("empresa_template"));
-        var storedMap = normalizeStoredMap(configCenterNode.path("map"));
-        var map = storedMap.isEmpty() ? buildStructureMap(companyId) : storedMap;
+        var mapNode = configCenterNode.path("map");
+        var storedMap = normalizeStoredMap(mapNode);
+        var map = mapNode.isArray() ? storedMap : buildStructureMap(companyId);
 
         var estructura = firstNonBlank(
             readOptionalText(configCenterNode, "estructura"),
@@ -72,6 +88,14 @@ public class ConfigCenterService {
         );
 
         var empresa = new LinkedHashMap<>(companyRows.getFirst());
+        if (configCenterNode.path("empresa_template").has("logo")) {
+            empresa.put("logo_url", configCenterNode.path("empresa_template").path("logo").asText("").trim());
+        } else {
+            empresa.put("logo_url", firstNonBlank(
+                objectString(empresa.get("logo_url")),
+                readOptionalText(configCenterNode.path("empresa_template"), "logo_url")
+            ));
+        }
         empresa.put("plan_id", null);
         empresa.put("industria", firstNonBlank(
             stringValue(empresaTemplate.get("industria")),
@@ -128,7 +152,9 @@ public class ConfigCenterService {
                        COALESCE(p.phone, '') AS phone,
                        COALESCE(p.country, '') AS country,
                        COALESCE(p.preferred_language, 'es-419') AS preferred_language,
-                       COALESCE(p.avatar_url, '') AS avatar_url
+                       COALESCE(p.avatar_url, '') AS avatar_url,
+                       COALESCE(p.avatar_object_key, '') AS avatar_object_key,
+                       COALESCE(p.avatar_content_type, '') AS avatar_content_type
                 FROM users u
                 LEFT JOIN user_profiles p ON p.user_id = u.id
                 WHERE u.id = ?
@@ -137,6 +163,11 @@ public class ConfigCenterService {
             (rs, rowNum) -> {
                 var fullName = safe(rs.getString("full_name"));
                 var parsed = splitFullName(fullName);
+                var avatarObjectKey = safe(rs.getString("avatar_object_key"));
+                var avatarUrl = firstNonBlank(
+                    safe(signedProfileAvatarUrl(avatarObjectKey)),
+                    safe(rs.getString("avatar_url"))
+                );
 
                 var user = new LinkedHashMap<String, Object>();
                 user.put("id", rs.getLong("id"));
@@ -151,7 +182,9 @@ public class ConfigCenterService {
                 user.put("telefono", safe(rs.getString("phone")));
                 user.put("country", safe(rs.getString("country")));
                 user.put("preferred_language", safe(rs.getString("preferred_language")));
-                user.put("avatar_url", safe(rs.getString("avatar_url")));
+                user.put("avatar_url", avatarUrl);
+                user.put("avatar_object_key", avatarObjectKey);
+                user.put("avatar_content_type", safe(rs.getString("avatar_content_type")));
                 user.put("role", currentRole);
                 return user;
             },
@@ -170,6 +203,9 @@ public class ConfigCenterService {
                 SELECT u.id,
                        u.email,
                        COALESCE(NULLIF(p.full_name, ''), COALESCE(u.full_name, '')) AS full_name,
+                       COALESCE(p.avatar_url, '') AS avatar_url,
+                       COALESCE(p.avatar_object_key, '') AS avatar_object_key,
+                       COALESCE(p.avatar_content_type, '') AS avatar_content_type,
                        uc.id AS user_company_id,
                        COALESCE(uc.role, 'user') AS role,
                        COALESCE(uc.status, 'active') AS status
@@ -181,6 +217,7 @@ public class ConfigCenterService {
                 """,
             (rs, rowNum) -> {
                 var name = splitFullName(safe(rs.getString("full_name")));
+                var avatarObjectKey = safe(rs.getString("avatar_object_key"));
                 var user = new LinkedHashMap<String, Object>();
                 user.put("id", rs.getLong("id"));
                 user.put("user_company_id", rs.getLong("user_company_id"));
@@ -189,6 +226,12 @@ public class ConfigCenterService {
                 user.put("apellidos", name.lastName());
                 user.put("email", safe(rs.getString("email")));
                 user.put("telefono", null);
+                user.put("avatar_url", firstNonBlank(
+                    safe(signedProfileAvatarUrl(avatarObjectKey)),
+                    safe(rs.getString("avatar_url"))
+                ));
+                user.put("avatar_object_key", avatarObjectKey);
+                user.put("avatar_content_type", safe(rs.getString("avatar_content_type")));
                 user.put("role", safe(rs.getString("role")));
                 user.put("department", null);
                 user.put("status", safe(rs.getString("status")));
@@ -222,6 +265,9 @@ public class ConfigCenterService {
                 invitation.put("apellidos", name.lastName());
                 invitation.put("email", safe(rs.getString("email")));
                 invitation.put("telefono", null);
+                invitation.put("avatar_url", null);
+                invitation.put("avatar_object_key", null);
+                invitation.put("avatar_content_type", null);
                 invitation.put("role", safe(rs.getString("role")));
                 invitation.put("department", null);
                 invitation.put("status", "pending");
@@ -274,8 +320,39 @@ public class ConfigCenterService {
         return result;
     }
 
+    public Map<String, Object> createCurrentUserAvatarUpload(long companyId, long userId, Map<String, Object> payload) {
+        if (!objectStorageService.isEnabled()) {
+            throw new ObjectStorageDisabledException("Object storage is not enabled.");
+        }
+
+        var contentType = normalizeProfileAvatarContentType(value(payload, "content_type", "contentType", "mime_type"));
+        var sizeBytes = parseLong(payload, "size_bytes", "sizeBytes");
+        if (sizeBytes == null || sizeBytes <= 0) {
+            throw new IllegalArgumentException("size_bytes is required.");
+        }
+        if (sizeBytes > MAX_PROFILE_AVATAR_SIZE_BYTES) {
+            throw new IllegalArgumentException("Profile photos must be 1MB or smaller.");
+        }
+
+        var objectKey = buildCurrentUserAvatarObjectKey(companyId, userId, contentType);
+        var upload = objectStorageService.presignUpload(
+            documentsBucket(),
+            objectKey,
+            contentType,
+            objectStorageProperties.getMinio().getPresignExpirySeconds()
+        );
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("object_key", upload.objectKey());
+        body.put("upload_url", upload.uploadUrl());
+        body.put("expires_at", upload.expiresAt());
+        body.put("upload_headers", upload.uploadHeaders());
+        body.put("content_type", contentType);
+        return body;
+    }
+
     @Transactional
-    public Map<String, Object> saveCurrentUser(long userId, String currentRole, Map<String, Object> payload) {
+    public Map<String, Object> saveCurrentUser(long companyId, long userId, String currentRole, Map<String, Object> payload) {
         var firstName = value(payload, "primer_nombre", "nombres");
         var secondName = value(payload, "segundo_nombre");
         var lastName = value(payload, "apellido_paterno", "apellidos");
@@ -283,7 +360,22 @@ public class ConfigCenterService {
         var phone = value(payload, "telefono");
         var country = normalizeCountry(value(payload, "country", "pais"));
         var preferredLanguage = firstNonBlank(value(payload, "preferred_language"), "es-419");
-        var avatarUrl = value(payload, "avatar_url");
+        var hasAvatarUpdate = hasAnyKey(payload, "avatar_object_key", "avatarObjectKey");
+        var avatarObjectKey = "";
+        var avatarContentType = "";
+        if (hasAvatarUpdate) {
+            avatarObjectKey = normalizeCurrentUserAvatarObjectKey(
+                companyId,
+                userId,
+                value(payload, "avatar_object_key", "avatarObjectKey")
+            );
+            avatarContentType = avatarObjectKey.isBlank()
+                ? ""
+                : normalizeProfileAvatarContentType(value(payload, "avatar_content_type", "avatarContentType", "content_type"));
+            if (!avatarObjectKey.isBlank() && !objectStorageService.objectExists(documentsBucket(), avatarObjectKey)) {
+                throw new IllegalArgumentException("avatar_object_key does not reference an existing uploaded profile photo.");
+            }
+        }
         var newPassword = value(payload, "new_password");
         var confirmNewPassword = value(payload, "confirm_new_password", "password_confirmation", "confirm_password");
         var hasPasswordChange = !newPassword.isBlank() || !confirmNewPassword.isBlank();
@@ -311,24 +403,53 @@ public class ConfigCenterService {
                 userId
             );
         }
-        jdbcTemplate.update(
-            """
-                INSERT INTO user_profiles (user_id, full_name, phone, country, preferred_language, avatar_url)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    full_name = VALUES(full_name),
-                    phone = VALUES(phone),
-                    country = VALUES(country),
-                    preferred_language = VALUES(preferred_language),
-                    avatar_url = VALUES(avatar_url)
-                """,
-            userId,
-            fullName,
-            nullable(phone),
-            nullable(country),
-            preferredLanguage,
-            nullable(avatarUrl)
-        );
+
+        if (hasAvatarUpdate) {
+            var previousAvatarObjectKey = loadCurrentUserAvatarObjectKey(userId);
+            jdbcTemplate.update(
+                """
+                    INSERT INTO user_profiles
+                    (user_id, full_name, phone, country, preferred_language, avatar_url, avatar_object_key, avatar_content_type, avatar_updated_at)
+                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, CURRENT_TIMESTAMP)
+                    ON DUPLICATE KEY UPDATE
+                        full_name = VALUES(full_name),
+                        phone = VALUES(phone),
+                        country = VALUES(country),
+                        preferred_language = VALUES(preferred_language),
+                        avatar_url = VALUES(avatar_url),
+                        avatar_object_key = VALUES(avatar_object_key),
+                        avatar_content_type = VALUES(avatar_content_type),
+                        avatar_updated_at = VALUES(avatar_updated_at)
+                    """,
+                userId,
+                fullName,
+                nullable(phone),
+                nullable(country),
+                preferredLanguage,
+                nullable(avatarObjectKey),
+                nullable(avatarContentType)
+            );
+            if (!previousAvatarObjectKey.isBlank() && !previousAvatarObjectKey.equals(avatarObjectKey)) {
+                deleteProfileAvatarObjectQuietly(previousAvatarObjectKey);
+            }
+        } else {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO user_profiles (user_id, full_name, phone, country, preferred_language)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        full_name = VALUES(full_name),
+                        phone = VALUES(phone),
+                        country = VALUES(country),
+                        preferred_language = VALUES(preferred_language)
+                    """,
+                userId,
+                fullName,
+                nullable(phone),
+                nullable(country),
+                preferredLanguage
+            );
+        }
 
         return getCurrentUser(userId, currentRole);
     }
@@ -476,9 +597,6 @@ public class ConfigCenterService {
         }
 
         var map = normalizeMap(payload);
-        if ("multi".equals(estructura) && map.isEmpty()) {
-            throw new IllegalArgumentException("At least one unit is required in multi mode.");
-        }
 
         persistStructure(companyId, userId, map);
 
@@ -508,6 +626,9 @@ public class ConfigCenterService {
         var configCenterNode = ensureConfigCenterNode(settingsRoot);
         var empresaTemplateNode = ensureObjectNode(configCenterNode, "empresa_template");
 
+        if (hasAnyKey(payload, "logo_url", "logoUrl", "logo")) {
+            empresaTemplateNode.put("logo", value(payload, "logo_url", "logoUrl", "logo"));
+        }
         empresaTemplateNode.put("industria", value(payload, "industria"));
         empresaTemplateNode.put("modelo_negocio", value(payload, "modelo_negocio"));
         empresaTemplateNode.put("descripcion", value(payload, "descripcion"));
@@ -533,11 +654,16 @@ public class ConfigCenterService {
 
         upsertSettingsRoot(companyId, settingsRoot);
         if (companyCoordinates != null) {
-            syncCompanyStructureAttendanceLocation(companyId, userId, name, companyCoordinates);
+            if (booleanValue(payload, true, "sync_company_location", "syncCompanyLocation")) {
+                syncCompanyStructureAttendanceLocation(companyId, userId, name, companyCoordinates);
+            } else {
+                deactivateCompanyStructureAttendanceLocation(companyId);
+            }
         }
 
         var data = new LinkedHashMap<String, Object>();
         data.put("nombre_empresa", name);
+        data.put("logo_url", value(payload, "logo_url", "logoUrl", "logo"));
         data.put("industria", value(payload, "industria"));
         data.put("descripcion", value(payload, "descripcion"));
         data.put("tamano_empresa", value(payload, "tamano_empresa"));
@@ -1251,6 +1377,7 @@ public class ConfigCenterService {
 
     private Map<String, Object> normalizeEmpresaTemplate(JsonNode templateNode) {
         var template = new LinkedHashMap<String, Object>();
+        putIfPresent(template, "logo", readOptionalText(templateNode, "logo", "logo_url"));
         putIfPresent(template, "industria", readOptionalText(templateNode, "industria"));
         putIfPresent(template, "modelo_negocio", readOptionalText(templateNode, "modelo_negocio"));
         putIfPresent(template, "descripcion", readOptionalText(templateNode, "descripcion"));
@@ -1502,6 +1629,146 @@ public class ConfigCenterService {
             }
         }
         return "";
+    }
+
+    private boolean booleanValue(Map<String, Object> payload, boolean defaultValue, String... keys) {
+        for (var key : keys) {
+            if (!payload.containsKey(key)) {
+                continue;
+            }
+
+            var value = payload.get(key);
+            if (value instanceof Boolean bool) {
+                return bool;
+            }
+            if (value instanceof Number number) {
+                return number.intValue() != 0;
+            }
+
+            var text = objectString(value).toLowerCase(Locale.ROOT);
+            if ("true".equals(text) || "1".equals(text) || "yes".equals(text)) {
+                return true;
+            }
+            if ("false".equals(text) || "0".equals(text) || "no".equals(text)) {
+                return false;
+            }
+            return defaultValue;
+        }
+        return defaultValue;
+    }
+
+    private boolean hasAnyKey(Map<String, Object> payload, String... keys) {
+        for (var key : keys) {
+            if (payload.containsKey(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Long parseLong(Map<String, Object> payload, String... keys) {
+        for (var key : keys) {
+            if (!payload.containsKey(key)) {
+                continue;
+            }
+
+            var value = payload.get(key);
+            if (value instanceof Number number) {
+                return number.longValue();
+            }
+
+            if (value instanceof String string && !string.isBlank()) {
+                try {
+                    return Long.parseLong(string.trim());
+                } catch (NumberFormatException ex) {
+                    throw new IllegalArgumentException(key + " must be a number.");
+                }
+            }
+        }
+        return null;
+    }
+
+    private String normalizeProfileAvatarContentType(String value) {
+        var normalized = safe(value).trim().toLowerCase(Locale.ROOT);
+        if ("image/jpg".equals(normalized)) {
+            normalized = "image/jpeg";
+        }
+
+        if (!PROFILE_AVATAR_CONTENT_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("Profile photos must be JPG, PNG, or WebP images.");
+        }
+        return normalized;
+    }
+
+    private String buildCurrentUserAvatarObjectKey(long companyId, long userId, String contentType) {
+        return currentUserAvatarPrefix(companyId, userId)
+            + UUID.randomUUID().toString().replace("-", "")
+            + extensionForProfileAvatarContentType(contentType);
+    }
+
+    private String normalizeCurrentUserAvatarObjectKey(long companyId, long userId, String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return "";
+        }
+
+        var normalized = objectKey.trim();
+        if (!normalized.startsWith(currentUserAvatarPrefix(companyId, userId))) {
+            throw new IllegalArgumentException("avatar_object_key must match the expected profile photo upload prefix.");
+        }
+        return normalized;
+    }
+
+    private String currentUserAvatarPrefix(long companyId, long userId) {
+        return "config-center/user-profiles/" + companyId + "/" + userId + "/avatar/";
+    }
+
+    private String extensionForProfileAvatarContentType(String contentType) {
+        return switch (contentType) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
+    }
+
+    private String loadCurrentUserAvatarObjectKey(long userId) {
+        var rows = jdbcTemplate.query(
+            "SELECT COALESCE(avatar_object_key, '') AS avatar_object_key FROM user_profiles WHERE user_id = ? LIMIT 1",
+            (rs, rowNum) -> safe(rs.getString("avatar_object_key")),
+            userId
+        );
+        return rows.isEmpty() ? "" : rows.getFirst();
+    }
+
+    private String signedProfileAvatarUrl(String objectKey) {
+        if (objectKey == null || objectKey.isBlank() || !objectStorageService.isEnabled()) {
+            return null;
+        }
+
+        try {
+            return objectStorageService.presignDownload(
+                documentsBucket(),
+                objectKey,
+                objectStorageProperties.getMinio().getPresignExpirySeconds()
+            );
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private void deleteProfileAvatarObjectQuietly(String objectKey) {
+        if (objectKey == null || objectKey.isBlank() || !objectStorageService.isEnabled()) {
+            return;
+        }
+
+        try {
+            objectStorageService.deleteObject(documentsBucket(), objectKey);
+        } catch (RuntimeException ignored) {
+            // Profile metadata should stay saved even if the replaced object is already gone.
+        }
+    }
+
+    private String documentsBucket() {
+        return objectStorageProperties.getMinio().getBucketDocuments();
     }
 
     private List<String> normalizeModuleSlugs(Object rawValue) {

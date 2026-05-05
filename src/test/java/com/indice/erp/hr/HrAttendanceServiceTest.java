@@ -2,7 +2,6 @@ package com.indice.erp.hr;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -37,7 +36,7 @@ class HrAttendanceServiceTest {
     void updateDailyRecordRejectsDatesBeforeEmployeeHireDate() {
         var service = createService();
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L), eq(12L)))
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(), eq(1L), eq(12L)))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
                 var rowMapper = (RowMapper<Object>) invocation.getArgument(1);

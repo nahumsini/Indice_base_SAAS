@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { MapPin } from 'lucide-react';
+import { ImageIcon, MapPin } from 'lucide-react';
 import {
   type AttendanceCalendarDay,
   type AttendanceControlOverviewResponse,
@@ -177,7 +177,7 @@ export function ControlCalendarDayCell({
         isSelected
           ? 'border-[#1463ff] bg-[#1463ff]/5 shadow-[inset_0_0_0_1px_rgba(20,99,255,0.15)]'
           : 'border-gray-200 bg-white hover:border-[#1463ff]/35 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#8bb3ff]/40'
-      } ${isLocked ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800/70 dark:bg-amber-950/20' : ''}`}
+      }`}
     >
       <div className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</div>
       {day ? (
@@ -190,11 +190,6 @@ export function ControlCalendarDayCell({
             <div className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold ${statusTone}`}>
               {dayBadge(copy, day)}
             </div>
-          ) : null}
-          {isLocked ? (
-            <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
-              {copy.labels.notModifiable}
-            </p>
           ) : null}
         </div>
       ) : null}
@@ -222,9 +217,9 @@ export function LegendOutline({ label }: { label: string }) {
 
 export function DayInfoStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+    <div className="min-h-[84px] rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{value}</p>
+      <p className="mt-3 text-base font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -234,12 +229,44 @@ export function DayEvidenceCard({
   photoUrl,
   location,
   copy,
+  compact = false,
 }: {
   label: string;
   photoUrl: string | null;
   location: string | null;
   copy: AttendanceControlCopy;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
+        <div className="mt-2 flex items-center gap-2">
+          {photoUrl ? (
+            <img
+              src={photoUrl}
+              alt={label}
+              className="h-10 w-10 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40"
+              title={copy.labels.noEvidence}
+            >
+              <ImageIcon className="h-4 w-4" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-xs text-[#1463ff] dark:text-[#8bb3ff]">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{location || copy.labels.noLocationHistory}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
@@ -308,6 +335,13 @@ export function applyCalendarDayUpdate(
     system_status: AttendanceCalendarDay['system_status'];
     corrected_status?: AttendanceCalendarDay['corrected_status'];
     notes?: string | null;
+    entry_registered?: boolean;
+    exit_registered?: boolean;
+    first_check_in_at?: string | null;
+    last_check_out_at?: string | null;
+    minutes_late?: number;
+    first_location?: AttendanceCalendarDay['first_location'];
+    last_location?: AttendanceCalendarDay['last_location'];
   },
 ): AttendanceCalendarDay {
   return {
@@ -316,6 +350,13 @@ export function applyCalendarDayUpdate(
     system_status: result.system_status,
     corrected_status: result.corrected_status ?? null,
     notes: result.notes ?? null,
+    entry_registered: result.entry_registered ?? day.entry_registered,
+    exit_registered: result.exit_registered ?? day.exit_registered,
+    first_check_in_at: result.first_check_in_at ?? day.first_check_in_at,
+    last_check_out_at: result.last_check_out_at ?? day.last_check_out_at,
+    minutes_late: result.minutes_late ?? day.minutes_late,
+    first_location: result.first_location ?? day.first_location,
+    last_location: result.last_location ?? day.last_location,
   };
 }
 

@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
 import { configCenterApi, type ConfigCenterCatalogModule, type ConfigCenterUser } from '../../../api/configCenter';
 import {
@@ -30,6 +31,7 @@ interface User {
   source: 'user' | 'invitation';
   name: string;
   email: string;
+  avatarUrl?: string | null;
   role: 'Super Admin' | 'Admin' | 'User';
   status: 'active' | 'pending' | 'inactive';
   modules: string[];
@@ -272,7 +274,7 @@ export default function Users() {
     setIsLoading(true);
     setLoadError('');
 
-    configCenterApi.getUsers()
+    runWithMinimumDuration(configCenterApi.getUsers())
       .then((response) => {
         if (!active) {
           return;
@@ -706,13 +708,21 @@ export default function Users() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`w-10 h-10 rounded-full ${getRoleColorClasses(
-                              user.role,
-                            )} flex items-center justify-center font-semibold`}
-                          >
-                            {initials}
-                          </div>
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.name}
+                              className="h-10 w-10 rounded-full border border-gray-200 object-cover shadow-sm dark:border-gray-700"
+                            />
+                          ) : (
+                            <div
+                              className={`w-10 h-10 rounded-full ${getRoleColorClasses(
+                                user.role,
+                              )} flex items-center justify-center font-semibold`}
+                            >
+                              {initials}
+                            </div>
+                          )}
                           <div>
                             <div className="font-medium text-gray-900 dark:text-white">
                               {user.name}
@@ -1253,6 +1263,7 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     source: user.source === 'invitation' ? 'invitation' : 'user',
     name: fullName,
     email: user.email,
+    avatarUrl: user.avatar_url ?? null,
     role,
     status,
     modules: user.module_slugs

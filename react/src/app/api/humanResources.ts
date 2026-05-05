@@ -49,16 +49,6 @@ export interface BackendEmployeeProfile {
   workday_hours?: number | null;
 }
 
-export interface BackendEmployeePortalAccess {
-  access_role: 'employee' | 'coordinator' | 'manager' | 'administrator';
-  linked_user_id?: number | null;
-  linked_user_name?: string;
-  linked_user_email?: string;
-  invitation_id?: number | null;
-  invitation_status: 'not_invited' | 'pending' | 'linked';
-  last_invited_at?: string | null;
-}
-
 export interface BackendEmployeeDocument {
   id: number;
   document_type: 'birth_certificate' | 'government_id' | 'proof_of_address' | 'resume' | 'profile_photo';
@@ -76,7 +66,6 @@ export interface EmployeeDetailsResponse {
   employee_id: number;
   employee: BackendEmployee;
   profile: BackendEmployeeProfile;
-  access: BackendEmployeePortalAccess;
   documents: BackendEmployeeDocument[];
 }
 
@@ -247,6 +236,10 @@ export interface TerminationPayload {
 export interface AttendanceLocation {
   id: number;
   name: string;
+  unit_id?: number | null;
+  unit_name?: string | null;
+  business_id?: number | null;
+  business_name?: string | null;
   latitude: number;
   longitude: number;
   radius_meters: number;
@@ -256,9 +249,13 @@ export type AttendanceStatus = 'on_time' | 'late' | 'leave' | 'rest' | 'absence'
 export type AttendanceCorrectionStatus = Exclude<AttendanceStatus, 'pending' | 'not_scheduled'>;
 
 export interface AttendanceDashboardItem {
+  subject_type?: 'employee' | 'user';
+  user_id?: number;
+  user_company_id?: number;
   employee_id: number;
   employee_number?: string;
   employee_name: string;
+  avatar_url?: string | null;
   position_title?: string;
   department?: string;
   unit_id?: number | null;
@@ -283,9 +280,13 @@ export interface AttendanceDashboardItem {
 }
 
 export interface AttendanceEmployeeOption {
+  subject_type?: 'employee' | 'user';
+  user_id?: number;
+  user_company_id?: number;
   id: number;
   employee_number?: string;
   full_name: string;
+  avatar_url?: string | null;
   position_title?: string;
   department?: string;
   unit_id?: number | null;
@@ -298,6 +299,7 @@ export interface AttendanceDashboardResponse {
   date: string;
   summary: {
     total_employees: number;
+    total_users?: number;
     on_time_count: number;
     late_count: number;
     leave_count: number;
@@ -337,6 +339,7 @@ export interface AttendanceCalendarResponse {
   employee: {
     id: number;
     full_name: string;
+    avatar_url?: string | null;
     position_title?: string;
     department?: string;
     hire_date?: string | null;
@@ -358,6 +361,7 @@ export interface AttendanceControlRule {
   rest_minutes?: number;
   late_after_minutes: number;
   is_rest_day: boolean;
+  is_overnight?: boolean;
 }
 
 export interface AttendanceControlLocation {
@@ -376,6 +380,7 @@ export interface AttendanceControlLocation {
   required_start_time?: string | null;
   required_end_time?: string | null;
   required_days_per_week?: number | null;
+  managed_source?: string | null;
   status?: string;
   assigned_employee_count?: number;
   assigned_employee_names?: string | null;
@@ -442,6 +447,7 @@ export interface AttendanceAccessMethod {
   employee_name: string;
   method_type: 'pin' | 'badge' | 'password' | 'manual_override' | 'facial_recognition';
   credential_ref?: string | null;
+  pin_code?: string | null;
   status: 'active' | 'inactive';
   priority: number;
   metadata?: Record<string, unknown>;
@@ -707,6 +713,8 @@ export interface AttendanceAccessMethodPayload {
   method_type: AttendanceAccessMethod['method_type'];
   credential_ref?: string | null;
   secret?: string;
+  regenerate_pin?: boolean;
+  auto_generate_pin?: boolean;
   status: 'active' | 'inactive';
   priority?: number;
   metadata?: Record<string, unknown>;
@@ -847,7 +855,8 @@ export interface PublicKioskBootstrapResponse {
     code: string;
     name: string;
   };
-  location: AttendanceLocation;
+  location?: AttendanceLocation | null;
+  scope_label?: string | null;
   auth_methods: Array<'pin'>;
   inactivity_timeout_seconds: number;
 }
@@ -860,11 +869,15 @@ export interface PublicKioskIdentifyRequest {
 export interface PublicKioskDayActivity {
   attendance_date: string;
   status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
+  first_location?: AttendanceLocation | null;
+  last_location?: AttendanceLocation | null;
   minutes_late?: number;
   has_check_in?: boolean;
   has_check_out?: boolean;
+  has_active_check_in?: boolean;
 }
 
 export interface PublicKioskIdentifyResponse {
@@ -927,15 +940,35 @@ export interface AttendanceCorrectionPayload {
   notes?: string;
 }
 
+export type AttendanceManualEventKind = 'check_in' | 'check_out';
+
+export interface AttendanceManualEventPayload {
+  event_kind: AttendanceManualEventKind;
+  event_date?: string;
+  event_time?: string;
+  event_timestamp?: string;
+  notes?: string;
+}
+
 export interface AttendanceDailyRecordUpdateResponse {
   employee_id: number;
   date: string;
+  event_id?: number;
+  event_kind?: AttendanceManualEventKind;
+  result_status?: 'overridden';
   system_status: AttendanceStatus;
   corrected_status?: AttendanceCorrectionStatus | null;
   effective_status: AttendanceStatus;
   attendance_editable?: boolean;
   edit_lock_reason?: string | null;
   notes?: string | null;
+  entry_registered?: boolean;
+  exit_registered?: boolean;
+  first_check_in_at?: string | null;
+  last_check_out_at?: string | null;
+  minutes_late?: number;
+  first_location?: AttendanceLocation | null;
+  last_location?: AttendanceLocation | null;
 }
 
 export interface FaceEnrollmentSessionResponse {
@@ -1180,6 +1213,7 @@ export const humanResourcesApi = {
 
   listAttendanceScheduleCandidates(params: {
     date: string;
+    effective_end_date?: string;
     page?: number;
     size?: number;
     search?: string;
@@ -1252,6 +1286,12 @@ export const humanResourcesApi = {
     return apiClient<{ kiosk_device: AttendanceKioskDevice }>(`${endpoints.humanResources.attendanceKioskDevices}/${kioskDeviceId}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
+    });
+  },
+
+  deleteAttendanceKioskDevice(kioskDeviceId: string | number) {
+    return apiClient<{ success: boolean }>(`${endpoints.humanResources.attendanceKioskDevices}/${kioskDeviceId}`, {
+      method: 'DELETE',
     });
   },
 
@@ -1491,6 +1531,16 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendanceDailyRecords}/${employeeId}/${date}`,
       {
         method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  recordManualAttendanceEvent(employeeId: string | number, date: string, payload: AttendanceManualEventPayload) {
+    return apiClient<AttendanceDailyRecordUpdateResponse>(
+      `${endpoints.humanResources.attendanceDailyRecords}/${employeeId}/${date}/manual-events`,
+      {
+        method: 'POST',
         body: JSON.stringify(payload),
       },
     );

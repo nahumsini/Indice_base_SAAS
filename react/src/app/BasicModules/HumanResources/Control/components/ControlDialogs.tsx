@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, MapPin, Pencil, Plus, QrCode, RotateCw } from 'lucide-react';
+import { Copy, ExternalLink, MapPin, Pencil, Plus, QrCode, RotateCw, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   Dialog,
@@ -36,7 +36,42 @@ export interface ControlWorkSiteForm {
   end_time: string;
 }
 
+type KioskType = 'business_unit' | 'contract_site' | 'head_office';
+
 const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
+const dateInputValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const laterDate = (...dates: Array<string | null | undefined>) => {
+  const values = dates.filter((date): date is string => Boolean(date));
+  values.sort();
+  return values.length > 0 ? values[values.length - 1] : '';
+};
+const contractSiteAssignmentDates = (
+  location: AttendanceControlLocation | undefined,
+  requestedStartDate: string,
+  todayDate: string,
+) => {
+  if (!location) {
+    const startDate = laterDate(todayDate, requestedStartDate) || todayDate;
+    return { startDate, endDate: startDate };
+  }
+
+  const minimumStartDate = laterDate(todayDate, location.contract_start_date);
+  const startCandidate = requestedStartDate && requestedStartDate >= minimumStartDate
+    ? requestedStartDate
+    : minimumStartDate;
+  const startDate = location.contract_end_date && startCandidate > location.contract_end_date
+    ? location.contract_end_date
+    : startCandidate;
+  const endDate = location.contract_end_date && location.contract_end_date >= startDate
+    ? location.contract_end_date
+    : startDate;
+  return { startDate, endDate };
+};
 const withContractSiteTime = (
   payload: AttendanceControlLocationPayload,
   field: 'required_start_time' | 'required_end_time',
@@ -47,6 +82,57 @@ const withContractSiteTime = (
     [field]: value ? `${value}:00` : null,
   };
 };
+
+const kioskTypeOptions: KioskType[] = ['business_unit', 'contract_site', 'head_office'];
+
+const kioskTypeFromMetadata = (metadata?: Record<string, unknown>): KioskType => {
+  const value = typeof metadata?.kiosk_type === 'string' ? metadata.kiosk_type : '';
+  return kioskTypeOptions.includes(value as KioskType) ? value as KioskType : 'business_unit';
+};
+
+const withKioskType = (metadata: Record<string, unknown> | undefined, kioskType: KioskType) => ({
+  ...(metadata ?? {}),
+  kiosk_type: kioskType,
+});
+
+const isContractSiteLocation = (location: AttendanceControlLocation) =>
+  (location.managed_source ?? '').toLowerCase() === 'contract_site';
+
+const isBusinessStructureLocation = (location: AttendanceControlLocation) =>
+  (location.managed_source ?? '').toLowerCase() === 'business_structure';
+
+const locationMatchesKioskType = (location: AttendanceControlLocation, kioskType: KioskType) => {
+  if (kioskType === 'contract_site') {
+    return isContractSiteLocation(location);
+  }
+  if (kioskType === 'head_office') {
+    return isBusinessStructureLocation(location) && !location.business_id;
+  }
+  return isBusinessStructureLocation(location) && Boolean(location.business_id);
+};
+
+const isActiveLocation = (location: AttendanceControlLocation) => (location.status ?? 'active') !== 'inactive';
+
+const slugifyKioskPart = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+
+const defaultKioskCode = (location: AttendanceControlLocation, kioskType: KioskType) => {
+  const prefix = kioskType === 'contract_site'
+    ? 'site'
+    : kioskType === 'head_office'
+      ? 'hq'
+      : 'business';
+  const slug = slugifyKioskPart(location.name) || `${prefix}-${location.id}`;
+  return `${slug}-kiosk`;
+};
+
+const defaultKioskScopeCode = (label: string, fallback: string) =>
+  `${slugifyKioskPart(label) || fallback}-kiosk`;
 
 export function ControlContractSiteDialog({
   copy,
@@ -363,6 +449,20 @@ export function ControlAssignmentDialog({
   onSave: () => void;
 }) {
   const availableAssignments = assignments.filter(isAssignmentFreeForWork);
+  const todayDate = dateInputValue();
+  const hasMissingStartDate = !form.effective_start_date;
+  const hasPastStartDate = Boolean(form.effective_start_date && form.effective_start_date < todayDate);
+  const hasMissingEndDate = !form.effective_end_date;
+  const hasInvalidDateRange = Boolean(form.effective_end_date && form.effective_end_date < form.effective_start_date);
+  const dateValidationMessage = hasMissingStartDate
+    ? 'Start date is required.'
+    : hasPastStartDate
+      ? 'Start date cannot be in the past.'
+      : hasMissingEndDate
+        ? 'End date is required.'
+        : hasInvalidDateRange
+          ? 'End date must be on or after start date.'
+          : '';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -395,7 +495,17 @@ export function ControlAssignmentDialog({
               <input
                 type="date"
                 value={form.effective_start_date}
-                onChange={(event) => onChange({ ...form, effective_start_date: event.target.value })}
+                min={todayDate}
+                onChange={(event) => {
+                  const nextStartDate = event.target.value;
+                  onChange({
+                    ...form,
+                    effective_start_date: nextStartDate,
+                    effective_end_date: form.effective_end_date && form.effective_end_date >= nextStartDate
+                      ? form.effective_end_date
+                      : nextStartDate,
+                  });
+                }}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
@@ -404,11 +514,17 @@ export function ControlAssignmentDialog({
               <input
                 type="date"
                 value={form.effective_end_date ?? ''}
+                min={form.effective_start_date || todayDate}
                 onChange={(event) => onChange({ ...form, effective_end_date: event.target.value })}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
+          {dateValidationMessage ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
+              {dateValidationMessage}
+            </div>
+          ) : null}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.employeesToAssign}</label>
@@ -457,6 +573,7 @@ export function ControlAssignmentDialog({
               isSaving ||
               form.employee_ids.length === 0 ||
               form.template_id <= 0 ||
+              Boolean(dateValidationMessage) ||
               form.employee_ids.some((employeeId) => {
                 const assignment = assignments.find((item) => item.employee_id === employeeId);
                 return assignment ? Boolean(getAssignmentBusyReason(assignment)) : false;
@@ -493,7 +610,29 @@ export function ControlWorkSiteDialog({
   onSave: () => void;
 }) {
   const activeLocations = locations.filter((location) => location.status !== 'inactive');
-  const invalidTimeRange = Boolean(form.start_time && form.end_time && form.end_time <= form.start_time);
+  const selectedLocation = activeLocations.find((location) => location.id === form.location_id);
+  const invalidTimeRange = Boolean(form.start_time && form.end_time && form.end_time === form.start_time);
+  const isOvernightShift = Boolean(form.start_time && form.end_time && form.end_time < form.start_time);
+  const todayDate = dateInputValue();
+  const minimumStartDate = laterDate(todayDate, selectedLocation?.contract_start_date) || todayDate;
+  const maximumEndDate = selectedLocation?.contract_end_date || undefined;
+  const hasMissingStartDate = !form.effective_start_date;
+  const hasPastStartDate = Boolean(form.effective_start_date && form.effective_start_date < todayDate);
+  const hasMissingEndDate = !form.effective_end_date;
+  const hasInvalidDateRange = Boolean(form.effective_end_date && form.effective_end_date < form.effective_start_date);
+  const hasStartBeforeSiteWindow = Boolean(selectedLocation?.contract_start_date && form.effective_start_date < selectedLocation.contract_start_date);
+  const hasEndAfterSiteWindow = Boolean(selectedLocation?.contract_end_date && form.effective_end_date > selectedLocation.contract_end_date);
+  const dateValidationMessage = hasMissingStartDate
+    ? 'Start date is required.'
+    : hasPastStartDate
+      ? 'Start date cannot be in the past.'
+      : hasMissingEndDate
+        ? 'End date is required.'
+        : hasInvalidDateRange
+          ? 'End date must be on or after start date.'
+          : hasStartBeforeSiteWindow || hasEndAfterSiteWindow
+            ? `Contract site is only open from ${selectedLocation?.contract_start_date ?? 'the first configured day'} to ${selectedLocation?.contract_end_date ?? 'the last configured day'}.`
+          : '';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -515,19 +654,22 @@ export function ControlWorkSiteDialog({
 
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Attendance location</label>
-	            <select
-	              value={form.location_id || ''}
-	              onChange={(event) => {
-	                const locationId = event.target.value ? Number(event.target.value) : 0;
-	                const selectedLocation = activeLocations.find((location) => location.id === locationId);
-	                onChange({
-	                  ...form,
-	                  location_id: locationId,
-	                  location_ids: locationId > 0 ? Array.from(new Set([...form.location_ids, locationId])) : form.location_ids,
-	                  start_time: timeToInput(selectedLocation?.required_start_time) || form.start_time,
-	                  end_time: timeToInput(selectedLocation?.required_end_time) || form.end_time,
-	                });
-	              }}
+            <select
+              value={form.location_id || ''}
+              onChange={(event) => {
+                const locationId = event.target.value ? Number(event.target.value) : 0;
+                const selectedLocation = activeLocations.find((location) => location.id === locationId);
+                const nextDates = contractSiteAssignmentDates(selectedLocation, form.effective_start_date, todayDate);
+                onChange({
+                  ...form,
+                  location_id: locationId,
+                  location_ids: locationId > 0 ? Array.from(new Set([...form.location_ids, locationId])) : form.location_ids,
+                  start_time: timeToInput(selectedLocation?.required_start_time) || form.start_time,
+                  end_time: timeToInput(selectedLocation?.required_end_time) || form.end_time,
+                  effective_start_date: nextDates.startDate,
+                  effective_end_date: nextDates.endDate,
+                });
+              }}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               <option value="">Select contract site</option>
@@ -539,7 +681,7 @@ export function ControlWorkSiteDialog({
             </select>
             {activeLocations.length === 0 ? (
               <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
-                No available contract sites for this date. Sites already assigned to another employee are hidden.
+                No available contract sites for this date. Sites outside their contract window or already assigned to another employee are hidden.
               </p>
             ) : null}
           </div>
@@ -549,7 +691,19 @@ export function ControlWorkSiteDialog({
             <input
               type="date"
               value={form.effective_start_date}
-              onChange={(event) => onChange({ ...form, effective_start_date: event.target.value })}
+              min={minimumStartDate}
+              max={maximumEndDate}
+              onChange={(event) => {
+                const nextStartDate = event.target.value;
+                const nextEndDate = form.effective_end_date && form.effective_end_date >= nextStartDate
+                  ? form.effective_end_date
+                  : nextStartDate;
+                onChange({
+                  ...form,
+                  effective_start_date: nextStartDate,
+                  effective_end_date: maximumEndDate && nextEndDate > maximumEndDate ? maximumEndDate : nextEndDate,
+                });
+              }}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
@@ -558,10 +712,17 @@ export function ControlWorkSiteDialog({
             <input
               type="date"
               value={form.effective_end_date}
+              min={form.effective_start_date || minimumStartDate}
+              max={maximumEndDate}
               onChange={(event) => onChange({ ...form, effective_end_date: event.target.value })}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
+          {dateValidationMessage ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
+              {dateValidationMessage}
+            </div>
+          ) : null}
 
           <div className="sm:col-span-2">
             <p className="text-sm font-semibold text-gray-900 dark:text-white">Assigned hours</p>
@@ -585,11 +746,16 @@ export function ControlWorkSiteDialog({
             />
           </div>
           <div className="rounded-lg bg-[#143675]/5 px-3 py-2 text-xs text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff] sm:col-span-2">
-            Empty end date keeps this assignment active until you remove or end the shift.
+            End date is the last day this shift starts. Use the same start and end date for a one-day shift.
           </div>
           {invalidTimeRange ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
-              End time must be after start time.
+              End time cannot equal start time.
+            </div>
+          ) : null}
+          {isOvernightShift ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-200 sm:col-span-2">
+              Overnight shift: the shift starts on the selected date and ends the next day.
             </div>
           ) : null}
         </div>
@@ -598,7 +764,7 @@ export function ControlWorkSiteDialog({
           <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
           <Button
             onClick={onSave}
-            disabled={isSaving || form.location_id <= 0 || !form.effective_start_date || !form.start_time || !form.end_time || invalidTimeRange}
+            disabled={isSaving || form.location_id <= 0 || !form.effective_start_date || Boolean(dateValidationMessage) || !form.start_time || !form.end_time || invalidTimeRange}
           >
             {copy.labels.save}
           </Button>
@@ -621,6 +787,7 @@ export function ControlKioskManagerDialog({
   onCopy,
   onQr,
   onRotate,
+  onDelete,
 }: {
   copy: AttendanceControlCopy;
   isOpen: boolean;
@@ -634,11 +801,40 @@ export function ControlKioskManagerDialog({
   onCopy: (device: AttendanceKioskDevice) => void;
   onQr: (device: AttendanceKioskDevice) => void;
   onRotate: (device: AttendanceKioskDevice) => void;
+  onDelete: (device: AttendanceKioskDevice) => void;
 }) {
-  const locationNameForDevice = (device: AttendanceKioskDevice) =>
-    device.location_name
-    || locations.find((location) => location.id === device.location_id)?.name
-    || copy.labels.noLinkedLocation;
+  const locationNameForDevice = (device: AttendanceKioskDevice) => {
+    const kioskType = kioskTypeFromMetadata(device.metadata);
+    if (kioskType === 'business_unit' && !device.location_id) {
+      return copy.labels.kioskLocationResolvedByScope;
+    }
+    return device.location_name
+      || locations.find((location) => location.id === device.location_id)?.name
+      || copy.labels.noLinkedLocation;
+  };
+  const scopeNameForDevice = (device: AttendanceKioskDevice) => {
+    const kioskType = kioskTypeFromMetadata(device.metadata);
+    if (kioskType !== 'business_unit') {
+      return [device.unit_name || copy.labels.noUnit, device.business_name || copy.labels.noBusiness].join(' / ');
+    }
+    if (device.business_id) {
+      return [device.unit_name || copy.labels.allUnits, device.business_name || copy.labels.noBusiness].join(' / ');
+    }
+    if (device.unit_id) {
+      return [device.unit_name || copy.labels.noUnit, copy.labels.allBusinesses].join(' / ');
+    }
+    return [copy.labels.allUnits, copy.labels.allBusinesses].join(' / ');
+  };
+  const kioskTypeLabel = (device: AttendanceKioskDevice) => {
+    const kioskType = kioskTypeFromMetadata(device.metadata);
+    if (kioskType === 'contract_site') {
+      return copy.labels.kioskTypeContractSite;
+    }
+    if (kioskType === 'head_office') {
+      return copy.labels.kioskTypeHeadOffice;
+    }
+    return copy.labels.kioskTypeBusinessUnit;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -686,8 +882,10 @@ export function ControlKioskManagerDialog({
                     </div>
 
                     <div className="text-sm text-gray-600 dark:text-gray-300">
-                      <p>{device.unit_name || copy.labels.noUnit}</p>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{device.business_name || copy.labels.noBusiness}</p>
+                      <p>{kioskTypeLabel(device)}</p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {scopeNameForDevice(device)}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
@@ -743,6 +941,18 @@ export function ControlKioskManagerDialog({
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
+                        aria-label={copy.labels.deleteKiosk}
+                        title={copy.labels.deleteKiosk}
+                        disabled={isSaving}
+                        onClick={() => onDelete(device)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 );
@@ -768,7 +978,6 @@ export function ControlKioskDialog({
   isOpen,
   isSaving,
   form,
-  assignments,
   locations,
   title,
   onClose,
@@ -786,16 +995,115 @@ export function ControlKioskDialog({
   onChange: (value: AttendanceKioskDevicePayload) => void;
   onSave: () => void;
 }) {
-  const unitOptions = Array.from(new Map(
-    assignments
-      .filter((assignment) => assignment.unit_id)
-      .map((assignment) => [assignment.unit_id!, assignment.unit_name || copy.labels.noUnit]),
-  ).entries());
-  const businessOptions = Array.from(new Map(
-    assignments
-      .filter((assignment) => assignment.business_id)
-      .map((assignment) => [assignment.business_id!, assignment.business_name || copy.labels.noBusiness]),
-  ).entries());
+  const kioskType = kioskTypeFromMetadata(form.metadata);
+  const activeLocations = locations.filter(isActiveLocation);
+  const businessStructureLocations = activeLocations.filter((location) =>
+    isBusinessStructureLocation(location) && Boolean(location.business_id)
+  );
+  const availableLocations = activeLocations.filter((location) => locationMatchesKioskType(location, kioskType));
+  const selectedLocation = locations.find((location) => location.id === form.location_id) ?? null;
+  const unitOptions = Array.from(
+    new Map(
+      businessStructureLocations
+        .filter((location) => location.unit_id)
+        .map((location) => [
+          location.unit_id as number,
+          {
+            id: location.unit_id as number,
+            name: location.unit_name || `${copy.labels.unit} ${location.unit_id}`,
+          },
+        ]),
+    ).values(),
+  ).sort((first, second) => first.name.localeCompare(second.name));
+  const businessOptions = businessStructureLocations
+    .filter((location) => !form.unit_id || location.unit_id === form.unit_id)
+    .filter((location) => location.business_id)
+    .map((location) => ({
+      id: location.business_id as number,
+      unitId: location.unit_id ?? null,
+      unitName: location.unit_name || copy.labels.noUnit,
+      name: location.business_name || location.name,
+    }))
+    .filter((business, index, options) => options.findIndex((item) => item.id === business.id) === index)
+    .sort((first, second) => first.name.localeCompare(second.name));
+  const selectedUnit = unitOptions.find((unit) => unit.id === form.unit_id) ?? null;
+  const selectedBusiness = businessOptions.find((business) => business.id === form.business_id) ?? null;
+  const selectedScopeLabel = kioskType === 'business_unit'
+    ? form.business_id
+      ? [selectedBusiness?.unitName || selectedUnit?.name || copy.labels.allUnits, selectedBusiness?.name || copy.labels.noBusiness].join(' / ')
+      : form.unit_id
+        ? [selectedUnit?.name || copy.labels.noUnit, copy.labels.allBusinesses].join(' / ')
+        : [copy.labels.allUnits, copy.labels.allBusinesses].join(' / ')
+    : selectedLocation
+      ? [selectedLocation.unit_name || copy.labels.noUnit, selectedLocation.business_name || copy.labels.noBusiness].join(' / ')
+      : copy.labels.noLinkedLocation;
+  const isBusinessUnitKiosk = kioskType === 'business_unit';
+  const requiresLocation = kioskType !== 'business_unit';
+  const canSave = !isSaving && form.code.trim().length > 0 && form.name.trim().length > 0 && (!requiresLocation || Boolean(form.location_id));
+  const updateKioskType = (nextType: KioskType) => {
+    const currentLocation = locations.find((location) => location.id === form.location_id);
+    if (nextType === 'business_unit') {
+      const nextUnitId = currentLocation && isBusinessStructureLocation(currentLocation)
+        ? currentLocation.unit_id ?? null
+        : form.unit_id ?? null;
+      const nextBusinessId = currentLocation && locationMatchesKioskType(currentLocation, 'business_unit')
+        ? currentLocation.business_id ?? null
+        : form.business_id ?? null;
+      onChange({
+        ...form,
+        unit_id: nextUnitId,
+        business_id: nextBusinessId,
+        location_id: null,
+        metadata: withKioskType(form.metadata, nextType),
+      });
+      return;
+    }
+
+    const nextLocation = currentLocation && locationMatchesKioskType(currentLocation, nextType) ? currentLocation : null;
+    onChange({
+      ...form,
+      unit_id: nextLocation?.unit_id ?? null,
+      business_id: nextLocation?.business_id ?? null,
+      location_id: nextLocation?.id ?? null,
+      metadata: withKioskType(form.metadata, nextType),
+    });
+  };
+  const updateKioskUnit = (unitId: number | null) => {
+    const nextUnit = unitOptions.find((unit) => unit.id === unitId) ?? null;
+    const currentBusiness = businessStructureLocations.find((location) => location.business_id === form.business_id);
+    const shouldKeepBusiness = Boolean(unitId && currentBusiness?.unit_id === unitId);
+    const label = nextUnit?.name || copy.labels.allUnits;
+    onChange({
+      ...form,
+      unit_id: unitId,
+      business_id: shouldKeepBusiness ? form.business_id ?? null : null,
+      location_id: null,
+      name: form.name || `${label} Kiosk`,
+      code: form.code || defaultKioskScopeCode(label, unitId ? `unit-${unitId}` : 'all-business'),
+    });
+  };
+  const updateKioskBusiness = (businessId: number | null) => {
+    const nextBusiness = businessOptions.find((business) => business.id === businessId) ?? null;
+    onChange({
+      ...form,
+      unit_id: nextBusiness?.unitId ?? form.unit_id ?? null,
+      business_id: businessId,
+      location_id: null,
+      name: form.name || `${nextBusiness?.name || copy.labels.allBusinesses} Kiosk`,
+      code: form.code || defaultKioskScopeCode(nextBusiness?.name || copy.labels.allBusinesses, businessId ? `business-${businessId}` : 'all-business'),
+    });
+  };
+  const updateKioskLocation = (locationId: number | null) => {
+    const nextLocation = locations.find((location) => location.id === locationId) ?? null;
+    onChange({
+      ...form,
+      unit_id: nextLocation?.unit_id ?? null,
+      business_id: nextLocation?.business_id ?? null,
+      location_id: nextLocation?.id ?? null,
+      name: form.name || (nextLocation ? `${nextLocation.name} Kiosk` : form.name),
+      code: form.code || (nextLocation ? defaultKioskCode(nextLocation, kioskType) : form.code),
+    });
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -806,9 +1114,22 @@ export function ControlKioskDialog({
         </DialogHeader>
 
         <div className="grid gap-4">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskType}</label>
+            <select
+              value={kioskType}
+              onChange={(event) => updateKioskType(event.target.value as KioskType)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="business_unit">{copy.labels.kioskTypeBusinessUnit}</option>
+              <option value="contract_site">{copy.labels.kioskTypeContractSite}</option>
+              <option value="head_office">{copy.labels.kioskTypeHeadOffice}</option>
+            </select>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.code}</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.deviceCode}</label>
               <input
                 type="text"
                 value={form.code}
@@ -827,46 +1148,70 @@ export function ControlKioskDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.unit}</label>
-              <select
-                value={form.unit_id ?? ''}
-                onChange={(event) => onChange({ ...form, unit_id: event.target.value ? Number(event.target.value) : null })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">{copy.labels.noUnit}</option>
-                {unitOptions.map(([id, label]) => (
-                  <option key={id} value={id}>{label}</option>
-                ))}
-              </select>
+          {isBusinessUnitKiosk ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskUnitScope}</label>
+                <select
+                  value={form.unit_id ?? ''}
+                  onChange={(event) => updateKioskUnit(event.target.value ? Number(event.target.value) : null)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">{copy.labels.allUnits}</option>
+                  {unitOptions.map((unit) => (
+                    <option key={unit.id} value={unit.id}>{unit.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskBusinessScope}</label>
+                <select
+                  value={form.business_id ?? ''}
+                  disabled={!form.unit_id}
+                  onChange={(event) => updateKioskBusiness(event.target.value ? Number(event.target.value) : null)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">{copy.labels.allBusinesses}</option>
+                  {form.unit_id ? businessOptions.map((business) => (
+                    <option key={business.id} value={business.id}>{business.name}</option>
+                  )) : null}
+                </select>
+              </div>
+
+              {businessStructureLocations.length === 0 ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
+                  {copy.labels.noKioskLocationsForType}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500 dark:text-gray-400 sm:col-span-2">{copy.labels.kioskScopeHint}</p>
+              )}
             </div>
+          ) : (
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.business}</label>
-              <select
-                value={form.business_id ?? ''}
-                onChange={(event) => onChange({ ...form, business_id: event.target.value ? Number(event.target.value) : null })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">{copy.labels.noBusiness}</option>
-                {businessOptions.map(([id, label]) => (
-                  <option key={id} value={id}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.linkedLocation}</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskCheckInLocation}</label>
               <select
                 value={form.location_id ?? ''}
-                onChange={(event) => onChange({ ...form, location_id: event.target.value ? Number(event.target.value) : null })}
+                onChange={(event) => updateKioskLocation(event.target.value ? Number(event.target.value) : null)}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">{copy.labels.noLinkedLocation}</option>
-                {locations.map((location) => (
+                {availableLocations.map((location) => (
                   <option key={location.id} value={location.id}>{location.name}</option>
                 ))}
               </select>
+              {availableLocations.length === 0 ? (
+                <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
+                  {copy.labels.noKioskLocationsForType}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{copy.labels.kioskCheckInLocationHint}</p>
+              )}
             </div>
+          )}
+
+          <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900/60 dark:text-gray-300">
+            {copy.labels.kioskScope}: {selectedScopeLabel}
           </div>
 
           <div>
@@ -884,7 +1229,7 @@ export function ControlKioskDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button onClick={onSave} disabled={isSaving}>{copy.labels.save}</Button>
+          <Button onClick={onSave} disabled={!canSave}>{copy.labels.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
