@@ -70,6 +70,7 @@ export interface EmployeeFormData {
   hireDate: string;
   scheduleOnHire: boolean;
   scheduleStartDate: string;
+  scheduleEndDate: string;
   scheduleStartTime: string;
   scheduleEndTime: string;
   scheduleMealMinutes: string;
@@ -114,6 +115,7 @@ type EmployeeFieldKey =
   | 'businessUnitId'
   | 'businessId'
   | 'scheduleStartDate'
+  | 'scheduleEndDate'
   | 'scheduleStartTime'
   | 'scheduleEndTime'
   | 'scheduleMealMinutes'
@@ -133,6 +135,13 @@ const DOCUMENT_TYPES: EmployeeDocumentType[] = [
   'resume',
   'profile_photo',
 ];
+
+const dateInputValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const SUPPORTED_DOCUMENT_TYPES = new Set([
   'application/pdf',
@@ -174,6 +183,7 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
   hireDate: '',
   scheduleOnHire: false,
   scheduleStartDate: '',
+  scheduleEndDate: '',
   scheduleStartTime: '08:00',
   scheduleEndTime: '16:00',
   scheduleMealMinutes: '0',
@@ -254,12 +264,13 @@ const modalCopy = {
       hireDate: 'Hire date',
       scheduleOnHire: 'Add employee to schedule',
       scheduleStartDate: 'Schedule start date',
+      scheduleEndDate: 'Schedule end date',
       scheduleStartTime: 'Start time',
       scheduleEndTime: 'End time',
       scheduleMealMinutes: 'Meal minutes',
       scheduleRestMinutes: 'Rest minutes',
-      scheduleLateAfterMinutes: 'Entry tolerance',
-      scheduleBlockAfterGracePeriod: 'Block check-in after tolerance',
+      scheduleLateAfterMinutes: 'Mark late after',
+      scheduleBlockAfterGracePeriod: 'Mark late after threshold',
       scheduleLocationRule: 'Location rule',
       scheduleLocationId: 'Exact location',
       salaryType: 'Salary type',
@@ -277,7 +288,7 @@ const modalCopy = {
       alternatePhone: 'Optional. Useful if the primary mobile phone is unavailable.',
       documents: 'Allowed formats: PDF, JPG, PNG, WEBP. Maximum 5MB per file.',
       documentRemoved: 'The current document will be deleted when you save.',
-      scheduleOnHire: 'Creates a strict weekly schedule from the selected date. Standard working days are Monday to Friday.',
+      scheduleOnHire: 'Creates a strict weekly schedule within the selected date range. Standard working days are Monday to Friday.',
       scheduleBusinessLocation: 'The employee will clock in from the Business Structure location assigned to their business.',
       scheduleExactLocation: 'The selected exact location will be enforced for this employee schedule.',
       noScheduleLocations: 'No active attendance locations are available for the selected business or unit.',
@@ -402,12 +413,13 @@ const modalCopy = {
       hireDate: 'Fecha de ingreso',
       scheduleOnHire: 'Agregar colaborador a horario',
       scheduleStartDate: 'Fecha de inicio del horario',
+      scheduleEndDate: 'Fecha de fin del horario',
       scheduleStartTime: 'Hora de entrada',
       scheduleEndTime: 'Hora de salida',
       scheduleMealMinutes: 'Minutos de comida',
       scheduleRestMinutes: 'Minutos de descanso',
-      scheduleLateAfterMinutes: 'Tolerancia de entrada',
-      scheduleBlockAfterGracePeriod: 'Bloquear entrada después de la tolerancia',
+      scheduleLateAfterMinutes: 'Marcar tarde después de',
+      scheduleBlockAfterGracePeriod: 'Umbral para marcar tarde',
       scheduleLocationRule: 'Regla de ubicación',
       scheduleLocationId: 'Ubicación exacta',
       salaryType: 'Tipo de salario',
@@ -425,7 +437,7 @@ const modalCopy = {
       alternatePhone: 'Opcional. Útil si el teléfono principal no está disponible.',
       documents: 'Formatos permitidos: PDF, JPG, PNG, WEBP. Máximo 5MB por archivo.',
       documentRemoved: 'El documento actual se eliminará al guardar.',
-      scheduleOnHire: 'Crea un horario estricto semanal desde la fecha seleccionada. Los días estándar son lunes a viernes.',
+      scheduleOnHire: 'Crea un horario estricto semanal dentro del rango seleccionado. Los días estándar son lunes a viernes.',
       scheduleBusinessLocation: 'El colaborador registrará asistencia desde la ubicación de Business Structure asignada a su negocio.',
       scheduleExactLocation: 'La ubicación exacta seleccionada se aplicará para este horario.',
       noScheduleLocations: 'No hay ubicaciones activas para el negocio o unidad seleccionada.',
@@ -756,6 +768,7 @@ export function EmployeeModal({
         ? nativeFormData.has('scheduleOnHire')
         : currentFormData.scheduleOnHire,
       scheduleStartDate: readDomValue(nativeFormData, 'scheduleStartDate') || currentFormData.scheduleStartDate,
+      scheduleEndDate: readDomValue(nativeFormData, 'scheduleEndDate') || currentFormData.scheduleEndDate,
       scheduleStartTime: readDomValue(nativeFormData, 'scheduleStartTime') || currentFormData.scheduleStartTime,
       scheduleEndTime: readDomValue(nativeFormData, 'scheduleEndTime') || currentFormData.scheduleEndTime,
       scheduleMealMinutes: readDomValue(nativeFormData, 'scheduleMealMinutes') || currentFormData.scheduleMealMinutes,
@@ -844,10 +857,25 @@ export function EmployeeModal({
         if (!current.scheduleStartDate || current.scheduleStartDate === current.hireDate) {
           next.scheduleStartDate = nextHireDate;
         }
+        if (!current.scheduleEndDate || current.scheduleEndDate === current.hireDate || current.scheduleEndDate < nextHireDate) {
+          next.scheduleEndDate = nextHireDate;
+        }
       }
 
       if (field === 'scheduleOnHire' && value === true && !current.scheduleStartDate) {
-        next.scheduleStartDate = current.hireDate || new Date().toISOString().slice(0, 10);
+        const nextScheduleDate = current.hireDate || dateInputValue();
+        next.scheduleStartDate = nextScheduleDate;
+        next.scheduleEndDate = current.scheduleEndDate || nextScheduleDate;
+      }
+      if (field === 'scheduleOnHire' && value === true && current.scheduleStartDate && !current.scheduleEndDate) {
+        next.scheduleEndDate = current.scheduleStartDate;
+      }
+
+      if (field === 'scheduleStartDate') {
+        const nextStartDate = String(value ?? '').trim();
+        if (!current.scheduleEndDate || current.scheduleEndDate < nextStartDate) {
+          next.scheduleEndDate = nextStartDate;
+        }
       }
 
       if (field === 'scheduleLocationRule' && value !== 'exact') {
@@ -907,6 +935,13 @@ export function EmployeeModal({
 
     if (!data.scheduleStartDate) {
       errors.scheduleStartDate = copy.validation.required;
+    } else if (data.scheduleStartDate < dateInputValue()) {
+      errors.scheduleStartDate = 'Start date cannot be in the past.';
+    }
+    if (!data.scheduleEndDate) {
+      errors.scheduleEndDate = copy.validation.required;
+    } else if (data.scheduleStartDate && data.scheduleEndDate < data.scheduleStartDate) {
+      errors.scheduleEndDate = 'End date must be on or after start date.';
     }
     if (!data.scheduleStartTime) {
       errors.scheduleStartTime = copy.validation.required;
@@ -1033,6 +1068,7 @@ export function EmployeeModal({
     isCreateMode && formData.scheduleOnHire
       ? [
         'scheduleStartDate',
+        'scheduleEndDate',
         'scheduleStartTime',
         'scheduleEndTime',
         'scheduleMealMinutes',
@@ -1580,6 +1616,15 @@ export function EmployeeModal({
                           error={touchedFields.scheduleStartDate ? validationErrors.scheduleStartDate : undefined}
                         />
                         <TextField
+                          name="scheduleEndDate"
+                          label={copy.labels.scheduleEndDate}
+                          value={formData.scheduleEndDate}
+                          onChange={(value) => updateField('scheduleEndDate', value)}
+                          type="date"
+                          required
+                          error={touchedFields.scheduleEndDate ? validationErrors.scheduleEndDate : undefined}
+                        />
+                        <TextField
                           name="scheduleLateAfterMinutes"
                           label={copy.labels.scheduleLateAfterMinutes}
                           value={formData.scheduleLateAfterMinutes}
@@ -1661,18 +1706,6 @@ export function EmployeeModal({
                             {copy.helpers.scheduleBusinessLocation}
                           </p>
                         )}
-                        <label className="flex items-start gap-3 rounded-md border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900 md:col-span-2">
-                          <input
-                            name="scheduleBlockAfterGracePeriod"
-                            type="checkbox"
-                            checked={formData.scheduleBlockAfterGracePeriod}
-                            onChange={(event) => updateField('scheduleBlockAfterGracePeriod', event.target.checked)}
-                            className="mt-1 h-4 w-4"
-                          />
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {copy.labels.scheduleBlockAfterGracePeriod}
-                          </span>
-                        </label>
                       </div>
                     ) : null}
                   </div>

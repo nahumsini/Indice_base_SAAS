@@ -444,6 +444,21 @@ public class HrAttendanceApiController {
         }
     }
 
+    @DeleteMapping("/kiosk-devices/{kioskDeviceId}")
+    public ResponseEntity<?> deleteKioskDevice(HttpSession session, @PathVariable long kioskDeviceId) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            hrAttendanceService.deleteKioskDevice(currentUser.get().companyId(), kioskDeviceId);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/kiosk-devices/{kioskDeviceId}/rotate-public-access-token")
     public ResponseEntity<?> rotateKioskPublicAccessToken(HttpSession session, @PathVariable long kioskDeviceId) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -945,6 +960,36 @@ public class HrAttendanceApiController {
             var targetDate = HrAttendanceService.parseDate(date);
             return ResponseEntity.ok(
                 hrAttendanceService.updateDailyRecord(
+                    currentUser.get().companyId(),
+                    currentUser.get().userId(),
+                    employeeId,
+                    targetDate,
+                    payload
+                )
+            );
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/daily-records/{employeeId}/{date}/manual-events")
+    public ResponseEntity<?> recordManualDailyEvent(
+        HttpSession session,
+        @PathVariable long employeeId,
+        @PathVariable String date,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            var targetDate = HrAttendanceService.parseDate(date);
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                hrAttendanceService.recordManualAttendanceEvent(
                     currentUser.get().companyId(),
                     currentUser.get().userId(),
                     employeeId,

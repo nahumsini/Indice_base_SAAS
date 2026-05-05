@@ -63,6 +63,12 @@ const defaultScheduleStartTime = '08:00';
 const defaultScheduleEndTime = '16:00';
 const scheduleSaveMinimumLoadingMs = 2000;
 const isDefaultNoShiftDay = (dayOfWeek: number) => dayOfWeek === 6 || dayOfWeek === 7;
+const dateInputValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const waitForNextPaint = () => (
   new Promise<void>((resolve) => {
@@ -110,7 +116,6 @@ const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
   return {
     modoHorario,
     toleranciaIngreso,
-    noPermitirDespuesTolerancia: Boolean(template?.block_after_grace_period),
     noPermitirFueraUbicacion: Boolean(template?.enforce_location),
     ubicacionSeleccionada: template?.location_id ? String(template.location_id) : '',
     horarios,
@@ -120,7 +125,7 @@ const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
 const normalizeTemplatePayload = (payload: AttendanceControlTemplatePayload) =>
   JSON.stringify({
     schedule_mode: payload.schedule_mode,
-    block_after_grace_period: payload.block_after_grace_period,
+    block_after_grace_period: false,
     enforce_location: payload.enforce_location,
     location_id: payload.location_id ?? null,
     days: payload.days.map((day) => ({
@@ -138,7 +143,7 @@ const payloadFromTemplate = (template: AttendanceControlTemplate): AttendanceCon
   name: template.name,
   status: template.status === 'inactive' ? 'inactive' : 'active',
   schedule_mode: template.schedule_mode === 'open' ? 'open' : 'strict',
-  block_after_grace_period: Boolean(template.block_after_grace_period),
+  block_after_grace_period: false,
   enforce_location: Boolean(template.enforce_location),
   location_id: template.location_id ?? null,
   days: template.days.map((day) => ({
@@ -188,7 +193,9 @@ export function ScheduleModal({
   onApplied,
 }: ScheduleModalProps) {
   const copy = useHRLanguage().attendanceControl;
-  const defaultAvailabilityDate = effectiveStartDate?.trim() || new Date().toISOString().slice(0, 10);
+  const todayDate = dateInputValue();
+  const requestedAvailabilityDate = effectiveStartDate?.trim() || todayDate;
+  const defaultAvailabilityDate = requestedAvailabilityDate < todayDate ? todayDate : requestedAvailabilityDate;
   const [searchQuery, setSearchQuery] = useState('');
   const [unidadFilter, setUnidadFilter] = useState('');
   const [negocioFilter, setNegocioFilter] = useState('');
@@ -214,7 +221,6 @@ export function ScheduleModal({
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
   const [modoHorario, setModoHorario] = useState<'Horario estricto' | 'Horario abierto'>('Horario estricto');
   const [toleranciaIngreso, setToleranciaIngreso] = useState(10);
-  const [noPermitirDespuesTolerancia, setNoPermitirDespuesTolerancia] = useState(false);
   const [noPermitirFueraUbicacion, setNoPermitirFueraUbicacion] = useState(false);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState('');
   const [horarios, setHorarios] = useState<HorarioDiaDraft[]>(emptyScheduleDays());
@@ -231,9 +237,18 @@ export function ScheduleModal({
   );
   const assignmentEffectiveStartDate = appliedAvailabilityDate || defaultAvailabilityDate;
   const assignmentEffectiveEndDate = appliedAssignmentEndDate.trim();
+  const hasMissingAssignmentEndDate = !assignmentEffectiveEndDate;
+  const hasPastAssignmentStartDate = assignmentEffectiveStartDate < todayDate;
   const hasInvalidAssignmentDateRange = Boolean(
     assignmentEffectiveEndDate && assignmentEffectiveEndDate < assignmentEffectiveStartDate,
   );
+  const assignmentDateError = hasPastAssignmentStartDate
+    ? 'Start date cannot be in the past.'
+    : hasMissingAssignmentEndDate
+      ? 'End date is required.'
+      : hasInvalidAssignmentDateRange
+        ? 'End date must be on or after start date.'
+        : '';
 
   useEffect(() => {
     if (!isOpen) {
@@ -251,8 +266,8 @@ export function ScheduleModal({
     setAppliedAvailableOnly(false);
     setAvailabilityDate(defaultAvailabilityDate);
     setAppliedAvailabilityDate(defaultAvailabilityDate);
-    setAssignmentEndDate('');
-    setAppliedAssignmentEndDate('');
+    setAssignmentEndDate(defaultAvailabilityDate);
+    setAppliedAssignmentEndDate(defaultAvailabilityDate);
     setSelectedEmployeeIds([]);
     setSelectedEmployeeAssignments({});
     setCandidateAssignments([]);
@@ -266,7 +281,6 @@ export function ScheduleModal({
     setSelectedTemplateName(defaultScheduleTemplateName);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
-    setNoPermitirDespuesTolerancia(templateDraft.noPermitirDespuesTolerancia);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
     setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
     setHorarios(templateDraft.horarios);
@@ -315,14 +329,14 @@ export function ScheduleModal({
       return;
     }
 
-    if (hasInvalidAssignmentDateRange) {
+    if (assignmentDateError) {
       setIsLoadingCandidates(false);
       setCandidateAssignments([]);
       setCandidateTotalCount(0);
       setCandidateTotalPages(1);
       setCandidateAvailableCount(0);
       setCandidateBusyCount(0);
-      setErrorMessage('End date must be on or after start date.');
+      setErrorMessage(assignmentDateError);
       return;
     }
 
@@ -383,8 +397,8 @@ export function ScheduleModal({
     appliedUnidadFilter,
     assignmentEffectiveEndDate,
     assignmentEffectiveStartDate,
+    assignmentDateError,
     currentPage,
-    hasInvalidAssignmentDateRange,
     isOpen,
   ]);
 
@@ -424,7 +438,7 @@ export function ScheduleModal({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [appliedAvailabilityDate, appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, isOpen]);
+  }, [appliedAssignmentEndDate, appliedAvailabilityDate, appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, isOpen]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -853,7 +867,9 @@ export function ScheduleModal({
     if (!value) {
       return;
     }
-    applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, value);
+    const nextAssignmentEndDate = assignmentEndDate && assignmentEndDate >= value ? assignmentEndDate : value;
+    setAssignmentEndDate(nextAssignmentEndDate);
+    applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, value, nextAssignmentEndDate);
     setSelectedEmployeeIds([]);
     setSelectedEmployeeAssignments({});
   };
@@ -874,7 +890,6 @@ export function ScheduleModal({
     setSelectedTemplateName(defaultScheduleTemplateName);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
-    setNoPermitirDespuesTolerancia(templateDraft.noPermitirDespuesTolerancia);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
     setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
     setHorarios(templateDraft.horarios);
@@ -927,7 +942,7 @@ export function ScheduleModal({
       name: selectedTemplateName.trim() || defaultScheduleTemplateName,
       status: 'active',
       schedule_mode: isHorarioAbierto ? 'open' : 'strict',
-      block_after_grace_period: !isHorarioAbierto && noPermitirDespuesTolerancia,
+      block_after_grace_period: false,
       enforce_location: !isHorarioAbierto && noPermitirFueraUbicacion,
       location_id: !isHorarioAbierto && noPermitirFueraUbicacion && ubicacionSeleccionada ? Number(ubicacionSeleccionada) : null,
       days,
@@ -946,8 +961,8 @@ export function ScheduleModal({
         if (!payload) {
           return null;
         }
-        if (hasInvalidAssignmentDateRange) {
-          const message = 'End date must be on or after start date.';
+        if (assignmentDateError) {
+          const message = assignmentDateError;
           setErrorMessage(message);
           showFailureToast(message);
           return null;
@@ -982,7 +997,7 @@ export function ScheduleModal({
           employee_ids: selectedEmployeeIds,
           template_id: templateId,
           effective_start_date: assignmentEffectiveStartDate,
-          effective_end_date: assignmentEffectiveEndDate || undefined,
+          effective_end_date: assignmentEffectiveEndDate,
         });
 
         return {
@@ -1023,7 +1038,7 @@ export function ScheduleModal({
       />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-        <div className="my-8 flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white text-gray-900 shadow-xl dark:border dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+        <div className="my-8 flex max-h-[90vh] w-full max-w-[96rem] flex-col overflow-hidden rounded-lg bg-white text-gray-900 shadow-xl dark:border dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
         <div className="flex items-center justify-between border-b border-[#143675] bg-[#143675] p-6">
           <div className="flex items-center gap-2">
             <Clock className="h-6 w-6 text-white" />
@@ -1038,8 +1053,8 @@ export function ScheduleModal({
           aria-label="Find employees for the schedule"
           className="border-b border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/70"
         >
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
-            <div className="xl:min-w-0 xl:flex-[1.8]">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(22rem,2fr)_repeat(2,minmax(10rem,0.85fr))_repeat(2,minmax(12rem,1fr))_auto_auto] xl:items-end">
+            <div className="min-w-0">
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Search employee</label>
               <input
                 type="text"
@@ -1049,25 +1064,27 @@ export function ScheduleModal({
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </div>
-            <div className="xl:w-48 xl:flex-none">
+            <div className="min-w-0">
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start date</label>
               <input
                 type="date"
                 value={availabilityDate}
                 onChange={(event) => handleAvailabilityDateChange(event.target.value)}
+                min={todayDate}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </div>
-            <div className="xl:w-48 xl:flex-none">
+            <div className="min-w-0">
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End date</label>
               <input
                 type="date"
                 value={assignmentEndDate}
                 onChange={(event) => handleAssignmentEndDateChange(event.target.value)}
+                min={availabilityDate || todayDate}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </div>
-            <div className="xl:w-64 xl:flex-none">
+            <div className="min-w-0">
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Unit</label>
               <select
                 value={unidadFilter}
@@ -1080,7 +1097,7 @@ export function ScheduleModal({
                 ))}
               </select>
             </div>
-            <div className="xl:w-64 xl:flex-none">
+            <div className="min-w-0">
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Business</label>
               <select
                 value={negocioFilter}
@@ -1093,7 +1110,7 @@ export function ScheduleModal({
                 ))}
               </select>
             </div>
-            <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950 xl:flex-none">
+            <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="schedule-available-only"
@@ -1105,7 +1122,7 @@ export function ScheduleModal({
                 </label>
               </div>
             </div>
-            <div className="xl:flex-none">
+            <div>
               <Button
                 className="w-full gap-2 whitespace-nowrap bg-[#143675] px-4 text-white hover:bg-[#0f2855] xl:w-auto"
                 type="button"
@@ -1339,7 +1356,7 @@ export function ScheduleModal({
               {modoHorario === 'Horario estricto' ? (
                 <>
                   <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
-                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">⏱ Entry tolerance</label>
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mark late after</label>
                     <div className="flex items-center gap-3">
                       <input
                         type="number"
@@ -1352,26 +1369,8 @@ export function ScheduleModal({
                       <span className="text-sm text-gray-600 dark:text-gray-400">minutes</span>
                     </div>
                     <p className="mt-2 text-xs text-orange-700 dark:text-orange-300">
-                      Employees can clock in up to {toleranciaIngreso} minutes late without penalty.
+                      Employees can still clock in after this time. The attendance record will be marked late.
                     </p>
-                  </div>
-
-                  <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/20">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={noPermitirDespuesTolerancia}
-                        onCheckedChange={(checked) => setNoPermitirDespuesTolerancia(checked === true)}
-                        id="grace-period-block"
-                      />
-                      <div>
-                        <label htmlFor="grace-period-block" className="cursor-pointer text-sm font-medium text-gray-900 dark:text-gray-100">
-                          Do not allow check-in after tolerance time
-                        </label>
-                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                          The check-in will be blocked after the tolerance time expires.
-                        </p>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/20">
@@ -1503,8 +1502,14 @@ export function ScheduleModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                        {horarios.map((horario, index) => (
-                          <tr key={horario.dayOfWeek}>
+                        {horarios.map((horario, index) => {
+                          const isOvernightShift = !horario.isRestDay
+                            && Boolean(horario.entrada)
+                            && Boolean(horario.salida)
+                            && horario.salida < horario.entrada;
+
+                          return (
+                            <tr key={horario.dayOfWeek}>
                             <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">
                               <div className="flex items-center gap-2">
                                 <Checkbox
@@ -1531,6 +1536,9 @@ export function ScheduleModal({
                                 disabled={horario.isRestDay}
                                 className="w-24 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                               />
+                              {isOvernightShift ? (
+                                <p className="mt-1 text-[11px] font-medium text-blue-600 dark:text-blue-300">Ends next day</p>
+                              ) : null}
                             </td>
                             <td className="px-3 py-3">
                               <input
@@ -1550,8 +1558,9 @@ export function ScheduleModal({
                                 className="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                               />
                             </td>
-                          </tr>
-                        ))}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1570,12 +1579,12 @@ export function ScheduleModal({
             type="button"
             onClick={() => void aplicarHorarios()}
             className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
-            disabled={selectedEmployeeIds.length === 0 || isSubmitting || hasInvalidAssignmentDateRange}
+            disabled={selectedEmployeeIds.length === 0 || isSubmitting || Boolean(assignmentDateError)}
             title={
               selectedEmployeeIds.length === 0
                 ? 'Select at least one employee first.'
-                : hasInvalidAssignmentDateRange
-                  ? 'End date must be on or after start date.'
+                : assignmentDateError
+                  ? assignmentDateError
                   : undefined
             }
           >

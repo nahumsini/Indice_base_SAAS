@@ -420,7 +420,7 @@ export default function Attendance() {
     setErrorMessage('');
 
     try {
-      const response = await refreshDashboardSnapshot(attendanceDate);
+      const response = await runWithMinimumDuration(refreshDashboardSnapshot(attendanceDate));
       return response;
     } catch (error) {
       setDashboard(null);
@@ -557,7 +557,7 @@ export default function Attendance() {
     setIsSubmitting(true);
 
     try {
-      await runWithMinimumDuration(task(), 850);
+      await runWithMinimumDuration(task());
     } finally {
       setIsSubmitting(false);
     }

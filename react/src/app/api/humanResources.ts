@@ -380,6 +380,7 @@ export interface AttendanceControlLocation {
   required_start_time?: string | null;
   required_end_time?: string | null;
   required_days_per_week?: number | null;
+  managed_source?: string | null;
   status?: string;
   assigned_employee_count?: number;
   assigned_employee_names?: string | null;
@@ -446,6 +447,7 @@ export interface AttendanceAccessMethod {
   employee_name: string;
   method_type: 'pin' | 'badge' | 'password' | 'manual_override' | 'facial_recognition';
   credential_ref?: string | null;
+  pin_code?: string | null;
   status: 'active' | 'inactive';
   priority: number;
   metadata?: Record<string, unknown>;
@@ -711,6 +713,8 @@ export interface AttendanceAccessMethodPayload {
   method_type: AttendanceAccessMethod['method_type'];
   credential_ref?: string | null;
   secret?: string;
+  regenerate_pin?: boolean;
+  auto_generate_pin?: boolean;
   status: 'active' | 'inactive';
   priority?: number;
   metadata?: Record<string, unknown>;
@@ -851,7 +855,8 @@ export interface PublicKioskBootstrapResponse {
     code: string;
     name: string;
   };
-  location: AttendanceLocation;
+  location?: AttendanceLocation | null;
+  scope_label?: string | null;
   auth_methods: Array<'pin'>;
   inactivity_timeout_seconds: number;
 }
@@ -864,11 +869,15 @@ export interface PublicKioskIdentifyRequest {
 export interface PublicKioskDayActivity {
   attendance_date: string;
   status: AttendanceStatus;
+  corrected_status?: AttendanceCorrectionStatus | null;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
+  first_location?: AttendanceLocation | null;
+  last_location?: AttendanceLocation | null;
   minutes_late?: number;
   has_check_in?: boolean;
   has_check_out?: boolean;
+  has_active_check_in?: boolean;
 }
 
 export interface PublicKioskIdentifyResponse {
@@ -931,15 +940,35 @@ export interface AttendanceCorrectionPayload {
   notes?: string;
 }
 
+export type AttendanceManualEventKind = 'check_in' | 'check_out';
+
+export interface AttendanceManualEventPayload {
+  event_kind: AttendanceManualEventKind;
+  event_date?: string;
+  event_time?: string;
+  event_timestamp?: string;
+  notes?: string;
+}
+
 export interface AttendanceDailyRecordUpdateResponse {
   employee_id: number;
   date: string;
+  event_id?: number;
+  event_kind?: AttendanceManualEventKind;
+  result_status?: 'overridden';
   system_status: AttendanceStatus;
   corrected_status?: AttendanceCorrectionStatus | null;
   effective_status: AttendanceStatus;
   attendance_editable?: boolean;
   edit_lock_reason?: string | null;
   notes?: string | null;
+  entry_registered?: boolean;
+  exit_registered?: boolean;
+  first_check_in_at?: string | null;
+  last_check_out_at?: string | null;
+  minutes_late?: number;
+  first_location?: AttendanceLocation | null;
+  last_location?: AttendanceLocation | null;
 }
 
 export interface FaceEnrollmentSessionResponse {
@@ -1260,6 +1289,12 @@ export const humanResourcesApi = {
     });
   },
 
+  deleteAttendanceKioskDevice(kioskDeviceId: string | number) {
+    return apiClient<{ success: boolean }>(`${endpoints.humanResources.attendanceKioskDevices}/${kioskDeviceId}`, {
+      method: 'DELETE',
+    });
+  },
+
   rotateAttendanceKioskDevicePublicToken(kioskDeviceId: string | number) {
     return apiClient<AttendanceKioskDeviceRotateTokenResponse>(
       `${endpoints.humanResources.attendanceKioskDeviceRotateToken}/${kioskDeviceId}/rotate-public-access-token`,
@@ -1496,6 +1531,16 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendanceDailyRecords}/${employeeId}/${date}`,
       {
         method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  recordManualAttendanceEvent(employeeId: string | number, date: string, payload: AttendanceManualEventPayload) {
+    return apiClient<AttendanceDailyRecordUpdateResponse>(
+      `${endpoints.humanResources.attendanceDailyRecords}/${employeeId}/${date}/manual-events`,
+      {
+        method: 'POST',
         body: JSON.stringify(payload),
       },
     );
