@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { Settings } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Header } from './components/Header';
@@ -8,6 +8,7 @@ import { ModuleCard } from './components/ModuleCard';
 import { ModuleCarousel } from './components/ModuleCarousel';
 import { LearningModeBanner } from './components/LearningModeBanner';
 import { KPIConfiguration } from './components/KPIConfiguration';
+import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 import { SuccessToast } from './components/SuccessToast';
 import { Button } from './components/ui/button';
 import { useLanguage } from './shared/context';
@@ -58,6 +59,8 @@ const getNavigationSuccessToast = (state: unknown) => {
   const successToast = (state as { successToast?: unknown }).successToast;
   return typeof successToast === 'string' ? successToast : '';
 };
+
+const MODULE_NAVIGATION_LOADING_MS = 2000;
 
 function StandaloneModuleShell({
   children,
@@ -383,8 +386,22 @@ export default function App() {
   const [learningStep, setLearningStep] = useLocalStorageState('indice.app.learningStep', 0);
   const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false);
   const [successToastMessage, setSuccessToastMessage] = useState('');
+  const [isModuleNavigationLoading, setIsModuleNavigationLoading] = useState(false);
+  const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const currentPage = resolvePageId(pageId);
   const needsPageRedirect = Boolean(pageId && currentPage && pageId !== currentPage);
+
+  const showModuleNavigationLoading = () => {
+    if (moduleNavigationTimeoutRef.current !== null) {
+      window.clearTimeout(moduleNavigationTimeoutRef.current);
+    }
+
+    setIsModuleNavigationLoading(true);
+    moduleNavigationTimeoutRef.current = window.setTimeout(() => {
+      setIsModuleNavigationLoading(false);
+      moduleNavigationTimeoutRef.current = null;
+    }, MODULE_NAVIGATION_LOADING_MS);
+  };
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -394,6 +411,12 @@ export default function App() {
     document.documentElement.classList.toggle('dark', darkMode);
     document.body.classList.toggle('dark', darkMode);
   }, [darkMode]);
+
+  useEffect(() => () => {
+    if (moduleNavigationTimeoutRef.current !== null) {
+      window.clearTimeout(moduleNavigationTimeoutRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!pageId) {
@@ -437,6 +460,11 @@ export default function App() {
 
   const handleModuleNavigation = (page?: string) => {
     const targetPage = resolvePageId(page) ?? 'dashboard';
+    if (targetPage === currentPage) {
+      return;
+    }
+
+    showModuleNavigationLoading();
     navigate(getPagePath(targetPage));
   };
 
@@ -489,7 +517,7 @@ export default function App() {
     ) : currentPage === 'kpis' ? (
       <Kpis onNavigate={handleModuleNavigation} />
     ) : StandaloneModuleComponent ? (
-      <StandaloneModuleShell onBack={() => navigate(getPagePath('dashboard'))}>
+      <StandaloneModuleShell onBack={() => handleModuleNavigation('dashboard')}>
         <StandaloneModuleComponent />
       </StandaloneModuleShell>
     ) : null;
@@ -508,6 +536,12 @@ export default function App() {
         onToggleLearningMode={toggleLearningMode}
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
+      />
+      <LoadingBarOverlay
+        isVisible={isModuleNavigationLoading}
+        title="Loading module"
+        description="Preparing the latest data before the screen becomes active."
+        className="z-[160]"
       />
       {pageContent}
       <SuccessToast

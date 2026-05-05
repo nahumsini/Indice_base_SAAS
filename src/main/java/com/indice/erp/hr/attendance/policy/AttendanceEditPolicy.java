@@ -18,6 +18,9 @@ public final class AttendanceEditPolicy {
         if (hireDate != null && attendanceDate.isBefore(hireDate)) {
             return "Attendance can only be edited on or after this employee's hire date: " + hireDate + ".";
         }
+        if (attendanceDate.isAfter(LocalDate.now())) {
+            return "Attendance cannot be marked for a future date.";
+        }
         return null;
     }
 }

@@ -73,6 +73,13 @@ public class HrAttendanceService {
     private static final Duration PUBLIC_KIOSK_PIN_LOCK_DURATION = Duration.ofMinutes(15);
     private static final Duration EARLY_CHECK_IN_ALLOWANCE = Duration.ofMinutes(15);
     private static final String PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY = "_pin_throttle";
+    private static final String PIN_METADATA_CODE_KEY = "_pin_code";
+    private static final String KIOSK_TYPE_METADATA_KEY = "kiosk_type";
+    private static final String KIOSK_TYPE_BUSINESS_UNIT = "business_unit";
+    private static final String KIOSK_TYPE_CONTRACT_SITE = "contract_site";
+    private static final String KIOSK_TYPE_HEAD_OFFICE = "head_office";
+    private static final int GENERATED_PIN_BOUND = 100_000;
+    private static final int GENERATED_PIN_MAX_ATTEMPTS = 200;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JdbcTemplate jdbcTemplate;
@@ -219,6 +226,7 @@ public class HrAttendanceService {
         var dailyRecord = loadUserDailyRecord(companyId, user.userId(), date);
         var effectiveStatus = resolveEffectiveStatus(dailyRecord, null, date);
         var locations = loadUserAttendanceLocations(companyId);
+        var editLockReason = AttendanceEditPolicy.lockReason(null, date);
 
         var item = new LinkedHashMap<String, Object>();
         item.put("subject_type", "user");
@@ -235,8 +243,8 @@ public class HrAttendanceService {
         item.put("business_id", null);
         item.put("business_name", "");
         item.put("hire_date", null);
-        item.put("attendance_editable", true);
-        item.put("edit_lock_reason", null);
+        item.put("attendance_editable", editLockReason == null);
+        item.put("edit_lock_reason", editLockReason);
         item.put("status", effectiveStatus);
         item.put("system_status", resolveSystemStatus(dailyRecord, null, date));
         item.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
@@ -345,12 +353,13 @@ public class HrAttendanceService {
         for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
             var dailyRecord = dailyRecords.get(currentDate);
             var effectiveStatus = resolveEffectiveStatus(dailyRecord, null, currentDate);
+            var editLockReason = AttendanceEditPolicy.lockReason(null, currentDate);
 
             var day = new LinkedHashMap<String, Object>();
             day.put("date", currentDate.toString());
             day.put("day", currentDate.getDayOfMonth());
-            day.put("attendance_editable", true);
-            day.put("edit_lock_reason", null);
+            day.put("attendance_editable", editLockReason == null);
+            day.put("edit_lock_reason", editLockReason);
             day.put("effective_status", effectiveStatus);
             day.put("system_status", resolveSystemStatus(dailyRecord, null, currentDate));
             day.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
@@ -692,6 +701,22 @@ public class HrAttendanceService {
     }
 
     @Transactional
+    public void deleteKioskDevice(long companyId, long kioskDeviceId) {
+        loadKioskDevice(companyId, kioskDeviceId);
+        var deleted = jdbcTemplate.update(
+            """
+                DELETE FROM hr_kiosk_devices
+                WHERE id = ? AND company_id = ?
+                """,
+            kioskDeviceId,
+            companyId
+        );
+        if (deleted == 0) {
+            throw new NoSuchElementException("Kiosk device not found.");
+        }
+    }
+
+    @Transactional
     public Map<String, Object> saveKioskDevice(long companyId, long userId, Long kioskDeviceId, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         var code = stringValue(payload, "code");
@@ -704,10 +729,32 @@ public class HrAttendanceService {
         var unitId = normalizeOptionalForeignKey(parseLong(payload, "unit_id"));
         var businessId = normalizeOptionalForeignKey(parseLong(payload, "business_id"));
         var locationId = normalizeOptionalForeignKey(parseLong(payload, "location_id"));
-        validateOperationalScope(companyId, unitId, businessId, locationId);
+        var kioskLocation = locationId == null ? null : loadLocation(companyId, locationId);
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.putAll(parseJsonMap(toJson(payload.get("metadata"))));
+        var kioskType = normalizeKioskType(metadata.get(KIOSK_TYPE_METADATA_KEY));
+        if (kioskType == null) {
+            kioskType = inferKioskType(kioskLocation);
+        }
+        metadata.put(KIOSK_TYPE_METADATA_KEY, kioskType);
+        if (KIOSK_TYPE_BUSINESS_UNIT.equals(kioskType)) {
+            if (kioskLocation != null) {
+                validateKioskLocationPurpose(kioskType, kioskLocation);
+                unitId = kioskLocation.unitId();
+                businessId = kioskLocation.businessId();
+            }
+            locationId = null;
+            validateOperationalScope(companyId, unitId, businessId, null);
+            ensureBusinessUnitKioskScopeHasLocations(companyId, unitId, businessId);
+        } else {
+            validateKioskLocationPurpose(kioskType, kioskLocation);
+            unitId = kioskLocation.unitId();
+            businessId = kioskLocation.businessId();
+            validateOperationalScope(companyId, unitId, businessId, locationId);
+        }
         ensureUniqueKioskCode(companyId, kioskDeviceId, code);
 
-        var metadataJson = toJson(payload.get("metadata"));
+        var metadataJson = toJson(metadata);
         KioskDeviceRow existingKioskDevice = null;
         var publicAccessToken = generateUniqueKioskPublicAccessToken();
         if (kioskDeviceId != null && kioskDeviceId > 0) {
@@ -717,6 +764,9 @@ public class HrAttendanceService {
         }
         if (kioskDeviceId == null || kioskDeviceId <= 0) {
             KeyHolder keyHolder = new GeneratedKeyHolder();
+            var insertUnitId = unitId;
+            var insertBusinessId = businessId;
+            var insertLocationId = locationId;
             var insertPublicAccessToken = publicAccessToken;
             var insertMetadataJson = metadataJson;
             jdbcTemplate.update(connection -> {
@@ -729,9 +779,9 @@ public class HrAttendanceService {
                     new String[] {"id"}
                 );
                 statement.setLong(1, companyId);
-                setNullableLong(statement, 2, unitId);
-                setNullableLong(statement, 3, businessId);
-                setNullableLong(statement, 4, locationId);
+                setNullableLong(statement, 2, insertUnitId);
+                setNullableLong(statement, 3, insertBusinessId);
+                setNullableLong(statement, 4, insertLocationId);
                 statement.setString(5, code);
                 statement.setString(6, name);
                 statement.setString(7, status);
@@ -799,7 +849,7 @@ public class HrAttendanceService {
 
     public Map<String, Object> publicKioskBootstrap(String deviceToken) {
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
-        var location = requirePublicKioskLocation(kioskDevice);
+        var location = loadPublicKioskLocation(kioskDevice);
         var authMethods = determinePublicKioskAuthMethods(kioskDevice.companyId());
 
         var body = new LinkedHashMap<String, Object>();
@@ -808,7 +858,8 @@ public class HrAttendanceService {
             "code", kioskDevice.code(),
             "name", kioskDevice.name()
         ));
-        body.put("location", toLocationMap(location));
+        body.put("location", location == null ? null : toLocationMap(location));
+        body.put("scope_label", describeKioskScope(kioskDevice, location));
         body.put("auth_methods", authMethods);
         body.put("inactivity_timeout_seconds", kioskInactivityTimeoutSeconds);
         return body;
@@ -818,7 +869,7 @@ public class HrAttendanceService {
     public Map<String, Object> publicKioskIdentify(String deviceToken, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
-        var location = requirePublicKioskLocation(kioskDevice);
+        var location = loadPublicKioskLocation(kioskDevice);
         var requestedAuthMethod = stringValue(payload, "auth_method", "method_type");
         var authMethod = normalizePublicKioskAuthMethod(requestedAuthMethod.isBlank() ? "pin" : requestedAuthMethod);
         var credentialPayload = nullable(stringValue(payload, "credential_payload", "credential", "pin", "badge_code"));
@@ -838,6 +889,7 @@ public class HrAttendanceService {
         if ("terminated".equals(employee.status())) {
             throw new IllegalArgumentException("This employee is terminated and cannot record attendance.");
         }
+        validatePublicKioskScope(kioskDevice, employee);
 
         var eventTimestamp = parseDateTime(payload, "event_timestamp", "recorded_at");
         if (eventTimestamp == null) {
@@ -858,10 +910,10 @@ public class HrAttendanceService {
             "auth_attempt",
             eventTimestamp,
             eventTimestamp.toLocalDate(),
-            location.id(),
+            location == null ? null : location.id(),
             kioskDevice.id(),
-            location.latitude(),
-            location.longitude(),
+            location == null ? null : location.latitude(),
+            location == null ? null : location.longitude(),
             null,
             "kiosk_public",
             authMethod,
@@ -877,6 +929,12 @@ public class HrAttendanceService {
         var activityDate = resolveOperationalAttendanceDate(kioskDevice.companyId(), employee.id(), eventTimestamp, "check_out");
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), activityDate);
         var dailyRecord = loadDailyRecord(kioskDevice.companyId(), employee.id(), activityDate);
+        var openDailyRecord = loadOpenDailyRecord(kioskDevice.companyId(), employee.id(), eventTimestamp.toLocalDate());
+        if (openDailyRecord != null) {
+            activityDate = openDailyRecord.attendanceDate();
+            scheduleRule = loadScheduleRule(kioskDevice.companyId(), employee.id(), activityDate);
+            dailyRecord = openDailyRecord;
+        }
         var body = new LinkedHashMap<String, Object>();
         body.put("auth_attempt_event_id", authAttemptId);
         body.put("auth_method", authMethod);
@@ -900,7 +958,6 @@ public class HrAttendanceService {
     public Map<String, Object> publicKioskPunch(String deviceToken, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
-        requirePublicKioskLocation(kioskDevice);
         var identificationToken = stringValue(payload, "identification_token");
         if (identificationToken.isBlank()) {
             throw new IllegalArgumentException("identification_token is required.");
@@ -911,6 +968,7 @@ public class HrAttendanceService {
         if ("terminated".equals(employee.status())) {
             throw new IllegalArgumentException("This employee is terminated and cannot record attendance.");
         }
+        validatePublicKioskScope(kioskDevice, employee);
 
         var eventType = normalizePublicKioskEventType(stringValue(payload, "event_type", "event_kind"));
         var eventTimestamp = parseDateTime(payload, "event_timestamp", "recorded_at");
@@ -941,7 +999,7 @@ public class HrAttendanceService {
             employee,
             scheduleRule,
             eventType,
-            kioskDevice.locationId(),
+            publicKioskRequestedLocationId(kioskDevice),
             latitude,
             longitude,
             activeWorkSite
@@ -1113,6 +1171,10 @@ public class HrAttendanceService {
             }
         }
 
+        if ("pin".equals(defaultMethod)) {
+            ensurePinAccessMethod(companyId, profileId);
+        }
+
         return Map.of("access_profile", toAccessProfileMap(loadAccessProfile(companyId, profileId)));
     }
 
@@ -1137,6 +1199,14 @@ public class HrAttendanceService {
             priority = 100;
         }
 
+        AccessMethodRow existingMethod = null;
+        if (methodId != null && methodId > 0) {
+            existingMethod = loadAccessMethod(companyId, methodId);
+            if (existingMethod.accessProfileId() != accessProfileId) {
+                throw new IllegalArgumentException("Access method does not belong to the selected access profile.");
+            }
+        }
+
         var credentialRef = nullable(stringValue(payload, "credential_ref", "badge_code", "credential"));
         var secretRaw = nullable(stringValue(payload, "secret", "pin", "password"));
         var metadataJson = toJson(payload.get("metadata"));
@@ -1145,10 +1215,17 @@ public class HrAttendanceService {
             throw new IllegalArgumentException("credential_ref is required for badge methods.");
         }
         if ("pin".equals(methodType)) {
+            var shouldRegeneratePin = parseBoolean(payload, "regenerate_pin") || parseBoolean(payload, "auto_generate_pin");
+            if (secretRaw == null && (existingMethod == null || !"pin".equals(existingMethod.methodType()) || shouldRegeneratePin)) {
+                secretRaw = generateUniquePin(companyId, methodId);
+            }
             if (secretRaw != null) {
+                secretRaw = normalizePinCode(secretRaw);
                 credentialRef = pinCredentialReference(companyId, secretRaw);
-            } else if (methodId != null && methodId > 0) {
-                credentialRef = loadAccessMethod(companyId, methodId).credentialRef();
+                metadataJson = mergePinMetadataJson(existingMethod == null ? null : existingMethod.metadataJson(), metadataJson, secretRaw);
+            } else if (existingMethod != null) {
+                credentialRef = existingMethod.credentialRef();
+                metadataJson = mergePinMetadataJson(existingMethod.metadataJson(), metadataJson, null);
             }
         } else if (!"badge".equals(methodType)) {
             credentialRef = null;
@@ -1188,11 +1265,7 @@ public class HrAttendanceService {
             }, keyHolder);
             methodId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
         } else {
-            var existing = loadAccessMethod(companyId, methodId);
-            if (existing.accessProfileId() != accessProfileId) {
-                throw new IllegalArgumentException("Access method does not belong to the selected access profile.");
-            }
-            var secretHash = resolveSecretHashForAccessMethod(existing, methodType, secretRaw);
+            var secretHash = resolveSecretHashForAccessMethod(existingMethod, methodType, secretRaw);
 
             var updated = jdbcTemplate.update(
                 """
@@ -1223,9 +1296,11 @@ public class HrAttendanceService {
         return Map.of("access_method", toAccessMethodMap(loadAccessMethod(companyId, methodId)), "access_profile", toAccessProfileMap(refreshedProfile));
     }
 
+    @Transactional
     public void ensureDefaultAccessProfile(long companyId, long employeeId, long createdBy) {
         var existingProfile = loadAccessProfileByEmployee(companyId, employeeId);
         if (existingProfile != null) {
+            ensurePinAccessMethod(companyId, existingProfile.id());
             return;
         }
 
@@ -1246,6 +1321,10 @@ public class HrAttendanceService {
             statement.setLong(5, createdBy);
             return statement;
         }, keyHolder);
+        var profileId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
+        if (profileId != null) {
+            ensurePinAccessMethod(companyId, profileId);
+        }
     }
 
     public Map<String, Object> listControlLocations(long companyId) {
@@ -1339,9 +1418,8 @@ public class HrAttendanceService {
             throw new IllegalArgumentException("effective_start_date is required.");
         }
         var effectiveEndDate = HrPayloadUtils.parseDate(payload, "effective_end_date", "end_date");
-        if (effectiveEndDate != null && effectiveEndDate.isBefore(effectiveStartDate)) {
-            throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
-        }
+        validateNewAssignmentDateRange(effectiveStartDate, effectiveEndDate);
+        validateAssignmentWithinContractSiteWindow(location, effectiveStartDate, effectiveEndDate);
         if (hasActiveWorkSiteLocationAssignmentOverlap(companyId, location.id(), effectiveStartDate, effectiveEndDate)) {
             throw new IllegalArgumentException("This contract site is already assigned to another employee in this date range.");
         }
@@ -1573,7 +1651,7 @@ public class HrAttendanceService {
             item.put("name", displayScheduleTemplateName(template.templateName()));
             item.put("status", template.status());
             item.put("schedule_mode", template.scheduleMode());
-            item.put("block_after_grace_period", template.blockAfterGracePeriod());
+            item.put("block_after_grace_period", false);
             item.put("enforce_location", template.enforceLocation());
             item.put("location_id", template.locationId());
             item.put("location_name", template.locationName());
@@ -1594,9 +1672,7 @@ public class HrAttendanceService {
 
         var status = normalizeManagedStatus(stringValue(payload, "status"));
         var scheduleMode = normalizeScheduleMode(stringValue(payload, "schedule_mode", "mode", "way"));
-        var blockAfterGracePeriod = parseBoolean(payload, "block_after_grace_period")
-            || parseBoolean(payload, "disallow_after_grace_period")
-            || parseBoolean(payload, "no_permitir_despues_tolerancia");
+        var blockAfterGracePeriod = false;
         var enforceLocation = parseBoolean(payload, "enforce_location")
             || parseBoolean(payload, "restrict_to_location")
             || parseBoolean(payload, "no_permitir_fuera_ubicacion");
@@ -1734,9 +1810,7 @@ public class HrAttendanceService {
         }
 
         var effectiveEndDate = HrPayloadUtils.parseDate(payload, "effective_end_date", "end_date");
-        if (effectiveEndDate != null && effectiveEndDate.isBefore(effectiveStartDate)) {
-            throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
-        }
+        validateNewAssignmentDateRange(effectiveStartDate, effectiveEndDate);
 
         var assignments = new ArrayList<Map<String, Object>>();
         for (var employeeId : employeeIds) {
@@ -2012,9 +2086,10 @@ public class HrAttendanceService {
 
         var latitude = parseDecimalRequired(payload, "latitude");
         var longitude = parseDecimalRequired(payload, "longitude");
+        var requestedLocationId = parseLong(payload, "location_id");
         var photoObjectKey = normalizeUserAttendancePhotoObjectKey(companyId, user.userId(), stringValue(payload, "photo_url"));
         var attendanceDate = resolveUserOperationalAttendanceDate(companyId, user.userId(), eventTimestamp, eventKind);
-        var location = resolveUserAttendanceLocation(companyId, latitude, longitude);
+        var location = resolveUserAttendanceLocation(companyId, requestedLocationId, latitude, longitude);
         validateUserOperationalEventTransition(companyId, user.userId(), attendanceDate, eventTimestamp, eventKind);
 
         var metadataJson = mergeMetadataJson(
@@ -2168,6 +2243,86 @@ public class HrAttendanceService {
     }
 
     @Transactional
+    public Map<String, Object> recordManualAttendanceEvent(
+        long companyId,
+        long userId,
+        long employeeId,
+        LocalDate attendanceDate,
+        Map<String, Object> payload
+    ) {
+        payload = normalizePayload(payload);
+        var employee = loadAttendanceEmployee(companyId, employeeId);
+        if ("terminated".equals(employee.status())) {
+            throw new IllegalArgumentException("This employee is terminated and cannot record attendance.");
+        }
+        ensureAttendanceDateEditable(employee, attendanceDate);
+        if (attendanceDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Manual attendance cannot be recorded for a future date.");
+        }
+
+        var eventKind = normalizeEventKind(stringValue(payload, "event_kind", "event_type"));
+        if (!List.of("check_in", "check_out").contains(eventKind)) {
+            throw new IllegalArgumentException("Manual attendance can only record check_in or check_out.");
+        }
+
+        var eventTimestamp = resolveManualAttendanceTimestamp(attendanceDate, eventKind, payload);
+        validateOperationalEventTransition(companyId, employeeId, attendanceDate, eventTimestamp, eventKind);
+
+        var notes = nullable(stringValue(payload, "notes"));
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("manual_attendance_event", true);
+        metadata.put("attendance_date", attendanceDate.toString());
+        metadata.put("event_kind", eventKind);
+        metadata.put("event_timestamp", eventTimestamp.toString());
+        metadata.put("entered_by_user_id", userId);
+
+        var eventId = appendAttendanceEvent(
+            companyId,
+            employeeId,
+            normalizeEventTypeForStorage(eventKind),
+            eventTimestamp,
+            attendanceDate,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "admin",
+            "manual_override",
+            "overridden",
+            eventKind,
+            toJson(metadata),
+            notes,
+            null,
+            userId
+        );
+
+        var scheduleRule = loadScheduleRule(companyId, employeeId, attendanceDate);
+        var refreshed = rebuildDailyRecordProjection(companyId, employeeId, attendanceDate);
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("event_id", eventId);
+        body.put("event_kind", eventKind);
+        body.put("result_status", "overridden");
+        body.put("employee_id", employeeId);
+        body.put("date", attendanceDate.toString());
+        body.put("attendance_editable", true);
+        body.put("edit_lock_reason", null);
+        body.put("system_status", resolveSystemStatus(refreshed, scheduleRule, attendanceDate));
+        body.put("corrected_status", refreshed != null ? refreshed.correctedStatus() : null);
+        body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule, attendanceDate));
+        body.put("notes", refreshed != null ? refreshed.notes() : null);
+        body.put("entry_registered", refreshed != null && refreshed.firstCheckInAt() != null);
+        body.put("exit_registered", refreshed != null && refreshed.lastCheckOutAt() != null);
+        body.put("first_check_in_at", refreshed != null ? toIsoString(refreshed.firstCheckInAt()) : null);
+        body.put("last_check_out_at", refreshed != null ? toIsoString(refreshed.lastCheckOutAt()) : null);
+        body.put("minutes_late", refreshed != null ? refreshed.minutesLate() : 0);
+        body.put("first_location", refreshed != null ? toLocationMap(refreshed.firstLocation()) : null);
+        body.put("last_location", refreshed != null ? toLocationMap(refreshed.lastLocation()) : null);
+        return body;
+    }
+
+    @Transactional
     public Map<String, Object> updateSelfDailyRecord(long companyId, long userId, LocalDate date, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         return updateUserDailyRecord(companyId, loadAttendanceSessionUser(companyId, userId), date, payload);
@@ -2175,6 +2330,7 @@ public class HrAttendanceService {
 
     private Map<String, Object> updateUserDailyRecord(long companyId, AttendanceUser user, LocalDate date, Map<String, Object> payload) {
         payload = normalizePayload(payload);
+        AttendanceEditPolicy.requireEditable(null, date);
         var targetStatusRaw = stringValue(payload, "status", "corrected_status");
         var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
         var notes = nullable(stringValue(payload, "notes"));
@@ -2709,6 +2865,71 @@ public class HrAttendanceService {
         return loadDailyRecords(companyId, employeeId, date, date).get(date);
     }
 
+    private DailyRecordRow loadOpenDailyRecord(long companyId, long employeeId, LocalDate latestDate) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT r.id,
+                       r.employee_id,
+                       r.attendance_date,
+                       r.system_status,
+                       r.corrected_status,
+                       r.first_check_in_at,
+                       r.last_check_out_at,
+                       r.minutes_late,
+                       r.notes,
+                       (
+                           SELECT e.photo_url
+                           FROM hr_attendance_events e
+                           WHERE e.company_id = r.company_id
+                             AND e.employee_id = r.employee_id
+                             AND e.attendance_date = r.attendance_date
+                             AND e.event_type = 'check_in'
+                           ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
+                                    e.event_timestamp ASC,
+                                    e.id ASC
+                           LIMIT 1
+                       ) AS first_photo_object_key,
+                       (
+                           SELECT e.photo_url
+                           FROM hr_attendance_events e
+                           WHERE e.company_id = r.company_id
+                             AND e.employee_id = r.employee_id
+                             AND e.attendance_date = r.attendance_date
+                             AND e.event_type = 'check_out'
+                           ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
+                                    e.event_timestamp DESC,
+                                    e.id DESC
+                           LIMIT 1
+                       ) AS last_photo_object_key,
+                       fl.id AS first_location_id,
+                       fl.name AS first_location_name,
+                       fl.latitude AS first_location_latitude,
+                       fl.longitude AS first_location_longitude,
+                       fl.radius_meters AS first_location_radius_meters,
+                       ll.id AS last_location_id,
+                       ll.name AS last_location_name,
+                       ll.latitude AS last_location_latitude,
+                       ll.longitude AS last_location_longitude,
+                       ll.radius_meters AS last_location_radius_meters
+                FROM hr_attendance_daily_records r
+                LEFT JOIN hr_attendance_locations fl ON fl.id = r.first_location_id
+                LEFT JOIN hr_attendance_locations ll ON ll.id = r.last_location_id
+                WHERE r.company_id = ?
+                  AND r.employee_id = ?
+                  AND r.attendance_date <= ?
+                  AND r.first_check_in_at IS NOT NULL
+                  AND r.last_check_out_at IS NULL
+                ORDER BY r.attendance_date DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> mapDailyRecord(rs),
+            companyId,
+            employeeId,
+            latestDate
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
     private Map<LocalDate, DailyRecordRow> loadUserDailyRecords(long companyId, long userId, LocalDate startDate, LocalDate endDate) {
         var rows = jdbcTemplate.query(
             """
@@ -2783,11 +3004,15 @@ public class HrAttendanceService {
         var body = new LinkedHashMap<String, Object>();
         body.put("attendance_date", attendanceDate.toString());
         body.put("status", resolveEffectiveStatus(dailyRecord, scheduleRule, attendanceDate));
+        body.put("corrected_status", dailyRecord != null ? dailyRecord.correctedStatus() : null);
         body.put("first_check_in_at", dailyRecord != null ? toIsoString(dailyRecord.firstCheckInAt()) : null);
         body.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
         body.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : 0);
         body.put("has_check_in", dailyRecord != null && dailyRecord.firstCheckInAt() != null);
         body.put("has_check_out", dailyRecord != null && dailyRecord.lastCheckOutAt() != null);
+        body.put("has_active_check_in", dailyRecord != null && dailyRecord.firstCheckInAt() != null && dailyRecord.lastCheckOutAt() == null);
+        body.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
+        body.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
         return body;
     }
 
@@ -3033,7 +3258,7 @@ public class HrAttendanceService {
         body.put("name", displayScheduleTemplateName(template.templateName()));
         body.put("status", template.status());
         body.put("schedule_mode", template.scheduleMode());
-        body.put("block_after_grace_period", template.blockAfterGracePeriod());
+        body.put("block_after_grace_period", false);
         body.put("enforce_location", template.enforceLocation());
         body.put("location_id", template.locationId());
         body.put("location_name", template.locationName());
@@ -3167,6 +3392,7 @@ public class HrAttendanceService {
 	                           COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
 	                           COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
 	                           COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                           COALESCE(l.managed_source, '') AS managed_source,
                            COALESCE(LOWER(l.status), 'active') AS status,
                            (
                                SELECT COUNT(DISTINCT a.employee_id)
@@ -3210,6 +3436,7 @@ public class HrAttendanceService {
 	                           COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
 	                           COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
 	                           COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                           COALESCE(l.managed_source, '') AS managed_source,
                            COALESCE(LOWER(l.status), 'active') AS status,
                            (
                                SELECT COUNT(DISTINCT a.employee_id)
@@ -3252,6 +3479,7 @@ public class HrAttendanceService {
 	                rs.getObject("required_start_time", LocalTime.class),
 	                rs.getObject("required_end_time", LocalTime.class),
 	                rs.getInt("required_days_per_week"),
+                safe(rs.getString("managed_source")),
                 safe(rs.getString("status")),
                 rs.getInt("assigned_employee_count"),
                 safe(rs.getString("assigned_employee_names"))
@@ -3282,6 +3510,7 @@ public class HrAttendanceService {
 	                       COALESCE(l.required_start_time, TIME('08:00:00')) AS required_start_time,
 	                       COALESCE(l.required_end_time, TIME('16:00:00')) AS required_end_time,
 	                       COALESCE(l.required_days_per_week, 5) AS required_days_per_week,
+                       COALESCE(l.managed_source, '') AS managed_source,
                        COALESCE(LOWER(l.status), 'active') AS status,
                        (
                            SELECT COUNT(DISTINCT a.employee_id)
@@ -3324,6 +3553,7 @@ public class HrAttendanceService {
 	                rs.getObject("required_start_time", LocalTime.class),
 	                rs.getObject("required_end_time", LocalTime.class),
 	                rs.getInt("required_days_per_week"),
+                safe(rs.getString("managed_source")),
                 safe(rs.getString("status")),
                 rs.getInt("assigned_employee_count"),
                 safe(rs.getString("assigned_employee_names"))
@@ -3963,7 +4193,7 @@ public class HrAttendanceService {
         var body = new LinkedHashMap<String, Object>();
         body.put("template_id", rule.templateId());
         body.put("schedule_mode", rule.scheduleMode());
-        body.put("block_after_grace_period", rule.blockAfterGracePeriod());
+        body.put("block_after_grace_period", false);
         body.put("enforce_location", rule.enforceLocation());
         body.put("location_id", rule.locationId());
         body.put("location_name", rule.locationName());
@@ -4130,6 +4360,10 @@ public class HrAttendanceService {
         }
 
         return loadLocation(kioskDevice.companyId(), kioskDevice.locationId());
+    }
+
+    private LocationRow loadPublicKioskLocation(KioskDeviceRow kioskDevice) {
+        return kioskDevice.locationId() == null ? null : loadLocation(kioskDevice.companyId(), kioskDevice.locationId());
     }
 
     private List<AccessProfileRow> listAccessProfilesRows(long companyId) {
@@ -4523,6 +4757,9 @@ public class HrAttendanceService {
 
     private Map<String, Object> toAccessMethodMap(AccessMethodRow method) {
         var body = new LinkedHashMap<String, Object>();
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.putAll(parseJsonMap(method.metadataJson()));
+        var pinCode = metadataTextValue(metadata.remove(PIN_METADATA_CODE_KEY));
         body.put("id", method.id());
         body.put("company_id", method.companyId());
         body.put("access_profile_id", method.accessProfileId());
@@ -4531,9 +4768,10 @@ public class HrAttendanceService {
         body.put("employee_name", method.employeeName());
         body.put("method_type", method.methodType());
         body.put("credential_ref", "badge".equals(method.methodType()) ? method.credentialRef() : null);
+        body.put("pin_code", "pin".equals(method.methodType()) ? pinCode : null);
         body.put("status", method.status());
         body.put("priority", method.priority());
-        body.put("metadata", parseJsonMap(method.metadataJson()));
+        body.put("metadata", metadata);
         return body;
     }
 
@@ -4668,6 +4906,17 @@ public class HrAttendanceService {
 
         switch (eventKind) {
             case "check_in" -> {
+                var openDailyRecord = loadOpenDailyRecord(companyId, employeeId, attendanceDate);
+                if (openDailyRecord != null) {
+                    var locationName = openDailyRecord.firstLocation() == null ? "" : " at " + openDailyRecord.firstLocation().name();
+                    throw new IllegalArgumentException(
+                        "Employee is already checked in"
+                            + locationName
+                            + " since "
+                            + openDailyRecord.firstCheckInAt()
+                            + ". Check out before starting a new shift."
+                    );
+                }
                 if (checkInAlreadyRecorded) {
                     throw new IllegalArgumentException("Check-in has already been recorded for this employee shift.");
                 }
@@ -4759,6 +5008,41 @@ public class HrAttendanceService {
         }
     }
 
+    private LocalDateTime resolveManualAttendanceTimestamp(LocalDate attendanceDate, String eventKind, Map<String, Object> payload) {
+        var eventTimestamp = parseDateTime(payload, "event_timestamp", "recorded_at");
+        if (eventTimestamp == null) {
+            var eventDate = HrPayloadUtils.parseDate(payload, "event_date");
+            if (eventDate == null) {
+                eventDate = attendanceDate;
+            }
+            var eventTime = parseTime(payload, "event_time");
+            if (eventTime == null) {
+                eventTime = parseTime(payload, "time");
+            }
+            if (eventTime == null) {
+                throw new IllegalArgumentException("event_time is required.");
+            }
+            eventTimestamp = eventDate.atTime(eventTime);
+        }
+
+        if (eventTimestamp.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Manual attendance cannot be recorded in the future.");
+        }
+
+        var eventDate = eventTimestamp.toLocalDate();
+        if ("check_out".equals(eventKind)) {
+            if (!eventDate.equals(attendanceDate) && !eventDate.equals(attendanceDate.plusDays(1))) {
+                throw new IllegalArgumentException("Manual check-out must be on the attendance date or the next day for overnight shifts.");
+            }
+            return eventTimestamp;
+        }
+
+        if (!eventDate.equals(attendanceDate)) {
+            throw new IllegalArgumentException("Manual check-in must be on the attendance date.");
+        }
+        return eventTimestamp;
+    }
+
     private AttendanceOperationalState resolveOperationalState(List<AttendanceEventRow> events) {
         boolean checkedIn = false;
         boolean onBreak = false;
@@ -4793,6 +5077,13 @@ public class HrAttendanceService {
         }
 
         return new AttendanceOperationalState(checkedIn, onBreak);
+    }
+
+    private boolean isOperationalAttendanceEvent(String eventKind) {
+        return "check_in".equals(eventKind)
+            || "check_out".equals(eventKind)
+            || "break_out".equals(eventKind)
+            || "break_in".equals(eventKind);
     }
 
     private long appendAttendanceEvent(
@@ -4984,6 +5275,8 @@ public class HrAttendanceService {
         String correctedStatus = null;
         String notes = null;
         boolean correctionStateTouched = false;
+        long latestOperationalEventId = 0L;
+        long latestCorrectionEventId = 0L;
 
         for (var event : events) {
             if (!"success".equals(event.resultStatus()) && !"overridden".equals(event.resultStatus())) {
@@ -4998,7 +5291,11 @@ public class HrAttendanceService {
                 lastCheckOut = event.eventTimestamp();
                 lastLocationId = event.locationId();
             }
+            if (isOperationalAttendanceEvent(event.eventKind())) {
+                latestOperationalEventId = Math.max(latestOperationalEventId, event.id());
+            }
             if ("correction".equals(event.eventKind()) || "manual_override".equals(event.eventKind())) {
+                latestCorrectionEventId = Math.max(latestCorrectionEventId, event.id());
                 var metadata = parseJsonMap(event.metadataJson());
                 if (metadata.containsKey("corrected_status")) {
                     correctionStateTouched = true;
@@ -5011,6 +5308,12 @@ public class HrAttendanceService {
                     notes = event.notes();
                 }
             }
+        }
+
+        if (latestCorrectionEventId > 0L && latestOperationalEventId > latestCorrectionEventId) {
+            correctionStateTouched = true;
+            correctedStatus = null;
+            notes = null;
         }
 
         if (!correctionStateTouched && correctedStatus == null && existing != null) {
@@ -5091,6 +5394,8 @@ public class HrAttendanceService {
         String correctedStatus = null;
         String notes = null;
         boolean correctionStateTouched = false;
+        long latestOperationalEventId = 0L;
+        long latestCorrectionEventId = 0L;
 
         for (var event : events) {
             if (!"success".equals(event.resultStatus()) && !"overridden".equals(event.resultStatus())) {
@@ -5105,7 +5410,11 @@ public class HrAttendanceService {
                 lastCheckOut = event.eventTimestamp();
                 lastLocationId = event.locationId();
             }
+            if (isOperationalAttendanceEvent(event.eventKind())) {
+                latestOperationalEventId = Math.max(latestOperationalEventId, event.id());
+            }
             if ("correction".equals(event.eventKind()) || "manual_override".equals(event.eventKind())) {
+                latestCorrectionEventId = Math.max(latestCorrectionEventId, event.id());
                 var metadata = parseJsonMap(event.metadataJson());
                 if (metadata.containsKey("corrected_status")) {
                     correctionStateTouched = true;
@@ -5118,6 +5427,12 @@ public class HrAttendanceService {
                     notes = event.notes();
                 }
             }
+        }
+
+        if (latestCorrectionEventId > 0L && latestOperationalEventId > latestCorrectionEventId) {
+            correctionStateTouched = true;
+            correctedStatus = null;
+            notes = null;
         }
 
         if (!correctionStateTouched && correctedStatus == null && existing != null) {
@@ -5404,13 +5719,13 @@ public class HrAttendanceService {
 
     private PublicKioskContext requirePublicKioskIdentificationContext(String deviceToken, Map<String, Object> payload) {
         var kioskDevice = loadKioskDeviceByPublicAccessToken(deviceToken);
-        requirePublicKioskLocation(kioskDevice);
         var identificationToken = stringValue(payload, "identification_token");
         var tokenClaims = verifyPublicKioskIdentificationToken(deviceToken, identificationToken);
         var employee = loadAttendanceEmployee(kioskDevice.companyId(), tokenClaims.employeeId());
         if ("terminated".equals(employee.status())) {
             throw new IllegalArgumentException("This employee is terminated and cannot record attendance.");
         }
+        validatePublicKioskScope(kioskDevice, employee);
         return new PublicKioskContext(kioskDevice, employee, tokenClaims);
     }
 
@@ -5615,6 +5930,79 @@ public class HrAttendanceService {
         }
     }
 
+    private AccessMethodRow ensurePinAccessMethod(long companyId, long accessProfileId) {
+        var existingPin = loadAccessMethods(companyId, accessProfileId).stream()
+            .filter((method) -> "pin".equals(method.methodType()))
+            .findFirst()
+            .orElse(null);
+        if (existingPin != null) {
+            return existingPin;
+        }
+
+        var pin = generateUniquePin(companyId, null);
+        var credentialRef = pinCredentialReference(companyId, pin);
+        var secretHash = passwordEncoder.encode(pin);
+        var metadataJson = mergePinMetadataJson(null, null, pin);
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO hr_employee_access_methods
+                    (company_id, access_profile_id, method_type, credential_ref, secret_hash, status, priority, metadata_json)
+                    VALUES (?, ?, 'pin', ?, ?, 'active', 10, CAST(? AS JSON))
+                    """,
+                new String[] {"id"}
+            );
+            statement.setLong(1, companyId);
+            statement.setLong(2, accessProfileId);
+            statement.setString(3, credentialRef);
+            statement.setString(4, secretHash);
+            statement.setString(5, metadataJson);
+            return statement;
+        }, keyHolder);
+
+        var methodId = keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
+        return methodId == null ? loadAccessMethods(companyId, accessProfileId).getFirst() : loadAccessMethod(companyId, methodId);
+    }
+
+    private String generateUniquePin(long companyId, Long excludedMethodId) {
+        for (var attempt = 0; attempt < GENERATED_PIN_MAX_ATTEMPTS; attempt++) {
+            var pin = String.format("%05d", SECURE_RANDOM.nextInt(GENERATED_PIN_BOUND));
+            if (!pinCredentialReferenceExists(companyId, pin, excludedMethodId)) {
+                return pin;
+            }
+        }
+        throw new IllegalStateException("Unable to generate a unique employee PIN.");
+    }
+
+    private boolean pinCredentialReferenceExists(long companyId, String pin, Long excludedMethodId) {
+        var credentialRef = pinCredentialReference(companyId, pin);
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_employee_access_methods
+                WHERE company_id = ?
+                  AND method_type = 'pin'
+                  AND credential_ref = ?
+                  AND (? IS NULL OR id <> ?)
+                """,
+            Integer.class,
+            companyId,
+            credentialRef,
+            excludedMethodId,
+            excludedMethodId
+        );
+        return count != null && count > 0;
+    }
+
+    private String normalizePinCode(String rawPin) {
+        var pin = nullable(rawPin);
+        if (pin == null || !pin.matches("\\d{5}")) {
+            throw new IllegalArgumentException("PIN must be 5 numbers.");
+        }
+        return pin;
+    }
+
     private String pinCredentialReference(long companyId, String rawPin) {
         var normalizedPin = nullable(rawPin);
         if (normalizedPin == null) {
@@ -5661,6 +6049,17 @@ public class HrAttendanceService {
         return toJson(merged);
     }
 
+    private String mergePinMetadataJson(String existingJson, String requestedJson, String pin) {
+        var merged = new LinkedHashMap<String, Object>();
+        merged.putAll(parseJsonMap(existingJson));
+        merged.putAll(parseJsonMap(requestedJson));
+        if (pin != null) {
+            merged.put(PIN_METADATA_CODE_KEY, pin);
+            merged.put("pin_updated_at", Instant.now().toString());
+        }
+        return toJson(merged);
+    }
+
     private String mergeKioskInternalMetadata(String candidateJson, String existingJson) {
         var candidate = new LinkedHashMap<String, Object>();
         candidate.putAll(parseJsonMap(candidateJson));
@@ -5669,6 +6068,128 @@ public class HrAttendanceService {
             candidate.put(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY, existing.get(PUBLIC_KIOSK_PIN_THROTTLE_METADATA_KEY));
         }
         return toJson(candidate);
+    }
+
+    private String normalizeKioskType(Object value) {
+        if (value == null) {
+            return null;
+        }
+        var normalized = String.valueOf(value).trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        if (normalized.isBlank() || "null".equals(normalized)) {
+            return null;
+        }
+        return switch (normalized) {
+            case "business", "unit", "business_unit", "business_unit_kiosk" -> KIOSK_TYPE_BUSINESS_UNIT;
+            case "contract", "contract_site", "contract_site_kiosk", "site" -> KIOSK_TYPE_CONTRACT_SITE;
+            case "hq", "headquarters", "head_office", "head_office_kiosk", "holding", "holding_identity" -> KIOSK_TYPE_HEAD_OFFICE;
+            default -> throw new IllegalArgumentException("Unsupported kiosk type.");
+        };
+    }
+
+    private String kioskTypeFromDevice(KioskDeviceRow kioskDevice) {
+        var metadata = parseJsonMap(kioskDevice.metadataJson());
+        var kioskType = normalizeKioskType(metadata.get(KIOSK_TYPE_METADATA_KEY));
+        return kioskType == null ? KIOSK_TYPE_BUSINESS_UNIT : kioskType;
+    }
+
+    private String inferKioskType(LocationRow location) {
+        var managedSource = safe(location == null ? null : location.managedSource()).toLowerCase(Locale.ROOT);
+        if ("contract_site".equals(managedSource)) {
+            return KIOSK_TYPE_CONTRACT_SITE;
+        }
+        if ("business_structure".equals(managedSource) && location != null && location.businessId() == null) {
+            return KIOSK_TYPE_HEAD_OFFICE;
+        }
+        return KIOSK_TYPE_BUSINESS_UNIT;
+    }
+
+    private void validateKioskLocationPurpose(String kioskType, LocationRow location) {
+        if (location == null) {
+            throw new IllegalArgumentException("Kiosk check-in location is required.");
+        }
+        if ("inactive".equalsIgnoreCase(location.status())) {
+            throw new IllegalArgumentException("Kiosk check-in location must be active.");
+        }
+
+        var managedSource = safe(location.managedSource()).toLowerCase(Locale.ROOT);
+        if (KIOSK_TYPE_CONTRACT_SITE.equals(kioskType)) {
+            if (!"contract_site".equals(managedSource)) {
+                throw new IllegalArgumentException("Contract site kiosks must use a contract site location.");
+            }
+            return;
+        }
+        if (KIOSK_TYPE_HEAD_OFFICE.equals(kioskType)) {
+            if (!"business_structure".equals(managedSource) || location.businessId() != null) {
+                throw new IllegalArgumentException("Head office kiosks must use the company head office location.");
+            }
+            return;
+        }
+        if (!"business_structure".equals(managedSource) || location.businessId() == null) {
+            throw new IllegalArgumentException("Business / Unit kiosks must use a business attendance location.");
+        }
+    }
+
+    private void ensureBusinessUnitKioskScopeHasLocations(long companyId, Long unitId, Long businessId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_attendance_locations l
+                WHERE l.company_id = ?
+                  AND l.managed_source = 'business_structure'
+                  AND l.business_id IS NOT NULL
+                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
+                  AND (? IS NULL OR l.unit_id = ?)
+                  AND (? IS NULL OR l.business_id = ?)
+                """,
+            Integer.class,
+            companyId,
+            unitId,
+            unitId,
+            businessId,
+            businessId
+        );
+        if (count == null || count == 0) {
+            throw new IllegalArgumentException("No active Business Structure attendance locations are available for this kiosk scope.");
+        }
+    }
+
+    private void validatePublicKioskScope(KioskDeviceRow kioskDevice, AttendanceEmployee employee) {
+        var kioskType = kioskTypeFromDevice(kioskDevice);
+        if (!KIOSK_TYPE_BUSINESS_UNIT.equals(kioskType)) {
+            return;
+        }
+
+        if (kioskDevice.unitId() != null && !Objects.equals(kioskDevice.unitId(), employee.unitId())) {
+            throw new IllegalArgumentException("This kiosk is restricted to another unit.");
+        }
+        if (kioskDevice.businessId() != null && !Objects.equals(kioskDevice.businessId(), employee.businessId())) {
+            throw new IllegalArgumentException("This kiosk is restricted to another business.");
+        }
+    }
+
+    private Long publicKioskRequestedLocationId(KioskDeviceRow kioskDevice) {
+        var kioskType = kioskTypeFromDevice(kioskDevice);
+        if (KIOSK_TYPE_BUSINESS_UNIT.equals(kioskType)) {
+            return null;
+        }
+        return requirePublicKioskLocation(kioskDevice).id();
+    }
+
+    private String describeKioskScope(KioskDeviceRow kioskDevice, LocationRow location) {
+        var kioskType = kioskTypeFromDevice(kioskDevice);
+        if (!KIOSK_TYPE_BUSINESS_UNIT.equals(kioskType)) {
+            return location == null ? "Kiosk location" : location.name();
+        }
+        if (kioskDevice.businessId() != null) {
+            return safe(kioskDevice.businessName()).isBlank()
+                ? "Business " + kioskDevice.businessId()
+                : kioskDevice.businessName();
+        }
+        if (kioskDevice.unitId() != null) {
+            var unitName = safe(kioskDevice.unitName()).isBlank() ? "Unit " + kioskDevice.unitId() : kioskDevice.unitName();
+            return unitName + " / All businesses";
+        }
+        return "All units / all businesses";
     }
 
     private String metadataTextValue(Object value) {
@@ -5853,6 +6374,36 @@ public class HrAttendanceService {
         if (location == null || "inactive".equalsIgnoreCase(location.status())) {
             throw new IllegalArgumentException("Only active locations can be assigned.");
         }
+    }
+
+    private void validateNewAssignmentDateRange(LocalDate startDate, LocalDate endDate) {
+        if (endDate == null) {
+            throw new IllegalArgumentException("effective_end_date is required.");
+        }
+        if (startDate.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("effective_start_date cannot be in the past.");
+        }
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
+        }
+    }
+
+    private void validateAssignmentWithinContractSiteWindow(LocationRow location, LocalDate startDate, LocalDate endDate) {
+        if (location == null || startDate == null || endDate == null) {
+            return;
+        }
+        if (location.contractStartDate() != null && startDate.isBefore(location.contractStartDate())) {
+            throw new IllegalArgumentException(contractSiteWindowMessage(location));
+        }
+        if (location.contractEndDate() != null && endDate.isAfter(location.contractEndDate())) {
+            throw new IllegalArgumentException(contractSiteWindowMessage(location));
+        }
+    }
+
+    private String contractSiteWindowMessage(LocationRow location) {
+        var startDate = location.contractStartDate() == null ? "the first configured day" : location.contractStartDate().toString();
+        var endDate = location.contractEndDate() == null ? "the last configured day" : location.contractEndDate().toString();
+        return "Contract site is only open from " + startDate + " to " + endDate + ".";
     }
 
     private void validateEmployeeIsFreeForAssignment(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
@@ -6051,12 +6602,13 @@ public class HrAttendanceService {
 
     private LocationRow resolveUserAttendanceLocation(
         long companyId,
+        Long requestedLocationId,
         BigDecimal latitude,
         BigDecimal longitude
     ) {
         return resolveAllowedAttendanceLocation(
             loadUserAttendanceLocations(companyId),
-            null,
+            requestedLocationId,
             latitude,
             longitude,
             "Attendance locations are not configured for this company.",
@@ -6139,13 +6691,6 @@ public class HrAttendanceService {
             }
         }
 
-        if (scheduleRule.blockAfterGracePeriod() && scheduleRule.startTime() != null) {
-            var scheduledStart = attendanceDate.atTime(scheduleRule.startTime());
-            var graceDeadline = scheduledStart.plusMinutes(scheduleRule.lateAfterMinutes());
-            if (eventTimestamp.isAfter(graceDeadline)) {
-                throw new IllegalArgumentException("Attendance registration is blocked after the grace period expires.");
-            }
-        }
     }
 
     private boolean parseBoolean(Map<String, Object> payload, String key) {

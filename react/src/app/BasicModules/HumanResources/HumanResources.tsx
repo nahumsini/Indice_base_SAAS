@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { useHRLanguage } from './HRLanguage';
 import Employees from './Employees';
@@ -31,6 +33,15 @@ const humanResourcesTabIds = [
 ] as const;
 
 type HumanResourcesTabId = (typeof humanResourcesTabIds)[number];
+type HumanResourcesTabRefreshKeys = Record<HumanResourcesTabId, number>;
+
+const TAB_REFRESH_LOADING_MS = 2000;
+
+const createHumanResourcesTabRefreshKeys = () =>
+  humanResourcesTabIds.reduce((keys, tabId) => {
+    keys[tabId] = 0;
+    return keys;
+  }, {} as HumanResourcesTabRefreshKeys);
 
 const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId>> = {
   colaboradores: 'collaborators',
@@ -50,6 +61,9 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
     humanResourcesTabIds,
     legacyHumanResourcesTabAliases,
   );
+  const [tabRefreshKeys, setTabRefreshKeys] = useState<HumanResourcesTabRefreshKeys>(createHumanResourcesTabRefreshKeys);
+  const [tabRefreshSequence, setTabRefreshSequence] = useState(0);
+  const [isTabRefreshing, setIsTabRefreshing] = useState(false);
 
   const tabs = [
     { id: 'collaborators', label: t.shell.tabs.collaborators, emoji: '👥', component: Employees },
@@ -66,9 +80,44 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
 
   // Get the active component
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Employees;
+  const activeTabRefreshKey = tabRefreshKeys[activeTab] ?? 0;
+
+  useEffect(() => {
+    if (tabRefreshSequence === 0) {
+      return undefined;
+    }
+
+    setIsTabRefreshing(true);
+    const timeoutId = window.setTimeout(() => {
+      setIsTabRefreshing(false);
+    }, TAB_REFRESH_LOADING_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [tabRefreshSequence]);
+
+  const handleTabClick = (tabId: HumanResourcesTabId) => {
+    if (tabId === activeTab) {
+      return;
+    }
+
+    setTabRefreshKeys((currentKeys) => ({
+      ...currentKeys,
+      [tabId]: (currentKeys[tabId] ?? 0) + 1,
+    }));
+    setTabRefreshSequence((currentSequence) => currentSequence + 1);
+    setActiveTab(tabId);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabRefreshing}
+        title="Refreshing HR data"
+        description="Fetching the latest employees, attendance, and control records."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -104,7 +153,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as HumanResourcesTabId)}
+                onClick={() => handleTabClick(tab.id as HumanResourcesTabId)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-blue-600 text-white shadow-md'
@@ -121,7 +170,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <ActiveComponent />
+        <ActiveComponent key={`${activeTab}:${activeTabRefreshKey}`} />
       </div>
     </div>
   );

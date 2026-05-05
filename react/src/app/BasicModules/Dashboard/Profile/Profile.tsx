@@ -299,7 +299,7 @@ export default function Profile() {
   useEffect(() => {
     let active = true;
 
-    configCenterApi.getCurrentUser()
+    runWithMinimumDuration(configCenterApi.getCurrentUser())
       .then((response) => {
         if (!active) {
           return;

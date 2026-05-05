@@ -88,6 +88,14 @@ public class ConfigCenterService {
         );
 
         var empresa = new LinkedHashMap<>(companyRows.getFirst());
+        if (configCenterNode.path("empresa_template").has("logo")) {
+            empresa.put("logo_url", configCenterNode.path("empresa_template").path("logo").asText("").trim());
+        } else {
+            empresa.put("logo_url", firstNonBlank(
+                objectString(empresa.get("logo_url")),
+                readOptionalText(configCenterNode.path("empresa_template"), "logo_url")
+            ));
+        }
         empresa.put("plan_id", null);
         empresa.put("industria", firstNonBlank(
             stringValue(empresaTemplate.get("industria")),
@@ -618,6 +626,9 @@ public class ConfigCenterService {
         var configCenterNode = ensureConfigCenterNode(settingsRoot);
         var empresaTemplateNode = ensureObjectNode(configCenterNode, "empresa_template");
 
+        if (hasAnyKey(payload, "logo_url", "logoUrl", "logo")) {
+            empresaTemplateNode.put("logo", value(payload, "logo_url", "logoUrl", "logo"));
+        }
         empresaTemplateNode.put("industria", value(payload, "industria"));
         empresaTemplateNode.put("modelo_negocio", value(payload, "modelo_negocio"));
         empresaTemplateNode.put("descripcion", value(payload, "descripcion"));
@@ -643,11 +654,16 @@ public class ConfigCenterService {
 
         upsertSettingsRoot(companyId, settingsRoot);
         if (companyCoordinates != null) {
-            syncCompanyStructureAttendanceLocation(companyId, userId, name, companyCoordinates);
+            if (booleanValue(payload, true, "sync_company_location", "syncCompanyLocation")) {
+                syncCompanyStructureAttendanceLocation(companyId, userId, name, companyCoordinates);
+            } else {
+                deactivateCompanyStructureAttendanceLocation(companyId);
+            }
         }
 
         var data = new LinkedHashMap<String, Object>();
         data.put("nombre_empresa", name);
+        data.put("logo_url", value(payload, "logo_url", "logoUrl", "logo"));
         data.put("industria", value(payload, "industria"));
         data.put("descripcion", value(payload, "descripcion"));
         data.put("tamano_empresa", value(payload, "tamano_empresa"));
@@ -1361,6 +1377,7 @@ public class ConfigCenterService {
 
     private Map<String, Object> normalizeEmpresaTemplate(JsonNode templateNode) {
         var template = new LinkedHashMap<String, Object>();
+        putIfPresent(template, "logo", readOptionalText(templateNode, "logo", "logo_url"));
         putIfPresent(template, "industria", readOptionalText(templateNode, "industria"));
         putIfPresent(template, "modelo_negocio", readOptionalText(templateNode, "modelo_negocio"));
         putIfPresent(template, "descripcion", readOptionalText(templateNode, "descripcion"));
@@ -1612,6 +1629,32 @@ public class ConfigCenterService {
             }
         }
         return "";
+    }
+
+    private boolean booleanValue(Map<String, Object> payload, boolean defaultValue, String... keys) {
+        for (var key : keys) {
+            if (!payload.containsKey(key)) {
+                continue;
+            }
+
+            var value = payload.get(key);
+            if (value instanceof Boolean bool) {
+                return bool;
+            }
+            if (value instanceof Number number) {
+                return number.intValue() != 0;
+            }
+
+            var text = objectString(value).toLowerCase(Locale.ROOT);
+            if ("true".equals(text) || "1".equals(text) || "yes".equals(text)) {
+                return true;
+            }
+            if ("false".equals(text) || "0".equals(text) || "no".equals(text)) {
+                return false;
+            }
+            return defaultValue;
+        }
+        return defaultValue;
     }
 
     private boolean hasAnyKey(Map<String, Object> payload, String... keys) {

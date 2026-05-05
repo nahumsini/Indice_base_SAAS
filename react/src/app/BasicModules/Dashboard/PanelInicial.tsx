@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 
@@ -27,6 +29,15 @@ const subTabIds = [
 ] as const;
 
 type PanelInicialTabId = (typeof subTabIds)[number];
+type PanelInicialTabRefreshKeys = Record<PanelInicialTabId, number>;
+
+const TAB_REFRESH_LOADING_MS = 2000;
+
+const createPanelInicialTabRefreshKeys = () =>
+  subTabIds.reduce((keys, tabId) => {
+    keys[tabId] = 0;
+    return keys;
+  }, {} as PanelInicialTabRefreshKeys);
 
 const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
   perfil: 'profile',
@@ -43,6 +54,9 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
     subTabIds,
     legacySubTabAliases,
   );
+  const [tabRefreshKeys, setTabRefreshKeys] = useState<PanelInicialTabRefreshKeys>(createPanelInicialTabRefreshKeys);
+  const [tabRefreshSequence, setTabRefreshSequence] = useState(0);
+  const [isTabRefreshing, setIsTabRefreshing] = useState(false);
 
   const subTabs = [
     { id: 'profile', label: t.panelInicial.tabs.profile, emoji: '👤', component: Profile },
@@ -56,9 +70,44 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
 
   // Get the active component
   const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
+  const activeTabRefreshKey = tabRefreshKeys[activeSubTab] ?? 0;
+
+  useEffect(() => {
+    if (tabRefreshSequence === 0) {
+      return undefined;
+    }
+
+    setIsTabRefreshing(true);
+    const timeoutId = window.setTimeout(() => {
+      setIsTabRefreshing(false);
+    }, TAB_REFRESH_LOADING_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [tabRefreshSequence]);
+
+  const handleTabClick = (tabId: PanelInicialTabId) => {
+    if (tabId === activeSubTab) {
+      return;
+    }
+
+    setTabRefreshKeys((currentKeys) => ({
+      ...currentKeys,
+      [tabId]: (currentKeys[tabId] ?? 0) + 1,
+    }));
+    setTabRefreshSequence((currentSequence) => currentSequence + 1);
+    setActiveSubTab(tabId);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabRefreshing}
+        title="Refreshing Home Panel"
+        description="Fetching the latest profile, business, billing, and user data."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-4 sm:px-8 sm:py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -102,7 +151,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
                       ? 'bg-purple-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
-                  onClick={() => setActiveSubTab(tab.id as PanelInicialTabId)}
+                  onClick={() => handleTabClick(tab.id as PanelInicialTabId)}
                 >
                   <span>{tab.emoji}</span>
                   <span>{tab.label}</span>
@@ -115,7 +164,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
 
       {/* Contenido Principal */}
       <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
-        <ActiveComponent />
+        <ActiveComponent key={`${activeSubTab}:${activeTabRefreshKey}`} />
       </div>
     </div>
   );

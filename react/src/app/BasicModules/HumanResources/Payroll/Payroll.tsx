@@ -4710,7 +4710,11 @@ function PayrollEditRunDialog({
                         <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
                           <button
                             type="button"
-                            onClick={() => setPayrollViewMode('simplified')}
+                            onClick={() => {
+                              if (payrollViewMode !== 'simplified') {
+                                setPayrollViewMode('simplified');
+                              }
+                            }}
                             className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'simplified'
                               ? 'bg-[#143675] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
@@ -4720,7 +4724,11 @@ function PayrollEditRunDialog({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setPayrollViewMode('detailed')}
+                            onClick={() => {
+                              if (payrollViewMode !== 'detailed') {
+                                setPayrollViewMode('detailed');
+                              }
+                            }}
                             className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'detailed'
                               ? 'bg-[#143675] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
@@ -5987,7 +5995,11 @@ function PayrollPreferencesDialog({
                         key={option.key}
                         type="button"
                         disabled={isSaving}
-                        onClick={() => onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] })}
+                        onClick={() => {
+                          if (form.grouping_mode !== option.key) {
+                            onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] });
+                          }
+                        }}
                         className={`group h-full w-full rounded-[28px] border px-5 py-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70 ${isSelected
                           ? 'border-[#143675] bg-[#143675]/6 shadow-sm ring-2 ring-[#143675]/10 dark:border-[#143675]/55 dark:bg-[#143675]/14'
                           : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900/70 dark:hover:border-slate-600'
@@ -6356,7 +6368,11 @@ function PayrollRatesDialog({
                     <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100/90 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       <button
                         type="button"
-                        onClick={() => setEditorMode('preset')}
+                        onClick={() => {
+                          if (editorMode !== 'preset') {
+                            setEditorMode('preset');
+                          }
+                        }}
                         className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${!isAdvancedMode
                           ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
@@ -6366,7 +6382,11 @@ function PayrollRatesDialog({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEditorMode('advanced')}
+                        onClick={() => {
+                          if (editorMode !== 'advanced') {
+                            setEditorMode('advanced');
+                          }
+                        }}
                         className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${isAdvancedMode
                           ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'

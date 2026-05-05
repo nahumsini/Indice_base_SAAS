@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react';
 import { inputClassName, textareaClassName } from '../constants';
 import type { EstructuraType, LocationCoordinateFormValues } from '../types';
 import { LocationCoordinateFields } from './LocationCoordinateFields';
@@ -38,10 +39,12 @@ interface BusinessIdentitySectionProps {
   estructuraType: EstructuraType;
   structure: StructureCopy;
   companyName: string;
+  logo: string;
   industry: string;
   description: string;
   locationCoordinateValues: LocationCoordinateFormValues;
   onCompanyNameChange: (value: string) => void;
+  onLogoChange: (value: string) => void;
   onIndustryChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onLocationCoordinateChange: (updates: Partial<LocationCoordinateFormValues>) => void;
@@ -52,10 +55,12 @@ export function BusinessIdentitySection({
   estructuraType,
   structure,
   companyName,
+  logo,
   industry,
   description,
   locationCoordinateValues,
   onCompanyNameChange,
+  onLogoChange,
   onIndustryChange,
   onDescriptionChange,
   onLocationCoordinateChange,
@@ -67,6 +72,19 @@ export function BusinessIdentitySection({
   const logoLabel = estructuraType === 'simple'
     ? structure.fields.logo
     : structure.fields.logoHolding;
+
+  const handleLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      onLogoChange(String(reader.result ?? ''));
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div
@@ -131,13 +149,46 @@ export function BusinessIdentitySection({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {logoLabel}
         </label>
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <button className="px-4 py-2 bg-white dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-500 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium transition-all">
-            {structure.fields.uploadImage}
-          </button>
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            {structure.fields.noFileSelected}
-          </span>
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          {logo ? (
+            <img
+              src={logo}
+              alt={structure.fields.logoPreviewAlt}
+              className="h-20 w-20 rounded-lg border-2 border-gray-200 object-cover dark:border-gray-600"
+            />
+          ) : null}
+
+          <div className="flex flex-col items-start gap-2">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              <label
+                className={`px-4 py-2 bg-white dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-500 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium transition-all ${
+                  disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                }`}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  disabled={disabled}
+                  className="sr-only"
+                />
+                {structure.fields.uploadImage}
+              </label>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {logo ? structure.fields.logoPreviewAlt : structure.fields.noFileSelected}
+              </span>
+            </div>
+            {logo ? (
+              <button
+                type="button"
+                onClick={() => onLogoChange('')}
+                disabled={disabled}
+                className="text-xs text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-400"
+              >
+                {structure.fields.removeLogo}
+              </button>
+            ) : null}
+          </div>
         </div>
         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{structure.fields.uploadHint}</p>
       </div>
@@ -155,18 +206,16 @@ export function BusinessIdentitySection({
         />
       </div>
 
-      {estructuraType === 'simple' ? (
-        <div className="mt-5">
-          <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-            Location coordinates
-          </h4>
-          <LocationCoordinateFields
-            values={locationCoordinateValues}
-            onChange={onLocationCoordinateChange}
-            disabled={disabled}
-          />
-        </div>
-      ) : null}
+      <div className="mt-5">
+        <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+          Location coordinates
+        </h4>
+        <LocationCoordinateFields
+          values={locationCoordinateValues}
+          onChange={onLocationCoordinateChange}
+          disabled={disabled}
+        />
+      </div>
     </div>
   );
 }
