@@ -25,7 +25,7 @@ export function useRoutedModuleTab<T extends string>(
   }, [activeTab, navigate, pageId, shouldRedirect]);
 
   const setActiveTab = (nextTab: T) => {
-    if (!pageId) {
+    if (!pageId || nextTab === activeTab) {
       return;
     }
 

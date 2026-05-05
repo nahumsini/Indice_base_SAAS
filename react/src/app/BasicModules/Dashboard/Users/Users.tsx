@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
 import { configCenterApi, type ConfigCenterCatalogModule, type ConfigCenterUser } from '../../../api/configCenter';
 import {
@@ -273,7 +274,7 @@ export default function Users() {
     setIsLoading(true);
     setLoadError('');
 
-    configCenterApi.getUsers()
+    runWithMinimumDuration(configCenterApi.getUsers())
       .then((response) => {
         if (!active) {
           return;

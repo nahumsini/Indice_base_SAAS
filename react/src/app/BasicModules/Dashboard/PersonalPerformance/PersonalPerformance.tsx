@@ -404,7 +404,7 @@ export default function PersonalPerformance() {
   useEffect(() => {
     let active = true;
 
-    personalPerformanceApi.getPersonalPerformance()
+    runWithMinimumDuration(personalPerformanceApi.getPersonalPerformance())
       .then((response) => {
         if (!active) {
           return;
@@ -599,6 +599,10 @@ export default function PersonalPerformance() {
   };
 
   const handleStartSection = (sectionId: SectionId) => {
+    if (activeSection === sectionId) {
+      return;
+    }
+
     setActiveSection(sectionId);
     setCurrentQuestion(getSectionEntryQuestionIndex(sectionState[sectionId], questions[sectionId]));
   };

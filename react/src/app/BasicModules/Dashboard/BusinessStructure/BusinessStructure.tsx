@@ -750,7 +750,7 @@ export default function BusinessStructure() {
   useEffect(() => {
     let active = true;
 
-    Promise.allSettled([configCenterApi.getEmpresa(), configCenterApi.getConfig()])
+    runWithMinimumDuration(Promise.allSettled([configCenterApi.getEmpresa(), configCenterApi.getConfig()]))
       .then((results) => {
         if (!active) {
           return;

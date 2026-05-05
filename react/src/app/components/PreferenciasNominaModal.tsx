@@ -92,7 +92,11 @@ export function PreferenciasNominaModal({
             {opciones.map((opcion) => (
               <button
                 key={opcion.id}
-                onClick={() => setAgrupacionSeleccionada(opcion.id)}
+                onClick={() => {
+                  if (agrupacionSeleccionada !== opcion.id) {
+                    setAgrupacionSeleccionada(opcion.id);
+                  }
+                }}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                   agrupacionSeleccionada === opcion.id
                     ? 'border-[#143675] bg-[#143675]/5 dark:bg-[#143675]/10'

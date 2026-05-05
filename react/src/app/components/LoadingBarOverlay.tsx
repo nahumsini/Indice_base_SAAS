@@ -8,7 +8,7 @@ interface LoadingBarOverlayProps {
   className?: string;
 }
 
-const DEFAULT_MINIMUM_DURATION_MS = 2500;
+const DEFAULT_MINIMUM_DURATION_MS = 2000;
 const wait = (durationMs: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, durationMs);
