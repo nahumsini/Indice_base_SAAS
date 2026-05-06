@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   CheckCircle2,
@@ -14,7 +14,12 @@ import {
 import { Button } from '../../../components/ui/button';
 import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
-import { configCenterApi, type ConfigCenterCatalogModule, type ConfigCenterUser } from '../../../api/configCenter';
+import {
+  configCenterApi,
+  type ConfigCenterCatalogBusiness,
+  type ConfigCenterCatalogModule,
+  type ConfigCenterUser,
+} from '../../../api/configCenter';
 import {
   backendSlugForRoute,
   buildDefaultModuleCatalog,
@@ -34,6 +39,7 @@ interface User {
   avatarUrl?: string | null;
   role: 'Super Admin' | 'Admin' | 'User';
   status: 'active' | 'pending' | 'inactive';
+  businessId: number | null;
   modules: string[];
 }
 
@@ -52,13 +58,35 @@ interface InviteFormState {
   role: User['role'];
 }
 
+interface BusinessOption {
+  id: string;
+  name: string;
+}
+
+interface UserBusinessAssignment {
+  businessUnitId?: string;
+  businessId?: string;
+}
+
+type BusinessInlineField = 'businessUnit' | 'business';
+type EditableBusinessCell = {
+  userId: string;
+  field: BusinessInlineField;
+} | null;
+type SortColumn = 'name' | 'role' | 'businessUnit' | 'business' | 'modules' | 'status' | 'actions';
+type SortDirection = 'asc' | 'desc';
+type SortState = {
+  column: SortColumn;
+  direction: SortDirection;
+} | null;
+
 const inputClassName =
   'w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent';
 
-const categoryMeta: Array<{ category: AvailableModule['category']; emoji: string; title: string }> = [
-  { category: 'basic', emoji: '📱', title: 'Basic Modules' },
-  { category: 'complementary', emoji: '🔧', title: 'Complementary Modules' },
-  { category: 'ai', emoji: '🤖', title: 'Artificial Intelligence' },
+const categoryMeta: Array<{ category: AvailableModule['category']; emoji: string }> = [
+  { category: 'basic', emoji: '📱' },
+  { category: 'complementary', emoji: '🔧' },
+  { category: 'ai', emoji: '🤖' },
 ];
 
 const emptyInviteForm: InviteFormState = {
@@ -69,10 +97,15 @@ const emptyInviteForm: InviteFormState = {
 
 export default function Users() {
   const { currentLanguage, t } = useLanguage();
+  const businessCellRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>(() =>
     buildAvailableModules(t),
   );
+  const [availableBusinesses, setAvailableBusinesses] = useState<BusinessOption[]>([]);
+  const [businessAssignments, setBusinessAssignments] = useState<Record<string, UserBusinessAssignment>>({});
+  const [editingBusinessCell, setEditingBusinessCell] = useState<EditableBusinessCell>(null);
+  const [sortState, setSortState] = useState<SortState>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -87,6 +120,8 @@ export default function Users() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
+  const usersBusinessCopy = t.panelInicial.users.businessStructure;
+  const businessUnitOptions = usersBusinessCopy.unitOptions;
 
   const statusLabelMap: Record<User['status'], string> = {
     active: t.panelInicial.users.status.active,
@@ -198,11 +233,32 @@ export default function Users() {
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
+  const categoryTitleMap: Record<AvailableModule['category'], string> = {
+    basic: t.sections.basicModules,
+    complementary: t.sections.complementaryModules,
+    ai: t.sections.aiModules,
+  };
 
   const totalUsers = users.length;
   const activeUsers = users.filter((user) => user.status === 'active').length;
   const pendingUsers = users.filter((user) => user.status === 'pending').length;
   const inactiveUsers = users.filter((user) => user.status === 'inactive').length;
+
+  const syncBusinessAssignments = (mappedUsers: User[]) => {
+    setBusinessAssignments((currentAssignments) => {
+      const nextAssignments: Record<string, UserBusinessAssignment> = {};
+
+      for (const user of mappedUsers) {
+        const currentAssignment = currentAssignments[user.id] ?? {};
+        nextAssignments[user.id] = {
+          ...currentAssignment,
+          businessId: currentAssignment.businessId ?? (user.businessId ? String(user.businessId) : undefined),
+        };
+      }
+
+      return nextAssignments;
+    });
+  };
 
   const getRoleColorClasses = (role: User['role']) => {
     const styles: Record<User['role'], string> = {
@@ -217,18 +273,21 @@ export default function Users() {
   const getStatusConfig = (status: User['status']) => {
     const styles = {
       active: {
-        bg: 'bg-green-100 dark:bg-green-900/30',
-        text: 'text-green-800 dark:text-green-400',
+        bg: 'bg-green-50 dark:bg-green-900/20',
+        text: 'text-green-700 dark:text-green-300',
+        border: 'border-green-200 dark:border-green-800/60',
         dot: 'bg-green-500',
       },
       pending: {
-        bg: 'bg-yellow-100 dark:bg-yellow-900/30',
-        text: 'text-yellow-800 dark:text-yellow-400',
+        bg: 'bg-yellow-50 dark:bg-yellow-900/20',
+        text: 'text-yellow-700 dark:text-yellow-300',
+        border: 'border-yellow-200 dark:border-yellow-800/60',
         dot: 'bg-yellow-500',
       },
       inactive: {
-        bg: 'bg-gray-100 dark:bg-gray-700',
-        text: 'text-gray-800 dark:text-gray-400',
+        bg: 'bg-gray-50 dark:bg-gray-700/40',
+        text: 'text-gray-700 dark:text-gray-300',
+        border: 'border-gray-200 dark:border-gray-600',
         dot: 'bg-gray-500',
       },
     };
@@ -254,17 +313,33 @@ export default function Users() {
   const refreshUsers = async (fallbackModules: AvailableModule[] = buildAvailableModules(t)) => {
     const response = await configCenterApi.getUsers();
     const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+    const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
     const mappedModules = response.catalog.modules
       .map((module) => mapCatalogModule(module, t))
       .filter((module): module is AvailableModule => module !== null);
 
     setUsers(mappedUsers);
+    syncBusinessAssignments(mappedUsers);
+    setAvailableBusinesses(mappedBusinesses);
     if (mappedModules.length > 0) {
       setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
     } else {
       setAvailableModules(fallbackModules);
     }
   };
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!businessCellRef.current?.contains(event.target as Node)) {
+        setEditingBusinessCell(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -281,11 +356,14 @@ export default function Users() {
         }
 
         const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+        const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
         const mappedModules = response.catalog.modules
           .map((module) => mapCatalogModule(module, t))
           .filter((module): module is AvailableModule => module !== null);
 
         setUsers(mappedUsers);
+        syncBusinessAssignments(mappedUsers);
+        setAvailableBusinesses(mappedBusinesses);
         if (mappedModules.length > 0) {
           setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
         }
@@ -495,30 +573,6 @@ export default function Users() {
     }));
   };
 
-  const formatModulesCount = (count: number) => {
-    if (currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA') {
-      return `${count} module${count === 1 ? '' : 's'}`;
-    }
-
-    if (currentLanguage.code === 'fr-CA') {
-      return `${count} module${count === 1 ? '' : 's'}`;
-    }
-
-    if (currentLanguage.code === 'pt-BR') {
-      return `${count} modulo${count === 1 ? '' : 's'}`;
-    }
-
-    if (currentLanguage.code === 'ko-CA') {
-      return `모듈 ${count}개`;
-    }
-
-    if (currentLanguage.code === 'zh-CA') {
-      return `${count} 个模块`;
-    }
-
-    return `${count} módulo${count === 1 ? '' : 's'}`;
-  };
-
   const formatSelectedModulesCount = (count: number) => {
     if (currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA') {
       return `${count} module${count === 1 ? '' : 's'} selected`;
@@ -541,6 +595,124 @@ export default function Users() {
     }
 
     return `${count} módulos seleccionados`;
+  };
+
+  const formatModulesCount = (count: number) => (
+    `${count} ${count === 1 ? usersBusinessCopy.module : usersBusinessCopy.modules}`
+  );
+
+  const handleSortHeaderClick = (column: SortColumn) => {
+    setSortState((currentSort) => {
+      if (currentSort?.column === column) {
+        return {
+          column,
+          direction: currentSort.direction === 'asc' ? 'desc' : 'asc',
+        };
+      }
+
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const renderSortIndicator = (column: SortColumn) => {
+    const isActiveColumn = sortState?.column === column;
+
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] leading-none">
+        <span className={isActiveColumn && sortState.direction === 'asc' ? 'text-purple-600 dark:text-purple-300' : 'text-gray-300 dark:text-gray-500'}>
+          ↑
+        </span>
+        <span className={isActiveColumn && sortState.direction === 'desc' ? 'text-purple-600 dark:text-purple-300' : 'text-gray-300 dark:text-gray-500'}>
+          ↓
+        </span>
+      </span>
+    );
+  };
+
+  const renderSortableHeader = (label: string, column: SortColumn) => (
+    <button
+      type="button"
+      onClick={() => handleSortHeaderClick(column)}
+      className="inline-flex items-center gap-1.5 transition-colors hover:text-purple-600 dark:hover:text-purple-300"
+    >
+      <span>{label}</span>
+      {renderSortIndicator(column)}
+    </button>
+  );
+
+  const updateBusinessAssignment = (
+    userId: string,
+    field: BusinessInlineField,
+    value: string,
+  ) => {
+    setBusinessAssignments((currentAssignments) => ({
+      ...currentAssignments,
+      [userId]: {
+        ...currentAssignments[userId],
+        [field === 'businessUnit' ? 'businessUnitId' : 'businessId']: value || undefined,
+      },
+    }));
+    setEditingBusinessCell(null);
+  };
+
+  const getBusinessUnitLabel = (assignment: UserBusinessAssignment | undefined) => (
+    businessUnitOptions.find((option) => option.value === assignment?.businessUnitId)?.label
+      ?? usersBusinessCopy.empty
+  );
+
+  const getBusinessLabel = (assignment: UserBusinessAssignment | undefined) => (
+    availableBusinesses.find((business) => business.id === assignment?.businessId)?.name
+      ?? usersBusinessCopy.empty
+  );
+
+  const renderBusinessInlineCell = (user: User, field: BusinessInlineField) => {
+    const assignment = businessAssignments[user.id];
+    const isEditing = editingBusinessCell?.userId === user.id && editingBusinessCell.field === field;
+    const selectedValue = field === 'businessUnit' ? assignment?.businessUnitId : assignment?.businessId;
+    const label = field === 'businessUnit' ? getBusinessUnitLabel(assignment) : getBusinessLabel(assignment);
+    const options = field === 'businessUnit' ? businessUnitOptions : availableBusinesses;
+    const placeholder = field === 'businessUnit'
+      ? usersBusinessCopy.selectBusinessUnit
+      : usersBusinessCopy.selectBusiness;
+
+    if (isEditing) {
+      return (
+        <div ref={businessCellRef} className="relative w-[220px] max-w-full transition-all duration-150 ease-in-out">
+          <select
+            autoFocus
+            value={selectedValue ?? ''}
+            onChange={(event) => updateBusinessAssignment(user.id, field, event.target.value)}
+            className="h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600"
+          >
+            <option value="">{placeholder}</option>
+            {options.length > 0 ? (
+              options.map((option) => (
+                <option
+                  key={field === 'businessUnit' ? option.value : option.id}
+                  value={field === 'businessUnit' ? option.value : option.id}
+                >
+                  {field === 'businessUnit' ? option.label : option.name}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>{usersBusinessCopy.noBusinessOptions}</option>
+            )}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+        </div>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => setEditingBusinessCell({ userId: user.id, field })}
+        className="group inline-flex h-12 w-[220px] max-w-full items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-white px-5 text-left text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 dark:hover:bg-slate-800"
+      >
+        <span className="min-w-0 truncate">{label}</span>
+        <ChevronDown className="h-5 w-5 flex-shrink-0 text-slate-400 transition-colors group-hover:text-slate-500" />
+      </button>
+    );
   };
 
   return (
@@ -669,23 +841,29 @@ export default function Users() {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[720px] w-full">
+          <table className="min-w-[1120px] w-full">
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t.panelInicial.users.table.name}
+                  {renderSortableHeader(t.panelInicial.users.table.name, 'name')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t.panelInicial.users.table.role}
+                  {renderSortableHeader(t.panelInicial.users.table.role, 'role')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t.panelInicial.users.table.status}
+                  {renderSortableHeader(usersBusinessCopy.businessUnit, 'businessUnit')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t.panelInicial.users.table.modules}
+                  {renderSortableHeader(usersBusinessCopy.business, 'business')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {t.panelInicial.users.table.actions}
+                  {renderSortableHeader(t.panelInicial.users.table.modules, 'modules')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {renderSortableHeader(t.panelInicial.users.table.status, 'status')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {renderSortableHeader(t.panelInicial.users.table.actions, 'actions')}
                 </th>
               </tr>
             </thead>
@@ -706,7 +884,7 @@ export default function Users() {
                       key={user.id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {user.avatarUrl ? (
                             <img
@@ -733,64 +911,76 @@ export default function Users() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="relative w-fit">
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                        <div className="relative w-[180px] max-w-full">
                           <select
                             value={user.role}
                             onChange={(event) => changeUserRole(user, event.target.value as User['role'])}
                             disabled={user.source !== 'user'}
-                            className={`appearance-none cursor-pointer px-3 py-1 pr-8 rounded-full text-xs font-medium border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 transition-all ${getRoleColorClasses(
-                              user.role,
-                            )} ${user.source !== 'user' ? 'cursor-not-allowed opacity-60' : ''}`}
+                            className={`h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 ${
+                              user.source !== 'user' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                            }`}
                           >
                             <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
                             <option value="Admin">{t.panelInicial.users.roles.admin}</option>
                             <option value="User">{t.panelInicial.users.roles.user}</option>
                           </select>
-                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none opacity-60" />
+                          <ChevronDown className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text}`}
-                        >
-                          <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`}></span>
-                          {statusLabelMap[user.status]}
-                        </span>
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                        {renderBusinessInlineCell(user, 'businessUnit')}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                        {renderBusinessInlineCell(user, 'business')}
+                      </td>
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleOpenModuleSettings(user)}
                           disabled={user.source !== 'user'}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm font-medium text-purple-700 transition-colors hover:border-purple-300 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-purple-800/70 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
                         >
-                          <Settings className="w-4 h-4" />
+                          <Settings className="h-4 w-4" />
                           <span>{formatModulesCount(user.modules.length)}</span>
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`}></span>
+                          {statusLabelMap[user.status]}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                        <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
                           <button
                             type="button"
                             onClick={() => toggleUserStatus(user)}
                             disabled={user.source !== 'user'}
-                            className={`relative w-12 h-6 rounded-full transition-all duration-300 ease-in-out ${
+                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-150 ease-in-out disabled:cursor-not-allowed disabled:opacity-50 ${
                               user.status === 'active'
-                                ? 'bg-green-500 hover:bg-green-600'
-                                : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
-                            } ${user.source !== 'user' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
+                                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                            }`}
                             title={
                               user.status === 'active'
                                 ? t.panelInicial.users.status.inactive
                                 : t.panelInicial.users.status.active
                             }
                           >
-                            <span
-                              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 ease-in-out shadow-md ${
-                                user.status === 'active' ? 'translate-x-6' : 'translate-x-0'
-                              }`}
-                            />
+                            <CheckCircle2 className="h-5 w-5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenModuleSettings(user)}
+                            disabled={user.source !== 'user'}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-violet-200 bg-violet-50 text-violet-600 transition-all duration-150 ease-in-out hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300"
+                            title={t.panelInicial.users.modal.modules}
+                          >
+                            <Settings className="h-5 w-5" />
                           </button>
 
                           <button
@@ -803,10 +993,10 @@ export default function Users() {
                               setNewEmail('');
                             }}
                             disabled={user.source !== 'invitation'}
-                            className="p-2 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-blue-200 bg-blue-50 text-blue-600 transition-all duration-150 ease-in-out hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
                             title={t.panelInicial.users.actions.resend}
                           >
-                            <Mail className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <Mail className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
@@ -816,7 +1006,7 @@ export default function Users() {
               ) : (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     {summaryLabels.noResults}
@@ -829,91 +1019,97 @@ export default function Users() {
       </div>
 
       {selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-purple-700 to-fuchsia-600 px-6 py-6 text-white sm:px-8">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-2xl font-semibold">
                   {t.panelInicial.users.modal.modules}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{selectedUser.name}</p>
+                <p className="mt-2 text-sm font-medium text-purple-100">{selectedUser.name}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedUserForModules(null)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="rounded-xl p-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="h-6 w-6" />
               </button>
             </div>
 
-            <div className="max-h-[calc(90vh-160px)] overflow-y-auto p-4 sm:p-6">
-              {categoryMeta.map((section) => (
-                <div key={section.category} className="mb-6 last:mb-0">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                    <span>{section.emoji}</span>
-                    {section.title}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {availableModules
-                      .filter((module) => module.category === section.category)
-                      .map((module) => {
-                        const isSelected = selectedModulesDraft.includes(module.id);
-                        const colorClasses = getModuleColorClasses(module.color);
+            <div className="flex-1 overflow-y-auto bg-slate-50 p-5 dark:bg-slate-950 sm:p-8">
+              <div className="space-y-8">
+                {categoryMeta.map((section) => (
+                  <div key={section.category}>
+                    <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
+                        {section.emoji}
+                      </span>
+                      {categoryTitleMap[section.category]}
+                    </h4>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {availableModules
+                        .filter((module) => module.category === section.category)
+                        .map((module) => {
+                          const isSelected = selectedModulesDraft.includes(module.id);
+                          const colorClasses = getModuleColorClasses(module.color);
 
-                        return (
-                          <button
-                            key={module.id}
-                            type="button"
-                            onClick={() => toggleUserModule(module.id)}
-                            className={`p-4 rounded-lg border-2 transition-all text-left ${
-                              isSelected
-                                ? `${colorClasses} border-opacity-100`
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
-                                  isSelected ? colorClasses : 'bg-gray-100 dark:bg-gray-700'
-                                }`}
-                              >
-                                {module.emoji}
-                              </div>
-                              <div className="flex-1">
+                          return (
+                            <button
+                              key={module.id}
+                              type="button"
+                              onClick={() => toggleUserModule(module.id)}
+                              className={`rounded-2xl border-2 bg-white p-4 text-left shadow-sm transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900 ${
+                                isSelected
+                                  ? `${colorClasses} ring-2 ring-purple-500/10`
+                                  : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-4">
                                 <div
-                                  className={`font-medium ${
-                                    isSelected
-                                      ? 'text-gray-900 dark:text-white'
-                                      : 'text-gray-600 dark:text-gray-400'
+                                  className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl ${
+                                    isSelected ? colorClasses : 'bg-slate-100 dark:bg-slate-800'
                                   }`}
                                 >
-                                  {module.name}
+                                  {module.emoji}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div
+                                    className={`truncate text-base font-semibold ${
+                                      isSelected
+                                        ? 'text-slate-900 dark:text-white'
+                                        : 'text-slate-600 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    {module.name}
+                                  </div>
+                                </div>
+                                <div className="flex-shrink-0">
+                                  {isSelected ? (
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-2 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-800">
+                                      <CheckCircle2 className="h-5 w-5" />
+                                    </span>
+                                  ) : (
+                                    <div className="h-7 w-7 rounded-full border-2 border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900" />
+                                  )}
                                 </div>
                               </div>
-                              <div>
-                                {isSelected ? (
-                                  <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                ) : (
-                                  <div className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600" />
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
+                            </button>
+                          );
+                        })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+              <div className="text-sm font-medium text-slate-600 dark:text-slate-300">
                 {formatSelectedModulesCount(selectedModulesDraft.length)}
               </div>
               <Button
                 onClick={handleSaveSelectedModules}
-                className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                className="w-full rounded-xl bg-purple-600 px-6 text-white shadow-sm hover:bg-purple-700 sm:w-auto"
               >
                 {t.panelInicial.users.modal.save}
               </Button>
@@ -1232,6 +1428,13 @@ function mapCatalogModule(module: ConfigCenterCatalogModule, t: any): AvailableM
   };
 }
 
+function mapCatalogBusiness(business: ConfigCenterCatalogBusiness): BusinessOption {
+  return {
+    id: String(business.id),
+    name: business.name,
+  };
+}
+
 function mergeAvailableModules(apiModules: AvailableModule[], fallbackModules: AvailableModule[]) {
   const merged = new Map<string, AvailableModule>();
 
@@ -1266,6 +1469,7 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     avatarUrl: user.avatar_url ?? null,
     role,
     status,
+    businessId: user.business_id ?? null,
     modules: user.module_slugs
       .flatMap((slug) => {
         const route = routeForBackendSlug(slug);
