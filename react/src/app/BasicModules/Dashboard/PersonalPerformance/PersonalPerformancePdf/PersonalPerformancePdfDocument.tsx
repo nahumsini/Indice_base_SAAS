@@ -1,4 +1,13 @@
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+} from 'recharts';
+
 import type { PersonalPerformanceSectionKey } from '../../../../api/HomePanel/PersonalPerformance/personalPerformance';
+import type { PersonalPerformancePdfCopy } from '../../../../context/LanguageContext';
 import type {
   PerformanceQuestionScore,
   PerformanceSectionScore,
@@ -13,14 +22,11 @@ export type PersonalPerformancePdfDocumentProps = {
   subtitle: string;
   generatedAt: Date;
   reportId: string;
+  copy: PersonalPerformancePdfCopy;
+  fileName: string;
+  locale: string;
   userLabel?: string | null;
-};
-
-const SECTION_FOCUS: Record<PersonalPerformanceSectionKey, string> = {
-  sleep_recovery: 'Sleep routine and recovery',
-  nutrition_energy: 'Nutrition, hydration, and movement',
-  stress_clarity: 'Overload reduction and clarity',
-  balance_sustainability: 'Boundaries and sustainability',
+  logoUrl?: string | null;
 };
 
 const SECTION_COLOR_CLASS: Record<PersonalPerformanceSectionKey, string> = {
@@ -30,33 +36,23 @@ const SECTION_COLOR_CLASS: Record<PersonalPerformanceSectionKey, string> = {
   balance_sustainability: 'processes',
 };
 
-const SECTION_PRIORITY_ACTIONS: Record<PersonalPerformanceSectionKey, string[]> = {
-  sleep_recovery: [
-    'Improve your shutdown routine and reduce late-night work.',
-    'Protect recovery by planning lower intensity blocks after demanding days.',
-  ],
-  nutrition_energy: [
-    'Stabilize meals and hydration to reduce energy volatility during work.',
-    'Add short movement breaks to improve energy and execution consistency.',
-  ],
-  stress_clarity: [
-    'Reduce overload by batching work and delegating recurring operational tasks.',
-    'Create an end-of-day shutdown routine to stop carrying work mentally.',
-  ],
-  balance_sustainability: [
-    'Create protected time blocks for personal life and real recovery.',
-    'Reduce dependency on constant presence by building repeatable systems and ownership.',
-  ],
+const RADAR_COLORS = {
+  people: { stroke: '#2563eb', fill: '#dbeafe' },
+  processes: { stroke: '#d97706', fill: '#fef3c7' },
+  products: { stroke: '#ea580c', fill: '#ffedd5' },
+  finance: { stroke: '#059669', fill: '#dcfce7' },
 };
 
-const formatReportDate = (value: Date) => new Intl.DateTimeFormat(undefined, {
+const RADAR_KEYS = ['people', 'processes', 'products', 'finance'] as const;
+
+const formatReportDate = (value: Date, locale: string) => new Intl.DateTimeFormat(locale, {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
 }).format(value);
 
-const getUserLabel = (userLabel?: string | null) => (
-  userLabel && userLabel.trim().length > 0 ? userLabel.trim() : 'Current user'
+const getEntityLabel = (value: string | null | undefined, fallback: string) => (
+  value && value.trim().length > 0 ? value.trim() : fallback
 );
 
 const sortSectionsByScore = (report: PersonalPerformanceScoreReport) => (
@@ -80,67 +76,87 @@ const getLowestQuestion = (section: PerformanceSectionScore): PerformanceQuestio
   ));
 };
 
-const getExecutiveSummary = (report: PersonalPerformanceScoreReport) => {
-  const sortedSections = sortSectionsByScore(report);
-  const strongestSection = sortedSections[0];
-  const weakestSection = sortedSections[sortedSections.length - 1];
-  const levelName = report.overall.level.name;
-
-  return `This person currently sits at ${levelName} with a Personal Performance Index of ${report.overall.averageScore}/100. `
-    + `${strongestSection.title} is the strongest area today, while ${weakestSection.title} needs the earliest intervention. `
-    + 'The next move is to reinforce routines that protect energy, clarity, and sustainability at work.';
-};
-
-const getOverallInterpretation = (report: PersonalPerformanceScoreReport) => {
-  const score = report.overall.averageScore;
-
+const getScoreBand = (score: number) => {
   if (score <= 40) {
-    return 'Current habits are strongly hurting performance. Energy and clarity are likely inconsistent, and burnout risk is high unless routines change quickly.';
+    return 'critical';
   }
-
   if (score <= 60) {
-    return 'There are important weaknesses affecting consistency. The person can operate, but execution quality fluctuates and stress recovery is not reliable yet.';
+    return 'emerging';
   }
-
   if (score <= 75) {
-    return 'The person is operating at an acceptable level, but improvement opportunities exist. Tightening a few routines can quickly improve clarity and consistency.';
+    return 'organized';
   }
-
   if (score <= 90) {
-    return 'Good habits are supporting work performance. The priority is maintaining stability while improving recovery and protecting focus under pressure.';
+    return 'scalable';
   }
 
-  return 'Strong personal condition is supporting sustainable execution. The focus is keeping standards consistent while responsibilities grow.';
+  return 'optimized';
 };
 
-const getSectionInterpretation = (section: PerformanceSectionScore) => {
-  if (section.averageScore <= 40) {
-    return `${section.title} is in a critical state. This area is likely creating daily friction and reducing performance reliability.`;
+const getScoreTone = (score: number) => {
+  if (score >= 76) {
+    return 'high';
+  }
+  if (score >= 60) {
+    return 'medium';
   }
 
-  if (section.averageScore <= 60) {
-    return `${section.title} is unstable. Weak routines here may be harming consistency and decision quality.`;
-  }
-
-  if (section.averageScore <= 75) {
-    return `${section.title} is functional, with clear improvement opportunities. Small routine upgrades can increase consistency.`;
-  }
-
-  if (section.averageScore <= 90) {
-    return `${section.title} is healthy. Habits are supporting performance, but under pressure this area still needs protection.`;
-  }
-
-  return `${section.title} is high performance. The opportunity is sustaining this standard while responsibilities grow.`;
+  return 'low';
 };
 
-const getOpportunityNarrative = (section: PerformanceSectionScore) => {
+const getProgressStepIndex = (score: number) => {
+  if (score <= 40) {
+    return 0;
+  }
+  if (score <= 75) {
+    return 1;
+  }
+  if (score <= 90) {
+    return 2;
+  }
+
+  return 3;
+};
+
+const getLevelLabel = (level: number, copy: PersonalPerformancePdfCopy) => {
+  const levelKey = `level${Math.max(1, Math.min(5, level))}` as keyof PersonalPerformancePdfCopy['levelNames'];
+  return copy.levelNames[levelKey];
+};
+
+const applyTemplate = (template: string, values: Record<string, string | number>) => (
+  Object.entries(values).reduce((nextTemplate, [key, value]) => (
+    nextTemplate.split(`{${key}}`).join(String(value))
+  ), template)
+);
+
+const getExecutiveSummary = (
+  report: PersonalPerformanceScoreReport,
+  strongestSection: PerformanceSectionScore,
+  weakestSection: PerformanceSectionScore,
+  copy: PersonalPerformancePdfCopy,
+) => applyTemplate(copy.summaryTemplate, {
+  score: report.overall.averageScore,
+  strongest: strongestSection.title,
+  weakest: weakestSection.title,
+});
+
+const getSectionInterpretation = (section: PerformanceSectionScore, copy: PersonalPerformancePdfCopy) => (
+  applyTemplate(copy.sectionInterpretations[getScoreBand(section.averageScore)], {
+    section: section.title,
+  })
+);
+
+const getOpportunityNarrative = (section: PerformanceSectionScore, copy: PersonalPerformancePdfCopy) => {
   const lowestQuestion = getLowestQuestion(section);
 
   if (!lowestQuestion) {
-    return 'This section still needs a completed answer set before a more precise opportunity statement can be generated.';
+    return copy.incompleteOpportunity;
   }
 
-  return `The most immediate opportunity is "${lowestQuestion.question}". The selected answer was "${lowestQuestion.selectedOptionLabel ?? 'Pending'}", which highlights the first routine to improve.`;
+  return applyTemplate(copy.opportunityTemplate, {
+    question: lowestQuestion.question,
+    answer: lowestQuestion.selectedOptionLabel ?? copy.pending,
+  });
 };
 
 const getPrioritySections = (report: PersonalPerformanceScoreReport) => (
@@ -149,118 +165,209 @@ const getPrioritySections = (report: PersonalPerformanceScoreReport) => (
     .slice(0, 3)
 );
 
-const getActionPlan = (report: PersonalPerformanceScoreReport) => {
-  const prioritySections = getPrioritySections(report);
-
-  return {
-    immediate: [
-      `Review the three weakest areas: ${prioritySections.map((section) => section.title).join(', ')}.`,
-      'Choose one routine upgrade per area and set a weekly check-in to track consistency.',
-      'Save the assessment as a baseline and compare progress after the next cycle.',
-    ],
-    thirtyDays: prioritySections.flatMap((section) => SECTION_PRIORITY_ACTIONS[section.key].slice(0, 1)),
-    sixtyDays: prioritySections.flatMap((section) => SECTION_PRIORITY_ACTIONS[section.key].slice(1, 2)),
-  };
-};
-
 export function PersonalPerformancePdfDocument({
   report,
   title,
   subtitle,
   generatedAt,
   reportId,
+  copy,
+  locale,
   userLabel,
+  logoUrl,
 }: PersonalPerformancePdfDocumentProps) {
   const sortedSections = sortSectionsByScore(report);
   const strongestSection = sortedSections[0];
-  const prioritySection = [...sortedSections].reverse()[0];
-  const actionPlan = getActionPlan(report);
+  const weakestSection = sortedSections[sortedSections.length - 1];
+  const overallScoreTone = getScoreTone(report.overall.averageScore);
+  const currentProgressStep = getProgressStepIndex(report.overall.averageScore);
+  const maturityProgressPercent = copy.progressLevels.length > 1
+    ? (currentProgressStep / (copy.progressLevels.length - 1)) * 100
+    : 0;
+  const radarData = report.sections.map((section) => ({
+    label: section.title,
+    people: SECTION_COLOR_CLASS[section.key] === 'people' ? section.averageScore : 0,
+    processes: SECTION_COLOR_CLASS[section.key] === 'processes' ? section.averageScore : 0,
+    products: SECTION_COLOR_CLASS[section.key] === 'products' ? section.averageScore : 0,
+    finance: SECTION_COLOR_CLASS[section.key] === 'finance' ? section.averageScore : 0,
+  }));
+  const overallLevel = getLevelLabel(report.overall.level.level, copy);
+  const overallInterpretation = copy.overallInterpretations[getScoreBand(report.overall.averageScore)];
 
   return (
-    <div className="bdpdf-report-shell">
+    <div className="bdpdf-report-shell bdpdf-report-shell--executive">
       <section className="bdpdf-report-page">
-        <div className="bdpdf-page-card">
-          <div className="bdpdf-hero">
-            <div className="bdpdf-hero-topline">
-              <div className="bdpdf-brand-badge">Indice performance report</div>
+        <div className="bdpdf-page-card bdpdf-page-card--cover">
+          <div className="bdpdf-cover">
+            <div className="bdpdf-cover-topline">
+              <div className="bdpdf-brand-badge">{copy.brandBadge}</div>
               <div className="bdpdf-report-id">{reportId}</div>
             </div>
 
-            <h1 className="bdpdf-hero-title">{title}</h1>
-            <p className="bdpdf-hero-subtitle">{subtitle}</p>
+            <div className="bdpdf-cover-main">
+              <div>
+                <h1 className="bdpdf-cover-title">{title}</h1>
+                <p className="bdpdf-cover-subtitle">{subtitle}</p>
+              </div>
+              {logoUrl ? (
+                <img className="bdpdf-cover-logo" src={logoUrl} alt="" />
+              ) : (
+                <div className="bdpdf-cover-logo bdpdf-cover-logo--empty" aria-hidden="true" />
+              )}
+            </div>
 
             <div className="bdpdf-hero-meta">
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">User</p>
-                <p className="bdpdf-meta-value">{getUserLabel(userLabel)}</p>
+                <p className="bdpdf-meta-label">{copy.userLabel}</p>
+                <p className="bdpdf-meta-value">{getEntityLabel(userLabel, copy.userFallback)}</p>
               </div>
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Generated</p>
-                <p className="bdpdf-meta-value">{formatReportDate(generatedAt)}</p>
+                <p className="bdpdf-meta-label">{copy.generatedLabel}</p>
+                <p className="bdpdf-meta-value">{formatReportDate(generatedAt, locale)}</p>
               </div>
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Answered</p>
-                <p className="bdpdf-meta-value">{report.overall.answeredCount}/{report.overall.totalQuestions} questions</p>
+                <p className="bdpdf-meta-label">{copy.answeredLabel}</p>
+                <p className="bdpdf-meta-value">
+                  {report.overall.answeredCount}/{report.overall.totalQuestions} {copy.questionsLabel}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="bdpdf-page-content">
-            <div className="bdpdf-section">
+            <div className="bdpdf-section bdpdf-executive-summary">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Executive summary</h2>
-                <p className="bdpdf-section-caption">A compact view of current performance and where to act first</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.executiveSummaryTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.executiveSummaryCaption}</p>
+                </div>
               </div>
 
-              <div className="bdpdf-summary-grid">
-                <div className="bdpdf-summary-card">
-                  <p className="bdpdf-lead">{getExecutiveSummary(report)}</p>
+              <div className="bdpdf-executive-grid">
+                <div className={`bdpdf-score-hero-card score-${overallScoreTone}`}>
+                  <p className="bdpdf-highlight-label">{copy.totalScore}</p>
+                  <p className={`bdpdf-score-hero-value score-${overallScoreTone}`}>{report.overall.averageScore}</p>
+                  <p className="bdpdf-highlight-text">{copy.outOf100}</p>
                 </div>
-                <div className="bdpdf-panel-card">
-                  <p className="bdpdf-lead">{getOverallInterpretation(report)}</p>
+                <div className="bdpdf-summary-card">
+                  <p className="bdpdf-lead">{getExecutiveSummary(report, strongestSection, weakestSection, copy)}</p>
+                  <p className="bdpdf-lead bdpdf-lead--secondary">{overallInterpretation}</p>
                 </div>
               </div>
 
               <div className="bdpdf-highlight-grid">
-                <div className="bdpdf-highlight-card bdpdf-highlight-card--accent">
-                  <p className="bdpdf-highlight-label">Personal Performance Index</p>
+                <div className={`bdpdf-highlight-card bdpdf-highlight-card--score score-${overallScoreTone}`}>
+                  <p className="bdpdf-highlight-label">{copy.totalScore}</p>
                   <p className="bdpdf-highlight-value">{report.overall.averageScore}</p>
-                  <p className="bdpdf-highlight-text">out of 100</p>
+                  <p className="bdpdf-highlight-text">{copy.outOf100}</p>
                 </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Performance level</p>
-                  <p className="bdpdf-highlight-value">L{report.overall.level.level}</p>
-                  <p className="bdpdf-highlight-text">{report.overall.level.name}</p>
+                <div className="bdpdf-highlight-card bdpdf-highlight-card--level">
+                  <p className="bdpdf-highlight-label">{copy.performanceLevel}</p>
+                  <p className="bdpdf-highlight-value">{overallLevel}</p>
+                  <p className="bdpdf-highlight-text">{report.overall.level.level}/5</p>
                 </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Strongest area</p>
+                <div className={`bdpdf-highlight-card color-${SECTION_COLOR_CLASS[strongestSection.key]}`}>
+                  <p className="bdpdf-highlight-label">{copy.strongestArea}</p>
                   <p className="bdpdf-highlight-value">{strongestSection.averageScore}</p>
                   <p className="bdpdf-highlight-text">{strongestSection.title}</p>
                 </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Priority area</p>
-                  <p className="bdpdf-highlight-value">{prioritySection.averageScore}</p>
-                  <p className="bdpdf-highlight-text">{prioritySection.title}</p>
+                <div className={`bdpdf-highlight-card color-${SECTION_COLOR_CLASS[weakestSection.key]}`}>
+                  <p className="bdpdf-highlight-label">{copy.weakestArea}</p>
+                  <p className="bdpdf-highlight-value">{weakestSection.averageScore}</p>
+                  <p className="bdpdf-highlight-text">{weakestSection.title}</p>
                 </div>
               </div>
             </div>
 
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Section overview</h2>
-                <p className="bdpdf-section-caption">Score, level, completion, and next focus area</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.dashboardTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.dashboardCaption}</p>
+                </div>
+              </div>
+
+              <div className="bdpdf-dashboard-grid">
+                <div className="bdpdf-chart-card">
+                  <h3 className="bdpdf-chart-title">{copy.radarTitle}</h3>
+                  <RadarChart width={310} height={245} data={radarData} outerRadius={86}>
+                    <PolarGrid stroke="#d8e2f0" />
+                    <PolarAngleAxis dataKey="label" tick={{ fill: '#475569', fontSize: 11 }} />
+                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                    {RADAR_KEYS.map((key) => (
+                      <Radar
+                        key={key}
+                        dataKey={key}
+                        stroke={RADAR_COLORS[key].stroke}
+                        fill={RADAR_COLORS[key].fill}
+                        fillOpacity={0.7}
+                        strokeWidth={2}
+                        isAnimationActive={false}
+                      />
+                    ))}
+                  </RadarChart>
+                  <div className="bdpdf-radar-legend">
+                    {report.sections.map((section) => (
+                      <span className="bdpdf-radar-legend-item" key={section.key}>
+                        <span className={`bdpdf-radar-dot ${SECTION_COLOR_CLASS[section.key]}`} />
+                        {section.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bdpdf-progress-card">
+                  <h3 className="bdpdf-chart-title">{copy.progressTitle}</h3>
+                  <div className="bdpdf-maturity-track">
+                    <div
+                      className="bdpdf-maturity-fill"
+                      style={{ width: `${maturityProgressPercent}%` }}
+                    />
+                  </div>
+                  <div className="bdpdf-maturity-rail">
+                    {copy.progressLevels.map((level, index) => (
+                      <div
+                        key={level}
+                        className={`bdpdf-maturity-step ${index <= currentProgressStep ? 'is-active' : ''}`}
+                      >
+                        <span className="bdpdf-maturity-dot" />
+                        <span className="bdpdf-maturity-label">{level}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bdpdf-report-page">
+        <div className="bdpdf-page-card">
+          <div className="bdpdf-page-content">
+            <div className="bdpdf-section">
+              <div className="bdpdf-section-heading">
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.sectionBreakdownTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.sectionBreakdownCaption}</p>
+                </div>
               </div>
 
               <div className="bdpdf-pillars-grid">
                 {report.sections.map((section) => (
-                  <article className="bdpdf-pillar-card" key={section.key}>
+                  <article
+                    className={`bdpdf-pillar-card bdpdf-pillar-card--executive color-${SECTION_COLOR_CLASS[section.key]}`}
+                    key={section.key}
+                  >
                     <div className="bdpdf-pillar-header">
                       <div>
                         <h3 className="bdpdf-pillar-title">{section.title}</h3>
-                        <p className="bdpdf-pillar-subtitle">{section.answeredCount}/{section.totalQuestions} answered</p>
+                        <p className="bdpdf-pillar-subtitle">
+                          {section.answeredCount}/{section.totalQuestions} {copy.questionsLabel}
+                        </p>
                       </div>
                       <span className={`bdpdf-score-chip level-${section.level.level}`}>
-                        {section.level.name}
+                        {getLevelLabel(section.level.level, copy)}
                       </span>
                     </div>
 
@@ -269,7 +376,7 @@ export function PersonalPerformancePdfDocument({
                         {section.averageScore}
                         <span>/100</span>
                       </p>
-                      <p className="bdpdf-section-caption">{SECTION_FOCUS[section.key]}</p>
+                      <p className="bdpdf-section-caption">{copy.focusLabels[section.key]}</p>
                     </div>
 
                     <div className="bdpdf-progress-bar">
@@ -279,58 +386,17 @@ export function PersonalPerformancePdfDocument({
                       />
                     </div>
 
-                    <ul className="bdpdf-info-list">
-                      <li>
-                        <span className="bdpdf-bullet">•</span>
-                        <span>{getSectionInterpretation(section)}</span>
-                      </li>
-                      <li>
-                        <span className="bdpdf-bullet">•</span>
-                        <span>{getOpportunityNarrative(section)}</span>
-                      </li>
-                    </ul>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bdpdf-report-page">
-        <div className="bdpdf-page-card">
-          <div className="bdpdf-page-content">
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Detailed analysis</h2>
-                <p className="bdpdf-section-caption">Where habits are strong and where to improve first</p>
-              </div>
-
-              <div className="bdpdf-analysis-grid">
-                {report.sections.map((section) => (
-                  <article className="bdpdf-analysis-card" key={section.key}>
-                    <div className="bdpdf-analysis-card-head">
-                      <h3 className="bdpdf-analysis-title">{section.title}</h3>
-                      <span className={`bdpdf-score-chip level-${section.level.level}`}>
-                        {section.averageScore}/100
-                      </span>
+                    <div className="bdpdf-insight-box">
+                      <p>{getSectionInterpretation(section, copy)}</p>
+                      <p>{getOpportunityNarrative(section, copy)}</p>
                     </div>
-                    <div className="bdpdf-analysis-card-body">
-                      <p className="bdpdf-analysis-copy">{getSectionInterpretation(section)}</p>
-                      <ul className="bdpdf-info-list">
-                        <li>
-                          <span className="bdpdf-bullet">•</span>
-                          <span>{getOpportunityNarrative(section)}</span>
-                        </li>
-                      </ul>
-                      <ul className="bdpdf-info-list">
-                        {SECTION_PRIORITY_ACTIONS[section.key].map((actionItem) => (
-                          <li key={actionItem}>
-                            <span className="bdpdf-bullet">•</span>
-                            <span>{actionItem}</span>
-                          </li>
-                        ))}
-                      </ul>
+
+                    <div className="bdpdf-recommendation-strip">
+                      <p className="bdpdf-recommendation-rank">{copy.recommendationLabel}</p>
+                      <p>{copy.priorityActions[section.key][0]}</p>
+                      <p className="bdpdf-recommendation-module">
+                        {copy.suggestedFocusLabel}: <strong>{copy.focusLabels[section.key]}</strong>
+                      </p>
                     </div>
                   </article>
                 ))}
@@ -339,71 +405,28 @@ export function PersonalPerformancePdfDocument({
 
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Strategic recommendations</h2>
-                <p className="bdpdf-section-caption">Priority actions connected directly to sustainable execution</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.weakestArea}</h2>
+                  <p className="bdpdf-section-caption">{copy.dashboardCaption}</p>
+                </div>
               </div>
 
               <div className="bdpdf-recommendation-grid">
                 {getPrioritySections(report).map((section, index) => (
-                  <article className="bdpdf-recommendation-card" key={section.key}>
-                    <div className="bdpdf-recommendation-rank">Priority {index + 1}</div>
+                  <article className={`bdpdf-recommendation-card color-${SECTION_COLOR_CLASS[section.key]}`} key={section.key}>
+                    <div className="bdpdf-recommendation-rank">{copy.priorityLabel} {index + 1}</div>
                     <h3 className="bdpdf-recommendation-title">{section.title}</h3>
-                    <p className="bdpdf-recommendation-body">{getOpportunityNarrative(section)}</p>
+                    <p className="bdpdf-recommendation-body">{copy.priorityActions[section.key][0]}</p>
                     <p className="bdpdf-recommendation-module">
-                      Suggested focus: <strong>{SECTION_FOCUS[section.key]}</strong>
+                      {copy.suggestedFocusLabel}: <strong>{copy.focusLabels[section.key]}</strong>
                     </p>
                   </article>
                 ))}
               </div>
-            </div>
-
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Action plan</h2>
-                <p className="bdpdf-section-caption">A practical 60-day sequence to move from assessment into routines</p>
-              </div>
-
-              <div className="bdpdf-plan-grid">
-                <article className="bdpdf-plan-card">
-                  <h4>Immediate next steps</h4>
-                  <ul>
-                    {actionPlan.immediate.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="bdpdf-plan-card">
-                  <h4>Next 30 days</h4>
-                  <ul>
-                    {actionPlan.thirtyDays.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="bdpdf-plan-card">
-                  <h4>Days 30 to 60</h4>
-                  <ul>
-                    {actionPlan.sixtyDays.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="bdpdf-plan-card">
-                  <h4>Conclusion</h4>
-                  <ul>
-                    <li>This assessment provides a measurable baseline for future check-ins.</li>
-                    <li>The biggest gains come from lifting the weakest areas without losing momentum in the strongest one.</li>
-                    <li>Indice can support the routine changes when focus areas are translated into planning, delegation, and protected recovery.</li>
-                  </ul>
-                </article>
-              </div>
 
               <div className="bdpdf-footer-note">
-                <span>Indice · Personal performance report</span>
-                <span>Generated automatically from Personal Performance answers</span>
+                <span>{copy.footerLeft}</span>
+                <span>{copy.footerRight}</span>
               </div>
             </div>
           </div>
@@ -415,20 +438,22 @@ export function PersonalPerformancePdfDocument({
           <div className="bdpdf-page-content">
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Response appendix</h2>
-                <p className="bdpdf-section-caption">Detailed answer list with the selected response and converted points</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.detailedAnswersTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.detailedAnswersCaption}</p>
+                </div>
               </div>
 
               {report.sections.map((section) => (
-                <article className="bdpdf-table-card bdpdf-section" key={section.key}>
+                <article className={`bdpdf-table-card bdpdf-section color-${SECTION_COLOR_CLASS[section.key]}`} key={section.key}>
                   <h3 className="bdpdf-table-title">{section.title}</h3>
                   <table className="bdpdf-table">
                     <thead>
                       <tr>
                         <th style={{ width: '7%' }}>#</th>
-                        <th style={{ width: '43%' }}>Question</th>
-                        <th style={{ width: '34%' }}>Selected answer</th>
-                        <th style={{ width: '16%' }}>Score</th>
+                        <th style={{ width: '43%' }}>{copy.questionColumn}</th>
+                        <th style={{ width: '34%' }}>{copy.selectedAnswerColumn}</th>
+                        <th style={{ width: '16%' }}>{copy.scoreColumn}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -436,7 +461,7 @@ export function PersonalPerformancePdfDocument({
                         <tr key={`${section.key}-${question.index}`}>
                           <td className="bdpdf-question-number">{question.index}</td>
                           <td>{question.question}</td>
-                          <td>{question.selectedOptionLabel ?? <span className="bdpdf-muted">Pending</span>}</td>
+                          <td>{question.selectedOptionLabel ?? <span className="bdpdf-muted">{copy.pending}</span>}</td>
                           <td>{question.points}/100</td>
                         </tr>
                       ))}
@@ -451,4 +476,3 @@ export function PersonalPerformancePdfDocument({
     </div>
   );
 }
-

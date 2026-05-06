@@ -10,8 +10,6 @@ import Profile from './Profile';
 import BusinessStructure from './BusinessStructure';
 import BusinessProfile from './BusinessProfile';
 import PersonalPerformance from './PersonalPerformance';
-import Plan from './Plan';
-import Billing from './Billing';
 import Users from './Users';
 
 interface PanelInicialProps {
@@ -23,8 +21,6 @@ const subTabIds = [
   'business-structure',
   'business-profile',
   'personal-performance',
-  'plan',
-  'billing',
   'users',
 ] as const;
 
@@ -43,7 +39,6 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
   perfil: 'profile',
   estructuraEmpresarial: 'business-structure',
   perfilEmpresarial: 'business-profile',
-  facturacion: 'billing',
   usuarios: 'users',
 };
 
@@ -63,8 +58,6 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
     { id: 'business-structure', label: t.panelInicial.tabs.businessStructure, emoji: '🏢', component: BusinessStructure },
     { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, emoji: '📊', component: BusinessProfile },
     { id: 'personal-performance', label: t.panelInicial.tabs.personalPerformance, emoji: '📈', component: PersonalPerformance },
-    { id: 'plan', label: t.panelInicial.tabs.plan, emoji: '📋', component: Plan },
-    { id: 'billing', label: t.panelInicial.tabs.billing, emoji: '🧾', component: Billing },
     { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
   ];
 
@@ -105,7 +98,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
       <LoadingBarOverlay
         isVisible={isTabRefreshing}
         title="Refreshing Home Panel"
-        description="Fetching the latest profile, business, billing, and user data."
+        description="Fetching the latest profile, business, and user data."
       />
 
       {/* Header del módulo */}
@@ -128,7 +121,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
                 {t.panelInicial.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Configure your profile, business structure, billing, and more.
+                Configure your profile, business structure, users, and more.
               </p>
             </div>
             <Button

@@ -31,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConfigCenterService {
 
     private static final String CONFIG_CENTER_KEY = "config_center";
+    private static final String HEADQUARTERS_LOCATION_KEY = "headquarters_location";
+    private static final String ADDRESS_KEY = "address";
     private static final long MAX_PROFILE_AVATAR_SIZE_BYTES = 1024 * 1024;
     private static final Set<String> PROFILE_AVATAR_CONTENT_TYPES = Set.of(
         "image/jpeg",
@@ -126,6 +128,8 @@ public class ConfigCenterService {
         putIfPresent(empresa, "radius_meters", empresaTemplate.get("radius_meters"));
         putIfPresent(empresa, "coordinate_source", empresaTemplate.get("coordinate_source"));
         putIfPresent(empresa, "google_maps_url", empresaTemplate.get("google_maps_url"));
+        putIfPresent(empresa, ADDRESS_KEY, empresaTemplate.get(ADDRESS_KEY));
+        putIfPresent(empresa, HEADQUARTERS_LOCATION_KEY, empresaTemplate.get(HEADQUARTERS_LOCATION_KEY));
         empresa.put("colaboradores", resolveCollaborators(companyId, readOptionalInt(configCenterNode, "colaboradores")));
         empresa.put("estructura", "multi".equals(estructura) ? "multi" : "simple");
         empresa.put("empresa_template", empresaTemplate);
@@ -639,9 +643,13 @@ public class ConfigCenterService {
             empresaTemplateNode.put("display_name", name);
         }
         CoordinateInput companyCoordinates = null;
-        if (hasCoordinatePayload(payload)) {
-            companyCoordinates = normalizeCoordinateInput(payload);
-            putCoordinateInput(empresaTemplateNode, companyCoordinates);
+        var hasCompanyCoordinatePayload = hasCoordinatePayload(payload);
+        var hasHeadquartersLocationPayload = hasHeadquartersLocationPayload(payload);
+        if (hasHeadquartersLocationPayload) {
+            var headquartersLocation = normalizeHeadquartersLocationInput(payload);
+            companyCoordinates = headquartersLocation.coordinates();
+            hasCompanyCoordinatePayload = headquartersLocation.hasCoordinatePayload();
+            putHeadquartersLocationInput(empresaTemplateNode, headquartersLocation);
         }
 
         if (!configCenterNode.hasNonNull("estructura")) {
@@ -653,7 +661,7 @@ public class ConfigCenterService {
         configCenterNode.put("tamano_empresa", value(payload, "tamano_empresa"));
 
         upsertSettingsRoot(companyId, settingsRoot);
-        if (companyCoordinates != null) {
+        if (hasCompanyCoordinatePayload) {
             if (booleanValue(payload, true, "sync_company_location", "syncCompanyLocation")) {
                 syncCompanyStructureAttendanceLocation(companyId, userId, name, companyCoordinates);
             } else {
@@ -678,6 +686,18 @@ public class ConfigCenterService {
             objectString(payload, "source")
         ));
         putIfPresent(data, "google_maps_url", objectString(payload, "google_maps_url", "googleMapsUrl", "map_url", "mapUrl"));
+        if (hasHeadquartersLocationPayload) {
+            var savedLocation = normalizeEmpresaTemplate(empresaTemplateNode).get(HEADQUARTERS_LOCATION_KEY);
+            if (savedLocation instanceof Map<?, ?> savedLocationMap) {
+                putIfPresent(data, HEADQUARTERS_LOCATION_KEY, savedLocationMap);
+                putIfPresent(data, ADDRESS_KEY, savedLocationMap.get(ADDRESS_KEY));
+                putIfPresent(data, "latitude", savedLocationMap.get("latitude"));
+                putIfPresent(data, "longitude", savedLocationMap.get("longitude"));
+                putIfPresent(data, "radius_meters", savedLocationMap.get("radius_meters"));
+                putIfPresent(data, "coordinate_source", savedLocationMap.get("coordinate_source"));
+                putIfPresent(data, "google_maps_url", savedLocationMap.get("google_maps_url"));
+            }
+        }
         return data;
     }
 
@@ -1391,8 +1411,76 @@ public class ConfigCenterService {
         ));
         putIfPresent(template, "tamano_empresa", readOptionalText(templateNode, "tamano_empresa"));
         putIfPresent(template, "display_name", readOptionalText(templateNode, "display_name"));
-        putCoordinateFields(template, templateNode);
+        var headquartersLocation = normalizeHeadquartersLocation(templateNode);
+        if (headquartersLocation.isEmpty()) {
+            putCoordinateFields(template, templateNode);
+        } else {
+            putIfPresent(template, HEADQUARTERS_LOCATION_KEY, headquartersLocation);
+            putIfPresent(template, ADDRESS_KEY, headquartersLocation.get(ADDRESS_KEY));
+            putIfPresent(template, "latitude", headquartersLocation.get("latitude"));
+            putIfPresent(template, "longitude", headquartersLocation.get("longitude"));
+            putIfPresent(template, "radius_meters", headquartersLocation.get("radius_meters"));
+            putIfPresent(template, "coordinate_source", headquartersLocation.get("coordinate_source"));
+            putIfPresent(template, "google_maps_url", headquartersLocation.get("google_maps_url"));
+        }
         return template;
+    }
+
+    private Map<String, Object> normalizeHeadquartersLocation(JsonNode templateNode) {
+        var location = new LinkedHashMap<String, Object>();
+        if (templateNode == null || templateNode.isMissingNode() || templateNode.isNull()) {
+            return location;
+        }
+
+        var locationNode = templateNode.path(HEADQUARTERS_LOCATION_KEY);
+
+        putCoordinateFields(location, templateNode);
+        if (locationNode.isObject()) {
+            putCoordinateFields(location, locationNode);
+        }
+
+        var address = normalizeHeadquartersAddress(templateNode, locationNode);
+        if (!address.isEmpty()) {
+            location.put(ADDRESS_KEY, address);
+        }
+
+        return location;
+    }
+
+    private Map<String, Object> normalizeHeadquartersAddress(JsonNode templateNode, JsonNode locationNode) {
+        var address = new LinkedHashMap<String, Object>();
+        addHeadquartersAddressFields(address, templateNode);
+
+        var rootAddressNode = templateNode == null ? null : templateNode.path(ADDRESS_KEY);
+        if (rootAddressNode != null && rootAddressNode.isObject()) {
+            addHeadquartersAddressFields(address, rootAddressNode);
+        } else if (rootAddressNode != null && rootAddressNode.isTextual()) {
+            putIfPresent(address, "street", rootAddressNode.asText("").trim());
+        }
+
+        if (locationNode != null && locationNode.isObject()) {
+            addHeadquartersAddressFields(address, locationNode);
+            var locationAddressNode = locationNode.path(ADDRESS_KEY);
+            if (locationAddressNode.isObject()) {
+                addHeadquartersAddressFields(address, locationAddressNode);
+            } else if (locationAddressNode.isTextual()) {
+                putIfPresent(address, "street", locationAddressNode.asText("").trim());
+            }
+        }
+
+        return address;
+    }
+
+    private void addHeadquartersAddressFields(Map<String, Object> address, JsonNode sourceNode) {
+        if (sourceNode == null || sourceNode.isMissingNode() || sourceNode.isNull()) {
+            return;
+        }
+
+        putIfPresent(address, "street", readOptionalText(sourceNode, "street", "address_line", "addressLine", "direccion"));
+        putIfPresent(address, "country", readOptionalText(sourceNode, "country", "pais"));
+        putIfPresent(address, "state", readOptionalText(sourceNode, "state", "province", "state_province", "stateProvince", "estado"));
+        putIfPresent(address, "city", readOptionalText(sourceNode, "city", "ciudad"));
+        putIfPresent(address, "zip", readOptionalText(sourceNode, "zip", "postal_code", "postalCode", "cp"));
     }
 
     private ObjectNode loadSettingsRoot(long companyId) {
@@ -2148,6 +2236,110 @@ public class ConfigCenterService {
             || values.containsKey("mapUrl");
     }
 
+    private boolean hasHeadquartersLocationPayload(Map<String, Object> payload) {
+        if (hasCoordinatePayload(payload) || hasHeadquartersAddressPayload(payload)) {
+            return true;
+        }
+
+        var locationPayload = nestedMap(payload, HEADQUARTERS_LOCATION_KEY, "headquartersLocation", "business_location", "businessLocation");
+        return locationPayload != null && (hasCoordinatePayload(locationPayload) || hasHeadquartersAddressPayload(locationPayload));
+    }
+
+    private boolean hasHeadquartersAddressPayload(Map<?, ?> values) {
+        return values.containsKey(ADDRESS_KEY)
+            || values.containsKey("addressLine")
+            || values.containsKey("address_line")
+            || values.containsKey("street")
+            || values.containsKey("direccion")
+            || values.containsKey("country")
+            || values.containsKey("pais")
+            || values.containsKey("state")
+            || values.containsKey("province")
+            || values.containsKey("state_province")
+            || values.containsKey("stateProvince")
+            || values.containsKey("estado")
+            || values.containsKey("city")
+            || values.containsKey("ciudad")
+            || values.containsKey("zip")
+            || values.containsKey("postal_code")
+            || values.containsKey("postalCode")
+            || values.containsKey("cp");
+    }
+
+    private HeadquartersLocationInput normalizeHeadquartersLocationInput(Map<String, Object> payload) {
+        var locationPayload = nestedMap(payload, HEADQUARTERS_LOCATION_KEY, "headquartersLocation", "business_location", "businessLocation");
+        var sourcePayload = locationPayload == null ? payload : locationPayload;
+        var hasCoordinatePayload = hasCoordinatePayload(sourcePayload);
+        var coordinates = hasCoordinatePayload ? normalizeCoordinateInput(sourcePayload) : null;
+        var address = normalizeHeadquartersAddressInput(payload, sourcePayload);
+
+        return new HeadquartersLocationInput(coordinates, hasCoordinatePayload, address);
+    }
+
+    private HeadquartersAddressInput normalizeHeadquartersAddressInput(Map<String, Object> rootPayload, Map<?, ?> locationPayload) {
+        var sourcePayload = locationPayload == null ? rootPayload : locationPayload;
+        var addressPayload = nestedMap(sourcePayload, ADDRESS_KEY);
+        if (addressPayload == null) {
+            addressPayload = nestedMap(rootPayload, ADDRESS_KEY);
+        }
+
+        var street = "";
+        if (sourcePayload.get(ADDRESS_KEY) instanceof String addressText) {
+            street = addressText.trim();
+        }
+        if (street.isBlank() && rootPayload.get(ADDRESS_KEY) instanceof String addressText) {
+            street = addressText.trim();
+        }
+
+        if (addressPayload != null) {
+            street = firstNonBlank(
+                objectString(addressPayload, "street", "address_line", "addressLine", "direccion"),
+                street
+            );
+            return new HeadquartersAddressInput(
+                street,
+                objectString(addressPayload, "country", "pais"),
+                objectString(addressPayload, "state", "province", "state_province", "stateProvince", "estado"),
+                objectString(addressPayload, "city", "ciudad"),
+                objectString(addressPayload, "zip", "postal_code", "postalCode", "cp")
+            );
+        }
+
+        return new HeadquartersAddressInput(
+            firstNonBlank(
+                objectString(sourcePayload, "street", "address_line", "addressLine", "direccion"),
+                objectString(rootPayload, "street", "address_line", "addressLine", "direccion"),
+                street
+            ),
+            firstNonBlank(
+                objectString(sourcePayload, "country", "pais"),
+                objectString(rootPayload, "country", "pais")
+            ),
+            firstNonBlank(
+                objectString(sourcePayload, "state", "province", "state_province", "stateProvince", "estado"),
+                objectString(rootPayload, "state", "province", "state_province", "stateProvince", "estado")
+            ),
+            firstNonBlank(
+                objectString(sourcePayload, "city", "ciudad"),
+                objectString(rootPayload, "city", "ciudad")
+            ),
+            firstNonBlank(
+                objectString(sourcePayload, "zip", "postal_code", "postalCode", "cp"),
+                objectString(rootPayload, "zip", "postal_code", "postalCode", "cp")
+            )
+        );
+    }
+
+    private Map<?, ?> nestedMap(Map<?, ?> values, String... fields) {
+        for (var field : fields) {
+            var candidate = values.get(field);
+            if (candidate instanceof Map<?, ?> nested) {
+                return nested;
+            }
+        }
+        return null;
+    }
+
     private CoordinateInput normalizeCoordinateInput(Map<?, ?> values) {
         var latitude = readOptionalDecimal(values, "latitude", "latitud");
         var longitude = readOptionalDecimal(values, "longitude", "longitud", "lng");
@@ -2249,6 +2441,37 @@ public class ConfigCenterService {
         putOptionalText(node, "google_maps_url", coordinates.googleMapsUrl());
     }
 
+    private void putHeadquartersLocationInput(ObjectNode templateNode, HeadquartersLocationInput location) {
+        var locationNode = ensureObjectNode(templateNode, HEADQUARTERS_LOCATION_KEY);
+
+        if (location.hasCoordinatePayload()) {
+            putCoordinateInput(templateNode, location.coordinates());
+            putCoordinateInput(locationNode, location.coordinates());
+        }
+
+        putHeadquartersAddressInput(templateNode, location.address());
+        putHeadquartersAddressInput(locationNode, location.address());
+
+        if (locationNode.isEmpty()) {
+            templateNode.remove(HEADQUARTERS_LOCATION_KEY);
+        }
+    }
+
+    private void putHeadquartersAddressInput(ObjectNode node, HeadquartersAddressInput address) {
+        if (address == null || address.isEmpty()) {
+            node.remove(ADDRESS_KEY);
+            return;
+        }
+
+        var addressNode = objectMapper.createObjectNode();
+        putOptionalText(addressNode, "street", address.street());
+        putOptionalText(addressNode, "country", address.country());
+        putOptionalText(addressNode, "state", address.state());
+        putOptionalText(addressNode, "city", address.city());
+        putOptionalText(addressNode, "zip", address.zip());
+        node.set(ADDRESS_KEY, addressNode);
+    }
+
     private void putDecimal(ObjectNode node, String fieldName, BigDecimal value) {
         if (value == null) {
             node.remove(fieldName);
@@ -2335,6 +2558,33 @@ public class ConfigCenterService {
         String horario,
         CoordinateInput coordinates
     ) {
+    }
+
+    private record HeadquartersLocationInput(
+        CoordinateInput coordinates,
+        boolean hasCoordinatePayload,
+        HeadquartersAddressInput address
+    ) {
+    }
+
+    private record HeadquartersAddressInput(
+        String street,
+        String country,
+        String state,
+        String city,
+        String zip
+    ) {
+        private boolean isEmpty() {
+            return safeText(street).isBlank()
+                && safeText(country).isBlank()
+                && safeText(state).isBlank()
+                && safeText(city).isBlank()
+                && safeText(zip).isBlank();
+        }
+
+        private static String safeText(String value) {
+            return value == null ? "" : value.trim();
+        }
     }
 
     private record CoordinateInput(

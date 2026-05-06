@@ -1,7 +1,30 @@
-import type { ChangeEvent } from 'react';
+import { Country, State } from 'country-state-city';
+import { useMemo, type ChangeEvent } from 'react';
+import { useLanguage } from '../../../../shared/context';
 import { inputClassName, textareaClassName } from '../constants';
-import type { EstructuraType, LocationCoordinateFormValues } from '../types';
+import type { BusinessAddressFormValues, EstructuraType, LocationCoordinateFormValues } from '../types';
 import { LocationCoordinateFields } from './LocationCoordinateFields';
+
+type CountryConfig = {
+  hasStates: boolean;
+  taxIdLabel: string | null;
+  taxIdFormat: RegExp | null;
+};
+
+const countryConfig: Record<string, CountryConfig> = {
+  MX: { hasStates: true, taxIdLabel: 'RFC', taxIdFormat: null },
+  US: { hasStates: true, taxIdLabel: 'EIN', taxIdFormat: null },
+  CA: { hasStates: true, taxIdLabel: 'BN', taxIdFormat: null },
+  CO: { hasStates: true, taxIdLabel: 'NIT', taxIdFormat: null },
+  BR: { hasStates: true, taxIdLabel: 'CNPJ', taxIdFormat: null },
+};
+const priorityCountryCodes = ['CA', 'US', 'MX', 'CO', 'BR'] as const;
+
+const countryOptionsSource = Country.getAllCountries().map((country) => ({
+  code: country.isoCode,
+  flag: country.flag,
+  fallbackName: country.name,
+}));
 
 interface StructureCopy {
   identity: {
@@ -16,6 +39,7 @@ interface StructureCopy {
     holdingName: string;
     industry: string;
     selectIndustry: string;
+    selectCountry: string;
     industryHint: string;
     logo: string;
     logoHolding: string;
@@ -24,8 +48,24 @@ interface StructureCopy {
     uploadHint: string;
     removeLogo: string;
     description: string;
+    address: string;
+    country: string;
+    state: string;
+    city: string;
+    postalCode: string;
     optional: string;
     logoPreviewAlt: string;
+  };
+  headquarters: {
+    helper: string;
+    context: string;
+    basicInfo: string;
+    industryHelper: string;
+    locationTitle: string;
+    locationHelper: string;
+    addressTitle: string;
+    addressHelper: string;
+    addressNote: string;
   };
   options: {
     businessIdentityIndustries: Array<{
@@ -42,11 +82,13 @@ interface BusinessIdentitySectionProps {
   logo: string;
   industry: string;
   description: string;
+  businessAddress: BusinessAddressFormValues;
   locationCoordinateValues: LocationCoordinateFormValues;
   onCompanyNameChange: (value: string) => void;
   onLogoChange: (value: string) => void;
   onIndustryChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onBusinessAddressChange: (updates: Partial<BusinessAddressFormValues>) => void;
   onLocationCoordinateChange: (updates: Partial<LocationCoordinateFormValues>) => void;
   disabled?: boolean;
 }
@@ -58,20 +100,75 @@ export function BusinessIdentitySection({
   logo,
   industry,
   description,
+  businessAddress,
   locationCoordinateValues,
   onCompanyNameChange,
   onLogoChange,
   onIndustryChange,
   onDescriptionChange,
+  onBusinessAddressChange,
   onLocationCoordinateChange,
   disabled = false,
 }: BusinessIdentitySectionProps) {
+  const { currentLanguage } = useLanguage();
   const companyNameLabel = estructuraType === 'simple'
     ? structure.fields.companyName
     : structure.fields.holdingName;
   const logoLabel = estructuraType === 'simple'
     ? structure.fields.logo
     : structure.fields.logoHolding;
+  const countryOptions = useMemo(() => {
+    let countryDisplayNames: Intl.DisplayNames | null = null;
+
+    try {
+      countryDisplayNames = new Intl.DisplayNames([currentLanguage.code], { type: 'region' });
+    } catch {
+      countryDisplayNames = null;
+    }
+
+    const options = countryOptionsSource
+      .map((country) => {
+        const countryName = countryDisplayNames?.of(country.code) ?? country.fallbackName;
+
+        return {
+          code: country.code,
+          label: `${country.flag} ${countryName}`,
+          sortName: countryName,
+        };
+      })
+      .sort((firstCountry, secondCountry) => (
+        firstCountry.sortName.localeCompare(secondCountry.sortName, currentLanguage.code)
+      ));
+    const priorityCodes = new Set<string>(priorityCountryCodes);
+    const priorityOptions = priorityCountryCodes
+      .map((countryCode) => options.find((country) => country.code === countryCode))
+      .filter((country): country is typeof options[number] => Boolean(country));
+    const remainingOptions = options.filter((country) => !priorityCodes.has(country.code));
+
+    return [...priorityOptions, ...remainingOptions];
+  }, [currentLanguage.code]);
+  const stateOptions = useMemo(() => {
+    if (!countryConfig[businessAddress.country]?.hasStates) {
+      return [];
+    }
+
+    return State.getStatesOfCountry(businessAddress.country)
+      .map((state) => ({
+        code: state.isoCode,
+        name: state.name,
+      }))
+      .sort((firstState, secondState) => (
+        firstState.name.localeCompare(secondState.name, currentLanguage.code)
+      ));
+  }, [businessAddress.country, currentLanguage.code]);
+  const usesStateDropdown = Boolean(countryConfig[businessAddress.country]?.hasStates && stateOptions.length > 0);
+
+  const handleAddressCountryChange = (country: string) => {
+    onBusinessAddressChange({
+      country,
+      state: '',
+    });
+  };
 
   const handleLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -96,9 +193,10 @@ export function BusinessIdentitySection({
           {estructuraType === 'simple' ? structure.identity.simple : structure.identity.holding}
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          {estructuraType === 'simple'
-            ? structure.identity.simpleDesc
-            : structure.identity.holdingDesc}
+          {structure.headquarters.helper}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+          {structure.headquarters.context}
         </p>
       </div>
 
@@ -109,6 +207,10 @@ export function BusinessIdentitySection({
           </p>
         </div>
       )}
+
+      <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+        {structure.headquarters.basicInfo}
+      </h4>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <div>
@@ -140,7 +242,7 @@ export function BusinessIdentitySection({
             ))}
           </select>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-            {structure.fields.industryHint}
+            {structure.headquarters.industryHelper}
           </p>
         </div>
       </div>
@@ -208,8 +310,112 @@ export function BusinessIdentitySection({
 
       <div className="mt-5">
         <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-          Location coordinates
+          {structure.headquarters.locationTitle}
         </h4>
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-500">
+          {structure.headquarters.locationHelper}
+        </p>
+        <div className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+          <h5 className="text-sm font-semibold text-gray-900 dark:text-white">
+            {structure.headquarters.addressTitle}
+          </h5>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+            {structure.headquarters.addressHelper}
+          </p>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {structure.fields.address}
+              </label>
+              <input
+                type="text"
+                value={businessAddress.street}
+                onChange={(event) => onBusinessAddressChange({ street: event.target.value })}
+                className={inputClassName}
+                disabled={disabled}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {structure.fields.country}
+              </label>
+              <select
+                value={businessAddress.country}
+                onChange={(event) => handleAddressCountryChange(event.target.value)}
+                className={`${inputClassName} appearance-none cursor-pointer`}
+                disabled={disabled}
+              >
+                <option value="">{structure.fields.selectCountry}</option>
+                {countryOptions.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {structure.fields.state}
+              </label>
+              {usesStateDropdown ? (
+                <select
+                  value={businessAddress.state}
+                  onChange={(event) => onBusinessAddressChange({ state: event.target.value })}
+                  className={`${inputClassName} appearance-none cursor-pointer`}
+                  disabled={disabled}
+                >
+                  <option value="">{structure.fields.state}</option>
+                  {stateOptions.map((state) => (
+                    <option key={state.code} value={state.code}>
+                      {state.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={businessAddress.state}
+                  onChange={(event) => onBusinessAddressChange({ state: event.target.value })}
+                  className={inputClassName}
+                  disabled={disabled}
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {structure.fields.city}
+              </label>
+              <input
+                type="text"
+                value={businessAddress.city}
+                onChange={(event) => onBusinessAddressChange({ city: event.target.value })}
+                className={inputClassName}
+                disabled={disabled}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {structure.fields.postalCode}
+              </label>
+              <input
+                type="text"
+                value={businessAddress.zip}
+                onChange={(event) => onBusinessAddressChange({ zip: event.target.value })}
+                className={inputClassName}
+                disabled={disabled}
+              />
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-gray-500 dark:text-gray-500">
+            {structure.headquarters.addressNote}
+          </p>
+        </div>
         <LocationCoordinateFields
           values={locationCoordinateValues}
           onChange={onLocationCoordinateChange}

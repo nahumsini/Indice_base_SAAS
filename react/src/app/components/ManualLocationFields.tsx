@@ -31,6 +31,7 @@ interface ManualLocationFieldsProps {
   };
   onChange: (updates: Partial<ManualLocationValues>) => void;
   fieldNames?: Partial<Record<keyof ManualLocationValues, string>>;
+  stateDropdownCountryCodes?: readonly string[];
   countryError?: string;
   disabled?: boolean;
 }
@@ -200,6 +201,7 @@ export function ManualLocationFields({
   placeholders,
   onChange,
   fieldNames,
+  stateDropdownCountryCodes,
   countryError,
   disabled = false,
 }: ManualLocationFieldsProps) {
@@ -273,6 +275,11 @@ export function ManualLocationFields({
     ciudad: fieldNames?.ciudad ?? 'ciudad',
     cp: fieldNames?.cp ?? 'cp',
   };
+  const stateDropdownCountries = useMemo(
+    () => new Set((stateDropdownCountryCodes ?? []).map((countryCode) => countryCode.trim().toUpperCase())),
+    [stateDropdownCountryCodes],
+  );
+  const usesStateDropdown = stateDropdownCountries.has(normalizedCountry) && stateOptions.length > 0;
 
   return (
     <div className="space-y-3">
@@ -304,17 +311,39 @@ export function ManualLocationFields({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <AutocompleteInput
-            label={labels.state}
-            name={resolvedFieldNames.estado}
-            value={values.estado}
-            placeholder={placeholders.state}
-            options={stateSuggestionOptions}
-            minQueryLength={1}
-            onChange={(value) => onChange({ estado: value, ciudad: '' })}
-            onSelect={(value) => onChange({ estado: value, ciudad: '' })}
-            disabled={disabled || !normalizedCountry || !locationDataset}
-          />
+          {usesStateDropdown ? (
+            <>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {labels.state}
+              </label>
+              <select
+                name={resolvedFieldNames.estado}
+                value={selectedState?.name ?? values.estado}
+                onChange={(event) => onChange({ estado: event.target.value, ciudad: '' })}
+                className={`${inputClassName} appearance-none cursor-pointer`}
+                disabled={disabled || !normalizedCountry || !locationDataset}
+              >
+                <option value="">{placeholders.state}</option>
+                {stateOptions.map((state) => (
+                  <option key={state.isoCode} value={state.name}>
+                    {state.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <AutocompleteInput
+              label={labels.state}
+              name={resolvedFieldNames.estado}
+              value={values.estado}
+              placeholder={placeholders.state}
+              options={stateSuggestionOptions}
+              minQueryLength={1}
+              onChange={(value) => onChange({ estado: value, ciudad: '' })}
+              onSelect={(value) => onChange({ estado: value, ciudad: '' })}
+              disabled={disabled || !normalizedCountry || !locationDataset}
+            />
+          )}
         </div>
 
         <div>

@@ -134,6 +134,23 @@ export interface ConfigCenterEmpresaMapUnit {
   businesses: ConfigCenterEmpresaMapBusiness[];
 }
 
+export interface ConfigCenterAddress {
+  street?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  zip?: string;
+}
+
+export interface ConfigCenterHeadquartersLocation {
+  latitude?: number;
+  longitude?: number;
+  radius_meters?: number;
+  coordinate_source?: string;
+  google_maps_url?: string;
+  address?: ConfigCenterAddress | string;
+}
+
 export interface ConfigCenterEmpresa {
   id: number;
   nombre_empresa: string;
@@ -153,6 +170,8 @@ export interface ConfigCenterEmpresa {
   radius_meters?: number;
   coordinate_source?: string;
   google_maps_url?: string;
+  address?: ConfigCenterAddress | string;
+  headquarters_location?: ConfigCenterHeadquartersLocation;
   map?: ConfigCenterEmpresaMapUnit[];
 }
 
@@ -250,6 +269,7 @@ export interface SaveEmpresaPayload {
   radius_meters?: number | null;
   coordinate_source?: string | null;
   google_maps_url?: string | null;
+  address?: ConfigCenterAddress | null;
   sync_company_location?: boolean;
   syncCompanyLocation?: boolean;
 }
