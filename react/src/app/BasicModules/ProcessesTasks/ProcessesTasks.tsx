@@ -1,12 +1,15 @@
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useProcessesTasksTranslations } from '../../hooks/useProcessesTasksTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import Agenda from './Agenda';
-import Projects from './Projects';
-import Processes from './Processes';
-import KPIs from './KPIs';
-import OrgChart from './OrgChart';
+
+const Agenda = lazy(() => import('./Agenda'));
+const Projects = lazy(() => import('./Projects'));
+const Processes = lazy(() => import('./Processes'));
+const KPIs = lazy(() => import('./KPIs'));
+const OrgChart = lazy(() => import('./OrgChart'));
 
 interface ProcessesTasksProps {
   onNavigate: (page?: string) => void;
@@ -31,7 +34,7 @@ const legacyProcessTaskTabAliases: Partial<Record<string, ProcessTaskTabId>> = {
 
 export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
   const t = useProcessesTasksTranslations();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<ProcessTaskTabId>(
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<ProcessTaskTabId>(
     'calendar',
     processTaskTabIds,
     legacyProcessTaskTabAliases,
@@ -50,6 +53,12 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading process tab"
+        description="Opening the selected agenda, project, or process workspace."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -102,7 +111,17 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <ActiveComponent />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading process tab"
+              description="Downloading only the selected process workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );

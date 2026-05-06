@@ -8,7 +8,7 @@ interface LoadingBarOverlayProps {
   className?: string;
 }
 
-const DEFAULT_MINIMUM_DURATION_MS = 2000;
+const DEFAULT_MINIMUM_DURATION_MS = 700;
 const wait = (durationMs: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, durationMs);
@@ -141,15 +141,18 @@ export function LoadingBarOverlay({
       aria-busy="true"
     >
       <div
-        className="flex min-w-[220px] flex-col items-center gap-3 rounded-xl bg-white px-6 py-5 text-center text-slate-900 shadow-[0_18px_38px_rgba(0,0,0,0.18)]"
+        className="flex min-w-[240px] max-w-[340px] flex-col items-center gap-3 rounded-xl bg-white px-6 py-5 text-center text-slate-900 shadow-[0_18px_38px_rgba(0,0,0,0.18)]"
         style={{ fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}
       >
         <div
-          className="h-10 w-10 animate-spin rounded-full border-4 border-[#1f4d9f]/20 border-t-[#1f4d9f]/90"
+          className="h-9 w-9 animate-spin rounded-full border-4 border-[#1f4d9f]/20 border-t-[#1f4d9f]/90"
           aria-hidden="true"
         />
         <div className="text-[15px] font-semibold">
           {title}
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1f4d9f]/15" aria-hidden="true">
+          <div className="h-full w-1/2 rounded-full bg-[#1f4d9f] animate-loading-bar" />
         </div>
         {description ? (
           <p className="max-w-[280px] text-sm leading-6 text-slate-600">

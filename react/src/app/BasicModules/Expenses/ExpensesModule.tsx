@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useGastosTranslations } from '../../hooks/useGastosTranslations';
-import Expenses from './Expenses';
-import Budgets from './Budgets';
-import Providers from './Providers';
-import KPIs from './KPIs';
-import AccountingAccounts from './AccountingAccounts';
-import PaymentAccounts from './PaymentAccounts';
+import { useDeferredTabChange } from '../../hooks/useDeferredTabChange';
 import { mockExpenses } from './data/expenses.mock';
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
 import { mockProviderRecords, type ProviderRecord } from './Providers/useProveedoresLogic';
+
+const Expenses = lazy(() => import('./Expenses'));
+const Budgets = lazy(() => import('./Budgets'));
+const Providers = lazy(() => import('./Providers'));
+const KPIs = lazy(() => import('./KPIs'));
+const AccountingAccounts = lazy(() => import('./AccountingAccounts'));
+const PaymentAccounts = lazy(() => import('./PaymentAccounts'));
 
 interface ExpensesModuleProps {
   onNavigate: (page?: string) => void;
@@ -60,6 +63,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       }, mockExpenses.length + 4),
     ],
   );
+  const { changeTab, isTabLoading } = useDeferredTabChange<TabId>(activeTab, setActiveTab);
 
   const tabs = [
     { id: 'expenses' as TabId, label: t.tabs.gastos, emoji: '💰' },
@@ -90,6 +94,12 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading expenses tab"
+        description="Opening the selected expenses workspace."
+      />
+
       {/* Module Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -125,7 +135,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => changeTab(tab.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'
@@ -142,7 +152,17 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
 
       {/* Active Tab Content */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        {renderActiveTab()}
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading expenses tab"
+              description="Downloading only the selected expenses workspace."
+            />
+          )}
+        >
+          {renderActiveTab()}
+        </Suspense>
       </div>
     </div>
   );

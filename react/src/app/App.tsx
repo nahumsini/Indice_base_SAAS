@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react';
 import { Settings } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Header } from './components/Header';
@@ -13,30 +13,6 @@ import { SuccessToast } from './components/SuccessToast';
 import { Button } from './components/ui/button';
 import { useLanguage } from './shared/context';
 import { useFavorites } from './shared/context';
-import HumanResources from './BasicModules/HumanResources';
-import ProcessesTasks from './BasicModules/ProcessesTasks';
-import PanelInicial from './BasicModules/Dashboard';
-import Gastos from './BasicModules/Expenses';
-import CajaChica from './BasicModules/PettyCash';
-import PuntoVenta from './BasicModules/PointOfSale';
-import Ventas from './BasicModules/Sales';
-import Kpis from './BasicModules/Kpis';
-import Mantenimiento from './ComplementaryModules/Maintenance';
-import Inventarios from './ComplementaryModules/Inventory';
-import ControlMinutas from './ComplementaryModules/MinutesControl';
-import Limpieza from './ComplementaryModules/Cleaning';
-import Lavanderia from './ComplementaryModules/Laundry';
-import Transportacion from './ComplementaryModules/Transportation';
-import VehiculosMaquinaria from './ComplementaryModules/VehiclesMachinery';
-import Inmuebles from './ComplementaryModules/Properties';
-import Formularios from './ComplementaryModules/Forms';
-import FacturacionComplementaria from './ComplementaryModules/Invoicing';
-import CorreoElectronico from './ComplementaryModules/Email';
-import ClimaLaboral from './ComplementaryModules/WorkClimate';
-import AgenteVentas from './AIModules/SalesAgent';
-import Analitica from './AIModules/Analytics';
-import Capacitacion from './AIModules/Training';
-import Coach from './AIModules/Coach';
 import {
   getPagePath,
   resolvePageId,
@@ -60,7 +36,34 @@ const getNavigationSuccessToast = (state: unknown) => {
   return typeof successToast === 'string' ? successToast : '';
 };
 
-const MODULE_NAVIGATION_LOADING_MS = 2000;
+const MODULE_NAVIGATION_LOADING_MS = 700;
+
+const HumanResources = lazy(() => import('./BasicModules/HumanResources'));
+const ProcessesTasks = lazy(() => import('./BasicModules/ProcessesTasks'));
+const PanelInicial = lazy(() => import('./BasicModules/Dashboard'));
+const Gastos = lazy(() => import('./BasicModules/Expenses/ExpensesModule'));
+const CajaChica = lazy(() => import('./BasicModules/PettyCash'));
+const PuntoVenta = lazy(() => import('./BasicModules/PointOfSale'));
+const Ventas = lazy(() => import('./BasicModules/Sales'));
+const Kpis = lazy(() => import('./BasicModules/Kpis'));
+const Mantenimiento = lazy(() => import('./ComplementaryModules/Maintenance'));
+const Inventarios = lazy(() => import('./ComplementaryModules/Inventory'));
+const ControlMinutas = lazy(() => import('./ComplementaryModules/MinutesControl'));
+const Limpieza = lazy(() => import('./ComplementaryModules/Cleaning'));
+const Lavanderia = lazy(() => import('./ComplementaryModules/Laundry'));
+const Transportacion = lazy(() => import('./ComplementaryModules/Transportation'));
+const VehiculosMaquinaria = lazy(() => import('./ComplementaryModules/VehiclesMachinery'));
+const Inmuebles = lazy(() => import('./ComplementaryModules/Properties'));
+const Formularios = lazy(() => import('./ComplementaryModules/Forms'));
+const FacturacionComplementaria = lazy(() => import('./ComplementaryModules/Invoicing'));
+const CorreoElectronico = lazy(() => import('./ComplementaryModules/Email'));
+const ClimaLaboral = lazy(() => import('./ComplementaryModules/WorkClimate'));
+const AgenteVentas = lazy(() => import('./AIModules/SalesAgent'));
+const Analitica = lazy(() => import('./AIModules/Analytics'));
+const Capacitacion = lazy(() => import('./AIModules/Training'));
+const Coach = lazy(() => import('./AIModules/Coach'));
+
+type StandaloneModuleComponent = ComponentType | LazyExoticComponent<ComponentType>;
 
 function StandaloneModuleShell({
   children,
@@ -388,19 +391,70 @@ export default function App() {
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [isModuleNavigationLoading, setIsModuleNavigationLoading] = useState(false);
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
+  const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
+  const moduleNavigationStartedAtRef = useRef(0);
+  const moduleNavigationTargetPathRef = useRef<string | null>(null);
   const currentPage = resolvePageId(pageId);
   const needsPageRedirect = Boolean(pageId && currentPage && pageId !== currentPage);
 
-  const showModuleNavigationLoading = () => {
+  const clearModuleNavigationTimeout = () => {
     if (moduleNavigationTimeoutRef.current !== null) {
       window.clearTimeout(moduleNavigationTimeoutRef.current);
+      moduleNavigationTimeoutRef.current = null;
     }
+  };
 
-    setIsModuleNavigationLoading(true);
+  const clearPendingModuleNavigation = () => {
+    moduleNavigationAnimationFrameCleanupRef.current?.();
+    moduleNavigationAnimationFrameCleanupRef.current = null;
+  };
+
+  const hideModuleNavigationLoadingAfterMinimum = () => {
+    clearModuleNavigationTimeout();
+
+    const elapsedMs = (
+      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    ) - moduleNavigationStartedAtRef.current;
+    const remainingMs = Math.max(0, MODULE_NAVIGATION_LOADING_MS - elapsedMs);
+
     moduleNavigationTimeoutRef.current = window.setTimeout(() => {
       setIsModuleNavigationLoading(false);
+      moduleNavigationTargetPathRef.current = null;
       moduleNavigationTimeoutRef.current = null;
-    }, MODULE_NAVIGATION_LOADING_MS);
+    }, remainingMs);
+  };
+
+  const showModuleNavigationLoading = (targetPath: string) => {
+    clearModuleNavigationTimeout();
+
+    moduleNavigationStartedAtRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    moduleNavigationTargetPathRef.current = targetPath;
+    setIsModuleNavigationLoading(true);
+  };
+
+  const navigateAfterLoadingPaint = (targetPath: string) => {
+    clearPendingModuleNavigation();
+
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      navigate(targetPath);
+      return;
+    }
+
+    let secondFrameId: number | null = null;
+    const firstFrameId = window.requestAnimationFrame(() => {
+      secondFrameId = window.requestAnimationFrame(() => {
+        moduleNavigationAnimationFrameCleanupRef.current = null;
+        navigate(targetPath);
+      });
+    });
+
+    moduleNavigationAnimationFrameCleanupRef.current = () => {
+      window.cancelAnimationFrame(firstFrameId);
+
+      if (secondFrameId !== null) {
+        window.cancelAnimationFrame(secondFrameId);
+      }
+    };
   };
 
   useEffect(() => {
@@ -413,10 +467,17 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => () => {
-    if (moduleNavigationTimeoutRef.current !== null) {
-      window.clearTimeout(moduleNavigationTimeoutRef.current);
-    }
+    clearPendingModuleNavigation();
+    clearModuleNavigationTimeout();
   }, []);
+
+  useEffect(() => {
+    if (!isModuleNavigationLoading || moduleNavigationTargetPathRef.current !== pathname) {
+      return;
+    }
+
+    hideModuleNavigationLoadingAfterMinimum();
+  }, [isModuleNavigationLoading, pathname]);
 
   useEffect(() => {
     if (!pageId) {
@@ -464,11 +525,12 @@ export default function App() {
       return;
     }
 
-    showModuleNavigationLoading();
-    navigate(getPagePath(targetPage));
+    const targetPath = getPagePath(targetPage);
+    showModuleNavigationLoading(targetPath);
+    navigateAfterLoadingPaint(targetPath);
   };
 
-  const standaloneModulePages: Partial<Record<PageId, ComponentType>> = {
+  const standaloneModulePages: Partial<Record<PageId, StandaloneModuleComponent>> = {
     maintenance: Mantenimiento,
     inventory: Inventarios,
     'minutes-control': ControlMinutas,
@@ -543,7 +605,18 @@ export default function App() {
         description="Preparing the latest data before the screen becomes active."
         className="z-[160]"
       />
-      {pageContent}
+      <Suspense
+        fallback={(
+          <LoadingBarOverlay
+            isVisible
+            title="Loading module"
+            description="Downloading only the workspace you opened."
+            className="z-[150]"
+          />
+        )}
+      >
+        {pageContent}
+      </Suspense>
       <SuccessToast
         isVisible={Boolean(successToastMessage)}
         message={successToastMessage}

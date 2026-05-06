@@ -208,6 +208,18 @@
     }
   }
 
+  @keyframes loading-bar {
+    0% {
+      transform: translateX(-120%);
+    }
+    50% {
+      transform: translateX(65%);
+    }
+    100% {
+      transform: translateX(220%);
+    }
+  }
+
   .animate-bounce-subtle {
     animation: bounce-subtle 2s ease-in-out infinite;
   }
@@ -218,6 +230,10 @@
 
   .animate-icon-pulse {
     animation: icon-pulse 1s ease-in-out infinite;
+  }
+
+  .animate-loading-bar {
+    animation: loading-bar 1.1s ease-in-out infinite;
   }
 
   /* Ocultar scrollbar pero mantener funcionalidad */

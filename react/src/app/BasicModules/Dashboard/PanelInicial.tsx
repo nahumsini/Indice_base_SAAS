@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 
-// Import all tab components
-import Profile from './Profile';
-import BusinessStructure from './BusinessStructure';
-import BusinessProfile from './BusinessProfile';
-import PersonalPerformance from './PersonalPerformance';
-import Users from './Users';
+const Profile = lazy(() => import('./Profile'));
+const BusinessStructure = lazy(() => import('./BusinessStructure'));
+const BusinessProfile = lazy(() => import('./BusinessProfile'));
+const PersonalPerformance = lazy(() => import('./PersonalPerformance'));
+const Users = lazy(() => import('./Users'));
 
 interface PanelInicialProps {
   onNavigate: (page?: string) => void;
@@ -25,15 +24,6 @@ const subTabIds = [
 ] as const;
 
 type PanelInicialTabId = (typeof subTabIds)[number];
-type PanelInicialTabRefreshKeys = Record<PanelInicialTabId, number>;
-
-const TAB_REFRESH_LOADING_MS = 2000;
-
-const createPanelInicialTabRefreshKeys = () =>
-  subTabIds.reduce((keys, tabId) => {
-    keys[tabId] = 0;
-    return keys;
-  }, {} as PanelInicialTabRefreshKeys);
 
 const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
   perfil: 'profile',
@@ -44,14 +34,11 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
 
 export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
-  const { activeTab: activeSubTab, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
+  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
     'profile',
     subTabIds,
     legacySubTabAliases,
   );
-  const [tabRefreshKeys, setTabRefreshKeys] = useState<PanelInicialTabRefreshKeys>(createPanelInicialTabRefreshKeys);
-  const [tabRefreshSequence, setTabRefreshSequence] = useState(0);
-  const [isTabRefreshing, setIsTabRefreshing] = useState(false);
 
   const subTabs = [
     { id: 'profile', label: t.panelInicial.tabs.profile, emoji: '👤', component: Profile },
@@ -63,42 +50,21 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
 
   // Get the active component
   const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
-  const activeTabRefreshKey = tabRefreshKeys[activeSubTab] ?? 0;
-
-  useEffect(() => {
-    if (tabRefreshSequence === 0) {
-      return undefined;
-    }
-
-    setIsTabRefreshing(true);
-    const timeoutId = window.setTimeout(() => {
-      setIsTabRefreshing(false);
-    }, TAB_REFRESH_LOADING_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [tabRefreshSequence]);
 
   const handleTabClick = (tabId: PanelInicialTabId) => {
     if (tabId === activeSubTab) {
       return;
     }
 
-    setTabRefreshKeys((currentKeys) => ({
-      ...currentKeys,
-      [tabId]: (currentKeys[tabId] ?? 0) + 1,
-    }));
-    setTabRefreshSequence((currentSequence) => currentSequence + 1);
     setActiveSubTab(tabId);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
-        isVisible={isTabRefreshing}
-        title="Refreshing Home Panel"
-        description="Fetching the latest profile, business, and user data."
+        isVisible={isTabLoading}
+        title="Loading Home Panel tab"
+        description="Opening the selected configuration workspace."
       />
 
       {/* Header del módulo */}
@@ -157,7 +123,17 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
 
       {/* Contenido Principal */}
       <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
-        <ActiveComponent key={`${activeSubTab}:${activeTabRefreshKey}`} />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading Home Panel tab"
+              description="Downloading only the selected configuration workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );

@@ -1,19 +1,20 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { useHRLanguage } from './HRLanguage';
-import Employees from './Employees';
-import Attendance from './Attendance/Attendance';
-import Control from './Control';
-import Payroll from './Payroll';
-import Announcements from './Announcements';
-import Assets from './Assets';
-import Records from './Records';
-import Permissions from './Permissions';
-import Incentives from './Incentives';
-import KPIs from './KPIs';
+
+const Employees = lazy(() => import('./Employees'));
+const Attendance = lazy(() => import('./Attendance/Attendance'));
+const Control = lazy(() => import('./Control'));
+const Payroll = lazy(() => import('./Payroll'));
+const Announcements = lazy(() => import('./Announcements'));
+const Assets = lazy(() => import('./Assets'));
+const Records = lazy(() => import('./Records'));
+const Permissions = lazy(() => import('./Permissions'));
+const Incentives = lazy(() => import('./Incentives'));
+const KPIs = lazy(() => import('./KPIs'));
 
 interface HumanResourcesProps {
   onNavigate: (page?: string) => void;
@@ -33,15 +34,6 @@ const humanResourcesTabIds = [
 ] as const;
 
 type HumanResourcesTabId = (typeof humanResourcesTabIds)[number];
-type HumanResourcesTabRefreshKeys = Record<HumanResourcesTabId, number>;
-
-const TAB_REFRESH_LOADING_MS = 2000;
-
-const createHumanResourcesTabRefreshKeys = () =>
-  humanResourcesTabIds.reduce((keys, tabId) => {
-    keys[tabId] = 0;
-    return keys;
-  }, {} as HumanResourcesTabRefreshKeys);
 
 const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId>> = {
   colaboradores: 'collaborators',
@@ -56,14 +48,11 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
 
 export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   const t = useHRLanguage();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
     'collaborators',
     humanResourcesTabIds,
     legacyHumanResourcesTabAliases,
   );
-  const [tabRefreshKeys, setTabRefreshKeys] = useState<HumanResourcesTabRefreshKeys>(createHumanResourcesTabRefreshKeys);
-  const [tabRefreshSequence, setTabRefreshSequence] = useState(0);
-  const [isTabRefreshing, setIsTabRefreshing] = useState(false);
 
   const tabs = [
     { id: 'collaborators', label: t.shell.tabs.collaborators, emoji: '👥', component: Employees },
@@ -80,42 +69,21 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
 
   // Get the active component
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Employees;
-  const activeTabRefreshKey = tabRefreshKeys[activeTab] ?? 0;
-
-  useEffect(() => {
-    if (tabRefreshSequence === 0) {
-      return undefined;
-    }
-
-    setIsTabRefreshing(true);
-    const timeoutId = window.setTimeout(() => {
-      setIsTabRefreshing(false);
-    }, TAB_REFRESH_LOADING_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [tabRefreshSequence]);
 
   const handleTabClick = (tabId: HumanResourcesTabId) => {
     if (tabId === activeTab) {
       return;
     }
 
-    setTabRefreshKeys((currentKeys) => ({
-      ...currentKeys,
-      [tabId]: (currentKeys[tabId] ?? 0) + 1,
-    }));
-    setTabRefreshSequence((currentSequence) => currentSequence + 1);
     setActiveTab(tabId);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
-        isVisible={isTabRefreshing}
-        title="Refreshing HR data"
-        description="Fetching the latest employees, attendance, and control records."
+        isVisible={isTabLoading}
+        title="Loading HR tab"
+        description="Opening the selected human resources workspace."
       />
 
       {/* Header del módulo */}
@@ -170,7 +138,17 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <ActiveComponent key={`${activeTab}:${activeTabRefreshKey}`} />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading HR tab"
+              description="Downloading only the selected human resources workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );
