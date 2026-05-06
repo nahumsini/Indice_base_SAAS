@@ -2,8 +2,10 @@ package com.indice.erp.configcenter;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -12,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.config.AppWebProperties;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +39,12 @@ class ConfigCenterApiControllerTest {
 
     @MockBean
     private GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
+
+    @MockBean
+    private InvitationEmailService invitationEmailService;
+
+    @MockBean
+    private AppWebProperties appWebProperties;
 
     @Test
     void currentUserReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
@@ -218,8 +227,12 @@ class ConfigCenterApiControllerTest {
         );
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(appWebProperties.resolveInvitationBaseUrl()).willReturn("");
+        given(appWebProperties.getAllowedOrigins()).willReturn(List.of("http://localhost:5173"));
         given(configCenterService.inviteUser(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
             .willReturn(inviteResult);
+        given(invitationEmailService.sendInvitation(anyString(), anyString(), anyString()))
+            .willReturn(InvitationEmailResult.sentSuccessfully());
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/config-center/users/invite")
                 .contentType(APPLICATION_JSON)
@@ -229,9 +242,38 @@ class ConfigCenterApiControllerTest {
                       "email": "invite@example.com",
                       "role": "user"
                     }
-                    """))
+                    """)
+                .header("Referer", "http://localhost:5173/dashboard/users"))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.email").value("invite@example.com"))
-            .andExpect(jsonPath("$.invite_link").value("http://localhost/invite/abcdef123456"));
+            .andExpect(jsonPath("$.invite_link").value("http://localhost:5173/invite/abcdef123456"))
+            .andExpect(jsonPath("$.email_sent").value(true))
+            .andExpect(jsonPath("$.email_status").value("sent"));
+    }
+
+    @Test
+    void deleteUserRemovesCompanyAccess() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(configCenterService.deleteUser(7L, 1L, 5L))
+            .willReturn(Map.of("success", true, "deleted", true));
+
+        mockMvc.perform(delete("/api/v1/config-center/users/5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.deleted").value(true));
+    }
+
+    @Test
+    void deleteInvitationCancelsPendingInvitation() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(configCenterService.deleteInvitation(7L, 12L))
+            .willReturn(Map.of("success", true, "deleted", true));
+
+        mockMvc.perform(delete("/api/v1/config-center/users/invitations/12"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.deleted").value(true));
     }
 }

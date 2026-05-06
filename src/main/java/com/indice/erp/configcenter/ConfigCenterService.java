@@ -33,9 +33,10 @@ public class ConfigCenterService {
     private static final String CONFIG_CENTER_KEY = "config_center";
     private static final String HEADQUARTERS_LOCATION_KEY = "headquarters_location";
     private static final String ADDRESS_KEY = "address";
+    private static final String CORPORATE_OFFICE_UNIT_NAME = "Corporate office";
     private static final String HEADQUARTERS_UNIT_NAME = "Headquarter";
     private static final String LEGACY_HEADQUARTERS_UNIT_NAME = "Headquarters";
-    private static final String HEADQUARTERS_BUSINESS_FALLBACK_NAME = "Company headquarters";
+    private static final String CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME = "Corporate office";
     private static final long MAX_PROFILE_AVATAR_SIZE_BYTES = 1024 * 1024;
     private static final Set<String> PROFILE_AVATAR_CONTENT_TYPES = Set.of(
         "image/jpeg",
@@ -85,7 +86,7 @@ public class ConfigCenterService {
         var empresaTemplate = normalizeEmpresaTemplate(configCenterNode.path("empresa_template"));
         var mapNode = configCenterNode.path("map");
         var storedMap = normalizeStoredMap(mapNode);
-        var map = mapNode.isArray() ? storedMap : buildStructureMap(companyId);
+        var map = mapNode.isArray() ? storedMap : normalizeStoredCorporateOfficeMap(buildStructureMap(companyId));
 
         var estructura = firstNonBlank(
             readOptionalText(configCenterNode, "estructura"),
@@ -505,10 +506,86 @@ public class ConfigCenterService {
     }
 
     @Transactional
+    public Map<String, Object> deleteUser(long companyId, long currentUserId, long userId) {
+        if (userId == currentUserId) {
+            throw new IllegalArgumentException("You cannot delete your own user.");
+        }
+
+        var rows = jdbcTemplate.query(
+            """
+                SELECT uc.id AS user_company_id, COALESCE(uc.role, 'user') AS role
+                FROM user_companies uc
+                WHERE uc.user_id = ?
+                  AND uc.company_id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new UserCompanyAccess(
+                rs.getLong("user_company_id"),
+                normalizeRole(rs.getString("role"))
+            ),
+            userId,
+            companyId
+        );
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("User not found.");
+        }
+
+        var access = rows.getFirst();
+        if (Set.of("root", "superadmin").contains(access.role())) {
+            throw new IllegalArgumentException("Protected users cannot be deleted.");
+        }
+
+        if (Set.of("root", "superadmin", "admin").contains(access.role())) {
+            var adminCount = jdbcTemplate.queryForObject(
+                """
+                    SELECT COUNT(*)
+                    FROM user_companies
+                    WHERE company_id = ?
+                      AND LOWER(COALESCE(role, 'user')) IN ('root', 'superadmin', 'admin')
+                      AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                    """,
+                Integer.class,
+                companyId
+            );
+            if (adminCount != null && adminCount <= 1) {
+                throw new IllegalArgumentException("At least one administrator must remain.");
+            }
+        }
+
+        jdbcTemplate.update("DELETE FROM user_company_module_roles WHERE user_company_id = ?", access.userCompanyId());
+        jdbcTemplate.update("DELETE FROM user_companies WHERE id = ?", access.userCompanyId());
+
+        return Map.of("success", true, "deleted", true);
+    }
+
+    @Transactional
+    public Map<String, Object> deleteInvitation(long companyId, long invitationId) {
+        var updated = jdbcTemplate.update(
+            """
+                UPDATE user_invitations
+                SET status = 'cancelled'
+                WHERE id = ?
+                  AND company_id = ?
+                  AND COALESCE(status, 'pending') = 'pending'
+                """,
+            invitationId,
+            companyId
+        );
+
+        if (updated == 0) {
+            throw new NoSuchElementException("Invitation not found.");
+        }
+
+        return Map.of("success", true, "deleted", true);
+    }
+
+    @Transactional
     public Map<String, Object> inviteUser(long companyId, long invitedByUserId, Map<String, Object> payload) {
         var fullName = value(payload, "name", "full_name", "nombre");
         var email = normalizeEmail(value(payload, "email"));
         var role = normalizeRole(value(payload, "role"));
+        var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
 
         if (fullName.isBlank() || email.isBlank()) {
             throw new IllegalArgumentException("Name and email are required.");
@@ -528,7 +605,7 @@ public class ConfigCenterService {
             email,
             fullName,
             role,
-            "[]",
+            serializeModuleSlugs(moduleSlugs),
             token,
             invitedByUserId,
             expiresAt
@@ -539,6 +616,98 @@ public class ConfigCenterService {
             "full_name", fullName,
             "token", token
         );
+    }
+
+    public Map<String, Object> getInvitation(String token) {
+        var invitation = loadInvitationByToken(token, false);
+        return invitationPublicView(invitation);
+    }
+
+    @Transactional
+    public Map<String, Object> acceptInvitation(String token, Map<String, Object> payload) {
+        var invitation = loadInvitationByToken(token, true);
+        var invitationStatus = invitationStatus(invitation);
+        if ("accepted".equals(invitationStatus)) {
+            throw new IllegalArgumentException("This invitation has already been accepted.");
+        }
+        if ("expired".equals(invitationStatus)) {
+            throw new IllegalArgumentException("This invitation has expired.");
+        }
+
+        var password = value(payload, "password", "new_password");
+        var confirmPassword = value(payload, "confirm_password", "confirm_new_password", "password_confirmation");
+        if (password.isBlank() || confirmPassword.isBlank()) {
+            throw new IllegalArgumentException("Password and confirmation are required.");
+        }
+        if (!password.equals(confirmPassword)) {
+            throw new IllegalArgumentException("Password and confirmation must match.");
+        }
+        if (password.length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long.");
+        }
+
+        ensureInvitationEmailCanBeAccepted(invitation.companyId(), invitation.email(), invitation.id());
+
+        jdbcTemplate.update(
+            "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)",
+            invitation.email(),
+            passwordEncoder.encode(password),
+            nullable(invitation.fullName())
+        );
+        var userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        if (userId == null) {
+            throw new IllegalStateException("Unable to create invited user.");
+        }
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_profiles (user_id, full_name, preferred_language)
+                VALUES (?, ?, 'es-419')
+                ON DUPLICATE KEY UPDATE
+                    full_name = VALUES(full_name),
+                    preferred_language = VALUES(preferred_language)
+                """,
+            userId,
+            nullable(invitation.fullName())
+        );
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_companies (user_id, company_id, role, status, visibility)
+                VALUES (?, ?, ?, 'active', 'all')
+                """,
+            userId,
+            invitation.companyId(),
+            invitation.role()
+        );
+        var userCompanyId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        if (userCompanyId == null) {
+            throw new IllegalStateException("Unable to create invited user company access.");
+        }
+
+        for (var slug : invitation.moduleSlugs()) {
+            jdbcTemplate.update(
+                "INSERT INTO user_company_module_roles (user_company_id, module_slug, role, skill_level) VALUES (?, ?, 'viewer', 0)",
+                userCompanyId,
+                slug
+            );
+        }
+
+        jdbcTemplate.update(
+            "UPDATE user_invitations SET status = 'accepted' WHERE id = ?",
+            invitation.id()
+        );
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("accepted", true);
+        result.put("user_id", userId);
+        result.put("email", invitation.email());
+        result.put("full_name", invitation.fullName());
+        result.put("company_id", invitation.companyId());
+        result.put("company_name", invitation.companyName());
+        result.put("role", invitation.role());
+        result.put("status", "active");
+        return result;
     }
 
     @Transactional
@@ -603,7 +772,7 @@ public class ConfigCenterService {
             estructura = "simple";
         }
 
-        var map = normalizeHeadquartersStructure(companyId, normalizeMap(payload));
+        var map = normalizeCorporateOfficeStructure(companyId, normalizeMap(payload));
 
         persistStructure(companyId, userId, map);
 
@@ -622,68 +791,95 @@ public class ConfigCenterService {
         return response;
     }
 
-    private List<UnitInput> normalizeHeadquartersStructure(long companyId, List<UnitInput> desiredUnits) {
+    private List<UnitInput> normalizeCorporateOfficeStructure(long companyId, List<UnitInput> desiredUnits) {
         if (desiredUnits.isEmpty()) {
             return desiredUnits;
         }
 
         var normalizedUnits = new ArrayList<>(desiredUnits);
-        var firstUnit = desiredUnits.getFirst();
-        var normalizedBusinesses = new ArrayList<>(firstUnit.businesses());
-        var firstBusiness = normalizedBusinesses.isEmpty() ? null : normalizedBusinesses.getFirst();
-        var normalizedFirstBusiness = normalizeHeadquartersBusiness(companyId, firstUnit, firstBusiness);
-
-        if (normalizedBusinesses.isEmpty()) {
-            normalizedBusinesses.add(normalizedFirstBusiness);
-        } else {
-            normalizedBusinesses.set(0, normalizedFirstBusiness);
+        var selectedCorporateIndex = -1;
+        for (var index = 0; index < desiredUnits.size(); index++) {
+            if (desiredUnits.get(index).corporateOffice()) {
+                selectedCorporateIndex = index;
+                break;
+            }
+        }
+        if (selectedCorporateIndex < 0) {
+            selectedCorporateIndex = 0;
         }
 
-        normalizedUnits.set(0, new UnitInput(
-            HEADQUARTERS_UNIT_NAME,
-            firstUnit.legacyUnitId(),
-            firstUnit.logo(),
-            firstUnit.industria(),
-            firstUnit.direccion(),
-            firstUnit.ciudad(),
-            firstUnit.estado(),
-            firstUnit.pais(),
-            firstUnit.cp(),
-            firstUnit.telefono(),
-            firstUnit.email(),
-            firstUnit.coordinates(),
-            normalizedBusinesses
-        ));
+        for (var index = 0; index < desiredUnits.size(); index++) {
+            var unit = desiredUnits.get(index);
+            var isCorporateOffice = index == selectedCorporateIndex;
+            var normalizedBusinesses = new ArrayList<>(unit.businesses());
+
+            if (isCorporateOffice) {
+                var firstBusiness = normalizedBusinesses.isEmpty() ? null : normalizedBusinesses.getFirst();
+                var normalizedFirstBusiness = normalizeCorporateOfficeBusiness(companyId, unit, firstBusiness);
+
+                if (normalizedBusinesses.isEmpty()) {
+                    normalizedBusinesses.add(normalizedFirstBusiness);
+                } else {
+                    normalizedBusinesses.set(0, normalizedFirstBusiness);
+                }
+            }
+
+            normalizedUnits.set(index, new UnitInput(
+                normalizeCorporateOfficeUnitName(unit.name(), isCorporateOffice),
+                unit.legacyUnitId(),
+                isCorporateOffice,
+                unit.logo(),
+                unit.industria(),
+                unit.direccion(),
+                unit.ciudad(),
+                unit.estado(),
+                unit.pais(),
+                unit.cp(),
+                unit.telefono(),
+                unit.email(),
+                unit.coordinates(),
+                normalizedBusinesses
+            ));
+        }
         return normalizedUnits;
     }
 
-    private BusinessInput normalizeHeadquartersBusiness(
+    private BusinessInput normalizeCorporateOfficeBusiness(
         long companyId,
-        UnitInput firstUnit,
+        UnitInput corporateUnit,
         BusinessInput firstBusiness
     ) {
         var configuredBusinessName = firstBusiness == null ? "" : firstBusiness.name();
-        var companyName = loadCompanyName(companyId);
-        var businessName = isHeadquartersName(configuredBusinessName)
-            ? firstNonBlank(companyName, configuredBusinessName, HEADQUARTERS_BUSINESS_FALLBACK_NAME)
-            : firstNonBlank(configuredBusinessName, companyName, HEADQUARTERS_BUSINESS_FALLBACK_NAME);
+        var companyName = "";
+        var businessName = configuredBusinessName;
+        if (configuredBusinessName.isBlank() || isHeadquartersName(configuredBusinessName)) {
+            companyName = loadCompanyName(companyId);
+            businessName = firstNonBlank(companyName, configuredBusinessName, CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME);
+        }
 
         return new BusinessInput(
             businessName,
             firstBusiness == null ? null : firstBusiness.legacyBusinessId(),
-            firstBusiness == null ? firstUnit.logo() : firstBusiness.logo(),
-            firstBusiness == null ? firstUnit.industria() : firstBusiness.industria(),
-            firstBusiness == null ? firstUnit.direccion() : firstBusiness.direccion(),
-            firstBusiness == null ? firstUnit.ciudad() : firstBusiness.ciudad(),
-            firstBusiness == null ? firstUnit.estado() : firstBusiness.estado(),
-            firstBusiness == null ? firstUnit.pais() : firstBusiness.pais(),
-            firstBusiness == null ? firstUnit.cp() : firstBusiness.cp(),
-            firstBusiness == null ? firstUnit.telefono() : firstBusiness.telefono(),
-            firstBusiness == null ? firstUnit.email() : firstBusiness.email(),
+            firstBusiness == null ? corporateUnit.logo() : firstBusiness.logo(),
+            firstBusiness == null ? corporateUnit.industria() : firstBusiness.industria(),
+            firstBusiness == null ? corporateUnit.direccion() : firstBusiness.direccion(),
+            firstBusiness == null ? corporateUnit.ciudad() : firstBusiness.ciudad(),
+            firstBusiness == null ? corporateUnit.estado() : firstBusiness.estado(),
+            firstBusiness == null ? corporateUnit.pais() : firstBusiness.pais(),
+            firstBusiness == null ? corporateUnit.cp() : firstBusiness.cp(),
+            firstBusiness == null ? corporateUnit.telefono() : firstBusiness.telefono(),
+            firstBusiness == null ? corporateUnit.email() : firstBusiness.email(),
             firstBusiness == null ? "" : firstBusiness.gerente(),
             firstBusiness == null ? "" : firstBusiness.horario(),
-            firstBusiness == null ? firstUnit.coordinates() : firstBusiness.coordinates()
+            firstBusiness == null ? corporateUnit.coordinates() : firstBusiness.coordinates()
         );
+    }
+
+    private String normalizeCorporateOfficeUnitName(String unitName, boolean isCorporateOffice) {
+        if (isCorporateOffice && isHeadquartersName(unitName)) {
+            return CORPORATE_OFFICE_UNIT_NAME;
+        }
+        return unitName;
     }
 
     private String loadCompanyName(long companyId) {
@@ -697,7 +893,8 @@ public class ConfigCenterService {
 
     private boolean isHeadquartersName(String value) {
         var normalized = normalizeKey(value);
-        return normalized.equals(normalizeKey(HEADQUARTERS_UNIT_NAME))
+        return normalized.equals(normalizeKey(CORPORATE_OFFICE_UNIT_NAME))
+            || normalized.equals(normalizeKey(HEADQUARTERS_UNIT_NAME))
             || normalized.equals(normalizeKey(LEGACY_HEADQUARTERS_UNIT_NAME));
     }
 
@@ -807,9 +1004,7 @@ public class ConfigCenterService {
         var keptUnitIds = new LinkedHashSet<Long>();
         var keptBusinessIds = new LinkedHashSet<Long>();
 
-        var unitIndex = 0;
         for (var desiredUnit : desiredUnits) {
-            var isFirstUnit = unitIndex == 0;
             var unitId = matchUnitId(desiredUnit, existingUnitsById, existingUnitsByName);
             if (unitId == null) {
                 jdbcTemplate.update(
@@ -880,8 +1075,8 @@ public class ConfigCenterService {
                 }
 
                 keptBusinessIds.add(businessId);
-                var attendanceLocationName = isFirstUnit && businessIndex == 0
-                    ? HEADQUARTERS_UNIT_NAME
+                var attendanceLocationName = desiredUnit.corporateOffice() && businessIndex == 0
+                    ? CORPORATE_OFFICE_UNIT_NAME
                     : desiredBusiness.name();
                 syncBusinessStructureAttendanceLocation(
                     companyId,
@@ -893,7 +1088,6 @@ public class ConfigCenterService {
                 );
                 businessIndex++;
             }
-            unitIndex++;
         }
 
         for (var business : existingBusinesses) {
@@ -1288,6 +1482,7 @@ public class ConfigCenterService {
             var unit = new LinkedHashMap<String, Object>();
             unit.put("name", name);
             putIfPresent(unit, "legacy_unit_id", readOptionalLong(unitNode, "legacy_unit_id", "os_unit_id", "id"));
+            putIfPresent(unit, "is_corporate_office", readOptionalBoolean(unitNode, "is_corporate_office", "isCorporateOffice", "corporate_office", "corporateOffice"));
             putIfPresent(unit, "logo", firstNonBlank(
                 readOptionalText(unitNode, "logo"),
                 readOptionalText(unitNode.path("unit_profile"), "photo")
@@ -1363,6 +1558,28 @@ public class ConfigCenterService {
             normalizedMap.add(unit);
         }
 
+        return normalizeStoredCorporateOfficeMap(normalizedMap);
+    }
+
+    private List<Map<String, Object>> normalizeStoredCorporateOfficeMap(List<Map<String, Object>> normalizedMap) {
+        if (normalizedMap.isEmpty()) {
+            return normalizedMap;
+        }
+
+        var selectedCorporateIndex = -1;
+        for (var index = 0; index < normalizedMap.size(); index++) {
+            if (Boolean.TRUE.equals(normalizedMap.get(index).get("is_corporate_office"))) {
+                selectedCorporateIndex = index;
+                break;
+            }
+        }
+        if (selectedCorporateIndex < 0) {
+            selectedCorporateIndex = 0;
+        }
+
+        for (var index = 0; index < normalizedMap.size(); index++) {
+            normalizedMap.get(index).put("is_corporate_office", index == selectedCorporateIndex);
+        }
         return normalizedMap;
     }
 
@@ -1399,6 +1616,7 @@ public class ConfigCenterService {
                 : readOptionalLong(storedUnit, "legacy_unit_id", "os_unit_id", "id");
 
             storedUnit.put("name", desiredUnit.name());
+            storedUnit.put("is_corporate_office", desiredUnit.corporateOffice());
             putText(storedUnit, "logo", desiredUnit.logo());
             putText(storedUnit, "industria", desiredUnit.industria());
             putText(storedUnit, "direccion", desiredUnit.direccion());
@@ -1676,6 +1894,12 @@ public class ConfigCenterService {
                 var normalizedUnitMap = new LinkedHashMap<String, Object>();
                 normalizedUnitMap.put("name", unitMap.get("nombre"));
                 normalizedUnitMap.put("legacy_unit_id", unitMap.get("legacy_unit_id"));
+                normalizedUnitMap.put("is_corporate_office", firstNonNull(
+                    unitMap.get("is_corporate_office"),
+                    unitMap.get("isCorporateOffice"),
+                    unitMap.get("corporate_office"),
+                    unitMap.get("corporateOffice")
+                ));
                 normalizedUnitMap.put("logo", unitMap.get("logo"));
                 normalizedUnitMap.put("industria", unitMap.get("industria"));
                 normalizedUnitMap.put("direccion", unitMap.get("direccion"));
@@ -1729,6 +1953,7 @@ public class ConfigCenterService {
         return new UnitInput(
             name,
             readOptionalLong(unitMap, "legacy_unit_id", "os_unit_id", "id"),
+            readOptionalBoolean(unitMap, false, "is_corporate_office", "isCorporateOffice", "corporate_office", "corporateOffice"),
             objectString(unitMap.get("logo")),
             objectString(unitMap.get("industria")),
             objectString(unitMap.get("direccion")),
@@ -1994,6 +2219,88 @@ public class ConfigCenterService {
         }
     }
 
+    private String serializeModuleSlugs(List<String> moduleSlugs) {
+        try {
+            return objectMapper.writeValueAsString(moduleSlugs == null ? List.of() : moduleSlugs);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Unable to serialize invited module access.", ex);
+        }
+    }
+
+    private InvitationRecord loadInvitationByToken(String token, boolean lockForUpdate) {
+        var normalizedToken = safe(token);
+        if (normalizedToken.isBlank()) {
+            throw new NoSuchElementException("Invitation not found.");
+        }
+
+        var sql = """
+            SELECT invitation.id,
+                   invitation.company_id,
+                   invitation.email,
+                   COALESCE(invitation.full_name, '') AS full_name,
+                   COALESCE(invitation.role, 'user') AS role,
+                   COALESCE(invitation.module_slugs_json, '[]') AS module_slugs_json,
+                   invitation.token,
+                   COALESCE(invitation.status, 'pending') AS status,
+                   invitation.expires_at,
+                   COALESCE(company.name, '') AS company_name
+            FROM user_invitations invitation
+            INNER JOIN companies company ON company.id = invitation.company_id
+            WHERE invitation.token = ?
+            LIMIT 1
+            """;
+        if (lockForUpdate) {
+            sql = sql + " FOR UPDATE";
+        }
+
+        var rows = jdbcTemplate.query(
+            sql,
+            (rs, rowNum) -> {
+                var expiresAt = rs.getTimestamp("expires_at");
+                return new InvitationRecord(
+                    rs.getLong("id"),
+                    rs.getLong("company_id"),
+                    normalizeEmail(rs.getString("email")),
+                    safe(rs.getString("full_name")),
+                    normalizeRole(rs.getString("role")),
+                    parseStoredModuleSlugs(safe(rs.getString("module_slugs_json"))),
+                    safe(rs.getString("token")),
+                    safe(rs.getString("status")).toLowerCase(Locale.ROOT),
+                    expiresAt == null ? null : expiresAt.toLocalDateTime(),
+                    safe(rs.getString("company_name"))
+                );
+            },
+            normalizedToken
+        );
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Invitation not found.");
+        }
+        return rows.getFirst();
+    }
+
+    private Map<String, Object> invitationPublicView(InvitationRecord invitation) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("email", invitation.email());
+        body.put("full_name", invitation.fullName());
+        body.put("role", invitation.role());
+        body.put("company_id", invitation.companyId());
+        body.put("company_name", invitation.companyName());
+        body.put("status", invitationStatus(invitation));
+        body.put("expires_at", invitation.expiresAt() == null ? null : invitation.expiresAt().toString());
+        return body;
+    }
+
+    private String invitationStatus(InvitationRecord invitation) {
+        if (!"pending".equals(invitation.status())) {
+            return invitation.status();
+        }
+        if (invitation.expiresAt() != null && invitation.expiresAt().isBefore(LocalDateTime.now())) {
+            return "expired";
+        }
+        return "pending";
+    }
+
     private void ensureEmailNotUsedInCompany(long companyId, String email, Long invitationIdToIgnore) {
         var existingUsers = jdbcTemplate.queryForObject(
             """
@@ -2031,6 +2338,19 @@ public class ConfigCenterService {
         if (existingInvitations != null && existingInvitations > 0) {
             throw new IllegalArgumentException("That email already has a pending invitation.");
         }
+    }
+
+    private void ensureInvitationEmailCanBeAccepted(long companyId, String email, long invitationIdToIgnore) {
+        var existingUsers = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM users WHERE LOWER(email) = ?",
+            Integer.class,
+            email
+        );
+        if (existingUsers != null && existingUsers > 0) {
+            throw new IllegalArgumentException("That email is already registered.");
+        }
+
+        ensureEmailNotUsedInCompany(companyId, email, invitationIdToIgnore);
     }
 
     private String normalizeEmail(String value) {
@@ -2194,6 +2514,32 @@ public class ConfigCenterService {
         return null;
     }
 
+    private Boolean readOptionalBoolean(JsonNode node, String... fields) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        for (var field : fields) {
+            var childNode = node.get(field);
+            if (childNode == null || childNode.isNull()) {
+                continue;
+            }
+            if (childNode.isBoolean()) {
+                return childNode.asBoolean();
+            }
+            if (childNode.isNumber()) {
+                return childNode.asInt() != 0;
+            }
+            var text = childNode.asText("").trim().toLowerCase(Locale.ROOT);
+            if ("true".equals(text) || "1".equals(text) || "yes".equals(text)) {
+                return true;
+            }
+            if ("false".equals(text) || "0".equals(text) || "no".equals(text)) {
+                return false;
+            }
+        }
+        return null;
+    }
+
     private Long readOptionalLong(Map<?, ?> values, String... fields) {
         for (var field : fields) {
             var value = values.get(field);
@@ -2209,6 +2555,29 @@ public class ConfigCenterService {
             }
         }
         return null;
+    }
+
+    private boolean readOptionalBoolean(Map<?, ?> values, boolean defaultValue, String... fields) {
+        for (var field : fields) {
+            if (!values.containsKey(field)) {
+                continue;
+            }
+            var value = values.get(field);
+            if (value instanceof Boolean bool) {
+                return bool;
+            }
+            if (value instanceof Number number) {
+                return number.intValue() != 0;
+            }
+            var text = objectString(value).toLowerCase(Locale.ROOT);
+            if ("true".equals(text) || "1".equals(text) || "yes".equals(text)) {
+                return true;
+            }
+            if ("false".equals(text) || "0".equals(text) || "no".equals(text)) {
+                return false;
+            }
+        }
+        return defaultValue;
     }
 
     private BigDecimal readOptionalDecimal(JsonNode node, String... fields) {
@@ -2626,6 +2995,7 @@ public class ConfigCenterService {
     private record UnitInput(
         String name,
         Long legacyUnitId,
+        boolean corporateOffice,
         String logo,
         String industria,
         String direccion,
@@ -2695,6 +3065,26 @@ public class ConfigCenterService {
         private boolean hasCoordinates() {
             return latitude != null && longitude != null;
         }
+    }
+
+    private record InvitationRecord(
+        long id,
+        long companyId,
+        String email,
+        String fullName,
+        String role,
+        List<String> moduleSlugs,
+        String token,
+        String status,
+        LocalDateTime expiresAt,
+        String companyName
+    ) {
+    }
+
+    private record UserCompanyAccess(
+        long userCompanyId,
+        String role
+    ) {
     }
 
     private record ExistingUnit(
