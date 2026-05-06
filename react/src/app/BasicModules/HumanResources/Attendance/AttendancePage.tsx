@@ -52,12 +52,21 @@ const formatAttendanceTime = (value: string | null | undefined, locale: string) 
   }).format(parsedDate);
 };
 
-const formatAttendanceBusinessLocationOption = (location: AttendanceLocation) => {
-  const businessName = location.business_name?.trim();
-  return businessName && businessName !== location.name
-    ? `${location.name} - ${businessName}`
-    : location.name;
-};
+const formatAttendanceBusinessOption = (location: AttendanceLocation) => (
+  location.business_name?.trim() || location.name
+);
+
+const formatAttendanceLocationOption = (location: AttendanceLocation) => (
+  location.name?.trim() || location.business_name?.trim() || 'Location'
+);
+
+const attendanceLocationUnitKey = (location: AttendanceLocation) => (
+  location.unit_id ? String(location.unit_id) : 'unassigned'
+);
+
+const attendanceLocationBusinessKey = (location: AttendanceLocation) => (
+  location.business_id ? String(location.business_id) : `location:${location.id}`
+);
 
 type AttendanceUnitOption = {
   id: string;
@@ -156,7 +165,7 @@ const attendanceCopy = {
       business: 'Business',
       selectUnit: 'Select unit',
       selectBusiness: 'Select business',
-      locationRequired: 'Matched automatically from your current position',
+      locationRequired: 'Choose the unit and business; your device location is validated when you record.',
       getLocation: 'Get location',
       refreshLocation: 'Refresh location',
       noLocation: 'No location',
@@ -272,7 +281,7 @@ const attendanceCopy = {
       business: 'Negocio',
       selectUnit: 'Seleccionar unidad',
       selectBusiness: 'Seleccionar negocio',
-      locationRequired: 'Se valida automáticamente con tu ubicación actual',
+      locationRequired: 'Selecciona la unidad y el negocio; la ubicación del dispositivo se valida al registrar.',
       getLocation: 'Obtener ubicación',
       refreshLocation: 'Actualizar ubicación',
       noLocation: 'Sin ubicación',
@@ -321,6 +330,7 @@ export default function Attendance() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [recorderUnitKey, setRecorderUnitKey] = useState('');
+  const [recorderBusinessKey, setRecorderBusinessKey] = useState('');
   const [recorderLocationId, setRecorderLocationId] = useState('');
   const [recorderLocationState, setRecorderLocationState] = useState<{
     latitude: number;
@@ -330,55 +340,67 @@ export default function Attendance() {
   const successToastTimeoutRef = useRef<number | null>(null);
   const attendancePhotoUpload = useAttendancePhotoUpload();
   const attendanceLocations = useMemo(() => dashboard?.locations ?? [], [dashboard?.locations]);
+  const recorderSelectorLocations = useMemo(() => {
+    const businessLocations = attendanceLocations.filter((location) => location.business_id);
+    return businessLocations.length ? businessLocations : attendanceLocations;
+  }, [attendanceLocations]);
   const attendanceUnitOptions = useMemo<AttendanceUnitOption[]>(() => {
     const unitOptionsByKey = new Map<string, string>();
 
-    attendanceLocations.forEach((location) => {
-      const unitKey = location.unit_id ? String(location.unit_id) : 'unassigned';
+    recorderSelectorLocations.forEach((location) => {
+      const unitKey = attendanceLocationUnitKey(location);
       if (!unitOptionsByKey.has(unitKey)) {
         unitOptionsByKey.set(unitKey, location.unit_name?.trim() || copy.labels.unassignedUnit);
       }
     });
 
     return Array.from(unitOptionsByKey, ([id, name]) => ({ id, name }));
-  }, [attendanceLocations, copy.labels.unassignedUnit]);
+  }, [copy.labels.unassignedUnit, recorderSelectorLocations]);
   const allBusinessOptions = useMemo<AttendanceBusinessOption[]>(() => {
     const businessOptionsByKey = new Map<string, AttendanceBusinessOption>();
-    attendanceLocations.forEach((location) => {
-      const unitId = location.unit_id ? String(location.unit_id) : 'unassigned';
-      const locationId = String(location.id);
-      if (!businessOptionsByKey.has(locationId)) {
-        businessOptionsByKey.set(locationId, {
-          id: locationId,
+    recorderSelectorLocations.forEach((location) => {
+      const unitId = attendanceLocationUnitKey(location);
+      const businessId = attendanceLocationBusinessKey(location);
+      if (!businessOptionsByKey.has(businessId)) {
+        businessOptionsByKey.set(businessId, {
+          id: businessId,
           unitId,
-          name: location.business_name?.trim() || formatAttendanceBusinessLocationOption(location),
+          name: formatAttendanceBusinessOption(location),
         });
       }
     });
 
     return Array.from(businessOptionsByKey.values());
-  }, [attendanceLocations]);
+  }, [recorderSelectorLocations]);
   const businessLocationOptions = useMemo(
     () => recorderUnitKey
       ? allBusinessOptions.filter((business) => business.unitId === recorderUnitKey)
       : [],
     [allBusinessOptions, recorderUnitKey],
   );
+  const attendanceLocationOptions = useMemo(
+    () => recorderBusinessKey
+      ? recorderSelectorLocations.filter((location) => (
+        attendanceLocationBusinessKey(location) === recorderBusinessKey
+        && (!recorderUnitKey || attendanceLocationUnitKey(location) === recorderUnitKey)
+      ))
+      : [],
+    [recorderBusinessKey, recorderSelectorLocations, recorderUnitKey],
+  );
   const selectedAttendanceUnit = useMemo(
     () => attendanceUnitOptions.find((unit) => unit.id === recorderUnitKey) ?? null,
     [attendanceUnitOptions, recorderUnitKey],
   );
   const selectedAttendanceBusiness = useMemo(
-    () => businessLocationOptions.find((business) => business.id === recorderLocationId) ?? null,
-    [businessLocationOptions, recorderLocationId],
+    () => businessLocationOptions.find((business) => business.id === recorderBusinessKey) ?? null,
+    [businessLocationOptions, recorderBusinessKey],
   );
   const selectedAttendanceLocation = useMemo(
     () => attendanceLocations.find((location) => String(location.id) === recorderLocationId) ?? null,
     [attendanceLocations, recorderLocationId],
   );
   const hasSelectedAttendanceLocation = Boolean(selectedAttendanceLocation);
-  const shouldShowAttendanceLocationSelectors = attendanceLocations.length > 1;
-  const shouldShowAttendanceUnitSelector = shouldShowAttendanceLocationSelectors && attendanceUnitOptions.length > 1;
+  const shouldShowAttendanceLocationSelectors = recorderSelectorLocations.length > 0;
   const selectedItem = useMemo(() => dashboard?.items[0] ?? null, [dashboard?.items]);
   const selectedEmployeeOption = useMemo(() => dashboard?.employees[0] ?? null, [dashboard?.employees]);
   const selectedEmployeeId = selectedItem?.employee_id ?? null;
@@ -472,15 +494,17 @@ export default function Attendance() {
   }, [calendarMonth, selectedItem]);
 
   useEffect(() => {
-    if (attendanceLocations.length === 1) {
-      const [singleLocation] = attendanceLocations;
-      setRecorderUnitKey(singleLocation.unit_id ? String(singleLocation.unit_id) : 'unassigned');
+    if (recorderSelectorLocations.length === 1) {
+      const [singleLocation] = recorderSelectorLocations;
+      setRecorderUnitKey(attendanceLocationUnitKey(singleLocation));
+      setRecorderBusinessKey(attendanceLocationBusinessKey(singleLocation));
       setRecorderLocationId(String(singleLocation.id));
       return;
     }
 
     if (!attendanceUnitOptions.length) {
       setRecorderUnitKey('');
+      setRecorderBusinessKey('');
       setRecorderLocationId('');
       return;
     }
@@ -492,22 +516,44 @@ export default function Attendance() {
     setRecorderUnitKey((currentUnitKey) => (
       attendanceUnitOptions.some((unit) => unit.id === currentUnitKey) ? currentUnitKey : ''
     ));
-  }, [attendanceLocations, attendanceUnitOptions]);
+  }, [attendanceUnitOptions, recorderSelectorLocations]);
 
   useEffect(() => {
-    if (attendanceLocations.length === 1) {
+    if (recorderSelectorLocations.length === 1) {
       return;
     }
 
     if (!businessLocationOptions.length) {
+      setRecorderBusinessKey('');
+      setRecorderLocationId('');
+      return;
+    }
+
+    setRecorderBusinessKey((currentBusinessKey) => (
+      businessLocationOptions.some((business) => business.id === currentBusinessKey)
+        ? currentBusinessKey
+        : businessLocationOptions.length === 1
+          ? businessLocationOptions[0].id
+          : ''
+    ));
+  }, [businessLocationOptions, recorderSelectorLocations.length]);
+
+  useEffect(() => {
+    if (recorderSelectorLocations.length === 1) {
+      return;
+    }
+
+    if (!recorderBusinessKey || !attendanceLocationOptions.length) {
       setRecorderLocationId('');
       return;
     }
 
     setRecorderLocationId((currentLocationId) => (
-      businessLocationOptions.some((location) => String(location.id) === currentLocationId) ? currentLocationId : ''
+      attendanceLocationOptions.some((location) => String(location.id) === currentLocationId)
+        ? currentLocationId
+        : String(attendanceLocationOptions[0].id)
     ));
-  }, [attendanceLocations.length, businessLocationOptions]);
+  }, [attendanceLocationOptions, recorderBusinessKey, recorderSelectorLocations.length]);
 
   useEffect(() => {
     attendancePhotoUpload.clearPhoto();
@@ -928,41 +974,43 @@ export default function Attendance() {
             </div>
 
             {shouldShowAttendanceLocationSelectors ? (
-              <div className={`mb-3 grid grid-cols-1 gap-3 ${shouldShowAttendanceUnitSelector ? 'sm:grid-cols-2' : ''}`}>
-                {shouldShowAttendanceUnitSelector ? (
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                      {copy.recorder.unit}
-                    </span>
-                    <select
-                      value={recorderUnitKey}
-                      onChange={(event) => {
-                        const nextUnitKey = event.target.value;
-                        setRecorderUnitKey(nextUnitKey);
-                        setRecorderLocationId('');
-                      }}
-                      disabled={recorderDisabled || attendanceUnitOptions.length === 0}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
-                    >
-                      <option value="">{copy.recorder.selectUnit}</option>
-                      {attendanceUnitOptions.length ? (
-                        attendanceUnitOptions.map((unit) => (
-                          <option key={unit.id} value={unit.id}>
-                            {unit.name}
-                          </option>
-                        ))
-                      ) : null}
-                    </select>
-                  </label>
-                ) : null}
+              <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    {copy.recorder.unit}
+                  </span>
+                  <select
+                    value={recorderUnitKey}
+                    onChange={(event) => {
+                      const nextUnitKey = event.target.value;
+                      setRecorderUnitKey(nextUnitKey);
+                      setRecorderBusinessKey('');
+                      setRecorderLocationId('');
+                    }}
+                    disabled={recorderDisabled || attendanceUnitOptions.length === 0}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
+                  >
+                    <option value="">{copy.recorder.selectUnit}</option>
+                    {attendanceUnitOptions.length ? (
+                      attendanceUnitOptions.map((unit) => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.name}
+                        </option>
+                      ))
+                    ) : null}
+                  </select>
+                </label>
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
                     {copy.recorder.business}
                   </span>
                   <select
-                    value={recorderLocationId}
-                    onChange={(event) => setRecorderLocationId(event.target.value)}
+                    value={recorderBusinessKey}
+                    onChange={(event) => {
+                      setRecorderBusinessKey(event.target.value);
+                      setRecorderLocationId('');
+                    }}
                     disabled={recorderDisabled || !recorderUnitKey || businessLocationOptions.length === 0}
                     className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
                   >
@@ -980,7 +1028,7 @@ export default function Attendance() {
             ) : selectedAttendanceLocation ? (
               <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-200">
                 <span className="font-medium">{copy.recorder.location}:</span>{' '}
-                {formatAttendanceBusinessLocationOption(selectedAttendanceLocation)}
+                {formatAttendanceLocationOption(selectedAttendanceLocation)}
               </div>
             ) : null}
 

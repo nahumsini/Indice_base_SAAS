@@ -33,6 +33,9 @@ public class ConfigCenterService {
     private static final String CONFIG_CENTER_KEY = "config_center";
     private static final String HEADQUARTERS_LOCATION_KEY = "headquarters_location";
     private static final String ADDRESS_KEY = "address";
+    private static final String HEADQUARTERS_UNIT_NAME = "Headquarter";
+    private static final String LEGACY_HEADQUARTERS_UNIT_NAME = "Headquarters";
+    private static final String HEADQUARTERS_BUSINESS_FALLBACK_NAME = "Company headquarters";
     private static final long MAX_PROFILE_AVATAR_SIZE_BYTES = 1024 * 1024;
     private static final Set<String> PROFILE_AVATAR_CONTENT_TYPES = Set.of(
         "image/jpeg",
@@ -600,7 +603,7 @@ public class ConfigCenterService {
             estructura = "simple";
         }
 
-        var map = normalizeMap(payload);
+        var map = normalizeHeadquartersStructure(companyId, normalizeMap(payload));
 
         persistStructure(companyId, userId, map);
 
@@ -617,6 +620,85 @@ public class ConfigCenterService {
         response.put("unidades_aprox", map.size());
         response.put("map", normalizeStoredMap(configCenterNode.path("map")));
         return response;
+    }
+
+    private List<UnitInput> normalizeHeadquartersStructure(long companyId, List<UnitInput> desiredUnits) {
+        if (desiredUnits.isEmpty()) {
+            return desiredUnits;
+        }
+
+        var normalizedUnits = new ArrayList<>(desiredUnits);
+        var firstUnit = desiredUnits.getFirst();
+        var normalizedBusinesses = new ArrayList<>(firstUnit.businesses());
+        var firstBusiness = normalizedBusinesses.isEmpty() ? null : normalizedBusinesses.getFirst();
+        var normalizedFirstBusiness = normalizeHeadquartersBusiness(companyId, firstUnit, firstBusiness);
+
+        if (normalizedBusinesses.isEmpty()) {
+            normalizedBusinesses.add(normalizedFirstBusiness);
+        } else {
+            normalizedBusinesses.set(0, normalizedFirstBusiness);
+        }
+
+        normalizedUnits.set(0, new UnitInput(
+            HEADQUARTERS_UNIT_NAME,
+            firstUnit.legacyUnitId(),
+            firstUnit.logo(),
+            firstUnit.industria(),
+            firstUnit.direccion(),
+            firstUnit.ciudad(),
+            firstUnit.estado(),
+            firstUnit.pais(),
+            firstUnit.cp(),
+            firstUnit.telefono(),
+            firstUnit.email(),
+            firstUnit.coordinates(),
+            normalizedBusinesses
+        ));
+        return normalizedUnits;
+    }
+
+    private BusinessInput normalizeHeadquartersBusiness(
+        long companyId,
+        UnitInput firstUnit,
+        BusinessInput firstBusiness
+    ) {
+        var configuredBusinessName = firstBusiness == null ? "" : firstBusiness.name();
+        var companyName = loadCompanyName(companyId);
+        var businessName = isHeadquartersName(configuredBusinessName)
+            ? firstNonBlank(companyName, configuredBusinessName, HEADQUARTERS_BUSINESS_FALLBACK_NAME)
+            : firstNonBlank(configuredBusinessName, companyName, HEADQUARTERS_BUSINESS_FALLBACK_NAME);
+
+        return new BusinessInput(
+            businessName,
+            firstBusiness == null ? null : firstBusiness.legacyBusinessId(),
+            firstBusiness == null ? firstUnit.logo() : firstBusiness.logo(),
+            firstBusiness == null ? firstUnit.industria() : firstBusiness.industria(),
+            firstBusiness == null ? firstUnit.direccion() : firstBusiness.direccion(),
+            firstBusiness == null ? firstUnit.ciudad() : firstBusiness.ciudad(),
+            firstBusiness == null ? firstUnit.estado() : firstBusiness.estado(),
+            firstBusiness == null ? firstUnit.pais() : firstBusiness.pais(),
+            firstBusiness == null ? firstUnit.cp() : firstBusiness.cp(),
+            firstBusiness == null ? firstUnit.telefono() : firstBusiness.telefono(),
+            firstBusiness == null ? firstUnit.email() : firstBusiness.email(),
+            firstBusiness == null ? "" : firstBusiness.gerente(),
+            firstBusiness == null ? "" : firstBusiness.horario(),
+            firstBusiness == null ? firstUnit.coordinates() : firstBusiness.coordinates()
+        );
+    }
+
+    private String loadCompanyName(long companyId) {
+        var rows = jdbcTemplate.query(
+            "SELECT name FROM companies WHERE id = ? LIMIT 1",
+            (rs, rowNum) -> safe(rs.getString("name")),
+            companyId
+        );
+        return rows.isEmpty() ? "" : rows.getFirst();
+    }
+
+    private boolean isHeadquartersName(String value) {
+        var normalized = normalizeKey(value);
+        return normalized.equals(normalizeKey(HEADQUARTERS_UNIT_NAME))
+            || normalized.equals(normalizeKey(LEGACY_HEADQUARTERS_UNIT_NAME));
     }
 
     @Transactional
@@ -725,7 +807,9 @@ public class ConfigCenterService {
         var keptUnitIds = new LinkedHashSet<Long>();
         var keptBusinessIds = new LinkedHashSet<Long>();
 
+        var unitIndex = 0;
         for (var desiredUnit : desiredUnits) {
+            var isFirstUnit = unitIndex == 0;
             var unitId = matchUnitId(desiredUnit, existingUnitsById, existingUnitsByName);
             if (unitId == null) {
                 jdbcTemplate.update(
@@ -745,6 +829,7 @@ public class ConfigCenterService {
 
             keptUnitIds.add(unitId);
 
+            var businessIndex = 0;
             for (var desiredBusiness : desiredUnit.businesses()) {
                 var businessId = matchBusinessId(desiredBusiness, unitId, existingBusinessesById, existingBusinessesByKey);
                 var coordinates = desiredBusiness.coordinates();
@@ -795,8 +880,20 @@ public class ConfigCenterService {
                 }
 
                 keptBusinessIds.add(businessId);
-                syncBusinessStructureAttendanceLocation(companyId, userId, unitId, businessId, desiredBusiness);
+                var attendanceLocationName = isFirstUnit && businessIndex == 0
+                    ? HEADQUARTERS_UNIT_NAME
+                    : desiredBusiness.name();
+                syncBusinessStructureAttendanceLocation(
+                    companyId,
+                    userId,
+                    unitId,
+                    businessId,
+                    desiredBusiness,
+                    attendanceLocationName
+                );
+                businessIndex++;
             }
+            unitIndex++;
         }
 
         for (var business : existingBusinesses) {
@@ -890,7 +987,8 @@ public class ConfigCenterService {
         long userId,
         long unitId,
         long businessId,
-        BusinessInput business
+        BusinessInput business,
+        String locationName
     ) {
         var coordinates = business.coordinates();
         if (coordinates == null || !coordinates.hasCoordinates()) {
@@ -912,7 +1010,7 @@ public class ConfigCenterService {
                 businessId,
                 LocalDate.of(1970, 1, 1),
                 LocalDate.of(9999, 12, 31),
-                business.name(),
+                firstNonBlank(locationName, business.name()),
                 coordinates.latitude(),
                 coordinates.longitude(),
                 coordinates.radiusMeters(),
@@ -948,7 +1046,7 @@ public class ConfigCenterService {
             businessId,
             LocalDate.of(1970, 1, 1),
             LocalDate.of(9999, 12, 31),
-            business.name(),
+            firstNonBlank(locationName, business.name()),
             coordinates.latitude(),
             coordinates.longitude(),
             coordinates.radiusMeters(),

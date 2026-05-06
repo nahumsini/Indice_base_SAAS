@@ -1,6 +1,8 @@
 import { Trash2 } from 'lucide-react';
 import type { Negocio, Unidad } from '../types';
 
+const HEADQUARTERS_DISPLAY_NAME = 'Headquarter';
+
 interface UnitsCopy {
   actions: {
     addUnit: string;
@@ -80,8 +82,8 @@ export function UnitsSection({
       </p>
 
       <div className="space-y-4 mb-4">
-        {unidades.map((unidad) => {
-          const isPrimaryUnit = unidad.name === 'Headquarter' || unidad.name === 'Headquarters';
+        {unidades.map((unidad, unidadIndex) => {
+          const isPrimaryUnit = unidadIndex === 0;
           const hasBusinesses = unidad.negocios.length > 0;
 
           return (
@@ -99,7 +101,7 @@ export function UnitsSection({
                       </p>
                     ) : null}
                     <h4 className="font-semibold text-gray-900 dark:text-white">
-                      {isPrimaryUnit ? structure.units.mainUnit : unidad.name}
+                      {isPrimaryUnit ? HEADQUARTERS_DISPLAY_NAME : unidad.name}
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
                       {hasBusinesses
@@ -130,15 +132,13 @@ export function UnitsSection({
                   >
                     {structure.actions.configureGroup}
                   </button>
-                  {unidad.id !== '1' && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteUnidad(unidad.id)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => onDeleteUnidad(unidad.id)}
+                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 

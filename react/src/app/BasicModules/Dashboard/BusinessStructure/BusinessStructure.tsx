@@ -537,7 +537,7 @@ const buildHeadquartersUnidad = ({
   };
   additionalNegocios?: Negocio[];
 }): Unidad => {
-  const businessName = companyName.trim() || HEADQUARTERS_BUSINESS_FALLBACK_NAME;
+  const businessName = companyName.trim() || existingNegocio?.name.trim() || HEADQUARTERS_BUSINESS_FALLBACK_NAME;
   const coordinateFields: LocationCoordinateData = {
     latitude: coordinates.latitude ?? undefined,
     longitude: coordinates.longitude ?? undefined,
@@ -604,11 +604,7 @@ const buildUnidadesWithHeadquarters = ({
   };
   includeOtherUnits: boolean;
 }): Unidad[] => {
-  const headquartersUnidad = existingUnidades.find((unidad) => (
-    unidad.id === 'headquarters-default-unit'
-    || unidad.id === 'holding-default-unit'
-    || isHeadquartersName(unidad.name)
-  )) ?? (includeOtherUnits ? undefined : existingUnidades[0]);
+  const headquartersUnidad = existingUnidades[0];
   const headquartersNegocio = headquartersUnidad?.negocios.find((negocio) => (
     negocio.id === 'headquarters-default-business'
     || negocio.id === 'holding-default-business'
@@ -636,7 +632,13 @@ const buildUnidadesWithHeadquarters = ({
 
   return [
     headquarters,
-    ...existingUnidades.filter((unidad) => unidad.id !== headquartersUnidad?.id),
+    ...existingUnidades.filter((unidad, index) => (
+      index > 0
+      && unidad.id !== headquartersUnidad?.id
+      && unidad.id !== 'headquarters-default-unit'
+      && unidad.id !== 'holding-default-unit'
+      && !isHeadquartersName(unidad.name)
+    )),
   ];
 };
 
@@ -808,11 +810,34 @@ export default function BusinessStructure() {
     );
   };
 
+  const getCurrentHeadquartersCoordinates = () => {
+    const coordinateValidation = buildCoordinateSaveValues(companyLocation);
+    return coordinateValidation.ok ? coordinateValidation.values : {};
+  };
+
+  const normalizeUnidadesForPersistence = (
+    nextEstructuraType: EstructuraType,
+    nextUnidades: Unidad[],
+  ) => buildUnidadesWithHeadquarters({
+    existingUnidades: nextUnidades,
+    companyName,
+    companyLogo,
+    industry,
+    coordinates: getCurrentHeadquartersCoordinates(),
+    includeOtherUnits: nextEstructuraType === 'multi',
+  });
+
   const persistStructureConfig = async (nextEstructuraType: EstructuraType, nextUnidades: Unidad[]) => {
-    return configCenterApi.saveConfig({
+    const normalizedUnidades = normalizeUnidadesForPersistence(nextEstructuraType, nextUnidades);
+    const response = await configCenterApi.saveConfig({
       estructura: nextEstructuraType,
-      map: buildConfigMap(nextEstructuraType, nextUnidades),
+      map: buildConfigMap(nextEstructuraType, normalizedUnidades),
     });
+
+    return {
+      response,
+      normalizedUnidades,
+    };
   };
 
   const runStructureFeedbackTask = async ({
@@ -1054,9 +1079,9 @@ export default function BusinessStructure() {
           ? unidades.map((unidad) => (unidad.id === editingUnidad.id ? newUnidad : unidad))
           : [...unidades, newUnidad];
 
-        const response = await persistStructureConfig(estructuraType, nextUnidades);
+        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
         const savedUnidades = mapConfigUnitsToState(response.map);
-        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
         setUnidades(committedUnidades);
         syncSavedStructure(estructuraType, committedUnidades);
         closeUnidadModal();
@@ -1136,9 +1161,9 @@ export default function BusinessStructure() {
             };
           });
 
-        const response = await persistStructureConfig(estructuraType, nextUnidades);
+        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
         const savedUnidades = mapConfigUnitsToState(response.map);
-        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
         setUnidades(committedUnidades);
         syncSavedStructure(estructuraType, committedUnidades);
         closeNegocioModal();
@@ -1213,9 +1238,9 @@ export default function BusinessStructure() {
               })
             : unidades;
 
-          const response = await persistStructureConfig(estructuraType, nextUnidades);
+          const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
           const savedUnidades = mapConfigUnitsToState(response.map);
-          const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+          const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
 
           await configCenterApi.saveEmpresa({
             nombre_empresa: companyName,
