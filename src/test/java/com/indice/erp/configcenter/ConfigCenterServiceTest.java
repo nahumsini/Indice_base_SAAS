@@ -389,6 +389,76 @@ class ConfigCenterServiceTest {
     }
 
     @Test
+    void saveStructurePreservesSelectedCorporateOfficeUnit() throws Exception {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id, name
+                FROM units
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id,
+                       unit_id,
+                       name,
+                       latitude,
+                       longitude,
+                       radius_meters,
+                       coordinate_source,
+                       google_maps_url
+                FROM businesses
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+        when(jdbcTemplate.queryForObject(eq("SELECT LAST_INSERT_ID()"), eq(Long.class)))
+            .thenReturn(10L, 100L, 20L, 200L);
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_employees WHERE company_id = ?", Integer.class, 1L))
+            .thenReturn(0);
+
+        var firstUnit = new LinkedHashMap<String, Object>();
+        firstUnit.put("name", "Warehouse");
+        firstUnit.put("businesses", List.of(Map.of("name", "Warehouse Ops")));
+
+        var corporateUnit = new LinkedHashMap<String, Object>();
+        corporateUnit.put("name", "Toronto");
+        corporateUnit.put("is_corporate_office", true);
+        corporateUnit.put("businesses", List.of(Map.of("name", "Toronto Ops")));
+
+        var saved = service.saveStructure(1L, 1L, Map.of(
+            "estructura", "multi",
+            "map", List.of(firstUnit, corporateUnit)
+        ));
+
+        @SuppressWarnings("unchecked")
+        var responseMap = (List<Map<String, Object>>) saved.get("map");
+        assertEquals(false, responseMap.getFirst().get("is_corporate_office"));
+        assertEquals(true, responseMap.get(1).get("is_corporate_office"));
+        assertEquals("Warehouse", responseMap.getFirst().get("name"));
+        assertEquals("Toronto", responseMap.get(1).get("name"));
+
+        ArgumentCaptor<String> settingsCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(startsWith("INSERT INTO company_settings"), eq(1L), settingsCaptor.capture());
+        var settingsJson = new ObjectMapper().readTree(settingsCaptor.getValue());
+        var storedMap = settingsJson.path("config_center").path("map");
+        assertEquals(false, storedMap.get(0).path("is_corporate_office").asBoolean());
+        assertEquals(true, storedMap.get(1).path("is_corporate_office").asBoolean());
+    }
+
+    @Test
     void saveCurrentUserUpdatesPasswordHashWhenNewPasswordIsProvided() {
         var service = newService();
 
