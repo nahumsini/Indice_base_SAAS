@@ -1,7 +1,7 @@
-import { Trash2 } from 'lucide-react';
+import { Building2, CheckCircle2, Trash2 } from 'lucide-react';
 import type { Negocio, Unidad } from '../types';
 
-const HEADQUARTERS_DISPLAY_NAME = 'Headquarter';
+const CORPORATE_OFFICE_DISPLAY_NAME = 'Corporate office';
 
 interface UnitsCopy {
   actions: {
@@ -37,6 +37,7 @@ interface UnitsSectionProps {
   structure: UnitsCopy;
   onEditUnidad: (unidad: Unidad) => void;
   onDeleteUnidad: (unidadId: string) => void;
+  onSetCorporateOffice: (unidadId: string) => void;
   onEditNegocio: (negocio: Negocio, unidadId: string) => void;
   onDeleteNegocio: (unidadId: string, negocioId: string) => void;
   onCreateNegocio: (unidadId: string) => void;
@@ -48,6 +49,7 @@ export function UnitsSection({
   structure,
   onEditUnidad,
   onDeleteUnidad,
+  onSetCorporateOffice,
   onEditNegocio,
   onDeleteNegocio,
   onCreateNegocio,
@@ -82,26 +84,33 @@ export function UnitsSection({
       </p>
 
       <div className="space-y-4 mb-4">
-        {unidades.map((unidad, unidadIndex) => {
-          const isPrimaryUnit = unidadIndex === 0;
+        {unidades.map((unidad) => {
+          const isCorporateOffice = unidad.isCorporateOffice === true;
           const hasBusinesses = unidad.negocios.length > 0;
 
           return (
             <div
               key={unidad.id}
-              className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 transition-all"
+              className={`rounded-lg border-2 p-4 transition-all ${
+                isCorporateOffice
+                  ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-700/70 dark:bg-emerald-900/10'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
             >
               <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-xl">📍</span>
+                  <Building2 className={isCorporateOffice
+                    ? 'h-5 w-5 text-emerald-600 dark:text-emerald-300'
+                    : 'h-5 w-5 text-gray-500 dark:text-gray-400'} />
                   <div>
-                    {isPrimaryUnit ? (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {structure.units.groupLabel}
-                      </p>
+                    {isCorporateOffice ? (
+                      <div className="mb-1 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {CORPORATE_OFFICE_DISPLAY_NAME}
+                      </div>
                     ) : null}
                     <h4 className="font-semibold text-gray-900 dark:text-white">
-                      {isPrimaryUnit ? HEADQUARTERS_DISPLAY_NAME : unidad.name}
+                      {unidad.name}
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
                       {hasBusinesses
@@ -132,6 +141,15 @@ export function UnitsSection({
                   >
                     {structure.actions.configureGroup}
                   </button>
+                  {!isCorporateOffice ? (
+                    <button
+                      type="button"
+                      onClick={() => onSetCorporateOffice(unidad.id)}
+                      className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-800/60 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+                    >
+                      Make corporate office
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => onDeleteUnidad(unidad.id)}

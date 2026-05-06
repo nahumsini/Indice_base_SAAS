@@ -76,11 +76,41 @@ export interface InviteConfigCenterUserPayload {
   name: string;
   email: string;
   role: string;
+  module_slugs?: string[];
 }
 
 export interface ConfigCenterInviteResponse {
   email: string;
   invite_link: string;
+  email_sent: boolean;
+  email_status: string;
+  email_message?: string;
+}
+
+export interface InvitationDetails {
+  email: string;
+  full_name: string;
+  role: string;
+  company_id: number;
+  company_name: string;
+  status: 'pending' | 'accepted' | 'expired' | string;
+  expires_at?: string | null;
+}
+
+export interface AcceptInvitationPayload {
+  password: string;
+  confirm_password: string;
+}
+
+export interface AcceptInvitationResponse {
+  accepted: boolean;
+  user_id: number;
+  email: string;
+  full_name: string;
+  company_id: number;
+  company_name: string;
+  role: string;
+  status: string;
 }
 
 export interface ConfigCenterCatalogModule {
@@ -117,6 +147,8 @@ export interface ConfigCenterEmpresaMapBusiness {
 export interface ConfigCenterEmpresaMapUnit {
   name: string;
   legacy_unit_id?: number;
+  is_corporate_office?: boolean;
+  isCorporateOffice?: boolean;
   logo?: string;
   industria?: string;
   direccion?: string;
@@ -217,6 +249,7 @@ export interface SaveStructurePayload {
   map: Array<{
     name: string;
     legacy_unit_id?: number;
+    is_corporate_office?: boolean;
     logo?: string;
     industria?: string;
     direccion?: string;
@@ -349,6 +382,12 @@ export const configCenterApi = {
     });
   },
 
+  deleteUser(id: number) {
+    return apiClient<{ success: boolean; deleted: boolean }>(`${endpoints.configCenter.updateUser}/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   inviteUser(payload: InviteConfigCenterUserPayload) {
     return apiClient<ConfigCenterInviteResponse>(endpoints.configCenter.inviteUser, {
       method: 'POST',
@@ -360,6 +399,23 @@ export const configCenterApi = {
     return apiClient<ConfigCenterInviteResponse>(`${endpoints.configCenter.resendInvitation}/${id}/resend`, {
       method: 'POST',
       body: JSON.stringify(email ? { email } : {}),
+    });
+  },
+
+  deleteInvitation(id: number) {
+    return apiClient<{ success: boolean; deleted: boolean }>(`${endpoints.configCenter.resendInvitation}/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getInvitation(token: string) {
+    return apiClient<InvitationDetails>(`${endpoints.invitations.base}/${encodeURIComponent(token)}`);
+  },
+
+  acceptInvitation(token: string, payload: AcceptInvitationPayload) {
+    return apiClient<AcceptInvitationResponse>(`${endpoints.invitations.base}/${encodeURIComponent(token)}/accept`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 

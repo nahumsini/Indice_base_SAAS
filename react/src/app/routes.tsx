@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, redirect } from 'react-router';
 import App from './App';
-import { LoginPage } from './Auth';
+import { InviteAcceptPage, LoginPage } from './Auth';
 import { authApi } from './api/auth';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 
@@ -57,6 +57,10 @@ export const router = createBrowserRouter([
     path: '/login',
     element: <LoginPage />,
     loader: redirectIfAuthenticated,
+  },
+  {
+    path: '/invite/:token',
+    element: <InviteAcceptPage />,
   },
   {
     path: '/kiosk/:deviceToken',
