@@ -598,6 +598,9 @@ export default function Profile() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {t.panelInicial.profile.subtitle}
             </p>
+            <p className="mt-2 text-sm text-purple-700 dark:text-purple-200">
+              {profileCopy.helper}
+            </p>
           </div>
         </div>
 

@@ -94,6 +94,128 @@ export const languages: Language[] = [
   },
 ];
 
+type PdfLevelCopy = {
+  level1: string;
+  level2: string;
+  level3: string;
+  level4: string;
+  level5: string;
+};
+
+type PdfInterpretationCopy = {
+  critical: string;
+  emerging: string;
+  organized: string;
+  scalable: string;
+  optimized: string;
+};
+
+export type BusinessDiagnosisPdfCopy = {
+  brandBadge: string;
+  fileName: string;
+  companyLabel: string;
+  companyFallback: string;
+  generatedLabel: string;
+  answeredLabel: string;
+  questionsLabel: string;
+  executiveSummaryTitle: string;
+  executiveSummaryCaption: string;
+  dashboardTitle: string;
+  dashboardCaption: string;
+  totalScore: string;
+  maturityLevel: string;
+  strongestPillar: string;
+  weakestPillar: string;
+  outOf100: string;
+  radarTitle: string;
+  progressTitle: string;
+  pillarBreakdownTitle: string;
+  pillarBreakdownCaption: string;
+  detailedAnswersTitle: string;
+  detailedAnswersCaption: string;
+  recommendationLabel: string;
+  suggestedModuleLabel: string;
+  priorityLabel: string;
+  questionColumn: string;
+  selectedAnswerColumn: string;
+  scoreColumn: string;
+  pending: string;
+  footerLeft: string;
+  footerRight: string;
+  levelNames: PdfLevelCopy;
+  progressLevels: string[];
+  moduleLabels: {
+    people: string;
+    processes: string;
+    products: string;
+    finance: string;
+  };
+  summaryTemplate: string;
+  overallInterpretations: PdfInterpretationCopy;
+  pillarInterpretations: PdfInterpretationCopy;
+  opportunityTemplate: string;
+  incompleteOpportunity: string;
+  priorityActions: {
+    people: string[];
+    processes: string[];
+    products: string[];
+    finance: string[];
+  };
+};
+
+export type PersonalPerformancePdfCopy = {
+  brandBadge: string;
+  fileName: string;
+  userLabel: string;
+  userFallback: string;
+  generatedLabel: string;
+  answeredLabel: string;
+  questionsLabel: string;
+  executiveSummaryTitle: string;
+  executiveSummaryCaption: string;
+  dashboardTitle: string;
+  dashboardCaption: string;
+  totalScore: string;
+  performanceLevel: string;
+  strongestArea: string;
+  weakestArea: string;
+  outOf100: string;
+  radarTitle: string;
+  progressTitle: string;
+  sectionBreakdownTitle: string;
+  sectionBreakdownCaption: string;
+  detailedAnswersTitle: string;
+  detailedAnswersCaption: string;
+  recommendationLabel: string;
+  suggestedFocusLabel: string;
+  priorityLabel: string;
+  questionColumn: string;
+  selectedAnswerColumn: string;
+  scoreColumn: string;
+  pending: string;
+  footerLeft: string;
+  footerRight: string;
+  levelNames: PdfLevelCopy;
+  progressLevels: string[];
+  focusLabels: {
+    sleep_recovery: string;
+    nutrition_energy: string;
+    stress_clarity: string;
+    balance_sustainability: string;
+  };
+  summaryTemplate: string;
+  overallInterpretations: PdfInterpretationCopy;
+  sectionInterpretations: PdfInterpretationCopy;
+  opportunityTemplate: string;
+  incompleteOpportunity: string;
+  priorityActions: {
+    sleep_recovery: string[];
+    nutrition_energy: string[];
+    stress_clarity: string[];
+    balance_sustainability: string[];
+  };
+};
+
 type TranslationDictionary = {
     header: {
       notifications: string;
@@ -282,6 +404,89 @@ type TranslationDictionary = {
         plan: string;
         users: string;
       };
+      personalPerformance: {
+        title: string;
+        description: string;
+        centerTitle: string;
+        centerDescription: string;
+        questionCount: string;
+        questionCountLabel: string;
+        progress: string;
+        progressOf: string;
+        printReport: string;
+        restart: string;
+        onboarding: {
+          answeredProgress: string;
+          encouragementMid: string;
+          encouragementNear: string;
+          sections: {
+            sleep_recovery: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+            nutrition_energy: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+            stress_clarity: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+            balance_sustainability: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+          };
+        };
+        pdf: PersonalPerformancePdfCopy;
+        messages: {
+          loading: string;
+          loadError: string;
+          saveSuccess: string;
+          saveError: string;
+          unsavedChanges: string;
+        };
+        sections: {
+          sleep_recovery: {
+            title: string;
+            description: string;
+          };
+          nutrition_energy: {
+            title: string;
+            description: string;
+          };
+          stress_clarity: {
+            title: string;
+            description: string;
+          };
+          balance_sustainability: {
+            title: string;
+            description: string;
+          };
+        };
+        questions: {
+          sleep_recovery: Array<{
+            question: string;
+            options: string[];
+          }>;
+          nutrition_energy: Array<{
+            question: string;
+            options: string[];
+          }>;
+          stress_clarity: Array<{
+            question: string;
+            options: string[];
+          }>;
+          balance_sustainability: Array<{
+            question: string;
+            options: string[];
+          }>;
+        };
+      };
       structure: {
         title: string;
         subtitle: string;
@@ -292,6 +497,12 @@ type TranslationDictionary = {
         actions: {
           save: string;
           saving: string;
+          extract: string;
+          useLocation: string;
+          addUnit: string;
+          configure: string;
+          configureGroup: string;
+          createUnit: string;
         };
         messages: {
           loading: string;
@@ -326,6 +537,7 @@ type TranslationDictionary = {
           switchPrompt: string;
           switchAction: string;
           multiNote: string;
+          selected: string;
           structurePreviewTitle: string;
           structurePreviewLines: string[];
         };
@@ -335,6 +547,17 @@ type TranslationDictionary = {
           simpleDesc: string;
           holdingDesc: string;
           holdingNotice: string;
+        };
+        headquarters: {
+          helper: string;
+          context: string;
+          basicInfo: string;
+          industryHelper: string;
+          locationTitle: string;
+          locationHelper: string;
+          addressTitle: string;
+          addressHelper: string;
+          addressNote: string;
         };
         fields: {
           companyName: string;
@@ -368,7 +591,17 @@ type TranslationDictionary = {
         };
         units: {
           title: string;
+          subtitle: string;
           description: string;
+          context: string;
+          groupLabel: string;
+          mainUnit: string;
+          helper: string;
+          tip: string;
+          empty: string;
+          emptyHelper: string;
+          groupContext: string;
+          tipAction: string;
           addUnit: string;
           addBusiness: string;
           unitName: string;
@@ -426,6 +659,7 @@ type TranslationDictionary = {
       profile: {
         title: string;
         subtitle: string;
+        helper: string;
         fields: {
           fullName: string;
           email: string;
@@ -506,6 +740,23 @@ type TranslationDictionary = {
           status: string;
           modules: string;
           actions: string;
+        };
+        businessStructure: {
+          businessUnit: string;
+          business: string;
+          team: string;
+          person: string;
+          people: string;
+          module: string;
+          modules: string;
+          empty: string;
+          selectBusinessUnit: string;
+          selectBusiness: string;
+          noBusinessOptions: string;
+          unitOptions: Array<{
+            value: string;
+            label: string;
+          }>;
         };
         actions: {
           edit: string;
@@ -691,6 +942,34 @@ type TranslationDictionary = {
         questionCountLabel: string;
         progress: string;
         progressOf: string;
+        onboarding: {
+          answeredProgress: string;
+          encouragementMid: string;
+          encouragementNear: string;
+          sections: {
+            people: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+            processes: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+            products: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+            finance: {
+              title: string;
+              intro: string;
+              done: string;
+            };
+          };
+        };
+        pdf: BusinessDiagnosisPdfCopy;
         printDiagnosis: string;
         start: string;
         continue: string;
@@ -766,6 +1045,661 @@ type TranslationDictionary = {
 interface Translations {
   [key: string]: TranslationDictionary;
 }
+
+type DiagnosisPdfTranslation = TranslationDictionary['panelInicial']['diagnosis']['pdf'];
+type PerformancePdfTranslation = TranslationDictionary['panelInicial']['personalPerformance']['pdf'];
+
+const ES_DIAGNOSIS_PDF_TRANSLATION: DiagnosisPdfTranslation = {
+  brandBadge: 'Reporte ejecutivo de Índice',
+  fileName: 'Índice de Madurez Empresarial (IME).pdf',
+  companyLabel: 'Empresa',
+  companyFallback: 'Negocio actual',
+  generatedLabel: 'Fecha',
+  answeredLabel: 'Respondidas',
+  questionsLabel: 'preguntas',
+  executiveSummaryTitle: 'Resumen ejecutivo',
+  executiveSummaryCaption: 'Lectura rápida del nivel actual y dónde actuar primero',
+  dashboardTitle: 'Panel de madurez',
+  dashboardCaption: 'Vista comparativa de pilares, nivel y brechas principales',
+  totalScore: 'Puntaje total',
+  maturityLevel: 'Nivel de madurez',
+  strongestPillar: 'Pilar más fuerte',
+  weakestPillar: 'Pilar prioritario',
+  outOf100: 'de 100',
+  radarTitle: 'Radar de pilares',
+  progressTitle: 'Progreso de madurez',
+  pillarBreakdownTitle: 'Desglose por pilar',
+  pillarBreakdownCaption: 'Puntaje, lectura corta y recomendación prioritaria',
+  detailedAnswersTitle: 'Respuestas detalladas',
+  detailedAnswersCaption: 'Preguntas agrupadas por pilar con respuesta seleccionada y puntaje',
+  recommendationLabel: 'Recomendación',
+  suggestedModuleLabel: 'Módulo sugerido',
+  priorityLabel: 'Prioridad',
+  questionColumn: 'Pregunta',
+  selectedAnswerColumn: 'Respuesta seleccionada',
+  scoreColumn: 'Puntaje',
+  pending: 'Pendiente',
+  footerLeft: 'Índice · Reporte de diagnóstico empresarial',
+  footerRight: 'Generado automáticamente desde Perfil empresarial',
+  levelNames: {
+    level1: 'Supervivencia',
+    level2: 'Base operativa',
+    level3: 'Organizado',
+    level4: 'Escalable',
+    level5: 'Optimizado',
+  },
+  progressLevels: ['Supervivencia', 'Organizado', 'Escalable', 'Optimizado'],
+  moduleLabels: {
+    people: 'Recursos Humanos',
+    processes: 'Procesos y tareas',
+    products: 'CRM / Punto de venta',
+    finance: 'Gastos y KPIs',
+  },
+  summaryTemplate: 'Tu negocio obtiene {score}/100. {strongest} es el pilar más fuerte, mientras que {weakest} necesita atención prioritaria.',
+  overallInterpretations: {
+    critical: 'El negocio todavía opera de forma reactiva. La prioridad es crear control básico, responsables claros y visibilidad diaria.',
+    emerging: 'Existe una base operativa, pero todavía depende de seguimiento manual. El siguiente paso es convertir hábitos en procesos repetibles.',
+    organized: 'La empresa ya muestra estructura. La oportunidad está en medir mejor, cerrar brechas y preparar la operación para crecer.',
+    scalable: 'El negocio funciona con buena disciplina. Conviene reforzar consistencia, indicadores y delegación para escalar con menos fricción.',
+    optimized: 'La empresa muestra una operación madura. El foco debe ser sostener estándares y mejorar de forma continua.',
+  },
+  pillarInterpretations: {
+    critical: '{section} opera con alta dependencia e improvisación. Necesita reglas simples y seguimiento visible.',
+    emerging: '{section} tiene una base útil, pero aún requiere mayor consistencia y menos control manual.',
+    organized: '{section} está razonablemente ordenado. El siguiente paso es medirlo y hacerlo más repetible.',
+    scalable: '{section} es fuerte. Mantén visibilidad y disciplina para que no dependa de pocas personas.',
+    optimized: '{section} está en un nivel muy maduro. La prioridad es sostener el estándar mientras el negocio crece.',
+  },
+  opportunityTemplate: 'La oportunidad inmediata está en "{question}". La respuesta seleccionada fue "{answer}".',
+  incompleteOpportunity: 'Completa esta sección para obtener una oportunidad más precisa.',
+  priorityActions: {
+    people: [
+      'Clarifica responsabilidades y rituales de seguimiento semanal.',
+      'Reduce dependencia del fundador con dueños claros por área.',
+    ],
+    processes: [
+      'Documenta los flujos más repetidos y asigna un responsable.',
+      'Haz visible la ejecución para reducir seguimiento manual.',
+    ],
+    products: [
+      'Ajusta oferta, precios y revisión de canales comerciales.',
+      'Alinea ventas y entrega con una historia comercial clara.',
+    ],
+    finance: [
+      'Aumenta visibilidad de caja, márgenes y revisión financiera.',
+      'Mueve decisiones de intuición a datos simples y frecuentes.',
+    ],
+  },
+};
+
+const EN_DIAGNOSIS_PDF_TRANSLATION: DiagnosisPdfTranslation = {
+  brandBadge: 'Indice executive report',
+  fileName: 'Business Maturity Index (BMI).pdf',
+  companyLabel: 'Company',
+  companyFallback: 'Current business',
+  generatedLabel: 'Date',
+  answeredLabel: 'Answered',
+  questionsLabel: 'questions',
+  executiveSummaryTitle: 'Executive summary',
+  executiveSummaryCaption: 'A concise read of current maturity and where to act first',
+  dashboardTitle: 'Maturity dashboard',
+  dashboardCaption: 'Comparative view of pillars, level, and main gaps',
+  totalScore: 'Overall score',
+  maturityLevel: 'Maturity level',
+  strongestPillar: 'Strongest pillar',
+  weakestPillar: 'Priority pillar',
+  outOf100: 'out of 100',
+  radarTitle: 'Pillar radar',
+  progressTitle: 'Maturity progress',
+  pillarBreakdownTitle: 'Pillar breakdown',
+  pillarBreakdownCaption: 'Score, short interpretation, and priority recommendation',
+  detailedAnswersTitle: 'Detailed answers',
+  detailedAnswersCaption: 'Questions grouped by pillar with selected answer and score',
+  recommendationLabel: 'Recommendation',
+  suggestedModuleLabel: 'Suggested module',
+  priorityLabel: 'Priority',
+  questionColumn: 'Question',
+  selectedAnswerColumn: 'Selected answer',
+  scoreColumn: 'Score',
+  pending: 'Pending',
+  footerLeft: 'Indice · Business diagnosis report',
+  footerRight: 'Generated automatically from Business Profile answers',
+  levelNames: {
+    level1: 'Survival',
+    level2: 'Operating base',
+    level3: 'Organized',
+    level4: 'Scalable',
+    level5: 'Optimized',
+  },
+  progressLevels: ['Survival', 'Organized', 'Scalable', 'Optimized'],
+  moduleLabels: {
+    people: 'Human Resources',
+    processes: 'Processes and tasks',
+    products: 'CRM / Point of Sale',
+    finance: 'Expenses and KPIs',
+  },
+  summaryTemplate: 'Your business scores {score}/100. {strongest} is the strongest pillar, while {weakest} needs priority attention.',
+  overallInterpretations: {
+    critical: 'The business is still operating reactively. The priority is basic control, clear owners, and daily visibility.',
+    emerging: 'There is an operating base, but it still relies on manual follow-up. The next step is turning habits into repeatable routines.',
+    organized: 'The company shows structure. The opportunity is to measure better, close gaps, and prepare operations for growth.',
+    scalable: 'The business runs with good discipline. Reinforce consistency, indicators, and delegation to scale with less friction.',
+    optimized: 'The company shows a mature operating model. The focus should be sustaining standards and continuous improvement.',
+  },
+  pillarInterpretations: {
+    critical: '{section} operates with high dependency and improvisation. It needs simple rules and visible follow-up.',
+    emerging: '{section} has a useful base, but still needs stronger consistency and less manual control.',
+    organized: '{section} is reasonably structured. The next step is measuring it and making it more repeatable.',
+    scalable: '{section} is strong. Keep visibility and discipline high so it does not depend on a few people.',
+    optimized: '{section} is highly mature. The priority is sustaining the standard while the business grows.',
+  },
+  opportunityTemplate: 'The immediate opportunity is "{question}". The selected answer was "{answer}".',
+  incompleteOpportunity: 'Complete this section to generate a more precise opportunity.',
+  priorityActions: {
+    people: [
+      'Clarify responsibilities and weekly accountability rituals.',
+      'Reduce founder dependency with clear owners by area.',
+    ],
+    processes: [
+      'Document the most repeated workflows and assign an owner.',
+      'Make execution visible to reduce manual follow-up.',
+    ],
+    products: [
+      'Sharpen offer, pricing, and channel performance review.',
+      'Align sales and delivery with a clearer commercial story.',
+    ],
+    finance: [
+      'Increase visibility on cash, margins, and financial reviews.',
+      'Move decisions from intuition to simple and frequent data.',
+    ],
+  },
+};
+
+const ES_PERFORMANCE_PDF_TRANSLATION: PerformancePdfTranslation = {
+  brandBadge: 'Reporte ejecutivo de Índice',
+  fileName: 'Índice de Rendimiento Personal (IRP).pdf',
+  userLabel: 'Persona',
+  userFallback: 'Usuario actual',
+  generatedLabel: 'Fecha',
+  answeredLabel: 'Respondidas',
+  questionsLabel: 'preguntas',
+  executiveSummaryTitle: 'Resumen ejecutivo',
+  executiveSummaryCaption: 'Lectura rápida del rendimiento personal y dónde mejorar primero',
+  dashboardTitle: 'Panel de rendimiento',
+  dashboardCaption: 'Vista comparativa de energía, claridad, recuperación y sostenibilidad',
+  totalScore: 'Puntaje total',
+  performanceLevel: 'Nivel de rendimiento',
+  strongestArea: 'Área más fuerte',
+  weakestArea: 'Área prioritaria',
+  outOf100: 'de 100',
+  radarTitle: 'Radar personal',
+  progressTitle: 'Progreso de rendimiento',
+  sectionBreakdownTitle: 'Desglose por sección',
+  sectionBreakdownCaption: 'Puntaje, lectura corta y recomendación prioritaria',
+  detailedAnswersTitle: 'Respuestas detalladas',
+  detailedAnswersCaption: 'Preguntas agrupadas por sección con respuesta seleccionada y puntaje',
+  recommendationLabel: 'Recomendación',
+  suggestedFocusLabel: 'Foco sugerido',
+  priorityLabel: 'Prioridad',
+  questionColumn: 'Pregunta',
+  selectedAnswerColumn: 'Respuesta seleccionada',
+  scoreColumn: 'Puntaje',
+  pending: 'Pendiente',
+  footerLeft: 'Índice · Reporte de rendimiento personal',
+  footerRight: 'Generado automáticamente desde Rendimiento personal',
+  levelNames: {
+    level1: 'Crítico',
+    level2: 'Inestable',
+    level3: 'Funcional',
+    level4: 'Saludable',
+    level5: 'Alto rendimiento',
+  },
+  progressLevels: ['Crítico', 'Funcional', 'Saludable', 'Alto rendimiento'],
+  focusLabels: {
+    sleep_recovery: 'Rutina de sueño y recuperación',
+    nutrition_energy: 'Nutrición, hidratación y movimiento',
+    stress_clarity: 'Reducción de carga mental y claridad',
+    balance_sustainability: 'Límites y sostenibilidad',
+  },
+  summaryTemplate: 'Tu índice personal es {score}/100. {strongest} es el área más fuerte, mientras que {weakest} necesita atención prioritaria.',
+  overallInterpretations: {
+    critical: 'Los hábitos actuales están afectando el rendimiento. La prioridad es recuperar energía y reducir fricción diaria.',
+    emerging: 'Hay señales de inestabilidad. Conviene reforzar rutinas básicas antes de aumentar responsabilidades.',
+    organized: 'El rendimiento es funcional. Pequeños ajustes pueden mejorar claridad, energía y consistencia.',
+    scalable: 'Los hábitos sostienen un buen rendimiento. El foco es proteger estabilidad bajo presión.',
+    optimized: 'La condición personal sostiene un rendimiento alto. La prioridad es mantener el estándar mientras crecen las responsabilidades.',
+  },
+  sectionInterpretations: {
+    critical: '{section} está en estado crítico y probablemente reduce consistencia diaria.',
+    emerging: '{section} es inestable. Reforzar rutinas aquí puede mejorar energía y claridad.',
+    organized: '{section} funciona, pero todavía hay oportunidades de mejora simples.',
+    scalable: '{section} está saludable. Conviene proteger esta fortaleza bajo presión.',
+    optimized: '{section} muestra alto rendimiento. El reto es sostenerlo con el tiempo.',
+  },
+  opportunityTemplate: 'La oportunidad inmediata está en "{question}". La respuesta seleccionada fue "{answer}".',
+  incompleteOpportunity: 'Completa esta sección para obtener una oportunidad más precisa.',
+  priorityActions: {
+    sleep_recovery: [
+      'Mejora tu rutina de cierre y reduce trabajo nocturno.',
+      'Protege recuperación después de días demandantes.',
+    ],
+    nutrition_energy: [
+      'Estabiliza comidas e hidratación para reducir altibajos de energía.',
+      'Agrega pausas breves de movimiento durante el trabajo.',
+    ],
+    stress_clarity: [
+      'Reduce sobrecarga agrupando tareas y delegando recurrencias.',
+      'Crea una rutina de cierre para dejar de cargar trabajo mentalmente.',
+    ],
+    balance_sustainability: [
+      'Bloquea tiempo protegido para vida personal y recuperación real.',
+      'Reduce dependencia de presencia constante con sistemas repetibles.',
+    ],
+  },
+};
+
+const EN_PERFORMANCE_PDF_TRANSLATION: PerformancePdfTranslation = {
+  brandBadge: 'Indice executive report',
+  fileName: 'Personal Performance Index (PPI).pdf',
+  userLabel: 'Person',
+  userFallback: 'Current user',
+  generatedLabel: 'Date',
+  answeredLabel: 'Answered',
+  questionsLabel: 'questions',
+  executiveSummaryTitle: 'Executive summary',
+  executiveSummaryCaption: 'A concise read of personal performance and where to improve first',
+  dashboardTitle: 'Performance dashboard',
+  dashboardCaption: 'Comparative view of energy, clarity, recovery, and sustainability',
+  totalScore: 'Overall score',
+  performanceLevel: 'Performance level',
+  strongestArea: 'Strongest area',
+  weakestArea: 'Priority area',
+  outOf100: 'out of 100',
+  radarTitle: 'Personal radar',
+  progressTitle: 'Performance progress',
+  sectionBreakdownTitle: 'Section breakdown',
+  sectionBreakdownCaption: 'Score, short interpretation, and priority recommendation',
+  detailedAnswersTitle: 'Detailed answers',
+  detailedAnswersCaption: 'Questions grouped by section with selected answer and score',
+  recommendationLabel: 'Recommendation',
+  suggestedFocusLabel: 'Suggested focus',
+  priorityLabel: 'Priority',
+  questionColumn: 'Question',
+  selectedAnswerColumn: 'Selected answer',
+  scoreColumn: 'Score',
+  pending: 'Pending',
+  footerLeft: 'Indice · Personal performance report',
+  footerRight: 'Generated automatically from Personal Performance answers',
+  levelNames: {
+    level1: 'Critical',
+    level2: 'Unstable',
+    level3: 'Functional',
+    level4: 'Healthy',
+    level5: 'High performance',
+  },
+  progressLevels: ['Critical', 'Functional', 'Healthy', 'High performance'],
+  focusLabels: {
+    sleep_recovery: 'Sleep routine and recovery',
+    nutrition_energy: 'Nutrition, hydration, and movement',
+    stress_clarity: 'Overload reduction and clarity',
+    balance_sustainability: 'Boundaries and sustainability',
+  },
+  summaryTemplate: 'Your personal index is {score}/100. {strongest} is the strongest area, while {weakest} needs priority attention.',
+  overallInterpretations: {
+    critical: 'Current habits are affecting performance. The priority is restoring energy and reducing daily friction.',
+    emerging: 'There are signs of instability. Reinforce basic routines before increasing responsibilities.',
+    organized: 'Performance is functional. Small adjustments can improve clarity, energy, and consistency.',
+    scalable: 'Habits support good performance. The focus is protecting stability under pressure.',
+    optimized: 'Personal condition supports high performance. The priority is maintaining standards as responsibilities grow.',
+  },
+  sectionInterpretations: {
+    critical: '{section} is in a critical state and likely reduces daily consistency.',
+    emerging: '{section} is unstable. Strengthening routines here can improve energy and clarity.',
+    organized: '{section} is functional, but there are still simple improvement opportunities.',
+    scalable: '{section} is healthy. Protect this strength under pressure.',
+    optimized: '{section} shows high performance. The challenge is sustaining it over time.',
+  },
+  opportunityTemplate: 'The immediate opportunity is "{question}". The selected answer was "{answer}".',
+  incompleteOpportunity: 'Complete this section to generate a more precise opportunity.',
+  priorityActions: {
+    sleep_recovery: [
+      'Improve your shutdown routine and reduce late-night work.',
+      'Protect recovery after demanding days.',
+    ],
+    nutrition_energy: [
+      'Stabilize meals and hydration to reduce energy volatility.',
+      'Add short movement breaks during work.',
+    ],
+    stress_clarity: [
+      'Reduce overload by batching work and delegating recurring tasks.',
+      'Create a shutdown routine to stop carrying work mentally.',
+    ],
+    balance_sustainability: [
+      'Protect time blocks for personal life and real recovery.',
+      'Reduce dependency on constant presence with repeatable systems.',
+    ],
+  },
+};
+
+const DIAGNOSIS_PDF_TRANSLATIONS: Record<string, DiagnosisPdfTranslation> = {
+  'es-MX': ES_DIAGNOSIS_PDF_TRANSLATION,
+  'es-CO': ES_DIAGNOSIS_PDF_TRANSLATION,
+  'en-US': EN_DIAGNOSIS_PDF_TRANSLATION,
+  'en-CA': EN_DIAGNOSIS_PDF_TRANSLATION,
+  'fr-CA': EN_DIAGNOSIS_PDF_TRANSLATION,
+  'pt-BR': EN_DIAGNOSIS_PDF_TRANSLATION,
+  'ko-CA': EN_DIAGNOSIS_PDF_TRANSLATION,
+  'zh-CA': EN_DIAGNOSIS_PDF_TRANSLATION,
+};
+
+const PERFORMANCE_PDF_TRANSLATIONS: Record<string, PerformancePdfTranslation> = {
+  'es-MX': ES_PERFORMANCE_PDF_TRANSLATION,
+  'es-CO': ES_PERFORMANCE_PDF_TRANSLATION,
+  'en-US': EN_PERFORMANCE_PDF_TRANSLATION,
+  'en-CA': EN_PERFORMANCE_PDF_TRANSLATION,
+  'fr-CA': EN_PERFORMANCE_PDF_TRANSLATION,
+  'pt-BR': EN_PERFORMANCE_PDF_TRANSLATION,
+  'ko-CA': EN_PERFORMANCE_PDF_TRANSLATION,
+  'zh-CA': EN_PERFORMANCE_PDF_TRANSLATION,
+};
+
+type PersonalPerformanceTranslation = TranslationDictionary['panelInicial']['personalPerformance'];
+
+const ES_PERSONAL_PERFORMANCE_TRANSLATION: PersonalPerformanceTranslation = {
+  title: 'Índice de rendimiento personal (PPI)',
+  description: 'Mide hábitos y condiciones de bienestar que influyen en un rendimiento sostenible.',
+  centerTitle: 'Centro de rendimiento personal',
+  centerDescription: 'Completa las 4 secciones para entender recuperación, energía, claridad y sostenibilidad en el tiempo.',
+  questionCount: '10 preguntas cada una',
+  questionCountLabel: 'La evaluación contiene',
+  progress: 'Progreso de rendimiento personal',
+  progressOf: 'completado',
+  printReport: 'Imprimir reporte',
+  restart: 'Reiniciar sección',
+  onboarding: {
+    answeredProgress: 'Has respondido {answered} de {total} preguntas',
+    encouragementMid: 'Vas muy bien',
+    encouragementNear: 'Ya casi terminas',
+    sections: {
+      sleep_recovery: {
+        title: 'Paso 1 — Sueño y recuperación',
+        intro: 'Entendamos cómo tu descanso sostiene tu trabajo diario',
+        done: 'Listo — entendemos mejor tu recuperación',
+      },
+      nutrition_energy: {
+        title: 'Paso 2 — Energía y nutrición',
+        intro: 'Entendamos cómo se mantiene tu energía durante el día',
+        done: 'Listo — entendemos mejor tu energía',
+      },
+      stress_clarity: {
+        title: 'Paso 3 — Estrés y claridad mental',
+        intro: 'Entendamos cómo la carga mental afecta tu claridad',
+        done: 'Listo — entendemos mejor tu claridad',
+      },
+      balance_sustainability: {
+        title: 'Paso 4 — Balance y sostenibilidad',
+        intro: 'Entendamos si tu rutina puede sostenerse en el tiempo',
+        done: 'Listo — entendemos mejor tu balance',
+      },
+    },
+  },
+  pdf: PERFORMANCE_PDF_TRANSLATIONS['es-MX'],
+  messages: {
+    loading: 'Cargando rendimiento personal...',
+    loadError: 'No pudimos cargar el rendimiento personal.',
+    saveSuccess: 'Rendimiento personal guardado.',
+    saveError: 'No pudimos guardar el rendimiento personal.',
+    unsavedChanges: 'Tienes cambios sin guardar en rendimiento personal.',
+  },
+  sections: {
+    sleep_recovery: {
+      title: 'Sueño y recuperación',
+      description: 'Calidad del sueño, recuperación constante y riesgo de fatiga.',
+    },
+    nutrition_energy: {
+      title: 'Nutrición y energía física',
+      description: 'Alimentación, hidratación, movimiento y estabilidad de energía.',
+    },
+    stress_clarity: {
+      title: 'Estrés y claridad mental',
+      description: 'Carga emocional, ansiedad, fatiga mental y claridad para decidir.',
+    },
+    balance_sustainability: {
+      title: 'Balance y sostenibilidad',
+      description: 'Balance vida-trabajo, riesgo de agotamiento y sostenibilidad a largo plazo.',
+    },
+  },
+  questions: {
+    sleep_recovery: [
+      { question: '¿Cuántas horas duermes normalmente por noche?', options: ['Menos de 5', '5 a 6', '6 a 7', '7 a 8+'] },
+      { question: '¿Con qué frecuencia despiertas sintiéndote descansado?', options: ['Nunca', 'Rara vez', 'A menudo', 'Casi siempre'] },
+      { question: '¿Qué tan regular es tu horario de sueño?', options: ['Totalmente irregular', 'Algo irregular', 'Mayormente regular', 'Muy regular'] },
+      { question: '¿Con qué frecuencia te despiertas durante la noche?', options: ['Muy seguido', 'A veces', 'Rara vez', 'Casi nunca'] },
+      { question: '¿Con qué frecuencia usas tu celular o laptop justo antes de dormir?', options: ['Siempre', 'A menudo', 'A veces', 'Rara vez/Nunca'] },
+      { question: '¿Con qué frecuencia sientes sueño durante el día laboral?', options: ['Constantemente', 'Frecuentemente', 'A veces', 'Rara vez'] },
+      { question: '¿Con qué frecuencia descansas bien en fines de semana o días libres?', options: ['Nunca', 'Rara vez', 'A veces', 'Normalmente'] },
+      { question: '¿Qué tan rápido te recuperas después de un día exigente?', options: ['Muy mal', 'Lentamente', 'Razonablemente bien', 'Muy bien'] },
+      { question: '¿Con qué frecuencia trabajas tarde en la noche?', options: ['Casi todos los días', 'Varias veces por semana', 'Ocasionalmente', 'Rara vez'] },
+      { question: '¿Cómo calificarías tu calidad de sueño general?', options: ['Muy mala', 'Mala', 'Buena', 'Muy buena'] },
+    ],
+    nutrition_energy: [
+      { question: '¿Cuántas comidas completas sueles hacer al día?', options: ['Una o menos', 'Dos', 'Tres', 'Tres o más de forma constante'] },
+      { question: '¿Con qué frecuencia omites el desayuno o tu primera comida?', options: ['Siempre', 'A menudo', 'A veces', 'Rara vez/Nunca'] },
+      { question: '¿Con qué frecuencia comes comida procesada o rápida?', options: ['Diario', 'Varias veces por semana', 'Ocasionalmente', 'Rara vez'] },
+      { question: '¿Cuánta agua sueles tomar al día?', options: ['Muy poca', 'Menos de lo recomendado', 'Casi suficiente', 'Suficiente de forma constante'] },
+      { question: '¿Con qué frecuencia comes frutas o verduras?', options: ['Casi nunca', 'A veces', 'Frecuentemente', 'Diario'] },
+      { question: '¿Qué tan estable es tu energía durante el día?', options: ['Muy inestable', 'Algo inestable', 'Mayormente estable', 'Muy estable'] },
+      { question: '¿Con qué frecuencia haces ejercicio o te mueves intencionalmente?', options: ['Nunca', '1 vez por semana', '2-3 veces por semana', '4+ veces por semana'] },
+      { question: '¿Cuánto tiempo permaneces sentado sin pausas durante el trabajo?', options: ['Casi todo el día', 'Periodos largos', 'Periodos moderados', 'Hago pausas activas frecuentes'] },
+      { question: '¿Con qué frecuencia te sientes físicamente pesado o lento mientras trabajas?', options: ['Constantemente', 'Frecuentemente', 'A veces', 'Rara vez'] },
+      { question: '¿Cómo calificarías tu energía física general?', options: ['Muy baja', 'Baja', 'Buena', 'Alta'] },
+    ],
+    stress_clarity: [
+      { question: '¿Con qué frecuencia te sientes abrumado por el trabajo?', options: ['Constantemente', 'Frecuentemente', 'A veces', 'Rara vez'] },
+      { question: '¿Con qué frecuencia te sientes mentalmente saturado?', options: ['Todos los días', 'Varias veces por semana', 'Ocasionalmente', 'Rara vez'] },
+      { question: '¿Qué tan fácil te resulta concentrarte en una tarea a la vez?', options: ['Muy difícil', 'Difícil', 'Manejable', 'Fácil'] },
+      { question: '¿Con qué frecuencia sientes ansiedad por responsabilidades de trabajo?', options: ['Constantemente', 'Frecuentemente', 'A veces', 'Rara vez'] },
+      { question: '¿Qué tan claro te sientes al tomar decisiones importantes?', options: ['Muy poco claro', 'Algo poco claro', 'Mayormente claro', 'Muy claro'] },
+      { question: '¿Con qué frecuencia llevas problemas del trabajo a tu tiempo personal?', options: ['Siempre', 'A menudo', 'A veces', 'Rara vez'] },
+      { question: '¿Qué tan bien puedes desconectarte mentalmente del trabajo?', options: ['No puedo desconectarme', 'Me cuesta', 'A veces puedo', 'Puedo hacerlo bien'] },
+      { question: '¿Con qué frecuencia los asuntos pequeños se sienten más grandes de lo que son?', options: ['Muy seguido', 'A menudo', 'A veces', 'Rara vez'] },
+      { question: '¿Qué tan apoyado te sientes emocionalmente en tu vida laboral actual?', options: ['Nada apoyado', 'Poco apoyado', 'Moderadamente apoyado', 'Bien apoyado'] },
+      { question: '¿Cómo calificarías tu claridad mental general?', options: ['Muy mala', 'Mala', 'Buena', 'Muy buena'] },
+    ],
+    balance_sustainability: [
+      { question: '¿Cuántos días a la semana trabajas?', options: ['7 días', '6 días', '5-6 días con algo de balance', '5 días o horario equilibrado'] },
+      { question: '¿Con qué frecuencia trabajas en fines de semana?', options: ['Todos los fines de semana', 'La mayoría de fines de semana', 'A veces', 'Rara vez/Nunca'] },
+      { question: '¿Tienes tiempo durante la semana para vida personal o hobbies?', options: ['Nunca', 'Rara vez', 'A veces', 'De forma constante'] },
+      { question: '¿Con qué frecuencia sientes culpa al descansar?', options: ['Siempre', 'A menudo', 'A veces', 'Rara vez'] },
+      { question: '¿Qué tan sostenible se siente tu rutina actual?', options: ['Nada sostenible', 'Difícil de sostener', 'Mayormente sostenible', 'Muy sostenible'] },
+      { question: '¿Con qué frecuencia tomas descansos reales durante el día laboral?', options: ['Nunca', 'Rara vez', 'A veces', 'Frecuentemente'] },
+      { question: '¿Con qué frecuencia tomas vacaciones o días de recuperación?', options: ['Nunca', 'Rara vez', 'Ocasionalmente', 'Regularmente'] },
+      { question: '¿Qué tanto depende tu trabajo de tu presencia constante?', options: ['Dependencia completa', 'Alta dependencia', 'Dependencia moderada', 'Baja dependencia'] },
+      { question: '¿Con qué frecuencia te sientes cerca del agotamiento?', options: ['Constantemente', 'Frecuentemente', 'A veces', 'Rara vez'] },
+      { question: '¿Cómo calificarías tu balance vida-trabajo general?', options: ['Muy malo', 'Malo', 'Bueno', 'Muy bueno'] },
+    ],
+  },
+};
+
+const EN_PERSONAL_PERFORMANCE_TRANSLATION: PersonalPerformanceTranslation = {
+  title: 'Personal Performance Index (PPI)',
+  description: 'Measures habits and wellbeing conditions that affect sustainable work performance.',
+  centerTitle: 'Personal Performance Center',
+  centerDescription: 'Complete the 4 sections to understand recovery, energy, clarity, and sustainability over time.',
+  questionCount: '10 questions each',
+  questionCountLabel: 'The assessment contains',
+  progress: 'Personal performance progress',
+  progressOf: 'completed',
+  printReport: 'Print report',
+  restart: 'Restart section',
+  onboarding: {
+    answeredProgress: 'You\'ve answered {answered} of {total} questions',
+    encouragementMid: 'You\'re making great progress',
+    encouragementNear: 'Almost done',
+    sections: {
+      sleep_recovery: {
+        title: 'Step 1 — Sleep & recovery',
+        intro: 'Let\'s understand how your recovery supports your daily work',
+        done: 'Done — we understand your recovery',
+      },
+      nutrition_energy: {
+        title: 'Step 2 — Energy & nutrition',
+        intro: 'Let\'s understand how your energy holds during the day',
+        done: 'Done — we understand your energy',
+      },
+      stress_clarity: {
+        title: 'Step 3 — Stress & mental clarity',
+        intro: 'Let\'s understand how mental load affects your clarity',
+        done: 'Done — we understand your clarity',
+      },
+      balance_sustainability: {
+        title: 'Step 4 — Balance & sustainability',
+        intro: 'Let\'s understand whether your routine can stay sustainable over time',
+        done: 'Done — we understand your balance',
+      },
+    },
+  },
+  pdf: PERFORMANCE_PDF_TRANSLATIONS['en-US'],
+  messages: {
+    loading: 'Loading personal performance...',
+    loadError: 'We could not load personal performance.',
+    saveSuccess: 'Personal performance saved.',
+    saveError: 'We could not save personal performance.',
+    unsavedChanges: 'You have unsaved changes in personal performance.',
+  },
+  sections: {
+    sleep_recovery: {
+      title: 'Sleep & Recovery',
+      description: 'Sleep quality, recovery consistency, and fatigue risk.',
+    },
+    nutrition_energy: {
+      title: 'Nutrition & Physical Energy',
+      description: 'Fueling, hydration, movement, and energy stability.',
+    },
+    stress_clarity: {
+      title: 'Stress & Mental Clarity',
+      description: 'Emotional load, anxiety, mental fatigue, and clarity for decisions.',
+    },
+    balance_sustainability: {
+      title: 'Balance & Sustainability',
+      description: 'Work-life balance, burnout risk, and long-term sustainability.',
+    },
+  },
+  questions: {
+    sleep_recovery: [
+      { question: 'How many hours do you usually sleep per night?', options: ['Less than 5', '5 to 6', '6 to 7', '7 to 8+'] },
+      { question: 'How often do you wake up feeling rested?', options: ['Never', 'Rarely', 'Often', 'Almost always'] },
+      { question: 'How regular is your sleep schedule?', options: ['Totally irregular', 'Somewhat irregular', 'Mostly regular', 'Very regular'] },
+      { question: 'How often do you wake up during the night?', options: ['Very often', 'Sometimes', 'Rarely', 'Almost never'] },
+      { question: 'How often do you use your phone or laptop right before sleeping?', options: ['Always', 'Often', 'Sometimes', 'Rarely/Never'] },
+      { question: 'How often do you feel sleepy during the workday?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
+      { question: 'How often do you rest properly on weekends or days off?', options: ['Never', 'Rarely', 'Sometimes', 'Usually'] },
+      { question: 'How quickly do you recover after a demanding workday?', options: ['Very poorly', 'Slowly', 'Reasonably well', 'Very well'] },
+      { question: 'How often do you work late at night?', options: ['Almost every day', 'Several times a week', 'Occasionally', 'Rarely'] },
+      { question: 'How would you rate your overall sleep quality?', options: ['Very poor', 'Poor', 'Good', 'Very good'] },
+    ],
+    nutrition_energy: [
+      { question: 'How many complete meals do you usually eat per day?', options: ['One or fewer', 'Two', 'Three', 'Three or more, consistently'] },
+      { question: 'How often do you skip breakfast or your first meal?', options: ['Always', 'Often', 'Sometimes', 'Rarely/Never'] },
+      { question: 'How often do you eat processed or fast food?', options: ['Daily', 'Several times a week', 'Occasionally', 'Rarely'] },
+      { question: 'How much water do you usually drink per day?', options: ['Very little', 'Less than recommended', 'Close to enough', 'Enough consistently'] },
+      { question: 'How often do you eat fruits or vegetables?', options: ['Almost never', 'Sometimes', 'Frequently', 'Daily'] },
+      { question: 'How stable is your energy during the day?', options: ['Very unstable', 'Somewhat unstable', 'Mostly stable', 'Very stable'] },
+      { question: 'How often do you exercise or move intentionally?', options: ['Never', '1 time per week', '2-3 times per week', '4+ times per week'] },
+      { question: 'How long do you stay seated without breaks during work?', options: ['Almost all day', 'Long periods', 'Moderate periods', 'I take regular active breaks'] },
+      { question: 'How often do you feel physically heavy or sluggish while working?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
+      { question: 'How would you rate your physical energy overall?', options: ['Very low', 'Low', 'Good', 'High'] },
+    ],
+    stress_clarity: [
+      { question: 'How often do you feel overwhelmed by work?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
+      { question: 'How often do you feel mentally saturated?', options: ['Every day', 'Several times a week', 'Occasionally', 'Rarely'] },
+      { question: 'How easy is it for you to focus on one task at a time?', options: ['Very difficult', 'Difficult', 'Manageable', 'Easy'] },
+      { question: 'How often do you feel anxious because of work responsibilities?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
+      { question: 'How clear do you feel when making important decisions?', options: ['Very unclear', 'Somewhat unclear', 'Mostly clear', 'Very clear'] },
+      { question: 'How often do you carry work problems into personal time?', options: ['Always', 'Often', 'Sometimes', 'Rarely'] },
+      { question: 'How well can you disconnect mentally from work?', options: ['I cannot disconnect', 'It is difficult', 'I can sometimes', 'I can do it well'] },
+      { question: 'How often do small issues feel bigger than they should?', options: ['Very often', 'Often', 'Sometimes', 'Rarely'] },
+      { question: 'How supported do you feel emotionally in your current work life?', options: ['Not supported at all', 'Slightly supported', 'Moderately supported', 'Well supported'] },
+      { question: 'How would you rate your mental clarity overall?', options: ['Very poor', 'Poor', 'Good', 'Very good'] },
+    ],
+    balance_sustainability: [
+      { question: 'How many days per week do you work?', options: ['7 days', '6 days', '5-6 days with some balance', '5 days or balanced schedule'] },
+      { question: 'How often do you work on weekends?', options: ['Every weekend', 'Most weekends', 'Sometimes', 'Rarely/Never'] },
+      { question: 'Do you have time during the week for personal life or hobbies?', options: ['Never', 'Rarely', 'Sometimes', 'Consistently'] },
+      { question: 'How often do you feel guilty when resting?', options: ['Always', 'Often', 'Sometimes', 'Rarely'] },
+      { question: 'How sustainable does your current routine feel?', options: ['Not sustainable at all', 'Hard to sustain', 'Mostly sustainable', 'Very sustainable'] },
+      { question: 'How often do you take real breaks during the workday?', options: ['Never', 'Rarely', 'Sometimes', 'Frequently'] },
+      { question: 'How often do you take vacations or recovery days?', options: ['Never', 'Rarely', 'Occasionally', 'Regularly'] },
+      { question: 'How dependent is your work on your constant presence?', options: ['Completely dependent', 'Highly dependent', 'Moderately dependent', 'Low dependency'] },
+      { question: 'How often do you feel close to burnout?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
+      { question: 'How would you rate your life-work balance overall?', options: ['Very poor', 'Poor', 'Good', 'Very good'] },
+    ],
+  },
+};
+
+const PERSONAL_PERFORMANCE_TRANSLATIONS: Record<string, PersonalPerformanceTranslation> = {
+  'es-MX': ES_PERSONAL_PERFORMANCE_TRANSLATION,
+  'es-CO': ES_PERSONAL_PERFORMANCE_TRANSLATION,
+  'en-US': EN_PERSONAL_PERFORMANCE_TRANSLATION,
+  'en-CA': EN_PERSONAL_PERFORMANCE_TRANSLATION,
+  'fr-CA': EN_PERSONAL_PERFORMANCE_TRANSLATION,
+  'pt-BR': EN_PERSONAL_PERFORMANCE_TRANSLATION,
+  'ko-CA': EN_PERSONAL_PERFORMANCE_TRANSLATION,
+  'zh-CA': EN_PERSONAL_PERFORMANCE_TRANSLATION,
+};
+
+type UsersBusinessStructureTranslation = TranslationDictionary['panelInicial']['users']['businessStructure'];
+
+const ES_USERS_BUSINESS_STRUCTURE_TRANSLATION: UsersBusinessStructureTranslation = {
+  businessUnit: 'Unidad de negocio',
+  business: 'Negocio',
+  team: 'Equipo',
+  person: 'persona',
+  people: 'personas',
+  module: 'módulo',
+  modules: 'módulos',
+  empty: '-',
+  selectBusinessUnit: 'Selecciona una unidad',
+  selectBusiness: 'Selecciona un negocio',
+  noBusinessOptions: 'Sin negocios disponibles',
+  unitOptions: [
+    { value: 'main-unit', label: 'Unidad principal' },
+    { value: 'operations', label: 'Operaciones' },
+    { value: 'sales', label: 'Ventas' },
+    { value: 'administration', label: 'Administración' },
+  ],
+};
+
+const EN_USERS_BUSINESS_STRUCTURE_TRANSLATION: UsersBusinessStructureTranslation = {
+  businessUnit: 'Business Unit',
+  business: 'Business',
+  team: 'Team',
+  person: 'person',
+  people: 'people',
+  module: 'module',
+  modules: 'modules',
+  empty: '-',
+  selectBusinessUnit: 'Select a unit',
+  selectBusiness: 'Select a business',
+  noBusinessOptions: 'No businesses available',
+  unitOptions: [
+    { value: 'main-unit', label: 'Main unit' },
+    { value: 'operations', label: 'Operations' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'administration', label: 'Administration' },
+  ],
+};
+
+const USERS_BUSINESS_STRUCTURE_TRANSLATIONS: Record<string, UsersBusinessStructureTranslation> = {
+  'es-MX': ES_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+  'es-CO': ES_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+  'en-US': EN_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+  'en-CA': EN_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+  'fr-CA': EN_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+  'pt-BR': EN_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+  'ko-CA': EN_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+  'zh-CA': EN_USERS_BUSINESS_STRUCTURE_TRANSLATION,
+};
 
 const translations: Translations = {
   'es-MX': {
@@ -973,6 +1907,7 @@ const translations: Translations = {
         plan: 'Plan',
         users: 'Usuarios',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['es-MX'],
       diagnosis: {
         title: 'Diagnóstico empresarial',
         description: 'Ayúdanos a conocer mejor tu empresa y la etapa de gestión para personalizar Índice.',
@@ -982,6 +1917,34 @@ const translations: Translations = {
         questionCountLabel: 'El diagnóstico contiene',
         progress: 'Progreso del diagnóstico empresarial',
         progressOf: 'completado',
+        onboarding: {
+          answeredProgress: 'Has respondido {answered} de {total} preguntas',
+          encouragementMid: 'Vas muy bien',
+          encouragementNear: 'Ya casi terminas',
+          sections: {
+              people: {
+                title: 'Paso 1 — Tu equipo',
+                intro: 'Entendamos cómo trabaja tu equipo',
+                done: 'Listo — entendemos mejor a tu equipo',
+              },
+              processes: {
+                title: 'Paso 2 — Cómo operas',
+                intro: 'Entendamos cómo funciona tu operación diaria',
+                done: 'Listo — entendemos cómo operas',
+              },
+              products: {
+                title: 'Paso 3 — Lo que vendes',
+                intro: 'Entendamos tu oferta y cómo llega al mercado',
+                done: 'Listo — entendemos lo que vendes',
+              },
+              finance: {
+                title: 'Paso 4 — Tus finanzas',
+                intro: 'Entendamos cómo controlas tus números',
+                done: 'Listo — entendemos tus finanzas',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['es-MX'],
         printDiagnosis: 'Imprimir diagnóstico',
         start: 'Comenzar',
         continue: 'Continuar',
@@ -1093,6 +2056,12 @@ const translations: Translations = {
         actions: {
           save: 'Guardar cambios',
           saving: 'Guardando...',
+          extract: 'Obtener coordenadas',
+          useLocation: 'Usar mi ubicación',
+          addUnit: 'Agregar nueva unidad',
+          configure: 'Configurar unidad',
+          configureGroup: 'Configurar grupo',
+          createUnit: 'Agregar otra unidad',
         },
         messages: {
           loading: 'Cargando estructura empresarial...',
@@ -1115,19 +2084,20 @@ const translations: Translations = {
         mode: {
           title: 'Tipo de operación',
           description: 'Selecciona la opción que mejor describe tu empresa:',
-          helper: 'Esto te ayudará a organizar mejor tus operaciones, ventas y finanzas.',
+          helper: '💡 Elige cómo funciona tu negocio',
           simple: 'Simple',
           multi: 'Multi-unidad',
-          simpleTitle: 'Un solo negocio',
+          simpleTitle: 'Tengo un solo negocio o sucursal',
           simpleDescription: 'Tienes una sola sucursal o empresa',
           simpleExample: 'Ejemplo: un restaurante, tienda o consultorio',
-          multiTitle: 'Varias empresas o unidades',
+          multiTitle: 'Tengo varias sucursales o marcas',
           multiDescription: 'Múltiples sucursales, filiales o empresas relacionadas',
           multiExample: 'Ejemplo: varios restaurantes, sucursales o marcas',
           switchPrompt: '¿Tienes más de un negocio o sucursal?',
           switchAction: 'Cambia a multi-unidad',
           multiNote: 'Gestiona múltiples unidades desde una única administración.',
-          structurePreviewTitle: 'Así se organizará tu empresa:',
+          selected: 'Seleccionado',
+          structurePreviewTitle: '🧠 Así funcionará tu estructura',
           structurePreviewLines: [
             'Empresa',
             ' → Ubicación (ej: Cancún, CDMX)',
@@ -1139,14 +2109,25 @@ const translations: Translations = {
           holding: 'Sede principal de la empresa',
           simpleDesc: 'Nombre, logo, coordenadas, radio y configuración base.',
           holdingDesc: 'Nombre, logo, coordenadas, radio y configuración base.',
-          holdingNotice: 'Estos datos crean la ubicación Headquarters usada para asistencia.',
+          holdingNotice: '💡 Aquí defines desde dónde opera tu negocio',
+        },
+        headquarters: {
+          helper: '💡 Aquí defines desde dónde opera tu negocio',
+          context: 'Usaremos esta información para organizar tus operaciones, empleados y reportes',
+          basicInfo: '🏢 Información básica de tu empresa',
+          industryHelper: 'Esto nos ayuda a adaptar el sistema a tu tipo de negocio',
+          locationTitle: '📍 Ubicación de tu negocio',
+          locationHelper: 'Esto nos ayuda en funciones como asistencia y control de operaciones',
+          addressTitle: '📍 Dirección del negocio',
+          addressHelper: 'Completa la dirección para identificar mejor tu ubicación',
+          addressNote: 'La dirección es informativa. Usaremos coordenadas para funciones del sistema',
         },
         fields: {
           companyName: 'Nombre de la empresa',
           holdingName: 'Nombre de la empresa',
           industry: 'Industria',
           selectIndustry: 'Selecciona una industria',
-          industryHint: 'Afecta presets de módulos y reportes.',
+          industryHint: 'Esto nos ayuda a adaptar el sistema a tu tipo de negocio',
           country: 'País',
           selectCountry: 'Selecciona un país',
           logo: 'Logo de la empresa',
@@ -1172,8 +2153,18 @@ const translations: Translations = {
           logoPreviewAlt: 'Vista previa del logo',
         },
         units: {
-          title: 'Unidades de negocio',
-          description: 'Administra sucursales, filiales o empresas del grupo',
+          title: '🏬 Tus unidades de negocio',
+          subtitle: 'Aquí puedes ver y administrar cómo está organizado tu negocio',
+          description: 'Aquí puedes ver y administrar cómo está organizado tu negocio',
+          context: 'Cada unidad representa una sucursal, marca o línea de negocio',
+          groupLabel: '🧩 Grupo principal',
+          mainUnit: 'Unidad principal',
+          helper: 'Puedes empezar con una unidad y agregar más conforme tu negocio crezca',
+          tip: '💡 Puedes crear unidades para cada sucursal o marca',
+          empty: 'Sin negocios aún',
+          emptyHelper: 'Agrega tu primer negocio en esta unidad',
+          groupContext: 'Cada ubicación agrupa los negocios que operan ahí',
+          tipAction: '💡 Puedes empezar con una unidad y agregar más después',
           addUnit: '+ Nueva unidad',
           addBusiness: '+ Agregar negocio',
           unitName: 'Nombre de la unidad',
@@ -1217,11 +2208,43 @@ const translations: Translations = {
           businessIdentityIndustries: [
             { value: 'retail', label: '🛍️ Retail / Comercio' },
             { value: 'food', label: '🍔 Alimentos y Bebidas' },
+            { value: 'hospitality', label: '🏨 Hotelería y Hospitalidad' },
             { value: 'tech', label: '💻 Tecnología' },
+            { value: 'software-saas', label: '🧩 Software / SaaS' },
             { value: 'health', label: '🏥 Salud' },
+            { value: 'beauty-wellness', label: '💅 Belleza y Bienestar' },
             { value: 'education', label: '🎓 Educación' },
-            { value: 'services', label: '🔧 Servicios' },
+            { value: 'services', label: '💼 Servicios Profesionales' },
+            { value: 'consulting', label: '🧠 Consultoría' },
+            { value: 'legal', label: '⚖️ Legal' },
+            { value: 'accounting-tax', label: '🧾 Contabilidad e Impuestos' },
+            { value: 'finance-insurance', label: '💰 Finanzas y Seguros' },
+            { value: 'real-estate', label: '🏢 Bienes Raíces' },
+            { value: 'construction', label: '🏗️ Construcción' },
+            { value: 'architecture-engineering', label: '📐 Arquitectura e Ingeniería' },
             { value: 'manufacturing', label: '🏭 Manufactura' },
+            { value: 'wholesale-distribution', label: '📦 Mayoreo y Distribución' },
+            { value: 'logistics-transportation', label: '🚚 Transporte y Logística' },
+            { value: 'automotive', label: '🚗 Automotriz' },
+            { value: 'agriculture', label: '🌾 Agricultura' },
+            { value: 'energy-utilities', label: '⚡ Energía y Servicios Públicos' },
+            { value: 'telecommunications', label: '📡 Telecomunicaciones' },
+            { value: 'marketing-advertising', label: '📣 Marketing y Publicidad' },
+            { value: 'media-creative', label: '🎨 Medios y Creatividad' },
+            { value: 'entertainment-events', label: '🎭 Entretenimiento y Eventos' },
+            { value: 'tourism-travel', label: '✈️ Turismo y Viajes' },
+            { value: 'sports-fitness', label: '🏋️ Deportes y Fitness' },
+            { value: 'cleaning-facility', label: '🧹 Limpieza e Instalaciones' },
+            { value: 'maintenance-repair', label: '🔧 Mantenimiento y Reparación' },
+            { value: 'security', label: '🛡️ Seguridad' },
+            { value: 'ecommerce', label: '🛒 E-commerce' },
+            { value: 'import-export', label: '🌐 Importación / Exportación' },
+            { value: 'nonprofit', label: '🤝 ONG / Sin fines de lucro' },
+            { value: 'government-public', label: '🏛️ Gobierno / Sector público' },
+            { value: 'pet-services', label: '🐾 Mascotas' },
+            { value: 'childcare', label: '👶 Cuidado infantil' },
+            { value: 'senior-care', label: '🧓 Cuidado de adultos mayores' },
+            { value: 'pharmaceutical', label: '💊 Farmacéutica' },
             { value: 'other', label: '📦 Otro' },
           ],
           unitIndustries: [
@@ -1254,8 +2277,9 @@ const translations: Translations = {
         },
       },
       profile: {
-        title: 'Mi perfil',
-        subtitle: 'Información personal y configuración de cuenta',
+        title: 'Tu perfil',
+        subtitle: 'Así aparecerás dentro del sistema',
+        helper: 'Puedes completar esto en cualquier momento',
         fields: {
           fullName: 'Nombre completo',
           email: 'Correo electrónico',
@@ -1264,23 +2288,23 @@ const translations: Translations = {
           department: 'Departamento',
           profilePhoto: 'Foto de perfil',
           country: 'País',
-          uploadPhoto: 'Subir foto',
+          uploadPhoto: 'Subir mi foto',
           firstNames: 'Nombre o nombres',
           lastNames: 'Apellido o apellidos',
           preferredLanguage: 'Idioma preferido',
           newPassword: 'Nueva contraseña',
-          confirmNewPassword: 'Confirmar nueva contraseña',
+          confirmNewPassword: 'Confirmar contraseña',
         },
         sections: {
           identityTitle: 'Identidad',
-          identitySubtitle: 'Tu foto y tu nombre para la interfaz.',
+          identitySubtitle: 'Así te verán dentro del sistema',
           contactTitle: 'Información de contacto',
-          contactSubtitle: 'Datos para notificaciones y comunicación.',
+          contactSubtitle: 'Aquí te avisaremos sobre lo importante',
           securityTitle: 'Seguridad de la cuenta',
-          securitySubtitle: 'Actualiza tu contraseña cuando lo necesites.',
+          securitySubtitle: 'Mantén tu cuenta segura',
           preferencesTitle: 'Preferencias',
           preferencesSubtitle: 'Personaliza el idioma de la interfaz.',
-          nameGroup: 'Nombre y apellidos',
+          nameGroup: 'Tu nombre',
         },
         hints: {
           photoFormat: 'JPG/PNG/WebP/HEIC, máx. 25MB; se comprime al subir',
@@ -1337,6 +2361,7 @@ const translations: Translations = {
           modules: 'Módulos',
           actions: 'Acciones',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['es-MX'],
         actions: {
           edit: 'Editar',
           resend: 'Reenviar invitación',
@@ -1713,6 +2738,7 @@ const translations: Translations = {
         plan: 'Plan',
         users: 'Usuarios',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['es-CO'],
       diagnosis: {
         title: 'Diagnóstico empresarial',
         description: 'Ayúdanos a conocer mejor tu empresa y la etapa de gestión para personalizar Índice.',
@@ -1722,6 +2748,34 @@ const translations: Translations = {
         questionCountLabel: 'El diagnóstico contiene',
         progress: 'Progreso del diagnóstico empresarial',
         progressOf: 'completado',
+        onboarding: {
+          answeredProgress: 'Has respondido {answered} de {total} preguntas',
+          encouragementMid: 'Vas muy bien',
+          encouragementNear: 'Ya casi terminas',
+          sections: {
+              people: {
+                title: 'Paso 1 — Tu equipo',
+                intro: 'Entendamos cómo trabaja tu equipo',
+                done: 'Listo — entendemos mejor a tu equipo',
+              },
+              processes: {
+                title: 'Paso 2 — Cómo operas',
+                intro: 'Entendamos cómo funciona tu operación diaria',
+                done: 'Listo — entendemos cómo operas',
+              },
+              products: {
+                title: 'Paso 3 — Lo que vendes',
+                intro: 'Entendamos tu oferta y cómo llega al mercado',
+                done: 'Listo — entendemos lo que vendes',
+              },
+              finance: {
+                title: 'Paso 4 — Tus finanzas',
+                intro: 'Entendamos cómo controlas tus números',
+                done: 'Listo — entendemos tus finanzas',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['es-CO'],
         printDiagnosis: 'Imprimir diagnóstico',
         start: 'Comenzar',
         continue: 'Continuar',
@@ -1921,6 +2975,12 @@ const translations: Translations = {
         actions: {
           save: 'Guardar cambios',
           saving: 'Guardando...',
+          extract: 'Obtener coordenadas',
+          useLocation: 'Usar mi ubicación',
+          addUnit: 'Agregar nueva unidad',
+          configure: 'Configurar unidad',
+          configureGroup: 'Configurar grupo',
+          createUnit: 'Agregar otra unidad',
         },
         messages: {
           loading: 'Cargando estructura empresarial...',
@@ -1943,19 +3003,20 @@ const translations: Translations = {
         mode: {
           title: 'Tipo de operación',
           description: 'Selecciona la opción que mejor describe tu empresa:',
-          helper: 'Esto te ayudará a organizar mejor tus operaciones, ventas y finanzas.',
+          helper: '💡 Elige cómo funciona tu negocio',
           simple: 'Simple',
           multi: 'Multi-unidad',
-          simpleTitle: 'Un solo negocio',
+          simpleTitle: 'Tengo un solo negocio o sucursal',
           simpleDescription: 'Tienes una sola sucursal o empresa',
           simpleExample: 'Ejemplo: un restaurante, tienda o consultorio',
-          multiTitle: 'Varias empresas o unidades',
+          multiTitle: 'Tengo varias sucursales o marcas',
           multiDescription: 'Múltiples sucursales, filiales o empresas relacionadas',
           multiExample: 'Ejemplo: varios restaurantes, sucursales o marcas',
           switchPrompt: '¿Tienes más de un negocio o sucursal?',
           switchAction: 'Cambia a multi-unidad',
           multiNote: 'Gestiona múltiples unidades desde una única administración.',
-          structurePreviewTitle: 'Así se organizará tu empresa:',
+          selected: 'Seleccionado',
+          structurePreviewTitle: '🧠 Así funcionará tu estructura',
           structurePreviewLines: [
             'Empresa',
             ' → Ubicación (ej: Cancún, CDMX)',
@@ -1967,14 +3028,25 @@ const translations: Translations = {
           holding: 'Sede principal de la empresa',
           simpleDesc: 'Nombre, logo, coordenadas, radio y configuración base.',
           holdingDesc: 'Nombre, logo, coordenadas, radio y configuración base.',
-          holdingNotice: 'Estos datos crean la ubicación Headquarters usada para asistencia.',
+          holdingNotice: '💡 Aquí defines desde dónde opera tu negocio',
+        },
+        headquarters: {
+          helper: '💡 Aquí defines desde dónde opera tu negocio',
+          context: 'Usaremos esta información para organizar tus operaciones, empleados y reportes',
+          basicInfo: '🏢 Información básica de tu empresa',
+          industryHelper: 'Esto nos ayuda a adaptar el sistema a tu tipo de negocio',
+          locationTitle: '📍 Ubicación de tu negocio',
+          locationHelper: 'Esto nos ayuda en funciones como asistencia y control de operaciones',
+          addressTitle: '📍 Dirección del negocio',
+          addressHelper: 'Completa la dirección para identificar mejor tu ubicación',
+          addressNote: 'La dirección es informativa. Usaremos coordenadas para funciones del sistema',
         },
         fields: {
           companyName: 'Nombre de la empresa',
           holdingName: 'Nombre de la empresa',
           industry: 'Industria',
           selectIndustry: 'Selecciona una industria',
-          industryHint: 'Afecta presets de módulos y reportes.',
+          industryHint: 'Esto nos ayuda a adaptar el sistema a tu tipo de negocio',
           country: 'País',
           selectCountry: 'Selecciona un país',
           logo: 'Logo de la empresa',
@@ -2000,8 +3072,18 @@ const translations: Translations = {
           logoPreviewAlt: 'Vista previa del logo',
         },
         units: {
-          title: 'Unidades de negocio',
-          description: 'Administra sucursales, filiales o empresas del grupo',
+          title: '🏬 Tus unidades de negocio',
+          subtitle: 'Aquí puedes ver y administrar cómo está organizado tu negocio',
+          description: 'Aquí puedes ver y administrar cómo está organizado tu negocio',
+          context: 'Cada unidad representa una sucursal, marca o línea de negocio',
+          groupLabel: '🧩 Grupo principal',
+          mainUnit: 'Unidad principal',
+          helper: 'Puedes empezar con una unidad y agregar más conforme tu negocio crezca',
+          tip: '💡 Puedes crear unidades para cada sucursal o marca',
+          empty: 'Sin negocios aún',
+          emptyHelper: 'Agrega tu primer negocio en esta unidad',
+          groupContext: 'Cada ubicación agrupa los negocios que operan ahí',
+          tipAction: '💡 Puedes empezar con una unidad y agregar más después',
           addUnit: '+ Nueva unidad',
           addBusiness: '+ Agregar negocio',
           unitName: 'Nombre de la unidad',
@@ -2045,11 +3127,43 @@ const translations: Translations = {
           businessIdentityIndustries: [
             { value: 'retail', label: '🛍️ Retail / Comercio' },
             { value: 'food', label: '🍔 Alimentos y Bebidas' },
+            { value: 'hospitality', label: '🏨 Hotelería y Hospitalidad' },
             { value: 'tech', label: '💻 Tecnología' },
+            { value: 'software-saas', label: '🧩 Software / SaaS' },
             { value: 'health', label: '🏥 Salud' },
+            { value: 'beauty-wellness', label: '💅 Belleza y Bienestar' },
             { value: 'education', label: '🎓 Educación' },
-            { value: 'services', label: '🔧 Servicios' },
+            { value: 'services', label: '💼 Servicios Profesionales' },
+            { value: 'consulting', label: '🧠 Consultoría' },
+            { value: 'legal', label: '⚖️ Legal' },
+            { value: 'accounting-tax', label: '🧾 Contabilidad e Impuestos' },
+            { value: 'finance-insurance', label: '💰 Finanzas y Seguros' },
+            { value: 'real-estate', label: '🏢 Bienes Raíces' },
+            { value: 'construction', label: '🏗️ Construcción' },
+            { value: 'architecture-engineering', label: '📐 Arquitectura e Ingeniería' },
             { value: 'manufacturing', label: '🏭 Manufactura' },
+            { value: 'wholesale-distribution', label: '📦 Mayoreo y Distribución' },
+            { value: 'logistics-transportation', label: '🚚 Transporte y Logística' },
+            { value: 'automotive', label: '🚗 Automotriz' },
+            { value: 'agriculture', label: '🌾 Agricultura' },
+            { value: 'energy-utilities', label: '⚡ Energía y Servicios Públicos' },
+            { value: 'telecommunications', label: '📡 Telecomunicaciones' },
+            { value: 'marketing-advertising', label: '📣 Marketing y Publicidad' },
+            { value: 'media-creative', label: '🎨 Medios y Creatividad' },
+            { value: 'entertainment-events', label: '🎭 Entretenimiento y Eventos' },
+            { value: 'tourism-travel', label: '✈️ Turismo y Viajes' },
+            { value: 'sports-fitness', label: '🏋️ Deportes y Fitness' },
+            { value: 'cleaning-facility', label: '🧹 Limpieza e Instalaciones' },
+            { value: 'maintenance-repair', label: '🔧 Mantenimiento y Reparación' },
+            { value: 'security', label: '🛡️ Seguridad' },
+            { value: 'ecommerce', label: '🛒 E-commerce' },
+            { value: 'import-export', label: '🌐 Importación / Exportación' },
+            { value: 'nonprofit', label: '🤝 ONG / Sin fines de lucro' },
+            { value: 'government-public', label: '🏛️ Gobierno / Sector público' },
+            { value: 'pet-services', label: '🐾 Mascotas' },
+            { value: 'childcare', label: '👶 Cuidado infantil' },
+            { value: 'senior-care', label: '🧓 Cuidado de adultos mayores' },
+            { value: 'pharmaceutical', label: '💊 Farmacéutica' },
             { value: 'other', label: '📦 Otro' },
           ],
           unitIndustries: [
@@ -2082,8 +3196,9 @@ const translations: Translations = {
         },
       },
       profile: {
-        title: 'Mi perfil',
-        subtitle: 'Información personal y configuración de cuenta',
+        title: 'Tu perfil',
+        subtitle: 'Así aparecerás dentro del sistema',
+        helper: 'Puedes completar esto en cualquier momento',
         fields: {
           fullName: 'Nombre completo',
           email: 'Correo electrónico',
@@ -2092,23 +3207,23 @@ const translations: Translations = {
           department: 'Departamento',
           profilePhoto: 'Foto de perfil',
           country: 'País',
-          uploadPhoto: 'Subir foto',
+          uploadPhoto: 'Subir mi foto',
           firstNames: 'Nombre o nombres',
           lastNames: 'Apellido o apellidos',
           preferredLanguage: 'Idioma preferido',
           newPassword: 'Nueva contraseña',
-          confirmNewPassword: 'Confirmar nueva contraseña',
+          confirmNewPassword: 'Confirmar contraseña',
         },
         sections: {
           identityTitle: 'Identidad',
-          identitySubtitle: 'Tu foto y tu nombre para la interfaz.',
+          identitySubtitle: 'Así te verán dentro del sistema',
           contactTitle: 'Información de contacto',
-          contactSubtitle: 'Datos para notificaciones y comunicación.',
+          contactSubtitle: 'Aquí te avisaremos sobre lo importante',
           securityTitle: 'Seguridad de la cuenta',
-          securitySubtitle: 'Actualiza tu contraseña cuando lo necesites.',
+          securitySubtitle: 'Mantén tu cuenta segura',
           preferencesTitle: 'Preferencias',
           preferencesSubtitle: 'Personaliza el idioma de la interfaz.',
-          nameGroup: 'Nombre y apellidos',
+          nameGroup: 'Tu nombre',
         },
         hints: {
           photoFormat: 'JPG/PNG/WebP/HEIC, máx. 25MB; se comprime al subir',
@@ -2165,6 +3280,7 @@ const translations: Translations = {
           modules: 'Módulos',
           actions: 'Acciones',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['es-CO'],
         actions: {
           edit: 'Editar',
           resend: 'Reenviar invitación',
@@ -2453,6 +3569,7 @@ const translations: Translations = {
         plan: 'Plan',
         users: 'Users',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['en-US'],
       diagnosis: {
         title: 'Business Diagnosis',
         description: 'Help us better understand your company and management stage to personalize Indice.',
@@ -2462,6 +3579,34 @@ const translations: Translations = {
         questionCountLabel: 'The diagnosis contains',
         progress: 'Business diagnosis progress',
         progressOf: 'completed',
+        onboarding: {
+          answeredProgress: 'You\'ve answered {answered} of {total} questions',
+          encouragementMid: 'You\'re making great progress',
+          encouragementNear: 'Almost done',
+          sections: {
+              people: {
+                title: 'Step 1 — Your team',
+                intro: 'Let\'s understand how your team works',
+                done: 'Done — we understand your team',
+              },
+              processes: {
+                title: 'Step 2 — How you operate',
+                intro: 'Let\'s understand how your daily operation works',
+                done: 'Done — we understand how you operate',
+              },
+              products: {
+                title: 'Step 3 — What you sell',
+                intro: 'Let\'s understand your offer and how it reaches the market',
+                done: 'Done — we understand what you sell',
+              },
+              finance: {
+                title: 'Step 4 — Your finances',
+                intro: 'Let\'s understand how you manage your numbers',
+                done: 'Done — we understand your finances',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['en-US'],
         printDiagnosis: 'Print diagnosis',
         start: 'Start',
         continue: 'Continue',
@@ -2661,6 +3806,12 @@ const translations: Translations = {
         actions: {
           save: 'Save changes',
           saving: 'Saving...',
+          extract: 'Get coordinates',
+          useLocation: 'Use my location',
+          addUnit: 'Add new unit',
+          configure: 'Configure unit',
+          configureGroup: 'Configure group',
+          createUnit: 'Add another unit',
         },
         messages: {
           loading: 'Loading business structure...',
@@ -2683,19 +3834,20 @@ const translations: Translations = {
         mode: {
           title: 'Operation type',
           description: 'Select the option that best describes your company:',
-          helper: 'This will help you organize your operations, sales, and finances better.',
+          helper: '💡 Choose how your business works',
           simple: 'Simple',
           multi: 'Multi-unit',
-          simpleTitle: 'Single business',
+          simpleTitle: 'I have one business or branch',
           simpleDescription: 'You have one branch or company',
           simpleExample: 'Example: a restaurant, shop, or clinic',
-          multiTitle: 'Multiple companies or units',
+          multiTitle: 'I have several branches or brands',
           multiDescription: 'Multiple branches, subsidiaries or related companies',
           multiExample: 'Example: several restaurants, branches, or brands',
           switchPrompt: 'Do you have more than one business or branch?',
           switchAction: 'Switch to multi-unit',
           multiNote: 'Manage multiple units from a single administration.',
-          structurePreviewTitle: 'This is how your company will be organized:',
+          selected: 'Selected',
+          structurePreviewTitle: '🧠 This is how your structure will work',
           structurePreviewLines: [
             'Company',
             ' → Location (e.g. Cancun, Mexico City)',
@@ -2707,14 +3859,25 @@ const translations: Translations = {
           holding: 'Company headquarters',
           simpleDesc: 'Company name, logo, coordinates, radius and base configuration.',
           holdingDesc: 'Company name, logo, coordinates, radius and base configuration.',
-          holdingNotice: 'These details create the Headquarters location used for Attendance.',
+          holdingNotice: '💡 Define where your business operates from here.',
+        },
+        headquarters: {
+          helper: '💡 Define where your business operates from here.',
+          context: 'We will use this information to organize your operations, employees, and reports.',
+          basicInfo: '🏢 Basic company information',
+          industryHelper: 'This helps us adapt the system to your type of business.',
+          locationTitle: '📍 Business location',
+          locationHelper: 'This helps with features like attendance and operations control.',
+          addressTitle: '📍 Business address',
+          addressHelper: 'Complete the address to identify your location more clearly',
+          addressNote: 'The address is for reference. We will use coordinates for system features.',
         },
         fields: {
           companyName: 'Company name',
           holdingName: 'Company name',
           industry: 'Industry',
           selectIndustry: 'Select an industry',
-          industryHint: 'This affects module presets and reports.',
+          industryHint: 'This helps us adapt the system to your type of business.',
           country: 'Country',
           selectCountry: 'Select a country',
           logo: 'Company logo',
@@ -2740,8 +3903,18 @@ const translations: Translations = {
           logoPreviewAlt: 'Logo preview',
         },
         units: {
-          title: 'Business units',
-          description: 'Manage branches, subsidiaries or group companies',
+          title: '🏬 Your business units',
+          subtitle: 'Here you can view and manage how your business is organized',
+          description: 'Here you can view and manage how your business is organized',
+          context: 'Each unit represents a branch, brand, or line of business',
+          groupLabel: '🧩 Main group',
+          mainUnit: 'Main unit',
+          helper: 'You can start with one unit and add more as your business grows',
+          tip: '💡 You can create units for each branch or brand',
+          empty: 'No businesses yet',
+          emptyHelper: 'Add your first business in this unit',
+          groupContext: 'Each location groups the businesses that operate there',
+          tipAction: '💡 You can start with one unit and add more later',
           addUnit: '+ New unit',
           addBusiness: '+ Add business',
           unitName: 'Unit name',
@@ -2785,11 +3958,43 @@ const translations: Translations = {
           businessIdentityIndustries: [
             { value: 'retail', label: '🛍️ Retail / Commerce' },
             { value: 'food', label: '🍔 Food and Beverage' },
+            { value: 'hospitality', label: '🏨 Hospitality' },
             { value: 'tech', label: '💻 Technology' },
+            { value: 'software-saas', label: '🧩 Software / SaaS' },
             { value: 'health', label: '🏥 Health' },
+            { value: 'beauty-wellness', label: '💅 Beauty and Wellness' },
             { value: 'education', label: '🎓 Education' },
-            { value: 'services', label: '🔧 Services' },
+            { value: 'services', label: '💼 Professional Services' },
+            { value: 'consulting', label: '🧠 Consulting' },
+            { value: 'legal', label: '⚖️ Legal' },
+            { value: 'accounting-tax', label: '🧾 Accounting and Tax' },
+            { value: 'finance-insurance', label: '💰 Finance and Insurance' },
+            { value: 'real-estate', label: '🏢 Real Estate' },
+            { value: 'construction', label: '🏗️ Construction' },
+            { value: 'architecture-engineering', label: '📐 Architecture and Engineering' },
             { value: 'manufacturing', label: '🏭 Manufacturing' },
+            { value: 'wholesale-distribution', label: '📦 Wholesale and Distribution' },
+            { value: 'logistics-transportation', label: '🚚 Transportation and Logistics' },
+            { value: 'automotive', label: '🚗 Automotive' },
+            { value: 'agriculture', label: '🌾 Agriculture' },
+            { value: 'energy-utilities', label: '⚡ Energy and Utilities' },
+            { value: 'telecommunications', label: '📡 Telecommunications' },
+            { value: 'marketing-advertising', label: '📣 Marketing and Advertising' },
+            { value: 'media-creative', label: '🎨 Media and Creative' },
+            { value: 'entertainment-events', label: '🎭 Entertainment and Events' },
+            { value: 'tourism-travel', label: '✈️ Tourism and Travel' },
+            { value: 'sports-fitness', label: '🏋️ Sports and Fitness' },
+            { value: 'cleaning-facility', label: '🧹 Cleaning and Facilities' },
+            { value: 'maintenance-repair', label: '🔧 Maintenance and Repair' },
+            { value: 'security', label: '🛡️ Security' },
+            { value: 'ecommerce', label: '🛒 E-commerce' },
+            { value: 'import-export', label: '🌐 Import / Export' },
+            { value: 'nonprofit', label: '🤝 Nonprofit' },
+            { value: 'government-public', label: '🏛️ Government / Public Sector' },
+            { value: 'pet-services', label: '🐾 Pet Services' },
+            { value: 'childcare', label: '👶 Childcare' },
+            { value: 'senior-care', label: '🧓 Senior Care' },
+            { value: 'pharmaceutical', label: '💊 Pharmaceutical' },
             { value: 'other', label: '📦 Other' },
           ],
           unitIndustries: [
@@ -2824,6 +4029,7 @@ const translations: Translations = {
       profile: {
         title: 'My profile',
         subtitle: 'Personal information and account settings',
+        helper: 'You can complete this at any time',
         fields: {
           fullName: 'Full name',
           email: 'Email',
@@ -2905,6 +4111,7 @@ const translations: Translations = {
           modules: 'Modules',
           actions: 'Actions',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['en-US'],
         actions: {
           edit: 'Edit',
           resend: 'Resend invitation',
@@ -3193,6 +4400,7 @@ const translations: Translations = {
         plan: 'Plan',
         users: 'Users',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['en-CA'],
       diagnosis: {
         title: 'Business Diagnosis',
         description: 'Help us better understand your company and management stage to personalize Indice.',
@@ -3202,6 +4410,34 @@ const translations: Translations = {
         questionCountLabel: 'The diagnosis contains',
         progress: 'Business diagnosis progress',
         progressOf: 'completed',
+        onboarding: {
+          answeredProgress: 'You\'ve answered {answered} of {total} questions',
+          encouragementMid: 'You\'re making great progress',
+          encouragementNear: 'Almost done',
+          sections: {
+              people: {
+                title: 'Step 1 — Your team',
+                intro: 'Let\'s understand how your team works',
+                done: 'Done — we understand your team',
+              },
+              processes: {
+                title: 'Step 2 — How you operate',
+                intro: 'Let\'s understand how your daily operation works',
+                done: 'Done — we understand how you operate',
+              },
+              products: {
+                title: 'Step 3 — What you sell',
+                intro: 'Let\'s understand your offer and how it reaches the market',
+                done: 'Done — we understand what you sell',
+              },
+              finance: {
+                title: 'Step 4 — Your finances',
+                intro: 'Let\'s understand how you manage your numbers',
+                done: 'Done — we understand your finances',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['en-CA'],
         printDiagnosis: 'Print diagnosis',
         start: 'Start',
         continue: 'Continue',
@@ -3401,6 +4637,12 @@ const translations: Translations = {
         actions: {
           save: 'Save changes',
           saving: 'Saving...',
+          extract: 'Get coordinates',
+          useLocation: 'Use my location',
+          addUnit: 'Add new unit',
+          configure: 'Configure unit',
+          configureGroup: 'Configure group',
+          createUnit: 'Add another unit',
         },
         messages: {
           loading: 'Loading business structure...',
@@ -3423,19 +4665,20 @@ const translations: Translations = {
         mode: {
           title: 'Operation type',
           description: 'Select the option that best describes your company:',
-          helper: 'This will help you organize your operations, sales, and finances better.',
+          helper: '💡 Choose how your business works',
           simple: 'Simple',
           multi: 'Multi-unit',
-          simpleTitle: 'Single business',
+          simpleTitle: 'I have one business or branch',
           simpleDescription: 'You have one branch or company',
           simpleExample: 'Example: a restaurant, shop, or clinic',
-          multiTitle: 'Multiple companies or units',
+          multiTitle: 'I have several branches or brands',
           multiDescription: 'Multiple branches, subsidiaries or related companies',
           multiExample: 'Example: several restaurants, branches, or brands',
           switchPrompt: 'Do you have more than one business or branch?',
           switchAction: 'Switch to multi-unit',
           multiNote: 'Manage multiple units from a single administration.',
-          structurePreviewTitle: 'This is how your company will be organized:',
+          selected: 'Selected',
+          structurePreviewTitle: '🧠 This is how your structure will work',
           structurePreviewLines: [
             'Company',
             ' → Location (e.g. Cancun, Mexico City)',
@@ -3447,14 +4690,25 @@ const translations: Translations = {
           holding: 'Company headquarters',
           simpleDesc: 'Company name, logo, coordinates, radius and base configuration.',
           holdingDesc: 'Company name, logo, coordinates, radius and base configuration.',
-          holdingNotice: 'These details create the Headquarters location used for Attendance.',
+          holdingNotice: '💡 Define where your business operates from here.',
+        },
+        headquarters: {
+          helper: '💡 Define where your business operates from here.',
+          context: 'We will use this information to organize your operations, employees, and reports.',
+          basicInfo: '🏢 Basic company information',
+          industryHelper: 'This helps us adapt the system to your type of business.',
+          locationTitle: '📍 Business location',
+          locationHelper: 'This helps with features like attendance and operations control.',
+          addressTitle: '📍 Business address',
+          addressHelper: 'Complete the address to identify your location more clearly',
+          addressNote: 'The address is for reference. We will use coordinates for system features.',
         },
         fields: {
           companyName: 'Company name',
           holdingName: 'Company name',
           industry: 'Industry',
           selectIndustry: 'Select an industry',
-          industryHint: 'This affects module presets and reports.',
+          industryHint: 'This helps us adapt the system to your type of business.',
           country: 'Country',
           selectCountry: 'Select a country',
           logo: 'Company logo',
@@ -3480,8 +4734,18 @@ const translations: Translations = {
           logoPreviewAlt: 'Logo preview',
         },
         units: {
-          title: 'Business units',
-          description: 'Manage branches, subsidiaries or group companies',
+          title: '🏬 Your business units',
+          subtitle: 'Here you can view and manage how your business is organized',
+          description: 'Here you can view and manage how your business is organized',
+          context: 'Each unit represents a branch, brand, or line of business',
+          groupLabel: '🧩 Main group',
+          mainUnit: 'Main unit',
+          helper: 'You can start with one unit and add more as your business grows',
+          tip: '💡 You can create units for each branch or brand',
+          empty: 'No businesses yet',
+          emptyHelper: 'Add your first business in this unit',
+          groupContext: 'Each location groups the businesses that operate there',
+          tipAction: '💡 You can start with one unit and add more later',
           addUnit: '+ New unit',
           addBusiness: '+ Add business',
           unitName: 'Unit name',
@@ -3525,11 +4789,43 @@ const translations: Translations = {
           businessIdentityIndustries: [
             { value: 'retail', label: '🛍️ Retail / Commerce' },
             { value: 'food', label: '🍔 Food and Beverage' },
+            { value: 'hospitality', label: '🏨 Hospitality' },
             { value: 'tech', label: '💻 Technology' },
+            { value: 'software-saas', label: '🧩 Software / SaaS' },
             { value: 'health', label: '🏥 Health' },
+            { value: 'beauty-wellness', label: '💅 Beauty and Wellness' },
             { value: 'education', label: '🎓 Education' },
-            { value: 'services', label: '🔧 Services' },
+            { value: 'services', label: '💼 Professional Services' },
+            { value: 'consulting', label: '🧠 Consulting' },
+            { value: 'legal', label: '⚖️ Legal' },
+            { value: 'accounting-tax', label: '🧾 Accounting and Tax' },
+            { value: 'finance-insurance', label: '💰 Finance and Insurance' },
+            { value: 'real-estate', label: '🏢 Real Estate' },
+            { value: 'construction', label: '🏗️ Construction' },
+            { value: 'architecture-engineering', label: '📐 Architecture and Engineering' },
             { value: 'manufacturing', label: '🏭 Manufacturing' },
+            { value: 'wholesale-distribution', label: '📦 Wholesale and Distribution' },
+            { value: 'logistics-transportation', label: '🚚 Transportation and Logistics' },
+            { value: 'automotive', label: '🚗 Automotive' },
+            { value: 'agriculture', label: '🌾 Agriculture' },
+            { value: 'energy-utilities', label: '⚡ Energy and Utilities' },
+            { value: 'telecommunications', label: '📡 Telecommunications' },
+            { value: 'marketing-advertising', label: '📣 Marketing and Advertising' },
+            { value: 'media-creative', label: '🎨 Media and Creative' },
+            { value: 'entertainment-events', label: '🎭 Entertainment and Events' },
+            { value: 'tourism-travel', label: '✈️ Tourism and Travel' },
+            { value: 'sports-fitness', label: '🏋️ Sports and Fitness' },
+            { value: 'cleaning-facility', label: '🧹 Cleaning and Facilities' },
+            { value: 'maintenance-repair', label: '🔧 Maintenance and Repair' },
+            { value: 'security', label: '🛡️ Security' },
+            { value: 'ecommerce', label: '🛒 E-commerce' },
+            { value: 'import-export', label: '🌐 Import / Export' },
+            { value: 'nonprofit', label: '🤝 Nonprofit' },
+            { value: 'government-public', label: '🏛️ Government / Public Sector' },
+            { value: 'pet-services', label: '🐾 Pet Services' },
+            { value: 'childcare', label: '👶 Childcare' },
+            { value: 'senior-care', label: '🧓 Senior Care' },
+            { value: 'pharmaceutical', label: '💊 Pharmaceutical' },
             { value: 'other', label: '📦 Other' },
           ],
           unitIndustries: [
@@ -3564,6 +4860,7 @@ const translations: Translations = {
       profile: {
         title: 'My profile',
         subtitle: 'Personal information and account settings',
+        helper: 'You can complete this at any time',
         fields: {
           fullName: 'Full name',
           email: 'Email',
@@ -3645,6 +4942,7 @@ const translations: Translations = {
           modules: 'Modules',
           actions: 'Actions',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['en-CA'],
         actions: {
           edit: 'Edit',
           resend: 'Resend invitation',
@@ -3933,6 +5231,7 @@ const translations: Translations = {
         plan: 'Plan',
         users: 'Utilisateurs',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['fr-CA'],
       diagnosis: {
         title: 'Diagnostic d\'entreprise',
         description: 'Aidez-nous à mieux connaître votre entreprise et son stade de gestion pour personnaliser Indice.',
@@ -3942,6 +5241,34 @@ const translations: Translations = {
         questionCountLabel: 'Le diagnostic comprend',
         progress: 'Progrès du diagnostic d\'entreprise',
         progressOf: 'complété',
+        onboarding: {
+          answeredProgress: 'Vous avez répondu à {answered} questions sur {total}',
+          encouragementMid: 'Vous avancez très bien',
+          encouragementNear: 'Presque terminé',
+          sections: {
+              people: {
+                title: 'Étape 1 — Votre équipe',
+                intro: 'Comprenons comment votre équipe travaille',
+                done: 'Terminé — nous comprenons votre équipe',
+              },
+              processes: {
+                title: 'Étape 2 — Votre façon d’opérer',
+                intro: 'Comprenons comment fonctionne votre opération quotidienne',
+                done: 'Terminé — nous comprenons votre façon d’opérer',
+              },
+              products: {
+                title: 'Étape 3 — Ce que vous vendez',
+                intro: 'Comprenons votre offre et son accès au marché',
+                done: 'Terminé — nous comprenons ce que vous vendez',
+              },
+              finance: {
+                title: 'Étape 4 — Vos finances',
+                intro: 'Comprenons comment vous gérez vos chiffres',
+                done: 'Terminé — nous comprenons vos finances',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['fr-CA'],
         printDiagnosis: 'Imprimer le diagnostic',
         start: 'Commencer',
         continue: 'Continuer',
@@ -4141,6 +5468,12 @@ const translations: Translations = {
         actions: {
           save: 'Enregistrer les modifications',
           saving: 'Enregistrement...',
+          extract: 'Obtenir les coordonnées',
+          useLocation: 'Utiliser ma position',
+          addUnit: 'Ajouter une nouvelle unité',
+          configure: 'Configurer l’unité',
+          configureGroup: 'Configurer le groupe',
+          createUnit: 'Ajouter une autre unité',
         },
         messages: {
           loading: 'Chargement de la structure d’entreprise...',
@@ -4163,19 +5496,20 @@ const translations: Translations = {
         mode: {
           title: 'Type d’exploitation',
           description: 'Sélectionnez l’option qui décrit le mieux votre entreprise :',
-          helper: 'Cela vous aidera à mieux organiser vos opérations, vos ventes et vos finances.',
+          helper: '💡 Choisissez comment fonctionne votre entreprise',
           simple: 'Simple',
           multi: 'Multi-unité',
-          simpleTitle: 'Une seule entreprise',
+          simpleTitle: 'J’ai une seule entreprise ou succursale',
           simpleDescription: 'Vous avez une seule succursale ou entreprise',
           simpleExample: 'Exemple : un restaurant, une boutique ou une clinique',
-          multiTitle: 'Plusieurs entreprises ou unités',
+          multiTitle: 'J’ai plusieurs succursales ou marques',
           multiDescription: 'Plusieurs succursales, filiales ou entreprises liées',
           multiExample: 'Exemple : plusieurs restaurants, succursales ou marques',
           switchPrompt: 'Avez-vous plus d\'une entreprise ou succursale?',
           switchAction: 'Passer au multi-unité',
           multiNote: 'Gérez plusieurs unités depuis une seule administration.',
-          structurePreviewTitle: 'Voici comment votre entreprise sera organisée :',
+          selected: 'Sélectionné',
+          structurePreviewTitle: '🧠 Voici comment votre structure fonctionnera',
           structurePreviewLines: [
             'Entreprise',
             ' → Emplacement (ex. Cancún, Montréal)',
@@ -4187,14 +5521,25 @@ const translations: Translations = {
           holding: 'Siège social de l’entreprise',
           simpleDesc: 'Nom, logo, coordonnées, rayon et configuration de base.',
           holdingDesc: 'Nom, logo, coordonnées, rayon et configuration de base.',
-          holdingNotice: 'Ces données créent l’emplacement Headquarters utilisé pour la présence.',
+          holdingNotice: '💡 Définissez ici d’où votre entreprise opère.',
+        },
+        headquarters: {
+          helper: '💡 Définissez ici d’où votre entreprise opère.',
+          context: 'Nous utiliserons ces informations pour organiser vos opérations, employés et rapports.',
+          basicInfo: '🏢 Informations de base de votre entreprise',
+          industryHelper: 'Cela nous aide à adapter le système à votre type d’entreprise.',
+          locationTitle: '📍 Emplacement de votre entreprise',
+          locationHelper: 'Cela nous aide avec des fonctions comme la présence et le contrôle des opérations.',
+          addressTitle: '📍 Adresse de l’entreprise',
+          addressHelper: 'Complétez l’adresse pour mieux identifier votre emplacement',
+          addressNote: 'L’adresse est informative. Nous utiliserons les coordonnées pour les fonctions du système.',
         },
         fields: {
           companyName: 'Nom de l’entreprise',
           holdingName: 'Nom de l’entreprise',
           industry: 'Industrie',
           selectIndustry: 'Sélectionnez une industrie',
-          industryHint: 'Cela influence les préréglages des modules et les rapports.',
+          industryHint: 'Cela nous aide à adapter le système à votre type d’entreprise.',
           country: 'Pays',
           selectCountry: 'Sélectionnez un pays',
           logo: 'Logo de l’entreprise',
@@ -4220,8 +5565,18 @@ const translations: Translations = {
           logoPreviewAlt: 'Aperçu du logo',
         },
         units: {
-          title: 'Unités commerciales',
-          description: 'Gérez les succursales, filiales ou entreprises du groupe',
+          title: '🏬 Vos unités commerciales',
+          subtitle: 'Ici, vous pouvez voir et gérer l’organisation de votre entreprise',
+          description: 'Ici, vous pouvez voir et gérer l’organisation de votre entreprise',
+          context: 'Chaque unité représente une succursale, une marque ou une ligne d’affaires',
+          groupLabel: '🧩 Groupe principal',
+          mainUnit: 'Unité principale',
+          helper: 'Vous pouvez commencer avec une unité et en ajouter d’autres à mesure que votre entreprise grandit',
+          tip: '💡 Vous pouvez créer des unités pour chaque succursale ou marque',
+          empty: 'Aucune entreprise pour le moment',
+          emptyHelper: 'Ajoutez votre première entreprise dans cette unité',
+          groupContext: 'Chaque emplacement regroupe les entreprises qui y opèrent',
+          tipAction: '💡 Vous pouvez commencer avec une unité et en ajouter d’autres plus tard',
           addUnit: '+ Nouvelle unité',
           addBusiness: '+ Ajouter une entreprise',
           unitName: 'Nom de l\'unité',
@@ -4263,13 +5618,45 @@ const translations: Translations = {
         },
         options: {
           businessIdentityIndustries: [
-            { value: 'retail', label: '🛍️ Commerce de détail / Commerce' },
+            { value: 'retail', label: '🛍️ Commerce de détail' },
             { value: 'food', label: '🍔 Alimentation et boissons' },
+            { value: 'hospitality', label: '🏨 Hôtellerie et hospitalité' },
             { value: 'tech', label: '💻 Technologie' },
+            { value: 'software-saas', label: '🧩 Logiciel / SaaS' },
             { value: 'health', label: '🏥 Santé' },
+            { value: 'beauty-wellness', label: '💅 Beauté et bien-être' },
             { value: 'education', label: '🎓 Éducation' },
-            { value: 'services', label: '🔧 Services' },
+            { value: 'services', label: '💼 Services professionnels' },
+            { value: 'consulting', label: '🧠 Conseil' },
+            { value: 'legal', label: '⚖️ Juridique' },
+            { value: 'accounting-tax', label: '🧾 Comptabilité et fiscalité' },
+            { value: 'finance-insurance', label: '💰 Finance et assurance' },
+            { value: 'real-estate', label: '🏢 Immobilier' },
+            { value: 'construction', label: '🏗️ Construction' },
+            { value: 'architecture-engineering', label: '📐 Architecture et ingénierie' },
             { value: 'manufacturing', label: '🏭 Fabrication' },
+            { value: 'wholesale-distribution', label: '📦 Vente en gros et distribution' },
+            { value: 'logistics-transportation', label: '🚚 Transport et logistique' },
+            { value: 'automotive', label: '🚗 Automobile' },
+            { value: 'agriculture', label: '🌾 Agriculture' },
+            { value: 'energy-utilities', label: '⚡ Énergie et services publics' },
+            { value: 'telecommunications', label: '📡 Télécommunications' },
+            { value: 'marketing-advertising', label: '📣 Marketing et publicité' },
+            { value: 'media-creative', label: '🎨 Médias et création' },
+            { value: 'entertainment-events', label: '🎭 Divertissement et événements' },
+            { value: 'tourism-travel', label: '✈️ Tourisme et voyages' },
+            { value: 'sports-fitness', label: '🏋️ Sports et conditionnement' },
+            { value: 'cleaning-facility', label: '🧹 Nettoyage et installations' },
+            { value: 'maintenance-repair', label: '🔧 Maintenance et réparation' },
+            { value: 'security', label: '🛡️ Sécurité' },
+            { value: 'ecommerce', label: '🛒 Commerce électronique' },
+            { value: 'import-export', label: '🌐 Importation / Exportation' },
+            { value: 'nonprofit', label: '🤝 OBNL / Sans but lucratif' },
+            { value: 'government-public', label: '🏛️ Gouvernement / Secteur public' },
+            { value: 'pet-services', label: '🐾 Services pour animaux' },
+            { value: 'childcare', label: '👶 Garde d’enfants' },
+            { value: 'senior-care', label: '🧓 Soins aux aînés' },
+            { value: 'pharmaceutical', label: '💊 Pharmaceutique' },
             { value: 'other', label: '📦 Autre' },
           ],
           unitIndustries: [
@@ -4304,6 +5691,7 @@ const translations: Translations = {
       profile: {
         title: 'Mon profil',
         subtitle: 'Informations personnelles et paramètres du compte',
+        helper: 'Vous pouvez compléter ces informations à tout moment',
         fields: {
           fullName: 'Nom complet',
           email: 'Courriel',
@@ -4385,6 +5773,7 @@ const translations: Translations = {
           modules: 'Modules',
           actions: 'Actions',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['fr-CA'],
         actions: {
           edit: 'Modifier',
           resend: 'Renvoyer l\'invitation',
@@ -4673,6 +6062,7 @@ const translations: Translations = {
         plan: 'Plano',
         users: 'Usuários',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['pt-BR'],
       diagnosis: {
         title: 'Diagnóstico empresarial',
         description: 'Ajude-nos a conhecer melhor sua empresa e o estágio de gestão para personalizar o Índice.',
@@ -4682,6 +6072,34 @@ const translations: Translations = {
         questionCountLabel: 'O diagnóstico contém',
         progress: 'Progresso do diagnóstico empresarial',
         progressOf: 'concluído',
+        onboarding: {
+          answeredProgress: 'Você respondeu {answered} de {total} perguntas',
+          encouragementMid: 'Você está avançando muito bem',
+          encouragementNear: 'Quase pronto',
+          sections: {
+              people: {
+                title: 'Passo 1 — Sua equipe',
+                intro: 'Vamos entender como sua equipe trabalha',
+                done: 'Concluído — entendemos sua equipe',
+              },
+              processes: {
+                title: 'Passo 2 — Como você opera',
+                intro: 'Vamos entender como funciona sua operação diária',
+                done: 'Concluído — entendemos como você opera',
+              },
+              products: {
+                title: 'Passo 3 — O que você vende',
+                intro: 'Vamos entender sua oferta e como ela chega ao mercado',
+                done: 'Concluído — entendemos o que você vende',
+              },
+              finance: {
+                title: 'Passo 4 — Suas finanças',
+                intro: 'Vamos entender como você controla seus números',
+                done: 'Concluído — entendemos suas finanças',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['pt-BR'],
         printDiagnosis: 'Imprimir diagnóstico',
         start: 'Começar',
         continue: 'Continuar',
@@ -4881,6 +6299,12 @@ const translations: Translations = {
         actions: {
           save: 'Salvar alterações',
           saving: 'Salvando...',
+          extract: 'Obter coordenadas',
+          useLocation: 'Usar minha localização',
+          addUnit: 'Adicionar nova unidade',
+          configure: 'Configurar unidade',
+          configureGroup: 'Configurar grupo',
+          createUnit: 'Adicionar outra unidade',
         },
         messages: {
           loading: 'Carregando estrutura empresarial...',
@@ -4903,19 +6327,20 @@ const translations: Translations = {
         mode: {
           title: 'Tipo de operação',
           description: 'Selecione a opção que melhor descreve sua empresa:',
-          helper: 'Isso vai ajudar você a organizar melhor suas operações, vendas e finanças.',
+          helper: '💡 Escolha como o seu negócio funciona',
           simple: 'Simples',
           multi: 'Multi-unidade',
-          simpleTitle: 'Um único negócio',
+          simpleTitle: 'Tenho um único negócio ou filial',
           simpleDescription: 'Você tem uma única filial ou empresa',
           simpleExample: 'Exemplo: um restaurante, loja ou clínica',
-          multiTitle: 'Várias empresas ou unidades',
+          multiTitle: 'Tenho várias filiais ou marcas',
           multiDescription: 'Múltiplas filiais, subsidiárias ou empresas relacionadas',
           multiExample: 'Exemplo: vários restaurantes, filiais ou marcas',
           switchPrompt: 'Você tem mais de um negócio ou filial?',
           switchAction: 'Mudar para multi-unidade',
           multiNote: 'Gerencie várias unidades a partir de uma única administração.',
-          structurePreviewTitle: 'Assim a sua empresa será organizada:',
+          selected: 'Selecionado',
+          structurePreviewTitle: '🧠 Assim a sua estrutura funcionará',
           structurePreviewLines: [
             'Empresa',
             ' → Localização (ex: Cancún, São Paulo)',
@@ -4927,14 +6352,25 @@ const translations: Translations = {
           holding: 'Sede principal da empresa',
           simpleDesc: 'Nome, logo, coordenadas, raio e configuração básica.',
           holdingDesc: 'Nome, logo, coordenadas, raio e configuração básica.',
-          holdingNotice: 'Esses dados criam a localização Headquarters usada para presença.',
+          holdingNotice: '💡 Aqui você define de onde o seu negócio opera.',
+        },
+        headquarters: {
+          helper: '💡 Aqui você define de onde o seu negócio opera.',
+          context: 'Usaremos estas informações para organizar suas operações, funcionários e relatórios.',
+          basicInfo: '🏢 Informações básicas da sua empresa',
+          industryHelper: 'Isso nos ajuda a adaptar o sistema ao seu tipo de negócio.',
+          locationTitle: '📍 Localização do seu negócio',
+          locationHelper: 'Isso nos ajuda em funções como presença e controle de operações.',
+          addressTitle: '📍 Endereço do negócio',
+          addressHelper: 'Complete o endereço para identificar melhor sua localização',
+          addressNote: 'O endereço é informativo. Usaremos coordenadas para funções do sistema.',
         },
         fields: {
           companyName: 'Nome da empresa',
           holdingName: 'Nome da empresa',
           industry: 'Indústria',
           selectIndustry: 'Selecione uma indústria',
-          industryHint: 'Isso afeta presets de módulos e relatórios.',
+          industryHint: 'Isso nos ajuda a adaptar o sistema ao seu tipo de negócio.',
           country: 'País',
           selectCountry: 'Selecione um país',
           logo: 'Logo da empresa',
@@ -4960,8 +6396,18 @@ const translations: Translations = {
           logoPreviewAlt: 'Pré-visualização do logo',
         },
         units: {
-          title: 'Unidades de negócio',
-          description: 'Gerencie filiais, subsidiárias ou empresas do grupo',
+          title: '🏬 Suas unidades de negócio',
+          subtitle: 'Aqui você pode ver e administrar como seu negócio está organizado',
+          description: 'Aqui você pode ver e administrar como seu negócio está organizado',
+          context: 'Cada unidade representa uma filial, marca ou linha de negócio',
+          groupLabel: '🧩 Grupo principal',
+          mainUnit: 'Unidade principal',
+          helper: 'Você pode começar com uma unidade e adicionar mais conforme seu negócio crescer',
+          tip: '💡 Você pode criar unidades para cada filial ou marca',
+          empty: 'Sem negócios ainda',
+          emptyHelper: 'Adicione seu primeiro negócio nesta unidade',
+          groupContext: 'Cada localização agrupa os negócios que operam ali',
+          tipAction: '💡 Você pode começar com uma unidade e adicionar mais depois',
           addUnit: '+ Nova unidade',
           addBusiness: '+ Adicionar negócio',
           unitName: 'Nome da unidade',
@@ -5005,11 +6451,43 @@ const translations: Translations = {
           businessIdentityIndustries: [
             { value: 'retail', label: '🛍️ Varejo / Comércio' },
             { value: 'food', label: '🍔 Alimentos e Bebidas' },
+            { value: 'hospitality', label: '🏨 Hotelaria e Hospitalidade' },
             { value: 'tech', label: '💻 Tecnologia' },
+            { value: 'software-saas', label: '🧩 Software / SaaS' },
             { value: 'health', label: '🏥 Saúde' },
+            { value: 'beauty-wellness', label: '💅 Beleza e Bem-estar' },
             { value: 'education', label: '🎓 Educação' },
-            { value: 'services', label: '🔧 Serviços' },
+            { value: 'services', label: '💼 Serviços Profissionais' },
+            { value: 'consulting', label: '🧠 Consultoria' },
+            { value: 'legal', label: '⚖️ Jurídico' },
+            { value: 'accounting-tax', label: '🧾 Contabilidade e Impostos' },
+            { value: 'finance-insurance', label: '💰 Finanças e Seguros' },
+            { value: 'real-estate', label: '🏢 Imobiliário' },
+            { value: 'construction', label: '🏗️ Construção' },
+            { value: 'architecture-engineering', label: '📐 Arquitetura e Engenharia' },
             { value: 'manufacturing', label: '🏭 Manufatura' },
+            { value: 'wholesale-distribution', label: '📦 Atacado e Distribuição' },
+            { value: 'logistics-transportation', label: '🚚 Transporte e Logística' },
+            { value: 'automotive', label: '🚗 Automotivo' },
+            { value: 'agriculture', label: '🌾 Agricultura' },
+            { value: 'energy-utilities', label: '⚡ Energia e Serviços Públicos' },
+            { value: 'telecommunications', label: '📡 Telecomunicações' },
+            { value: 'marketing-advertising', label: '📣 Marketing e Publicidade' },
+            { value: 'media-creative', label: '🎨 Mídia e Criatividade' },
+            { value: 'entertainment-events', label: '🎭 Entretenimento e Eventos' },
+            { value: 'tourism-travel', label: '✈️ Turismo e Viagens' },
+            { value: 'sports-fitness', label: '🏋️ Esportes e Fitness' },
+            { value: 'cleaning-facility', label: '🧹 Limpeza e Instalações' },
+            { value: 'maintenance-repair', label: '🔧 Manutenção e Reparos' },
+            { value: 'security', label: '🛡️ Segurança' },
+            { value: 'ecommerce', label: '🛒 E-commerce' },
+            { value: 'import-export', label: '🌐 Importação / Exportação' },
+            { value: 'nonprofit', label: '🤝 ONG / Sem fins lucrativos' },
+            { value: 'government-public', label: '🏛️ Governo / Setor público' },
+            { value: 'pet-services', label: '🐾 Serviços para pets' },
+            { value: 'childcare', label: '👶 Cuidado infantil' },
+            { value: 'senior-care', label: '🧓 Cuidado de idosos' },
+            { value: 'pharmaceutical', label: '💊 Farmacêutica' },
             { value: 'other', label: '📦 Outro' },
           ],
           unitIndustries: [
@@ -5044,6 +6522,7 @@ const translations: Translations = {
       profile: {
         title: 'Meu perfil',
         subtitle: 'Informações pessoais e configurações da conta',
+        helper: 'Você pode completar isto a qualquer momento',
         fields: {
           fullName: 'Nome completo',
           email: 'E-mail',
@@ -5125,6 +6604,7 @@ const translations: Translations = {
           modules: 'Módulos',
           actions: 'Ações',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['pt-BR'],
         actions: {
           edit: 'Editar',
           resend: 'Reenviar convite',
@@ -5413,6 +6893,7 @@ const translations: Translations = {
         plan: '계획',
         users: '사용자',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['ko-CA'],
       diagnosis: {
         title: '비즈니스 진단',
         description: '귀사와 관리 단계를 더 잘 이해하여 Indice를 개인화할 수 있도록 도와주세요.',
@@ -5422,6 +6903,34 @@ const translations: Translations = {
         questionCountLabel: '진단에는',
         progress: '비즈니스 진단 진행',
         progressOf: '완료',
+        onboarding: {
+          answeredProgress: '{total}개 질문 중 {answered}개에 답했습니다',
+          encouragementMid: '아주 잘 진행하고 있습니다',
+          encouragementNear: '거의 완료되었습니다',
+          sections: {
+              people: {
+                title: '1단계 — 팀',
+                intro: '팀이 어떻게 일하는지 이해해 보겠습니다',
+                done: '완료 — 팀을 이해했습니다',
+              },
+              processes: {
+                title: '2단계 — 운영 방식',
+                intro: '일상 운영이 어떻게 이루어지는지 이해해 보겠습니다',
+                done: '완료 — 운영 방식을 이해했습니다',
+              },
+              products: {
+                title: '3단계 — 판매하는 것',
+                intro: '제공하는 상품과 시장 전달 방식을 이해해 보겠습니다',
+                done: '완료 — 판매하는 것을 이해했습니다',
+              },
+              finance: {
+                title: '4단계 — 재무',
+                intro: '숫자를 어떻게 관리하는지 이해해 보겠습니다',
+                done: '완료 — 재무를 이해했습니다',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['ko-CA'],
         printDiagnosis: '진단 인쇄',
         start: '시작',
         continue: '계속',
@@ -5621,6 +7130,12 @@ const translations: Translations = {
         actions: {
           save: '변경 사항 저장',
           saving: '저장 중...',
+          extract: '좌표 가져오기',
+          useLocation: '내 위치 사용',
+          addUnit: '새 단위 추가',
+          configure: '단위 설정',
+          configureGroup: '그룹 설정',
+          createUnit: '다른 단위 추가',
         },
         messages: {
           loading: '비즈니스 구조를 불러오는 중...',
@@ -5643,19 +7158,20 @@ const translations: Translations = {
         mode: {
           title: '운영 유형',
           description: '회사에 가장 잘 맞는 옵션을 선택하세요:',
-          helper: '이 설정은 운영, 판매, 재무를 더 잘 정리하는 데 도움을 줍니다.',
+          helper: '💡 비즈니스 운영 방식을 선택하세요',
           simple: '단순',
           multi: '다중 단위',
-          simpleTitle: '단일 비즈니스',
+          simpleTitle: '하나의 비즈니스 또는 지점이 있습니다',
           simpleDescription: '하나의 지점 또는 회사',
           simpleExample: '예시: 레스토랑, 매장 또는 클리닉',
-          multiTitle: '여러 회사 또는 단위',
+          multiTitle: '여러 지점 또는 브랜드가 있습니다',
           multiDescription: '여러 지점, 자회사 또는 관련 회사',
           multiExample: '예시: 여러 레스토랑, 지점 또는 브랜드',
           switchPrompt: '둘 이상의 비즈니스 또는 지점이 있습니까?',
           switchAction: '다중 단위로 전환',
           multiNote: '단일 관리에서 여러 단위를 관리합니다.',
-          structurePreviewTitle: '회사는 다음과 같이 구성됩니다:',
+          selected: '선택됨',
+          structurePreviewTitle: '🧠 구조는 이렇게 작동합니다',
           structurePreviewLines: [
             '회사',
             ' → 위치 (예: 칸쿤, 토론토)',
@@ -5667,14 +7183,25 @@ const translations: Translations = {
           holding: '회사 본사',
           simpleDesc: '회사 이름, 로고, 좌표, 반경 및 기본 구성.',
           holdingDesc: '회사 이름, 로고, 좌표, 반경 및 기본 구성.',
-          holdingNotice: '이 정보는 출퇴근에 사용되는 Headquarters 위치를 생성합니다.',
+          holdingNotice: '💡 여기에서 비즈니스 운영 위치를 정의합니다.',
+        },
+        headquarters: {
+          helper: '💡 여기에서 비즈니스 운영 위치를 정의합니다.',
+          context: '이 정보는 운영, 직원, 보고서를 구성하는 데 사용됩니다.',
+          basicInfo: '🏢 회사 기본 정보',
+          industryHelper: '비즈니스 유형에 맞게 시스템을 조정하는 데 도움이 됩니다.',
+          locationTitle: '📍 비즈니스 위치',
+          locationHelper: '출퇴근 및 운영 관리 같은 기능에 도움이 됩니다.',
+          addressTitle: '📍 비즈니스 주소',
+          addressHelper: '위치를 더 잘 식별할 수 있도록 주소를 입력하세요',
+          addressNote: '주소는 참고용입니다. 시스템 기능에는 좌표를 사용합니다.',
         },
         fields: {
           companyName: '회사 이름',
           holdingName: '회사 이름',
           industry: '산업',
           selectIndustry: '산업 선택',
-          industryHint: '모듈 프리셋과 보고서에 영향을 줍니다.',
+          industryHint: '비즈니스 유형에 맞게 시스템을 조정하는 데 도움이 됩니다.',
           country: '국가',
           selectCountry: '국가 선택',
           logo: '회사 로고',
@@ -5700,8 +7227,18 @@ const translations: Translations = {
           logoPreviewAlt: '로고 미리보기',
         },
         units: {
-          title: '사업 단위',
-          description: '지점, 자회사 또는 그룹 회사 관리',
+          title: '🏬 사업 단위',
+          subtitle: '여기에서 비즈니스가 어떻게 구성되어 있는지 보고 관리할 수 있습니다',
+          description: '여기에서 비즈니스가 어떻게 구성되어 있는지 보고 관리할 수 있습니다',
+          context: '각 단위는 지점, 브랜드 또는 사업 라인을 나타냅니다',
+          groupLabel: '🧩 기본 그룹',
+          mainUnit: '기본 단위',
+          helper: '하나의 단위로 시작하고 비즈니스가 성장하면 더 추가할 수 있습니다',
+          tip: '💡 각 지점이나 브랜드별로 단위를 만들 수 있습니다',
+          empty: '아직 비즈니스가 없습니다',
+          emptyHelper: '이 단위에 첫 비즈니스를 추가하세요',
+          groupContext: '각 위치는 그곳에서 운영되는 비즈니스를 묶습니다',
+          tipAction: '💡 하나의 단위로 시작하고 나중에 더 추가할 수 있습니다',
           addUnit: '+ 새 단위',
           addBusiness: '+ 비즈니스 추가',
           unitName: '단위 이름',
@@ -5745,11 +7282,43 @@ const translations: Translations = {
           businessIdentityIndustries: [
             { value: 'retail', label: '🛍️ 소매 / 상업' },
             { value: 'food', label: '🍔 식음료' },
+            { value: 'hospitality', label: '🏨 호텔 및 환대' },
             { value: 'tech', label: '💻 기술' },
+            { value: 'software-saas', label: '🧩 소프트웨어 / SaaS' },
             { value: 'health', label: '🏥 건강' },
+            { value: 'beauty-wellness', label: '💅 뷰티 및 웰니스' },
             { value: 'education', label: '🎓 교육' },
-            { value: 'services', label: '🔧 서비스' },
+            { value: 'services', label: '💼 전문 서비스' },
+            { value: 'consulting', label: '🧠 컨설팅' },
+            { value: 'legal', label: '⚖️ 법률' },
+            { value: 'accounting-tax', label: '🧾 회계 및 세무' },
+            { value: 'finance-insurance', label: '💰 금융 및 보험' },
+            { value: 'real-estate', label: '🏢 부동산' },
+            { value: 'construction', label: '🏗️ 건설' },
+            { value: 'architecture-engineering', label: '📐 건축 및 엔지니어링' },
             { value: 'manufacturing', label: '🏭 제조' },
+            { value: 'wholesale-distribution', label: '📦 도매 및 유통' },
+            { value: 'logistics-transportation', label: '🚚 운송 및 물류' },
+            { value: 'automotive', label: '🚗 자동차' },
+            { value: 'agriculture', label: '🌾 농업' },
+            { value: 'energy-utilities', label: '⚡ 에너지 및 유틸리티' },
+            { value: 'telecommunications', label: '📡 통신' },
+            { value: 'marketing-advertising', label: '📣 마케팅 및 광고' },
+            { value: 'media-creative', label: '🎨 미디어 및 크리에이티브' },
+            { value: 'entertainment-events', label: '🎭 엔터테인먼트 및 이벤트' },
+            { value: 'tourism-travel', label: '✈️ 관광 및 여행' },
+            { value: 'sports-fitness', label: '🏋️ 스포츠 및 피트니스' },
+            { value: 'cleaning-facility', label: '🧹 청소 및 시설 관리' },
+            { value: 'maintenance-repair', label: '🔧 유지보수 및 수리' },
+            { value: 'security', label: '🛡️ 보안' },
+            { value: 'ecommerce', label: '🛒 전자상거래' },
+            { value: 'import-export', label: '🌐 수입 / 수출' },
+            { value: 'nonprofit', label: '🤝 비영리 단체' },
+            { value: 'government-public', label: '🏛️ 정부 / 공공 부문' },
+            { value: 'pet-services', label: '🐾 반려동물 서비스' },
+            { value: 'childcare', label: '👶 보육' },
+            { value: 'senior-care', label: '🧓 노인 돌봄' },
+            { value: 'pharmaceutical', label: '💊 제약' },
             { value: 'other', label: '📦 기타' },
           ],
           unitIndustries: [
@@ -5784,6 +7353,7 @@ const translations: Translations = {
       profile: {
         title: '내 프로필',
         subtitle: '개인 정보 및 계정 설정',
+        helper: '언제든지 완료할 수 있습니다',
         fields: {
           fullName: '전체 이름',
           email: '이메일',
@@ -5865,6 +7435,7 @@ const translations: Translations = {
           modules: '모듈',
           actions: '작업',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['ko-CA'],
         actions: {
           edit: '편집',
           resend: '초대 재전송',
@@ -6153,6 +7724,7 @@ const translations: Translations = {
         plan: '计划',
         users: '用户',
       },
+      personalPerformance: PERSONAL_PERFORMANCE_TRANSLATIONS['zh-CA'],
       diagnosis: {
         title: '企业诊断',
         description: '帮助我们更好地了解您的公司和管理阶段以个性化 Indice。',
@@ -6162,6 +7734,34 @@ const translations: Translations = {
         questionCountLabel: '诊断包含',
         progress: '企业诊断进度',
         progressOf: '已完成',
+        onboarding: {
+          answeredProgress: '你已回答 {total} 个问题中的 {answered} 个',
+          encouragementMid: '进展很不错',
+          encouragementNear: '快完成了',
+          sections: {
+              people: {
+                title: '第 1 步 — 你的团队',
+                intro: '让我们了解你的团队如何工作',
+                done: '完成 — 我们了解了你的团队',
+              },
+              processes: {
+                title: '第 2 步 — 你的运营方式',
+                intro: '让我们了解你的日常运营方式',
+                done: '完成 — 我们了解了你的运营方式',
+              },
+              products: {
+                title: '第 3 步 — 你销售的内容',
+                intro: '让我们了解你的产品或服务如何进入市场',
+                done: '完成 — 我们了解了你销售的内容',
+              },
+              finance: {
+                title: '第 4 步 — 你的财务',
+                intro: '让我们了解你如何管理财务数字',
+                done: '完成 — 我们了解了你的财务',
+              },
+          },
+        },
+        pdf: DIAGNOSIS_PDF_TRANSLATIONS['zh-CA'],
         printDiagnosis: '打印诊断',
         start: '开始',
         continue: '继续',
@@ -6360,7 +7960,13 @@ const translations: Translations = {
         },
         actions: {
           save: '保存更改',
-          saving: '保存中...',
+          saving: '正在保存...',
+          extract: '获取坐标',
+          useLocation: '使用我的位置',
+          addUnit: '添加新单元',
+          configure: '配置单元',
+          configureGroup: '配置组',
+          createUnit: '添加另一个单元',
         },
         messages: {
           loading: '正在加载企业结构...',
@@ -6383,19 +7989,20 @@ const translations: Translations = {
         mode: {
           title: '运营类型',
           description: '请选择最符合您公司的选项：',
-          helper: '这将帮助您更好地组织运营、销售和财务。',
+          helper: '💡 选择您的业务运作方式',
           simple: '简单',
           multi: '多单元',
-          simpleTitle: '单一业务',
+          simpleTitle: '我有一个业务或分支机构',
           simpleDescription: '您有一个分支机构或公司',
           simpleExample: '示例：一家餐厅、商店或诊所',
-          multiTitle: '多个公司或单元',
+          multiTitle: '我有多个分支机构或品牌',
           multiDescription: '多个分支机构、子公司或关联公司',
           multiExample: '示例：多家餐厅、分支机构或品牌',
           switchPrompt: '您有不止一个业务或分支机构吗？',
           switchAction: '切换到多单元',
           multiNote: '从单一管理中管理多个单元。',
-          structurePreviewTitle: '您的公司将按以下方式组织：',
+          selected: '已选择',
+          structurePreviewTitle: '🧠 您的结构将这样运作',
           structurePreviewLines: [
             '公司',
             ' → 地点（例如：坎昆、多伦多）',
@@ -6407,14 +8014,25 @@ const translations: Translations = {
           holding: '公司总部',
           simpleDesc: '公司名称、徽标、坐标、半径和基本配置。',
           holdingDesc: '公司名称、徽标、坐标、半径和基本配置。',
-          holdingNotice: '这些信息会创建用于考勤的 Headquarters 位置。',
+          holdingNotice: '💡 在这里定义您的业务从哪里运营。',
+        },
+        headquarters: {
+          helper: '💡 在这里定义您的业务从哪里运营。',
+          context: '我们将使用这些信息来组织您的运营、员工和报表。',
+          basicInfo: '🏢 公司基本信息',
+          industryHelper: '这有助于我们根据您的业务类型调整系统。',
+          locationTitle: '📍 业务位置',
+          locationHelper: '这有助于考勤和运营控制等功能。',
+          addressTitle: '📍 业务地址',
+          addressHelper: '填写地址，以便更好地识别您的位置',
+          addressNote: '地址仅供参考。系统功能将使用坐标。',
         },
         fields: {
           companyName: '公司名称',
           holdingName: '公司名称',
           industry: '行业',
           selectIndustry: '选择行业',
-          industryHint: '这会影响模块预设和报表。',
+          industryHint: '这有助于我们根据您的业务类型调整系统。',
           country: '国家',
           selectCountry: '选择国家',
           logo: '公司徽标',
@@ -6440,8 +8058,18 @@ const translations: Translations = {
           logoPreviewAlt: '徽标预览',
         },
         units: {
-          title: '业务单元',
-          description: '管理分支机构、子公司或集团公司',
+          title: '🏬 你的业务单元',
+          subtitle: '你可以在这里查看和管理业务的组织方式',
+          description: '你可以在这里查看和管理业务的组织方式',
+          context: '每个单元代表一个分支机构、品牌或业务线',
+          groupLabel: '🧩 主组',
+          mainUnit: '主单元',
+          helper: '你可以先从一个单元开始，并随着业务增长添加更多单元',
+          tip: '💡 你可以为每个分支机构或品牌创建单元',
+          empty: '还没有业务',
+          emptyHelper: '在此单元中添加第一个业务',
+          groupContext: '每个位置会归集在那里运营的业务',
+          tipAction: '💡 你可以先从一个单元开始，之后再添加更多',
           addUnit: '+ 新单元',
           addBusiness: '+ 添加业务',
           unitName: '单元名称',
@@ -6485,11 +8113,43 @@ const translations: Translations = {
           businessIdentityIndustries: [
             { value: 'retail', label: '🛍️ 零售 / 商业' },
             { value: 'food', label: '🍔 食品和饮料' },
+            { value: 'hospitality', label: '🏨 酒店与住宿服务' },
             { value: 'tech', label: '💻 科技' },
+            { value: 'software-saas', label: '🧩 软件 / SaaS' },
             { value: 'health', label: '🏥 健康' },
+            { value: 'beauty-wellness', label: '💅 美容与健康' },
             { value: 'education', label: '🎓 教育' },
-            { value: 'services', label: '🔧 服务' },
+            { value: 'services', label: '💼 专业服务' },
+            { value: 'consulting', label: '🧠 咨询' },
+            { value: 'legal', label: '⚖️ 法律' },
+            { value: 'accounting-tax', label: '🧾 会计与税务' },
+            { value: 'finance-insurance', label: '💰 金融与保险' },
+            { value: 'real-estate', label: '🏢 房地产' },
+            { value: 'construction', label: '🏗️ 建筑' },
+            { value: 'architecture-engineering', label: '📐 建筑设计与工程' },
             { value: 'manufacturing', label: '🏭 制造业' },
+            { value: 'wholesale-distribution', label: '📦 批发与分销' },
+            { value: 'logistics-transportation', label: '🚚 运输与物流' },
+            { value: 'automotive', label: '🚗 汽车' },
+            { value: 'agriculture', label: '🌾 农业' },
+            { value: 'energy-utilities', label: '⚡ 能源与公用事业' },
+            { value: 'telecommunications', label: '📡 电信' },
+            { value: 'marketing-advertising', label: '📣 营销与广告' },
+            { value: 'media-creative', label: '🎨 媒体与创意' },
+            { value: 'entertainment-events', label: '🎭 娱乐与活动' },
+            { value: 'tourism-travel', label: '✈️ 旅游与旅行' },
+            { value: 'sports-fitness', label: '🏋️ 体育与健身' },
+            { value: 'cleaning-facility', label: '🧹 清洁与设施管理' },
+            { value: 'maintenance-repair', label: '🔧 维护与维修' },
+            { value: 'security', label: '🛡️ 安保' },
+            { value: 'ecommerce', label: '🛒 电子商务' },
+            { value: 'import-export', label: '🌐 进出口' },
+            { value: 'nonprofit', label: '🤝 非营利组织' },
+            { value: 'government-public', label: '🏛️ 政府 / 公共部门' },
+            { value: 'pet-services', label: '🐾 宠物服务' },
+            { value: 'childcare', label: '👶 儿童照护' },
+            { value: 'senior-care', label: '🧓 老年照护' },
+            { value: 'pharmaceutical', label: '💊 制药' },
             { value: 'other', label: '📦 其他' },
           ],
           unitIndustries: [
@@ -6524,6 +8184,7 @@ const translations: Translations = {
       profile: {
         title: '我的个人资料',
         subtitle: '个人信息和帐户设置',
+        helper: '你可以随时完成此信息',
         fields: {
           fullName: '全名',
           email: '电子邮件',
@@ -6605,6 +8266,7 @@ const translations: Translations = {
           modules: '模块',
           actions: '操作',
         },
+        businessStructure: USERS_BUSINESS_STRUCTURE_TRANSLATIONS['zh-CA'],
         actions: {
           edit: '编辑',
           resend: '重新发送邀请',
