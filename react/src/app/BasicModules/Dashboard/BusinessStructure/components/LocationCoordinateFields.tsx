@@ -2,6 +2,7 @@ import { Link2, LocateFixed } from 'lucide-react';
 import { useState } from 'react';
 import { configCenterApi } from '../../../../api/configCenter';
 import { Button } from '../../../../components/ui/button';
+import { useLanguage } from '../../../../shared/context';
 import { inputClassName } from '../constants';
 import type { LocationCoordinateFormValues } from '../types';
 
@@ -18,6 +19,8 @@ export function LocationCoordinateFields({
   onChange,
   disabled = false,
 }: LocationCoordinateFieldsProps) {
+  const { t } = useLanguage();
+  const actions = t.panelInicial.structure.actions;
   const [statusMessage, setStatusMessage] = useState('');
   const [statusTone, setStatusTone] = useState<'success' | 'error'>('success');
   const [isExtracting, setIsExtracting] = useState(false);
@@ -119,7 +122,7 @@ export function LocationCoordinateFields({
             disabled={disabled || isExtracting || isLocating}
           >
             <Link2 className="h-4 w-4" />
-            {isExtracting ? 'Extracting...' : 'Extract'}
+            {actions.extract}
           </Button>
           <Button
             type="button"
@@ -128,7 +131,7 @@ export function LocationCoordinateFields({
             disabled={disabled || isExtracting || isLocating}
           >
             <LocateFixed className="h-4 w-4" />
-            {isLocating ? 'Locating...' : 'Here'}
+            {actions.useLocation}
           </Button>
         </div>
       </div>

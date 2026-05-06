@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Country } from 'country-state-city';
 import { CheckCircle2, X } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
@@ -18,6 +19,7 @@ import {
   validatePostalCodeForCountry,
 } from '../../../components/ManualLocationFields';
 import type {
+  BusinessAddressFormValues,
   CoordinateSource,
   EditingNegocio,
   EstructuraType,
@@ -50,6 +52,7 @@ type BusinessStructureSnapshot = {
   companyLogo: string;
   industry: string;
   description: string;
+  companyAddress: BusinessAddressFormValues;
   companyLocation: LocationCoordinateFormValues;
 };
 
@@ -103,9 +106,24 @@ const DEFAULT_LOCATION_COORDINATE_VALUES: LocationCoordinateFormValues = {
   coordinateSource: '',
   googleMapsUrl: '',
 };
+const DEFAULT_BUSINESS_ADDRESS_VALUES: BusinessAddressFormValues = {
+  street: '',
+  country: '',
+  state: '',
+  city: '',
+  zip: '',
+};
 const HEADQUARTERS_UNIT_NAME = 'Headquarter';
 const LEGACY_HEADQUARTERS_LOCATION_NAME = 'Headquarters';
 const HEADQUARTERS_BUSINESS_FALLBACK_NAME = 'Company headquarters';
+const MODAL_PRIORITY_COUNTRY_CODES = ['CA', 'US', 'MX', 'CO', 'BR'] as const;
+const MODAL_STATE_DROPDOWN_COUNTRY_CODES = ['MX', 'US', 'CA', 'CO', 'BR'] as const;
+
+const modalCountryOptionsSource = Country.getAllCountries().map((country) => ({
+  code: country.isoCode,
+  flag: country.flag,
+  fallbackName: country.name,
+}));
 
 const DEFAULT_UNIDAD_FORM_VALUES: UnidadFormValues = {
   ...DEFAULT_LOCATION_COORDINATE_VALUES,
@@ -148,6 +166,7 @@ const createBusinessStructureSnapshot = ({
   companyLogo,
   industry,
   description,
+  companyAddress,
   companyLocation,
 }: BusinessStructureSnapshot): BusinessStructureSnapshot => ({
   estructuraType,
@@ -156,6 +175,7 @@ const createBusinessStructureSnapshot = ({
   companyLogo,
   industry,
   description,
+  companyAddress,
   companyLocation,
 });
 
@@ -184,6 +204,38 @@ const createLocationCoordinateFormValues = (
   coordinateSource: (source?.coordinateSource ?? source?.coordinate_source ?? '') as CoordinateSource | '',
   googleMapsUrl: source?.googleMapsUrl ?? source?.google_maps_url ?? '',
 });
+
+const formatAddressValue = (value?: unknown) => {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  return String(value);
+};
+
+const createBusinessAddressFormValues = (
+  source?: {
+    street?: unknown;
+    country?: unknown;
+    state?: unknown;
+    city?: unknown;
+    zip?: unknown;
+  } | string | null,
+): BusinessAddressFormValues => {
+  if (typeof source === 'string') {
+    return {
+      ...DEFAULT_BUSINESS_ADDRESS_VALUES,
+      street: source,
+    };
+  }
+
+  return {
+    street: formatAddressValue(source?.street),
+    country: formatAddressValue(source?.country),
+    state: formatAddressValue(source?.state),
+    city: formatAddressValue(source?.city),
+    zip: formatAddressValue(source?.zip),
+  };
+};
 
 const normalizeCoordinateSource = (value: string): CoordinateSource | undefined => (
   value === 'google_maps_link' || value === 'current_location' || value === 'manual'
@@ -622,7 +674,7 @@ const buildConfigMap = (_estructuraType: EstructuraType, unidades: Unidad[]) => 
 );
 
 export default function BusinessStructure() {
-  const { t } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const structure = t.panelInicial.structure;
   const [estructuraType, setEstructuraType] = useState<EstructuraType>('simple');
   const [unidades, setUnidades] = useState<Unidad[]>(createDefaultUnidades);
@@ -630,6 +682,7 @@ export default function BusinessStructure() {
   const [companyLogo, setCompanyLogo] = useState('');
   const [industry, setIndustry] = useState('');
   const [description, setDescription] = useState('');
+  const [companyAddress, setCompanyAddress] = useState<BusinessAddressFormValues>(DEFAULT_BUSINESS_ADDRESS_VALUES);
   const [companyLocation, setCompanyLocation] = useState<LocationCoordinateFormValues>(DEFAULT_LOCATION_COORDINATE_VALUES);
   const [baselineSnapshot, setBaselineSnapshot] = useState<BusinessStructureSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -674,9 +727,10 @@ export default function BusinessStructure() {
       companyLogo,
       industry,
       description,
+      companyAddress,
       companyLocation,
     }),
-    [companyLocation, companyLogo, companyName, description, estructuraType, industry, unidades],
+    [companyAddress, companyLocation, companyLogo, companyName, description, estructuraType, industry, unidades],
   );
 
   const hasUnsavedChanges = useMemo(
@@ -696,6 +750,46 @@ export default function BusinessStructure() {
     () => !arePlainObjectsEqual(negocioFormValues, negocioInitialValues),
     [negocioFormValues, negocioInitialValues],
   );
+  const modalCountryOptions = useMemo(() => {
+    let countryDisplayNames: Intl.DisplayNames | null = null;
+
+    try {
+      countryDisplayNames = new Intl.DisplayNames([currentLanguage.code], { type: 'region' });
+    } catch {
+      countryDisplayNames = null;
+    }
+
+    const options = modalCountryOptionsSource.map((country) => {
+      const countryName = countryDisplayNames?.of(country.code) ?? country.fallbackName;
+
+      return {
+        value: country.code,
+        label: `${country.flag} ${countryName}`,
+        sortName: countryName,
+      };
+    });
+    const priorityCountryCodes = new Set<string>(MODAL_PRIORITY_COUNTRY_CODES);
+    const priorityOptions = MODAL_PRIORITY_COUNTRY_CODES
+      .map((countryCode) => options.find((country) => country.value === countryCode))
+      .filter((country): country is typeof options[number] => Boolean(country));
+    const remainingOptions = options
+      .filter((country) => !priorityCountryCodes.has(country.value))
+      .sort((firstCountry, secondCountry) => (
+        firstCountry.sortName.localeCompare(secondCountry.sortName, currentLanguage.code)
+      ));
+
+    return [...priorityOptions, ...remainingOptions].map(({ value, label }) => ({ value, label }));
+  }, [currentLanguage.code]);
+  const getModalIndustryOptions = (selectedIndustry: string) => {
+    if (!selectedIndustry || structure.options.businessIdentityIndustries.some((option) => option.value === selectedIndustry)) {
+      return structure.options.businessIdentityIndustries;
+    }
+
+    const selectedLegacyIndustry = structure.options.unitIndustries.find((option) => option.value === selectedIndustry);
+    return selectedLegacyIndustry
+      ? [selectedLegacyIndustry, ...structure.options.businessIdentityIndustries]
+      : structure.options.businessIdentityIndustries;
+  };
 
   const syncSavedStructure = (nextEstructuraType: EstructuraType, nextUnidades: Unidad[]) => {
     setBaselineSnapshot((previousSnapshot) =>
@@ -707,6 +801,7 @@ export default function BusinessStructure() {
           companyLogo: previousSnapshot?.companyLogo ?? currentSnapshot.companyLogo,
           industry: previousSnapshot?.industry ?? currentSnapshot.industry,
           description: previousSnapshot?.description ?? currentSnapshot.description,
+          companyAddress: previousSnapshot?.companyAddress ?? currentSnapshot.companyAddress,
           companyLocation: previousSnapshot?.companyLocation ?? currentSnapshot.companyLocation,
         }),
       ),
@@ -769,6 +864,9 @@ export default function BusinessStructure() {
         const loadedCompanyLogo = empresa?.logo_url ?? '';
         const loadedIndustry = (empresa?.industria as string) ?? '';
         const loadedDescription = (empresa?.descripcion as string) ?? '';
+        const loadedCompanyAddress = createBusinessAddressFormValues(
+          empresa?.headquarters_location?.address ?? empresa?.address ?? null,
+        );
         const loadedCompanyLocation = createLocationCoordinateFormValues({
           latitude: empresa?.latitude,
           longitude: empresa?.longitude,
@@ -782,6 +880,7 @@ export default function BusinessStructure() {
         setCompanyLogo(loadedCompanyLogo);
         setIndustry(loadedIndustry);
         setDescription(loadedDescription);
+        setCompanyAddress(loadedCompanyAddress);
         setCompanyLocation(loadedCompanyLocation);
         setUnidades(loadedUnidades);
         setBaselineSnapshot(
@@ -793,6 +892,7 @@ export default function BusinessStructure() {
               companyLogo: loadedCompanyLogo,
               industry: loadedIndustry,
               description: loadedDescription,
+              companyAddress: loadedCompanyAddress,
               companyLocation: loadedCompanyLocation,
             }),
           ),
@@ -1122,6 +1222,7 @@ export default function BusinessStructure() {
             logo_url: companyLogo || null,
             industria: industry,
             descripcion: description,
+            address: companyAddress,
             ...(companyCoordinateValidation.ok
               ? {
                   latitude: companyCoordinateValidation.values.latitude ?? null,
@@ -1144,6 +1245,7 @@ export default function BusinessStructure() {
                 companyLogo,
                 industry,
                 description,
+                companyAddress,
                 companyLocation,
               }),
             ),
@@ -1171,6 +1273,7 @@ export default function BusinessStructure() {
     setCompanyLogo(baselineSnapshot.companyLogo);
     setIndustry(baselineSnapshot.industry);
     setDescription(baselineSnapshot.description);
+    setCompanyAddress(baselineSnapshot.companyAddress);
     setCompanyLocation(baselineSnapshot.companyLocation);
   };
 
@@ -1213,11 +1316,16 @@ export default function BusinessStructure() {
         logo={companyLogo}
         industry={industry}
         description={description}
+        businessAddress={companyAddress}
         locationCoordinateValues={companyLocation}
         onCompanyNameChange={setCompanyName}
         onLogoChange={setCompanyLogo}
         onIndustryChange={setIndustry}
         onDescriptionChange={setDescription}
+        onBusinessAddressChange={(updates) => setCompanyAddress((current) => ({
+          ...current,
+          ...updates,
+        }))}
         onLocationCoordinateChange={(updates) => setCompanyLocation((current) => ({
           ...current,
           ...updates,
@@ -1366,7 +1474,7 @@ export default function BusinessStructure() {
                         className={`${inputClassName} appearance-none cursor-pointer`}
                       >
                         <option value="">{structure.fields.selectIndustry}</option>
-                        {structure.options.unitIndustries.map((option) => (
+                        {getModalIndustryOptions(unidadFormValues.industria).map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
@@ -1403,7 +1511,7 @@ export default function BusinessStructure() {
 
                     <ManualLocationFields
                       values={unidadFormValues}
-                      countries={structure.options.countries}
+                      countries={modalCountryOptions}
                       labels={{
                         country: structure.fields.country,
                         selectCountry: structure.fields.selectCountry,
@@ -1420,6 +1528,7 @@ export default function BusinessStructure() {
                         ...current,
                         ...updates,
                       }))}
+                      stateDropdownCountryCodes={MODAL_STATE_DROPDOWN_COUNTRY_CODES}
                       disabled={loadingOverlay.isVisible}
                     />
 
@@ -1625,7 +1734,7 @@ export default function BusinessStructure() {
                         className={`${inputClassName} appearance-none cursor-pointer`}
                       >
                         <option value="">{structure.fields.selectIndustry}</option>
-                        {structure.options.unitIndustries.map((option) => (
+                        {getModalIndustryOptions(negocioFormValues.industria).map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
@@ -1662,7 +1771,7 @@ export default function BusinessStructure() {
 
                     <ManualLocationFields
                       values={negocioFormValues}
-                      countries={structure.options.countries}
+                      countries={modalCountryOptions}
                       labels={{
                         country: structure.fields.country,
                         selectCountry: structure.fields.selectCountry,
@@ -1679,6 +1788,7 @@ export default function BusinessStructure() {
                         ...current,
                         ...updates,
                       }))}
+                      stateDropdownCountryCodes={MODAL_STATE_DROPDOWN_COUNTRY_CODES}
                       disabled={loadingOverlay.isVisible}
                     />
 

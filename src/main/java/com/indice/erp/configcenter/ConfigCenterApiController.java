@@ -218,11 +218,15 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        var result = new LinkedHashMap<String, Object>();
-        result.put("logo", null);
-        result.put("data", configCenterService.saveEmpresa(current.get().companyId(), current.get().userId(), payload));
-        result.put("message", "Company data saved");
-        return ResponseEntity.ok(result);
+        try {
+            var result = new LinkedHashMap<String, Object>();
+            result.put("logo", null);
+            result.put("data", configCenterService.saveEmpresa(current.get().companyId(), current.get().userId(), payload));
+            result.put("message", "Company data saved");
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
     }
 
     private String buildInviteLink(String token) {

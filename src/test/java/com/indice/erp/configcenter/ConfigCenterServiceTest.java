@@ -2,6 +2,7 @@ package com.indice.erp.configcenter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
@@ -191,6 +192,143 @@ class ConfigCenterServiceTest {
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"industria\":\"Hospitality\""));
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"timezone\":\"America/Toronto\""));
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"canales_venta\":[\"Mayoristas\"]"));
+    }
+
+    @Test
+    void saveEmpresaPersistsHeadquartersLocationWithAddress() throws Exception {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+        when(jdbcTemplate.update(anyString(), eq(1L), anyString())).thenReturn(1);
+
+        var address = new LinkedHashMap<String, Object>();
+        address.put("street", "123 King St W");
+        address.put("country", "Canada");
+        address.put("state", "Ontario");
+        address.put("city", "Toronto");
+        address.put("zip", "M5H 1J9");
+
+        var headquartersLocation = new LinkedHashMap<String, Object>();
+        headquartersLocation.put("google_maps_url", "https://maps.google.com/?q=123+King+St+W");
+        headquartersLocation.put("latitude", "43.6487000");
+        headquartersLocation.put("longitude", "-79.3817000");
+        headquartersLocation.put("radius_meters", 150);
+        headquartersLocation.put("coordinate_source", "google_maps_link");
+        headquartersLocation.put("address", address);
+
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("headquarters_location", headquartersLocation);
+        payload.put("sync_company_location", false);
+
+        var saved = service.saveEmpresa(1L, 1L, payload);
+
+        @SuppressWarnings("unchecked")
+        var savedAddress = (Map<String, Object>) saved.get("address");
+        assertEquals("123 King St W", savedAddress.get("street"));
+        assertEquals("Canada", savedAddress.get("country"));
+        assertEquals("Toronto", savedAddress.get("city"));
+        assertEquals("https://maps.google.com/?q=123+King+St+W", saved.get("google_maps_url"));
+
+        ArgumentCaptor<String> settingsCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(startsWith("INSERT INTO company_settings"), eq(1L), settingsCaptor.capture());
+
+        var settingsJson = new ObjectMapper().readTree(settingsCaptor.getValue());
+        var storedLocation = settingsJson.path("config_center").path("empresa_template").path("headquarters_location");
+        assertEquals("43.6487", storedLocation.path("latitude").asText());
+        assertEquals("-79.3817", storedLocation.path("longitude").asText());
+        assertEquals(150, storedLocation.path("radius_meters").asInt());
+        assertEquals("google_maps_link", storedLocation.path("coordinate_source").asText());
+        assertEquals("123 King St W", storedLocation.path("address").path("street").asText());
+        assertEquals("M5H 1J9", storedLocation.path("address").path("zip").asText());
+    }
+
+    @Test
+    void getEmpresaReturnsStoredHeadquartersLocationAndAddress() throws Exception {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(1L);
+            when(rs.getString("name")).thenReturn("Empresa Demo Spring");
+            when(rs.getString("logo_url")).thenReturn(null);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("""
+            {
+              "config_center": {
+                "estructura": "multi",
+                "colaboradores": 7,
+                "empresa_template": {
+                  "headquarters_location": {
+                    "google_maps_url": "https://maps.google.com/?q=123+King+St+W",
+                    "latitude": 43.6487000,
+                    "longitude": -79.3817000,
+                    "radius_meters": 150,
+                    "coordinate_source": "google_maps_link",
+                    "address": {
+                      "street": "123 King St W",
+                      "country": "Canada",
+                      "state": "Ontario",
+                      "city": "Toronto",
+                      "zip": "M5H 1J9"
+                    }
+                  }
+                },
+                "map": []
+              }
+            }
+            """));
+
+        @SuppressWarnings("unchecked")
+        var empresa = (Map<String, Object>) service.getEmpresa(1L);
+
+        assertEquals("https://maps.google.com/?q=123+King+St+W", empresa.get("google_maps_url"));
+        assertEquals(150, empresa.get("radius_meters"));
+
+        @SuppressWarnings("unchecked")
+        var address = (Map<String, Object>) empresa.get("address");
+        assertEquals("123 King St W", address.get("street"));
+        assertEquals("Ontario", address.get("state"));
+
+        @SuppressWarnings("unchecked")
+        var location = (Map<String, Object>) empresa.get("headquarters_location");
+        assertEquals("google_maps_link", location.get("coordinate_source"));
+        assertEquals(address, location.get("address"));
+    }
+
+    @Test
+    void saveEmpresaRejectsInvalidHeadquartersLatitude() {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+
+        var headquartersLocation = new LinkedHashMap<String, Object>();
+        headquartersLocation.put("latitude", "100.0000000");
+        headquartersLocation.put("longitude", "-79.3817000");
+
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("headquarters_location", headquartersLocation);
+
+        assertThrows(IllegalArgumentException.class, () -> service.saveEmpresa(1L, 1L, payload));
     }
 
     @Test
