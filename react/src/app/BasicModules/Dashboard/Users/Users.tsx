@@ -8,10 +8,12 @@ import {
   Mail,
   Search,
   Settings,
+  Trash2,
   UserPlus,
   X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
 import {
@@ -41,6 +43,7 @@ interface User {
   status: 'active' | 'pending' | 'inactive';
   businessId: number | null;
   modules: string[];
+  isProtected: boolean;
 }
 
 interface AvailableModule {
@@ -66,6 +69,12 @@ interface BusinessOption {
 interface UserBusinessAssignment {
   businessUnitId?: string;
   businessId?: string;
+}
+
+interface InviteEmailStatus {
+  sent: boolean;
+  status: string;
+  message?: string;
 }
 
 type BusinessInlineField = 'businessUnit' | 'business';
@@ -113,10 +122,14 @@ export default function Users() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showResendModal, setShowResendModal] = useState(false);
   const [selectedUserForResend, setSelectedUserForResend] = useState<string | null>(null);
+  const [selectedUserForDelete, setSelectedUserForDelete] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState('');
+  const [inviteEmailStatus, setInviteEmailStatus] = useState<InviteEmailStatus | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [inviteForm, setInviteForm] = useState<InviteFormState>(emptyInviteForm);
+  const [inviteModuleIds, setInviteModuleIds] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
@@ -166,6 +179,18 @@ export default function Users() {
               : currentLanguage.code === 'zh-CA'
                 ? '邀请已成功发送。'
                 : 'Invitation sent successfully.',
+    inviteCreated:
+      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
+        ? 'Invitation link created.'
+        : currentLanguage.code === 'fr-CA'
+          ? 'Lien d invitation cree.'
+          : currentLanguage.code === 'pt-BR'
+            ? 'Link de convite criado.'
+            : currentLanguage.code === 'ko-CA'
+              ? '초대 링크가 생성되었습니다.'
+              : currentLanguage.code === 'zh-CA'
+                ? '邀请链接已创建。'
+                : 'Invitation link created.',
     resendSuccess:
       currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
         ? 'Invitation resent successfully.'
@@ -178,6 +203,18 @@ export default function Users() {
               : currentLanguage.code === 'zh-CA'
                 ? '邀请已重新发送。'
                 : 'Invitation resent successfully.',
+    resendCreated:
+      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
+        ? 'Invitation link refreshed.'
+        : currentLanguage.code === 'fr-CA'
+          ? 'Lien d invitation actualise.'
+          : currentLanguage.code === 'pt-BR'
+            ? 'Link de convite atualizado.'
+            : currentLanguage.code === 'ko-CA'
+              ? '초대 링크가 새로 고쳐졌습니다.'
+              : currentLanguage.code === 'zh-CA'
+                ? '邀请链接已刷新。'
+                : 'Invitation link refreshed.',
   };
 
   const closeLabel =
@@ -219,6 +256,32 @@ export default function Users() {
               ? '留空将使用当前电子邮件。'
               : 'Leave it empty to use the current email.';
 
+  const deleteLabel =
+    currentLanguage.code === 'fr-CA'
+      ? 'Supprimer'
+      : currentLanguage.code === 'pt-BR'
+        ? 'Excluir'
+        : currentLanguage.code === 'ko-CA'
+          ? '삭제'
+          : currentLanguage.code === 'zh-CA'
+            ? '删除'
+            : currentLanguage.code === 'es-MX'
+              ? 'Eliminar'
+              : 'Delete';
+
+  const deletingLabel =
+    currentLanguage.code === 'fr-CA'
+      ? 'Suppression...'
+      : currentLanguage.code === 'pt-BR'
+        ? 'Excluindo...'
+        : currentLanguage.code === 'ko-CA'
+          ? '삭제 중...'
+          : currentLanguage.code === 'zh-CA'
+            ? '正在删除...'
+            : currentLanguage.code === 'es-MX'
+              ? 'Eliminando...'
+              : 'Deleting...';
+
   const filteredUsers = users.filter((user) => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchesSearch =
@@ -233,6 +296,7 @@ export default function Users() {
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
+  const userPendingDelete = users.find((user) => user.id === selectedUserForDelete) ?? null;
   const categoryTitleMap: Record<AvailableModule['category'], string> = {
     basic: t.sections.basicModules,
     complementary: t.sections.complementaryModules,
@@ -388,7 +452,9 @@ export default function Users() {
   const closeInviteModal = () => {
     setShowInviteModal(false);
     setInviteForm(emptyInviteForm);
+    setInviteModuleIds([]);
     setInviteLink('');
+    setInviteEmailStatus(null);
     setCopiedLink(false);
   };
 
@@ -396,6 +462,7 @@ export default function Users() {
     setShowResendModal(false);
     setSelectedUserForResend(null);
     setInviteLink('');
+    setInviteEmailStatus(null);
     setCopiedLink(false);
     setNewEmail('');
   };
@@ -471,9 +538,17 @@ export default function Users() {
         name: trimmedName,
         email: emailValidation.normalized,
         role: toBackendRole(inviteForm.role),
+        module_slugs: inviteModuleIds
+          .map((route) => backendSlugForRoute(route as any))
+          .filter((slug): slug is string => Boolean(slug)),
       });
       await refreshUsers();
       setInviteLink(response.invite_link);
+      setInviteEmailStatus({
+        sent: response.email_sent,
+        status: response.email_status,
+        message: response.email_message,
+      });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to send invitation.');
     }
@@ -501,8 +576,42 @@ export default function Users() {
       );
       await refreshUsers();
       setInviteLink(response.invite_link);
+      setInviteEmailStatus({
+        sent: response.email_sent,
+        status: response.email_status,
+        message: response.email_message,
+      });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to resend invitation.');
+    }
+  };
+
+  const closeDeleteDialog = () => {
+    if (isDeletingUser) {
+      return;
+    }
+    setSelectedUserForDelete(null);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userPendingDelete || isDeletingUser) {
+      return;
+    }
+
+    try {
+      setIsDeletingUser(true);
+      setLoadError('');
+      if (userPendingDelete.source === 'invitation') {
+        await configCenterApi.deleteInvitation(userPendingDelete.backendId);
+      } else {
+        await configCenterApi.deleteUser(userPendingDelete.backendId);
+      }
+      await refreshUsers();
+      setSelectedUserForDelete(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to delete user.');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -571,6 +680,14 @@ export default function Users() {
       ...prevForm,
       [field]: value,
     }));
+  };
+
+  const toggleInviteModule = (moduleId: string) => {
+    setInviteModuleIds((currentModuleIds) =>
+      currentModuleIds.includes(moduleId)
+        ? currentModuleIds.filter((currentModuleId) => currentModuleId !== moduleId)
+        : [...currentModuleIds, moduleId],
+    );
   };
 
   const formatSelectedModulesCount = (count: number) => {
@@ -715,6 +832,36 @@ export default function Users() {
     );
   };
 
+  const renderInviteEmailStatus = () => {
+    if (!inviteEmailStatus) {
+      return null;
+    }
+
+    const isDisabled = inviteEmailStatus.status === 'disabled';
+    const tone = inviteEmailStatus.sent
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
+      : isDisabled
+        ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
+        : 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300';
+    const title = inviteEmailStatus.sent
+      ? 'Email sent'
+      : isDisabled
+        ? 'Email delivery disabled'
+        : 'Email not sent';
+
+    return (
+      <div className={`flex gap-3 rounded-lg border p-3 text-sm ${tone}`}>
+        <Mail className="mt-0.5 h-4 w-4 flex-shrink-0" />
+        <div>
+          <div className="font-medium">{title}</div>
+          <div className="mt-1 opacity-90">
+            {inviteEmailStatus.message || 'Use the invite link below to test the acceptance flow.'}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
@@ -748,7 +895,9 @@ export default function Users() {
             className="w-full gap-2 bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
             onClick={() => {
               setInviteForm(emptyInviteForm);
+              setInviteModuleIds([]);
               setInviteLink('');
+              setInviteEmailStatus(null);
               setCopiedLink(false);
               setShowInviteModal(true);
             }}
@@ -989,6 +1138,7 @@ export default function Users() {
                               setSelectedUserForResend(user.id);
                               setShowResendModal(true);
                               setInviteLink('');
+                              setInviteEmailStatus(null);
                               setCopiedLink(false);
                               setNewEmail('');
                             }}
@@ -997,6 +1147,16 @@ export default function Users() {
                             title={t.panelInicial.users.actions.resend}
                           >
                             <Mail className="h-5 w-5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserForDelete(user.id)}
+                            disabled={user.isProtected}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-200 bg-red-50 text-red-600 transition-all duration-150 ease-in-out hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+                            title={deleteLabel}
+                          >
+                            <Trash2 className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
@@ -1190,16 +1350,57 @@ export default function Users() {
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                       </div>
                     </div>
+
+                    <div>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {t.panelInicial.users.modal.modules}
+                        </label>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          {formatSelectedModulesCount(inviteModuleIds.length)}
+                        </span>
+                      </div>
+                      <div className="grid max-h-44 gap-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/30 sm:grid-cols-2">
+                        {availableModules.map((module) => {
+                          const isSelected = inviteModuleIds.includes(module.id);
+
+                          return (
+                            <button
+                              key={module.id}
+                              type="button"
+                              onClick={() => toggleInviteModule(module.id)}
+                              className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                                isSelected
+                                  ? 'border-purple-300 bg-purple-50 text-purple-800 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-200'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-200 hover:bg-purple-50/60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-purple-700 dark:hover:bg-purple-900/20'
+                              }`}
+                            >
+                              <span className="min-w-0 truncate">
+                                <span className="mr-2">{module.emoji}</span>
+                                {module.name}
+                              </span>
+                              {isSelected ? (
+                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div className="space-y-4">
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
                       <div className="flex items-center gap-2 text-green-800 dark:text-green-400 mb-2">
                         <CheckCircle2 className="w-5 h-5" />
-                        <span className="font-medium">{summaryLabels.inviteSuccess}</span>
+                        <span className="font-medium">
+                          {inviteEmailStatus?.sent ? summaryLabels.inviteSuccess : summaryLabels.inviteCreated}
+                        </span>
                       </div>
                       <p className="text-sm text-green-700 dark:text-green-400">{inviteForm.email}</p>
                     </div>
+
+                    {renderInviteEmailStatus()}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1320,12 +1521,16 @@ export default function Users() {
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
                     <div className="flex items-center gap-2 text-green-800 dark:text-green-400 mb-2">
                       <CheckCircle2 className="w-5 h-5" />
-                      <span className="font-medium">{summaryLabels.resendSuccess}</span>
+                      <span className="font-medium">
+                        {inviteEmailStatus?.sent ? summaryLabels.resendSuccess : summaryLabels.resendCreated}
+                      </span>
                     </div>
                     <p className="text-sm text-green-700 dark:text-green-400">
                       {newEmail.trim() || resendUser.email}
                     </p>
                   </div>
+
+                  {renderInviteEmailStatus()}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1393,6 +1598,21 @@ export default function Users() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(userPendingDelete)}
+        title={userPendingDelete?.source === 'invitation' ? 'Delete invitation?' : 'Delete user?'}
+        itemName={userPendingDelete ? `${userPendingDelete.name} <${userPendingDelete.email}>` : undefined}
+        description={
+          userPendingDelete?.source === 'invitation'
+            ? 'This cancels the pending invite link and removes it from the users list.'
+            : 'This removes the user access from this company and removes them from the users list.'
+        }
+        confirmLabel={isDeletingUser ? deletingLabel : deleteLabel}
+        cancelLabel={t.panelInicial.users.modal.cancel}
+        onConfirm={handleDeleteUser}
+        onCancel={closeDeleteDialog}
+      />
     </div>
   );
 }
@@ -1470,6 +1690,7 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     role,
     status,
     businessId: user.business_id ?? null,
+    isProtected: user.is_protected,
     modules: user.module_slugs
       .flatMap((slug) => {
         const route = routeForBackendSlug(slug);
