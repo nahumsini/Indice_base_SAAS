@@ -22,6 +22,12 @@ import {
   type PersonalPerformancePdfDocumentProps,
 } from './PersonalPerformancePdf';
 import { buildPersonalPerformanceScoreReport } from './personalPerformanceScoring';
+import {
+  buildReportFileName,
+  getReportUserDisplayName,
+  loadReportUserDisplayName,
+  USER_PROFILE_UPDATED_EVENT,
+} from '../reportFileName';
 
 type SectionId = PersonalPerformanceSectionKey;
 type SectionColor = 'blue' | 'yellow' | 'orange' | 'green';
@@ -70,95 +76,6 @@ const SECTION_METADATA: Array<{
   { id: 'stress_clarity', emoji: '🧠', color: 'orange' },
   { id: 'balance_sustainability', emoji: '⚖️', color: 'yellow' },
 ];
-
-const PPI_COPY = {
-  title: 'Personal Performance Index (PPI)',
-  description: 'Measures habits and wellbeing conditions that affect sustainable work performance.',
-  centerTitle: 'Personal Performance Center',
-  centerDescription: 'Complete the 4 sections to understand recovery, energy, clarity, and sustainability over time.',
-  questionCount: '10 questions each',
-  questionCountLabel: 'The assessment contains',
-  progress: 'Personal performance progress',
-  progressOf: 'completed',
-  printReport: 'Print report',
-  restart: 'Restart section',
-  messages: {
-    loading: 'Loading personal performance...',
-    loadError: 'We could not load personal performance.',
-    saveSuccess: 'Personal performance saved.',
-    saveError: 'We could not save personal performance.',
-    unsavedChanges: 'You have unsaved changes in personal performance.',
-  },
-  sections: {
-    sleep_recovery: {
-      title: 'Sleep & Recovery',
-      description: 'Sleep quality, recovery consistency, and fatigue risk.',
-    },
-    nutrition_energy: {
-      title: 'Nutrition & Physical Energy',
-      description: 'Fueling, hydration, movement, and energy stability.',
-    },
-    stress_clarity: {
-      title: 'Stress & Mental Clarity',
-      description: 'Emotional load, anxiety, mental fatigue, and clarity for decisions.',
-    },
-    balance_sustainability: {
-      title: 'Balance & Sustainability',
-      description: 'Work-life balance, burnout risk, and long-term sustainability.',
-    },
-  },
-} as const;
-
-const PPI_QUESTIONS: PersonalPerformanceQuestions = {
-  sleep_recovery: [
-    { question: 'How many hours do you usually sleep per night?', options: ['Less than 5', '5 to 6', '6 to 7', '7 to 8+'] },
-    { question: 'How often do you wake up feeling rested?', options: ['Never', 'Rarely', 'Often', 'Almost always'] },
-    { question: 'How regular is your sleep schedule?', options: ['Totally irregular', 'Somewhat irregular', 'Mostly regular', 'Very regular'] },
-    { question: 'How often do you wake up during the night?', options: ['Very often', 'Sometimes', 'Rarely', 'Almost never'] },
-    { question: 'How often do you use your phone or laptop right before sleeping?', options: ['Always', 'Often', 'Sometimes', 'Rarely/Never'] },
-    { question: 'How often do you feel sleepy during the workday?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
-    { question: 'How often do you rest properly on weekends or days off?', options: ['Never', 'Rarely', 'Sometimes', 'Usually'] },
-    { question: 'How quickly do you recover after a demanding workday?', options: ['Very poorly', 'Slowly', 'Reasonably well', 'Very well'] },
-    { question: 'How often do you work late at night?', options: ['Almost every day', 'Several times a week', 'Occasionally', 'Rarely'] },
-    { question: 'How would you rate your overall sleep quality?', options: ['Very poor', 'Poor', 'Good', 'Very good'] },
-  ],
-  nutrition_energy: [
-    { question: 'How many complete meals do you usually eat per day?', options: ['One or fewer', 'Two', 'Three', 'Three or more, consistently'] },
-    { question: 'How often do you skip breakfast or your first meal?', options: ['Always', 'Often', 'Sometimes', 'Rarely/Never'] },
-    { question: 'How often do you eat processed or fast food?', options: ['Daily', 'Several times a week', 'Occasionally', 'Rarely'] },
-    { question: 'How much water do you usually drink per day?', options: ['Very little', 'Less than recommended', 'Close to enough', 'Enough consistently'] },
-    { question: 'How often do you eat fruits or vegetables?', options: ['Almost never', 'Sometimes', 'Frequently', 'Daily'] },
-    { question: 'How stable is your energy during the day?', options: ['Very unstable', 'Somewhat unstable', 'Mostly stable', 'Very stable'] },
-    { question: 'How often do you exercise or move intentionally?', options: ['Never', '1 time per week', '2-3 times per week', '4+ times per week'] },
-    { question: 'How long do you stay seated without breaks during work?', options: ['Almost all day', 'Long periods', 'Moderate periods', 'I take regular active breaks'] },
-    { question: 'How often do you feel physically heavy or sluggish while working?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
-    { question: 'How would you rate your physical energy overall?', options: ['Very low', 'Low', 'Good', 'High'] },
-  ],
-  stress_clarity: [
-    { question: 'How often do you feel overwhelmed by work?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
-    { question: 'How often do you feel mentally saturated?', options: ['Every day', 'Several times a week', 'Occasionally', 'Rarely'] },
-    { question: 'How easy is it for you to focus on one task at a time?', options: ['Very difficult', 'Difficult', 'Manageable', 'Easy'] },
-    { question: 'How often do you feel anxious because of work responsibilities?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
-    { question: 'How clear do you feel when making important decisions?', options: ['Very unclear', 'Somewhat unclear', 'Mostly clear', 'Very clear'] },
-    { question: 'How often do you carry work problems into personal time?', options: ['Always', 'Often', 'Sometimes', 'Rarely'] },
-    { question: 'How well can you disconnect mentally from work?', options: ['I cannot disconnect', 'It is difficult', 'I can sometimes', 'I can do it well'] },
-    { question: 'How often do small issues feel bigger than they should?', options: ['Very often', 'Often', 'Sometimes', 'Rarely'] },
-    { question: 'How supported do you feel emotionally in your current work life?', options: ['Not supported at all', 'Slightly supported', 'Moderately supported', 'Well supported'] },
-    { question: 'How would you rate your mental clarity overall?', options: ['Very poor', 'Poor', 'Good', 'Very good'] },
-  ],
-  balance_sustainability: [
-    { question: 'How many days per week do you work?', options: ['7 days', '6 days', '5-6 days with some balance', '5 days or balanced schedule'] },
-    { question: 'How often do you work on weekends?', options: ['Every weekend', 'Most weekends', 'Sometimes', 'Rarely/Never'] },
-    { question: 'Do you have time during the week for personal life or hobbies?', options: ['Never', 'Rarely', 'Sometimes', 'Consistently'] },
-    { question: 'How often do you feel guilty when resting?', options: ['Always', 'Often', 'Sometimes', 'Rarely'] },
-    { question: 'How sustainable does your current routine feel?', options: ['Not sustainable at all', 'Hard to sustain', 'Mostly sustainable', 'Very sustainable'] },
-    { question: 'How often do you take real breaks during the workday?', options: ['Never', 'Rarely', 'Sometimes', 'Frequently'] },
-    { question: 'How often do you take vacations or recovery days?', options: ['Never', 'Rarely', 'Occasionally', 'Regularly'] },
-    { question: 'How dependent is your work on your constant presence?', options: ['Completely dependent', 'Highly dependent', 'Moderately dependent', 'Low dependency'] },
-    { question: 'How often do you feel close to burnout?', options: ['Constantly', 'Frequently', 'Sometimes', 'Rarely'] },
-    { question: 'How would you rate your life-work balance overall?', options: ['Very poor', 'Poor', 'Good', 'Very good'] },
-  ],
-};
 
 const createEmptySectionState = (sectionKey: SectionId, questionCount = DEFAULT_QUESTION_COUNT): SectionState => ({
   id: null,
@@ -358,9 +275,16 @@ const getSectionEntryQuestionIndex = (section: SectionState, questions: Question
   return getNextQuestionIndex(section, questions);
 };
 
+const formatPersonalPerformanceProgressText = (template: string, answered: number, total: number) => (
+  template
+    .replace('{answered}', String(answered))
+    .replace('{total}', String(total))
+);
+
 export default function PersonalPerformance() {
-  const { t } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const diagnosisUi = t.panelInicial.diagnosis;
+  const performanceUi = t.panelInicial.personalPerformance;
   const [activeSection, setActiveSection] = useState<SectionId | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [sectionState, setSectionState] = useState<PersonalPerformanceState>(createEmptyPersonalPerformanceState);
@@ -369,20 +293,24 @@ export default function PersonalPerformance() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
+  const [reportUserName, setReportUserName] = useState('');
   const [printJob, setPrintJob] = useState<PersonalPerformancePdfDocumentProps | null>(null);
 
-  const questions = useMemo<PersonalPerformanceQuestions>(() => PPI_QUESTIONS, []);
+  const questions = useMemo<PersonalPerformanceQuestions>(() => performanceUi.questions, [performanceUi.questions]);
   const sections = useMemo(() => SECTION_METADATA.map((section) => ({
     ...section,
-    title: PPI_COPY.sections[section.id].title,
-    description: PPI_COPY.sections[section.id].description,
-  })), []);
+    title: performanceUi.sections[section.id].title,
+    description: performanceUi.sections[section.id].description,
+    onboardingTitle: performanceUi.onboarding.sections[section.id].title,
+    onboardingIntro: performanceUi.onboarding.sections[section.id].intro,
+    onboardingDone: performanceUi.onboarding.sections[section.id].done,
+  })), [performanceUi.onboarding.sections, performanceUi.sections]);
   const sectionTitles = useMemo(() => ({
-    sleep_recovery: PPI_COPY.sections.sleep_recovery.title,
-    nutrition_energy: PPI_COPY.sections.nutrition_energy.title,
-    stress_clarity: PPI_COPY.sections.stress_clarity.title,
-    balance_sustainability: PPI_COPY.sections.balance_sustainability.title,
-  }), []);
+    sleep_recovery: performanceUi.sections.sleep_recovery.title,
+    nutrition_energy: performanceUi.sections.nutrition_energy.title,
+    stress_clarity: performanceUi.sections.stress_clarity.title,
+    balance_sustainability: performanceUi.sections.balance_sustainability.title,
+  }), [performanceUi.sections]);
   const scoreReport = useMemo(() => buildPersonalPerformanceScoreReport({
     questions,
     sections: sectionState,
@@ -399,6 +327,31 @@ export default function PersonalPerformance() {
     ].join('');
 
     return `${PERSONAL_PERFORMANCE_REPORT_ID_PREFIX}-${stamp}`;
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const handleProfileUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ user?: Parameters<typeof getReportUserDisplayName>[0] }>).detail;
+      if (detail?.user) {
+        setReportUserName(getReportUserDisplayName(detail.user));
+      }
+    };
+
+    window.addEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
+
+    loadReportUserDisplayName()
+      .then((displayName) => {
+        if (active) {
+          setReportUserName(displayName);
+        }
+      });
+
+    return () => {
+      active = false;
+      window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -491,7 +444,7 @@ export default function PersonalPerformance() {
             : currentState
         ));
         setBaselineSectionState(emptyState);
-        setErrorMessage(error instanceof Error ? error.message : PPI_COPY.messages.loadError);
+        setErrorMessage(error instanceof Error ? error.message : performanceUi.messages.loadError);
       })
       .finally(() => {
         if (active) {
@@ -538,6 +491,21 @@ export default function PersonalPerformance() {
     }
 
     return diagnosisUi.continue;
+  };
+  const getProgressEncouragement = (answeredCount: number, questionCount: number) => {
+    if (questionCount <= 0 || answeredCount >= questionCount) {
+      return '';
+    }
+
+    const progressRatio = answeredCount / questionCount;
+    if (progressRatio >= 0.8) {
+      return performanceUi.onboarding.encouragementNear;
+    }
+    if (progressRatio >= 0.5) {
+      return performanceUi.onboarding.encouragementMid;
+    }
+
+    return '';
   };
 
   const handleAnswer = (sectionId: SectionId, questionIndex: number, answerIndex: number) => {
@@ -642,14 +610,14 @@ export default function PersonalPerformance() {
 
       setSectionState(nextState);
       setBaselineSectionState(nextState);
-      setSaveMessage(PPI_COPY.messages.saveSuccess);
+      setSaveMessage(performanceUi.messages.saveSuccess);
 
       if (activeSection) {
         setActiveSection(null);
         setCurrentQuestion(0);
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : PPI_COPY.messages.saveError);
+      setErrorMessage(error instanceof Error ? error.message : performanceUi.messages.saveError);
     } finally {
       setIsSaving(false);
     }
@@ -659,10 +627,14 @@ export default function PersonalPerformance() {
     setErrorMessage('');
     setPrintJob({
       report: scoreReport,
-      title: PPI_COPY.title,
-      subtitle: PPI_COPY.description,
+      title: performanceUi.title,
+      subtitle: performanceUi.description,
       generatedAt: new Date(),
       reportId,
+      copy: performanceUi.pdf,
+      fileName: buildReportFileName(performanceUi.pdf.fileName, reportUserName),
+      locale: currentLanguage.code,
+      userLabel: reportUserName,
     });
   };
 
@@ -705,10 +677,10 @@ export default function PersonalPerformance() {
             <div>
               <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
                 <span className="text-2xl">📈</span>
-                {PPI_COPY.title}
+                {performanceUi.title}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {PPI_COPY.description}
+                {performanceUi.description}
               </p>
             </div>
             <Button
@@ -718,14 +690,14 @@ export default function PersonalPerformance() {
               className="w-full gap-2 border-purple-600 bg-purple-600 text-white hover:border-purple-700 hover:bg-purple-700 sm:w-auto"
             >
               <Printer className="h-4 w-4" />
-              {PPI_COPY.printReport}
+              {performanceUi.printReport}
             </Button>
           </div>
         </div>
 
         {isLoading ? (
           <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:border-purple-700/30 dark:bg-purple-900/20 dark:text-purple-300">
-            {PPI_COPY.messages.loading}
+            {performanceUi.messages.loading}
           </div>
         ) : null}
 
@@ -737,14 +709,14 @@ export default function PersonalPerformance() {
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
           <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-            {PPI_COPY.centerTitle}
+            {performanceUi.centerTitle}
           </h3>
           <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            {PPI_COPY.centerDescription}
+            {performanceUi.centerDescription}
           </p>
           <p className="mb-4 text-sm font-medium text-gray-900 dark:text-white">
-            {PPI_COPY.questionCountLabel}{' '}
-            <span className="text-purple-600">{PPI_COPY.questionCount}</span>
+            {performanceUi.questionCountLabel}{' '}
+            <span className="text-purple-600">{performanceUi.questionCount}</span>
           </p>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -762,7 +734,7 @@ export default function PersonalPerformance() {
                     {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
                   </div>
                   <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {section.emoji} {section.title}
+                    {section.emoji} {section.onboardingTitle}
                   </span>
                 </div>
               );
@@ -772,10 +744,10 @@ export default function PersonalPerformance() {
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
           <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-            {PPI_COPY.progress}
+            {performanceUi.progress}
           </h3>
           <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            {totalProgress}% {PPI_COPY.progressOf}
+            {totalProgress}% {performanceUi.progressOf}
           </p>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {sections.map((section) => {
@@ -791,7 +763,7 @@ export default function PersonalPerformance() {
                   >
                     {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
                   </div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{section.title}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{section.onboardingTitle}</span>
                 </div>
               );
             })}
@@ -803,18 +775,26 @@ export default function PersonalPerformance() {
             const progress = calculateProgress(section.id);
             const totalSectionQuestions = questions[section.id].length;
             const isActive = activeSection === section.id;
+            const isDimmed = Boolean(activeSection && !isActive);
             const colors = getColorClasses(section.color);
             const activeQuestionIndex = Math.min(currentQuestion, Math.max(totalSectionQuestions - 1, 0));
+            const encouragement = getProgressEncouragement(progress, totalSectionQuestions);
 
             return (
               <div key={section.id}>
-                <div className={`rounded-lg border-2 p-4 transition-all sm:p-6 ${colors.border} ${colors.bg}`}>
+                <div className={`transform-gpu rounded-lg border-2 p-4 transition-all duration-200 ease-in-out sm:p-6 ${colors.border} ${colors.bg} ${
+                  isActive
+                    ? 'scale-[1.01] shadow-lg ring-2 ring-purple-500/20'
+                    : isDimmed
+                      ? 'opacity-60'
+                      : 'hover:shadow-md'
+                }`}>
                   <div className="mb-4 flex items-start gap-4">
                     <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-2xl ${colors.icon}`}>
                       {section.emoji}
                     </div>
                     <div className="flex-1">
-                      <h3 className={`mb-1 font-semibold ${colors.text}`}>{section.title}</h3>
+                      <h3 className={`mb-1 font-semibold ${colors.text}`}>{section.onboardingTitle}</h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">{section.description}</p>
                     </div>
                   </div>
@@ -836,7 +816,7 @@ export default function PersonalPerformance() {
                   <div className="mt-4 rounded-lg border-2 border-purple-600 bg-white p-4 shadow-lg dark:bg-gray-800 sm:p-8">
                     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {section.emoji} {section.title}
+                        {section.emoji} {section.onboardingTitle}
                       </h4>
                       <Button
                         variant="outline"
@@ -847,6 +827,9 @@ export default function PersonalPerformance() {
                         {diagnosisUi.close}
                       </Button>
                     </div>
+                    <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
+                      {section.onboardingIntro}
+                    </p>
 
                     <div className="mb-8">
                       <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -854,9 +837,18 @@ export default function PersonalPerformance() {
                           {diagnosisUi.question} {activeQuestionIndex + 1} {diagnosisUi.of} {totalSectionQuestions}
                         </span>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {progress}/{totalSectionQuestions} {diagnosisUi.completed}
+                          {formatPersonalPerformanceProgressText(
+                            performanceUi.onboarding.answeredProgress,
+                            progress,
+                            totalSectionQuestions,
+                          )}
                         </span>
                       </div>
+                      {encouragement ? (
+                        <p className="mb-3 text-xs font-medium text-purple-700 dark:text-purple-300">
+                          {encouragement}
+                        </p>
+                      ) : null}
                       <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
                         <div
                           className="h-2 rounded-full bg-purple-600 transition-all duration-300"
@@ -870,7 +862,10 @@ export default function PersonalPerformance() {
                       const selectedAnswer = sectionState[section.id].answers[activeQuestionIndex];
 
                       return (
-                        <div className="mb-8">
+                        <div
+                          key={`${section.id}-${activeQuestionIndex}`}
+                          className="mb-8 transform-gpu transition-all duration-150 ease-in-out"
+                        >
                           <p className="mb-6 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">
                             {activeQuestionIndex + 1}. {currentQ.question}
                           </p>
@@ -880,13 +875,17 @@ export default function PersonalPerformance() {
                                 key={optionIndex}
                                 type="button"
                                 onClick={() => handleAnswer(section.id, activeQuestionIndex, optionIndex)}
-                                className={`rounded-lg border-2 px-4 py-4 text-left text-sm font-medium transition-all sm:px-6 sm:text-base ${
+                                aria-pressed={selectedAnswer === optionIndex}
+                                className={`flex items-center justify-between gap-3 rounded-lg border-2 px-4 py-4 text-left text-sm font-medium transition-all duration-150 ease-in-out sm:px-6 sm:text-base ${
                                   selectedAnswer === optionIndex
-                                    ? 'border-purple-600 bg-purple-600 text-white shadow-md'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-purple-400 hover:bg-purple-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-purple-900/20'
+                                    ? 'scale-[1.02] border-purple-600 bg-purple-600 text-white shadow-md'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:scale-[1.01] hover:border-purple-400 hover:bg-purple-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-purple-900/20'
                                 }`}
                               >
-                                {option}
+                                <span>{option}</span>
+                                {selectedAnswer === optionIndex ? (
+                                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                                ) : null}
                               </button>
                             ))}
                           </div>
@@ -919,14 +918,17 @@ export default function PersonalPerformance() {
                     </div>
 
                     {progress === totalSectionQuestions ? (
-                      <div className="mt-4 text-center">
+                      <div className="mt-4 space-y-3 text-center">
+                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
+                          {section.onboardingDone}
+                        </p>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleRestartSection(section.id)}
                           className="text-sm"
                         >
-                          {PPI_COPY.restart}
+                          {performanceUi.restart}
                         </Button>
                       </div>
                     ) : null}
@@ -946,7 +948,7 @@ export default function PersonalPerformance() {
         saveLabel={diagnosisUi.actions.save}
         savingLabel={diagnosisUi.actions.saving}
         discardLabel={diagnosisUi.actions.discard}
-        message={PPI_COPY.messages.unsavedChanges}
+        message={performanceUi.messages.unsavedChanges}
       />
 
       <LoadingBarOverlay
