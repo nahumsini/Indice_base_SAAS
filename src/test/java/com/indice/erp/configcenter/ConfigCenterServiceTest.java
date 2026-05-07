@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +35,19 @@ class ConfigCenterServiceTest {
 
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Test
+    void deleteUserRejectsCurrentUserBeforeQueryingDatabase() {
+        var service = newService();
+
+        var error = assertThrows(
+            IllegalArgumentException.class,
+            () -> service.deleteUser(1L, 7L, 7L)
+        );
+
+        assertEquals("You cannot delete your own user.", error.getMessage());
+        verifyNoInteractions(jdbcTemplate);
+    }
 
     @Test
     void getEmpresaReadsConfigCenterSettingsFromCompanySettings() throws Exception {

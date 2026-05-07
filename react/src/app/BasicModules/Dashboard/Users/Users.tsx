@@ -132,6 +132,7 @@ export default function Users() {
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loadingOverlay, setLoadingOverlay] = useState<{
     isVisible: boolean;
     title: string;
@@ -289,6 +290,32 @@ export default function Users() {
             : currentLanguage.code === 'es-MX'
               ? 'Eliminando...'
               : 'Deleting...';
+
+  const selfDeleteLabel =
+    currentLanguage.code === 'fr-CA'
+      ? 'Vous ne pouvez pas supprimer votre propre utilisateur.'
+      : currentLanguage.code === 'pt-BR'
+        ? 'Voce nao pode excluir seu proprio usuario.'
+        : currentLanguage.code === 'ko-CA'
+          ? '자신의 사용자는 삭제할 수 없습니다.'
+          : currentLanguage.code === 'zh-CA'
+            ? '您不能删除自己的用户。'
+            : currentLanguage.code === 'es-MX'
+              ? 'No puedes eliminar tu propio usuario.'
+              : 'You cannot delete your own user.';
+
+  const currentUserBadgeLabel =
+    currentLanguage.code === 'fr-CA'
+      ? 'Vous'
+      : currentLanguage.code === 'pt-BR'
+        ? 'Voce'
+        : currentLanguage.code === 'ko-CA'
+          ? '나'
+          : currentLanguage.code === 'zh-CA'
+            ? '你'
+            : currentLanguage.code === 'es-MX'
+              ? 'Tu'
+              : 'You';
 
   const filteredUsers = users.filter((user) => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -453,12 +480,16 @@ export default function Users() {
     setIsLoading(true);
     setLoadError('');
 
-    runWithMinimumDuration(configCenterApi.getUsers())
-      .then((response) => {
+    runWithMinimumDuration(Promise.all([
+      configCenterApi.getCurrentUser(),
+      configCenterApi.getUsers(),
+    ]))
+      .then(([currentUser, response]) => {
         if (!active) {
           return;
         }
 
+        setCurrentUserId(currentUser.id);
         const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
         const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
         const mappedModules = response.catalog.modules
@@ -647,6 +678,12 @@ export default function Users() {
 
   const handleDeleteUser = async () => {
     if (!userPendingDelete || isDeletingUser) {
+      return;
+    }
+
+    if (userPendingDelete.source === 'user' && userPendingDelete.backendId === currentUserId) {
+      setSelectedUserForDelete(null);
+      setLoadError(selfDeleteLabel);
       return;
     }
 
@@ -1080,6 +1117,8 @@ export default function Users() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => {
+                  const isCurrentUser = user.source === 'user' && user.backendId === currentUserId;
+                  const isDeleteDisabled = user.isProtected || isCurrentUser;
                   const initials = user.name
                     .split(' ')
                     .filter(Boolean)
@@ -1114,6 +1153,11 @@ export default function Users() {
                           <div>
                             <div className="font-medium text-gray-900 dark:text-white">
                               {user.name}
+                              {isCurrentUser ? (
+                                <span className="ml-2 inline-flex rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                                  {currentUserBadgeLabel}
+                                </span>
+                              ) : null}
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {user.email}
@@ -1213,9 +1257,9 @@ export default function Users() {
                           <button
                             type="button"
                             onClick={() => setSelectedUserForDelete(user.id)}
-                            disabled={user.isProtected}
+                            disabled={isDeleteDisabled}
                             className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-200 bg-red-50 text-red-600 transition-all duration-150 ease-in-out hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
-                            title={deleteLabel}
+                            title={isCurrentUser ? selfDeleteLabel : deleteLabel}
                           >
                             <Trash2 className="h-5 w-5" />
                           </button>

@@ -265,6 +265,19 @@ class ConfigCenterApiControllerTest {
     }
 
     @Test
+    void deleteUserRejectsCurrentSessionUser() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(configCenterService.deleteUser(7L, 1L, 1L))
+            .willThrow(new IllegalArgumentException("You cannot delete your own user."));
+
+        mockMvc.perform(delete("/api/v1/config-center/users/1"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("You cannot delete your own user."));
+    }
+
+    @Test
     void deleteInvitationCancelsPendingInvitation() throws Exception {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
