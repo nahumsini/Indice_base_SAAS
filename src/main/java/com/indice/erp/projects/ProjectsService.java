@@ -1,0 +1,461 @@
+package com.indice.erp.projects;
+
+import com.indice.erp.processTasks.ProcessTasksService;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.LocalDate;
+import java.time.Year;
+import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ProjectsService {
+
+    private static final Set<String> ALLOWED_STATUSES = Set.of("active", "paused", "completed", "cancelled");
+    private static final Set<String> ALLOWED_PRIORITIES = Set.of("low", "medium", "high");
+
+    private final JdbcTemplate jdbcTemplate;
+    private final ProcessTasksService processTasksService;
+
+    public ProjectsService(JdbcTemplate jdbcTemplate, ProcessTasksService processTasksService) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.processTasksService = processTasksService;
+    }
+
+    public Map<String, Object> listProjects(long companyId) {
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT id, company_id, folio, name, description, status, priority, owner_user_id,
+                               owner_employee_id, owner_name, business_id, unit_id, start_date, due_date,
+                               completed_at, cancelled_at, created_by, created_at, updated_at
+                        FROM projects
+                        WHERE company_id = ?
+                          AND deleted_at IS NULL
+                        ORDER BY id DESC
+                        """,
+                (rs, rowNum) -> mapProjectRow(rs),
+                companyId);
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", rows);
+        body.put("count", rows.size());
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> createProject(long companyId, long userId, Map<String, Object> payload) {
+        var command = parseProjectCommand(payload);
+        validateReferences(companyId, command);
+        var folio = nextProjectFolio(companyId);
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(
+                    """
+                            INSERT INTO projects
+                            (company_id, folio, name, description, status, priority, owner_user_id, owner_employee_id,
+                             owner_name, business_id, unit_id, start_date, due_date, completed_at, cancelled_at, created_by)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                    new String[] { "id" });
+
+            statement.setLong(1, companyId);
+            statement.setString(2, folio);
+            statement.setString(3, command.name());
+            setNullableString(statement, 4, command.description());
+            statement.setString(5, command.status());
+            setNullableString(statement, 6, command.priority());
+            setNullableLong(statement, 7, command.ownerUserId());
+            setNullableLong(statement, 8, command.ownerEmployeeId());
+            setNullableString(statement, 9, command.ownerName());
+            setNullableLong(statement, 10, command.businessId());
+            setNullableLong(statement, 11, command.unitId());
+            setNullableDate(statement, 12, command.startDate());
+            setNullableDate(statement, 13, command.dueDate());
+            statement.setTimestamp(14, "completed".equals(command.status()) ? new Timestamp(System.currentTimeMillis()) : null);
+            statement.setTimestamp(15, "cancelled".equals(command.status()) ? new Timestamp(System.currentTimeMillis()) : null);
+            statement.setLong(16, userId);
+            return statement;
+        }, keyHolder);
+
+        var projectId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
+        return getProject(companyId, projectId);
+    }
+
+    @Transactional
+    public Map<String, Object> updateProject(long companyId, long projectId, Map<String, Object> payload) {
+        requireProject(companyId, projectId);
+        var command = parseProjectCommand(payload);
+        validateReferences(companyId, command);
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(
+                    """
+                            UPDATE projects
+                            SET name = ?,
+                                description = ?,
+                                status = ?,
+                                priority = ?,
+                                owner_user_id = ?,
+                                owner_employee_id = ?,
+                                owner_name = ?,
+                                business_id = ?,
+                                unit_id = ?,
+                                start_date = ?,
+                                due_date = ?,
+                                completed_at = CASE WHEN ? = 'completed' THEN COALESCE(completed_at, CURRENT_TIMESTAMP) ELSE NULL END,
+                                cancelled_at = CASE WHEN ? = 'cancelled' THEN COALESCE(cancelled_at, CURRENT_TIMESTAMP) ELSE NULL END
+                            WHERE company_id = ?
+                              AND id = ?
+                              AND deleted_at IS NULL
+                            """);
+
+            statement.setString(1, command.name());
+            setNullableString(statement, 2, command.description());
+            statement.setString(3, command.status());
+            setNullableString(statement, 4, command.priority());
+            setNullableLong(statement, 5, command.ownerUserId());
+            setNullableLong(statement, 6, command.ownerEmployeeId());
+            setNullableString(statement, 7, command.ownerName());
+            setNullableLong(statement, 8, command.businessId());
+            setNullableLong(statement, 9, command.unitId());
+            setNullableDate(statement, 10, command.startDate());
+            setNullableDate(statement, 11, command.dueDate());
+            statement.setString(12, command.status());
+            statement.setString(13, command.status());
+            statement.setLong(14, companyId);
+            statement.setLong(15, projectId);
+            return statement;
+        });
+
+        return getProject(companyId, projectId);
+    }
+
+    @Transactional
+    public void deleteProject(long companyId, long projectId) {
+        requireProject(companyId, projectId);
+        jdbcTemplate.update(
+                """
+                        UPDATE projects
+                        SET deleted_at = CURRENT_TIMESTAMP
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                companyId,
+                projectId);
+    }
+
+    @Transactional
+    public Map<String, Object> completeProject(long companyId, long projectId) {
+        requireProject(companyId, projectId);
+        jdbcTemplate.update(
+                """
+                        UPDATE projects
+                        SET status = 'completed',
+                            completed_at = CURRENT_TIMESTAMP,
+                            cancelled_at = NULL
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                companyId,
+                projectId);
+        return getProject(companyId, projectId);
+    }
+
+    @Transactional
+    public Map<String, Object> cancelProject(long companyId, long projectId) {
+        requireProject(companyId, projectId);
+        jdbcTemplate.update(
+                """
+                        UPDATE projects
+                        SET status = 'cancelled',
+                            cancelled_at = CURRENT_TIMESTAMP,
+                            completed_at = NULL
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                companyId,
+                projectId);
+        return getProject(companyId, projectId);
+    }
+
+    public Map<String, Object> listProjectTasks(long companyId, long projectId) {
+        requireProject(companyId, projectId);
+        return processTasksService.listTasksForProject(companyId, projectId);
+    }
+
+    public Map<String, Object> getProject(long companyId, long projectId) {
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT id, company_id, folio, name, description, status, priority, owner_user_id,
+                               owner_employee_id, owner_name, business_id, unit_id, start_date, due_date,
+                               completed_at, cancelled_at, created_by, created_at, updated_at
+                        FROM projects
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                (rs, rowNum) -> mapProjectRow(rs),
+                companyId,
+                projectId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Project not found.");
+        }
+
+        return rows.getFirst();
+    }
+
+    private void requireProject(long companyId, long projectId) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM projects
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                companyId,
+                projectId);
+
+        if (count == null || count == 0) {
+            throw new NoSuchElementException("Project not found.");
+        }
+    }
+
+    private void validateReferences(long companyId, ProjectCommand command) {
+        if (command.ownerEmployeeId() != null) {
+            requireScopedRecord(
+                    """
+                            SELECT COUNT(*)
+                            FROM hr_employees
+                            WHERE company_id = ?
+                              AND id = ?
+                            """,
+                    companyId,
+                    command.ownerEmployeeId(),
+                    "Owner employee not found.");
+        }
+
+        if (command.ownerUserId() != null) {
+            Integer count = jdbcTemplate.queryForObject(
+                    """
+                            SELECT COUNT(*)
+                            FROM user_companies
+                            WHERE company_id = ?
+                              AND user_id = ?
+                              AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                            """,
+                    Integer.class,
+                    companyId,
+                    command.ownerUserId());
+
+            if (count == null || count == 0) {
+                throw new NoSuchElementException("Owner user not found.");
+            }
+        }
+    }
+
+    private void requireScopedRecord(String sql, long companyId, long id, String message) {
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, companyId, id);
+        if (count == null || count == 0) {
+            throw new NoSuchElementException(message);
+        }
+    }
+
+    private ProjectCommand parseProjectCommand(Map<String, Object> payload) {
+        var ownerUserId = optionalLong(payload, "ownerUserId");
+        var ownerEmployeeId = optionalLong(payload, "ownerEmployeeId");
+
+        if (ownerUserId != null && ownerEmployeeId != null) {
+            throw new IllegalArgumentException("A project can have an owner employee or owner user, but not both.");
+        }
+
+        return new ProjectCommand(
+                requiredString(payload, "name"),
+                optionalString(payload, "description"),
+                requiredAllowedValue(payload, "status", ALLOWED_STATUSES),
+                optionalAllowedValue(payload, "priority", ALLOWED_PRIORITIES),
+                ownerUserId,
+                ownerEmployeeId,
+                optionalString(payload, "ownerName"),
+                optionalLong(payload, "businessId"),
+                optionalLong(payload, "unitId"),
+                optionalDate(payload, "startDate"),
+                optionalDate(payload, "dueDate"));
+    }
+
+    private String nextProjectFolio(long companyId) {
+        var currentYear = Year.now().getValue();
+        Integer nextNumber = jdbcTemplate.queryForObject(
+                """
+                        SELECT COALESCE(MAX(CAST(SUBSTRING(folio, 8) AS UNSIGNED)), 0) + 1
+                        FROM projects
+                        WHERE company_id = ?
+                          AND folio LIKE ?
+                          AND folio LIKE 'P-%'
+                        """,
+                Integer.class,
+                companyId,
+                "P-" + currentYear + "-%");
+
+        int value = nextNumber != null ? nextNumber : 1;
+        return "P-" + currentYear + "-" + String.format("%03d", value);
+    }
+
+    private Map<String, Object> mapProjectRow(ResultSet rs) throws SQLException {
+        var row = new LinkedHashMap<String, Object>();
+        row.put("id", rs.getLong("id"));
+        row.put("companyId", rs.getLong("company_id"));
+        row.put("folio", rs.getString("folio"));
+        row.put("name", rs.getString("name"));
+        row.put("description", rs.getString("description"));
+        row.put("status", rs.getString("status"));
+        row.put("priority", rs.getString("priority"));
+        row.put("ownerUserId", rs.getObject("owner_user_id", Long.class));
+        row.put("ownerEmployeeId", rs.getObject("owner_employee_id", Long.class));
+        row.put("ownerName", rs.getString("owner_name"));
+        row.put("businessId", rs.getObject("business_id", Long.class));
+        row.put("unitId", rs.getObject("unit_id", Long.class));
+        row.put("startDate", toDateString(rs.getDate("start_date")));
+        row.put("dueDate", toDateString(rs.getDate("due_date")));
+        row.put("completedAt", toDateTimeString(rs.getTimestamp("completed_at")));
+        row.put("cancelledAt", toDateTimeString(rs.getTimestamp("cancelled_at")));
+        row.put("createdBy", rs.getObject("created_by", Long.class));
+        row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
+        row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
+        return row;
+    }
+
+    private void setNullableLong(PreparedStatement statement, int index, Long value) throws SQLException {
+        if (value == null) {
+            statement.setNull(index, Types.BIGINT);
+            return;
+        }
+        statement.setLong(index, value);
+    }
+
+    private void setNullableString(PreparedStatement statement, int index, String value) throws SQLException {
+        if (value == null || value.isBlank()) {
+            statement.setNull(index, Types.VARCHAR);
+            return;
+        }
+        statement.setString(index, value.trim());
+    }
+
+    private void setNullableDate(PreparedStatement statement, int index, LocalDate value) throws SQLException {
+        if (value == null) {
+            statement.setNull(index, Types.DATE);
+            return;
+        }
+        statement.setDate(index, java.sql.Date.valueOf(value));
+    }
+
+    private String requiredString(Map<String, Object> payload, String key) {
+        var value = payload.get(key);
+        if (value == null || value.toString().trim().isEmpty()) {
+            throw new IllegalArgumentException(key + " is required.");
+        }
+        return value.toString().trim();
+    }
+
+    private String optionalString(Map<String, Object> payload, String key) {
+        var value = payload.get(key);
+        if (value == null || value.toString().trim().isEmpty()) {
+            return null;
+        }
+        return value.toString().trim();
+    }
+
+    private Long optionalLong(Map<String, Object> payload, String key) {
+        var value = payload.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number numberValue) {
+            return numberValue.longValue();
+        }
+        var normalized = value.toString().trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(normalized);
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(key + " must be a valid integer.");
+        }
+    }
+
+    private LocalDate optionalDate(Map<String, Object> payload, String key) {
+        var value = payload.get(key);
+        if (value == null) {
+            return null;
+        }
+        var normalized = value.toString().trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(normalized);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException(key + " must use YYYY-MM-DD format.");
+        }
+    }
+
+    private String requiredAllowedValue(Map<String, Object> payload, String key, Set<String> allowedValues) {
+        var value = requiredString(payload, key).toLowerCase();
+        if (!allowedValues.contains(value)) {
+            throw new IllegalArgumentException(key + " must be one of: " + String.join(", ", allowedValues) + ".");
+        }
+        return value;
+    }
+
+    private String optionalAllowedValue(Map<String, Object> payload, String key, Set<String> allowedValues) {
+        var rawValue = optionalString(payload, key);
+        if (rawValue == null) {
+            return null;
+        }
+        var value = rawValue.toLowerCase();
+        if (!allowedValues.contains(value)) {
+            throw new IllegalArgumentException(key + " must be one of: " + String.join(", ", allowedValues) + ".");
+        }
+        return value;
+    }
+
+    private String toDateString(java.sql.Date value) {
+        return value != null ? value.toLocalDate().toString() : null;
+    }
+
+    private String toDateTimeString(Timestamp value) {
+        return value != null ? value.toLocalDateTime().toString() : null;
+    }
+
+    private record ProjectCommand(
+            String name,
+            String description,
+            String status,
+            String priority,
+            Long ownerUserId,
+            Long ownerEmployeeId,
+            String ownerName,
+            Long businessId,
+            Long unitId,
+            LocalDate startDate,
+            LocalDate dueDate) {
+    }
+}

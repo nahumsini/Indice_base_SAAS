@@ -20,6 +20,7 @@ import {
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
 import { accentButtonClass, priorityClasses, priorityLabels } from '../Processes/processesData';
+import { listProjects, type ProjectRecord } from '../Projects/projectsApi';
 import { TaskFormDialog, type TaskFormValues } from './components/TaskFormDialog';
 import {
   cancelProcessTask,
@@ -187,6 +188,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [tasksError, setTasksError] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -213,6 +215,19 @@ export default function Tasks() {
 
   useEffect(() => {
     void loadTasks();
+  }, []);
+
+  useEffect(() => {
+    const loadProjectsForTaskForm = async () => {
+      try {
+        const items = await listProjects();
+        setProjects(items);
+      } catch {
+        setProjects([]);
+      }
+    };
+
+    void loadProjectsForTaskForm();
   }, []);
 
   const filteredTasks = useMemo(() => {
@@ -579,6 +594,7 @@ export default function Tasks() {
         onSubmit={handleSubmit}
         form={form}
         isSubmitting={isSubmittingTask}
+        projects={projects}
         setForm={setForm}
       />
     </>
