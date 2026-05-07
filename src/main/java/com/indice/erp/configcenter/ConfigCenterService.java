@@ -592,6 +592,7 @@ public class ConfigCenterService {
         }
 
         ensureEmailNotUsedInCompany(companyId, email, null);
+        ensureEmailNotRegistered(email);
 
         var token = UUID.randomUUID().toString().replace("-", "");
         var expiresAt = LocalDateTime.now().plusDays(7);
@@ -741,6 +742,7 @@ public class ConfigCenterService {
         var finalEmail = newEmail.isBlank() ? String.valueOf(stored.get("email")) : newEmail;
 
         ensureEmailNotUsedInCompany(companyId, finalEmail, invitationId);
+        ensureEmailNotRegistered(finalEmail);
 
         var token = UUID.randomUUID().toString().replace("-", "");
         var expiresAt = LocalDateTime.now().plusDays(7);
@@ -2341,6 +2343,11 @@ public class ConfigCenterService {
     }
 
     private void ensureInvitationEmailCanBeAccepted(long companyId, String email, long invitationIdToIgnore) {
+        ensureEmailNotUsedInCompany(companyId, email, invitationIdToIgnore);
+        ensureEmailNotRegistered(email);
+    }
+
+    private void ensureEmailNotRegistered(String email) {
         var existingUsers = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM users WHERE LOWER(email) = ?",
             Integer.class,
@@ -2349,8 +2356,6 @@ public class ConfigCenterService {
         if (existingUsers != null && existingUsers > 0) {
             throw new IllegalArgumentException("That email is already registered.");
         }
-
-        ensureEmailNotUsedInCompany(companyId, email, invitationIdToIgnore);
     }
 
     private String normalizeEmail(String value) {

@@ -459,6 +459,55 @@ class ConfigCenterServiceTest {
     }
 
     @Test
+    void inviteUserRejectsGloballyRegisteredEmailBeforeCreatingInvitation() {
+        var service = newService();
+
+        when(jdbcTemplate.queryForObject(
+            eq("""
+                SELECT COUNT(*)
+                FROM users u
+                INNER JOIN user_companies uc ON uc.user_id = u.id
+                WHERE uc.company_id = ?
+                  AND LOWER(u.email) = ?
+                """),
+            eq(Integer.class),
+            eq(1L),
+            eq("taken@example.com")
+        )).thenReturn(0);
+        when(jdbcTemplate.queryForObject(
+            eq("""
+                SELECT COUNT(*)
+                FROM user_invitations
+                WHERE company_id = ?
+                  AND LOWER(email) = ?
+                  AND COALESCE(status, 'pending') = 'pending'
+                  AND (? IS NULL OR id <> ?)
+                """),
+            eq(Integer.class),
+            eq(1L),
+            eq("taken@example.com"),
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.isNull()
+        )).thenReturn(0);
+        when(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM users WHERE LOWER(email) = ?",
+            Integer.class,
+            "taken@example.com"
+        )).thenReturn(1);
+
+        var error = assertThrows(
+            IllegalArgumentException.class,
+            () -> service.inviteUser(1L, 1L, Map.of(
+                "name", "Taken User",
+                "email", "Taken@example.com",
+                "role", "User"
+            ))
+        );
+
+        assertEquals("That email is already registered.", error.getMessage());
+    }
+
+    @Test
     void saveCurrentUserUpdatesPasswordHashWhenNewPasswordIsProvided() {
         var service = newService();
 
