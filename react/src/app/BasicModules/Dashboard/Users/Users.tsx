@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
-import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
+import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
 import {
   configCenterApi,
@@ -132,6 +132,14 @@ export default function Users() {
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [loadingOverlay, setLoadingOverlay] = useState<{
+    isVisible: boolean;
+    title: string;
+    description?: string;
+  }>({
+    isVisible: false,
+    title: '',
+  });
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
   const usersBusinessCopy = t.panelInicial.users.businessStructure;
   const businessUnitOptions = usersBusinessCopy.unitOptions;
@@ -307,6 +315,38 @@ export default function Users() {
   const activeUsers = users.filter((user) => user.status === 'active').length;
   const pendingUsers = users.filter((user) => user.status === 'pending').length;
   const inactiveUsers = users.filter((user) => user.status === 'inactive').length;
+
+  const hideLoadingOverlay = () => {
+    setLoadingOverlay({
+      isVisible: false,
+      title: '',
+      description: '',
+    });
+  };
+
+  const runUserFeedbackTask = async ({
+    title,
+    description,
+    task,
+    minimumDurationMs = 900,
+  }: {
+    title: string;
+    description?: string;
+    task: () => Promise<void>;
+    minimumDurationMs?: number;
+  }) => {
+    setLoadingOverlay({
+      isVisible: true,
+      title,
+      description,
+    });
+
+    try {
+      await runWithMinimumDuration(task(), minimumDurationMs);
+    } finally {
+      hideLoadingOverlay();
+    }
+  };
 
   const syncBusinessAssignments = (mappedUsers: User[]) => {
     setBusinessAssignments((currentAssignments) => {
@@ -534,20 +574,26 @@ export default function Users() {
 
     try {
       setLoadError('');
-      const response = await configCenterApi.inviteUser({
-        name: trimmedName,
-        email: emailValidation.normalized,
-        role: toBackendRole(inviteForm.role),
-        module_slugs: inviteModuleIds
-          .map((route) => backendSlugForRoute(route as any))
-          .filter((slug): slug is string => Boolean(slug)),
-      });
-      await refreshUsers();
-      setInviteLink(response.invite_link);
-      setInviteEmailStatus({
-        sent: response.email_sent,
-        status: response.email_status,
-        message: response.email_message,
+      await runUserFeedbackTask({
+        title: 'Sending invitation...',
+        description: 'Creating the user invitation and preparing email delivery.',
+        task: async () => {
+          const response = await configCenterApi.inviteUser({
+            name: trimmedName,
+            email: emailValidation.normalized,
+            role: toBackendRole(inviteForm.role),
+            module_slugs: inviteModuleIds
+              .map((route) => backendSlugForRoute(route as any))
+              .filter((slug): slug is string => Boolean(slug)),
+          });
+          await refreshUsers();
+          setInviteLink(response.invite_link);
+          setInviteEmailStatus({
+            sent: response.email_sent,
+            status: response.email_status,
+            message: response.email_message,
+          });
+        },
       });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to send invitation.');
@@ -570,16 +616,22 @@ export default function Users() {
 
     try {
       setLoadError('');
-      const response = await configCenterApi.resendInvitation(
-        resendUser.backendId,
-        validatedEmail?.ok ? validatedEmail.normalized : undefined,
-      );
-      await refreshUsers();
-      setInviteLink(response.invite_link);
-      setInviteEmailStatus({
-        sent: response.email_sent,
-        status: response.email_status,
-        message: response.email_message,
+      await runUserFeedbackTask({
+        title: 'Resending invitation...',
+        description: 'Refreshing the invite link and sending the email again.',
+        task: async () => {
+          const response = await configCenterApi.resendInvitation(
+            resendUser.backendId,
+            validatedEmail?.ok ? validatedEmail.normalized : undefined,
+          );
+          await refreshUsers();
+          setInviteLink(response.invite_link);
+          setInviteEmailStatus({
+            sent: response.email_sent,
+            status: response.email_status,
+            message: response.email_message,
+          });
+        },
       });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to resend invitation.');
@@ -599,15 +651,24 @@ export default function Users() {
     }
 
     try {
+      const pendingDelete = userPendingDelete;
       setIsDeletingUser(true);
       setLoadError('');
-      if (userPendingDelete.source === 'invitation') {
-        await configCenterApi.deleteInvitation(userPendingDelete.backendId);
-      } else {
-        await configCenterApi.deleteUser(userPendingDelete.backendId);
-      }
-      await refreshUsers();
       setSelectedUserForDelete(null);
+      await runUserFeedbackTask({
+        title: pendingDelete.source === 'invitation' ? 'Deleting invitation...' : 'Deleting user...',
+        description: pendingDelete.source === 'invitation'
+          ? 'Cancelling the pending invite link and refreshing the users list.'
+          : 'Removing company access and refreshing the users list.',
+        task: async () => {
+          if (pendingDelete.source === 'invitation') {
+            await configCenterApi.deleteInvitation(pendingDelete.backendId);
+          } else {
+            await configCenterApi.deleteUser(pendingDelete.backendId);
+          }
+          await refreshUsers();
+        },
+      });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to delete user.');
     } finally {
@@ -1446,7 +1507,11 @@ export default function Users() {
                     >
                       {t.panelInicial.users.modal.cancel}
                     </Button>
-                    <Button type="submit" className="w-full gap-2 bg-purple-600 text-white hover:bg-purple-700 sm:w-auto">
+                    <Button
+                      type="submit"
+                      disabled={loadingOverlay.isVisible}
+                      className="w-full gap-2 bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                    >
                       <UserPlus className="w-4 h-4" />
                       {t.panelInicial.users.modal.send}
                     </Button>
@@ -1579,6 +1644,7 @@ export default function Users() {
                   <Button
                     type="button"
                     onClick={handleResendInvite}
+                    disabled={loadingOverlay.isVisible}
                     className="w-full gap-2 bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
                   >
                     <Mail className="w-4 h-4" />
@@ -1599,6 +1665,12 @@ export default function Users() {
         </div>
       )}
 
+      <LoadingBarOverlay
+        isVisible={loadingOverlay.isVisible}
+        title={loadingOverlay.title}
+        description={loadingOverlay.description}
+      />
+
       <ConfirmDeleteDialog
         isVisible={Boolean(userPendingDelete)}
         title={userPendingDelete?.source === 'invitation' ? 'Delete invitation?' : 'Delete user?'}
@@ -1610,6 +1682,7 @@ export default function Users() {
         }
         confirmLabel={isDeletingUser ? deletingLabel : deleteLabel}
         cancelLabel={t.panelInicial.users.modal.cancel}
+        confirmDisabled={isDeletingUser || loadingOverlay.isVisible}
         onConfirm={handleDeleteUser}
         onCancel={closeDeleteDialog}
       />
