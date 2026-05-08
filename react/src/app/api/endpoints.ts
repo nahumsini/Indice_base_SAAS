@@ -4,6 +4,9 @@ export const endpoints = {
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',
   },
+  invitations: {
+    base: '/api/v1/invitations',
+  },
   dashboard: {
     modules: '/api/v1/modules',
     units: '/api/v1/org/units',

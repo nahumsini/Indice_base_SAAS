@@ -47,6 +47,7 @@ export interface Unidad extends LocationCoordinateData {
   id: string;
   name: string;
   legacyUnitId?: number;
+  isCorporateOffice?: boolean;
   logo?: string;
   industria?: string;
   direccion?: string;

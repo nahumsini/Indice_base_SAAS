@@ -89,6 +89,7 @@ type PendingDeleteTarget =
       type: 'unit';
       unidadId: string;
       name: string;
+      isCorporateOffice: boolean;
     }
   | {
       type: 'business';
@@ -113,9 +114,10 @@ const DEFAULT_BUSINESS_ADDRESS_VALUES: BusinessAddressFormValues = {
   city: '',
   zip: '',
 };
-const HEADQUARTERS_UNIT_NAME = 'Headquarter';
+const CORPORATE_OFFICE_UNIT_NAME = 'Corporate office';
+const LEGACY_HEADQUARTERS_UNIT_NAME = 'Headquarter';
 const LEGACY_HEADQUARTERS_LOCATION_NAME = 'Headquarters';
-const HEADQUARTERS_BUSINESS_FALLBACK_NAME = 'Company headquarters';
+const CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME = 'Corporate office';
 const MODAL_PRIORITY_COUNTRY_CODES = ['CA', 'US', 'MX', 'CO', 'BR'] as const;
 const MODAL_STATE_DROPDOWN_COUNTRY_CODES = ['MX', 'US', 'CA', 'CO', 'BR'] as const;
 
@@ -353,6 +355,16 @@ const buildManualLocationSaveValues = <T extends {
   };
 };
 
+const validateRequiredGoogleMapsLink = (
+  values: LocationCoordinateFormValues,
+  label: string,
+) => {
+  if (values.googleMapsUrl.trim().length === 0) {
+    return `${label} Google Maps link is required.`;
+  }
+  return '';
+};
+
 const buildConfigCoordinateFields = (source: LocationCoordinateData) => ({
   latitude: source.latitude,
   longitude: source.longitude,
@@ -396,10 +408,26 @@ const arePlainObjectsEqual = <T extends object>(left: T, right: T) => (
 );
 
 const isHeadquartersName = (value?: string | null) => (
-  [HEADQUARTERS_UNIT_NAME, LEGACY_HEADQUARTERS_LOCATION_NAME].some(
+  [CORPORATE_OFFICE_UNIT_NAME, LEGACY_HEADQUARTERS_UNIT_NAME, LEGACY_HEADQUARTERS_LOCATION_NAME].some(
     (name) => (value ?? '').trim().toLowerCase() === name.toLowerCase(),
   )
 );
+
+const normalizeCorporateOfficeUnits = (unidades: Unidad[], fallbackToFirst = true): Unidad[] => {
+  if (unidades.length === 0) {
+    return [];
+  }
+
+  const selectedIndex = unidades.findIndex((unidad) => unidad.isCorporateOffice);
+  const corporateOfficeIndex = selectedIndex >= 0
+    ? selectedIndex
+    : (fallbackToFirst ? 0 : -1);
+
+  return unidades.map((unidad, index) => ({
+    ...unidad,
+    isCorporateOffice: index === corporateOfficeIndex,
+  }));
+};
 
 const unidadHasMultiData = (unidad: Unidad) => (
   Boolean(unidad.legacyUnitId)
@@ -471,10 +499,11 @@ const hasMeaningfulMultiStructureData = (unidades: Unidad[]) => {
 
 const mapConfigUnitsToState = (resolvedMap?: ConfigCenterEmpresaMapUnit[] | null): Unidad[] => (
   Array.isArray(resolvedMap) && resolvedMap.length > 0
-    ? resolvedMap.map((unidad, unidadIndex) => ({
+    ? normalizeCorporateOfficeUnits(resolvedMap.map((unidad, unidadIndex) => ({
         id: `unit-${unidadIndex}-${unidad.name}`,
         name: unidad.name,
         legacyUnitId: unidad.legacy_unit_id,
+        isCorporateOffice: unidad.is_corporate_office ?? unidad.isCorporateOffice,
         logo: unidad.logo,
         industria: unidad.industria,
         direccion: unidad.direccion,
@@ -510,11 +539,11 @@ const mapConfigUnitsToState = (resolvedMap?: ConfigCenterEmpresaMapUnit[] | null
           coordinateSource: normalizeCoordinateSource(negocio.coordinate_source ?? ''),
           googleMapsUrl: negocio.google_maps_url,
         })),
-      }))
+      })))
     : createDefaultUnidades()
 );
 
-const buildHeadquartersUnidad = ({
+const buildCorporateOfficeUnidad = ({
   existingUnidad,
   existingNegocio,
   companyName,
@@ -537,7 +566,7 @@ const buildHeadquartersUnidad = ({
   };
   additionalNegocios?: Negocio[];
 }): Unidad => {
-  const businessName = companyName.trim() || HEADQUARTERS_BUSINESS_FALLBACK_NAME;
+  const businessName = companyName.trim() || existingNegocio?.name.trim() || CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME;
   const coordinateFields: LocationCoordinateData = {
     latitude: coordinates.latitude ?? undefined,
     longitude: coordinates.longitude ?? undefined,
@@ -549,7 +578,8 @@ const buildHeadquartersUnidad = ({
   return {
     id: existingUnidad?.id || 'headquarters-default-unit',
     legacyUnitId: existingUnidad?.legacyUnitId,
-    name: HEADQUARTERS_UNIT_NAME,
+    isCorporateOffice: true,
+    name: CORPORATE_OFFICE_UNIT_NAME,
     logo: companyLogo,
     industria: industry,
     direccion: existingUnidad?.direccion ?? '',
@@ -583,7 +613,7 @@ const buildHeadquartersUnidad = ({
   };
 };
 
-const buildUnidadesWithHeadquarters = ({
+const buildUnidadesWithCorporateOffice = ({
   existingUnidades,
   companyName,
   companyLogo,
@@ -604,46 +634,40 @@ const buildUnidadesWithHeadquarters = ({
   };
   includeOtherUnits: boolean;
 }): Unidad[] => {
-  const headquartersUnidad = existingUnidades.find((unidad) => (
-    unidad.id === 'headquarters-default-unit'
-    || unidad.id === 'holding-default-unit'
-    || isHeadquartersName(unidad.name)
-  )) ?? (includeOtherUnits ? undefined : existingUnidades[0]);
-  const headquartersNegocio = headquartersUnidad?.negocios.find((negocio) => (
+  if (includeOtherUnits) {
+    return normalizeCorporateOfficeUnits(existingUnidades);
+  }
+
+  const corporateOfficeUnidad = existingUnidades.find((unidad) => unidad.isCorporateOffice) ?? existingUnidades[0];
+  const corporateOfficeNegocio = corporateOfficeUnidad?.negocios.find((negocio) => (
     negocio.id === 'headquarters-default-business'
     || negocio.id === 'holding-default-business'
     || isHeadquartersName(negocio.name)
-  )) ?? headquartersUnidad?.negocios[0];
-  const additionalHeadquartersNegocios = includeOtherUnits && headquartersUnidad
-    ? headquartersUnidad.negocios.filter((negocio) => (
-        negocio.id !== headquartersNegocio?.id
+  )) ?? corporateOfficeUnidad?.negocios[0];
+  const additionalCorporateOfficeNegocios = corporateOfficeUnidad
+    ? corporateOfficeUnidad.negocios.filter((negocio) => (
+        negocio.id !== corporateOfficeNegocio?.id
         && !isHeadquartersName(negocio.name)
       ))
     : [];
-  const headquarters = buildHeadquartersUnidad({
-    existingUnidad: headquartersUnidad,
-    existingNegocio: headquartersNegocio,
+  const corporateOffice = buildCorporateOfficeUnidad({
+    existingUnidad: corporateOfficeUnidad,
+    existingNegocio: corporateOfficeNegocio,
     companyName,
     companyLogo,
     industry,
     coordinates,
-    additionalNegocios: additionalHeadquartersNegocios,
+    additionalNegocios: additionalCorporateOfficeNegocios,
   });
 
-  if (!includeOtherUnits) {
-    return [headquarters];
-  }
-
-  return [
-    headquarters,
-    ...existingUnidades.filter((unidad) => unidad.id !== headquartersUnidad?.id),
-  ];
+  return [corporateOffice];
 };
 
 const buildConfigMap = (_estructuraType: EstructuraType, unidades: Unidad[]) => (
   unidades.map((unidad) => ({
     name: unidad.name,
     legacy_unit_id: unidad.legacyUnitId,
+    is_corporate_office: unidad.isCorporateOffice === true,
     logo: unidad.logo,
     industria: unidad.industria,
     direccion: unidad.direccion,
@@ -693,6 +717,7 @@ export default function BusinessStructure() {
   const [editingUnidad, setEditingUnidad] = useState<Unidad | null>(null);
   const [editingNegocio, setEditingNegocio] = useState<EditingNegocio | null>(null);
   const [pendingDeleteTarget, setPendingDeleteTarget] = useState<PendingDeleteTarget | null>(null);
+  const [corporateReplacementUnitId, setCorporateReplacementUnitId] = useState('');
   const [unidadFormValues, setUnidadFormValues] = useState<UnidadFormValues>(DEFAULT_UNIDAD_FORM_VALUES);
   const [unidadInitialValues, setUnidadInitialValues] = useState<UnidadFormValues>(DEFAULT_UNIDAD_FORM_VALUES);
   const [negocioFormValues, setNegocioFormValues] = useState<NegocioFormValues>(DEFAULT_NEGOCIO_FORM_VALUES);
@@ -808,11 +833,34 @@ export default function BusinessStructure() {
     );
   };
 
+  const getCurrentCorporateOfficeCoordinates = () => {
+    const coordinateValidation = buildCoordinateSaveValues(companyLocation);
+    return coordinateValidation.ok ? coordinateValidation.values : {};
+  };
+
+  const normalizeUnidadesForPersistence = (
+    nextEstructuraType: EstructuraType,
+    nextUnidades: Unidad[],
+  ) => buildUnidadesWithCorporateOffice({
+    existingUnidades: nextUnidades,
+    companyName,
+    companyLogo,
+    industry,
+    coordinates: getCurrentCorporateOfficeCoordinates(),
+    includeOtherUnits: nextEstructuraType === 'multi',
+  });
+
   const persistStructureConfig = async (nextEstructuraType: EstructuraType, nextUnidades: Unidad[]) => {
-    return configCenterApi.saveConfig({
+    const normalizedUnidades = normalizeUnidadesForPersistence(nextEstructuraType, nextUnidades);
+    const response = await configCenterApi.saveConfig({
       estructura: nextEstructuraType,
-      map: buildConfigMap(nextEstructuraType, nextUnidades),
+      map: buildConfigMap(nextEstructuraType, normalizedUnidades),
     });
+
+    return {
+      response,
+      normalizedUnidades,
+    };
   };
 
   const runStructureFeedbackTask = async ({
@@ -938,8 +986,24 @@ export default function BusinessStructure() {
     }
   };
 
-  const applyDeleteUnidad = (unidadId: string) => {
-    setUnidades((prevUnidades) => prevUnidades.filter((unidad) => unidad.id !== unidadId));
+  const applyDeleteUnidad = (unidadId: string, replacementCorporateUnitId?: string) => {
+    setUnidades((prevUnidades) => {
+      const deletedUnidad = prevUnidades.find((unidad) => unidad.id === unidadId);
+      const remainingUnidades = prevUnidades.filter((unidad) => unidad.id !== unidadId);
+
+      if (deletedUnidad?.isCorporateOffice && replacementCorporateUnitId) {
+        return remainingUnidades.map((unidad) => ({
+          ...unidad,
+          isCorporateOffice: unidad.id === replacementCorporateUnitId,
+        }));
+      }
+
+      if (deletedUnidad?.isCorporateOffice) {
+        return remainingUnidades;
+      }
+
+      return normalizeCorporateOfficeUnits(remainingUnidades);
+    });
   };
 
   const applyDeleteNegocio = (unidadId: string, negocioId: string) => {
@@ -965,7 +1029,13 @@ export default function BusinessStructure() {
       type: 'unit',
       unidadId,
       name: unidad.name,
+      isCorporateOffice: unidad.isCorporateOffice === true,
     });
+    setCorporateReplacementUnitId(
+      unidad.isCorporateOffice
+        ? unidades.find((item) => item.id !== unidadId)?.id ?? ''
+        : '',
+    );
   };
 
   const handleRequestDeleteNegocio = (unidadId: string, negocioId: string) => {
@@ -986,6 +1056,7 @@ export default function BusinessStructure() {
 
   const handleCancelDelete = () => {
     setPendingDeleteTarget(null);
+    setCorporateReplacementUnitId('');
   };
 
   const handleConfirmDelete = () => {
@@ -994,12 +1065,18 @@ export default function BusinessStructure() {
     }
 
     if (pendingDeleteTarget.type === 'unit') {
-      applyDeleteUnidad(pendingDeleteTarget.unidadId);
+      if (pendingDeleteTarget.isCorporateOffice && unidades.length > 1 && !corporateReplacementUnitId) {
+        setLoadError('Choose another corporate office before deleting this unit.');
+        return;
+      }
+
+      applyDeleteUnidad(pendingDeleteTarget.unidadId, corporateReplacementUnitId);
     } else {
       applyDeleteNegocio(pendingDeleteTarget.unidadId, pendingDeleteTarget.negocioId);
     }
 
     setPendingDeleteTarget(null);
+    setCorporateReplacementUnitId('');
   };
 
   const handleSaveUnidad = (event: FormEvent<HTMLFormElement>) => {
@@ -1008,6 +1085,12 @@ export default function BusinessStructure() {
     const emailValidation = validateOptionalEmail(unidadFormValues.email);
     if (!emailValidation.ok) {
       setLoadError(t.loginPage.emailError);
+      return;
+    }
+
+    const googleMapsValidation = validateRequiredGoogleMapsLink(unidadFormValues, 'Unit');
+    if (googleMapsValidation) {
+      setLoadError(googleMapsValidation);
       return;
     }
 
@@ -1026,6 +1109,7 @@ export default function BusinessStructure() {
     const newUnidad: Unidad = {
       id: editingUnidad?.id || String(Date.now()),
       name: unidadFormValues.name.trim(),
+      isCorporateOffice: editingUnidad?.isCorporateOffice ?? unidades.length === 0,
       logo: unidadFormValues.logo,
       industria: unidadFormValues.industria,
       direccion: unidadFormValues.direccion,
@@ -1054,9 +1138,9 @@ export default function BusinessStructure() {
           ? unidades.map((unidad) => (unidad.id === editingUnidad.id ? newUnidad : unidad))
           : [...unidades, newUnidad];
 
-        const response = await persistStructureConfig(estructuraType, nextUnidades);
+        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
         const savedUnidades = mapConfigUnitsToState(response.map);
-        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
         setUnidades(committedUnidades);
         syncSavedStructure(estructuraType, committedUnidades);
         closeUnidadModal();
@@ -1073,6 +1157,12 @@ export default function BusinessStructure() {
     const emailValidation = validateOptionalEmail(negocioFormValues.email);
     if (!emailValidation.ok) {
       setLoadError(t.loginPage.emailError);
+      return;
+    }
+
+    const googleMapsValidation = validateRequiredGoogleMapsLink(negocioFormValues, 'Business');
+    if (googleMapsValidation) {
+      setLoadError(googleMapsValidation);
       return;
     }
 
@@ -1136,9 +1226,9 @@ export default function BusinessStructure() {
             };
           });
 
-        const response = await persistStructureConfig(estructuraType, nextUnidades);
+        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
         const savedUnidades = mapConfigUnitsToState(response.map);
-        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
         setUnidades(committedUnidades);
         syncSavedStructure(estructuraType, committedUnidades);
         closeNegocioModal();
@@ -1176,6 +1266,31 @@ export default function BusinessStructure() {
     setShowNegocioModal(true);
   };
 
+  const handleSetCorporateOffice = (unidadId: string) => {
+    const targetUnidad = unidades.find((unidad) => unidad.id === unidadId);
+    if (!targetUnidad || targetUnidad.isCorporateOffice) {
+      return;
+    }
+
+    void runStructureFeedbackTask({
+      title: 'Saving corporate office...',
+      description: 'Updating the selected corporate office for this company.',
+      successMessage: 'Corporate office updated.',
+      task: async () => {
+        const nextUnidades = unidades.map((unidad) => ({
+          ...unidad,
+          isCorporateOffice: unidad.id === unidadId,
+        }));
+
+        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
+        const savedUnidades = mapConfigUnitsToState(response.map);
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
+        setUnidades(committedUnidades);
+        syncSavedStructure(estructuraType, committedUnidades);
+      },
+    });
+  };
+
   const handlePersistBusinessStructure = async () => {
     setIsSaving(true);
     setLoadError('');
@@ -1190,7 +1305,7 @@ export default function BusinessStructure() {
       companyCoordinateValidation.ok
       && (companyCoordinateValidation.values.latitude == null || companyCoordinateValidation.values.longitude == null)
     ) {
-      setLoadError('Company Headquarters coordinates are required before saving.');
+      setLoadError('Corporate office coordinates are required before saving.');
       setIsSaving(false);
       return;
     }
@@ -1203,7 +1318,7 @@ export default function BusinessStructure() {
         minimumDurationMs: 2500,
         task: async () => {
           const nextUnidades = companyCoordinateValidation.ok
-            ? buildUnidadesWithHeadquarters({
+            ? buildUnidadesWithCorporateOffice({
                 existingUnidades: unidades,
                 companyName,
                 companyLogo,
@@ -1213,9 +1328,9 @@ export default function BusinessStructure() {
               })
             : unidades;
 
-          const response = await persistStructureConfig(estructuraType, nextUnidades);
+          const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
           const savedUnidades = mapConfigUnitsToState(response.map);
-          const committedUnidades = savedUnidades.length > 0 ? savedUnidades : nextUnidades;
+          const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
 
           await configCenterApi.saveEmpresa({
             nombre_empresa: companyName,
@@ -1346,6 +1461,7 @@ export default function BusinessStructure() {
           structure={structure}
           onEditUnidad={handleEditUnidad}
           onDeleteUnidad={handleRequestDeleteUnidad}
+          onSetCorporateOffice={handleSetCorporateOffice}
           onEditNegocio={handleEditNegocio}
           onDeleteNegocio={handleRequestDeleteNegocio}
           onCreateNegocio={handleCreateNegocio}
@@ -1486,10 +1602,7 @@ export default function BusinessStructure() {
 
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    {structure.fields.location}{' '}
-                    <span className="text-xs text-gray-500 font-normal">
-                      ({structure.fields.optional})
-                    </span>
+                    {structure.fields.location}
                   </h4>
                   <div className="grid grid-cols-1 gap-4">
                     <div>
@@ -1543,6 +1656,7 @@ export default function BusinessStructure() {
                             ...updates,
                           }))}
                           disabled={loadingOverlay.isVisible}
+                          requireGoogleMapsLink
                         />
                       </div>
                     </div>
@@ -1746,10 +1860,7 @@ export default function BusinessStructure() {
 
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    {structure.fields.location}{' '}
-                    <span className="text-xs text-gray-500 font-normal">
-                      ({structure.fields.optional})
-                    </span>
+                    {structure.fields.location}
                   </h4>
                   <div className="grid grid-cols-1 gap-4">
                     <div>
@@ -1803,6 +1914,7 @@ export default function BusinessStructure() {
                             ...updates,
                           }))}
                           disabled={loadingOverlay.isVisible}
+                          requireGoogleMapsLink
                         />
                       </div>
                     </div>
@@ -1929,12 +2041,38 @@ export default function BusinessStructure() {
         title={pendingDeleteTarget?.type === 'unit'
           ? structure.modal.confirmDeleteUnit
           : structure.modal.confirmDeleteBusiness}
+        description={pendingDeleteTarget?.type === 'unit' && pendingDeleteTarget.isCorporateOffice && unidades.length > 1
+          ? 'Choose the unit that should become the corporate office after this one is deleted.'
+          : undefined}
         itemName={pendingDeleteTarget?.name}
         confirmLabel={structure.modal.delete}
         cancelLabel={structure.modal.cancel}
+        confirmDisabled={pendingDeleteTarget?.type === 'unit'
+          && pendingDeleteTarget.isCorporateOffice
+          && unidades.length > 1
+          && !corporateReplacementUnitId}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
-      />
+      >
+        {pendingDeleteTarget?.type === 'unit' && pendingDeleteTarget.isCorporateOffice && unidades.length > 1 ? (
+          <label className="block text-left text-sm font-medium text-gray-700 dark:text-gray-200">
+            New corporate office
+            <select
+              value={corporateReplacementUnitId}
+              onChange={(event) => setCorporateReplacementUnitId(event.target.value)}
+              className={`${inputClassName} mt-2`}
+            >
+              {unidades
+                .filter((unidad) => unidad.id !== pendingDeleteTarget.unidadId)
+                .map((unidad) => (
+                  <option key={unidad.id} value={unidad.id}>
+                    {unidad.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ) : null}
+      </ConfirmDeleteDialog>
 
       <SaveChangesBar
         isVisible={!isLoading && hasUnsavedChanges}

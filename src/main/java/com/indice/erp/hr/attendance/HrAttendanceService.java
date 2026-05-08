@@ -3658,8 +3658,7 @@ public class HrAttendanceService {
     }
 
     private List<LocationRow> loadUserAttendanceLocations(long companyId) {
-        var businessStructureLocations = loadCompanyBusinessStructureAttendanceLocations(companyId);
-        return businessStructureLocations.isEmpty() ? listLocations(companyId) : businessStructureLocations;
+        return listLocations(companyId);
     }
 
     private List<LocationRow> loadBusinessStructureAttendanceLocations(long companyId, Long businessId) {

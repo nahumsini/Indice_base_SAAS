@@ -10,6 +10,7 @@ interface LocationCoordinateFieldsProps {
   values: LocationCoordinateFormValues;
   onChange: (updates: Partial<LocationCoordinateFormValues>) => void;
   disabled?: boolean;
+  requireGoogleMapsLink?: boolean;
 }
 
 const coordinateInputClassName = `${inputClassName} font-mono`;
@@ -18,6 +19,7 @@ export function LocationCoordinateFields({
   values,
   onChange,
   disabled = false,
+  requireGoogleMapsLink = false,
 }: LocationCoordinateFieldsProps) {
   const { t } = useLanguage();
   const actions = t.panelInicial.structure.actions;
@@ -104,6 +106,7 @@ export function LocationCoordinateFields({
         <div className="flex-1">
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Google Maps link
+            {requireGoogleMapsLink ? <span className="ml-1 text-red-500">*</span> : null}
           </label>
           <input
             type="text"
@@ -112,6 +115,7 @@ export function LocationCoordinateFields({
             placeholder="Paste Google Maps link"
             className={inputClassName}
             disabled={disabled || isExtracting}
+            required={requireGoogleMapsLink}
           />
         </div>
         <div className="grid grid-cols-2 gap-2 lg:w-auto">
