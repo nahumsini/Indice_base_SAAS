@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileWarning, Plus } from 'lucide-react';
 import jsPDF from 'jspdf';
 import {
   type ApiClientError,
@@ -12,7 +11,6 @@ import {
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
-import { Button } from '../../../components/ui/button';
 import {
   Pagination,
   PaginationContent,
@@ -23,9 +21,12 @@ import {
   PaginationPrevious,
 } from '../../../components/ui/pagination';
 import { CreateRecordModal } from './components/CreateRecordModal';
+import { RecordColumnsModal, type RecordColumn } from './components/RecordColumnsModal';
 import { RecordDetailModal } from './components/RecordDetailModal';
 import { RecordFilters } from './components/RecordFilters';
-import { RecordsList } from './components/RecordsList';
+import { RecordHeaderBar } from './components/RecordHeaderBar';
+import { RecordKpiStrip } from './components/RecordKpiStrip';
+import { RecordsList, type RecordColumnId } from './components/RecordsList';
 import type {
   CreateRecordData,
   EmployeeRecord,
@@ -68,6 +69,30 @@ const sanitizeFileName = (value: string) => (
 );
 
 const recordsPerPage = 10;
+
+const defaultVisibleRecordColumns: RecordColumnId[] = [
+  'id',
+  'employee',
+  'reportedBy',
+  'unit',
+  'business',
+  'type',
+  'severity',
+  'date',
+  'actions',
+];
+
+const recordColumns: RecordColumn[] = [
+  { id: 'id', label: 'Record', locked: true },
+  { id: 'employee', label: 'Employee', locked: true },
+  { id: 'reportedBy', label: 'Reported by' },
+  { id: 'unit', label: 'Unit' },
+  { id: 'business', label: 'Business' },
+  { id: 'type', label: 'Type' },
+  { id: 'severity', label: 'Severity' },
+  { id: 'date', label: 'Date' },
+  { id: 'actions', label: 'Actions', locked: true },
+];
 
 const mapBackendRecord = (record: BackendRecordItem): EmployeeRecord => ({
   id: String(record.id),
@@ -146,6 +171,8 @@ export default function Records() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [visibleRecordColumns, setVisibleRecordColumns] = useState<RecordColumnId[]>(defaultVisibleRecordColumns);
   const [selectedRecord, setSelectedRecord] = useState<EmployeeRecord | null>(null);
   const [editingRecord, setEditingRecord] = useState<EmployeeRecord | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -536,52 +563,31 @@ export default function Records() {
     }
   };
 
+  const handleToggleColumn = (columnId: string) => {
+    const column = recordColumns.find((item) => item.id === columnId);
+    if (column?.locked) {
+      return;
+    }
+
+    setVisibleRecordColumns((current) =>
+      current.includes(columnId as RecordColumnId)
+        ? current.filter((id) => id !== columnId)
+        : [...current, columnId as RecordColumnId],
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl bg-gray-100 px-6 py-8 dark:bg-gray-900">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900 dark:text-white">
-              <FileWarning className="h-8 w-8" />
-              Records
-            </h2>
-            <p className="text-base text-gray-600 dark:text-gray-400">
-              Track incidents, reports and employee history
-            </p>
-          </div>
-          <Button
-            onClick={() => {
-              setEditingRecord(null);
-              setIsCreateModalOpen(true);
-              if (employees.length === 0 && !isEmployeesLoading) {
-                void loadEmployees();
-              }
-            }}
-            className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            New Record
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-        <span className="flex items-center gap-1.5">
-          📋 <span className="font-medium text-gray-900 dark:text-white">{summary.total_count}</span> total records
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ⏳ <span className="font-medium text-orange-600 dark:text-orange-400">{summary.pending_count}</span> pending
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ✓ <span className="font-medium text-green-600 dark:text-green-400">{summary.resolved_count}</span> resolved
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          🔴 <span className="font-medium text-red-600 dark:text-red-400">{summary.high_severity_count}</span> high severity
-        </span>
-      </div>
+      <RecordHeaderBar
+        onColumns={() => setIsColumnsModalOpen(true)}
+        onCreate={() => {
+          setEditingRecord(null);
+          setIsCreateModalOpen(true);
+          if (employees.length === 0 && !isEmployeesLoading) {
+            void loadEmployees();
+          }
+        }}
+      />
 
       <RecordFilters
         filters={filters}
@@ -590,12 +596,18 @@ export default function Records() {
         businessOptions={businessOptions}
       />
 
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        Showing {sortedRecords.length} of {records.length} records
-      </div>
+      <RecordKpiStrip
+        highSeverityCount={summary.high_severity_count}
+        pendingCount={summary.pending_count}
+        resolvedCount={summary.resolved_count}
+        reviewedCount={summary.reviewed_count}
+        totalCount={summary.total_count}
+        visibleCount={sortedRecords.length}
+      />
 
       <RecordsList
         records={paginatedRecords}
+        visibleColumns={visibleRecordColumns}
         onRecordClick={(record) => {
           void handleRecordClick(record);
         }}
@@ -603,6 +615,14 @@ export default function Records() {
           void handleEditRecord(record);
         }}
         onDownload={handleDownloadRecord}
+      />
+
+      <RecordColumnsModal
+        columns={recordColumns}
+        isOpen={isColumnsModalOpen}
+        visibleColumns={visibleRecordColumns}
+        onClose={() => setIsColumnsModalOpen(false)}
+        onToggleColumn={handleToggleColumn}
       />
 
       {sortedRecords.length > 0 ? (

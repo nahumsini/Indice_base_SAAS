@@ -16,13 +16,27 @@ import type { EmployeeRecord, RecordSeverity, RecordStatus, RecordType } from '.
 
 interface RecordsListProps {
   records: EmployeeRecord[];
+  visibleColumns: RecordColumnId[];
   onRecordClick: (record: EmployeeRecord) => void;
   onEdit: (record: EmployeeRecord) => void;
   onDownload: (record: EmployeeRecord) => void;
 }
 
 type SortField = 'id' | 'employee' | 'reportedBy' | 'unit' | 'business' | 'type' | 'severity' | 'date';
+export type RecordColumnId = SortField | 'actions';
 type SortDirection = 'asc' | 'desc' | null;
+
+const recordColumns: Array<{ id: RecordColumnId; label: string; sortable?: boolean }> = [
+  { id: 'id', label: 'Record', sortable: true },
+  { id: 'employee', label: 'Employee', sortable: true },
+  { id: 'reportedBy', label: 'Reported by', sortable: true },
+  { id: 'unit', label: 'Unit', sortable: true },
+  { id: 'business', label: 'Business', sortable: true },
+  { id: 'type', label: 'Type', sortable: true },
+  { id: 'severity', label: 'Severity', sortable: true },
+  { id: 'date', label: 'Date', sortable: true },
+  { id: 'actions', label: 'Actions' },
+];
 
 const typeConfig: Record<RecordType, { label: string; color: string; bgColor: string; icon: ReactNode }> = {
   incident: {
@@ -89,9 +103,10 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('en-US', {
   minute: '2-digit',
 }).format(new Date(value));
 
-export function RecordsList({ records, onRecordClick, onEdit, onDownload }: RecordsListProps) {
+export function RecordsList({ records, visibleColumns, onRecordClick, onEdit, onDownload }: RecordsListProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const visibleColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -169,41 +184,36 @@ export function RecordsList({ records, onRecordClick, onEdit, onDownload }: Reco
 
   if (records.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-gray-700 dark:bg-gray-800">
+      <div className="rounded-lg border border-gray-200 bg-white py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <p className="text-gray-500 dark:text-gray-400">No records found</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
+        <table className="min-w-full">
+          <thead className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-900">
             <tr>
-              {[
-                ['id', 'ID'],
-                ['employee', 'Employee'],
-                ['reportedBy', 'Reported By'],
-                ['unit', 'Unit'],
-                ['business', 'Business'],
-                ['type', 'Type'],
-                ['severity', 'Severity'],
-                ['date', 'Date'],
-              ].map(([field, label]) => (
-                <th key={field} className="px-4 py-3 text-left">
+              {recordColumns
+                .filter((column) => column.id !== 'actions' && visibleColumnSet.has(column.id))
+                .map((column) => (
+                <th key={column.id} className="px-4 py-3 text-left">
                   <button
-                    onClick={() => handleSort(field as SortField)}
-                    className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                    onClick={() => handleSort(column.id as SortField)}
+                    className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   >
-                    {label}
-                    {getSortIcon(field as SortField)}
+                    {column.label}
+                    {getSortIcon(column.id as SortField)}
                   </button>
                 </th>
               ))}
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-400">
-                Actions
-              </th>
+              {visibleColumnSet.has('actions') ? (
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-gray-400">
+                  Actions
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -217,72 +227,90 @@ export function RecordsList({ records, onRecordClick, onEdit, onDownload }: Reco
                   onClick={() => onRecordClick(record)}
                   className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
-                  <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                    {record.recordNumber || `#${record.id}`}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <div className="text-sm">
-                      <div className="font-medium text-gray-900 dark:text-white">{record.employee.name}</div>
-                      <div className="text-gray-500 dark:text-gray-400">{record.employee.position}</div>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-900 dark:text-white">
-                    {record.reportedBy.name}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-900 dark:text-white">{record.unit}</td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-900 dark:text-white">{record.business}</td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium ${typeInfo.bgColor} ${typeInfo.color}`}>
-                      {typeInfo.icon}
-                      {typeInfo.label}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    {severityInfo ? (
-                      <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${severityInfo.bgColor} ${severityInfo.color}`}>
-                        {severityInfo.label}
+                  {visibleColumnSet.has('id') ? (
+                    <td className="whitespace-nowrap px-4 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                      {record.recordNumber || `#${record.id}`}
+                    </td>
+                  ) : null}
+                  {visibleColumnSet.has('employee') ? (
+                    <td className="whitespace-nowrap px-4 py-4">
+                      <div className="text-sm">
+                        <div className="font-semibold text-gray-900 dark:text-white">{record.employee.name}</div>
+                        <div className="text-gray-500 dark:text-gray-400">{record.employee.position || 'No position'}</div>
+                      </div>
+                    </td>
+                  ) : null}
+                  {visibleColumnSet.has('reportedBy') ? (
+                    <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-900 dark:text-white">
+                      {record.reportedBy.name}
+                    </td>
+                  ) : null}
+                  {visibleColumnSet.has('unit') ? (
+                    <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-900 dark:text-white">{record.unit || '-'}</td>
+                  ) : null}
+                  {visibleColumnSet.has('business') ? (
+                    <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-900 dark:text-white">{record.business || '-'}</td>
+                  ) : null}
+                  {visibleColumnSet.has('type') ? (
+                    <td className="whitespace-nowrap px-4 py-4">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${typeInfo.bgColor} ${typeInfo.color}`}>
+                        {typeInfo.icon}
+                        {typeInfo.label}
                       </span>
-                    ) : (
-                      <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {formatDate(record.eventDate)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-right text-sm">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onRecordClick(record);
-                        }}
-                        className="rounded p-1.5 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
-                        title="View"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onEdit(record);
-                        }}
-                        className="rounded p-1.5 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
-                        title="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDownload(record);
-                        }}
-                        className="rounded p-1.5 text-gray-600 transition-colors hover:bg-green-50 hover:text-green-600 dark:text-gray-400 dark:hover:bg-green-900/30 dark:hover:text-green-400"
-                        title="Download PDF"
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+                    </td>
+                  ) : null}
+                  {visibleColumnSet.has('severity') ? (
+                    <td className="whitespace-nowrap px-4 py-4">
+                      {severityInfo ? (
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${severityInfo.bgColor} ${severityInfo.color}`}>
+                          {severityInfo.label}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 dark:text-gray-600">-</span>
+                      )}
+                    </td>
+                  ) : null}
+                  {visibleColumnSet.has('date') ? (
+                    <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {formatDate(record.eventDate)}
+                    </td>
+                  ) : null}
+                  {visibleColumnSet.has('actions') ? (
+                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onRecordClick(record);
+                          }}
+                          className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-blue-600 transition-colors hover:bg-blue-100 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300"
+                          title="View"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEdit(record);
+                          }}
+                          className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-blue-600 transition-colors hover:bg-blue-100 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300"
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDownload(record);
+                          }}
+                          className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}

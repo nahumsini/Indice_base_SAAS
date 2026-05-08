@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
+  ArrowUpDown,
   Calendar,
   Columns3,
   Edit,
@@ -8,14 +9,14 @@ import {
   Plus,
   Search,
   Trash2,
-  Wallet,
 } from 'lucide-react';
 import {
   EmployeeModal,
   createEmptyEmployeeFormData,
   type EmployeeDocumentType,
   type EmployeeFormData,
-} from '../../../components/EmployeeModal';
+} from './components/CreateEmployeeModal';
+import { EmployeeKpiStrip } from './components/EmployeeKpiStrip';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
@@ -26,6 +27,7 @@ import {
 } from '../../../components/rh/ColumnasConfigModal';
 import { Button } from '../../../components/ui/button';
 import { Checkbox } from '../../../components/ui/checkbox';
+import { Input } from '../../../components/ui/input';
 import {
   Pagination,
   PaginationContent,
@@ -35,7 +37,23 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '../../../components/ui/pagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../components/ui/select';
 import { Skeleton } from '../../../components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../../components/ui/table';
+import { cn } from '../../../components/ui/utils';
 import { useLanguage } from '../../../shared/context';
 import { dashboardApi } from '../../../api/dashboard';
 import {
@@ -44,11 +62,73 @@ import {
   type AttendanceControlTemplate,
   type AttendanceControlTemplatePayload,
   type BackendEmployee,
+  type BackendEmployeeDocument,
+  type BackendEmployeeProfile,
   type EmployeeDetailsResponse,
 } from '../../../api/humanResources';
 
 type EmployeeStatus = 'active' | 'inactive' | 'terminated';
 type EmployeePayPeriod = 'weekly' | 'biweekly' | 'monthly';
+type EmployeeColumnId =
+  | 'employee'
+  | 'employeeNumber'
+  | 'firstName'
+  | 'lastName'
+  | 'email'
+  | 'phone'
+  | 'dateOfBirth'
+  | 'address'
+  | 'nationalId'
+  | 'taxId'
+  | 'socialSecurityNumber'
+  | 'registrationCountry'
+  | 'stateProvince'
+  | 'city'
+  | 'postalCode'
+  | 'alternatePhone'
+  | 'emergencyContactName'
+  | 'emergencyContactRelationship'
+  | 'emergencyContactPhone'
+  | 'position'
+  | 'department'
+  | 'unit'
+  | 'business'
+  | 'status'
+  | 'scheduleOnHire'
+  | 'scheduleStartDate'
+  | 'scheduleEndDate'
+  | 'scheduleStartTime'
+  | 'scheduleEndTime'
+  | 'scheduleMealMinutes'
+  | 'scheduleRestMinutes'
+  | 'scheduleLateAfterMinutes'
+  | 'scheduleLocationRule'
+  | 'scheduleLocationId'
+  | 'salaryType'
+  | 'workdayHours'
+  | 'salary'
+  | 'hourlyRate'
+  | 'payPeriod'
+  | 'contractType'
+  | 'contractStartDate'
+  | 'contractEndDate'
+  | 'joinDate'
+  | 'birthCertificate'
+  | 'governmentId'
+  | 'proofOfAddress'
+  | 'resume'
+  | 'profilePhoto';
+type EmployeeSortDirection = 'asc' | 'desc';
+
+interface EmployeeSortState {
+  columnId: EmployeeColumnId;
+  direction: EmployeeSortDirection;
+}
+
+interface Option<T extends string> {
+  value: T;
+  label: string;
+}
 
 interface EmployeeViewModel {
   id: number;
@@ -58,6 +138,19 @@ interface EmployeeViewModel {
   fullName: string;
   email: string;
   phone: string;
+  dateOfBirth: string;
+  address: string;
+  nationalId: string;
+  taxId: string;
+  socialSecurityNumber: string;
+  registrationCountry: string;
+  stateProvince: string;
+  city: string;
+  postalCode: string;
+  alternatePhone: string;
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactPhone: string;
   position: string;
   department: string;
   unitId: string;
@@ -65,14 +158,26 @@ interface EmployeeViewModel {
   businessId: string;
   businessLabel: string;
   joinDate: string;
+  scheduleOnHire: boolean | null;
+  scheduleStartDate: string;
+  scheduleEndDate: string;
+  scheduleStartTime: string;
+  scheduleEndTime: string;
+  scheduleMealMinutes: number | null;
+  scheduleRestMinutes: number | null;
+  scheduleLateAfterMinutes: number | null;
+  scheduleLocationRule: 'business' | 'exact' | '';
+  scheduleLocationId: string;
   salary: number;
   payPeriod: EmployeePayPeriod;
   salaryType: 'daily' | 'hourly';
+  workdayHours: number | null;
   hourlyRate: number;
   contractType: 'permanent' | 'temporary';
   contractStartDate: string;
   contractEndDate: string;
   status: EmployeeStatus;
+  documents: Record<EmployeeDocumentType, string>;
 }
 
 interface EmployeeSummary {
@@ -126,6 +231,25 @@ const employeePageCopy = {
       active: 'Active',
       inactive: 'Inactive',
       payroll: 'Monthly payroll',
+      visible: 'visible after filters',
+      selected: 'selected',
+      terminated: 'Terminated',
+      activeRate: 'active rate',
+      statusReview: (count: number) => `${count} status review`,
+      selectedBadge: (count: number) => `${count} selected`,
+      summaryInsight: ({
+        activeCount,
+        activeRate,
+        payroll,
+        totalCount,
+        visibleCount,
+      }: {
+        activeCount: number;
+        activeRate: string;
+        payroll: string;
+        totalCount: number;
+        visibleCount: number;
+      }) => `Workforce summary: ${activeCount} active collaborators · ${activeRate} active · ${payroll} monthly payroll · showing ${visibleCount} of ${totalCount}.`,
     },
     filters: {
       title: 'Filters',
@@ -146,15 +270,52 @@ const employeePageCopy = {
       selection: 'Selection',
       employee: 'Employee',
       employeeNumber: 'Employee ID',
+      firstName: 'First name',
+      lastName: 'Last name',
       email: 'Email',
+      phone: 'Phone',
+      dateOfBirth: 'Date of birth',
+      address: 'Address',
+      nationalId: 'National ID',
+      taxId: 'Tax ID',
+      socialSecurityNumber: 'Social security',
+      registrationCountry: 'Registration country',
+      stateProvince: 'Province / State',
+      city: 'City',
+      postalCode: 'Postal code',
+      alternatePhone: 'Alternate phone',
+      emergencyContactName: 'Emergency contact',
+      emergencyContactRelationship: 'Emergency relationship',
+      emergencyContactPhone: 'Emergency phone',
       position: 'Position',
       department: 'Department',
       unit: 'Unit',
       business: 'Business',
       status: 'Status',
+      scheduleOnHire: 'Schedule on hire',
+      scheduleStartDate: 'Schedule start',
+      scheduleEndDate: 'Schedule end',
+      scheduleStartTime: 'Start time',
+      scheduleEndTime: 'End time',
+      scheduleMealMinutes: 'Meal minutes',
+      scheduleRestMinutes: 'Rest minutes',
+      scheduleLateAfterMinutes: 'Late threshold',
+      scheduleLocationRule: 'Location rule',
+      scheduleLocationId: 'Exact location',
+      salaryType: 'Salary type',
+      workdayHours: 'Workday hours',
       salary: 'Salary',
+      hourlyRate: 'Hourly wage',
       payPeriod: 'Pay period',
+      contractType: 'Contract type',
+      contractStartDate: 'Contract start',
+      contractEndDate: 'Contract end',
       joinDate: 'Join date',
+      birthCertificate: 'Birth certificate',
+      governmentId: 'Government ID',
+      proofOfAddress: 'Proof of address',
+      resume: 'Resume',
+      profilePhoto: 'Profile photo',
       actions: 'Actions',
     },
     table: {
@@ -162,6 +323,84 @@ const employeePageCopy = {
       selectAllVisible: 'Select all visible employees',
       selectEmployee: (name: string) => `Select ${name}`,
       deleteConfirm: 'Delete this terminated employee permanently?',
+      editEmployeeLabel: 'Edit employee',
+      terminateEmployeeLabel: 'Terminate employee',
+      deleteEmployeeLabel: 'Delete employee',
+    },
+    columnDescriptions: {
+      employee: 'Primary collaborator identity shown with name and internal code.',
+      employeeNumber: 'Internal employee number used for HR and payroll tracking.',
+      firstName: 'Given name captured in the employee creation flow.',
+      lastName: 'Family name captured in the employee creation flow.',
+      email: 'Work email used for employee communication and portal access.',
+      phone: 'Primary contact phone registered in the employee profile.',
+      dateOfBirth: 'Birth date stored in the employee profile.',
+      address: 'Primary address captured for HR records.',
+      nationalId: 'National identity value stored in the profile.',
+      taxId: 'Tax identifier used for payroll and fiscal processes.',
+      socialSecurityNumber: 'Social security identifier for payroll processes.',
+      registrationCountry: 'Country used to validate location and phone formats.',
+      stateProvince: 'Province or state from the employee profile.',
+      city: 'City from the employee profile.',
+      postalCode: 'Postal or ZIP code from the employee profile.',
+      alternatePhone: 'Secondary contact phone from the employee profile.',
+      emergencyContactName: 'Emergency contact name.',
+      emergencyContactRelationship: 'Relationship to the emergency contact.',
+      emergencyContactPhone: 'Emergency contact phone number.',
+      position: 'Current role or job title assigned to the collaborator.',
+      department: 'Functional department where the collaborator works.',
+      unit: 'Business unit where the collaborator is assigned.',
+      business: 'Business line or operating area linked to the collaborator.',
+      status: 'Current contract and employment status.',
+      scheduleOnHire: 'Whether the creation flow added the employee to a schedule.',
+      scheduleStartDate: 'Schedule start date selected in the creation flow.',
+      scheduleEndDate: 'Schedule end date selected in the creation flow.',
+      scheduleStartTime: 'Scheduled clock-in time.',
+      scheduleEndTime: 'Scheduled clock-out time.',
+      scheduleMealMinutes: 'Meal minutes configured for the schedule.',
+      scheduleRestMinutes: 'Rest minutes configured for the schedule.',
+      scheduleLateAfterMinutes: 'Minutes allowed before the attendance record is marked late.',
+      scheduleLocationRule: 'Business-location or exact-location rule configured for attendance.',
+      scheduleLocationId: 'Exact attendance location when configured.',
+      salaryType: 'Whether the employee is paid by day or hour.',
+      workdayHours: 'Configured standard workday hours.',
+      salary: 'Current salary or hourly rate used by payroll.',
+      hourlyRate: 'Hourly wage used when the salary type is hourly.',
+      payPeriod: 'Payment frequency configured for the collaborator.',
+      contractType: 'Permanent or temporary contract configuration.',
+      contractStartDate: 'Contract start date when configured.',
+      contractEndDate: 'Contract end date when configured.',
+      joinDate: 'Date when the collaborator joined the company.',
+      birthCertificate: 'Upload status for the birth certificate document.',
+      governmentId: 'Upload status for the government ID document.',
+      proofOfAddress: 'Upload status for the proof of address document.',
+      resume: 'Upload status for the resume document.',
+      profilePhoto: 'Upload status for the profile photo document.',
+    },
+    payPeriodLabels: {
+      weekly: 'Weekly',
+      biweekly: 'Biweekly',
+      monthly: 'Monthly',
+    },
+    salaryTypeLabels: {
+      daily: 'Daily salary',
+      hourly: 'Hourly salary',
+    },
+    contractTypeLabels: {
+      permanent: 'Permanent',
+      temporary: 'Temporary',
+    },
+    scheduleLocationRuleLabels: {
+      business: 'Business location',
+      exact: 'Exact location',
+    },
+    binaryLabels: {
+      yes: 'Yes',
+      no: 'No',
+    },
+    documentStatusLabels: {
+      uploaded: 'Uploaded',
+      missing: 'No file uploaded',
     },
     pagination: {
       previous: 'Previous',
@@ -172,6 +411,7 @@ const employeePageCopy = {
     businessFallback: 'Unassigned',
     unitFallback: 'Unassigned',
     dateFallback: 'No date',
+    fieldFallback: '-',
   },
   es: {
     title: 'Colaboradores',
@@ -208,6 +448,25 @@ const employeePageCopy = {
       active: 'Activos',
       inactive: 'Inactivos',
       payroll: 'Nómina mensual',
+      visible: 'visibles por filtros',
+      selected: 'seleccionados',
+      terminated: 'Terminados',
+      activeRate: 'activos',
+      statusReview: (count: number) => `${count} requieren revisión de estatus`,
+      selectedBadge: (count: number) => `${count} seleccionados`,
+      summaryInsight: ({
+        activeCount,
+        activeRate,
+        payroll,
+        totalCount,
+        visibleCount,
+      }: {
+        activeCount: number;
+        activeRate: string;
+        payroll: string;
+        totalCount: number;
+        visibleCount: number;
+      }) => `Resumen del personal: ${activeCount} colaboradores activos · ${activeRate} activos · ${payroll} de nómina mensual · mostrando ${visibleCount} de ${totalCount}.`,
     },
     filters: {
       title: 'Filtros',
@@ -228,15 +487,52 @@ const employeePageCopy = {
       selection: 'Selección',
       employee: 'Colaborador',
       employeeNumber: 'ID de colaborador',
+      firstName: 'Nombre',
+      lastName: 'Apellidos',
       email: 'Correo',
+      phone: 'Teléfono',
+      dateOfBirth: 'Fecha de nacimiento',
+      address: 'Dirección',
+      nationalId: 'Identificación nacional',
+      taxId: 'RFC',
+      socialSecurityNumber: 'NSS',
+      registrationCountry: 'País de registro',
+      stateProvince: 'Provincia / Estado',
+      city: 'Ciudad',
+      postalCode: 'Código postal',
+      alternatePhone: 'Teléfono alterno',
+      emergencyContactName: 'Contacto de emergencia',
+      emergencyContactRelationship: 'Relación de emergencia',
+      emergencyContactPhone: 'Teléfono de emergencia',
       position: 'Puesto',
       department: 'Departamento',
       unit: 'Unidad',
       business: 'Negocio',
       status: 'Estado',
+      scheduleOnHire: 'Horario al crear',
+      scheduleStartDate: 'Inicio de horario',
+      scheduleEndDate: 'Fin de horario',
+      scheduleStartTime: 'Hora de entrada',
+      scheduleEndTime: 'Hora de salida',
+      scheduleMealMinutes: 'Minutos de comida',
+      scheduleRestMinutes: 'Minutos de descanso',
+      scheduleLateAfterMinutes: 'Umbral de retardo',
+      scheduleLocationRule: 'Regla de ubicación',
+      scheduleLocationId: 'Ubicación exacta',
+      salaryType: 'Tipo de salario',
+      workdayHours: 'Horas de jornada',
       salary: 'Salario',
+      hourlyRate: 'Sueldo por hora',
       payPeriod: 'Periodo de pago',
+      contractType: 'Tipo de contrato',
+      contractStartDate: 'Inicio de contrato',
+      contractEndDate: 'Fin de contrato',
       joinDate: 'Ingreso',
+      birthCertificate: 'Acta de nacimiento',
+      governmentId: 'Identificación oficial',
+      proofOfAddress: 'Comprobante de domicilio',
+      resume: 'CV',
+      profilePhoto: 'Foto de perfil',
       actions: 'Acciones',
     },
     table: {
@@ -244,6 +540,84 @@ const employeePageCopy = {
       selectAllVisible: 'Seleccionar todos los colaboradores visibles',
       selectEmployee: (name: string) => `Seleccionar a ${name}`,
       deleteConfirm: '¿Eliminar permanentemente este colaborador terminado?',
+      editEmployeeLabel: 'Editar colaborador',
+      terminateEmployeeLabel: 'Terminar contrato',
+      deleteEmployeeLabel: 'Eliminar colaborador',
+    },
+    columnDescriptions: {
+      employee: 'Identidad principal del colaborador con nombre y código interno.',
+      employeeNumber: 'Número interno usado para seguimiento de RH y nómina.',
+      firstName: 'Nombre capturado en el flujo de creación del colaborador.',
+      lastName: 'Apellidos capturados en el flujo de creación del colaborador.',
+      email: 'Correo laboral usado para comunicación y acceso al portal.',
+      phone: 'Teléfono principal registrado en el perfil del colaborador.',
+      dateOfBirth: 'Fecha de nacimiento guardada en el perfil del colaborador.',
+      address: 'Dirección principal capturada para el expediente de RH.',
+      nationalId: 'Identificación nacional guardada en el perfil.',
+      taxId: 'Identificador fiscal usado para nómina y procesos fiscales.',
+      socialSecurityNumber: 'Identificador de seguridad social usado para nómina.',
+      registrationCountry: 'País usado para validar ubicación y formatos de teléfono.',
+      stateProvince: 'Provincia o estado del perfil del colaborador.',
+      city: 'Ciudad del perfil del colaborador.',
+      postalCode: 'Código postal del perfil del colaborador.',
+      alternatePhone: 'Teléfono secundario registrado en el perfil.',
+      emergencyContactName: 'Nombre del contacto de emergencia.',
+      emergencyContactRelationship: 'Relación con el contacto de emergencia.',
+      emergencyContactPhone: 'Teléfono del contacto de emergencia.',
+      position: 'Puesto o rol actual asignado al colaborador.',
+      department: 'Departamento funcional donde trabaja el colaborador.',
+      unit: 'Unidad de negocio donde está asignado el colaborador.',
+      business: 'Línea de negocio o área operativa vinculada al colaborador.',
+      status: 'Estado actual del contrato y relación laboral.',
+      scheduleOnHire: 'Indica si el flujo de creación agregó al colaborador a un horario.',
+      scheduleStartDate: 'Fecha de inicio del horario seleccionada en el flujo de creación.',
+      scheduleEndDate: 'Fecha de fin del horario seleccionada en el flujo de creación.',
+      scheduleStartTime: 'Hora programada de entrada.',
+      scheduleEndTime: 'Hora programada de salida.',
+      scheduleMealMinutes: 'Minutos de comida configurados para el horario.',
+      scheduleRestMinutes: 'Minutos de descanso configurados para el horario.',
+      scheduleLateAfterMinutes: 'Minutos permitidos antes de marcar asistencia como tarde.',
+      scheduleLocationRule: 'Regla de ubicación de negocio o ubicación exacta para asistencia.',
+      scheduleLocationId: 'Ubicación exacta de asistencia cuando está configurada.',
+      salaryType: 'Indica si el colaborador cobra por día o por hora.',
+      workdayHours: 'Horas estándar configuradas para la jornada.',
+      salary: 'Salario o tarifa por hora utilizada por nómina.',
+      hourlyRate: 'Tarifa por hora usada cuando el tipo de salario es por hora.',
+      payPeriod: 'Frecuencia de pago configurada para el colaborador.',
+      contractType: 'Configuración de contrato permanente o temporal.',
+      contractStartDate: 'Fecha de inicio del contrato cuando está configurada.',
+      contractEndDate: 'Fecha de fin del contrato cuando está configurada.',
+      joinDate: 'Fecha de ingreso del colaborador a la empresa.',
+      birthCertificate: 'Estado de carga del acta de nacimiento.',
+      governmentId: 'Estado de carga de la identificación oficial.',
+      proofOfAddress: 'Estado de carga del comprobante de domicilio.',
+      resume: 'Estado de carga del CV.',
+      profilePhoto: 'Estado de carga de la foto de perfil.',
+    },
+    payPeriodLabels: {
+      weekly: 'Semanal',
+      biweekly: 'Quincenal',
+      monthly: 'Mensual',
+    },
+    salaryTypeLabels: {
+      daily: 'Salario por día',
+      hourly: 'Salario por hora',
+    },
+    contractTypeLabels: {
+      permanent: 'Permanente',
+      temporary: 'Temporal',
+    },
+    scheduleLocationRuleLabels: {
+      business: 'Ubicación del negocio',
+      exact: 'Ubicación exacta',
+    },
+    binaryLabels: {
+      yes: 'Sí',
+      no: 'No',
+    },
+    documentStatusLabels: {
+      uploaded: 'Subido',
+      missing: 'Ningún archivo subido',
     },
     pagination: {
       previous: 'Anterior',
@@ -254,26 +628,114 @@ const employeePageCopy = {
     businessFallback: 'Sin asignar',
     unitFallback: 'Sin asignar',
     dateFallback: 'Sin fecha',
+    fieldFallback: '-',
   },
 } as const;
 
-const columnsStorageKey = 'rh-colaboradores-columns-v3';
+const columnsStorageKey = 'rh-colaboradores-columns-v5';
 const allFilterValue = 'all';
 const employeesPerPage = 10;
 
 const createDefaultColumns = (copy: typeof employeePageCopy.en | typeof employeePageCopy.es): ColumnConfig[] => [
-  { id: 'employee', label: copy.columns.employee, visible: true, locked: true },
-  { id: 'employeeNumber', label: copy.columns.employeeNumber, visible: false },
-  { id: 'email', label: copy.columns.email, visible: true },
-  { id: 'position', label: copy.columns.position, visible: true },
-  { id: 'department', label: copy.columns.department, visible: true },
-  { id: 'unit', label: copy.columns.unit, visible: true },
-  { id: 'business', label: copy.columns.business, visible: false },
-  { id: 'status', label: copy.columns.status, visible: true },
-  { id: 'salary', label: copy.columns.salary, visible: true },
-  { id: 'payPeriod', label: copy.columns.payPeriod, visible: true },
-  { id: 'joinDate', label: copy.columns.joinDate, visible: false },
-  { id: 'actions', label: copy.columns.actions, visible: true, locked: true },
+  {
+    id: 'employee',
+    label: copy.columns.employee,
+    visible: true,
+    locked: true,
+    description: copy.columnDescriptions.employee,
+  },
+  {
+    id: 'employeeNumber',
+    label: copy.columns.employeeNumber,
+    visible: false,
+    description: copy.columnDescriptions.employeeNumber,
+  },
+  { id: 'firstName', label: copy.columns.firstName, visible: false, description: copy.columnDescriptions.firstName },
+  { id: 'lastName', label: copy.columns.lastName, visible: false, description: copy.columnDescriptions.lastName },
+  { id: 'email', label: copy.columns.email, visible: true, description: copy.columnDescriptions.email },
+  { id: 'phone', label: copy.columns.phone, visible: false, description: copy.columnDescriptions.phone },
+  { id: 'dateOfBirth', label: copy.columns.dateOfBirth, visible: false, description: copy.columnDescriptions.dateOfBirth },
+  { id: 'address', label: copy.columns.address, visible: false, description: copy.columnDescriptions.address },
+  { id: 'nationalId', label: copy.columns.nationalId, visible: false, description: copy.columnDescriptions.nationalId },
+  { id: 'taxId', label: copy.columns.taxId, visible: false, description: copy.columnDescriptions.taxId },
+  {
+    id: 'socialSecurityNumber',
+    label: copy.columns.socialSecurityNumber,
+    visible: false,
+    description: copy.columnDescriptions.socialSecurityNumber,
+  },
+  {
+    id: 'registrationCountry',
+    label: copy.columns.registrationCountry,
+    visible: false,
+    description: copy.columnDescriptions.registrationCountry,
+  },
+  { id: 'stateProvince', label: copy.columns.stateProvince, visible: false, description: copy.columnDescriptions.stateProvince },
+  { id: 'city', label: copy.columns.city, visible: false, description: copy.columnDescriptions.city },
+  { id: 'postalCode', label: copy.columns.postalCode, visible: false, description: copy.columnDescriptions.postalCode },
+  { id: 'alternatePhone', label: copy.columns.alternatePhone, visible: false, description: copy.columnDescriptions.alternatePhone },
+  {
+    id: 'emergencyContactName',
+    label: copy.columns.emergencyContactName,
+    visible: false,
+    description: copy.columnDescriptions.emergencyContactName,
+  },
+  {
+    id: 'emergencyContactRelationship',
+    label: copy.columns.emergencyContactRelationship,
+    visible: false,
+    description: copy.columnDescriptions.emergencyContactRelationship,
+  },
+  {
+    id: 'emergencyContactPhone',
+    label: copy.columns.emergencyContactPhone,
+    visible: false,
+    description: copy.columnDescriptions.emergencyContactPhone,
+  },
+  { id: 'position', label: copy.columns.position, visible: true, description: copy.columnDescriptions.position },
+  { id: 'department', label: copy.columns.department, visible: true, description: copy.columnDescriptions.department },
+  { id: 'unit', label: copy.columns.unit, visible: true, description: copy.columnDescriptions.unit },
+  { id: 'business', label: copy.columns.business, visible: false, description: copy.columnDescriptions.business },
+  { id: 'status', label: copy.columns.status, visible: true, description: copy.columnDescriptions.status },
+  { id: 'salaryType', label: copy.columns.salaryType, visible: false, description: copy.columnDescriptions.salaryType },
+  { id: 'workdayHours', label: copy.columns.workdayHours, visible: false, description: copy.columnDescriptions.workdayHours },
+  { id: 'salary', label: copy.columns.salary, visible: true, description: copy.columnDescriptions.salary },
+  { id: 'hourlyRate', label: copy.columns.hourlyRate, visible: false, description: copy.columnDescriptions.hourlyRate },
+  { id: 'payPeriod', label: copy.columns.payPeriod, visible: true, description: copy.columnDescriptions.payPeriod },
+  { id: 'contractType', label: copy.columns.contractType, visible: false, description: copy.columnDescriptions.contractType },
+  {
+    id: 'contractStartDate',
+    label: copy.columns.contractStartDate,
+    visible: false,
+    description: copy.columnDescriptions.contractStartDate,
+  },
+  {
+    id: 'contractEndDate',
+    label: copy.columns.contractEndDate,
+    visible: false,
+    description: copy.columnDescriptions.contractEndDate,
+  },
+  { id: 'joinDate', label: copy.columns.joinDate, visible: false, description: copy.columnDescriptions.joinDate },
+  {
+    id: 'birthCertificate',
+    label: copy.columns.birthCertificate,
+    visible: false,
+    description: copy.columnDescriptions.birthCertificate,
+  },
+  {
+    id: 'governmentId',
+    label: copy.columns.governmentId,
+    visible: false,
+    description: copy.columnDescriptions.governmentId,
+  },
+  {
+    id: 'proofOfAddress',
+    label: copy.columns.proofOfAddress,
+    visible: false,
+    description: copy.columnDescriptions.proofOfAddress,
+  },
+  { id: 'resume', label: copy.columns.resume, visible: false, description: copy.columnDescriptions.resume },
+  { id: 'profilePhoto', label: copy.columns.profilePhoto, visible: false, description: copy.columnDescriptions.profilePhoto },
 ];
 
 const getInitialColumns = (defaultColumns: ColumnConfig[]) => {
@@ -362,6 +824,20 @@ const normalizeScheduleTemplatePayload = (payload: AttendanceControlTemplatePayl
     })),
   });
 
+const hrAccentButtonClass = 'bg-[#143675] text-white hover:bg-[#0f2855]';
+
+const employeeStatusOrder: Record<EmployeeStatus, number> = {
+  active: 1,
+  inactive: 2,
+  terminated: 3,
+};
+
+const employeePayPeriodOrder: Record<EmployeePayPeriod, number> = {
+  weekly: 1,
+  biweekly: 2,
+  monthly: 3,
+};
+
 const payloadFromAttendanceTemplate = (template: AttendanceControlTemplate): AttendanceControlTemplatePayload => ({
   name: template.name,
   status: template.status === 'inactive' ? 'inactive' : 'active',
@@ -415,44 +891,103 @@ const buildHireScheduleTemplatePayload = (data: EmployeeFormData): AttendanceCon
 const getStatusClasses = (status: EmployeeStatus) => {
   switch (status) {
     case 'active':
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
+      return 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300';
     case 'inactive':
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
+      return 'border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300';
     case 'terminated':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      return 'border-red-200 bg-red-100 text-red-800 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300';
     default:
-      return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+      return 'border-gray-200 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300';
   }
 };
 
-const mapEmployee = (
-  employee: BackendEmployee,
-  fallbackUnitLabel: string,
-  fallbackBusinessLabel: string,
-): EmployeeViewModel => ({
-  id: employee.id,
-  code: employee.employee_number?.trim() || `RH-${String(employee.id).padStart(3, '0')}`,
-  firstName: employee.first_name || '',
-  lastName: employee.last_name || '',
-  fullName: employee.full_name || `${employee.first_name} ${employee.last_name}`.trim(),
-  email: employee.email || '',
-  phone: employee.phone || '',
-  position: employee.position_title || employee.position || '',
-  department: employee.department || '',
-  unitId: employee.unit_id ? String(employee.unit_id) : allFilterValue,
-  unitLabel: employee.unit_name || fallbackUnitLabel,
-  businessId: employee.business_id ? String(employee.business_id) : allFilterValue,
-  businessLabel: employee.business_name || fallbackBusinessLabel,
-  joinDate: employee.hire_date ? String(employee.hire_date) : '',
-  salary: Number(employee.salary ?? 0),
-  payPeriod: employee.pay_period,
-  salaryType: employee.salary_type,
-  hourlyRate: Number(employee.hourly_rate ?? 0),
-  contractType: employee.contract_type,
-  contractStartDate: employee.contract_start_date ? String(employee.contract_start_date) : '',
-  contractEndDate: employee.contract_end_date ? String(employee.contract_end_date) : '',
-  status: employee.status,
-});
+function getEmployeeInitials(employee: EmployeeViewModel) {
+  const firstInitial = employee.firstName.trim().charAt(0);
+  const lastInitial = employee.lastName.trim().charAt(0);
+  const initials = `${firstInitial}${lastInitial}`.trim();
+
+  if (initials) {
+    return initials.toUpperCase();
+  }
+
+  return employee.fullName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join('')
+    .toUpperCase() || 'HR';
+}
+
+function compareEmployeeSortValues(leftValue: unknown, rightValue: unknown, direction: EmployeeSortDirection) {
+  const multiplier = direction === 'asc' ? 1 : -1;
+
+  if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+    return (leftValue - rightValue) * multiplier;
+  }
+
+  return String(leftValue ?? '').localeCompare(String(rightValue ?? ''), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  }) * multiplier;
+}
+
+function FilterSelect<T extends string>({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: T) => void;
+  options: Option<T>[];
+  value: T;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
+        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function EmployeeTableActionButton({
+  icon,
+  label,
+  onClick,
+  toneClassName,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  toneClassName: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-sm dark:border-slate-600 dark:bg-slate-800/80',
+        toneClassName,
+      )}
+    >
+      {icon}
+    </button>
+  );
+}
 
 const documentTypeOrder: EmployeeDocumentType[] = [
   'birth_certificate',
@@ -461,6 +996,110 @@ const documentTypeOrder: EmployeeDocumentType[] = [
   'resume',
   'profile_photo',
 ];
+
+const createEmptyDocumentRecord = (): Record<EmployeeDocumentType, string> => ({
+  birth_certificate: '',
+  government_id: '',
+  proof_of_address: '',
+  resume: '',
+  profile_photo: '',
+});
+
+const employeeColumnDocumentTypeMap: Partial<Record<EmployeeColumnId, EmployeeDocumentType>> = {
+  birthCertificate: 'birth_certificate',
+  governmentId: 'government_id',
+  proofOfAddress: 'proof_of_address',
+  resume: 'resume',
+  profilePhoto: 'profile_photo',
+};
+
+type BackendEmployeeWithOptionalProfile = BackendEmployee & {
+  profile?: BackendEmployeeProfile | null;
+  documents?: BackendEmployeeDocument[];
+  date_of_birth?: string | null;
+  address?: string;
+  national_id?: string;
+  tax_id?: string;
+  social_security_number?: string;
+  registration_country?: string;
+  state_province?: string;
+  city?: string;
+  postal_code?: string;
+  alternate_phone?: string;
+  emergency_contact_name?: string;
+  emergency_contact_relationship?: string;
+  emergency_contact_phone?: string;
+  workday_hours?: number | null;
+};
+
+const mapEmployee = (
+  employee: BackendEmployee,
+  fallbackUnitLabel: string,
+  fallbackBusinessLabel: string,
+): EmployeeViewModel => {
+  const employeeWithProfile = employee as BackendEmployeeWithOptionalProfile;
+  const profile: BackendEmployeeProfile = employeeWithProfile.profile ?? {};
+  const documents = createEmptyDocumentRecord();
+  employeeWithProfile.documents?.forEach((document) => {
+    documents[document.document_type] = document.original_filename || document.status || 'uploaded';
+  });
+
+  return {
+    id: employee.id,
+    code: employee.employee_number?.trim() || `RH-${String(employee.id).padStart(3, '0')}`,
+    firstName: employee.first_name || '',
+    lastName: employee.last_name || '',
+    fullName: employee.full_name || `${employee.first_name} ${employee.last_name}`.trim(),
+    email: employee.email || '',
+    phone: employee.phone || '',
+    dateOfBirth: profile.date_of_birth ? String(profile.date_of_birth) : employeeWithProfile.date_of_birth ? String(employeeWithProfile.date_of_birth) : '',
+    address: profile.address ?? employeeWithProfile.address ?? '',
+    nationalId: profile.national_id ?? employeeWithProfile.national_id ?? '',
+    taxId: profile.tax_id ?? employeeWithProfile.tax_id ?? '',
+    socialSecurityNumber: profile.social_security_number ?? employeeWithProfile.social_security_number ?? '',
+    registrationCountry: profile.registration_country ?? employeeWithProfile.registration_country ?? '',
+    stateProvince: profile.state_province ?? employeeWithProfile.state_province ?? '',
+    city: profile.city ?? employeeWithProfile.city ?? '',
+    postalCode: profile.postal_code ?? employeeWithProfile.postal_code ?? '',
+    alternatePhone: profile.alternate_phone ?? employeeWithProfile.alternate_phone ?? '',
+    emergencyContactName: profile.emergency_contact_name ?? employeeWithProfile.emergency_contact_name ?? '',
+    emergencyContactRelationship:
+      profile.emergency_contact_relationship ?? employeeWithProfile.emergency_contact_relationship ?? '',
+    emergencyContactPhone: profile.emergency_contact_phone ?? employeeWithProfile.emergency_contact_phone ?? '',
+    position: employee.position_title || employee.position || '',
+    department: employee.department || '',
+    unitId: employee.unit_id ? String(employee.unit_id) : allFilterValue,
+    unitLabel: employee.unit_name || fallbackUnitLabel,
+    businessId: employee.business_id ? String(employee.business_id) : allFilterValue,
+    businessLabel: employee.business_name || fallbackBusinessLabel,
+    joinDate: employee.hire_date ? String(employee.hire_date) : '',
+    scheduleOnHire: null,
+    scheduleStartDate: '',
+    scheduleEndDate: '',
+    scheduleStartTime: '',
+    scheduleEndTime: '',
+    scheduleMealMinutes: null,
+    scheduleRestMinutes: null,
+    scheduleLateAfterMinutes: null,
+    scheduleLocationRule: '',
+    scheduleLocationId: '',
+    salary: Number(employee.salary ?? 0),
+    payPeriod: employee.pay_period,
+    salaryType: employee.salary_type,
+    workdayHours:
+      profile.workday_hours !== null && profile.workday_hours !== undefined
+        ? Number(profile.workday_hours)
+        : employeeWithProfile.workday_hours !== null && employeeWithProfile.workday_hours !== undefined
+          ? Number(employeeWithProfile.workday_hours)
+          : null,
+    hourlyRate: Number(employee.hourly_rate ?? 0),
+    contractType: employee.contract_type,
+    contractStartDate: employee.contract_start_date ? String(employee.contract_start_date) : '',
+    contractEndDate: employee.contract_end_date ? String(employee.contract_end_date) : '',
+    status: employee.status,
+    documents,
+  };
+};
 
 const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeFormData => {
   const base = createEmptyEmployeeFormData();
@@ -532,7 +1171,41 @@ const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeF
   return next;
 };
 
-export default function Colaboradores() {
+const mapEmployeeDetails = (
+  details: EmployeeDetailsResponse,
+  fallbackUnitLabel: string,
+  fallbackBusinessLabel: string,
+): EmployeeViewModel => {
+  const baseEmployee = mapEmployee(details.employee, fallbackUnitLabel, fallbackBusinessLabel);
+  const documents = createEmptyDocumentRecord();
+  details.documents.forEach((document) => {
+    documents[document.document_type] = document.original_filename || document.status || 'uploaded';
+  });
+
+  return {
+    ...baseEmployee,
+    dateOfBirth: details.profile.date_of_birth ? String(details.profile.date_of_birth) : '',
+    address: details.profile.address ?? '',
+    nationalId: details.profile.national_id ?? '',
+    taxId: details.profile.tax_id ?? '',
+    socialSecurityNumber: details.profile.social_security_number ?? '',
+    registrationCountry: details.profile.registration_country ?? '',
+    stateProvince: details.profile.state_province ?? '',
+    city: details.profile.city ?? '',
+    postalCode: details.profile.postal_code ?? '',
+    alternatePhone: details.profile.alternate_phone ?? '',
+    emergencyContactName: details.profile.emergency_contact_name ?? '',
+    emergencyContactRelationship: details.profile.emergency_contact_relationship ?? '',
+    emergencyContactPhone: details.profile.emergency_contact_phone ?? '',
+    workdayHours:
+      details.profile.workday_hours !== null && details.profile.workday_hours !== undefined
+        ? Number(details.profile.workday_hours)
+        : null,
+    documents,
+  };
+};
+
+export default function Employees() {
   const { currentLanguage } = useLanguage();
   const languageKey = currentLanguage.code.startsWith('es') ? 'es' : 'en';
   const copy = employeePageCopy[languageKey];
@@ -540,6 +1213,7 @@ export default function Colaboradores() {
   const defaultColumns = useMemo(() => createDefaultColumns(copy), [copy]);
   const fixedColumns: ColumnConfig[] = [
     { id: 'selection', label: copy.columns.selection, visible: true, locked: true },
+    { id: 'actions', label: copy.columns.actions, visible: true, locked: true },
   ];
 
   const [employees, setEmployees] = useState<EmployeeViewModel[]>([]);
@@ -558,6 +1232,10 @@ export default function Colaboradores() {
   const [businessFilter, setBusinessFilter] = useState(allFilterValue);
   const [departmentFilter, setDepartmentFilter] = useState(allFilterValue);
   const [statusFilter, setStatusFilter] = useState(allFilterValue);
+  const [sortState, setSortState] = useState<EmployeeSortState>({
+    columnId: 'employee',
+    direction: 'asc',
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [columns, setColumns] = useState<ColumnConfig[]>(() => getInitialColumns(defaultColumns));
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
@@ -583,16 +1261,60 @@ export default function Colaboradores() {
       ),
     [employees],
   );
+  const departmentFilterOptions: Option<string>[] = [
+    { value: allFilterValue, label: copy.filters.all },
+    ...departmentOptions.map((department) => ({ value: department, label: department })),
+  ];
+  const unitFilterOptions: Option<string>[] =
+    unitOptions.length > 0 ? unitOptions : [{ value: allFilterValue, label: copy.filters.all }];
+  const businessFilterOptions: Option<string>[] =
+    businessOptions.length > 0 ? businessOptions : [{ value: allFilterValue, label: copy.filters.all }];
+  const statusFilterOptions: Option<string>[] = [
+    { value: allFilterValue, label: copy.filters.all },
+    { value: 'active', label: copy.statusLabels.active },
+    { value: 'inactive', label: copy.statusLabels.inactive },
+    { value: 'terminated', label: copy.statusLabels.terminated },
+  ];
+
+  const hydrateEmployeeDetails = async (employeeIds: number[]) => {
+    if (employeeIds.length === 0) {
+      return;
+    }
+
+    const detailResults = await Promise.allSettled(
+      employeeIds.map((employeeId) => humanResourcesApi.getEmployeeDetails(employeeId)),
+    );
+    const employeesById = new Map<number, EmployeeViewModel>();
+
+    detailResults.forEach((result) => {
+      if (result.status !== 'fulfilled') {
+        return;
+      }
+
+      const hydratedEmployee = mapEmployeeDetails(result.value, copy.unitFallback, copy.businessFallback);
+      employeesById.set(hydratedEmployee.id, hydratedEmployee);
+    });
+
+    if (employeesById.size === 0) {
+      return;
+    }
+
+    setEmployees((currentEmployees) =>
+      currentEmployees.map((employee) => employeesById.get(employee.id) ?? employee),
+    );
+  };
 
   useEffect(() => {
     setColumns((currentColumns) => {
       const translated = getInitialColumns(defaultColumns);
+      const supportedColumnIds = new Set(translated.map((column) => column.id));
+      const hasUnsupportedColumns = currentColumns.some((column) => !supportedColumnIds.has(column.id));
       const needsLabelRefresh = translated.some((nextColumn) => {
         const currentColumn = currentColumns.find((column) => column.id === nextColumn.id);
         return currentColumn?.label !== nextColumn.label;
       });
 
-      return needsLabelRefresh ? translated : currentColumns;
+      return hasUnsupportedColumns || needsLabelRefresh ? translated : currentColumns;
     });
   }, [defaultColumns]);
 
@@ -614,11 +1336,10 @@ export default function Colaboradores() {
         ]),
       );
 
-      setEmployees(
-        employeesResponse.items.map((employee) =>
-          mapEmployee(employee, copy.unitFallback, copy.businessFallback),
-        ),
+      const mappedEmployees = employeesResponse.items.map((employee) =>
+        mapEmployee(employee, copy.unitFallback, copy.businessFallback),
       );
+      setEmployees(mappedEmployees);
       setSummary(employeesResponse.summary);
       setUnitOptions([
         { value: allFilterValue, label: copy.filters.all },
@@ -634,6 +1355,7 @@ export default function Colaboradores() {
         })),
       ]);
       setAttendanceLocations(locationsResponse.items);
+      void hydrateEmployeeDetails(mappedEmployees.map((employee) => employee.id));
     } catch (error) {
       setLoadError(normalizeErrorMessage(error, copy.errorMessages.load));
     } finally {
@@ -657,7 +1379,21 @@ export default function Colaboradores() {
       normalizedSearch.length === 0 ||
       employee.fullName.toLowerCase().includes(normalizedSearch) ||
       employee.code.toLowerCase().includes(normalizedSearch) ||
-      employee.position.toLowerCase().includes(normalizedSearch);
+      employee.position.toLowerCase().includes(normalizedSearch) ||
+      employee.email.toLowerCase().includes(normalizedSearch) ||
+      employee.phone.toLowerCase().includes(normalizedSearch) ||
+      employee.address.toLowerCase().includes(normalizedSearch) ||
+      employee.nationalId.toLowerCase().includes(normalizedSearch) ||
+      employee.taxId.toLowerCase().includes(normalizedSearch) ||
+      employee.socialSecurityNumber.toLowerCase().includes(normalizedSearch) ||
+      employee.registrationCountry.toLowerCase().includes(normalizedSearch) ||
+      employee.stateProvince.toLowerCase().includes(normalizedSearch) ||
+      employee.city.toLowerCase().includes(normalizedSearch) ||
+      employee.postalCode.toLowerCase().includes(normalizedSearch) ||
+      employee.alternatePhone.toLowerCase().includes(normalizedSearch) ||
+      employee.emergencyContactName.toLowerCase().includes(normalizedSearch) ||
+      employee.emergencyContactRelationship.toLowerCase().includes(normalizedSearch) ||
+      employee.emergencyContactPhone.toLowerCase().includes(normalizedSearch);
     const matchesUnit = unitFilter === allFilterValue || employee.unitId === unitFilter;
     const matchesBusiness = businessFilter === allFilterValue || employee.businessId === businessFilter;
     const matchesDepartment = departmentFilter === allFilterValue || employee.department === departmentFilter;
@@ -666,11 +1402,120 @@ export default function Colaboradores() {
     return matchesSearch && matchesUnit && matchesBusiness && matchesDepartment && matchesStatus;
   });
 
+  const getSortValue = (employee: EmployeeViewModel, columnId: EmployeeColumnId) => {
+    switch (columnId) {
+      case 'employee':
+        return employee.fullName;
+      case 'employeeNumber':
+        return employee.code;
+      case 'firstName':
+        return employee.firstName;
+      case 'lastName':
+        return employee.lastName;
+      case 'email':
+        return employee.email;
+      case 'phone':
+        return employee.phone;
+      case 'dateOfBirth':
+        return employee.dateOfBirth;
+      case 'address':
+        return employee.address;
+      case 'nationalId':
+        return employee.nationalId;
+      case 'taxId':
+        return employee.taxId;
+      case 'socialSecurityNumber':
+        return employee.socialSecurityNumber;
+      case 'registrationCountry':
+        return employee.registrationCountry;
+      case 'stateProvince':
+        return employee.stateProvince;
+      case 'city':
+        return employee.city;
+      case 'postalCode':
+        return employee.postalCode;
+      case 'alternatePhone':
+        return employee.alternatePhone;
+      case 'emergencyContactName':
+        return employee.emergencyContactName;
+      case 'emergencyContactRelationship':
+        return employee.emergencyContactRelationship;
+      case 'emergencyContactPhone':
+        return employee.emergencyContactPhone;
+      case 'position':
+        return employee.position;
+      case 'department':
+        return employee.department;
+      case 'unit':
+        return employee.unitLabel;
+      case 'business':
+        return employee.businessLabel;
+      case 'status':
+        return employeeStatusOrder[employee.status];
+      case 'scheduleOnHire':
+        return employee.scheduleOnHire === null ? '' : Number(employee.scheduleOnHire);
+      case 'scheduleStartDate':
+        return employee.scheduleStartDate;
+      case 'scheduleEndDate':
+        return employee.scheduleEndDate;
+      case 'scheduleStartTime':
+        return employee.scheduleStartTime;
+      case 'scheduleEndTime':
+        return employee.scheduleEndTime;
+      case 'scheduleMealMinutes':
+        return employee.scheduleMealMinutes ?? 0;
+      case 'scheduleRestMinutes':
+        return employee.scheduleRestMinutes ?? 0;
+      case 'scheduleLateAfterMinutes':
+        return employee.scheduleLateAfterMinutes ?? 0;
+      case 'scheduleLocationRule':
+        return employee.scheduleLocationRule;
+      case 'scheduleLocationId':
+        return employee.scheduleLocationId;
+      case 'salaryType':
+        return employee.salaryType;
+      case 'workdayHours':
+        return employee.workdayHours ?? 0;
+      case 'salary':
+        return employee.salaryType === 'hourly' ? employee.hourlyRate : employee.salary;
+      case 'hourlyRate':
+        return employee.hourlyRate;
+      case 'payPeriod':
+        return employeePayPeriodOrder[employee.payPeriod];
+      case 'contractType':
+        return employee.contractType;
+      case 'contractStartDate':
+        return employee.contractStartDate;
+      case 'contractEndDate':
+        return employee.contractEndDate;
+      case 'joinDate':
+        return employee.joinDate;
+      case 'birthCertificate':
+      case 'governmentId':
+      case 'proofOfAddress':
+      case 'resume':
+      case 'profilePhoto': {
+        const documentType = employeeColumnDocumentTypeMap[columnId];
+        return documentType ? employee.documents[documentType] : '';
+      }
+      default:
+        return '';
+    }
+  };
+
+  const sortedEmployees = [...filteredEmployees].sort((leftEmployee, rightEmployee) =>
+    compareEmployeeSortValues(
+      getSortValue(leftEmployee, sortState.columnId),
+      getSortValue(rightEmployee, sortState.columnId),
+      sortState.direction,
+    ),
+  );
+
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / employeesPerPage));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStartIndex = (safeCurrentPage - 1) * employeesPerPage;
   const pageEndIndex = pageStartIndex + employeesPerPage;
-  const paginatedEmployees = filteredEmployees.slice(pageStartIndex, pageEndIndex);
+  const paginatedEmployees = sortedEmployees.slice(pageStartIndex, pageEndIndex);
   const visibleEmployeeIds = paginatedEmployees.map((employee) => employee.id);
   const allVisibleSelected =
     visibleEmployeeIds.length > 0 &&
@@ -708,6 +1553,20 @@ export default function Colaboradores() {
     });
   };
 
+  const handleSort = (columnId: EmployeeColumnId) => {
+    setSortState((currentState) =>
+      currentState.columnId === columnId
+        ? {
+            columnId,
+            direction: currentState.direction === 'asc' ? 'desc' : 'asc',
+          }
+        : {
+            columnId,
+            direction: 'asc',
+          },
+    );
+  };
+
   const runMutation = async ({
     title,
     description,
@@ -731,10 +1590,10 @@ export default function Colaboradores() {
 
   const refreshEmployees = async () => {
     const response = await humanResourcesApi.listEmployees();
-    setEmployees(
-      response.items.map((employee) => mapEmployee(employee, copy.unitFallback, copy.businessFallback)),
-    );
+    const mappedEmployees = response.items.map((employee) => mapEmployee(employee, copy.unitFallback, copy.businessFallback));
+    setEmployees(mappedEmployees);
     setSummary(response.summary);
+    void hydrateEmployeeDetails(mappedEmployees.map((employee) => employee.id));
   };
 
   const openCreateEmployeeModal = () => {
@@ -1056,116 +1915,209 @@ export default function Colaboradores() {
     return currencyFormatter.format(employee.salary);
   };
 
-  const renderColumnCell = (employee: EmployeeViewModel, columnId: string) => {
+  const renderTextValue = (value: string | number | null | undefined, className = '') => (
+    <span className={cn('inline-flex min-w-[140px] whitespace-normal text-base text-slate-700 dark:text-slate-200', className)}>
+      {value !== null && value !== undefined && String(value).trim() ? value : copy.fieldFallback}
+    </span>
+  );
+
+  const renderDateValue = (value: string) => (
+    <span className="inline-flex min-w-[160px] items-center gap-2 text-base text-slate-700 dark:text-slate-200">
+      <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
+      {formatDate(value, currentLanguage.code, copy.dateFallback)}
+    </span>
+  );
+
+  const renderBooleanValue = (value: boolean | null) => {
+    if (value === null) {
+      return renderTextValue('');
+    }
+
+    return (
+      <span
+        className={cn(
+          'inline-flex rounded-full border px-3 py-1 text-sm font-semibold',
+          value
+            ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
+            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
+        )}
+      >
+        {value ? copy.binaryLabels.yes : copy.binaryLabels.no}
+      </span>
+    );
+  };
+
+  const renderDocumentValue = (employee: EmployeeViewModel, documentType: EmployeeDocumentType) => {
+    const documentLabel = employee.documents[documentType];
+    const isUploaded = Boolean(documentLabel);
+
+    return (
+      <div className="min-w-[180px]">
+        <span
+          className={cn(
+            'inline-flex rounded-full border px-3 py-1 text-sm font-semibold',
+            isUploaded
+              ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
+              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
+          )}
+        >
+          {isUploaded ? copy.documentStatusLabels.uploaded : copy.documentStatusLabels.missing}
+        </span>
+        {isUploaded ? (
+          <p className="mt-1 max-w-[220px] truncate text-sm text-slate-500 dark:text-slate-400">
+            {documentLabel}
+          </p>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderColumnCell = (employee: EmployeeViewModel, columnId: string): ReactNode => {
     switch (columnId) {
       case 'employee':
         return (
-          <td key={columnId} className="px-6 py-4 align-top">
-            <div className="min-w-[220px]">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">{employee.fullName}</p>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{employee.code}</p>
+          <div className="flex min-w-[250px] items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#143675]/10 text-sm font-bold text-[#143675] dark:bg-[#143675]/30 dark:text-blue-200">
+              {getEmployeeInitials(employee)}
             </div>
-          </td>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-slate-900 dark:text-white">{employee.fullName}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{employee.code}</p>
+            </div>
+          </div>
         );
       case 'employeeNumber':
-        return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm font-medium text-gray-600 dark:text-gray-300">
-            {employee.code || '—'}
-          </td>
-        );
+        return <span className="text-base font-semibold text-slate-900 dark:text-white">{employee.code || '-'}</span>;
+      case 'firstName':
+        return renderTextValue(employee.firstName);
+      case 'lastName':
+        return renderTextValue(employee.lastName);
       case 'email':
         return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm text-gray-600 dark:text-gray-300">
-            <div className="inline-flex min-w-[220px] items-center gap-2 break-all">
-              <Mail className="h-4 w-4 text-gray-400" />
-              {employee.email || '—'}
-            </div>
-          </td>
+          <div className="inline-flex min-w-[240px] items-center gap-2 break-all text-base text-slate-600 dark:text-slate-300">
+            <Mail className="h-4 w-4 shrink-0 text-slate-400" />
+            {employee.email || '-'}
+          </div>
+        );
+      case 'phone':
+        return (
+          <div className="inline-flex min-w-[160px] items-center gap-2 text-base text-slate-600 dark:text-slate-300">
+            <Phone className="h-4 w-4 shrink-0 text-slate-400" />
+            {employee.phone || '-'}
+          </div>
+        );
+      case 'dateOfBirth':
+        return renderDateValue(employee.dateOfBirth);
+      case 'address':
+        return renderTextValue(employee.address, 'min-w-[260px]');
+      case 'nationalId':
+        return renderTextValue(employee.nationalId);
+      case 'taxId':
+        return renderTextValue(employee.taxId);
+      case 'socialSecurityNumber':
+        return renderTextValue(employee.socialSecurityNumber);
+      case 'registrationCountry':
+        return renderTextValue(employee.registrationCountry);
+      case 'stateProvince':
+        return renderTextValue(employee.stateProvince);
+      case 'city':
+        return renderTextValue(employee.city);
+      case 'postalCode':
+        return renderTextValue(employee.postalCode);
+      case 'alternatePhone':
+        return (
+          <div className="inline-flex min-w-[160px] items-center gap-2 text-base text-slate-600 dark:text-slate-300">
+            <Phone className="h-4 w-4 shrink-0 text-slate-400" />
+            {employee.alternatePhone || copy.fieldFallback}
+          </div>
+        );
+      case 'emergencyContactName':
+        return renderTextValue(employee.emergencyContactName);
+      case 'emergencyContactRelationship':
+        return renderTextValue(employee.emergencyContactRelationship);
+      case 'emergencyContactPhone':
+        return (
+          <div className="inline-flex min-w-[160px] items-center gap-2 text-base text-slate-600 dark:text-slate-300">
+            <Phone className="h-4 w-4 shrink-0 text-slate-400" />
+            {employee.emergencyContactPhone || copy.fieldFallback}
+          </div>
         );
       case 'position':
-        return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm text-gray-600 dark:text-gray-300">
-            {employee.position || '—'}
-          </td>
-        );
+        return <span className="text-base text-slate-700 dark:text-slate-200">{employee.position || '-'}</span>;
       case 'department':
-        return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm text-gray-600 dark:text-gray-300">
-            {employee.department || '—'}
-          </td>
-        );
+        return <span className="text-base text-slate-700 dark:text-slate-200">{employee.department || '-'}</span>;
       case 'unit':
         return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm text-gray-600 dark:text-gray-300">
+          <span className="inline-flex min-w-[160px] whitespace-normal text-base text-slate-700 dark:text-slate-200">
             {employee.unitLabel || copy.unitFallback}
-          </td>
+          </span>
         );
       case 'business':
         return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm text-gray-600 dark:text-gray-300">
+          <span className="inline-flex min-w-[160px] whitespace-normal text-base text-slate-700 dark:text-slate-200">
             {employee.businessLabel || copy.businessFallback}
-          </td>
+          </span>
         );
       case 'status':
         return (
-          <td key={columnId} className="px-6 py-4 align-top">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(
-                employee.status,
-              )}`}
-            >
-              {copy.statusLabels[employee.status]}
-            </span>
-          </td>
+          <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold', getStatusClasses(employee.status))}>
+            {copy.statusLabels[employee.status]}
+          </span>
         );
+      case 'scheduleOnHire':
+        return renderBooleanValue(employee.scheduleOnHire);
+      case 'scheduleStartDate':
+        return renderDateValue(employee.scheduleStartDate);
+      case 'scheduleEndDate':
+        return renderDateValue(employee.scheduleEndDate);
+      case 'scheduleStartTime':
+        return renderTextValue(employee.scheduleStartTime);
+      case 'scheduleEndTime':
+        return renderTextValue(employee.scheduleEndTime);
+      case 'scheduleMealMinutes':
+        return renderTextValue(employee.scheduleMealMinutes);
+      case 'scheduleRestMinutes':
+        return renderTextValue(employee.scheduleRestMinutes);
+      case 'scheduleLateAfterMinutes':
+        return renderTextValue(employee.scheduleLateAfterMinutes);
+      case 'scheduleLocationRule':
+        return renderTextValue(
+          employee.scheduleLocationRule ? copy.scheduleLocationRuleLabels[employee.scheduleLocationRule] : '',
+        );
+      case 'scheduleLocationId':
+        return renderTextValue(employee.scheduleLocationId);
+      case 'salaryType':
+        return renderTextValue(copy.salaryTypeLabels[employee.salaryType]);
+      case 'workdayHours':
+        return renderTextValue(employee.workdayHours !== null ? employee.workdayHours : null);
       case 'salary':
-        return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm font-medium text-gray-800 dark:text-gray-100">
-            {renderSalaryValue(employee)}
-          </td>
-        );
+        return <span className="text-base font-semibold text-slate-900 dark:text-white">{renderSalaryValue(employee)}</span>;
+      case 'hourlyRate':
+        return <span className="text-base font-semibold text-slate-900 dark:text-white">{currencyFormatter.format(employee.hourlyRate)}</span>;
       case 'payPeriod':
         return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm text-gray-600 dark:text-gray-300">
-            {employee.payPeriod}
-          </td>
+          <span className="inline-flex min-w-[112px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+            {copy.payPeriodLabels[employee.payPeriod]}
+          </span>
         );
+      case 'contractType':
+        return renderTextValue(copy.contractTypeLabels[employee.contractType]);
+      case 'contractStartDate':
+        return renderDateValue(employee.contractStartDate);
+      case 'contractEndDate':
+        return renderDateValue(employee.contractEndDate);
       case 'joinDate':
-        return (
-          <td key={columnId} className="px-6 py-4 align-top text-sm text-gray-600 dark:text-gray-300">
-            <span className="inline-flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-400" />
-              {formatDate(employee.joinDate, currentLanguage.code, copy.dateFallback)}
-            </span>
-          </td>
-        );
-      case 'actions':
-        return (
-          <td key={columnId} className="px-6 py-4 align-top">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-[#4338ca] hover:bg-[#4338ca]/10"
-                onClick={() => {
-                  void openEditEmployeeModal(employee);
-                }}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                onClick={() => {
-                  void handleDeleteEmployee(employee);
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </td>
-        );
+        return renderDateValue(employee.joinDate);
+      case 'birthCertificate':
+        return renderDocumentValue(employee, 'birth_certificate');
+      case 'governmentId':
+        return renderDocumentValue(employee, 'government_id');
+      case 'proofOfAddress':
+        return renderDocumentValue(employee, 'proof_of_address');
+      case 'resume':
+        return renderDocumentValue(employee, 'resume');
+      case 'profilePhoto':
+        return renderDocumentValue(employee, 'profile_photo');
       default:
         return null;
     }
@@ -1237,20 +2189,20 @@ export default function Colaboradores() {
         </div>
       ) : null}
 
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
+      <section className="mb-5 rounded-lg border border-[#143675]/30 bg-[#143675]/10 p-6 shadow-sm dark:border-[#143675]/40 dark:bg-[#143675]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
               <span className="text-2xl">👥</span>
               {copy.title}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{copy.subtitle}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{copy.subtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
               onClick={() => setIsColumnsModalOpen(true)}
-              className="gap-2 border-[#143675] text-[#143675] hover:bg-[#143675] hover:text-white"
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-4 text-[#143675] shadow-none hover:bg-[#143675] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
               <Columns3 className="h-4 w-4" />
               {copy.configureColumns}
@@ -1259,208 +2211,201 @@ export default function Colaboradores() {
               onClick={() => {
                 openCreateEmployeeModal();
               }}
-              className="bg-[#143675] text-white hover:bg-[#0f2855]"
+              className={cn('h-11 gap-2 rounded-xl px-4', hrAccentButtonClass)}
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               {copy.addEmployee}
             </Button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {isLoading ? (
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-            >
-              <Skeleton className="mb-3 h-4 w-24" />
-              <Skeleton className="mb-2 h-8 w-20" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">{copy.summary.total}</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{summary.total_count}</p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">{copy.summary.active}</p>
-            <p className="mt-2 text-3xl font-bold text-emerald-600 dark:text-emerald-400">{summary.active_count}</p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">{copy.summary.inactive}</p>
-            <p className="mt-2 text-3xl font-bold text-amber-600 dark:text-amber-400">
-              {summary.inactive_count + summary.terminated_count}
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">{copy.summary.payroll}</p>
-            <p className="mt-2 inline-flex items-center gap-2 text-2xl font-bold text-[#143675] dark:text-[#6ea3f7]">
-              <Wallet className="h-5 w-5" />
-              {currencyFormatter.format(summary.total_payroll_amount_monthly)}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="mb-4">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{copy.filters.title}</h3>
-        </div>
-
+      <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{copy.filters.title}</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               {copy.filters.searchLabel}
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={copy.filters.searchPlaceholder}
-                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {copy.filters.unit}
-            </label>
-            <select
-              value={unitFilter}
-              onChange={(event) => setUnitFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              {unitOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {copy.filters.business}
-            </label>
-            <select
-              value={businessFilter}
-              onChange={(event) => setBusinessFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              {businessOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {copy.filters.department}
-            </label>
-            <select
-              value={departmentFilter}
-              onChange={(event) => setDepartmentFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value={allFilterValue}>{copy.filters.all}</option>
-              {departmentOptions.map((department) => (
-                <option key={department} value={department}>
-                  {department}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {copy.filters.status}
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value={allFilterValue}>{copy.filters.all}</option>
-              <option value="active">{copy.statusLabels.active}</option>
-              <option value="inactive">{copy.statusLabels.inactive}</option>
-              <option value="terminated">{copy.statusLabels.terminated}</option>
-            </select>
-          </div>
+          <FilterSelect
+            label={copy.filters.unit}
+            value={unitFilter}
+            onChange={(value) => setUnitFilter(value)}
+            options={unitFilterOptions}
+          />
+          <FilterSelect
+            label={copy.filters.business}
+            value={businessFilter}
+            onChange={(value) => setBusinessFilter(value)}
+            options={businessFilterOptions}
+          />
+          <FilterSelect
+            label={copy.filters.department}
+            value={departmentFilter}
+            onChange={(value) => setDepartmentFilter(value)}
+            options={departmentFilterOptions}
+          />
+          <FilterSelect
+            label={copy.filters.status}
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value)}
+            options={statusFilterOptions}
+          />
         </div>
-      </div>
+      </section>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px]">
-            <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-700">
-              <tr>
-                <th className="w-12 px-5 py-3.5 text-left">
-                  <Checkbox
-                    checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
-                    onCheckedChange={toggleAllVisibleSelections}
-                    aria-label={copy.table.selectAllVisible}
-                  />
-                </th>
-                {visibleColumns.map((column) => (
-                  <th
-                    key={column.id}
-                    className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-500 dark:text-gray-300"
+      <EmployeeKpiStrip
+        isLoading={isLoading}
+        totalCount={summary.total_count}
+        activeCount={summary.active_count}
+        inactiveCount={summary.inactive_count}
+        terminatedCount={summary.terminated_count}
+        visibleCount={filteredEmployees.length}
+        selectedCount={selectedEmployeeIds.length}
+        monthlyPayroll={currencyFormatter.format(summary.total_payroll_amount_monthly)}
+        labels={copy.summary}
+      />
+
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <Table style={{ minWidth: Math.max(1420, visibleColumns.length * 190 + 180) }}>
+          <TableHeader>
+            <TableRow className="border-slate-200 dark:border-slate-700">
+              <TableHead className="w-14 px-5 py-6">
+                <Checkbox
+                  checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                  onCheckedChange={toggleAllVisibleSelections}
+                  aria-label={copy.table.selectAllVisible}
+                />
+              </TableHead>
+              {visibleColumns.map((column) => (
+                <TableHead key={column.id} className="px-5 py-6">
+                  <button
+                    type="button"
+                    onClick={() => handleSort(column.id as EmployeeColumnId)}
+                    className="flex items-center gap-2 text-left text-sm font-semibold tracking-tight text-slate-500 dark:text-slate-400"
                   >
-                    {column.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, rowIndex) => (
-                  <tr key={rowIndex}>
-                    <td className="px-5 py-4">
-                      <Skeleton className="h-4 w-4" />
-                    </td>
-                    {visibleColumns.map((column) => (
-                      <td key={column.id} className="px-6 py-4">
-                        <Skeleton className="h-4 w-full max-w-[180px]" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : filteredEmployees.length === 0 ? (
-                <tr>
-                  <td colSpan={visibleColumns.length + 1} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                    {copy.table.emptyState}
-                  </td>
-                </tr>
-              ) : (
-                paginatedEmployees.map((employee) => (
-                  <tr key={employee.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                    <td className="px-5 py-4 align-top">
-                      <Checkbox
-                        checked={selectedEmployeeIds.includes(employee.id)}
-                        onCheckedChange={() => toggleSelection(employee.id)}
-                        aria-label={copy.table.selectEmployee(employee.fullName)}
+                    <span>{column.label}</span>
+                    <ArrowUpDown
+                      className={cn(
+                        'h-4 w-4',
+                        sortState.columnId === column.id ? 'text-[#143675] dark:text-blue-300' : 'text-slate-400',
+                      )}
+                    />
+                  </button>
+                </TableHead>
+              ))}
+              <TableHead className="px-5 py-6 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                {copy.columns.actions}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, rowIndex) => (
+                <TableRow key={rowIndex} className="border-slate-200 dark:border-slate-700">
+                  <TableCell className="px-5 py-6">
+                    <Skeleton className="h-4 w-4" />
+                  </TableCell>
+                  {visibleColumns.map((column) => (
+                    <TableCell key={column.id} className="px-5 py-6">
+                      <Skeleton className="h-4 w-full max-w-[180px]" />
+                    </TableCell>
+                  ))}
+                  <TableCell className="px-5 py-6">
+                    <Skeleton className="h-9 w-24 rounded-2xl" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : filteredEmployees.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={visibleColumns.length + 2}
+                  className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
+                >
+                  {copy.table.emptyState}
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedEmployees.map((employee) => (
+                <TableRow
+                  key={employee.id}
+                  data-state={selectedEmployeeIds.includes(employee.id) ? 'selected' : undefined}
+                  className="border-slate-200 dark:border-slate-700"
+                >
+                  <TableCell className="px-5 py-6">
+                    <Checkbox
+                      checked={selectedEmployeeIds.includes(employee.id)}
+                      onCheckedChange={() => toggleSelection(employee.id)}
+                      aria-label={copy.table.selectEmployee(employee.fullName)}
+                    />
+                  </TableCell>
+                  {visibleColumns.map((column) => (
+                    <TableCell
+                      key={`${employee.id}-${column.id}`}
+                      className={cn(
+                        'px-5 py-6 align-middle',
+                        column.id === 'employee' ||
+                          column.id === 'email' ||
+                          column.id === 'address' ||
+                          column.id === 'unit' ||
+                          column.id === 'business' ||
+                          column.id === 'emergencyContactName' ||
+                          column.id === 'emergencyContactRelationship'
+                          ? 'whitespace-normal'
+                          : '',
+                      )}
+                    >
+                      {renderColumnCell(employee, column.id)}
+                    </TableCell>
+                  ))}
+                  <TableCell className="px-5 py-6">
+                    <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+                      <EmployeeTableActionButton
+                        icon={<Edit className="h-4 w-4 text-blue-600" />}
+                        label={copy.table.editEmployeeLabel}
+                        onClick={() => {
+                          void openEditEmployeeModal(employee);
+                        }}
+                        toneClassName="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
                       />
-                    </td>
-                    {visibleColumns.map((column) => renderColumnCell(employee, column.id))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      <EmployeeTableActionButton
+                        icon={<Trash2 className="h-4 w-4 text-red-600" />}
+                        label={
+                          employee.status === 'terminated'
+                            ? copy.table.deleteEmployeeLabel
+                            : copy.table.terminateEmployeeLabel
+                        }
+                        onClick={() => {
+                          void handleDeleteEmployee(employee);
+                        }}
+                        toneClassName="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60"
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+
         {filteredEmployees.length > 0 ? (
-          <div className="flex flex-col gap-4 border-t border-gray-200 px-6 py-4 dark:border-gray-700 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex flex-col gap-4 border-t border-slate-200 px-6 py-4 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {copy.pagination.showing(paginationStart, paginationEnd, filteredEmployees.length)}
             </p>
             <div className="flex flex-col items-start gap-3 md:items-end">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {copy.pagination.page(safeCurrentPage, totalPages)}
               </p>
               <Pagination className="mx-0 w-auto justify-start md:justify-end">
@@ -1512,7 +2457,7 @@ export default function Colaboradores() {
             </div>
           </div>
         ) : null}
-      </div>
+      </section>
 
       <ColumnasConfigModal
         isOpen={isColumnsModalOpen}

@@ -6,13 +6,11 @@ import {
   CheckCircle2,
   CreditCard,
   Download,
-  Filter,
   Globe2,
   Info,
   Landmark,
   LoaderCircle,
   MapPinned,
-  Pencil,
   PlayCircle,
   Printer,
   Save,
@@ -49,7 +47,6 @@ import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../a
 import {
   humanResourcesApi,
   type EmployeeDetailsResponse,
-  type PayrollCreateRunsPayload,
   type PayrollLineItem,
   type PayrollManualItemPayload,
   type PayrollOverviewResponse,
@@ -64,8 +61,11 @@ import {
 } from './PayrollRunPrintPortal';
 import type { PayrollRunPdfDocumentProps } from './PayrollRunPdfDocument';
 import { SelectField, DateField } from './components/PayrollFormFields';
-import { PayrollTableActionButton } from './components/PayrollTableActionButton';
 import { DetailMetric } from './components/DetailMetric';
+import { PayrollHeaderBar } from './components/PayrollHeaderBar';
+import { PayrollOperationsPanel } from './components/PayrollOperationsPanel';
+import { PayrollRunActionsMenu } from './components/PayrollRunActionsMenu';
+import { PayrollSetupGuide } from './components/PayrollSetupGuide';
 import {
   payrollBreakdownConfigByJurisdiction,
   payrollDetailedColumnsByJurisdiction,
@@ -913,13 +913,45 @@ const payrollRateProfileFlags: Record<PayrollRateProfileKey, string> = {
   custom: '⚙️',
 };
 
-const formatCurrency = (value: number, locale: string) =>
+const formatCurrency = (value: number, locale: string, currency = 'USD') =>
   new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
+
+const resolvePayrollCurrencyCode = (jurisdictionLabel: string) => {
+  const normalizedLabel = jurisdictionLabel.toLowerCase();
+
+  if (normalizedLabel.includes('mexico') || normalizedLabel.includes('méxico')) {
+    return 'MXN';
+  }
+  if (
+    normalizedLabel.includes('canada')
+    || normalizedLabel.includes('ontario')
+    || normalizedLabel.includes('quebec')
+    || normalizedLabel.includes('québec')
+  ) {
+    return 'CAD';
+  }
+  if (
+    normalizedLabel.includes('usa')
+    || normalizedLabel.includes('united states')
+    || normalizedLabel.includes('florida')
+    || normalizedLabel.includes('texas')
+  ) {
+    return 'USD';
+  }
+  if (normalizedLabel.includes('colombia')) {
+    return 'COP';
+  }
+  if (normalizedLabel.includes('brazil') || normalizedLabel.includes('brasil')) {
+    return 'BRL';
+  }
+
+  return 'USD';
+};
 
 const formatDate = (value: string, locale: string, fallback: string) => {
   if (!value) {
@@ -955,6 +987,7 @@ type PayrollBusyKind =
   | 'refresh'
   | 'open-run'
   | 'save-preferences'
+  | 'generate-runs'
   | 'save-line'
   | 'process-run'
   | 'approve-run'
@@ -1518,7 +1551,7 @@ const downloadFile = async (path: string, filename: string) => {
 
 export default function Payroll() {
   const { currentLanguage } = useLanguage();
-  const copy = currentLanguage.code.startsWith('es') ? payrollCopy.es : payrollCopy.en;
+  const copy = payrollCopy.en;
 
   const [overview, setOverview] = useState<PayrollOverviewResponse | null>(null);
   // Seed data for development
@@ -1649,7 +1682,6 @@ export default function Payroll() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isPreferencesDialogOpen, setIsPreferencesDialogOpen] = useState(false);
-  const [isRateConfigDialogOpen, setIsRateConfigDialogOpen] = useState(false);
   const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
   const [isEditRunDialogOpen, setIsEditRunDialogOpen] = useState(false);
   const [isEditRunDetailLoading, setIsEditRunDetailLoading] = useState(false);
@@ -1659,8 +1691,6 @@ export default function Payroll() {
   const [printJob, setPrintJob] = useState<PayrollRunPdfDocumentProps | null>(null);
   const [runDialogNotice, setRunDialogNotice] = useState<PayrollDialogNotice | null>(null);
   const [preferencesForm, setPreferencesForm] = useState<PayrollPreferences>(defaultPayrollPreferences);
-  const [selectedRateProfile, setSelectedRateProfile] = useState<PayrollRateProfileKey>('mexico');
-  const [rateDrafts, setRateDrafts] = useState<PayrollRateDrafts>(() => createPayrollRateDrafts(defaultPayrollPreferences));
   const [filters, setFilters] = useState({
     period_range: 'all_year',
     period_from: '',
@@ -1687,7 +1717,6 @@ export default function Payroll() {
 
   const isSaving = busyState !== null;
   const activeBusyKind = busyState?.kind ?? null;
-  const activeRateValues = rateDrafts[selectedRateProfile];
   const unitsById = useMemo(
     () => new Map(units.map((unit) => [String(unit.id), unit.name])),
     [units],
@@ -1845,10 +1874,6 @@ export default function Payroll() {
 
       setOverview(overviewResponse);
       setPreferencesForm(overviewResponse.preferences);
-      setRateDrafts((currentDrafts) => ({
-        ...currentDrafts,
-        custom: pickPayrollRateValues(overviewResponse.preferences),
-      }));
       const shouldUseSeedRuns = runsResponse.items.length === 0;
       setRuns(shouldUseSeedRuns ? seedRuns : runsResponse.items);
       setJurisdictionsByRunId(shouldUseSeedRuns ? seedJurisdictionsByRunId : {});
@@ -1879,24 +1904,6 @@ export default function Payroll() {
     () => selectedRunDetail?.lines.find((line) => line.id === selectedLineId) ?? null,
     [selectedLineId, selectedRunDetail?.lines],
   );
-
-  const updateActiveRateValue = (field: PayrollRateFieldKey, value: number) => {
-    setRateDrafts((currentDrafts) => ({
-      ...currentDrafts,
-      [selectedRateProfile]: {
-        ...currentDrafts[selectedRateProfile],
-        [field]: value,
-      },
-    }));
-  };
-
-  const openRateConfiguration = () => {
-    setRateDrafts((currentDrafts) => ({
-      ...currentDrafts,
-      custom: pickPayrollRateValues(preferencesForm),
-    }));
-    setIsRateConfigDialogOpen(true);
-  };
 
   useEffect(() => {
     if (!selectedLine) {
@@ -1984,30 +1991,6 @@ export default function Payroll() {
         await humanResourcesApi.updatePayrollPreferences(preferencesForm);
         setIsPreferencesDialogOpen(false);
         setSuccessMessage(copy.success.preferences);
-        await loadPayroll(filters, { background: true });
-      });
-    } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
-    }
-  };
-
-  const handleSaveRates = async () => {
-    const nextPreferences = applyPayrollRateValues(preferencesForm, rateDrafts[selectedRateProfile]);
-
-    try {
-      await runBusyTask({
-        kind: 'save-preferences',
-        title: copy.busy.ratesTitle,
-        description: copy.busy.ratesDescription,
-      }, async () => {
-        await humanResourcesApi.updatePayrollPreferences(nextPreferences);
-        setPreferencesForm(nextPreferences);
-        setRateDrafts((currentDrafts) => ({
-          ...currentDrafts,
-          custom: pickPayrollRateValues(nextPreferences),
-        }));
-        setIsRateConfigDialogOpen(false);
-        setSuccessMessage(copy.success.rates);
         await loadPayroll(filters, { background: true });
       });
     } catch (error) {
@@ -2211,6 +2194,44 @@ export default function Payroll() {
     }
   };
 
+  const handleApproveRunFromTable = async (run: PayrollRunSummary) => {
+    try {
+      await runBusyTask({
+        kind: 'approve-run',
+        title: copy.busy.approveTitle,
+        description: copy.busy.approveDescription,
+      }, async () => {
+        await humanResourcesApi.approvePayrollRun(run.id);
+        setSuccessMessage(copy.success.approved);
+        await loadPayroll(filters, { background: true });
+        if (selectedRunDetail?.run.id === run.id) {
+          await refreshOpenRun(run.id);
+        }
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const handleCancelRunFromTable = async (run: PayrollRunSummary) => {
+    try {
+      await runBusyTask({
+        kind: 'cancel-run',
+        title: copy.busy.cancelTitle,
+        description: copy.busy.cancelDescription,
+      }, async () => {
+        await humanResourcesApi.cancelPayrollRun(run.id);
+        setSuccessMessage(copy.success.cancelled);
+        await loadPayroll(filters, { background: true });
+        if (selectedRunDetail?.run.id === run.id) {
+          await refreshOpenRun(run.id);
+        }
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
   const resolveRunBusiness = (run: PayrollRunSummary) => {
     if (run.grouping_mode !== 'business') {
       return null;
@@ -2259,6 +2280,35 @@ export default function Payroll() {
       : copy.labels.noJurisdiction;
   };
 
+  const operationalRuns = runs.map((run) => ({
+    ...run,
+    jurisdictionLabel: resolveRunJurisdictionLabel(run),
+    unitLabel: resolveRunUnitLabel(run),
+    businessLabel: resolveRunBusinessLabel(run),
+  }));
+  const shouldShowSetupGuide = !overview?.preferences && runs.length === 0;
+  const resolveOperationalStatus = (run: PayrollRunSummary) => {
+    if (run.employees_count === 0 && run.status !== 'paid' && run.status !== 'cancelled') {
+      return {
+        label: 'Blocked',
+        className: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300',
+      };
+    }
+
+    const statusClassNames: Record<PayrollRunSummary['status'], string> = {
+      draft: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300',
+      processed: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
+      approved: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300',
+      paid: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
+      cancelled: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    };
+
+    return {
+      label: run.status === 'processed' ? 'Review' : copy.statuses[run.status],
+      className: statusClassNames[run.status],
+    };
+  };
+
   return (
     <>
       <LoadingBarOverlay
@@ -2284,35 +2334,10 @@ export default function Payroll() {
         onClose={() => setSuccessMessage('')}
       />
 
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
-              <span className="text-2xl">💰</span>
-              {copy.title}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{copy.subtitle}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={openRateConfiguration}
-              className="gap-2 border-[#143675] text-[#143675] hover:bg-[#143675] hover:text-white"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {copy.labels.openRates}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsPreferencesDialogOpen(true)}
-              className="gap-2 border-[#143675] text-[#143675] hover:bg-[#143675] hover:text-white"
-            >
-              <Settings className="h-4 w-4" />
-              {copy.labels.openPreferences}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PayrollHeaderBar
+        isBusy={isSaving}
+        onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
+      />
 
       {isLoading ? (
         <div className="space-y-6">
@@ -2321,11 +2346,10 @@ export default function Payroll() {
       ) : (
         <>
           <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-4 flex items-center gap-2">
-              <Filter className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-              <h3 className="text-base font-bold text-slate-800 dark:text-white">{copy.labels.filters}</h3>
+            <div className="mb-5">
+              <h3 className="text-base font-bold text-slate-950 dark:text-white">Filters</h3>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
               <SelectField
                 label={copy.labels.period}
                 value={filters.period_range}
@@ -2408,86 +2432,98 @@ export default function Payroll() {
             </div>
           </section>
 
+          {shouldShowSetupGuide ? (
+            <PayrollSetupGuide
+              isBusy={isSaving}
+              onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
+            />
+          ) : (
+            <PayrollOperationsPanel
+              runs={operationalRuns}
+              formatMoney={(value) => formatCurrency(value, currentLanguage.code)}
+            />
+          )}
+
           <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-700">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{copy.labels.runs}</h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Review generated runs, open a draft, and export the final ledger.</p>
+                  <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Operational payroll runs</h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Open runs that need review, approval, payment, or export.</p>
                 </div>
                 <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  {runs.length} active view
+                  {runs.length} in current view
                 </div>
               </div>
             </div>
 
-            <Table className="min-w-[1400px]">
+            <Table className="min-w-[1280px]">
               <TableHeader>
                 <TableRow className="border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
                   <TableHead
                     onClick={() => handleSortColumn('period')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.period}
                     <SortIndicator column="period" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('frequency')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.frequency}
                     <SortIndicator column="frequency" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('payrollType')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.payrollType}
                     <SortIndicator column="payrollType" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('employees')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.employees}
                     <SortIndicator column="employees" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('totalAmount')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.totalAmount}
                     <SortIndicator column="totalAmount" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('jurisdiction')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.jurisdiction}
                     <SortIndicator column="jurisdiction" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('unit')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.unit}
                     <SortIndicator column="unit" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('business')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.business}
                     <SortIndicator column="business" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('status')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.status}
                     <SortIndicator column="status" />
                   </TableHead>
-                  <TableHead className="px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 dark:text-slate-400">
+                  <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                     ACTIONS
                   </TableHead>
                 </TableRow>
@@ -2500,80 +2536,80 @@ export default function Payroll() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedRuns.map((run) => (
-                    <TableRow key={run.id} className="border-slate-200 dark:border-slate-700">
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)} → {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {copy.frequencies[run.pay_period]}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {copy.groupingModes[run.grouping_mode]}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle font-medium text-slate-900 dark:text-white">
-                        {run.employees_count}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle font-medium text-slate-900 dark:text-white">
-                        {run.net_amount.toLocaleString(currentLanguage.code, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {resolveRunJurisdictionLabel(run)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {resolveRunUnitLabel(run)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {resolveRunBusinessLabel(run)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle">
-                        <select
-                          value={run.status}
-                          onChange={(e) => handleStatusChange(run, e.target.value as PayrollRunSummary['status'])}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:border-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:hover:border-slate-500"
-                          disabled={isSaving}
-                        >
-                          <option value="draft">Review</option>
-                          <option value="processed">Processed</option>
-                          <option value="approved">Approved</option>
-                          <option value="paid">Paid</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle">
-                        <div className="flex items-center gap-2">
-                          <PayrollTableActionButton
-                            icon={<Pencil className="h-4 w-4 text-amber-600" />}
-                            label={copy.labels.edit}
-                            onClick={() => void openEditRunModal(run)}
-                            disabled={isSaving}
-                            toneClassName="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                  sortedRuns.map((run) => {
+                    const operationalStatus = resolveOperationalStatus(run);
+                    const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
+                    const runCurrencyCode = resolvePayrollCurrencyCode(runJurisdictionLabel);
+
+                    return (
+                      <TableRow key={run.id} className="border-slate-200 transition-colors hover:bg-slate-50/70 dark:border-slate-700 dark:hover:bg-slate-900/40">
+                        <TableCell className="px-5 py-5 align-middle">
+                          <div className="space-y-1">
+                            <p className="font-semibold text-slate-950 dark:text-white">
+                              {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              to {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm font-medium text-slate-700 dark:text-slate-200">
+                          {copy.frequencies[run.pay_period]}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              {copy.groupingModes[run.grouping_mode]}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {run.grouping_label || 'Automatic grouping'}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                            {run.employees_count}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <p className="text-sm font-bold text-slate-950 dark:text-white">
+                            {formatCurrency(run.net_amount, currentLanguage.code, runCurrencyCode)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            Net payout · {runCurrencyCode}
+                          </p>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                          {runJurisdictionLabel}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                          {resolveRunUnitLabel(run)}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                          {resolveRunBusinessLabel(run)}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${operationalStatus.className}`}>
+                            {operationalStatus.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <PayrollRunActionsMenu
+                            run={run}
+                            isBusy={isSaving}
+                            onOpen={() => void openRunDetail(run.id)}
+                            onEdit={() => void openEditRunModal(run)}
+                            onProcess={() => void handleProcessRunFromTable(run)}
+                            onApprove={() => void handleApproveRunFromTable(run)}
+                            onMarkPaid={() => void handlePayRunFromTable(run)}
+                            onExportPdf={() => void handleDownload('pdf', run)}
+                            onExportCsv={() => void handleDownload('csv', run)}
+                            onCancel={() => void handleCancelRunFromTable(run)}
                           />
-                          <PayrollTableActionButton
-                            icon={<PlayCircle className="h-4 w-4 text-blue-600" />}
-                            label={copy.labels.process}
-                            onClick={() => void handleProcessRunFromTable(run)}
-                            disabled={isSaving || run.status !== 'draft'}
-                            toneClassName="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-950/60"
-                          />
-                          <PayrollTableActionButton
-                            icon={<Printer className="h-4 w-4 text-violet-600" />}
-                            label={copy.labels.print}
-                            onClick={() => void handleDownload('pdf', run)}
-                            disabled={isSaving}
-                            toneClassName="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-950/60"
-                          />
-                          <PayrollTableActionButton
-                            icon={<Wallet className="h-4 w-4 text-emerald-600" />}
-                            label={copy.labels.pay}
-                            onClick={() => void handlePayRunFromTable(run)}
-                            disabled={isSaving || run.status !== 'approved'}
-                            toneClassName="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -2590,20 +2626,6 @@ export default function Payroll() {
           onClose={() => setIsPreferencesDialogOpen(false)}
           onChange={setPreferencesForm}
           onSave={() => void handleSavePreferences()}
-        />
-      ) : null}
-
-      {isRateConfigDialogOpen ? (
-        <PayrollRatesDialog
-          copy={copy}
-          isOpen={isRateConfigDialogOpen}
-          isSaving={isSaving}
-          selectedProfile={selectedRateProfile}
-          values={activeRateValues}
-          onClose={() => setIsRateConfigDialogOpen(false)}
-          onSelectProfile={setSelectedRateProfile}
-          onChangeValue={updateActiveRateValue}
-          onSave={() => void handleSaveRates()}
         />
       ) : null}
 
@@ -5751,61 +5773,90 @@ function PayrollPreferencesDialog({
   onChange: (value: PayrollPreferences) => void;
   onSave: () => void;
 }) {
-  const isSpanish = copy.labels.cancel === 'Cancelar';
   const groupingOptions = [
     {
       key: 'single',
-      title: copy.groupingCards.single.title,
-      description: copy.groupingCards.single.description,
-      highlighted: true,
+      title: 'Single payroll',
+      description: 'Payroll stays centralized and separates automatically only when operational structure requires it.',
+      examples: [
+        'Mexico - Weekly - Operations',
+        'Mexico - Monthly - Corporate',
+        'Quebec - Weekly - Operations',
+      ],
     },
     {
       key: 'unit',
-      title: copy.groupingCards.unit.title,
-      description: copy.groupingCards.unit.description,
-      highlighted: false,
+      title: 'By unit',
+      description: 'Payroll runs separate by operational unit before payroll frequency and jurisdiction grouping.',
+      examples: [
+        'North Unit - Weekly - Operations',
+        'South Unit - Monthly - Corporate',
+      ],
     },
     {
       key: 'business',
-      title: copy.groupingCards.business.title,
-      description: copy.groupingCards.business.description,
-      highlighted: false,
+      title: 'By business',
+      description: 'Payroll runs separate by business entity before payroll frequency and jurisdiction grouping.',
+      examples: [
+        'MainCo - Weekly - Operations',
+        'Sales Group - Monthly - Corporate',
+      ],
     },
   ] as const;
 
   const selectedOption = groupingOptions.find((option) => option.key === form.grouping_mode) ?? groupingOptions[0];
-  const selectedOptionTitle = selectedOption.title;
   const optionIconMap = {
     single: Globe2,
     unit: MapPinned,
     business: Landmark,
   } as const;
-  const optionValueMap = {
-    single: isSpanish ? 'Revisión centralizada' : 'Centralized review',
-    unit: isSpanish ? 'Seguimiento por unidad' : 'Unit-by-unit review',
-    business: isSpanish ? 'Control por entidad' : 'Entity-based review',
-  } as const;
-
-  const currentSetupLabel = isSpanish ? 'Configuración actual' : 'Current setup';
-  const currentSetupDescription = isSpanish
-    ? 'Estas preferencias definen el comportamiento base que usará el módulo al crear nuevas corridas de nómina.'
-    : 'These preferences define the default behavior the module will use when new payroll runs are created.';
-  const selectionHelper = isSpanish
-    ? 'Elige la estructura que mejor se ajuste a la forma en que tu operación revisa las corridas de nómina.'
-    : 'Choose the structure that best matches how your operation reviews payroll runs.';
-  const operationalNoteTitle = isSpanish ? 'Nota operativa' : 'Operational note';
-  const activeStateLabel = isSpanish ? 'Seleccionado' : 'Selected';
-  const useThisModeLabel = isSpanish ? 'Usar este modo' : 'Use this mode';
+  const automaticSeparatorCards = [
+    {
+      title: 'Payroll frequency',
+      description: 'Weekly, biweekly, and monthly collaborators are reviewed separately.',
+      Icon: CreditCard,
+    },
+    {
+      title: 'Workforce structure',
+      description: 'Operational and corporate collaborators are organized independently.',
+      Icon: ShieldCheck,
+    },
+    {
+      title: 'Jurisdiction rules',
+      description: 'Quebec payroll runs separate automatically in Canada. LATAM payroll runs stay grouped nationally.',
+      Icon: Globe2,
+    },
+  ];
+  const preferenceSteps = [
+    { number: '1', label: 'Organization' },
+    { number: '2', label: 'Automatic separation' },
+    { number: '3', label: 'Defaults' },
+  ];
   const paidLeaveValueLabel = form.pay_leave_days
-    ? (isSpanish ? 'Sí' : 'Yes')
+    ? 'Yes'
     : 'No';
-  const dailyHoursValueLabel = `${Number(form.default_daily_hours || 0).toFixed(2)} ${isSpanish ? 'hrs/día' : 'hrs/day'}`;
-  const dailyHoursHelper = isSpanish
-    ? 'Se usa como base de asistencia cuando se generan nuevas corridas.'
-    : 'Used as the default attendance base when new payroll runs are generated.';
-  const leaveDaysHelper = isSpanish
-    ? 'Incluye los días de permiso aprobados como días pagados por defecto.'
-    : 'Approved leave days are treated as paid days by default.';
+  const dailyHoursHelper = 'Used as the default attendance base when Índice creates payroll runs.';
+  const leaveDaysHelper = 'Approved leave days are treated as paid days by default.';
+  const impactMessage = 'Payroll runs organize automatically using the selected operational structure.';
+  const saveButtonLabel = isSaving
+    ? 'Saving...'
+    : copy.labels.savePreferences;
+  const [currentPreferenceStep, setCurrentPreferenceStep] = useState(0);
+  const isFinalPreferenceStep = currentPreferenceStep === preferenceSteps.length - 1;
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPreferenceStep(0);
+    }
+  }, [isOpen]);
+
+  const goToPreviousPreferenceStep = () => {
+    setCurrentPreferenceStep((currentStep) => Math.max(currentStep - 1, 0));
+  };
+
+  const goToNextPreferenceStep = () => {
+    setCurrentPreferenceStep((currentStep) => Math.min(currentStep + 1, preferenceSteps.length - 1));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -5813,19 +5864,19 @@ function PayrollPreferencesDialog({
         onClose();
       }
     }}>
-      <DialogContent className="!flex h-[min(88vh,920px)] max-h-[calc(100vh-3rem)] max-w-[980px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#143675] px-5 py-4 text-left text-white sm:px-6">
+      <DialogContent className="!flex h-[min(720px,calc(100vh-2rem))] w-[min(1040px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border border-[#143675]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#4a7bc8]/30 dark:bg-slate-900 [&>button]:hidden">
+        <DialogHeader className="shrink-0 bg-[#143675] px-6 py-5 text-left text-white">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/12 text-white shadow-sm ring-1 ring-white/10">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/12 text-white shadow-sm ring-1 ring-white/10">
                 <SlidersHorizontal className="h-5 w-5" />
               </div>
-              <div className="space-y-1">
-                <DialogTitle className="text-[1.35rem] font-bold leading-tight text-white sm:text-[1.55rem]">
+              <div className="min-w-0 space-y-1">
+                <DialogTitle className="text-xl font-bold leading-tight text-white">
                   {copy.labels.preferences}
                 </DialogTitle>
                 <DialogDescription className="max-w-2xl text-sm leading-6 text-blue-100">
-                  {currentSetupDescription}
+                  Choose how Índice organizes payroll runs from structure, frequency, workforce, and jurisdiction.
                 </DialogDescription>
               </div>
             </div>
@@ -5833,7 +5884,7 @@ function PayrollPreferencesDialog({
               <button
                 type="button"
                 disabled={isSaving}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/65 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label={copy.labels.close}
               >
                 <X className="h-5 w-5" />
@@ -5842,264 +5893,254 @@ function PayrollPreferencesDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-950/40">
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-            <div className="space-y-5">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
-                <section className="rounded-[28px] border border-[#143675]/15 bg-white p-5 shadow-sm dark:border-[#143675]/25 dark:bg-slate-900/70">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-blue-300">
-                      <Info className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#143675]/70 dark:text-blue-300/80">
-                        {copy.labels.groupingMode}
+        <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
+          <div className="grid grid-cols-3 gap-2">
+            {preferenceSteps.map((step, index) => (
+              <button
+                key={step.number}
+                type="button"
+                disabled={isSaving}
+                onClick={() => setCurrentPreferenceStep(index)}
+                className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${currentPreferenceStep === index
+                  ? 'border-[#143675] bg-[#143675]/10 text-[#143675] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
+                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#143675]/30 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300'
+                  }`}
+                aria-current={currentPreferenceStep === index ? 'step' : undefined}
+              >
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${currentPreferenceStep >= index
+                  ? 'bg-[#143675] text-white'
+                  : 'bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700'
+                  }`}>
+                  {step.number}
+                </span>
+                <span className="truncate text-sm font-semibold">{step.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/80 p-6 dark:bg-slate-950/40">
+          <section className={`${currentPreferenceStep === 0 ? 'block' : 'hidden'}`}>
+            <div className="grid gap-5 lg:grid-cols-[0.78fr_1.22fr]">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#143675] text-sm font-bold text-white shadow-sm">
+                    1
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
+                      Step 1
+                    </p>
+                    <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">How payroll is organized</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      Choose the structure used to review payroll runs.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Selected organization</p>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#143675] shadow-sm ring-1 ring-[#143675]/10 dark:bg-slate-900 dark:text-blue-200">
+                      {selectedOption.title}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {selectedOption.examples.map((example) => (
+                      <p key={example} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700">
+                        {example}
                       </p>
-                      <h3 className="mt-1 text-[1.15rem] font-bold leading-tight text-slate-900 dark:text-white">
-                        {copy.preferencesInfo.title}
-                      </h3>
-                      <div className="mt-4 space-y-3">
-                        {copy.preferencesInfo.bullets.map((bullet, index) => (
-                          <div
-                            key={bullet}
-                            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70"
-                          >
-                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[#143675] shadow-sm dark:bg-slate-900 dark:text-blue-300">
-                              <span className="text-xs font-bold">{index + 1}</span>
-                            </div>
-                            <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
-                              {bullet}
-                            </p>
-                          </div>
-                        ))}
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {groupingOptions.map((option) => {
+                  const isSelected = form.grouping_mode === option.key;
+                  const Icon = optionIconMap[option.key];
+
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => {
+                        if (form.grouping_mode !== option.key) {
+                          onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] });
+                        }
+                      }}
+                      className={`group flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${isSelected
+                        ? 'border-[#143675] bg-[#143675]/5 shadow-sm ring-2 ring-[#143675]/10 dark:border-blue-400/60 dark:bg-[#143675]/20'
+                        : 'border-slate-200 bg-white hover:border-[#143675]/35 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-400/40'
+                        }`}
+                    >
+                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isSelected
+                        ? 'bg-[#143675] text-white'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                        }`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="text-base font-bold text-slate-900 dark:text-white">{option.title}</h4>
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${isSelected
+                            ? 'border-[#143675] bg-white text-[#143675]'
+                            : 'border-slate-300 bg-white text-slate-300 dark:border-slate-600 dark:bg-slate-900'
+                            }`}>
+                            <CheckCircle2 className="h-4 w-4" />
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">{option.description}</p>
                       </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <section className={`${currentPreferenceStep === 1 ? 'block' : 'hidden'}`}>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
+              <div className="mb-5 flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#143675]/20 bg-[#143675]/5 text-sm font-bold text-[#143675] dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-200">
+                  2
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">Step 2</p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">What separates payroll runs automatically</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Índice organizes payroll from workforce structure and payroll rules.</p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                {automaticSeparatorCards.map(({ title, description, Icon }) => (
+                  <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#143675] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-blue-300 dark:ring-slate-700">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div className="mt-4">
+                      <p className="text-base font-bold text-slate-900 dark:text-white">{title}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
                     </div>
                   </div>
-                </section>
+                ))}
+              </div>
+              <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 px-5 py-4 text-sm leading-6 text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
+                Multiple payroll runs can appear even with single payroll because frequency, workforce type, and jurisdiction still organize reviews automatically.
+              </div>
+            </div>
+          </section>
 
-                <div className="space-y-5">
-                  <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {currentSetupLabel}
-                        </p>
-                        <h3 className="mt-1 text-[1.1rem] font-bold text-slate-900 dark:text-white">
-                          {selectedOptionTitle}
-                        </h3>
-                        <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                          {selectedOption.description}
-                        </p>
-                      </div>
-                      <span className="inline-flex rounded-full border border-[#143675]/15 bg-[#143675]/8 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-[#143675]/30 dark:bg-[#143675]/15 dark:text-blue-300">
-                        {selectedOption.highlighted ? copy.labels.recommended : activeStateLabel}
+          <section className={`${currentPreferenceStep === 2 ? 'block' : 'hidden'}`}>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
+              <div className="mb-5 flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#143675]/20 bg-white text-sm font-bold text-[#143675] dark:border-blue-400/25 dark:bg-slate-900 dark:text-blue-200">
+                  3
+                </span>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
+                    Step 3
+                  </p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">Operational defaults</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    Default values used when payroll runs are reviewed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
+                  <label className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {copy.labels.defaultDailyHours}
+                  </label>
+                  <div className="mt-3 flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.25"
+                      disabled={isSaving}
+                      value={form.default_daily_hours}
+                      onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
+                      className="h-12 w-32 rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800/60"
+                    />
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">hours per day</span>
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{dailyHoursHelper}</p>
+                </div>
+
+                <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-[#143675]/35 dark:border-slate-700 dark:bg-slate-800/70">
+                  <input
+                    type="checkbox"
+                    checked={form.pay_leave_days}
+                    disabled={isSaving}
+                    onChange={(event) => onChange({ ...form, pay_leave_days: event.target.checked })}
+                    className="mt-1 h-5 w-5 rounded border-slate-300 text-[#143675] focus:ring-[#143675] disabled:cursor-not-allowed"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{copy.labels.payLeaveDays}</p>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${form.pay_leave_days
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                        }`}>
+                        {paidLeaveValueLabel}
                       </span>
                     </div>
-
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          {copy.labels.defaultDailyHours}
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-                          {dailyHoursValueLabel}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          {copy.labels.payLeaveDays}
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-                          {paidLeaveValueLabel}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-                        <ShieldCheck className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                          {copy.labels.operationalSettings}
-                        </h3>
-                        <div className="mt-4 space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                              {copy.labels.defaultDailyHours}
-                            </label>
-                            <input
-                              type="number"
-                              min="0.5"
-                              step="0.25"
-                              disabled={isSaving}
-                              value={form.default_daily_hours}
-                              onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
-                              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-none transition-colors focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-800/60"
-                            />
-                            <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">
-                              {dailyHoursHelper}
-                            </p>
-                          </div>
-
-                          <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-slate-600">
-                            <input
-                              type="checkbox"
-                              checked={form.pay_leave_days}
-                              disabled={isSaving}
-                              onChange={(event) => onChange({ ...form, pay_leave_days: event.target.checked })}
-                              className="mt-1 h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675] disabled:cursor-not-allowed"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                                {copy.labels.payLeaveDays}
-                              </p>
-                              <p className="mt-1 text-xs leading-6 text-slate-500 dark:text-slate-400">
-                                {leaveDaysHelper}
-                              </p>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">{leaveDaysHelper}</p>
+                  </div>
+                </label>
               </div>
-
-              <section className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h3 className="text-[1.12rem] font-bold text-slate-900 dark:text-white">
-                      {copy.preferencesInfo.selectionTitle}
-                    </h3>
-                    <p className="mt-1 text-sm leading-7 text-slate-500 dark:text-slate-400">
-                      {selectionHelper}
-                    </p>
-                  </div>
-                  {selectedOption.highlighted ? (
-                    <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-                      {copy.labels.recommended}
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-3">
-                  {groupingOptions.map((option) => {
-                    const isSelected = form.grouping_mode === option.key;
-                    const Icon = optionIconMap[option.key];
-
-                    return (
-                      <button
-                        key={option.key}
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => {
-                          if (form.grouping_mode !== option.key) {
-                            onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] });
-                          }
-                        }}
-                        className={`group h-full w-full rounded-[28px] border px-5 py-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70 ${isSelected
-                          ? 'border-[#143675] bg-[#143675]/6 shadow-sm ring-2 ring-[#143675]/10 dark:border-[#143675]/55 dark:bg-[#143675]/14'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900/70 dark:hover:border-slate-600'
-                          }`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-colors ${isSelected
-                            ? 'bg-[#143675] text-white'
-                            : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:bg-slate-700'
-                            }`}>
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${isSelected
-                            ? 'border-[#143675] bg-white text-[#143675] dark:bg-slate-950'
-                            : 'border-slate-300 bg-white text-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-600'
-                            }`}>
-                            <CheckCircle2 className="h-5 w-5" />
-                          </div>
-                        </div>
-
-                        <div className="mt-5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-[1.08rem] font-bold leading-tight text-slate-900 dark:text-white">
-                              {option.title}
-                            </h4>
-                            {option.highlighted ? (
-                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-[#143675] dark:bg-slate-800 dark:text-slate-100">
-                                {copy.labels.recommended}
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                            {option.description}
-                          </p>
-                        </div>
-
-                        <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-700">
-                          <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            {optionValueMap[option.key]}
-                          </span>
-                          <span className={`text-xs font-semibold ${isSelected ? 'text-[#143675] dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {isSelected ? activeStateLabel : useThisModeLabel}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="rounded-[24px] border border-amber-200/80 bg-amber-50/70 p-4 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/15">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-amber-600 shadow-sm dark:bg-slate-900 dark:text-amber-300">
-                    <Settings className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      {operationalNoteTitle}
-                    </p>
-                    <p className="mt-1 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {copy.preferencesInfo.note}
-                    </p>
-                  </div>
-                </div>
-              </section>
             </div>
-          </div>
+          </section>
+        </div>
 
-          <DialogFooter className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900 sm:px-6">
-            <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {copy.labels.groupingMode}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-                  {selectedOptionTitle}
-                </p>
-              </div>
+        <DialogFooter className="shrink-0 border-t border-white/15 bg-[#143675] px-6 py-4 text-white">
+          <div className="flex w-full items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">Payroll organization</p>
+              <p className="max-w-[540px] truncate text-xs text-blue-100">{impactMessage}</p>
+            </div>
 
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex shrink-0 gap-2">
+              <Button
+                variant="outline"
+                disabled={isSaving}
+                className="h-11 rounded-xl border-white/50 bg-transparent px-5 text-sm font-semibold text-white shadow-none hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={onClose}
+              >
+                {copy.labels.cancel}
+              </Button>
+              {currentPreferenceStep > 0 ? (
                 <Button
                   variant="outline"
                   disabled={isSaving}
-                  className="h-11 rounded-2xl border-slate-200 bg-white px-5 text-base font-semibold shadow-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                  onClick={onClose}
+                  className="h-11 rounded-xl border-white/50 bg-transparent px-5 text-sm font-semibold text-white shadow-none hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={goToPreviousPreferenceStep}
                 >
-                  {copy.labels.cancel}
+                  Back
                 </Button>
+              ) : null}
+              {isFinalPreferenceStep ? (
                 <Button
                   onClick={onSave}
                   disabled={isSaving}
-                  className="h-11 gap-2 rounded-2xl bg-[#143675] px-5 text-base font-semibold text-white hover:bg-[#0f2855]"
+                  className="h-11 gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
-                  {copy.labels.savePreferences}
+                  {saveButtonLabel}
                 </Button>
-              </div>
+              ) : (
+                <Button
+                  onClick={goToNextPreferenceStep}
+                  disabled={isSaving}
+                  className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
+                >
+                  Continue
+                </Button>
+              )}
             </div>
-          </DialogFooter>
-        </div>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

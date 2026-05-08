@@ -13,6 +13,7 @@ interface AttendanceRecorderPhotoCardProps {
   photoLockedHint: string;
   photo: AttendancePhotoValue | null;
   disabled?: boolean;
+  showGalleryUpload?: boolean;
   onPhotoChange: (photo: AttendancePhotoValue | null) => void;
   onError: (message: string) => void;
   errors: {
@@ -32,6 +33,7 @@ export function AttendanceRecorderPhotoCard({
   photo,
   photoLockedHint,
   disabled = false,
+  showGalleryUpload = true,
   onPhotoChange,
   onError,
   errors,
@@ -230,7 +232,7 @@ export function AttendanceRecorderPhotoCard({
         </>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className={`grid grid-cols-1 gap-3 ${showGalleryUpload ? 'sm:grid-cols-2' : ''}`}>
             <Button
               type="button"
               variant="outline"
@@ -243,16 +245,18 @@ export function AttendanceRecorderPhotoCard({
               <Camera className="h-4 w-4" />
               {takePhotoLabel}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2"
-              disabled={disabled}
-              onClick={chooseFromGallery}
-            >
-              <ImagePlus className="h-4 w-4" />
-              {chooseFromGalleryLabel}
-            </Button>
+            {showGalleryUpload ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                disabled={disabled}
+                onClick={chooseFromGallery}
+              >
+                <ImagePlus className="h-4 w-4" />
+                {chooseFromGalleryLabel}
+              </Button>
+            ) : null}
           </div>
           <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
         </>

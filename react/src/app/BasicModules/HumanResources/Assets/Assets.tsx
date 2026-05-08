@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { dashboardApi } from '../../../api/dashboard';
 import {
   hrAssetsApi,
@@ -11,12 +11,14 @@ import { humanResourcesApi } from '../../../api/humanResources';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { SuccessToast } from '../../../components/SuccessToast';
-import { Button } from '../../../components/ui/button';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useLanguage } from '../../../shared/context';
 import { AddNewAssests, type AddNewAssetDraft, type AddNewAssetOption, type AddNewAssetType } from './AddNewAssests';
 import { AssetDetailsModal } from './AssetDetailsModal';
 import { AssetColumnConfig, AssetColumnsModal } from './AssetColumnsModal';
+import { AssetFilters } from './components/AssetFilters';
+import { AssetHeaderBar } from './components/AssetHeaderBar';
+import { AssetKpiStrip } from './components/AssetKpiStrip';
 import { useHRLanguage } from '../HRLanguage';
 
 type AssetType = AddNewAssetType;
@@ -565,126 +567,31 @@ export default function Assets() {
 
   return (
     <>
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
-              <span className="text-2xl">🏢</span>
-              {t.assets.title}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t.assets.subtitle}
-            </p>
-          </div>
+      <AssetHeaderBar
+        onAdd={handleCreateAsset}
+        onColumns={() => setIsColumnsModalOpen(true)}
+      />
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              className="gap-2 border-[#143675]/30 bg-white/70 text-[#143675] hover:bg-[#143675] hover:text-white dark:border-[#4a7bc8]/30 dark:bg-gray-800/50 dark:text-white dark:hover:bg-[#143675]"
-              onClick={() => setIsColumnsModalOpen(true)}
-            >
-              <Settings2 className="h-4 w-4" />
-              {t.assets.columnPicker.button}
-            </Button>
-            <Button className="gap-2 bg-[#3121a8] text-white hover:bg-[#261882]" onClick={handleCreateAsset}>
-              <Plus className="h-4 w-4" />
-              {t.assets.newAsset}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <AssetFilters
+        searchQuery={searchQuery}
+        statusFilter={statusFilter}
+        typeFilter={typeFilter}
+        unitFilter={unitFilter}
+        unitOptions={unitOptions}
+        onSearchChange={setSearchQuery}
+        onStatusChange={setStatusFilter}
+        onTypeChange={setTypeFilter}
+        onUnitChange={setUnitFilter}
+      />
 
-      <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.total}</p>
-              <p className="mt-2 text-4xl font-bold text-gray-900 dark:text-white">{summary.total_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7c5cff]/18 text-xl">📦</div>
-          </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.assigned}</p>
-              <p className="mt-2 text-4xl font-bold text-emerald-400">{summary.assigned_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/18 text-xl">✅</div>
-          </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.available}</p>
-              <p className="mt-2 text-4xl font-bold text-[#7e92ff]">{summary.available_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#5c7cff]/18 text-[10px] font-bold text-[#90a1ff]">
-              FREE
-            </div>
-          </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.maintenance}</p>
-              <p className="mt-2 text-4xl font-bold text-amber-400">{summary.maintenance_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/18 text-xl">🔧</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-5 grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/95 xl:grid-cols-[1.4fr_1fr_1fr_1fr]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={t.assets.searchPlaceholder}
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-          />
-        </div>
-
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value as 'all' | AssetType)}
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-        >
-          <option value="all">{t.assets.filters.allTypes}</option>
-          <option value="laptop">{t.assets.filters.computerEquipment}</option>
-          <option value="attendance">{t.assets.filters.attendanceControl}</option>
-          <option value="operations">{t.assets.filters.operation}</option>
-          <option value="maintenance">{t.assets.filters.maintenance}</option>
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as 'all' | HrAssetStatus)}
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-        >
-          <option value="all">{t.assets.filters.allStatuses}</option>
-          <option value="available">{t.assets.filters.available}</option>
-          <option value="assigned">{t.assets.filters.assigned}</option>
-          <option value="maintenance">{t.assets.filters.inMaintenance}</option>
-          <option value="custody">{t.assets.filters.custody}</option>
-          <option value="inactive">{t.assets.filters.inactive}</option>
-        </select>
-
-        <select
-          value={unitFilter}
-          onChange={(event) => setUnitFilter(event.target.value)}
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-        >
-          <option value="all">{t.assets.filters.allUnits}</option>
-          {unitOptions.map((unit) => (
-            <option key={unit.value} value={unit.value}>
-              {unit.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <AssetKpiStrip
+        assignedCount={summary.assigned_count}
+        availableCount={summary.available_count}
+        maintenanceCount={summary.maintenance_count}
+        totalCount={summary.total_count}
+        totalValueAmount={summary.total_value_amount}
+        visibleCount={filteredAssets.length}
+      />
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white/95 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
         <div className="overflow-x-auto">

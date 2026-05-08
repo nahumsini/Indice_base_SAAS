@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type MouseEvent, type ReactNode } from 'react';
 import { ImageIcon, MapPin } from 'lucide-react';
 import {
   type AttendanceCalendarDay,
@@ -37,6 +37,28 @@ export function getAssignmentBusyReason(assignment: ControlAssignment) {
 
 export const isAssignmentFreeForWork = (assignment: ControlAssignment) => !getAssignmentBusyReason(assignment);
 
+const attendanceRowBorderClass = (assignment: ControlAssignment) => {
+  const displayStatus = assignment.corrected_status ?? assignment.today_status;
+
+  if (displayStatus === 'absence') {
+    return 'border-l-rose-500';
+  }
+
+  if (assignment.first_check_in_at && !assignment.last_check_out_at) {
+    return 'border-l-amber-500';
+  }
+
+  if (displayStatus === 'late') {
+    return 'border-l-amber-500';
+  }
+
+  if (displayStatus === 'on_time' || assignment.first_check_in_at) {
+    return 'border-l-emerald-500';
+  }
+
+  return 'border-l-gray-300 dark:border-l-gray-600';
+};
+
 export function formatDate(value: string | null | undefined, locale: string, fallback: string) {
   if (!value) {
     return fallback;
@@ -70,14 +92,15 @@ export function ControlAttendanceRow({
   onSelect: () => void;
 }) {
   const displayStatus = assignment.corrected_status ?? assignment.today_status;
+  const rowBorderClassName = attendanceRowBorderClass(assignment);
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full border-b border-gray-200 px-4 py-4 text-left transition-colors dark:border-gray-700 ${
+      className={`w-full border-b border-l-4 border-b-gray-200 px-4 py-4 text-left transition-colors dark:border-b-gray-700 ${rowBorderClassName} ${
         selected
-          ? 'border-l-4 border-l-[#1463ff] bg-[#1463ff]/5'
+          ? 'bg-[#1463ff]/5 shadow-[inset_0_0_0_1px_rgba(20,99,255,0.12)]'
           : 'hover:bg-gray-50 dark:hover:bg-gray-900/40'
       }`}
     >
@@ -99,14 +122,14 @@ export function ControlAttendanceRow({
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AttendanceMomentPanel
-          label={copy.labels.checkIn}
-          time={formatTimeOnly(assignment.first_check_in_at, locale, copy.labels.noRegistration)}
+          label="Check-in"
+          time={formatTimeOnly(assignment.first_check_in_at, locale, 'No record')}
           location={assignment.latest_event?.location_name ?? null}
           copy={copy}
         />
         <AttendanceMomentPanel
-          label={copy.labels.checkOut}
-          time={formatTimeOnly(assignment.last_check_out_at, locale, copy.labels.noRegistration)}
+          label="Check-out"
+          time={formatTimeOnly(assignment.last_check_out_at, locale, 'No record')}
           location={assignment.latest_event?.location_name ?? null}
           copy={copy}
         />
@@ -126,10 +149,12 @@ export function AttendanceMomentPanel({
   location: string | null;
   copy: AttendanceControlCopy;
 }) {
+  const isEmpty = time === 'No record';
+
   return (
     <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-900/40">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-[#1f9d55] dark:text-emerald-300">{time}</p>
+      <p className={`mt-2 text-lg font-semibold ${isEmpty ? 'text-gray-500 dark:text-gray-400' : 'text-[#1f9d55] dark:text-emerald-300'}`}>{time}</p>
       <div className="mt-3 flex items-center gap-1.5 text-xs text-[#1463ff] dark:text-[#8bb3ff]">
         <MapPin className="h-3.5 w-3.5" />
         <span className="truncate">{location || copy.labels.openLocation}</span>
@@ -156,26 +181,47 @@ export function ControlCalendarDayCell({
   copy,
   day,
   dayNumber,
+  isMultiSelected = false,
   isSelected,
+  locale,
+  onMouseDown,
+  onMouseEnter,
+  onMouseUp,
   onSelect,
 }: {
   copy: AttendanceControlCopy;
   day: AttendanceCalendarDay | null;
   dayNumber: number;
+  isMultiSelected?: boolean;
   isSelected: boolean;
+  locale: string;
+  onMouseDown?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onMouseEnter?: () => void;
+  onMouseUp?: () => void;
   onSelect: () => void;
 }) {
   const statusTone = day ? dayTone(day) : null;
   const isLocked = day?.attendance_editable === false;
+  const attendanceTooltip = day
+    ? [
+        `Check-in: ${formatTimeOnly(day.first_check_in_at, locale, 'No record')}`,
+        `Check-out: ${formatTimeOnly(day.last_check_out_at, locale, 'No record')}`,
+      ].join('\n')
+    : undefined;
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : undefined}
-      className={`min-h-[92px] rounded-2xl border p-3 text-left transition-colors ${
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
+      onMouseUp={onMouseUp}
+      title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : attendanceTooltip}
+      className={`min-h-[92px] select-none rounded-2xl border p-3 text-left transition-colors ${
         isSelected
-          ? 'border-[#1463ff] bg-[#1463ff]/5 shadow-[inset_0_0_0_1px_rgba(20,99,255,0.15)]'
+          ? 'border-[#1463ff] bg-[#1463ff]/10 shadow-[0_0_0_3px_rgba(20,99,255,0.14),inset_0_0_0_1px_rgba(20,99,255,0.18)]'
+          : isMultiSelected
+          ? 'border-[#143675] bg-[#143675]/10 shadow-[inset_0_0_0_1px_rgba(20,54,117,0.18)]'
           : 'border-gray-200 bg-white hover:border-[#1463ff]/35 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#8bb3ff]/40'
       }`}
     >

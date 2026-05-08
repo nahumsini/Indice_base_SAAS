@@ -1,9 +1,9 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { usePuntoDeVentaTranslations } from '../../hooks/usePuntoDeVentaTranslations';
-import { useDeferredTabChange } from '../../hooks/useDeferredTabChange';
+import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 
 const Sale = lazy(() => import('./Sale/Sale'));
 const Cortes = lazy(() => import('./Cortes'));
@@ -19,12 +19,35 @@ interface PuntoDeVentaProps {
   onNavigate: (page?: string) => void;
 }
 
-type PointOfSaleTabId = 'sale' | 'cortes' | 'clientes' | 'productos' | 'inventario' | 'ordenesCompra' | 'facturacion' | 'descuentos' | 'kpis';
+const pointOfSaleTabIds = [
+  'sale',
+  'cortes',
+  'clientes',
+  'productos',
+  'inventario',
+  'ordenesCompra',
+  'facturacion',
+  'descuentos',
+  'kpis',
+] as const;
+
+type PointOfSaleTabId = (typeof pointOfSaleTabIds)[number];
+
+const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
+  venta: 'sale',
+  arqueos: 'cortes',
+  productos: 'productos',
+  ordenesCompra: 'ordenesCompra',
+  ordenes_compra: 'ordenesCompra',
+};
 
 export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
   const t = usePuntoDeVentaTranslations();
-  const [activeTab, setActiveTab] = useState<PointOfSaleTabId>('sale');
-  const { changeTab, isTabLoading } = useDeferredTabChange<PointOfSaleTabId>(activeTab, setActiveTab);
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
+    'sale',
+    pointOfSaleTabIds,
+    legacyPointOfSaleTabAliases,
+  );
 
   const tabs = [
     { id: 'sale' as const, label: 'Venta', emoji: '🛒', component: Sale },
@@ -84,7 +107,7 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => changeTab(tab.id)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-orange-500 text-white shadow-md'

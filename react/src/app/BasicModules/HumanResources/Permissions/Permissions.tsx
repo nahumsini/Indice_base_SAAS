@@ -1,12 +1,35 @@
 import { useMemo, useState } from 'react';
-import { Calendar, Plus } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
 import { CreatePermissionModal, type PermissionFormData } from './components/CreatePermissionModal';
+import { PermissionColumnsModal, type PermissionColumn } from './components/PermissionColumnsModal';
 import { PermissionDetailModal } from './components/PermissionDetailModal';
 import { PermissionFilters } from './components/PermissionFilters';
-import { PermissionsTable } from './components/PermissionsTable';
+import { PermissionHeaderBar } from './components/PermissionHeaderBar';
+import { PermissionKpiStrip } from './components/PermissionKpiStrip';
+import { PermissionsTable, type PermissionColumnId } from './components/PermissionsTable';
 import { mockPermissions } from './data/permissions.mock';
 import type { PermissionItem, PermissionFilterState } from './types/permissions.types';
+
+const defaultVisiblePermissionColumns: PermissionColumnId[] = [
+  'folio',
+  'employee',
+  'type',
+  'startDate',
+  'endDate',
+  'days',
+  'status',
+  'actions',
+];
+
+const permissionColumns: PermissionColumn[] = [
+  { id: 'folio', label: 'Folio', locked: true },
+  { id: 'employee', label: 'Employee', locked: true },
+  { id: 'type', label: 'Type' },
+  { id: 'startDate', label: 'Start date' },
+  { id: 'endDate', label: 'End date' },
+  { id: 'days', label: 'Days' },
+  { id: 'status', label: 'Status' },
+  { id: 'actions', label: 'Actions', locked: true },
+];
 
 export default function Permissions() {
   const [permissions, setPermissions] = useState<PermissionItem[]>(mockPermissions);
@@ -18,6 +41,10 @@ export default function Permissions() {
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [visiblePermissionColumns, setVisiblePermissionColumns] = useState<PermissionColumnId[]>(
+    defaultVisiblePermissionColumns,
+  );
   const [selectedPermission, setSelectedPermission] = useState<PermissionItem | null>(null);
 
   const isManager = true;
@@ -103,55 +130,39 @@ export default function Permissions() {
     )));
   };
 
+  const handleToggleColumn = (columnId: string) => {
+    const column = permissionColumns.find((item) => item.id === columnId);
+    if (column?.locked) {
+      return;
+    }
+
+    setVisiblePermissionColumns((current) =>
+      current.includes(columnId as PermissionColumnId)
+        ? current.filter((id) => id !== columnId)
+        : [...current, columnId as PermissionColumnId],
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl bg-gray-100 px-6 py-8 dark:bg-gray-900">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900 dark:text-white">
-              <Calendar className="h-8 w-8" />
-              Permissions & Absences
-            </h2>
-            <p className="text-base text-gray-600 dark:text-gray-400">
-              Manage employee requests, vacations, and absences
-            </p>
-          </div>
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            New Request
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-        <span className="flex items-center gap-1.5">
-          📋 <span className="font-medium text-gray-900 dark:text-white">{stats.total}</span> total requests
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ⏳ <span className="font-medium text-yellow-600 dark:text-yellow-400">{stats.pending}</span> pending
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ✓ <span className="font-medium text-green-600 dark:text-green-400">{stats.approved}</span> approved
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ✕ <span className="font-medium text-red-600 dark:text-red-400">{stats.rejected}</span> rejected
-        </span>
-      </div>
+      <PermissionHeaderBar
+        onColumns={() => setIsColumnsModalOpen(true)}
+        onCreate={() => setIsCreateModalOpen(true)}
+      />
 
       <PermissionFilters filters={filters} onFiltersChange={setFilters} isManager={isManager} permissions={permissions} />
 
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        Showing {filteredPermissions.length} of {permissions.length} requests
-      </div>
+      <PermissionKpiStrip
+        approved={stats.approved}
+        pending={stats.pending}
+        rejected={stats.rejected}
+        total={stats.total}
+        visible={filteredPermissions.length}
+      />
 
       <PermissionsTable
         permissions={filteredPermissions}
+        visibleColumns={visiblePermissionColumns}
         onView={(permission) => {
           setSelectedPermission(permission);
           setIsDetailModalOpen(true);
@@ -159,6 +170,14 @@ export default function Permissions() {
         onApprove={handleApprove}
         onReject={handleReject}
         isManager={isManager}
+      />
+
+      <PermissionColumnsModal
+        columns={permissionColumns}
+        isOpen={isColumnsModalOpen}
+        visibleColumns={visiblePermissionColumns}
+        onClose={() => setIsColumnsModalOpen(false)}
+        onToggleColumn={handleToggleColumn}
       />
 
       <CreatePermissionModal

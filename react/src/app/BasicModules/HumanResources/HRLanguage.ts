@@ -663,8 +663,8 @@ const attendanceControlCopy = {
 
 type AttendanceControlLabels = {
   [Key in keyof typeof attendanceControlCopy.en.labels]: typeof attendanceControlCopy.en.labels[Key] extends string
-    ? string
-    : typeof attendanceControlCopy.en.labels[Key];
+  ? string
+  : typeof attendanceControlCopy.en.labels[Key];
 };
 
 const localizeAttendanceControlCopy = (labels: Partial<AttendanceControlLabels>) => ({

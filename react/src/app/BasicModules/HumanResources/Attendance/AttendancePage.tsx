@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, MapPin, User, View } from 'lucide-react';
 import { AttendanceRecorderPhotoCard } from './AttendanceRecorderPhotoCard';
-import { CalendarioAsistencia } from '../../../components/CalendarioAsistencia';
+import { AttendanceRecordsModal } from './AttendanceRecordsModal';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { useAttendancePhotoUpload } from '../../../hooks/useAttendancePhotoUpload';
 import { useLanguage } from '../../../shared/context';
@@ -75,7 +69,8 @@ const attendanceCopy = {
     title: 'Attendance',
     subtitle: 'Register your user entry/exit with photo and location.',
     viewRecords: 'View my records',
-    markBlock: 'Mark block',
+    recordsModalSubtitle: 'Review monthly attendance, evidence, and manual corrections in one focused view.',
+    closeRecords: 'Close',
     loading: {
       refreshTitle: 'Updating attendance',
       refreshDescription: 'We are syncing the HR operation.',
@@ -191,7 +186,8 @@ const attendanceCopy = {
     title: 'Asistencia',
     subtitle: 'Registra la entrada/salida de tu usuario con foto y ubicación.',
     viewRecords: 'Ver mis registros',
-    markBlock: 'Marcar bloque',
+    recordsModalSubtitle: 'Revisa asistencia mensual, evidencia y correcciones manuales en una vista clara.',
+    closeRecords: 'Cerrar',
     loading: {
       refreshTitle: 'Actualizando asistencia',
       refreshDescription: 'Estamos sincronizando la operación de RH.',
@@ -326,7 +322,6 @@ export default function Attendance() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const registrationRef = useRef<HTMLDivElement | null>(null);
   const successToastTimeoutRef = useRef<number | null>(null);
   const attendancePhotoUpload = useAttendancePhotoUpload();
   const attendanceLocations = useMemo(() => dashboard?.locations ?? [], [dashboard?.locations]);
@@ -776,29 +771,25 @@ export default function Attendance() {
         durationMs={4200}
       />
 
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
+      <div className="mb-5 rounded-lg border border-[#143675]/30 bg-[#143675]/10 p-6 shadow-sm dark:border-[#143675]/40 dark:bg-[#143675]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
               <span className="text-2xl">📅</span>
               {copy.title}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               {copy.subtitle}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" className="gap-2" onClick={() => setIsRecordsOpen(true)} disabled={!selectedItem}>
+            <Button
+              className="h-11 gap-2 rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855] disabled:bg-gray-300 disabled:text-gray-500"
+              onClick={() => setIsRecordsOpen(true)}
+              disabled={!selectedItem}
+            >
               <View className="h-4 w-4" />
               {copy.viewRecords}
-            </Button>
-            <Button
-              className="bg-[#143675] text-white hover:bg-[#0f2855]"
-              onClick={() => {
-                registrationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }}
-            >
-              {copy.markBlock}
             </Button>
           </div>
         </div>
@@ -883,6 +874,7 @@ export default function Attendance() {
                   photoLockedHint={copy.recorder.photoLockedHint}
                   photo={attendancePhotoUpload.photo}
                   disabled={photoCaptureDisabled}
+                  showGalleryUpload={false}
                   onPhotoChange={attendancePhotoUpload.setCapturedPhoto}
                   onError={setErrorMessage}
                   errors={{
@@ -913,7 +905,7 @@ export default function Attendance() {
           )}
         </div>
 
-        <div ref={registrationRef} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="mb-6">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -1043,27 +1035,19 @@ export default function Attendance() {
         </div>
       </div>
 
-      <Dialog open={isRecordsOpen} onOpenChange={setIsRecordsOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>{copy.viewRecords}</DialogTitle>
-          </DialogHeader>
-          {selectedItem && calendar ? (
-            <CalendarioAsistencia
-              colaboradorNombre={calendar.employee.full_name}
-              month={calendarMonth}
-              days={calendar.items}
-              isLoading={isLoadingCalendar}
-              onMonthChange={setCalendarMonth}
-              onUpdateStatus={handleUpdateStatus}
-            />
-          ) : (
-            <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-              {copy.labels.noEmployeeSelected}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <AttendanceRecordsModal
+        calendar={selectedItem ? calendar : null}
+        closeLabel={copy.closeRecords}
+        emptyMessage={copy.labels.noEmployeeSelected}
+        isLoadingCalendar={isLoadingCalendar}
+        isOpen={isRecordsOpen}
+        month={calendarMonth}
+        subtitle={copy.recordsModalSubtitle}
+        title={copy.viewRecords}
+        onMonthChange={setCalendarMonth}
+        onOpenChange={setIsRecordsOpen}
+        onUpdateStatus={handleUpdateStatus}
+      />
     </>
   );
 }

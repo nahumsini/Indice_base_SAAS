@@ -1,4 +1,3 @@
-import { Copy, ExternalLink, MapPin, Pencil, Plus, QrCode, RotateCw, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   Dialog,
@@ -15,16 +14,19 @@ import {
   type AttendanceControlLocationPayload,
   type AttendanceControlTemplate,
   type AttendanceControlTemplatePayload,
-  type AttendanceKioskDevice,
   type AttendanceKioskDevicePayload,
 } from '../../../../api/humanResources';
 import {
   getAssignmentBusyReason,
   isAssignmentFreeForWork,
   type AttendanceControlCopy,
-  statusClasses,
   weekdayLabel,
 } from './ControlAttendanceWidgets';
+import {
+  KioskManagementModal,
+  type KioskManagementModalProps,
+} from './kiosks/KioskManagementModal';
+import { CreateKioskModal } from './kiosks/CreateKioskModal';
 
 export interface ControlWorkSiteForm {
   employee_ids: number[];
@@ -774,203 +776,8 @@ export function ControlWorkSiteDialog({
   );
 }
 
-export function ControlKioskManagerDialog({
-  copy,
-  isOpen,
-  isSaving,
-  kioskDevices,
-  locations,
-  onClose,
-  onNew,
-  onEdit,
-  onOpen,
-  onCopy,
-  onQr,
-  onRotate,
-  onDelete,
-}: {
-  copy: AttendanceControlCopy;
-  isOpen: boolean;
-  isSaving: boolean;
-  kioskDevices: AttendanceKioskDevice[];
-  locations: AttendanceControlLocation[];
-  onClose: () => void;
-  onNew: () => void;
-  onEdit: (device: AttendanceKioskDevice) => void;
-  onOpen: (device: AttendanceKioskDevice) => void;
-  onCopy: (device: AttendanceKioskDevice) => void;
-  onQr: (device: AttendanceKioskDevice) => void;
-  onRotate: (device: AttendanceKioskDevice) => void;
-  onDelete: (device: AttendanceKioskDevice) => void;
-}) {
-  const locationNameForDevice = (device: AttendanceKioskDevice) => {
-    const kioskType = kioskTypeFromMetadata(device.metadata);
-    if (kioskType === 'business_unit' && !device.location_id) {
-      return copy.labels.kioskLocationResolvedByScope;
-    }
-    return device.location_name
-      || locations.find((location) => location.id === device.location_id)?.name
-      || copy.labels.noLinkedLocation;
-  };
-  const scopeNameForDevice = (device: AttendanceKioskDevice) => {
-    const kioskType = kioskTypeFromMetadata(device.metadata);
-    if (kioskType !== 'business_unit') {
-      return [device.unit_name || copy.labels.noUnit, device.business_name || copy.labels.noBusiness].join(' / ');
-    }
-    if (device.business_id) {
-      return [device.unit_name || copy.labels.allUnits, device.business_name || copy.labels.noBusiness].join(' / ');
-    }
-    if (device.unit_id) {
-      return [device.unit_name || copy.labels.noUnit, copy.labels.allBusinesses].join(' / ');
-    }
-    return [copy.labels.allUnits, copy.labels.allBusinesses].join(' / ');
-  };
-  const kioskTypeLabel = (device: AttendanceKioskDevice) => {
-    const kioskType = kioskTypeFromMetadata(device.metadata);
-    if (kioskType === 'contract_site') {
-      return copy.labels.kioskTypeContractSite;
-    }
-    if (kioskType === 'head_office') {
-      return copy.labels.kioskTypeHeadOffice;
-    }
-    return copy.labels.kioskTypeBusinessUnit;
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-5xl">
-        <DialogHeader>
-          <DialogTitle>{copy.labels.manageKiosks}</DialogTitle>
-          <DialogDescription>{copy.sections.kiosksHint}</DialogDescription>
-        </DialogHeader>
-
-        <div className="flex justify-end">
-          <Button type="button" className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]" onClick={onNew}>
-            <Plus className="h-4 w-4" />
-            {copy.labels.newKiosk}
-          </Button>
-        </div>
-
-        {kioskDevices.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="hidden grid-cols-[1.25fr_1fr_1fr_auto] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400 md:grid">
-              <span>{copy.labels.kioskDevice}</span>
-              <span>{copy.labels.kioskScope}</span>
-              <span>{copy.labels.linkedLocation}</span>
-              <span className="text-right">{copy.labels.status}</span>
-            </div>
-
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {kioskDevices.map((device) => {
-                const hasPublicLink = Boolean(device.public_access_token);
-
-                return (
-                  <div key={device.id} className="grid gap-4 px-4 py-4 md:grid-cols-[1.25fr_1fr_1fr_auto] md:items-center">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-gray-900 dark:text-white">{device.name}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses[device.status]}`}>
-                          {copy.statuses[device.status]}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {copy.labels.code}: {device.code || '—'}
-                      </p>
-                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        {hasPublicLink ? copy.labels.kioskPublicLink : copy.labels.kioskTokenUnavailable}
-                      </p>
-                    </div>
-
-                    <div className="text-sm text-gray-600 dark:text-gray-300">
-                      <p>{kioskTypeLabel(device)}</p>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {scopeNameForDevice(device)}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                      <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-                      <span>{locationNameForDevice(device)}</span>
-                    </div>
-
-                    <div className="flex flex-wrap justify-start gap-2 md:justify-end">
-                      <Button type="button" variant="outline" size="sm" className="gap-2" disabled={!hasPublicLink} onClick={() => onOpen(device)}>
-                        <ExternalLink className="h-4 w-4" />
-                        {copy.labels.openKiosk}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={copy.labels.copyKioskLink}
-                        title={copy.labels.copyKioskLink}
-                        disabled={!hasPublicLink}
-                        onClick={() => onCopy(device)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={copy.labels.showKioskQr}
-                        title={copy.labels.showKioskQr}
-                        disabled={!hasPublicLink}
-                        onClick={() => onQr(device)}
-                      >
-                        <QrCode className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={copy.labels.rotateKioskLink}
-                        title={copy.labels.rotateKioskLink}
-                        disabled={isSaving}
-                        onClick={() => onRotate(device)}
-                      >
-                        <RotateCw className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={copy.labels.editKiosk}
-                        title={copy.labels.editKiosk}
-                        onClick={() => onEdit(device)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
-                        aria-label={copy.labels.deleteKiosk}
-                        title={copy.labels.deleteKiosk}
-                        disabled={isSaving}
-                        onClick={() => onDelete(device)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-            {copy.labels.noKiosks}
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+export function ControlKioskManagerDialog(props: KioskManagementModalProps) {
+  return <KioskManagementModal {...props} />;
 }
 
 export function ControlKioskDialog({
@@ -980,6 +787,7 @@ export function ControlKioskDialog({
   form,
   locations,
   title,
+  isEditing = false,
   onClose,
   onChange,
   onSave,
@@ -991,6 +799,7 @@ export function ControlKioskDialog({
   assignments: AttendanceControlAssignment[];
   locations: AttendanceControlLocation[];
   title: string;
+  isEditing?: boolean;
   onClose: () => void;
   onChange: (value: AttendanceKioskDevicePayload) => void;
   onSave: () => void;
@@ -1106,132 +915,27 @@ export function ControlKioskDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{copy.sections.kiosksHint}</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskType}</label>
-            <select
-              value={kioskType}
-              onChange={(event) => updateKioskType(event.target.value as KioskType)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="business_unit">{copy.labels.kioskTypeBusinessUnit}</option>
-              <option value="contract_site">{copy.labels.kioskTypeContractSite}</option>
-              <option value="head_office">{copy.labels.kioskTypeHeadOffice}</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.deviceCode}</label>
-              <input
-                type="text"
-                value={form.code}
-                onChange={(event) => onChange({ ...form, code: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskDevice}</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(event) => onChange({ ...form, name: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-          </div>
-
-          {isBusinessUnitKiosk ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskUnitScope}</label>
-                <select
-                  value={form.unit_id ?? ''}
-                  onChange={(event) => updateKioskUnit(event.target.value ? Number(event.target.value) : null)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="">{copy.labels.allUnits}</option>
-                  {unitOptions.map((unit) => (
-                    <option key={unit.id} value={unit.id}>{unit.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskBusinessScope}</label>
-                <select
-                  value={form.business_id ?? ''}
-                  disabled={!form.unit_id}
-                  onChange={(event) => updateKioskBusiness(event.target.value ? Number(event.target.value) : null)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="">{copy.labels.allBusinesses}</option>
-                  {form.unit_id ? businessOptions.map((business) => (
-                    <option key={business.id} value={business.id}>{business.name}</option>
-                  )) : null}
-                </select>
-              </div>
-
-              {businessStructureLocations.length === 0 ? (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
-                  {copy.labels.noKioskLocationsForType}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-500 dark:text-gray-400 sm:col-span-2">{copy.labels.kioskScopeHint}</p>
-              )}
-            </div>
-          ) : (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.kioskCheckInLocation}</label>
-              <select
-                value={form.location_id ?? ''}
-                onChange={(event) => updateKioskLocation(event.target.value ? Number(event.target.value) : null)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">{copy.labels.noLinkedLocation}</option>
-                {availableLocations.map((location) => (
-                  <option key={location.id} value={location.id}>{location.name}</option>
-                ))}
-              </select>
-              {availableLocations.length === 0 ? (
-                <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
-                  {copy.labels.noKioskLocationsForType}
-                </p>
-              ) : (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{copy.labels.kioskCheckInLocationHint}</p>
-              )}
-            </div>
-          )}
-
-          <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900/60 dark:text-gray-300">
-            {copy.labels.kioskScope}: {selectedScopeLabel}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.status}</label>
-            <select
-              value={form.status}
-              onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="active">{copy.statuses.active}</option>
-              <option value="inactive">{copy.statuses.inactive}</option>
-            </select>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button onClick={onSave} disabled={!canSave}>{copy.labels.save}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <CreateKioskModal
+      canSave={canSave}
+      form={form}
+      isBusinessUnitKiosk={isBusinessUnitKiosk}
+      isEditing={isEditing}
+      isOpen={isOpen}
+      isSaving={isSaving}
+      kioskType={kioskType}
+      title={title}
+      availableLocations={availableLocations}
+      businessOptions={businessOptions}
+      hasBusinessStructureLocations={businessStructureLocations.length > 0}
+      selectedScopeLabel={selectedScopeLabel}
+      unitOptions={unitOptions}
+      onChange={onChange}
+      onClose={onClose}
+      onKioskTypeChange={updateKioskType}
+      onLocationChange={updateKioskLocation}
+      onBusinessChange={updateKioskBusiness}
+      onSave={onSave}
+      onUnitChange={updateKioskUnit}
+    />
   );
 }
