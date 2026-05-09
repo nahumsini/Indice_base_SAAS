@@ -54,19 +54,20 @@ public class HrFaceService {
     @Transactional
     public Map<String, Object> createEnrollmentSession(long companyId, long userId, Map<String, Object> payload) {
         requireFaceEnabled();
-        var employeeId = parseRequiredEmployeeId(payload);
-        ensureEmployeeIsEligible(companyId, employeeId);
+        var userCompanyId = parseRequiredUserCompanyId(payload);
+        ensureHrUserIsEligible(companyId, userCompanyId);
+        var targetUserId = loadUserIdForCompanyUser(companyId, userCompanyId);
 
         jdbcTemplate.update(
             """
-                UPDATE hr_face_enrollments
+                UPDATE user_face_enrollments
                 SET status = 'replaced'
                 WHERE company_id = ?
-                  AND employee_id = ?
+                  AND user_company_id = ?
                   AND status = 'pending'
                 """,
             companyId,
-            employeeId
+            userCompanyId
         );
 
         var expiresAt = LocalDateTime.now().plusSeconds(faceVerificationProperties.getSessionExpirySeconds());
@@ -74,16 +75,17 @@ public class HrFaceService {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                 """
-                    INSERT INTO hr_face_enrollments
-                    (company_id, employee_id, status, expires_at, created_by)
-                    VALUES (?, ?, 'pending', ?, ?)
+                    INSERT INTO user_face_enrollments
+                    (company_id, user_company_id, user_id, status, expires_at, created_by)
+                    VALUES (?, ?, ?, 'pending', ?, ?)
                     """,
                 new String[] {"id"}
             );
             statement.setLong(1, companyId);
-            statement.setLong(2, employeeId);
-            statement.setObject(3, expiresAt);
-            statement.setLong(4, userId);
+            statement.setLong(2, userCompanyId);
+            statement.setLong(3, targetUserId);
+            statement.setObject(4, expiresAt);
+            statement.setLong(5, userId);
             return statement;
         }, keyHolder);
 
@@ -94,7 +96,7 @@ public class HrFaceService {
 
         var body = new LinkedHashMap<String, Object>();
         body.put("id", enrollmentId);
-        body.put("employee_id", employeeId);
+        body.put("user_company_id", userCompanyId);
         body.put("status", "pending");
         body.put("required_steps", REQUIRED_STEPS);
         body.put("expires_at", expiresAt.toString());
@@ -113,7 +115,7 @@ public class HrFaceService {
 
         var step = normalizeStep(payload.get("step"));
         var contentType = normalizeImageContentType(payload.get("content_type"));
-        var objectKey = buildEnrollmentObjectKey(companyId, enrollment.employeeId(), enrollmentId, step, contentType);
+        var objectKey = buildEnrollmentObjectKey(companyId, enrollment.userCompanyId(), enrollmentId, step, contentType);
         replaceEnrollmentCaptureIfExists(enrollmentId, step);
         var upload = objectStorageService.presignUpload(
             biometricBucket(),
@@ -124,7 +126,7 @@ public class HrFaceService {
 
         jdbcTemplate.update(
             """
-                INSERT INTO hr_face_enrollment_captures
+                INSERT INTO user_face_enrollment_captures
                 (enrollment_id, capture_step, object_key, capture_metadata_json, status)
                 VALUES (?, ?, ?, CAST(? AS JSON), 'pending')
                 """,
@@ -177,14 +179,14 @@ public class HrFaceService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_face_enrollments
+                UPDATE user_face_enrollments
                 SET status = 'superseded'
                 WHERE company_id = ?
-                  AND employee_id = ?
+                  AND user_company_id = ?
                   AND status = 'active'
                 """,
             companyId,
-            enrollment.employeeId()
+            enrollment.userCompanyId()
         );
 
         for (int index = 0; index < REQUIRED_STEPS.size(); index += 1) {
@@ -192,7 +194,7 @@ public class HrFaceService {
             var capture = captures.stream().filter((item) -> step.equals(item.captureStep())).findFirst().orElseThrow();
             jdbcTemplate.update(
                 """
-                    UPDATE hr_face_enrollment_captures
+                    UPDATE user_face_enrollment_captures
                     SET embedding_json = CAST(? AS JSON),
                         status = 'processed',
                         processed_at = ?
@@ -207,7 +209,7 @@ public class HrFaceService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_face_enrollments
+                UPDATE user_face_enrollments
                 SET status = 'active',
                     enrolled_at = ?,
                     updated_at = CURRENT_TIMESTAMP
@@ -220,47 +222,47 @@ public class HrFaceService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_employee_access_profiles
+                UPDATE user_access_profiles
                 SET last_enrolled_at = ?
                 WHERE company_id = ?
-                  AND employee_id = ?
+                  AND user_company_id = ?
                 """,
             LocalDateTime.now(),
             companyId,
-            enrollment.employeeId()
+            enrollment.userCompanyId()
         );
 
         var body = new LinkedHashMap<String, Object>();
-        body.put("enrollment", toEnrollmentMap(loadLatestEnrollment(companyId, enrollment.employeeId())));
+        body.put("enrollment", toEnrollmentMap(loadLatestEnrollment(companyId, enrollment.userCompanyId())));
         return body;
     }
 
-    public Map<String, Object> getEnrollment(long companyId, long employeeId) {
+    public Map<String, Object> getEnrollment(long companyId, long userCompanyId) {
         requireFaceEnabled();
-        ensureEmployeeExists(companyId, employeeId);
-        var enrollment = loadLatestEnrollment(companyId, employeeId);
+        ensureHrUserExists(companyId, userCompanyId);
+        var enrollment = loadLatestEnrollment(companyId, userCompanyId);
         var body = new LinkedHashMap<String, Object>();
         body.put("enrollment", toEnrollmentMap(enrollment));
         return body;
     }
 
     @Transactional
-    public Map<String, Object> deleteEnrollment(long companyId, long employeeId) {
+    public Map<String, Object> deleteEnrollment(long companyId, long userCompanyId) {
         requireFaceEnabled();
-        ensureEmployeeExists(companyId, employeeId);
+        ensureHrUserExists(companyId, userCompanyId);
 
         var enrollments = jdbcTemplate.query(
             """
                 SELECT id
-                FROM hr_face_enrollments
+                FROM user_face_enrollments
                 WHERE company_id = ?
-                  AND employee_id = ?
+                  AND user_company_id = ?
                   AND status IN ('pending', 'active')
                 ORDER BY id DESC
                 """,
             (rs, rowNum) -> rs.getLong("id"),
             companyId,
-            employeeId
+            userCompanyId
         );
 
         for (var enrollmentId : enrollments) {
@@ -273,17 +275,17 @@ public class HrFaceService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_face_enrollments
+                UPDATE user_face_enrollments
                 SET status = 'deleted',
                     deleted_at = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE company_id = ?
-                  AND employee_id = ?
+                  AND user_company_id = ?
                   AND status IN ('pending', 'active')
                 """,
             LocalDateTime.now(),
             companyId,
-            employeeId
+            userCompanyId
         );
 
         return Map.of("success", true);
@@ -292,10 +294,11 @@ public class HrFaceService {
     @Transactional
     public Map<String, Object> createVerificationSession(long companyId, long userId, Map<String, Object> payload) {
         requireFaceEnabled();
-        var employeeId = parseRequiredEmployeeId(payload);
-        ensureEmployeeIsEligible(companyId, employeeId);
-        if (loadLatestEnrollment(companyId, employeeId) == null) {
-            throw new IllegalArgumentException("Employee is not enrolled for face verification.");
+        var userCompanyId = parseRequiredUserCompanyId(payload);
+        ensureHrUserIsEligible(companyId, userCompanyId);
+        var targetUserId = loadUserIdForCompanyUser(companyId, userCompanyId);
+        if (loadLatestEnrollment(companyId, userCompanyId) == null) {
+            throw new IllegalArgumentException("HR user is not enrolled for face verification.");
         }
 
         var expiresAt = LocalDateTime.now().plusSeconds(faceVerificationProperties.getSessionExpirySeconds());
@@ -303,17 +306,18 @@ public class HrFaceService {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                 """
-                    INSERT INTO hr_face_verification_sessions
-                    (company_id, employee_id, status, auth_method, challenge_sequence_json, created_by, expires_at)
-                    VALUES (?, ?, 'pending', 'facial_recognition', CAST(? AS JSON), ?, ?)
+                    INSERT INTO user_face_verification_sessions
+                    (company_id, user_company_id, user_id, status, auth_method, challenge_sequence_json, created_by, expires_at)
+                    VALUES (?, ?, ?, 'pending', 'facial_recognition', CAST(? AS JSON), ?, ?)
                     """,
                 new String[] {"id"}
             );
             statement.setLong(1, companyId);
-            statement.setLong(2, employeeId);
-            statement.setString(3, toJson(REQUIRED_STEPS));
-            statement.setLong(4, userId);
-            statement.setObject(5, expiresAt);
+            statement.setLong(2, userCompanyId);
+            statement.setLong(3, targetUserId);
+            statement.setString(4, toJson(REQUIRED_STEPS));
+            statement.setLong(5, userId);
+            statement.setObject(6, expiresAt);
             return statement;
         }, keyHolder);
 
@@ -322,11 +326,11 @@ public class HrFaceService {
             throw new IllegalStateException("Verification session could not be created.");
         }
 
-        appendVerificationEvent(sessionId, companyId, employeeId, "session_created", "pending", Map.of("required_steps", REQUIRED_STEPS));
+        appendVerificationEvent(sessionId, companyId, userCompanyId, "session_created", "pending", Map.of("required_steps", REQUIRED_STEPS));
 
         return Map.of(
             "session_id", sessionId,
-            "employee_id", employeeId,
+            "user_company_id", userCompanyId,
             "required_steps", REQUIRED_STEPS,
             "expires_at", expiresAt.toString(),
             "status", "pending"
@@ -341,7 +345,7 @@ public class HrFaceService {
         ensureVerificationSessionPending(session);
         var step = normalizeStep(payload.get("step"));
         var contentType = normalizeImageContentType(payload.get("content_type"));
-        var objectKey = buildVerificationObjectKey(companyId, session.employeeId(), sessionId, step, contentType);
+        var objectKey = buildVerificationObjectKey(companyId, session.userCompanyId(), sessionId, step, contentType);
         removePreviousVerificationCapture(sessionId, step);
         var upload = objectStorageService.presignUpload(
             biometricBucket(),
@@ -349,7 +353,7 @@ public class HrFaceService {
             contentType,
             objectStorageProperties.getMinio().getPresignExpirySeconds()
         );
-        appendVerificationEvent(sessionId, companyId, session.employeeId(), "capture_requested", "pending", Map.of(
+        appendVerificationEvent(sessionId, companyId, session.userCompanyId(), "capture_requested", "pending", Map.of(
             "step", step,
             "object_key", objectKey,
             "content_type", contentType
@@ -369,9 +373,9 @@ public class HrFaceService {
             throw new IllegalArgumentException("Verification requires 3 captures.");
         }
 
-        var enrollment = loadLatestEnrollment(companyId, session.employeeId());
+        var enrollment = loadLatestEnrollment(companyId, session.userCompanyId());
         if (enrollment == null || !"active".equals(enrollment.status())) {
-            throw new IllegalArgumentException("Employee is not enrolled for face verification.");
+            throw new IllegalArgumentException("HR user is not enrolled for face verification.");
         }
 
         var enrollmentEmbeddings = loadEnrollmentEmbeddings(enrollment.id());
@@ -404,7 +408,7 @@ public class HrFaceService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_face_verification_sessions
+                UPDATE user_face_verification_sessions
                 SET status = ?,
                     liveness_result = ?,
                     verification_result = ?,
@@ -428,7 +432,7 @@ public class HrFaceService {
         verificationEventMetadata.put("liveness_passed", result != null && result.livenessPassed());
         verificationEventMetadata.put("match_score", result == null ? null : result.matchScore());
         verificationEventMetadata.put("failure_reason", matched ? null : coalesce(failureReason, "Face verification failed."));
-        appendVerificationEvent(sessionId, companyId, session.employeeId(), "verification_completed", nextStatus, verificationEventMetadata);
+        appendVerificationEvent(sessionId, companyId, session.userCompanyId(), "verification_completed", nextStatus, verificationEventMetadata);
 
         for (var objectKey : capturesByStep.values()) {
             objectStorageService.deleteObject(biometricBucket(), objectKey);
@@ -436,7 +440,7 @@ public class HrFaceService {
 
         var body = new LinkedHashMap<String, Object>();
         body.put("session_id", sessionId);
-        body.put("employee_id", session.employeeId());
+        body.put("user_company_id", session.userCompanyId());
         body.put("status", nextStatus);
         body.put("matched", matched);
         body.put("liveness_passed", result != null && result.livenessPassed());
@@ -446,15 +450,15 @@ public class HrFaceService {
     }
 
     @Transactional
-    public void consumeSuccessfulVerificationSession(long companyId, long employeeId, Long sessionId) {
+    public void consumeSuccessfulVerificationSession(long companyId, long userCompanyId, Long sessionId) {
         requireFaceEnabled();
         if (sessionId == null || sessionId <= 0) {
             throw new IllegalArgumentException("face_verification_session_id is required for facial recognition.");
         }
 
         var session = loadVerificationSession(companyId, sessionId);
-        if (session.employeeId() != employeeId) {
-            throw new IllegalArgumentException("Face verification session does not belong to the selected employee.");
+        if (session.userCompanyId() != userCompanyId) {
+            throw new IllegalArgumentException("Face verification session does not belong to the selected user.");
         }
         if (!"verified".equals(session.status())) {
             throw new IllegalArgumentException("Face verification session is not verified.");
@@ -465,7 +469,7 @@ public class HrFaceService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_face_verification_sessions
+                UPDATE user_face_verification_sessions
                 SET status = 'consumed',
                     consumed_at = ?
                 WHERE id = ? AND company_id = ?
@@ -474,7 +478,7 @@ public class HrFaceService {
             sessionId,
             companyId
         );
-        appendVerificationEvent(sessionId, companyId, employeeId, "verification_consumed", "success", Map.of());
+        appendVerificationEvent(sessionId, companyId, userCompanyId, "verification_consumed", "success", Map.of());
     }
 
     private void requireFaceEnabled() {
@@ -489,56 +493,75 @@ public class HrFaceService {
         }
     }
 
-    private long parseRequiredEmployeeId(Map<String, Object> payload) {
-        var raw = payload.get("employee_id");
+    private long parseRequiredUserCompanyId(Map<String, Object> payload) {
+        var raw = payload.get("user_company_id");
         if (!(raw instanceof Number number) || number.longValue() <= 0) {
-            throw new IllegalArgumentException("employee_id is required.");
+            throw new IllegalArgumentException("user_company_id is required.");
         }
         return number.longValue();
     }
 
-    private void ensureEmployeeExists(long companyId, long employeeId) {
+    private void ensureHrUserExists(long companyId, long userCompanyId) {
         var count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employees WHERE company_id = ? AND id = ?",
+            "SELECT COUNT(*) FROM hr_users WHERE company_id = ? AND id = ?",
             Integer.class,
             companyId,
-            employeeId
+            userCompanyId
         );
         if (count == null || count == 0) {
-            throw new NoSuchElementException("Employee not found.");
+            throw new NoSuchElementException("HR user not found.");
         }
     }
 
-    private void ensureEmployeeIsEligible(long companyId, long employeeId) {
+    private void ensureHrUserIsEligible(long companyId, long userCompanyId) {
         var status = jdbcTemplate.query(
             """
                 SELECT COALESCE(LOWER(status), 'active') AS status
-                FROM hr_employees
+                FROM hr_users
                 WHERE company_id = ? AND id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> rs.getString("status"),
             companyId,
-            employeeId
-        ).stream().findFirst().orElseThrow(() -> new NoSuchElementException("Employee not found."));
+            userCompanyId
+        ).stream().findFirst().orElseThrow(() -> new NoSuchElementException("HR user not found."));
         if ("terminated".equals(status)) {
-            throw new IllegalArgumentException("Terminated employees cannot use face verification.");
+            throw new IllegalArgumentException("Terminated users cannot use face verification.");
         }
+    }
+
+    private long loadUserIdForCompanyUser(long companyId, long userCompanyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT user_id
+                FROM user_companies
+                WHERE company_id = ?
+                  AND id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("user_id"),
+            companyId,
+            userCompanyId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("User company record not found.");
+        }
+        return rows.getFirst();
     }
 
     private EnrollmentRow loadEnrollment(long companyId, long enrollmentId) {
         return jdbcTemplate.query(
             """
-                SELECT id, company_id, employee_id, status, enrolled_at, deleted_at, created_by
+                SELECT id, company_id, user_company_id, status, enrolled_at, deleted_at, created_by
                      , expires_at
-                FROM hr_face_enrollments
+                FROM user_face_enrollments
                 WHERE company_id = ? AND id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> new EnrollmentRow(
                 rs.getLong("id"),
                 rs.getLong("company_id"),
-                rs.getLong("employee_id"),
+                rs.getLong("user_company_id"),
                 rs.getString("status"),
                 rs.getObject("expires_at", LocalDateTime.class),
                 rs.getObject("enrolled_at", LocalDateTime.class),
@@ -550,14 +573,14 @@ public class HrFaceService {
         ).stream().findFirst().orElseThrow(() -> new NoSuchElementException("Enrollment session not found."));
     }
 
-    private EnrollmentRow loadLatestEnrollment(long companyId, long employeeId) {
+    private EnrollmentRow loadLatestEnrollment(long companyId, long userCompanyId) {
         return jdbcTemplate.query(
             """
-                SELECT id, company_id, employee_id, status, enrolled_at, deleted_at, created_by
+                SELECT id, company_id, user_company_id, status, enrolled_at, deleted_at, created_by
                      , expires_at
-                FROM hr_face_enrollments
+                FROM user_face_enrollments
                 WHERE company_id = ?
-                  AND employee_id = ?
+                  AND user_company_id = ?
                   AND status IN ('pending', 'active')
                 ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, id DESC
                 LIMIT 1
@@ -565,7 +588,7 @@ public class HrFaceService {
             (rs, rowNum) -> new EnrollmentRow(
                 rs.getLong("id"),
                 rs.getLong("company_id"),
-                rs.getLong("employee_id"),
+                rs.getLong("user_company_id"),
                 rs.getString("status"),
                 rs.getObject("expires_at", LocalDateTime.class),
                 rs.getObject("enrolled_at", LocalDateTime.class),
@@ -573,14 +596,14 @@ public class HrFaceService {
                 rs.getObject("created_by", Long.class)
             ),
             companyId,
-            employeeId
+            userCompanyId
         ).stream().findFirst().orElse(null);
     }
 
     private void ensureEnrollmentSessionPending(EnrollmentRow enrollment) {
         if (enrollment.expiresAt() != null && enrollment.expiresAt().isBefore(LocalDateTime.now())) {
             jdbcTemplate.update(
-                "UPDATE hr_face_enrollments SET status = 'expired' WHERE id = ?",
+                "UPDATE user_face_enrollments SET status = 'expired' WHERE id = ?",
                 enrollment.id()
             );
             throw new IllegalArgumentException("Enrollment session has expired.");
@@ -591,7 +614,7 @@ public class HrFaceService {
         return jdbcTemplate.query(
             """
                 SELECT id, enrollment_id, capture_step, object_key, embedding_json, status
-                FROM hr_face_enrollment_captures
+                FROM user_face_enrollment_captures
                 WHERE enrollment_id = ?
                 ORDER BY id ASC
                 """,
@@ -634,21 +657,21 @@ public class HrFaceService {
         if (objectStorageService.isEnabled() && objectStorageService.objectExists(biometricBucket(), existing.objectKey())) {
             objectStorageService.deleteObject(biometricBucket(), existing.objectKey());
         }
-        jdbcTemplate.update("DELETE FROM hr_face_enrollment_captures WHERE id = ?", existing.id());
+        jdbcTemplate.update("DELETE FROM user_face_enrollment_captures WHERE id = ?", existing.id());
     }
 
     private VerificationSessionRow loadVerificationSession(long companyId, long sessionId) {
         return jdbcTemplate.query(
             """
-                SELECT id, company_id, employee_id, status, auth_method, challenge_sequence_json, liveness_result, verification_result, matched_score, failure_reason, created_by, expires_at, completed_at, consumed_at
-                FROM hr_face_verification_sessions
+                SELECT id, company_id, user_company_id, status, auth_method, challenge_sequence_json, liveness_result, verification_result, matched_score, failure_reason, created_by, expires_at, completed_at, consumed_at
+                FROM user_face_verification_sessions
                 WHERE company_id = ? AND id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> new VerificationSessionRow(
                 rs.getLong("id"),
                 rs.getLong("company_id"),
-                rs.getLong("employee_id"),
+                rs.getLong("user_company_id"),
                 rs.getString("status"),
                 rs.getString("auth_method"),
                 rs.getString("challenge_sequence_json"),
@@ -672,23 +695,24 @@ public class HrFaceService {
         }
         if (session.expiresAt() != null && session.expiresAt().isBefore(LocalDateTime.now())) {
             jdbcTemplate.update(
-                "UPDATE hr_face_verification_sessions SET status = 'expired' WHERE id = ?",
+                "UPDATE user_face_verification_sessions SET status = 'expired' WHERE id = ?",
                 session.id()
             );
             throw new IllegalArgumentException("Face verification session has expired.");
         }
     }
 
-    private void appendVerificationEvent(long sessionId, long companyId, long employeeId, String eventType, String status, Map<String, Object> detail) {
+    private void appendVerificationEvent(long sessionId, long companyId, long userCompanyId, String eventType, String status, Map<String, Object> detail) {
         jdbcTemplate.update(
             """
-                INSERT INTO hr_face_verification_events
-                (session_id, company_id, employee_id, event_type, status, detail_json)
-                VALUES (?, ?, ?, ?, ?, CAST(? AS JSON))
+                INSERT INTO user_face_verification_events
+                (session_id, company_id, user_company_id, user_id, event_type, status, detail_json)
+                VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON))
                 """,
             sessionId,
             companyId,
-            employeeId,
+            userCompanyId,
+            loadUserIdForCompanyUser(companyId, userCompanyId),
             eventType,
             status,
             toJson(detail)
@@ -699,7 +723,7 @@ public class HrFaceService {
         List<Map.Entry<Long, String>> rows = jdbcTemplate.query(
             """
                 SELECT id, detail_json
-                FROM hr_face_verification_events
+                FROM user_face_verification_events
                 WHERE session_id = ?
                   AND event_type = 'capture_requested'
                 ORDER BY id DESC
@@ -723,7 +747,7 @@ public class HrFaceService {
         List<Map.Entry<Long, String>> rows = jdbcTemplate.query(
             """
                 SELECT id, detail_json
-                FROM hr_face_verification_events
+                FROM user_face_verification_events
                 WHERE session_id = ?
                   AND event_type = 'capture_requested'
                 ORDER BY id DESC
@@ -740,7 +764,7 @@ public class HrFaceService {
             if (objectStorageService.isEnabled() && !objectKey.isBlank() && objectStorageService.objectExists(biometricBucket(), objectKey)) {
                 objectStorageService.deleteObject(biometricBucket(), objectKey);
             }
-            jdbcTemplate.update("DELETE FROM hr_face_verification_events WHERE id = ?", row.getKey());
+            jdbcTemplate.update("DELETE FROM user_face_verification_events WHERE id = ?", row.getKey());
             return;
         }
     }
@@ -751,7 +775,7 @@ public class HrFaceService {
         }
         var body = new LinkedHashMap<String, Object>();
         body.put("id", enrollment.id());
-        body.put("employee_id", enrollment.employeeId());
+        body.put("user_company_id", enrollment.userCompanyId());
         body.put("status", enrollment.status());
         body.put("expires_at", enrollment.expiresAt() == null ? null : enrollment.expiresAt().toString());
         body.put("enrolled_at", enrollment.enrolledAt() == null ? null : enrollment.enrolledAt().toString());
@@ -789,12 +813,12 @@ public class HrFaceService {
         };
     }
 
-    private String buildEnrollmentObjectKey(long companyId, long employeeId, long enrollmentId, String step, String contentType) {
-        return "hr/face/enrollments/" + companyId + "/" + employeeId + "/" + enrollmentId + "/" + step + extensionFor(contentType);
+    private String buildEnrollmentObjectKey(long companyId, long userCompanyId, long enrollmentId, String step, String contentType) {
+        return "hr/face/enrollments/" + companyId + "/" + userCompanyId + "/" + enrollmentId + "/" + step + extensionFor(contentType);
     }
 
-    private String buildVerificationObjectKey(long companyId, long employeeId, long sessionId, String step, String contentType) {
-        return "hr/face/verifications/" + companyId + "/" + employeeId + "/" + sessionId + "/" + step + extensionFor(contentType);
+    private String buildVerificationObjectKey(long companyId, long userCompanyId, long sessionId, String step, String contentType) {
+        return "hr/face/verifications/" + companyId + "/" + userCompanyId + "/" + sessionId + "/" + step + extensionFor(contentType);
     }
 
     private String extensionFor(String contentType) {
@@ -850,7 +874,7 @@ public class HrFaceService {
     private record EnrollmentRow(
         long id,
         long companyId,
-        long employeeId,
+        long userCompanyId,
         String status,
         LocalDateTime expiresAt,
         LocalDateTime enrolledAt,
@@ -872,7 +896,7 @@ public class HrFaceService {
     private record VerificationSessionRow(
         long id,
         long companyId,
-        long employeeId,
+        long userCompanyId,
         String status,
         String authMethod,
         String challengeSequenceJson,

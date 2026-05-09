@@ -9,7 +9,12 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.attendance.AttendanceAssignmentService;
+import com.indice.erp.hr.attendance.AttendanceKioskDeviceRepository;
+import com.indice.erp.hr.attendance.AttendanceKioskPinThrottleService;
+import com.indice.erp.hr.attendance.AttendanceKioskTokenService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
+import com.indice.erp.hr.attendance.application.AttendancePhotoService;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.DisabledObjectStorageService;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -33,14 +38,14 @@ class HrAttendanceServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void updateDailyRecordRejectsDatesBeforeEmployeeHireDate() {
+    void updateDailyRecordRejectsDatesBeforeHrUserHireDate() {
         var service = createService();
 
         when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(), eq(1L), eq(12L)))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
                 var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
-                return List.of(rowMapper.mapRow(attendanceEmployeeResultSet(LocalDate.of(2026, 4, 29)), 0));
+                return List.of(rowMapper.mapRow(attendanceHrUserResultSet(LocalDate.of(2026, 4, 29)), 0));
             });
 
         var error = assertThrows(
@@ -48,29 +53,31 @@ class HrAttendanceServiceTest {
             () -> service.updateDailyRecord(1L, 9L, 12L, LocalDate.of(2026, 4, 28), Map.of("status", "absence"))
         );
 
-        assertEquals("Attendance can only be edited on or after this employee's hire date: 2026-04-29.", error.getMessage());
+        assertEquals("Attendance can only be edited on or after this user's hire date: 2026-04-29.", error.getMessage());
     }
 
     private HrAttendanceService createService() {
+        var objectMapper = new ObjectMapper();
         return new HrAttendanceService(
             jdbcTemplate,
-            new DisabledObjectStorageService(),
-            new ObjectStorageProperties(),
-            new ObjectMapper(),
+            new AttendanceAssignmentService(jdbcTemplate),
+            new AttendanceKioskTokenService(objectMapper, "test-kiosk-secret", 120),
+            new AttendanceKioskPinThrottleService(jdbcTemplate, objectMapper),
+            new AttendanceKioskDeviceRepository(jdbcTemplate),
+            new AttendancePhotoService(new DisabledObjectStorageService(), new ObjectStorageProperties()),
+            objectMapper,
             new BCryptPasswordEncoder(),
             mock(HrFaceService.class),
             mock(GoogleMapsCoordinateExtractor.class),
             false,
-            "test-kiosk-secret",
-            120,
             60
         );
     }
 
-    private ResultSet attendanceEmployeeResultSet(LocalDate hireDate) throws SQLException {
+    private ResultSet attendanceHrUserResultSet(LocalDate hireDate) throws SQLException {
         ResultSet rs = mock(ResultSet.class);
         when(rs.getLong("id")).thenReturn(12L);
-        when(rs.getString("employee_number")).thenReturn("EMP-0012");
+        when(rs.getString("user_code")).thenReturn("EMP-0012");
         when(rs.getString("full_name")).thenReturn("Attendance User");
         when(rs.getString("position")).thenReturn("Staff");
         when(rs.getString("department")).thenReturn("Operations");
