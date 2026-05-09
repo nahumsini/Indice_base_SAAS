@@ -91,7 +91,7 @@ class HrRecordApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "employee_id": 2,
+                      "user_company_id": 2,
                       "record_type": "incident",
                       "severity": "high",
                       "title": "Missing",

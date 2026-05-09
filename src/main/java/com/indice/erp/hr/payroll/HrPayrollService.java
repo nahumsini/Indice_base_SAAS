@@ -109,21 +109,21 @@ public class HrPayrollService {
         var defaultDailyHours = normalizePositiveDecimal(parseBigDecimal(payload, "default_daily_hours"), current.defaultDailyHours(), "default_daily_hours");
         var payLeaveDays = parseBoolean(payload.getOrDefault("pay_leave_days", current.payLeaveDays()));
         var isrRate = normalizeRate(parseBigDecimal(payload, "isr_rate"), current.isrRate(), "isr_rate");
-        var imssEmployeeRate = normalizeRate(parseBigDecimal(payload, "imss_employee_rate"), current.imssEmployeeRate(), "imss_employee_rate");
-        var infonavitEmployeeRate = normalizeRate(parseBigDecimal(payload, "infonavit_employee_rate"), current.infonavitEmployeeRate(), "infonavit_employee_rate");
+        var imssUserRate = normalizeRate(parseBigDecimal(payload, "imss_user_rate"), current.imssUserRate(), "imss_user_rate");
+        var infonavitUserRate = normalizeRate(parseBigDecimal(payload, "infonavit_user_rate"), current.infonavitUserRate(), "infonavit_user_rate");
         var imssEmployerRate = normalizeRate(parseBigDecimal(payload, "imss_employer_rate"), current.imssEmployerRate(), "imss_employer_rate");
         var infonavitEmployerRate = normalizeRate(parseBigDecimal(payload, "infonavit_employer_rate"), current.infonavitEmployerRate(), "infonavit_employer_rate");
         var sarEmployerRate = normalizeRate(parseBigDecimal(payload, "sar_employer_rate"), current.sarEmployerRate(), "sar_employer_rate");
 
         jdbcTemplate.update(
             """
-                UPDATE hr_payroll_preferences
+                UPDATE payroll_preferences
                 SET grouping_mode = ?,
                     default_daily_hours = ?,
                     pay_leave_days = ?,
                     isr_rate = ?,
-                    imss_employee_rate = ?,
-                    infonavit_employee_rate = ?,
+                    imss_user_rate = ?,
+                    infonavit_user_rate = ?,
                     imss_employer_rate = ?,
                     infonavit_employer_rate = ?,
                     sar_employer_rate = ?
@@ -133,8 +133,8 @@ public class HrPayrollService {
             defaultDailyHours,
             payLeaveDays,
             isrRate,
-            imssEmployeeRate,
-            infonavitEmployeeRate,
+            imssUserRate,
+            infonavitUserRate,
             imssEmployerRate,
             infonavitEmployerRate,
             sarEmployerRate,
@@ -171,15 +171,15 @@ public class HrPayrollService {
         var normalizedPeriodEndDate = periodEndDate;
 
         var groupingMode = normalizeGroupingMode(stringValue(payload, "grouping_mode"), preferences.groupingMode());
-        var employees = loadEligibleEmployees(companyId, payPeriod, true);
-        if (employees.isEmpty()) {
-            throw new IllegalArgumentException("No active employees are configured for the selected pay frequency.");
+        var hrUsers = loadEligibleHrUsers(companyId, payPeriod, true);
+        if (hrUsers.isEmpty()) {
+            throw new IllegalArgumentException("No active HR users are configured for the selected pay frequency.");
         }
 
-        var groupedEmployees = groupEmployees(employees, groupingMode);
+        var groupedHrUsers = groupHrUsers(hrUsers, groupingMode);
         var createdRuns = new ArrayList<Map<String, Object>>();
 
-        for (var group : groupedEmployees) {
+        for (var group : groupedHrUsers) {
             var existingRun = findExistingRun(companyId, groupingMode, group.groupingKey(), payPeriod, periodStartDate, normalizedPeriodEndDate);
             if (existingRun != null) {
                 var existingSummary = toRunSummaryMap(existingRun);
@@ -192,7 +192,7 @@ public class HrPayrollService {
             jdbcTemplate.update(connection -> {
                 var statement = connection.prepareStatement(
                     """
-                        INSERT INTO hr_payroll_runs
+                        INSERT INTO payroll_runs
                         (company_id, grouping_mode, grouping_key, grouping_label, pay_period, period_start_date, period_end_date, status, created_by)
                         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?)
                         """,
@@ -214,8 +214,8 @@ public class HrPayrollService {
                 throw new IllegalStateException("Payroll run could not be created.");
             }
 
-            for (var employee : group.employees()) {
-                createRunLine(companyId, runId, employee, preferences, payPeriod, periodStartDate, normalizedPeriodEndDate);
+            for (var hrUser : group.users()) {
+                createRunLine(companyId, runId, hrUser, preferences, payPeriod, periodStartDate, normalizedPeriodEndDate);
             }
 
             recomputeRunTotals(runId);
@@ -231,9 +231,9 @@ public class HrPayrollService {
             .map((line) -> {
                 var body = new LinkedHashMap<String, Object>();
                 body.put("id", line.id());
-                body.put("employee_id", line.employeeId());
-                body.put("employee_number", line.employeeNumberSnapshot());
-                body.put("employee_name", line.employeeNameSnapshot());
+                body.put("user_company_id", line.userCompanyId());
+                body.put("user_code", line.userCodeSnapshot());
+                body.put("user_name", line.userNameSnapshot());
                 body.put("position_title", line.positionTitleSnapshot());
                 body.put("department", line.departmentSnapshot());
                 body.put("unit_id", line.unitIdSnapshot());
@@ -282,7 +282,7 @@ public class HrPayrollService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_payroll_run_lines
+                UPDATE payroll_run_lines
                 SET include_in_fiscal = ?,
                     notes = ?
                 WHERE id = ? AND run_id = ?
@@ -294,7 +294,7 @@ public class HrPayrollService {
         );
 
         jdbcTemplate.update(
-            "DELETE FROM hr_payroll_run_line_items WHERE run_line_id = ? AND source_type = 'manual'",
+            "DELETE FROM payroll_run_line_items WHERE run_line_id = ? AND source_type = 'manual'",
             lineId
         );
 
@@ -302,7 +302,7 @@ public class HrPayrollService {
             var manualItem = manualItems.get(index);
             jdbcTemplate.update(
                 """
-                    INSERT INTO hr_payroll_run_line_items
+                    INSERT INTO payroll_run_line_items
                     (run_line_id, code, category, label, amount, source_type, display_order)
                     VALUES (?, ?, ?, ?, ?, 'manual', ?)
                     """,
@@ -356,7 +356,7 @@ public class HrPayrollService {
         }
         jdbcTemplate.update(
             """
-                UPDATE hr_payroll_runs
+                UPDATE payroll_runs
                 SET status = 'cancelled',
                     cancelled_by = ?,
                     cancelled_at = ?
@@ -378,14 +378,14 @@ public class HrPayrollService {
         var lines = (List<Map<String, Object>>) detail.get("lines");
 
         var builder = new StringBuilder();
-        builder.append("run_id,period_start_date,period_end_date,status,employee_id,employee_name,pay_period,salary_type,gross_amount,deductions_amount,employer_contributions_amount,net_amount\n");
+        builder.append("run_id,period_start_date,period_end_date,status,user_company_id,user_name,pay_period,salary_type,gross_amount,deductions_amount,employer_contributions_amount,net_amount\n");
         for (var line : lines) {
             builder.append(csv(run.get("id"))).append(',')
                 .append(csv(run.get("period_start_date"))).append(',')
                 .append(csv(run.get("period_end_date"))).append(',')
                 .append(csv(run.get("status"))).append(',')
-                .append(csv(line.get("employee_id"))).append(',')
-                .append(csv(line.get("employee_name"))).append(',')
+                .append(csv(line.get("user_company_id"))).append(',')
+                .append(csv(line.get("user_name"))).append(',')
                 .append(csv(line.get("pay_period"))).append(',')
                 .append(csv(line.get("salary_type"))).append(',')
                 .append(csv(line.get("gross_amount"))).append(',')
@@ -425,7 +425,7 @@ public class HrPayrollService {
                 content.beginText();
                 content.setFont(regular, 9);
                 content.newLineAtOffset(40, y);
-                content.showText(truncatePdf(String.valueOf(line.get("employee_name")), 30));
+                content.showText(truncatePdf(String.valueOf(line.get("user_name")), 30));
                 content.newLineAtOffset(180, 0);
                 content.showText(String.valueOf(line.get("gross_amount")));
                 content.newLineAtOffset(80, 0);
@@ -471,7 +471,7 @@ public class HrPayrollService {
         content.beginText();
         content.setFont(bold, 10);
         content.newLineAtOffset(40, y);
-        content.showText("Employee");
+        content.showText("HR User");
         content.newLineAtOffset(180, 0);
         content.showText("Gross");
         content.newLineAtOffset(80, 0);
@@ -491,12 +491,12 @@ public class HrPayrollService {
                        default_daily_hours,
                        pay_leave_days,
                        isr_rate,
-                       imss_employee_rate,
-                       infonavit_employee_rate,
+                       imss_user_rate,
+                       infonavit_user_rate,
                        imss_employer_rate,
                        infonavit_employer_rate,
                        sar_employer_rate
-                FROM hr_payroll_preferences
+                FROM payroll_preferences
                 WHERE company_id = ?
                 LIMIT 1
                 """,
@@ -506,8 +506,8 @@ public class HrPayrollService {
                 scaled(rs.getBigDecimal("default_daily_hours")),
                 rs.getBoolean("pay_leave_days"),
                 scaled(rs.getBigDecimal("isr_rate")),
-                scaled(rs.getBigDecimal("imss_employee_rate")),
-                scaled(rs.getBigDecimal("infonavit_employee_rate")),
+                scaled(rs.getBigDecimal("imss_user_rate")),
+                scaled(rs.getBigDecimal("infonavit_user_rate")),
                 scaled(rs.getBigDecimal("imss_employer_rate")),
                 scaled(rs.getBigDecimal("infonavit_employer_rate")),
                 scaled(rs.getBigDecimal("sar_employer_rate"))
@@ -521,8 +521,8 @@ public class HrPayrollService {
 
         jdbcTemplate.update(
             """
-                INSERT INTO hr_payroll_preferences
-                (company_id, grouping_mode, default_daily_hours, pay_leave_days, isr_rate, imss_employee_rate, infonavit_employee_rate, imss_employer_rate, infonavit_employer_rate, sar_employer_rate)
+                INSERT INTO payroll_preferences
+                (company_id, grouping_mode, default_daily_hours, pay_leave_days, isr_rate, imss_user_rate, infonavit_user_rate, imss_employer_rate, infonavit_employer_rate, sar_employer_rate)
                 VALUES (?, 'single', 8.00, 1, 0.10000, 0.04000, 0.03000, 0.07000, 0.05000, 0.02000)
                 """,
             companyId
@@ -542,13 +542,13 @@ public class HrPayrollService {
                        period_start_date,
                        period_end_date,
                        status,
-                       employees_count,
+                       users_count,
                        gross_amount,
                        deductions_amount,
                        employer_contributions_amount,
                        net_amount,
                        created_at
-                FROM hr_payroll_runs
+                FROM payroll_runs
                 WHERE company_id = ?
                 ORDER BY period_end_date DESC, id DESC
                 """,
@@ -569,13 +569,13 @@ public class HrPayrollService {
                        period_start_date,
                        period_end_date,
                        status,
-                       employees_count,
+                       users_count,
                        gross_amount,
                        deductions_amount,
                        employer_contributions_amount,
                        net_amount,
                        created_at
-                FROM hr_payroll_runs
+                FROM payroll_runs
                 WHERE company_id = ? AND id = ?
                 LIMIT 1
                 """,
@@ -608,13 +608,13 @@ public class HrPayrollService {
                        period_start_date,
                        period_end_date,
                        status,
-                       employees_count,
+                       users_count,
                        gross_amount,
                        deductions_amount,
                        employer_contributions_amount,
                        net_amount,
                        created_at
-                FROM hr_payroll_runs
+                FROM payroll_runs
                 WHERE company_id = ?
                   AND grouping_mode = ?
                   AND ((grouping_key IS NULL AND ? IS NULL) OR grouping_key = ?)
@@ -637,11 +637,12 @@ public class HrPayrollService {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
-    private List<PayrollEmployeeRow> loadEligibleEmployees(long companyId, String payPeriod, boolean matchRequestedPayPeriod) {
+    private List<PayrollHrUserRow> loadEligibleHrUsers(long companyId, String payPeriod, boolean matchRequestedPayPeriod) {
         return jdbcTemplate.query(
             """
                 SELECT e.id,
-                       COALESCE(e.employee_number, '') AS employee_number,
+                       e.user_id,
+                       COALESCE(e.user_code, '') AS user_code,
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
                        COALESCE(e.position, '') AS position,
                        COALESCE(e.department, '') AS department,
@@ -654,7 +655,7 @@ public class HrPayrollService {
                        COALESCE(e.hourly_rate, 0) AS hourly_rate,
                        COALESCE(LOWER(e.salary_type), 'daily') AS salary_type,
                        COALESCE(LOWER(e.pay_period), 'weekly') AS pay_period
-                FROM hr_employees e
+                FROM hr_users e
                 LEFT JOIN units u ON u.id = e.unit_id
                 LEFT JOIN businesses b ON b.id = e.business_id
                 WHERE e.company_id = ?
@@ -662,9 +663,10 @@ public class HrPayrollService {
                   AND (? = 0 OR COALESCE(LOWER(e.pay_period), 'weekly') = ?)
                 ORDER BY full_name ASC, e.id ASC
                 """,
-            (rs, rowNum) -> new PayrollEmployeeRow(
+            (rs, rowNum) -> new PayrollHrUserRow(
                 rs.getLong("id"),
-                safe(rs.getString("employee_number")),
+                rs.getLong("user_id"),
+                safe(rs.getString("user_code")),
                 safe(rs.getString("full_name")),
                 safe(rs.getString("position")),
                 safe(rs.getString("department")),
@@ -684,101 +686,102 @@ public class HrPayrollService {
         );
     }
 
-    private List<PayrollEmployeeGroup> groupEmployees(List<PayrollEmployeeRow> employees, String groupingMode) {
-        var grouped = new LinkedHashMap<String, List<PayrollEmployeeRow>>();
+    private List<PayrollHrUserGroup> groupHrUsers(List<PayrollHrUserRow> users, String groupingMode) {
+        var grouped = new LinkedHashMap<String, List<PayrollHrUserRow>>();
         var labels = new LinkedHashMap<String, String>();
 
-        for (var employee : employees) {
+        for (var hrUser : users) {
             String key;
             String label;
             switch (groupingMode) {
                 case "unit" -> {
-                    key = employee.unitId() == null ? "unit:unassigned" : "unit:" + employee.unitId();
-                    label = employee.unitName().isBlank() ? "No unit" : employee.unitName();
+                    key = hrUser.unitId() == null ? "unit:unassigned" : "unit:" + hrUser.unitId();
+                    label = hrUser.unitName().isBlank() ? "No unit" : hrUser.unitName();
                 }
                 case "business" -> {
-                    key = employee.businessId() == null ? "business:unassigned" : "business:" + employee.businessId();
-                    label = employee.businessName().isBlank() ? "No business" : employee.businessName();
+                    key = hrUser.businessId() == null ? "business:unassigned" : "business:" + hrUser.businessId();
+                    label = hrUser.businessName().isBlank() ? "No business" : hrUser.businessName();
                 }
                 default -> {
                     key = "single";
-                    label = "All employees";
+                    label = "All users";
                 }
             }
 
-            grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(employee);
+            grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(hrUser);
             labels.putIfAbsent(key, label);
         }
 
         return grouped.entrySet().stream()
-            .map((entry) -> new PayrollEmployeeGroup(entry.getKey(), labels.get(entry.getKey()), List.copyOf(entry.getValue())))
+            .map((entry) -> new PayrollHrUserGroup(entry.getKey(), labels.get(entry.getKey()), List.copyOf(entry.getValue())))
             .toList();
     }
 
     private void createRunLine(
         long companyId,
         long runId,
-        PayrollEmployeeRow employee,
+        PayrollHrUserRow user,
         PayrollPreferencesRow preferences,
         String runPayPeriod,
         LocalDate periodStartDate,
         LocalDate periodEndDate
     ) {
-        var computation = computeLine(companyId, employee, preferences, periodStartDate, periodEndDate);
+        var computation = computeLine(companyId, user, preferences, periodStartDate, periodEndDate);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                 """
-                    INSERT INTO hr_payroll_run_lines
-                    (run_id, company_id, employee_id, employee_number_snapshot, employee_name_snapshot, position_title_snapshot, department_snapshot,
+                    INSERT INTO payroll_run_lines
+                    (run_id, company_id, user_company_id, user_id, user_code_snapshot, user_name_snapshot, position_title_snapshot, department_snapshot,
                      unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot, pay_period_snapshot, salary_type_snapshot,
                      base_salary_amount, hourly_rate_amount, days_payable, leave_days, absence_days, rest_days, late_count, regular_hours, overtime_hours,
                      include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount, net_amount, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 new String[] {"id"}
             );
             statement.setLong(1, runId);
             statement.setLong(2, companyId);
-            statement.setLong(3, employee.id());
-            statement.setString(4, nullable(employee.employeeNumber()));
-            statement.setString(5, employee.fullName());
-            statement.setString(6, nullable(employee.positionTitle()));
-            statement.setString(7, nullable(employee.department()));
-            if (employee.unitId() == null) {
-                statement.setNull(8, Types.BIGINT);
+            statement.setLong(3, user.id());
+            statement.setLong(4, user.userId());
+            statement.setString(5, nullable(user.userCode()));
+            statement.setString(6, user.fullName());
+            statement.setString(7, nullable(user.positionTitle()));
+            statement.setString(8, nullable(user.department()));
+            if (user.unitId() == null) {
+                statement.setNull(9, Types.BIGINT);
             } else {
-                statement.setLong(8, employee.unitId());
+                statement.setLong(9, user.unitId());
             }
-            statement.setString(9, nullable(employee.unitName()));
-            if (employee.businessId() == null) {
-                statement.setNull(10, Types.BIGINT);
+            statement.setString(10, nullable(user.unitName()));
+            if (user.businessId() == null) {
+                statement.setNull(11, Types.BIGINT);
             } else {
-                statement.setLong(10, employee.businessId());
+                statement.setLong(11, user.businessId());
             }
-            statement.setString(11, nullable(employee.businessName()));
-            statement.setString(12, runPayPeriod);
-            statement.setString(13, employee.salaryType());
-            statement.setBigDecimal(14, computation.baseSalaryAmount());
-            if (employee.hourlyRate().compareTo(BigDecimal.ZERO) == 0) {
-                statement.setNull(15, Types.DECIMAL);
+            statement.setString(12, nullable(user.businessName()));
+            statement.setString(13, runPayPeriod);
+            statement.setString(14, user.salaryType());
+            statement.setBigDecimal(15, computation.baseSalaryAmount());
+            if (user.hourlyRate().compareTo(BigDecimal.ZERO) == 0) {
+                statement.setNull(16, Types.DECIMAL);
             } else {
-                statement.setBigDecimal(15, employee.hourlyRate());
+                statement.setBigDecimal(16, user.hourlyRate());
             }
-            statement.setBigDecimal(16, computation.daysPayable());
-            statement.setBigDecimal(17, computation.leaveDays());
-            statement.setBigDecimal(18, computation.absenceDays());
-            statement.setBigDecimal(19, computation.restDays());
-            statement.setInt(20, computation.lateCount());
-            statement.setBigDecimal(21, computation.regularHours());
-            statement.setBigDecimal(22, computation.overtimeHours());
-            statement.setBoolean(23, true);
-            statement.setBigDecimal(24, computation.grossAmount());
-            statement.setBigDecimal(25, computation.deductionsAmount());
-            statement.setBigDecimal(26, computation.employerContributionsAmount());
-            statement.setBigDecimal(27, computation.netAmount());
-            statement.setString(28, null);
+            statement.setBigDecimal(17, computation.daysPayable());
+            statement.setBigDecimal(18, computation.leaveDays());
+            statement.setBigDecimal(19, computation.absenceDays());
+            statement.setBigDecimal(20, computation.restDays());
+            statement.setInt(21, computation.lateCount());
+            statement.setBigDecimal(22, computation.regularHours());
+            statement.setBigDecimal(23, computation.overtimeHours());
+            statement.setBoolean(24, true);
+            statement.setBigDecimal(25, computation.grossAmount());
+            statement.setBigDecimal(26, computation.deductionsAmount());
+            statement.setBigDecimal(27, computation.employerContributionsAmount());
+            statement.setBigDecimal(28, computation.netAmount());
+            statement.setString(29, null);
             return statement;
         }, keyHolder);
 
@@ -792,13 +795,13 @@ public class HrPayrollService {
 
     private LineComputation computeLine(
         long companyId,
-        PayrollEmployeeRow employee,
+        PayrollHrUserRow user,
         PayrollPreferencesRow preferences,
         LocalDate periodStartDate,
         LocalDate periodEndDate
     ) {
-        var dailyRecords = loadDailyRecords(companyId, employee.id(), periodStartDate, periodEndDate);
-        var scheduleWindows = loadScheduleWindows(companyId, employee.id(), periodStartDate, periodEndDate);
+        var dailyRecords = loadDailyRecords(companyId, user.id(), periodStartDate, periodEndDate);
+        var scheduleWindows = loadScheduleWindows(companyId, user.id(), periodStartDate, periodEndDate);
 
         BigDecimal payableDays = BigDecimal.ZERO;
         BigDecimal leaveDays = BigDecimal.ZERO;
@@ -825,20 +828,20 @@ public class HrPayrollService {
                 case "absence" -> {
                     if (window != null && !window.isRestDay()) {
                         absenceDays = absenceDays.add(BigDecimal.ONE);
-                        if ("daily".equals(employee.salaryType())) {
-                            baseDailyAmount = baseDailyAmount.add(employee.salary());
-                            absenceDeductionAmount = absenceDeductionAmount.add(employee.salary());
+                        if ("daily".equals(user.salaryType())) {
+                            baseDailyAmount = baseDailyAmount.add(user.salary());
+                            absenceDeductionAmount = absenceDeductionAmount.add(user.salary());
                         }
                     }
                 }
                 case "leave" -> {
                     leaveDays = leaveDays.add(BigDecimal.ONE);
-                    if ("daily".equals(employee.salaryType())) {
-                        baseDailyAmount = baseDailyAmount.add(employee.salary());
+                    if ("daily".equals(user.salaryType())) {
+                        baseDailyAmount = baseDailyAmount.add(user.salary());
                         if (preferences.payLeaveDays()) {
                             payableDays = payableDays.add(BigDecimal.ONE);
                         } else {
-                            absenceDeductionAmount = absenceDeductionAmount.add(employee.salary());
+                            absenceDeductionAmount = absenceDeductionAmount.add(user.salary());
                         }
                     } else {
                         leaveHours = leaveHours.add(scheduledHours);
@@ -846,8 +849,8 @@ public class HrPayrollService {
                 }
                 case "late" -> {
                     lateCount++;
-                    if ("daily".equals(employee.salaryType())) {
-                        baseDailyAmount = baseDailyAmount.add(employee.salary());
+                    if ("daily".equals(user.salaryType())) {
+                        baseDailyAmount = baseDailyAmount.add(user.salary());
                         payableDays = payableDays.add(BigDecimal.ONE);
                     } else {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
@@ -858,8 +861,8 @@ public class HrPayrollService {
                     }
                 }
                 case "on_time" -> {
-                    if ("daily".equals(employee.salaryType())) {
-                        baseDailyAmount = baseDailyAmount.add(employee.salary());
+                    if ("daily".equals(user.salaryType())) {
+                        baseDailyAmount = baseDailyAmount.add(user.salary());
                         payableDays = payableDays.add(BigDecimal.ONE);
                     } else {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
@@ -876,7 +879,7 @@ public class HrPayrollService {
         }
 
         var items = new ArrayList<PayrollLineItemDraft>();
-        if ("daily".equals(employee.salaryType())) {
+        if ("daily".equals(user.salaryType())) {
             if (baseDailyAmount.compareTo(BigDecimal.ZERO) > 0) {
                 items.add(new PayrollLineItemDraft("BASE_DAILY", "earning", "Base daily pay", baseDailyAmount, "computed", 10));
             }
@@ -884,9 +887,9 @@ public class HrPayrollService {
                 items.add(new PayrollLineItemDraft("ABSENCE_DEDUCTION", "deduction", "Unpaid attendance deduction", absenceDeductionAmount, "computed", 70));
             }
         } else {
-            var baseHourlyAmount = employee.hourlyRate().multiply(regularHours);
-            var overtimeAmount = employee.hourlyRate().multiply(overtimeHours).multiply(DEFAULT_OVERTIME_MULTIPLIER);
-            var leaveHourlyAmount = employee.hourlyRate().multiply(leaveHours);
+            var baseHourlyAmount = user.hourlyRate().multiply(regularHours);
+            var overtimeAmount = user.hourlyRate().multiply(overtimeHours).multiply(DEFAULT_OVERTIME_MULTIPLIER);
+            var leaveHourlyAmount = user.hourlyRate().multiply(leaveHours);
 
             if (baseHourlyAmount.compareTo(BigDecimal.ZERO) > 0) {
                 items.add(new PayrollLineItemDraft("BASE_HOURLY", "earning", "Regular hours", baseHourlyAmount, "computed", 10));
@@ -900,9 +903,9 @@ public class HrPayrollService {
         }
 
         return computeTotalsForItems(
-            employee.salaryType(),
-            employee.salary(),
-            employee.hourlyRate(),
+            user.salaryType(),
+            user.salary(),
+            user.hourlyRate(),
             payableDays,
             leaveDays,
             absenceDays,
@@ -946,7 +949,7 @@ public class HrPayrollService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_payroll_run_lines
+                UPDATE payroll_run_lines
                 SET include_in_fiscal = ?,
                     notes = ?,
                     gross_amount = ?,
@@ -965,7 +968,7 @@ public class HrPayrollService {
         );
 
         jdbcTemplate.update(
-            "DELETE FROM hr_payroll_run_line_items WHERE run_line_id = ? AND source_type = 'computed_tax'",
+            "DELETE FROM payroll_run_line_items WHERE run_line_id = ? AND source_type = 'computed_tax'",
             runLineId
         );
 
@@ -1008,8 +1011,8 @@ public class HrPayrollService {
 
         if (includeInFiscal) {
             var isrAmount = taxableBase.multiply(preferences.isrRate());
-            var imssAmount = taxableBase.multiply(preferences.imssEmployeeRate());
-            var infonavitAmount = taxableBase.multiply(preferences.infonavitEmployeeRate());
+            var imssAmount = taxableBase.multiply(preferences.imssUserRate());
+            var infonavitAmount = taxableBase.multiply(preferences.infonavitUserRate());
             var employerImssAmount = taxableBase.multiply(preferences.imssEmployerRate());
             var employerInfonavitAmount = taxableBase.multiply(preferences.infonavitEmployerRate());
             var employerSarAmount = taxableBase.multiply(preferences.sarEmployerRate());
@@ -1059,7 +1062,7 @@ public class HrPayrollService {
 
     private void recomputeRunTotals(long runId) {
         var lines = loadRunLines(runId);
-        var employeesCount = lines.size();
+        var usersCount = lines.size();
         var grossAmount = lines.stream().map(PayrollRunLineRow::grossAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         var deductionsAmount = lines.stream().map(PayrollRunLineRow::deductionsAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         var employerContributionsAmount = lines.stream().map(PayrollRunLineRow::employerContributionsAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -1067,15 +1070,15 @@ public class HrPayrollService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_payroll_runs
-                SET employees_count = ?,
+                UPDATE payroll_runs
+                SET users_count = ?,
                     gross_amount = ?,
                     deductions_amount = ?,
                     employer_contributions_amount = ?,
                     net_amount = ?
                 WHERE id = ?
                 """,
-            employeesCount,
+            usersCount,
             scaled(grossAmount),
             scaled(deductionsAmount),
             scaled(employerContributionsAmount),
@@ -1088,19 +1091,19 @@ public class HrPayrollService {
         var now = Timestamp.valueOf(LocalDateTime.now());
         switch (status) {
             case "processed" -> jdbcTemplate.update(
-                "UPDATE hr_payroll_runs SET status = 'processed', processed_by = ?, processed_at = ? WHERE id = ?",
+                "UPDATE payroll_runs SET status = 'processed', processed_by = ?, processed_at = ? WHERE id = ?",
                 userId,
                 now,
                 runId
             );
             case "approved" -> jdbcTemplate.update(
-                "UPDATE hr_payroll_runs SET status = 'approved', approved_by = ?, approved_at = ? WHERE id = ?",
+                "UPDATE payroll_runs SET status = 'approved', approved_by = ?, approved_at = ? WHERE id = ?",
                 userId,
                 now,
                 runId
             );
             case "paid" -> jdbcTemplate.update(
-                "UPDATE hr_payroll_runs SET status = 'paid', paid_by = ?, paid_at = ? WHERE id = ?",
+                "UPDATE payroll_runs SET status = 'paid', paid_by = ?, paid_at = ? WHERE id = ?",
                 userId,
                 now,
                 runId
@@ -1118,14 +1121,14 @@ public class HrPayrollService {
     private List<PayrollRunLineRow> loadRunLines(long runId) {
         return jdbcTemplate.query(
             """
-                SELECT id, run_id, company_id, employee_id, employee_number_snapshot, employee_name_snapshot, position_title_snapshot,
+                SELECT id, run_id, company_id, user_company_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
                        department_snapshot, unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot,
                        pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable, leave_days,
                        absence_days, rest_days, late_count, regular_hours, overtime_hours, include_in_fiscal, gross_amount,
                        deductions_amount, employer_contributions_amount, net_amount, notes
-                FROM hr_payroll_run_lines
+                FROM payroll_run_lines
                 WHERE run_id = ?
-                ORDER BY employee_name_snapshot ASC, id ASC
+                ORDER BY user_name_snapshot ASC, id ASC
                 """,
             (rs, rowNum) -> mapRunLineRow(rs),
             runId
@@ -1135,12 +1138,12 @@ public class HrPayrollService {
     private PayrollRunLineRow loadRunLine(long runId, long lineId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT id, run_id, company_id, employee_id, employee_number_snapshot, employee_name_snapshot, position_title_snapshot,
+                SELECT id, run_id, company_id, user_company_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
                        department_snapshot, unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot,
                        pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable, leave_days,
                        absence_days, rest_days, late_count, regular_hours, overtime_hours, include_in_fiscal, gross_amount,
                        deductions_amount, employer_contributions_amount, net_amount, notes
-                FROM hr_payroll_run_lines
+                FROM payroll_run_lines
                 WHERE run_id = ? AND id = ?
                 LIMIT 1
                 """,
@@ -1157,12 +1160,12 @@ public class HrPayrollService {
     private PayrollRunLineRow loadRunLine(long lineId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT id, run_id, company_id, employee_id, employee_number_snapshot, employee_name_snapshot, position_title_snapshot,
+                SELECT id, run_id, company_id, user_company_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
                        department_snapshot, unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot,
                        pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable, leave_days,
                        absence_days, rest_days, late_count, regular_hours, overtime_hours, include_in_fiscal, gross_amount,
                        deductions_amount, employer_contributions_amount, net_amount, notes
-                FROM hr_payroll_run_lines
+                FROM payroll_run_lines
                 WHERE id = ?
                 LIMIT 1
                 """,
@@ -1179,7 +1182,7 @@ public class HrPayrollService {
         return jdbcTemplate.query(
             """
                 SELECT id, run_line_id, code, category, label, amount, source_type, display_order
-                FROM hr_payroll_run_line_items
+                FROM payroll_run_line_items
                 WHERE run_line_id = ?
                 ORDER BY display_order ASC, id ASC
                 """,
@@ -1192,7 +1195,7 @@ public class HrPayrollService {
         return jdbcTemplate.query(
             """
                 SELECT id, run_line_id, code, category, label, amount, source_type, display_order
-                FROM hr_payroll_run_line_items
+                FROM payroll_run_line_items
                 WHERE run_line_id = ? AND source_type = ?
                 ORDER BY display_order ASC, id ASC
                 """,
@@ -1202,7 +1205,7 @@ public class HrPayrollService {
         );
     }
 
-    private Map<LocalDate, PayrollDailyRecordRow> loadDailyRecords(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
+    private Map<LocalDate, PayrollDailyRecordRow> loadDailyRecords(long companyId, long userCompanyId, LocalDate startDate, LocalDate endDate) {
         var rows = jdbcTemplate.query(
             """
                 SELECT attendance_date,
@@ -1210,9 +1213,9 @@ public class HrPayrollService {
                        corrected_status,
                        first_check_in_at,
                        last_check_out_at
-                FROM hr_attendance_daily_records
+                FROM user_attendance_daily_records
                 WHERE company_id = ?
-                  AND employee_id = ?
+                  AND user_company_id = ?
                   AND attendance_date BETWEEN ? AND ?
                 """,
             (rs, rowNum) -> new PayrollDailyRecordRow(
@@ -1223,7 +1226,7 @@ public class HrPayrollService {
                 toLocalDateTime(rs.getTimestamp("last_check_out_at"))
             ),
             companyId,
-            employeeId,
+            userCompanyId,
             startDate,
             endDate
         );
@@ -1234,7 +1237,7 @@ public class HrPayrollService {
         return result;
     }
 
-    private List<PayrollScheduleWindow> loadScheduleWindows(long companyId, long employeeId, LocalDate startDate, LocalDate endDate) {
+    private List<PayrollScheduleWindow> loadScheduleWindows(long companyId, long userCompanyId, LocalDate startDate, LocalDate endDate) {
         return jdbcTemplate.query(
             """
                 SELECT a.template_id,
@@ -1245,10 +1248,10 @@ public class HrPayrollService {
                        d.end_time,
                        d.late_after_minutes,
                        d.is_rest_day
-                FROM hr_employee_schedule_assignments a
-                JOIN hr_schedule_template_days d ON d.template_id = a.template_id
+                FROM user_schedule_assignments a
+                JOIN attendance_schedule_template_days d ON d.template_id = a.template_id
                 WHERE a.company_id = ?
-                  AND a.employee_id = ?
+                  AND a.user_company_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
@@ -1265,7 +1268,7 @@ public class HrPayrollService {
                 rs.getBoolean("is_rest_day")
             ),
             companyId,
-            employeeId,
+            userCompanyId,
             endDate,
             startDate
         );
@@ -1319,7 +1322,7 @@ public class HrPayrollService {
         for (var item : items) {
             jdbcTemplate.update(
                 """
-                    INSERT INTO hr_payroll_run_line_items
+                    INSERT INTO payroll_run_line_items
                     (run_line_id, code, category, label, amount, source_type, display_order)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
@@ -1426,8 +1429,8 @@ public class HrPayrollService {
         body.put("default_daily_hours", scaled(preferences.defaultDailyHours()));
         body.put("pay_leave_days", preferences.payLeaveDays());
         body.put("isr_rate", scaled(preferences.isrRate()));
-        body.put("imss_employee_rate", scaled(preferences.imssEmployeeRate()));
-        body.put("infonavit_employee_rate", scaled(preferences.infonavitEmployeeRate()));
+        body.put("imss_user_rate", scaled(preferences.imssUserRate()));
+        body.put("infonavit_user_rate", scaled(preferences.infonavitUserRate()));
         body.put("imss_employer_rate", scaled(preferences.imssEmployerRate()));
         body.put("infonavit_employer_rate", scaled(preferences.infonavitEmployerRate()));
         body.put("sar_employer_rate", scaled(preferences.sarEmployerRate()));
@@ -1444,7 +1447,7 @@ public class HrPayrollService {
         body.put("period_start_date", run.periodStartDate().toString());
         body.put("period_end_date", run.periodEndDate().toString());
         body.put("status", run.status());
-        body.put("employees_count", run.employeesCount());
+        body.put("users_count", run.usersCount());
         body.put("gross_amount", scaled(run.grossAmount()));
         body.put("deductions_amount", scaled(run.deductionsAmount()));
         body.put("employer_contributions_amount", scaled(run.employerContributionsAmount()));
@@ -1486,7 +1489,7 @@ public class HrPayrollService {
             rs.getObject("period_start_date", LocalDate.class),
             rs.getObject("period_end_date", LocalDate.class),
             safe(rs.getString("status")),
-            rs.getInt("employees_count"),
+            rs.getInt("users_count"),
             scaled(rs.getBigDecimal("gross_amount")),
             scaled(rs.getBigDecimal("deductions_amount")),
             scaled(rs.getBigDecimal("employer_contributions_amount")),
@@ -1500,9 +1503,9 @@ public class HrPayrollService {
             rs.getLong("id"),
             rs.getLong("run_id"),
             rs.getLong("company_id"),
-            rs.getLong("employee_id"),
-            safe(rs.getString("employee_number_snapshot")),
-            safe(rs.getString("employee_name_snapshot")),
+            rs.getLong("user_company_id"),
+            safe(rs.getString("user_code_snapshot")),
+            safe(rs.getString("user_name_snapshot")),
             safe(rs.getString("position_title_snapshot")),
             safe(rs.getString("department_snapshot")),
             getNullableLong(rs, "unit_id_snapshot"),
@@ -1693,8 +1696,8 @@ public class HrPayrollService {
         BigDecimal defaultDailyHours,
         boolean payLeaveDays,
         BigDecimal isrRate,
-        BigDecimal imssEmployeeRate,
-        BigDecimal infonavitEmployeeRate,
+        BigDecimal imssUserRate,
+        BigDecimal infonavitUserRate,
         BigDecimal imssEmployerRate,
         BigDecimal infonavitEmployerRate,
         BigDecimal sarEmployerRate
@@ -1711,7 +1714,7 @@ public class HrPayrollService {
         LocalDate periodStartDate,
         LocalDate periodEndDate,
         String status,
-        int employeesCount,
+        int usersCount,
         BigDecimal grossAmount,
         BigDecimal deductionsAmount,
         BigDecimal employerContributionsAmount,
@@ -1724,9 +1727,9 @@ public class HrPayrollService {
         long id,
         long runId,
         long companyId,
-        long employeeId,
-        String employeeNumberSnapshot,
-        String employeeNameSnapshot,
+        long userCompanyId,
+        String userCodeSnapshot,
+        String userNameSnapshot,
         String positionTitleSnapshot,
         String departmentSnapshot,
         Long unitIdSnapshot,
@@ -1765,9 +1768,10 @@ public class HrPayrollService {
     ) {
     }
 
-    private record PayrollEmployeeRow(
+    private record PayrollHrUserRow(
         long id,
-        String employeeNumber,
+        long userId,
+        String userCode,
         String fullName,
         String positionTitle,
         String department,
@@ -1783,10 +1787,10 @@ public class HrPayrollService {
     ) {
     }
 
-    private record PayrollEmployeeGroup(
+    private record PayrollHrUserGroup(
         String groupingKey,
         String groupingLabel,
-        List<PayrollEmployeeRow> employees
+        List<PayrollHrUserRow> users
     ) {
     }
 

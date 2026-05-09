@@ -186,11 +186,11 @@ public class HrAnnouncementService {
                 return result;
             }
             case "employees" -> {
-                var values = longList(payload, "employee_ids", "employees", "colaboradoresEspecificos").stream()
+                var values = longList(payload, "user_company_ids", "employees", "colaboradoresEspecificos").stream()
                     .map(String::valueOf)
                     .toList();
                 if (values.isEmpty()) {
-                    throw new IllegalArgumentException("At least one employee target is required.");
+                    throw new IllegalArgumentException("At least one HR user target is required.");
                 }
                 result.put("employee", values);
                 return result;

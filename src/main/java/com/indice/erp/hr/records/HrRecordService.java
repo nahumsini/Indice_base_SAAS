@@ -64,14 +64,14 @@ public class HrRecordService {
             """
                 SELECT r.id,
                        r.record_number,
-                       r.employee_id,
-                       r.employee_name_snapshot,
-                       r.employee_position_snapshot,
-                       r.employee_department_snapshot,
-                       r.employee_unit_id_snapshot,
-                       r.employee_unit_name_snapshot,
-                       r.employee_business_id_snapshot,
-                       r.employee_business_name_snapshot,
+                       r.user_company_id,
+                       r.user_name_snapshot,
+                       r.user_position_snapshot,
+                       r.user_department_snapshot,
+                       r.user_unit_id_snapshot,
+                       r.user_unit_name_snapshot,
+                       r.user_business_id_snapshot,
+                       r.user_business_name_snapshot,
                        r.record_type,
                        r.severity,
                        r.status,
@@ -80,11 +80,11 @@ public class HrRecordService {
                        r.actions_taken,
                        r.event_date,
                        r.reported_by_user_id,
-                       r.reported_by_employee_id,
+                       r.reported_by_user_company_id,
                        r.reported_by_name_snapshot,
                        r.created_at,
                        r.updated_at
-                FROM hr_employee_records r
+                FROM user_records r
                 """
                 + query.whereClause()
                 + """
@@ -98,7 +98,7 @@ public class HrRecordService {
         );
 
         var totalCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employee_records r " + query.whereClause(),
+            "SELECT COUNT(*) FROM user_records r " + query.whereClause(),
             Long.class,
             query.params().toArray()
         );
@@ -110,7 +110,7 @@ public class HrRecordService {
                        SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'reviewed' THEN 1 ELSE 0 END) AS reviewed_count,
                        SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'resolved' THEN 1 ELSE 0 END) AS resolved_count,
                        SUM(CASE WHEN LOWER(COALESCE(severity, '')) = 'high' THEN 1 ELSE 0 END) AS high_severity_count
-                FROM hr_employee_records
+                FROM user_records
                 WHERE company_id = ?
                   AND deleted_at IS NULL
                 """,
@@ -151,43 +151,44 @@ public class HrRecordService {
     @Transactional
     public Map<String, Object> createRecord(long companyId, long actorUserId, Map<String, Object> payload) {
         var actor = loadActorRef(actorUserId);
-        var employeeSnapshot = loadEmployeeSnapshot(companyId, requiredEmployeeId(payload));
-        var draft = normalizeDraft(companyId, payload, employeeSnapshot, actor, null);
+        var userSnapshot = loadUserSnapshot(companyId, requiredUserCompanyId(payload));
+        var draft = normalizeDraft(companyId, payload, userSnapshot, actor, null);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                 """
-                    INSERT INTO hr_employee_records
-                    (company_id, employee_id, employee_name_snapshot, employee_position_snapshot, employee_department_snapshot,
-                     employee_unit_id_snapshot, employee_unit_name_snapshot, employee_business_id_snapshot, employee_business_name_snapshot,
+                    INSERT INTO user_records
+                    (company_id, user_company_id, user_id, user_name_snapshot, user_position_snapshot, user_department_snapshot,
+                     user_unit_id_snapshot, user_unit_name_snapshot, user_business_id_snapshot, user_business_name_snapshot,
                      record_type, severity, status, title, description, actions_taken, event_date,
-                     reported_by_user_id, reported_by_employee_id, reported_by_name_snapshot, created_by_user_id, updated_by_user_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     reported_by_user_id, reported_by_user_company_id, reported_by_name_snapshot, created_by_user_id, updated_by_user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 new String[] {"id"}
             );
             statement.setLong(1, companyId);
-            statement.setLong(2, draft.employeeSnapshot().employeeId());
-            statement.setString(3, draft.employeeSnapshot().employeeName());
-            statement.setString(4, nullable(draft.employeeSnapshot().position()));
-            statement.setString(5, nullable(draft.employeeSnapshot().department()));
-            setNullableLong(statement, 6, draft.employeeSnapshot().unitId());
-            statement.setString(7, nullable(draft.employeeSnapshot().unitName()));
-            setNullableLong(statement, 8, draft.employeeSnapshot().businessId());
-            statement.setString(9, nullable(draft.employeeSnapshot().businessName()));
-            statement.setString(10, draft.recordType());
-            statement.setString(11, nullable(draft.severity()));
-            statement.setString(12, draft.status());
-            statement.setString(13, draft.title());
-            statement.setString(14, draft.description());
-            statement.setString(15, nullable(draft.actionsTaken()));
-            statement.setTimestamp(16, Timestamp.valueOf(draft.eventDate()));
-            statement.setLong(17, actorUserId);
-            setNullableLong(statement, 18, draft.reportedByEmployeeId());
-            statement.setString(19, draft.reportedByName());
-            statement.setLong(20, actorUserId);
+            statement.setLong(2, draft.userSnapshot().userCompanyId());
+            statement.setLong(3, draft.userSnapshot().userId());
+            statement.setString(4, draft.userSnapshot().userName());
+            statement.setString(5, nullable(draft.userSnapshot().position()));
+            statement.setString(6, nullable(draft.userSnapshot().department()));
+            setNullableLong(statement, 7, draft.userSnapshot().unitId());
+            statement.setString(8, nullable(draft.userSnapshot().unitName()));
+            setNullableLong(statement, 9, draft.userSnapshot().businessId());
+            statement.setString(10, nullable(draft.userSnapshot().businessName()));
+            statement.setString(11, draft.recordType());
+            statement.setString(12, nullable(draft.severity()));
+            statement.setString(13, draft.status());
+            statement.setString(14, draft.title());
+            statement.setString(15, draft.description());
+            statement.setString(16, nullable(draft.actionsTaken()));
+            statement.setTimestamp(17, Timestamp.valueOf(draft.eventDate()));
+            statement.setLong(18, actorUserId);
+            setNullableLong(statement, 19, draft.reportedByUserCompanyId());
+            statement.setString(20, draft.reportedByName());
             statement.setLong(21, actorUserId);
+            statement.setLong(22, actorUserId);
             return statement;
         }, keyHolder);
 
@@ -198,7 +199,7 @@ public class HrRecordService {
 
         var recordNumber = generateRecordNumber(recordId);
         jdbcTemplate.update(
-            "UPDATE hr_employee_records SET record_number = ? WHERE id = ? AND company_id = ?",
+            "UPDATE user_records SET record_number = ? WHERE id = ? AND company_id = ?",
             recordNumber,
             recordId,
             companyId
@@ -214,20 +215,21 @@ public class HrRecordService {
     public Map<String, Object> updateRecord(long companyId, long actorUserId, long recordId, Map<String, Object> payload) {
         var current = requireRecordState(companyId, recordId);
         var actor = loadActorRef(actorUserId);
-        var employeeSnapshot = loadEmployeeSnapshot(companyId, requiredEmployeeId(payload));
-        var draft = normalizeDraft(companyId, payload, employeeSnapshot, actor, current.status());
+        var userSnapshot = loadUserSnapshot(companyId, requiredUserCompanyId(payload));
+        var draft = normalizeDraft(companyId, payload, userSnapshot, actor, current.status());
 
         jdbcTemplate.update(
             """
-                UPDATE hr_employee_records
-                SET employee_id = ?,
-                    employee_name_snapshot = ?,
-                    employee_position_snapshot = ?,
-                    employee_department_snapshot = ?,
-                    employee_unit_id_snapshot = ?,
-                    employee_unit_name_snapshot = ?,
-                    employee_business_id_snapshot = ?,
-                    employee_business_name_snapshot = ?,
+                UPDATE user_records
+                SET user_company_id = ?,
+                    user_id = ?,
+                    user_name_snapshot = ?,
+                    user_position_snapshot = ?,
+                    user_department_snapshot = ?,
+                    user_unit_id_snapshot = ?,
+                    user_unit_name_snapshot = ?,
+                    user_business_id_snapshot = ?,
+                    user_business_name_snapshot = ?,
                     record_type = ?,
                     severity = ?,
                     status = ?,
@@ -235,7 +237,7 @@ public class HrRecordService {
                     description = ?,
                     actions_taken = ?,
                     event_date = ?,
-                    reported_by_employee_id = ?,
+                    reported_by_user_company_id = ?,
                     reported_by_name_snapshot = ?,
                     updated_by_user_id = ?,
                     updated_at = CURRENT_TIMESTAMP
@@ -243,14 +245,15 @@ public class HrRecordService {
                   AND id = ?
                   AND deleted_at IS NULL
                 """,
-            draft.employeeSnapshot().employeeId(),
-            draft.employeeSnapshot().employeeName(),
-            nullable(draft.employeeSnapshot().position()),
-            nullable(draft.employeeSnapshot().department()),
-            draft.employeeSnapshot().unitId(),
-            nullable(draft.employeeSnapshot().unitName()),
-            draft.employeeSnapshot().businessId(),
-            nullable(draft.employeeSnapshot().businessName()),
+            draft.userSnapshot().userCompanyId(),
+            draft.userSnapshot().userId(),
+            draft.userSnapshot().userName(),
+            nullable(draft.userSnapshot().position()),
+            nullable(draft.userSnapshot().department()),
+            draft.userSnapshot().unitId(),
+            nullable(draft.userSnapshot().unitName()),
+            draft.userSnapshot().businessId(),
+            nullable(draft.userSnapshot().businessName()),
             draft.recordType(),
             nullable(draft.severity()),
             draft.status(),
@@ -258,7 +261,7 @@ public class HrRecordService {
             draft.description(),
             nullable(draft.actionsTaken()),
             Timestamp.valueOf(draft.eventDate()),
-            draft.reportedByEmployeeId(),
+            draft.reportedByUserCompanyId(),
             draft.reportedByName(),
             actorUserId,
             companyId,
@@ -289,7 +292,7 @@ public class HrRecordService {
 
         var updated = jdbcTemplate.update(
             """
-                UPDATE hr_employee_records
+                UPDATE user_records
                 SET deleted_at = CURRENT_TIMESTAMP,
                     updated_at = CURRENT_TIMESTAMP,
                     updated_by_user_id = ?
@@ -368,7 +371,7 @@ public class HrRecordService {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                 """
-                    INSERT INTO hr_employee_record_attachments
+                    INSERT INTO user_record_attachments
                     (company_id, record_id, original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
@@ -402,7 +405,7 @@ public class HrRecordService {
         var rows = jdbcTemplate.query(
             """
                 SELECT id, object_key, original_filename
-                FROM hr_employee_record_attachments
+                FROM user_record_attachments
                 WHERE company_id = ?
                   AND record_id = ?
                   AND id = ?
@@ -424,7 +427,7 @@ public class HrRecordService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_employee_record_attachments
+                UPDATE user_record_attachments
                 SET deleted_at = CURRENT_TIMESTAMP
                 WHERE company_id = ?
                   AND record_id = ?
@@ -454,8 +457,8 @@ public class HrRecordService {
             conditions.add(
                 """
                     AND (
-                        LOWER(COALESCE(r.employee_name_snapshot, '')) LIKE ?
-                        OR LOWER(COALESCE(r.employee_position_snapshot, '')) LIKE ?
+                        LOWER(COALESCE(r.user_name_snapshot, '')) LIKE ?
+                        OR LOWER(COALESCE(r.user_position_snapshot, '')) LIKE ?
                         OR LOWER(COALESCE(r.title, '')) LIKE ?
                         OR LOWER(COALESCE(r.description, '')) LIKE ?
                         OR LOWER(COALESCE(r.record_type, '')) LIKE ?
@@ -473,13 +476,13 @@ public class HrRecordService {
 
         var unit = stringValue(filters, "unit");
         if (!unit.isBlank() && !"all".equalsIgnoreCase(unit)) {
-            conditions.add("AND LOWER(COALESCE(r.employee_unit_name_snapshot, '')) = ?");
+            conditions.add("AND LOWER(COALESCE(r.user_unit_name_snapshot, '')) = ?");
             params.add(unit.toLowerCase(Locale.ROOT));
         }
 
         var business = stringValue(filters, "business");
         if (!business.isBlank() && !"all".equalsIgnoreCase(business)) {
-            conditions.add("AND LOWER(COALESCE(r.employee_business_name_snapshot, '')) = ?");
+            conditions.add("AND LOWER(COALESCE(r.user_business_name_snapshot, '')) = ?");
             params.add(business.toLowerCase(Locale.ROOT));
         }
 
@@ -519,7 +522,7 @@ public class HrRecordService {
     private RecordDraft normalizeDraft(
         long companyId,
         Map<String, Object> payload,
-        EmployeeSnapshot employeeSnapshot,
+        UserSnapshot userSnapshot,
         ActorRef actor,
         String currentStatus
     ) {
@@ -547,9 +550,9 @@ public class HrRecordService {
             throw new IllegalArgumentException("event_date cannot be in the future.");
         }
 
-        var witnesses = normalizeWitnesses(companyId, payload, employeeSnapshot.employeeId());
+        var witnesses = normalizeWitnesses(companyId, payload, userSnapshot.userCompanyId());
         return new RecordDraft(
-            employeeSnapshot,
+            userSnapshot,
             recordType,
             severity,
             status,
@@ -557,21 +560,21 @@ public class HrRecordService {
             description,
             actionsTaken,
             eventDate,
-            actor.linkedEmployeeId(),
+            actor.linkedUserCompanyId(),
             actor.actorName(),
             witnesses
         );
     }
 
-    private long requiredEmployeeId(Map<String, Object> payload) {
-        var employeeId = parseLong(payload, "employee_id", "employeeId");
-        if (employeeId == null || employeeId <= 0) {
-            throw new IllegalArgumentException("employee_id is required.");
+    private long requiredUserCompanyId(Map<String, Object> payload) {
+        var userCompanyId = parseLong(payload, "user_company_id", "userCompanyId");
+        if (userCompanyId == null || userCompanyId <= 0) {
+            throw new IllegalArgumentException("user_company_id is required.");
         }
-        return employeeId;
+        return userCompanyId;
     }
 
-    private List<WitnessDraft> normalizeWitnesses(long companyId, Map<String, Object> payload, long employeeId) {
+    private List<WitnessDraft> normalizeWitnesses(long companyId, Map<String, Object> payload, long userCompanyId) {
         var value = payload.get("witnesses");
         if (!(value instanceof List<?> list) || list.isEmpty()) {
             return List.of();
@@ -580,17 +583,17 @@ public class HrRecordService {
         var witnesses = new ArrayList<WitnessDraft>();
         for (var item : list) {
             if (item instanceof Map<?, ?> witnessMap) {
-                var witnessEmployeeId = toLong(witnessMap.get("employee_id"), "witness employee_id");
-                if (witnessEmployeeId == null) {
-                    witnessEmployeeId = toLong(witnessMap.get("employeeId"), "witness employee_id");
+                var witnessUserCompanyId = toLong(witnessMap.get("user_company_id"), "witness user_company_id");
+                if (witnessUserCompanyId == null) {
+                    witnessUserCompanyId = toLong(witnessMap.get("userCompanyId"), "witness user_company_id");
                 }
                 var witnessName = toTrimmedString(witnessMap.get("name"));
-                if (witnessEmployeeId != null && witnessEmployeeId > 0) {
-                    if (witnessEmployeeId == employeeId) {
+                if (witnessUserCompanyId != null && witnessUserCompanyId > 0) {
+                    if (witnessUserCompanyId == userCompanyId) {
                         continue;
                     }
-                    var employee = loadEmployeeSnapshot(companyId, witnessEmployeeId);
-                    witnesses.add(new WitnessDraft(employee.employeeId(), employee.employeeName()));
+                    var user = loadUserSnapshot(companyId, witnessUserCompanyId);
+                    witnesses.add(new WitnessDraft(user.userCompanyId(), user.userName()));
                     continue;
                 }
                 if (!witnessName.isBlank()) {
@@ -607,7 +610,7 @@ public class HrRecordService {
 
         return witnesses.stream()
             .collect(Collectors.toMap(
-                witness -> (witness.employeeId() == null ? "name:" : "employee:") + safe(witness.name()).toLowerCase(Locale.ROOT),
+                witness -> (witness.userCompanyId() == null ? "name:" : "user:") + safe(witness.name()).toLowerCase(Locale.ROOT),
                 witness -> witness,
                 (left, right) -> left,
                 LinkedHashMap::new
@@ -622,14 +625,14 @@ public class HrRecordService {
             """
                 SELECT r.id,
                        r.record_number,
-                       r.employee_id,
-                       r.employee_name_snapshot,
-                       r.employee_position_snapshot,
-                       r.employee_department_snapshot,
-                       r.employee_unit_id_snapshot,
-                       r.employee_unit_name_snapshot,
-                       r.employee_business_id_snapshot,
-                       r.employee_business_name_snapshot,
+                       r.user_company_id,
+                       r.user_name_snapshot,
+                       r.user_position_snapshot,
+                       r.user_department_snapshot,
+                       r.user_unit_id_snapshot,
+                       r.user_unit_name_snapshot,
+                       r.user_business_id_snapshot,
+                       r.user_business_name_snapshot,
                        r.record_type,
                        r.severity,
                        r.status,
@@ -638,11 +641,11 @@ public class HrRecordService {
                        r.actions_taken,
                        r.event_date,
                        r.reported_by_user_id,
-                       r.reported_by_employee_id,
+                       r.reported_by_user_company_id,
                        r.reported_by_name_snapshot,
                        r.created_at,
                        r.updated_at
-                FROM hr_employee_records r
+                FROM user_records r
                 WHERE r.company_id = ?
                   AND r.id = ?
                   AND r.deleted_at IS NULL
@@ -663,7 +666,7 @@ public class HrRecordService {
         var rows = jdbcTemplate.query(
             """
                 SELECT id, status
-                FROM hr_employee_records
+                FROM user_records
                 WHERE company_id = ?
                   AND id = ?
                   AND deleted_at IS NULL
@@ -680,26 +683,28 @@ public class HrRecordService {
         return rows.getFirst();
     }
 
-    private EmployeeSnapshot loadEmployeeSnapshot(long companyId, long employeeId) {
+    private UserSnapshot loadUserSnapshot(long companyId, long userCompanyId) {
         var rows = jdbcTemplate.query(
             """
                 SELECT e.id,
-                       TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))) AS employee_name,
+                       e.user_id,
+                       TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))) AS user_name,
                        COALESCE(NULLIF(e.position, ''), NULLIF(e.department, ''), '') AS position_title,
                        COALESCE(e.department, '') AS department_name,
                        e.unit_id,
                        u.name AS unit_name,
                        e.business_id,
                        b.name AS business_name
-                FROM hr_employees e
+                FROM hr_users e
                 LEFT JOIN units u ON u.id = e.unit_id
                 LEFT JOIN businesses b ON b.id = e.business_id
                 WHERE e.company_id = ?
                   AND e.id = ?
                 """,
-            (rs, rowNum) -> new EmployeeSnapshot(
+            (rs, rowNum) -> new UserSnapshot(
                 rs.getLong("id"),
-                safe(rs.getString("employee_name")).trim(),
+                rs.getLong("user_id"),
+                safe(rs.getString("user_name")).trim(),
                 safe(rs.getString("position_title")),
                 safe(rs.getString("department_name")),
                 nullableLong(rs.getObject("unit_id")),
@@ -708,16 +713,16 @@ public class HrRecordService {
                 safe(rs.getString("business_name"))
             ),
             companyId,
-            employeeId
+            userCompanyId
         );
 
         if (rows.isEmpty()) {
-            throw new NoSuchElementException("Employee not found.");
+            throw new NoSuchElementException("HR user not found.");
         }
 
         var snapshot = rows.getFirst();
-        if (snapshot.employeeName().isBlank()) {
-            throw new IllegalArgumentException("Selected employee must have a name.");
+        if (snapshot.userName().isBlank()) {
+            throw new IllegalArgumentException("Selected user must have a name.");
         }
         return snapshot;
     }
@@ -728,19 +733,19 @@ public class HrRecordService {
                 SELECT u.id,
                        COALESCE(NULLIF(u.full_name, ''), u.email, CONCAT('User ', u.id)) AS actor_name,
                        (
-                           SELECT portal_access.employee_id
-                           FROM hr_employee_portal_access portal_access
-                           WHERE portal_access.linked_user_id = u.id
-                           ORDER BY portal_access.employee_id ASC
+                           SELECT uc.id
+                           FROM user_companies uc
+                           WHERE uc.user_id = u.id
+                           ORDER BY uc.id ASC
                            LIMIT 1
-                       ) AS linked_employee_id
+                       ) AS linked_user_company_id
                 FROM users u
                 WHERE u.id = ?
                 """,
             (rs, rowNum) -> new ActorRef(
                 rs.getLong("id"),
                 safe(rs.getString("actor_name")),
-                nullableLong(rs.getObject("linked_employee_id"))
+                nullableLong(rs.getObject("linked_user_company_id"))
             ),
             userId
         );
@@ -754,7 +759,7 @@ public class HrRecordService {
 
     private void replaceWitnesses(long companyId, long recordId, List<WitnessDraft> witnesses) {
         jdbcTemplate.update(
-            "DELETE FROM hr_employee_record_witnesses WHERE company_id = ? AND record_id = ?",
+            "DELETE FROM user_record_witnesses WHERE company_id = ? AND record_id = ?",
             companyId,
             recordId
         );
@@ -762,13 +767,13 @@ public class HrRecordService {
         for (var witness : witnesses) {
             jdbcTemplate.update(
                 """
-                    INSERT INTO hr_employee_record_witnesses
-                    (company_id, record_id, witness_employee_id, witness_name_snapshot)
+                    INSERT INTO user_record_witnesses
+                    (company_id, record_id, witness_user_company_id, witness_name_snapshot)
                     VALUES (?, ?, ?, ?)
                     """,
                 companyId,
                 recordId,
-                witness.employeeId(),
+                witness.userCompanyId(),
                 witness.name()
             );
         }
@@ -786,7 +791,7 @@ public class HrRecordService {
     ) {
         jdbcTemplate.update(
             """
-                INSERT INTO hr_employee_record_activity
+                INSERT INTO user_record_activity
                 (company_id, record_id, activity_type, from_status, to_status, note, actor_user_id, actor_name_snapshot)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -802,29 +807,29 @@ public class HrRecordService {
     }
 
     private Map<String, Object> mapRecordRow(ResultSet rs, boolean includeDetails) throws SQLException {
-        var employee = new LinkedHashMap<String, Object>();
-        employee.put("id", rs.getLong("employee_id"));
-        employee.put("name", safe(rs.getString("employee_name_snapshot")));
-        employee.put("position", safe(rs.getString("employee_position_snapshot")));
-        employee.put("department", safe(rs.getString("employee_department_snapshot")));
+        var user = new LinkedHashMap<String, Object>();
+        user.put("id", rs.getLong("user_company_id"));
+        user.put("name", safe(rs.getString("user_name_snapshot")));
+        user.put("position", safe(rs.getString("user_position_snapshot")));
+        user.put("department", safe(rs.getString("user_department_snapshot")));
 
         var unit = new LinkedHashMap<String, Object>();
-        unit.put("id", nullableLong(rs.getObject("employee_unit_id_snapshot")));
-        unit.put("name", safe(rs.getString("employee_unit_name_snapshot")));
+        unit.put("id", nullableLong(rs.getObject("user_unit_id_snapshot")));
+        unit.put("name", safe(rs.getString("user_unit_name_snapshot")));
 
         var business = new LinkedHashMap<String, Object>();
-        business.put("id", nullableLong(rs.getObject("employee_business_id_snapshot")));
-        business.put("name", safe(rs.getString("employee_business_name_snapshot")));
+        business.put("id", nullableLong(rs.getObject("user_business_id_snapshot")));
+        business.put("name", safe(rs.getString("user_business_name_snapshot")));
 
         var reportedBy = new LinkedHashMap<String, Object>();
         reportedBy.put("user_id", rs.getLong("reported_by_user_id"));
-        reportedBy.put("employee_id", nullableLong(rs.getObject("reported_by_employee_id")));
+        reportedBy.put("user_company_id", nullableLong(rs.getObject("reported_by_user_company_id")));
         reportedBy.put("name", safe(rs.getString("reported_by_name_snapshot")));
 
         var record = new LinkedHashMap<String, Object>();
         record.put("id", rs.getLong("id"));
         record.put("record_number", safe(rs.getString("record_number")));
-        record.put("employee", employee);
+        record.put("user", user);
         record.put("unit", unit);
         record.put("business", business);
         record.put("type", normalizeRecordType(rs.getString("record_type")));
@@ -851,15 +856,15 @@ public class HrRecordService {
     private List<Map<String, Object>> loadWitnesses(long recordId) {
         return jdbcTemplate.query(
             """
-                SELECT id, witness_employee_id, witness_name_snapshot, created_at
-                FROM hr_employee_record_witnesses
+                SELECT id, witness_user_company_id, witness_name_snapshot, created_at
+                FROM user_record_witnesses
                 WHERE record_id = ?
                 ORDER BY id ASC
                 """,
             (rs, rowNum) -> {
                 var witness = new LinkedHashMap<String, Object>();
                 witness.put("id", rs.getLong("id"));
-                witness.put("employee_id", nullableLong(rs.getObject("witness_employee_id")));
+                witness.put("user_company_id", nullableLong(rs.getObject("witness_user_company_id")));
                 witness.put("name", safe(rs.getString("witness_name_snapshot")));
                 witness.put("created_at", toIsoString(asLocalDateTime(rs.getTimestamp("created_at"))));
                 return witness;
@@ -877,7 +882,7 @@ public class HrRecordService {
                        size_bytes,
                        object_key,
                        created_at
-                FROM hr_employee_record_attachments
+                FROM user_record_attachments
                 WHERE record_id = ?
                   AND deleted_at IS NULL
                 ORDER BY id ASC
@@ -896,7 +901,7 @@ public class HrRecordService {
                        size_bytes,
                        object_key,
                        created_at
-                FROM hr_employee_record_attachments
+                FROM user_record_attachments
                 WHERE company_id = ?
                   AND record_id = ?
                   AND id = ?
@@ -938,7 +943,7 @@ public class HrRecordService {
                        actor_user_id,
                        actor_name_snapshot,
                        created_at
-                FROM hr_employee_record_activity
+                FROM user_record_activity
                 WHERE record_id = ?
                 ORDER BY created_at DESC, id DESC
                 """,
@@ -1249,7 +1254,7 @@ public class HrRecordService {
     }
 
     private record RecordDraft(
-        EmployeeSnapshot employeeSnapshot,
+        UserSnapshot userSnapshot,
         String recordType,
         String severity,
         String status,
@@ -1257,15 +1262,16 @@ public class HrRecordService {
         String description,
         String actionsTaken,
         LocalDateTime eventDate,
-        Long reportedByEmployeeId,
+        Long reportedByUserCompanyId,
         String reportedByName,
         List<WitnessDraft> witnesses
     ) {
     }
 
-    private record EmployeeSnapshot(
-        long employeeId,
-        String employeeName,
+    private record UserSnapshot(
+        long userCompanyId,
+        long userId,
+        String userName,
         String position,
         String department,
         Long unitId,
@@ -1275,10 +1281,10 @@ public class HrRecordService {
     ) {
     }
 
-    private record WitnessDraft(Long employeeId, String name) {
+    private record WitnessDraft(Long userCompanyId, String name) {
     }
 
-    private record ActorRef(long userId, String actorName, Long linkedEmployeeId) {
+    private record ActorRef(long userId, String actorName, Long linkedUserCompanyId) {
     }
 
     private record RecordState(long recordId, String status) {

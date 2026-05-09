@@ -38,7 +38,7 @@ public class HrAssetApiController {
         @RequestParam(name = "asset_type", required = false) String assetType,
         @RequestParam(required = false) String status,
         @RequestParam(name = "unit_id", required = false) Long unitId,
-        @RequestParam(name = "responsible_employee_id", required = false) Long responsibleEmployeeId,
+        @RequestParam(name = "responsible_user_company_id", required = false) Long responsibleUserCompanyId,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "20") int size
     ) {
@@ -53,7 +53,7 @@ public class HrAssetApiController {
             filters.put("asset_type", assetType);
             filters.put("status", status);
             filters.put("unit_id", unitId);
-            filters.put("responsible_employee_id", responsibleEmployeeId);
+            filters.put("responsible_user_company_id", responsibleUserCompanyId);
             filters.put("page", page);
             filters.put("size", size);
 
