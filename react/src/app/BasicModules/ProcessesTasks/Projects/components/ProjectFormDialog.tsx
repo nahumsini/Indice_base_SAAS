@@ -19,44 +19,41 @@ import {
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
 import { accentButtonClass } from '../../Processes/processesData';
-import type { ProjectRecord } from '../../Projects/projectsApi';
-import type { TaskPriority, TaskStatus } from '../tasksApi';
+import type { ProjectPriority, ProjectStatus } from '../projectsApi';
 
-export interface TaskFormValues {
-  title: string;
+export interface ProjectFormValues {
+  name: string;
   description: string;
-  processId: string;
-  projectId: string;
-  assignedEmployeeId: string;
-  assignedUserId: string;
-  assignedName: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  dueDate: string;
+  status: ProjectStatus;
+  priority: ProjectPriority | 'none';
+  ownerUserId: string;
+  ownerEmployeeId: string;
+  ownerName: string;
   businessId: string;
   unitId: string;
+  startDate: string;
+  dueDate: string;
 }
 
-interface TaskFormDialogProps {
-  form: TaskFormValues;
+interface ProjectFormDialogProps {
+  form: ProjectFormValues;
   isSubmitting: boolean;
   mode: 'create' | 'edit';
   onOpenChange: (open: boolean) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   open: boolean;
-  projects: ProjectRecord[];
-  setForm: Dispatch<SetStateAction<TaskFormValues>>;
+  setForm: Dispatch<SetStateAction<ProjectFormValues>>;
 }
 
-const statusOptions: Array<{ label: string; value: TaskStatus }> = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In progress' },
+const statusOptions: Array<{ label: string; value: ProjectStatus }> = [
+  { value: 'active', label: 'Active' },
   { value: 'paused', label: 'Paused' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const priorityOptions: Array<{ label: string; value: TaskPriority }> = [
+const priorityOptions: Array<{ label: string; value: ProjectPriority | 'none' }> = [
+  { value: 'none', label: 'No priority' },
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
@@ -92,40 +89,32 @@ function SelectField<T extends string>({
   );
 }
 
-export function TaskFormDialog({
+export function ProjectFormDialog({
   form,
   isSubmitting,
   mode,
   onOpenChange,
   onSubmit,
   open,
-  projects,
   setForm,
-}: TaskFormDialogProps) {
-  const title = mode === 'create' ? 'Create task' : 'Edit task';
-  const description =
-    mode === 'create'
-      ? 'Create an operational task without forcing a process relation. A task can be assigned to an employee or to a user.'
-      : 'Update the task details, assignment, and execution status without leaving the Processes and Tasks module.';
-  const submitLabel = mode === 'create' ? 'Create task' : 'Save changes';
-  const hasExclusiveAssignmentConflict =
-    Boolean(form.assignedEmployeeId.trim()) && Boolean(form.assignedUserId.trim());
-  const isFormValid = Boolean(form.title.trim()) && !hasExclusiveAssignmentConflict;
+}: ProjectFormDialogProps) {
+  const title = mode === 'create' ? 'Create project' : 'Edit project';
+  const submitLabel = mode === 'create' ? 'Create project' : 'Save changes';
+  const hasOwnerConflict = Boolean(form.ownerUserId.trim()) && Boolean(form.ownerEmployeeId.trim());
+  const isFormValid = Boolean(form.name.trim()) && !hasOwnerConflict;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="!flex h-[min(88vh,820px)] max-h-[calc(100vh-3rem)] max-w-[820px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800"
+        className="!flex h-[min(88vh,780px)] max-h-[calc(100vh-3rem)] max-w-[820px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800"
       >
         <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="pr-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
-                {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-                {title}
-              </DialogTitle>
-            </div>
+            <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
+              {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+              {title}
+            </DialogTitle>
             <DialogClose asChild>
               <Button
                 type="button"
@@ -141,33 +130,23 @@ export function TaskFormDialog({
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="space-y-6 overflow-y-auto px-6 py-5">
-            <div className="space-y-3">
-              <DialogDescription className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-                {description}
-              </DialogDescription>
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
-                Use either <span className="font-semibold">Assigned employee ID</span> or{' '}
-                <span className="font-semibold">Assigned user ID</span>. Leave both empty for an unassigned task.
+            <DialogDescription className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              Projects organize tasks and keep ownership, dates, and status scoped to the current company.
+            </DialogDescription>
+
+            {hasOwnerConflict ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+                Use either owner employee ID or owner user ID, not both.
               </div>
-              {hasExclusiveAssignmentConflict ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-                  Select only one assignment target: employee or user.
-                </div>
-              ) : null}
-            </div>
+            ) : null}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Title *</label>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Project name *</label>
                 <Input
-                  value={form.title}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      title: event.target.value,
-                    }))
-                  }
-                  placeholder="Enter the task title"
+                  value={form.name}
+                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="Enter the project name"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
@@ -176,151 +155,95 @@ export function TaskFormDialog({
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Description</label>
                 <Textarea
                   value={form.description}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      description: event.target.value,
-                    }))
-                  }
-                  placeholder="Describe the operational task"
-                  className="min-h-[120px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Optional project description"
+                  className="min-h-[110px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
 
               <SelectField
                 label="Status"
                 value={form.status}
-                onChange={(value) => setForm((currentForm) => ({ ...currentForm, status: value }))}
+                onChange={(value) => setForm((current) => ({ ...current, status: value }))}
                 options={statusOptions}
               />
               <SelectField
                 label="Priority"
                 value={form.priority}
-                onChange={(value) => setForm((currentForm) => ({ ...currentForm, priority: value }))}
+                onChange={(value) => setForm((current) => ({ ...current, priority: value }))}
                 options={priorityOptions}
               />
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Process ID</label>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Owner user ID</label>
                 <Input
                   type="number"
                   min="1"
-                  value={form.processId}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({ ...currentForm, processId: event.target.value }))
-                  }
+                  value={form.ownerUserId}
+                  onChange={(event) => setForm((current) => ({ ...current, ownerUserId: event.target.value }))}
                   placeholder="Optional"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Project ID</label>
-                <Select
-                  value={form.projectId || 'none'}
-                  onValueChange={(value) =>
-                    setForm((currentForm) => ({ ...currentForm, projectId: value === 'none' ? '' : value }))
-                  }
-                >
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                    <SelectValue placeholder="Optional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No project</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.folio} - {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Assigned employee ID
-                </label>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Owner employee ID</label>
                 <Input
                   type="number"
                   min="1"
-                  value={form.assignedEmployeeId}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      assignedEmployeeId: event.target.value,
-                    }))
-                  }
-                  placeholder="Optional"
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Assigned user ID
-                </label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={form.assignedUserId}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      assignedUserId: event.target.value,
-                    }))
-                  }
+                  value={form.ownerEmployeeId}
+                  onChange={(event) => setForm((current) => ({ ...current, ownerEmployeeId: event.target.value }))}
                   placeholder="Optional"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Assigned name</label>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Owner name</label>
                 <Input
-                  value={form.assignedName}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      assignedName: event.target.value,
-                    }))
-                  }
+                  value={form.ownerName}
+                  onChange={(event) => setForm((current) => ({ ...current, ownerName: event.target.value }))}
                   placeholder="Optional display name"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Start date</label>
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))}
+                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                />
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Due date</label>
                 <Input
                   type="date"
                   value={form.dueDate}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({ ...currentForm, dueDate: event.target.value }))
-                  }
+                  onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))}
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Business ID</label>
                 <Input
                   type="number"
                   min="1"
                   value={form.businessId}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({ ...currentForm, businessId: event.target.value }))
-                  }
+                  onChange={(event) => setForm((current) => ({ ...current, businessId: event.target.value }))}
                   placeholder="Optional"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
-
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Unit ID</label>
                 <Input
                   type="number"
                   min="1"
                   value={form.unitId}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({ ...currentForm, unitId: event.target.value }))
-                  }
+                  onChange={(event) => setForm((current) => ({ ...current, unitId: event.target.value }))}
                   placeholder="Optional"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />

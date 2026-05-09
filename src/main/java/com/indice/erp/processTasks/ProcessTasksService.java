@@ -89,6 +89,25 @@ public class ProcessTasksService {
         return body;
     }
 
+    public Map<String, Object> listTasksForProject(long companyId, long projectId) {
+        var rows = jdbcTemplate.query(
+                TASK_SELECT_COLUMNS +
+                        """
+                                WHERE pt.company_id = ?
+                                  AND pt.deleted_at IS NULL
+                                  AND pt.project_id = ?
+                                ORDER BY pt.id DESC
+                                """,
+                (rs, rowNum) -> mapTaskRow(rs),
+                companyId,
+                projectId);
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", rows);
+        body.put("count", rows.size());
+        return body;
+    }
+
     @Transactional
     public Map<String, Object> createTask(long companyId, long userId, Map<String, Object> payload) {
         var command = parseTaskCommand(payload);
@@ -353,6 +372,20 @@ public class ProcessTasksService {
                     companyId,
                     command.processId(),
                     "Process not found.");
+        }
+
+        if (command.projectId() != null) {
+            requireScopedRecord(
+                    """
+                            SELECT COUNT(*)
+                            FROM projects
+                            WHERE company_id = ?
+                              AND id = ?
+                              AND deleted_at IS NULL
+                            """,
+                    companyId,
+                    command.projectId(),
+                    "Project not found.");
         }
 
         if (command.assignedEmployeeId() != null) {
