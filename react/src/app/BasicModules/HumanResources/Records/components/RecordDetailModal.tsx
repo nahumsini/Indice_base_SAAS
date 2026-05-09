@@ -146,9 +146,9 @@ export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdi
               </div>
               <div className="flex-1">
                 <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.employeeInformation}</h3>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">{record.employee.name}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{record.employee.position}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{record.employee.department}</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{record.user.name}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{record.user.position}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{record.user.department}</p>
               </div>
             </div>
           </div>

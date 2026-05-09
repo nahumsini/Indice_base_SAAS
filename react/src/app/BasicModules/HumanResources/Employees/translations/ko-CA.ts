@@ -124,9 +124,9 @@ export const koCA = {
     selectAllVisible: '표시된 모든 직원 선택',
     selectEmployee: (name: string) => `${name} 선택`,
     deleteConfirm: '종료된 이 직원을 영구 삭제하시겠습니까?',
-    editEmployeeLabel: '직원 편집',
-    terminateEmployeeLabel: '고용 종료',
-    deleteEmployeeLabel: '직원 삭제',
+    editHrUserLabel: '직원 편집',
+    terminateHrUserLabel: '고용 종료',
+    deleteHrUserLabel: '직원 삭제',
   },
   columnDescriptions: {
     employee: '이름과 내부 코드로 표시되는 직원 기본 정보입니다.',

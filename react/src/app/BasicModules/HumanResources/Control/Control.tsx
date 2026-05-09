@@ -151,14 +151,14 @@ const defaultTemplateForm = (): AttendanceControlTemplatePayload => ({
 });
 
 const defaultAssignmentForm = (): AttendanceControlAssignmentPayload => ({
-  employee_ids: [],
+  user_company_ids: [],
   template_id: 0,
   effective_start_date: todayIsoDate(),
   effective_end_date: todayIsoDate(),
 });
 
 const defaultWorkSiteForm = (): ControlWorkSiteForm => ({
-  employee_ids: [],
+  user_company_ids: [],
   location_ids: [],
   location_id: 0,
   effective_start_date: todayIsoDate(),
@@ -369,9 +369,9 @@ export default function Control() {
       setKioskDevices(kioskDevicesResponse.items);
       setAccessProfiles(accessProfilesResponse.items);
       setSelectedEmployeeId((current) =>
-        current && overviewResponse.assignments.some((assignment) => assignment.employee_id === current)
+        current && overviewResponse.assignments.some((assignment) => assignment.user_company_id === current)
           ? current
-          : overviewResponse.assignments[0]?.employee_id ?? null,
+          : overviewResponse.assignments[0]?.user_company_id ?? null,
       );
       setSelectedTemplateId((current) =>
         current && templatesResponse.items.some((template) => template.id === current)
@@ -542,8 +542,8 @@ export default function Control() {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         [
-          assignment.employee_name,
-          assignment.employee_number,
+          assignment.user_name,
+          assignment.user_code,
           assignment.position_title,
           assignment.department,
           assignment.unit_name,
@@ -583,7 +583,7 @@ export default function Control() {
   };
 
   const selectedEmployee = useMemo(
-    () => overview?.assignments.find((assignment) => assignment.employee_id === selectedEmployeeId) ?? null,
+    () => overview?.assignments.find((assignment) => assignment.user_company_id === selectedEmployeeId) ?? null,
     [overview?.assignments, selectedEmployeeId],
   );
   const selectedEmployeeBusyReason = selectedEmployee ? getAssignmentBusyReason(selectedEmployee, copy) : '';
@@ -591,7 +591,7 @@ export default function Control() {
     const locationIds = new Set<number>();
     overview?.assignments.forEach((assignment) => {
       const locationId = assignment.active_work_site?.location_id;
-      if (locationId && assignment.employee_id !== selectedEmployeeId) {
+      if (locationId && assignment.user_company_id !== selectedEmployeeId) {
         locationIds.add(locationId);
       }
     });
@@ -661,7 +661,7 @@ export default function Control() {
   }, [isKioskQrDialogOpen, selectedKioskDeviceLink]);
 
   const selectedAccessProfile = useMemo(
-    () => accessProfiles.find((profile) => profile.employee_id === selectedEmployeeId) ?? null,
+    () => accessProfiles.find((profile) => profile.user_company_id === selectedEmployeeId) ?? null,
     [accessProfiles, selectedEmployeeId],
   );
 
@@ -906,7 +906,7 @@ export default function Control() {
           ...current,
           date,
           assignments: current.assignments.map((assignment) =>
-            assignment.employee_id === selectedEmployeeId
+            assignment.user_company_id === selectedEmployeeId
               ? {
                   ...assignment,
                   today_status: result.effective_status as AttendanceControlAssignment['today_status'],
@@ -1072,7 +1072,7 @@ export default function Control() {
 
     setPendingCalendarScheduleClear({
       employeeId: selectedEmployeeId,
-      employeeName: selectedEmployee?.employee_name ?? 'this employee',
+      employeeName: selectedEmployee?.user_name ?? 'this employee',
       targetDate: date,
     });
 
@@ -1095,7 +1095,7 @@ export default function Control() {
     try {
       await runWithMinimumDuration((async () => {
         await humanResourcesApi.clearAttendanceWorkAssignments({
-          employee_id: employeeId,
+          user_company_id: employeeId,
           date: targetDate,
         });
         const targetCalendarMonth = toMonthValue(targetDate);
@@ -1180,7 +1180,7 @@ export default function Control() {
     const today = todayIsoDate();
     const effectiveStartDate = controlDate < today ? today : controlDate;
     setAssignmentForm({
-      employee_ids: selectedEmployee && !getAssignmentBusyReason(selectedEmployee, copy) ? [selectedEmployee.employee_id] : [],
+      user_company_ids: selectedEmployee && !getAssignmentBusyReason(selectedEmployee, copy) ? [selectedEmployee.user_company_id] : [],
       template_id: selectedEmployee?.schedule_template_id ?? selectedTemplate?.id ?? templates[0]?.id ?? 0,
       effective_start_date: effectiveStartDate,
       effective_end_date: effectiveStartDate,
@@ -1218,7 +1218,7 @@ export default function Control() {
     ]));
 
     setWorkSiteForm({
-      employee_ids: [selectedEmployee.employee_id],
+      user_company_ids: [selectedEmployee.user_company_id],
       location_ids: nextAllowedLocationIds,
       location_id: activeLocationId,
       effective_start_date: assignmentDates.startDate,
@@ -1324,7 +1324,7 @@ export default function Control() {
     try {
       await runWithMinimumDuration((async () => {
         await humanResourcesApi.bulkAssignAttendanceSchedule({
-          employee_ids: assignmentForm.employee_ids,
+          user_company_ids: assignmentForm.user_company_ids,
           template_id: Number(assignmentForm.template_id),
           effective_start_date: assignmentForm.effective_start_date,
           effective_end_date: assignmentForm.effective_end_date,
@@ -1373,7 +1373,7 @@ export default function Control() {
     ) ?? null;
 
   const handleSaveWorkSite = async () => {
-    const employeeId = workSiteForm.employee_ids[0];
+    const employeeId = workSiteForm.user_company_ids[0];
     const today = todayIsoDate();
     if (
       !employeeId ||
@@ -1413,7 +1413,7 @@ export default function Control() {
       return;
     }
 
-    const currentAssignment = overview?.assignments.find((assignment) => assignment.employee_id === employeeId) ?? null;
+    const currentAssignment = overview?.assignments.find((assignment) => assignment.user_company_id === employeeId) ?? null;
     const busyReason = currentAssignment ? getAssignmentBusyReason(currentAssignment, copy) : '';
     if (busyReason) {
       showFailureToast(`${busyReason}. Remove the existing shift before assigning a contract site.`);
@@ -1453,11 +1453,11 @@ export default function Control() {
           templateId = templateResponse.template.id;
         }
 
-        await humanResourcesApi.replaceAttendanceEmployeeAllowedLocations(employeeId, {
+        await humanResourcesApi.replaceAttendanceHrUserAllowedLocations(employeeId, {
           location_ids: Array.from(new Set([...workSiteForm.location_ids, selectedLocation.id])),
         });
         await humanResourcesApi.bulkAssignAttendanceWorkSite({
-          employee_ids: workSiteForm.employee_ids,
+          user_company_ids: workSiteForm.user_company_ids,
           location_id: workSiteForm.location_id,
           template_id: templateId,
           effective_start_date: workSiteForm.effective_start_date,
@@ -1476,7 +1476,7 @@ export default function Control() {
   };
 
   const handleRequestClearEmployeeShift = (assignment: AttendanceControlAssignment, targetDate = controlDate) => {
-    if (isSaving || !assignment.employee_id) {
+    if (isSaving || !assignment.user_company_id) {
       return;
     }
 
@@ -1499,7 +1499,7 @@ export default function Control() {
     try {
       await runWithMinimumDuration((async () => {
         await humanResourcesApi.clearAttendanceWorkAssignments({
-          employee_id: assignment.employee_id,
+          user_company_id: assignment.user_company_id,
           date: targetDate,
         });
         showSuccessToast(copy.labels.removeTimeTableDaySuccess);
@@ -1839,13 +1839,13 @@ export default function Control() {
               {filteredAssignments.length > 0 ? (
                 visibleAttendanceAssignments.map((assignment) => (
                   <ControlAttendanceRow
-                    key={assignment.employee_id}
+                    key={assignment.user_company_id}
                     assignment={assignment}
                     copy={copy}
                     locale={currentLanguage.code}
-                    selected={selectedEmployeeId === assignment.employee_id}
+                    selected={selectedEmployeeId === assignment.user_company_id}
                     onSelect={() => {
-                      setSelectedEmployeeId(assignment.employee_id);
+                      setSelectedEmployeeId(assignment.user_company_id);
                       if (assignment.schedule_template_id) {
                         setSelectedTemplateId(assignment.schedule_template_id);
                       }
@@ -2032,7 +2032,7 @@ export default function Control() {
       <ControlCalendarDayDialog
         copy={copy}
         day={selectedCalendarDay}
-        employeeName={selectedEmployee?.employee_name || '—'}
+        employeeName={selectedEmployee?.user_name || '—'}
         locale={currentLanguage.code}
         pendingStatus={pendingCalendarStatus}
         isSaving={isUpdatingCalendarDay}
@@ -2107,7 +2107,7 @@ export default function Control() {
         copy={copy}
         isOpen={isWorkSiteDialogOpen}
         isSaving={isSaving}
-        employeeName={selectedEmployee?.employee_name ?? '—'}
+        employeeName={selectedEmployee?.user_name ?? '—'}
         locations={availableContractSiteLocations}
         form={workSiteForm}
         onClose={() => setIsWorkSiteDialogOpen(false)}
@@ -2174,7 +2174,7 @@ export default function Control() {
         title={copy.labels.removeTimeTableDayTitle}
         description={copy.labels.removeTimeTableDayDescription}
         itemName={pendingTimeTableRemoval
-          ? `${pendingTimeTableRemoval.assignment.employee_name} - ${pendingTimeTableRemoval.targetDate}`
+          ? `${pendingTimeTableRemoval.assignment.user_name} - ${pendingTimeTableRemoval.targetDate}`
           : undefined}
         confirmLabel={copy.labels.removeTimeTableDayConfirm}
         cancelLabel={copy.labels.cancel}

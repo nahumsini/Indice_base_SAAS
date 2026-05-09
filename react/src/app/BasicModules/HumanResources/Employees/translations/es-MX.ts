@@ -122,9 +122,9 @@ export const esMX = {
     selectAllVisible: 'Seleccionar todos los colaboradores visibles',
     selectEmployee: (name: string) => `Seleccionar a ${name}`,
     deleteConfirm: '¿Eliminar permanentemente este colaborador terminado?',
-    editEmployeeLabel: 'Editar colaborador',
-    terminateEmployeeLabel: 'Terminar contrato',
-    deleteEmployeeLabel: 'Eliminar colaborador',
+    editHrUserLabel: 'Editar colaborador',
+    terminateHrUserLabel: 'Terminar contrato',
+    deleteHrUserLabel: 'Eliminar colaborador',
   },
   columnDescriptions: {
     employee: 'Identidad principal del colaborador con nombre y código interno.',

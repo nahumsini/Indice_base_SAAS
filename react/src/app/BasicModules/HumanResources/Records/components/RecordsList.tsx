@@ -135,8 +135,8 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
           bValue = Number(b.id);
           break;
         case 'employee':
-          aValue = a.employee.name.toLowerCase();
-          bValue = b.employee.name.toLowerCase();
+          aValue = a.user.name.toLowerCase();
+          bValue = b.user.name.toLowerCase();
           break;
         case 'reportedBy':
           aValue = a.reportedBy.name.toLowerCase();
@@ -232,8 +232,8 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
                   {visibleColumnSet.has('employee') ? (
                     <td className="whitespace-nowrap px-4 py-4">
                       <div className="text-sm">
-                        <div className="font-semibold text-gray-900 dark:text-white">{record.employee.name}</div>
-                        <div className="text-gray-500 dark:text-gray-400">{record.employee.position || copy.list.noPosition}</div>
+                        <div className="font-semibold text-gray-900 dark:text-white">{record.user.name}</div>
+                        <div className="text-gray-500 dark:text-gray-400">{record.user.position || copy.list.noPosition}</div>
                       </div>
                     </td>
                   ) : null}

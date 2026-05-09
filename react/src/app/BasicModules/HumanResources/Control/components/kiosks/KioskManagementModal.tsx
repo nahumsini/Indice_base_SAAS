@@ -107,7 +107,7 @@ const locationRuleForDevice = (
   const locationName = locationNameForDevice(device, locations);
 
   if (kioskType === 'business_unit' && !device.location_id) {
-    return 'Uses each employee business location at check-in.';
+    return 'Uses each HR user business location at check-in.';
   }
 
   if (!locationName) {
@@ -115,11 +115,11 @@ const locationRuleForDevice = (
   }
 
   if (kioskType === 'contract_site') {
-    return `Employees must register from ${locationName}.`;
+    return `HR users must register from ${locationName}.`;
   }
 
   if (kioskType === 'head_office') {
-    return `Employees register from ${locationName}.`;
+    return `HR users register from ${locationName}.`;
   }
 
   return `Check-ins are validated against ${locationName}.`;
@@ -141,7 +141,7 @@ const usageLabelForDevice = (device: AttendanceKioskDevice) => {
     return 'No activity today';
   }
 
-  return `Used by ${usageCount} employee${usageCount === 1 ? '' : 's'} today`;
+  return `Used by ${usageCount} HR user${usageCount === 1 ? '' : 's'} today`;
 };
 
 export interface KioskManagementModalProps {
@@ -201,7 +201,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               <DialogHeader className="gap-1 text-left">
                 <DialogTitle className="text-xl font-semibold text-white">Kiosk Devices</DialogTitle>
                 <DialogDescription className="text-sm text-white/80">
-                  Manage where employees can register attendance.
+                  Manage where HR users can register attendance.
                 </DialogDescription>
               </DialogHeader>
             </div>
@@ -282,7 +282,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               </div>
               <p className="mt-4 text-base font-semibold text-slate-950 dark:text-white">No kiosk devices yet</p>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-                Create a kiosk device to let employees register attendance from a controlled public link.
+                Create a kiosk device to let HR users register attendance from a controlled public link.
               </p>
               <Button
                 type="button"

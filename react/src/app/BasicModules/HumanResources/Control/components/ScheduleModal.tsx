@@ -443,13 +443,13 @@ export function ScheduleModal({
   const pageStartIndex = (safeCurrentPage - 1) * employeesPerPage;
   const paginatedAssignments = candidateAssignments;
   const visibleAssignableEmployeeIds = paginatedAssignments
-    .map((assignment) => assignment.employee_id);
+    .map((assignment) => assignment.user_company_id);
   const allVisibleSelected = visibleAssignableEmployeeIds.length > 0
     && visibleAssignableEmployeeIds.every((employeeId) => selectedEmployeeIds.includes(employeeId));
   const paginationStart = candidateTotalCount === 0 ? 0 : pageStartIndex + 1;
   const paginationEnd = candidateTotalCount === 0 ? 0 : pageStartIndex + paginatedAssignments.length;
   const assignmentByEmployeeId = useMemo(
-    () => new Map(candidateAssignments.map((assignment) => [assignment.employee_id, assignment] as const)),
+    () => new Map(candidateAssignments.map((assignment) => [assignment.user_company_id, assignment] as const)),
     [candidateAssignments],
   );
   const selectedAssignments = useMemo(
@@ -596,7 +596,7 @@ export function ScheduleModal({
 
     const missingBusinessCount = selectedAssignments.filter((assignment) => !assignment.business_id).length;
     if (missingBusinessCount > 0) {
-      return `${missingBusinessCount} selected employee${missingBusinessCount === 1 ? '' : 's'} need an assigned business before business-location validation can work.`;
+      return `${missingBusinessCount} selected HR user${missingBusinessCount === 1 ? '' : 's'} need an assigned business before business-location validation can work.`;
     }
 
     const businessIdsWithoutLocations = selectedBusinessIds.filter((businessId) =>
@@ -611,7 +611,7 @@ export function ScheduleModal({
   }, [activeLocationOptions, businessNameById, selectedAssignments, selectedBusinessIds, selectedEmployeeIds.length]);
   const locationScopeSummary = useMemo(() => {
     if (hasSelectedEmployees && selectedAssignments.length === 0) {
-      return 'Showing all active locations until selected employee details are available.';
+      return 'Showing all active locations until selected HR user details are available.';
     }
 
     if (scopedBusinessIds.length === 1) {
@@ -657,30 +657,30 @@ export function ScheduleModal({
   ]);
   const employeeBusinessLocationSummary = useMemo(() => {
     if (selectedEmployeeIds.length === 0) {
-      return 'Selected employees will use the active Business Structure location saved for their assigned business.';
+      return 'Selected HR users will use the active Business Structure location saved for their assigned business.';
     }
 
     if (selectedAssignments.length === 0) {
-      return 'Selected employees will use their assigned business location once their business details are available.';
+      return 'Selected HR users will use their assigned business location once their business details are available.';
     }
 
     if (selectedBusinessIds.length === 1) {
       const businessId = selectedBusinessIds[0];
-      return `Selected employees will use ${businessNameById.get(businessId) || 'their assigned business'} location.`;
+      return `Selected HR users will use ${businessNameById.get(businessId) || 'their assigned business'} location.`;
     }
 
     if (selectedBusinessIds.length > 1) {
       const businessNames = selectedBusinessIds.map((businessId) => businessNameById.get(businessId) || `Business ${businessId}`);
-      return `Selected employees cover ${formatPreviewList(businessNames, 'multiple businesses')}; each employee keeps their own business location.`;
+      return `Selected HR users cover ${formatPreviewList(businessNames, 'multiple businesses')}; each HR user keeps their own business location.`;
     }
 
-    return 'Selected employees need assigned businesses for business-location validation.';
+    return 'Selected HR users need assigned businesses for business-location validation.';
   }, [businessNameById, selectedAssignments.length, selectedBusinessIds, selectedBusinessKey, selectedEmployeeIds.length]);
   const locationScopeFallbackMessage = hasLocationScope && scopedExactLocationOptions.length === 0 && activeLocationOptions.length > 0
     ? 'No active location matched that business or unit, so all active locations are shown.'
     : '';
   const exactLocationWarning = selectedBusinessIds.length > 1
-    ? 'One exact location will apply to every selected employee, even when they belong to different businesses.'
+    ? 'One exact location will apply to every selected HR user, even when they belong to different businesses.'
     : '';
 
   useEffect(() => {
@@ -714,7 +714,7 @@ export function ScheduleModal({
     setSelectedEmployeeAssignments((current) => {
       const next = { ...current };
       assignments.forEach((assignment) => {
-        next[assignment.employee_id] = assignment;
+        next[assignment.user_company_id] = assignment;
       });
       return next;
     });
@@ -778,7 +778,7 @@ export function ScheduleModal({
       setSelectedEmployeeIds((current) => current.filter((id) => !visibleAssignableEmployeeIds.includes(id)));
       return;
     }
-    rememberSelectedAssignments(paginatedAssignments.filter((assignment) => visibleAssignableEmployeeIds.includes(assignment.employee_id)));
+    rememberSelectedAssignments(paginatedAssignments.filter((assignment) => visibleAssignableEmployeeIds.includes(assignment.user_company_id)));
     setSelectedEmployeeIds((current) => Array.from(new Set([...current, ...visibleAssignableEmployeeIds])));
   };
 
@@ -993,7 +993,7 @@ export function ScheduleModal({
     try {
       const appliedResult = await runWithMinimumDuration((async () => {
         if (selectedEmployeeIds.length === 0) {
-          const message = 'Select at least one employee.';
+          const message = 'Select at least one HR user.';
           setErrorMessage(message);
           showFailureToast(message);
           return null;
@@ -1037,7 +1037,7 @@ export function ScheduleModal({
         }
 
         await humanResourcesApi.bulkAssignAttendanceSchedule({
-          employee_ids: selectedEmployeeIds,
+          user_company_ids: selectedEmployeeIds,
           template_id: templateId,
           effective_start_date: assignmentEffectiveStartDate,
           effective_end_date: permanentScheduleEndDate,
@@ -1127,7 +1127,7 @@ export function ScheduleModal({
       <LoadingBarOverlay
         isVisible={isSubmitting}
         title="Saving schedule"
-        description="Saving the active employee schedule from the selected date onward."
+        description="Saving the active HR user schedule from the selected date onward."
         className="z-[95]"
       />
       <FailureToast
@@ -1154,9 +1154,9 @@ export function ScheduleModal({
                 <Clock className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-xl font-semibold tracking-tight text-white">Edit employee schedule</h2>
+                <h2 className="truncate text-xl font-semibold tracking-tight text-white">Edit HR user schedule</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
-                  Choose any employee and save the schedule that stays active from the selected date onward.
+                  Choose any HR user and save the schedule that stays active from the selected date onward.
                 </p>
               </div>
             </div>
@@ -1278,7 +1278,7 @@ export function ScheduleModal({
                 disabled={selectedEmployeeIds.length === 0 || isSubmitting || Boolean(assignmentDateError)}
                 title={
                   selectedEmployeeIds.length === 0
-                    ? 'Select at least one employee first.'
+                    ? 'Select at least one HR user first.'
                     : assignmentDateError
                       ? assignmentDateError
                       : undefined
@@ -1460,9 +1460,9 @@ function EmployeeSelectionTable({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 6</p>
-            <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Employee selection</h3>
+            <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">HR User selection</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Assign the configured schedule to the employees who need it.
+              Assign the configured schedule to the HR users who need it.
             </p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff]">
@@ -1473,7 +1473,7 @@ function EmployeeSelectionTable({
 
         <div className="grid gap-3 md:grid-cols-2">
           <label className="md:col-span-2">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Search employee</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Search HR user</span>
             <input
               type="text"
               value={searchQuery}
@@ -1536,7 +1536,7 @@ function EmployeeSelectionTable({
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            This schedule will stay active until a new one is saved for the employee.
+            This schedule will stay active until a new one is saved for the HR user.
           </p>
           <Button
             className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
@@ -1552,8 +1552,8 @@ function EmployeeSelectionTable({
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 id="available-employees-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
-              Employees
+            <h3 id="available-hr-users-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
+              HR Users
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               New schedule starts on {assignmentEffectiveStartDate}.
@@ -1581,7 +1581,7 @@ function EmployeeSelectionTable({
                   />
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Code</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Employee</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">HR User</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Dept</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Current schedule</th>
               </tr>
@@ -1590,18 +1590,18 @@ function EmployeeSelectionTable({
               {isLoadingCandidates ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Loading employees...
+                    Loading HR users...
                   </td>
                 </tr>
               ) : candidateTotalCount === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No employees match these filters.
+                    No HR users match these filters.
                   </td>
                 </tr>
               ) : (
                 paginatedAssignments.map((assignment) => {
-                  const isSelected = selectedEmployeeIds.includes(assignment.employee_id);
+                  const isSelected = selectedEmployeeIds.includes(assignment.user_company_id);
                   const hasScheduleNotice = assignment.can_assign_schedule === false;
                   const lockedReason = assignment.schedule_busy_reason || 'Existing schedule or attendance detected';
                   const isAttendanceLocked = lockedReason.toLowerCase().includes('attendance');
@@ -1610,29 +1610,29 @@ function EmployeeSelectionTable({
                     ? isAttendanceLocked
                       ? 'Attendance already exists for the effective date. The new permanent schedule will still be saved from the selected date if the backend accepts the update.'
                       : lockedReason
-                    : 'This employee can receive a new active schedule.';
+                    : 'This HR user can receive a new active schedule.';
 
                   return (
                     <tr
-                      key={assignment.employee_id}
+                      key={assignment.user_company_id}
                       title={statusTooltip}
                       className={`cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 ${
                         isSelected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-100 dark:bg-blue-950/20 dark:ring-blue-900/40' : ''
                       }`}
-                      onClick={() => toggleEmployee(assignment.employee_id)}
+                      onClick={() => toggleEmployee(assignment.user_company_id)}
                     >
                       <td className="px-3 py-3">
                         <Checkbox
                           checked={isSelected}
-                          onCheckedChange={(checked) => setEmployeeSelection(assignment.employee_id, checked === true)}
+                          onCheckedChange={(checked) => setEmployeeSelection(assignment.user_company_id, checked === true)}
                           onClick={(event) => event.stopPropagation()}
                         />
                       </td>
                       <td className="px-3 py-3 text-sm text-slate-600 dark:text-slate-400">
-                        {assignment.employee_number || assignment.employee_id}
+                        {assignment.user_code || assignment.user_company_id}
                       </td>
                       <td className="px-3 py-3 text-sm font-medium text-slate-950 dark:text-white">
-                        {assignment.employee_name}
+                        {assignment.user_name}
                       </td>
                       <td className="px-3 py-3 text-sm text-slate-600 dark:text-slate-400">
                         {assignment.department || assignment.position_title || '-'}
@@ -1664,11 +1664,11 @@ function EmployeeSelectionTable({
           <div className="flex flex-col gap-4 border-t border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Showing {paginationStart}-{paginationEnd} of {candidateTotalCount} employees
+                Showing {paginationStart}-{paginationEnd} of {candidateTotalCount} HR users
               </p>
               {candidateBusyCount > 0 ? (
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {candidateBusyCount} employees have existing schedule or attendance context on this date. You can still select them for a new active schedule.
+                  {candidateBusyCount} HR users have existing schedule or attendance context on this date. You can still select them for a new active schedule.
                 </p>
               ) : null}
             </div>
@@ -1790,7 +1790,7 @@ function ScheduleBuilder({
               Schedule configuration
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Configure the schedule first, then select the employees who will receive it.
+              Configure the schedule first, then select the HR users who will receive it.
             </p>
           </div>
           <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#143675] shadow-sm dark:bg-slate-950 dark:text-[#8bb3ff]">
@@ -2094,7 +2094,7 @@ function ScheduleRulesSection({
             <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
           </div>
           <p className="mt-2 text-xs text-orange-700 dark:text-orange-300">
-            Employees can still clock in after this time. The attendance record will be marked late.
+            HR users can still clock in after this time. The attendance record will be marked late.
           </p>
         </div>
       </div>
@@ -2175,13 +2175,13 @@ function LocationRuleSelector({
   }> = [
     {
       value: 'business',
-      title: 'Force to employee business location',
-      description: 'Use the active location saved for each employee business.',
+      title: 'Force to HR user business location',
+      description: 'Use the active location saved for each HR user business.',
     },
     {
       value: 'temporary',
       title: 'Temporary location',
-      description: 'Force all selected employees to one temporary location.',
+      description: 'Force all selected HR users to one temporary location.',
     },
     {
       value: 'open',
@@ -2297,12 +2297,12 @@ function ScheduleImpactSummary({
   const startMessage = `Schedule will be applied starting ${formattedStartDate}.`;
   const overrideMessage = hasSelectedEmployees
     ? 'Existing schedules will be overridden.'
-    : 'Select employees after reviewing the schedule.';
+    : 'Select HR users after reviewing the schedule.';
 
   if (compact) {
     return (
       <div className="min-w-0 text-sm">
-        <p className="font-semibold text-white">{selectedEmployeeCount} employee{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
+        <p className="font-semibold text-white">{selectedEmployeeCount} HR user{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
         <p className="mt-0.5 max-w-2xl truncate text-white/75">{assignmentDateError || `${startMessage} ${overrideMessage}`}</p>
       </div>
     );
@@ -2313,7 +2313,7 @@ function ScheduleImpactSummary({
       <div className="flex items-start gap-3">
         <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-[#8bb3ff]" />
         <div>
-          <p className="font-semibold">{selectedEmployeeCount} employee{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
+          <p className="font-semibold">{selectedEmployeeCount} HR user{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
           <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{assignmentDateError || startMessage}</p>
           {!assignmentDateError ? (
             <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{overrideMessage}</p>

@@ -4,7 +4,7 @@ import type { PayrollTranslations } from './types';
 export const ptBR = {
   ...enCA,
   title: 'Folha de pagamento',
-  subtitle: 'Revise, aprove, pague e exporte folhas com dados reais de colaboradores e presença.',
+  subtitle: 'Revise, aprove, pague e exporte folhas com dados reais de usuários e presença.',
   refresh: 'Atualizar',
   loading: 'Carregando folha',
   header: {
@@ -18,8 +18,8 @@ export const ptBR = {
     preferences: 'Preferências da folha',
     activeFilters: 'Filtros ativos',
     clearFilters: 'Limpar filtros',
-    employees: 'Colaboradores',
-    employee: 'Colaborador',
+    employees: 'Usuários',
+    employee: 'Usuário',
     payrollType: 'Tipo de folha',
     rfc: 'CPF',
     nss: 'PIS/PASEP',

@@ -125,9 +125,9 @@ export const ptBR = {
     selectAllVisible: 'Selecionar todos os funcionários visíveis',
     selectEmployee: (name: string) => `Selecionar ${name}`,
     deleteConfirm: 'Excluir permanentemente este funcionário encerrado?',
-    editEmployeeLabel: 'Editar funcionário',
-    terminateEmployeeLabel: 'Encerrar contrato',
-    deleteEmployeeLabel: 'Excluir funcionário',
+    editHrUserLabel: 'Editar funcionário',
+    terminateHrUserLabel: 'Encerrar contrato',
+    deleteHrUserLabel: 'Excluir funcionário',
   },
   columnDescriptions: {
     ...enCA.columnDescriptions,

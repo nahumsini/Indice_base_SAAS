@@ -82,7 +82,7 @@ export function AttendanceRecordsModal({
         <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-950/40">
           {calendar ? (
             <CalendarioAsistencia
-              colaboradorNombre={calendar.employee.full_name}
+              colaboradorNombre={calendar.user.full_name}
               month={month}
               days={calendar.items}
               isLoading={isLoadingCalendar}

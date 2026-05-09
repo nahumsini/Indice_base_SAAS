@@ -11,14 +11,14 @@ export const enUS = {
     operationRate: 'clocked in',
     summaryInsight: ({ activeShiftCount, checkInsCount, reviewCount, totalCount }: Parameters<ControlTranslations['kpi']['summaryInsight']>[0]) => {
       if (totalCount === 0) {
-        return "Today's operation: no employees for this date.";
+        return "Today's operation: no HR users for this date.";
       }
 
       const reviewText = reviewCount > 0
         ? `${reviewCount} need follow-up.`
         : 'no pending incidents.';
 
-      return `Today's operation: ${checkInsCount} of ${totalCount} employees have clocked in, ${activeShiftCount} are still on shift, and ${reviewText}`;
+      return `Today's operation: ${checkInsCount} of ${totalCount} HR users have clocked in, ${activeShiftCount} are still on shift, and ${reviewText}`;
     },
   },
 } satisfies ControlTranslations;

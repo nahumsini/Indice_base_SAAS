@@ -9,7 +9,7 @@ import type {
 
 const mexicoSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableColumnKey>> = [
   { key: 'statutoryPayroll', label: 'Statutory Payroll' },
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'unit', label: 'Unit' },
   { key: 'business', label: 'Business' },
   { key: 'daysWorked', label: 'Days Worked' },
@@ -25,7 +25,7 @@ const mexicoSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableCol
 
 const canadaSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableColumnKey>> = [
   { key: 'statutoryPayroll', label: 'Statutory Payroll' },
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'unit', label: 'Unit' },
   { key: 'business', label: 'Business' },
   { key: 'province', label: 'Province' },
@@ -42,7 +42,7 @@ const canadaSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableCol
 
 const usaSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableColumnKey>> = [
   { key: 'statutoryPayroll', label: 'Statutory Payroll' },
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'unit', label: 'Unit' },
   { key: 'business', label: 'Business' },
   { key: 'province', label: 'State' },
@@ -59,7 +59,7 @@ const usaSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableColumn
 
 const brazilSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableColumnKey>> = [
   { key: 'statutoryPayroll', label: 'Statutory Payroll' },
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'unit', label: 'Unit' },
   { key: 'business', label: 'Business' },
   { key: 'employmentType', label: 'Employment Type' },
@@ -76,7 +76,7 @@ const brazilSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableCol
 
 const colombiaSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableColumnKey>> = [
   { key: 'statutoryPayroll', label: 'Statutory Payroll' },
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'unit', label: 'Unit' },
   { key: 'business', label: 'Business' },
   { key: 'employmentType', label: 'Employment Type' },
@@ -93,7 +93,7 @@ const colombiaSimplifiedColumns: Array<PayrollColumnDefinition<PayrollEditTableC
 ];
 
 const mexicoDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumnKey>> = [
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'rfc', label: 'RFC' },
   { key: 'curp', label: 'CURP' },
   { key: 'nss', label: 'NSS' },
@@ -116,7 +116,7 @@ const mexicoDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumn
   { key: 'isrBeforeSubsidy', label: 'ISR Before Subsidy' },
   { key: 'employmentSubsidy', label: 'Employment Subsidy' },
   { key: 'finalIsr', label: 'Final ISR' },
-  { key: 'employeeImss', label: 'Employee IMSS' },
+  { key: 'employeeImss', label: 'HR User IMSS' },
   { key: 'infonavitType', label: 'INFONAVIT Type' },
   { key: 'infonavitDiscount', label: 'INFONAVIT Discount' },
   { key: 'employerImss', label: 'Employer IMSS' },
@@ -135,7 +135,7 @@ const mexicoDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumn
 ];
 
 const canadaStandardDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumnKey>> = [
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'sin', label: 'SIN' },
   { key: 'province', label: 'Province' },
   { key: 'unit', label: 'Unit' },
@@ -156,9 +156,9 @@ const canadaStandardDetailedColumns: Array<PayrollColumnDefinition<PayrollDetail
   { key: 'grossPay', label: 'Gross Pay' },
   { key: 'federalTax', label: 'Federal Tax' },
   { key: 'provincialTax', label: 'Provincial Tax' },
-  { key: 'employeeCpp', label: 'Employee CPP' },
-  { key: 'employeeCpp2', label: 'Employee CPP2' },
-  { key: 'employeeEi', label: 'Employee EI' },
+  { key: 'employeeCpp', label: 'HR User CPP' },
+  { key: 'employeeCpp2', label: 'HR User CPP2' },
+  { key: 'employeeEi', label: 'HR User EI' },
   { key: 'otherDeductions', label: 'Other Deductions' },
   { key: 'totalDeductions', label: 'Total Deductions' },
   { key: 'netPay', label: 'Net Pay' },
@@ -172,7 +172,7 @@ const canadaStandardDetailedColumns: Array<PayrollColumnDefinition<PayrollDetail
 ];
 
 const canadaQuebecDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumnKey>> = [
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'sin', label: 'SIN' },
   { key: 'province', label: 'Province' },
   { key: 'unit', label: 'Unit' },
@@ -193,10 +193,10 @@ const canadaQuebecDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailed
   { key: 'grossPay', label: 'Gross Pay' },
   { key: 'federalTax', label: 'Federal Tax' },
   { key: 'quebecProvincialTax', label: 'Quebec Provincial Tax' },
-  { key: 'employeeQpp', label: 'Employee QPP' },
-  { key: 'employeeQpp2', label: 'Employee QPP2' },
-  { key: 'employeeQpip', label: 'Employee QPIP' },
-  { key: 'employeeEi', label: 'Employee EI' },
+  { key: 'employeeQpp', label: 'HR User QPP' },
+  { key: 'employeeQpp2', label: 'HR User QPP2' },
+  { key: 'employeeQpip', label: 'HR User QPIP' },
+  { key: 'employeeEi', label: 'HR User EI' },
   { key: 'otherDeductions', label: 'Other Deductions' },
   { key: 'totalDeductions', label: 'Total Deductions' },
   { key: 'netPay', label: 'Net Pay' },
@@ -211,7 +211,7 @@ const canadaQuebecDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailed
 ];
 
 const brazilDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumnKey>> = [
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'cpf', label: 'CPF' },
   { key: 'pisPasep', label: 'PIS/PASEP' },
   { key: 'unit', label: 'Unit' },
@@ -233,7 +233,7 @@ const brazilDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumn
   { key: 'thirteenthSalaryProvision', label: '13th Salary Provision' },
   { key: 'taxableBenefits', label: 'Taxable Benefits' },
   { key: 'grossPay', label: 'Gross Pay' },
-  { key: 'employeeInss', label: 'Employee INSS' },
+  { key: 'employeeInss', label: 'HR User INSS' },
   { key: 'irrf', label: 'IRRF' },
   { key: 'transportationVoucher', label: 'Transportation Voucher' },
   { key: 'mealBenefitsDeduction', label: 'Meal / Benefits Deduction' },
@@ -251,7 +251,7 @@ const brazilDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumn
 ];
 
 const colombiaDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumnKey>> = [
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'idNumber', label: 'ID Number' },
   { key: 'contractType', label: 'Contract Type' },
   { key: 'unit', label: 'Unit' },
@@ -270,8 +270,8 @@ const colombiaDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColu
   { key: 'transportAllowance', label: 'Transport Allowance' },
   { key: 'variablePayTotal', label: 'Variable Pay' },
   { key: 'grossPay', label: 'Gross Pay' },
-  { key: 'employeeHealth', label: 'Employee Health' },
-  { key: 'employeePension', label: 'Employee Pension' },
+  { key: 'employeeHealth', label: 'HR User Health' },
+  { key: 'employeePension', label: 'HR User Pension' },
   { key: 'withholdingTax', label: 'Withholding Tax' },
   { key: 'otherDeductions', label: 'Other Deductions' },
   { key: 'totalDeductions', label: 'Total Deductions' },
@@ -292,7 +292,7 @@ const colombiaDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColu
 ];
 
 const usaDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumnKey>> = [
-  { key: 'employee', label: 'Employee' },
+  { key: 'employee', label: 'HR User' },
   { key: 'sin', label: 'SSN / Tax ID' },
   { key: 'province', label: 'State' },
   { key: 'unit', label: 'Unit' },
@@ -312,8 +312,8 @@ const usaDetailedColumns: Array<PayrollColumnDefinition<PayrollDetailedColumnKey
   { key: 'grossPay', label: 'Gross Pay' },
   { key: 'federalTax', label: 'Federal Withholding' },
   { key: 'provincialTax', label: 'State Withholding' },
-  { key: 'employeeCpp', label: 'Employee Social Security' },
-  { key: 'employeeEi', label: 'Employee Medicare' },
+  { key: 'employeeCpp', label: 'HR User Social Security' },
+  { key: 'employeeEi', label: 'HR User Medicare' },
   { key: 'otherDeductions', label: 'Other Deductions' },
   { key: 'totalDeductions', label: 'Total Deductions' },
   { key: 'netPay', label: 'Net Pay' },
@@ -432,58 +432,58 @@ export const payrollEmployerSummaryConfigByJurisdiction: Record<PayrollJurisdict
 export const payrollBreakdownConfigByJurisdiction: Record<PayrollJurisdiction, PayrollBreakdownConfig> = {
   MX: {
     taxSectionTitle: 'ISR Calculation',
-    employeeDeductionsTitle: 'Employee Deductions',
+    employeeDeductionsTitle: 'HR User Deductions',
     employerObligationsTitle: 'Employer Obligations',
-    employerObligationsDescription: 'Employer obligations are company costs. They do not reduce the employee net pay.',
+    employerObligationsDescription: 'Employer obligations are company costs. They do not reduce the HR user net pay.',
     contributionBreakdownTitle: 'IMSS Breakdown',
-    internalOnlyNotice: 'This employee is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
+    internalOnlyNotice: 'This HR user is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
     finalCalculationTitle: 'Final Calculation',
   },
   CO: {
     taxSectionTitle: '',
-    employeeDeductionsTitle: 'Employee Deductions',
+    employeeDeductionsTitle: 'HR User Deductions',
     employerObligationsTitle: 'Employer Obligations',
     employerObligationsDescription: 'Employer obligations include statutory payroll rows only.',
     contributionBreakdownTitle: 'Social Security / Parafiscal Breakdown',
     benefitsSectionTitle: 'Benefits / Provisions',
-    internalOnlyNotice: 'This employee is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
+    internalOnlyNotice: 'This HR user is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
     finalCalculationTitle: 'Final Calculation',
   },
   US: {
     taxSectionTitle: 'Federal / State Withholding',
-    employeeDeductionsTitle: 'Employee Deductions',
+    employeeDeductionsTitle: 'HR User Deductions',
     employerObligationsTitle: 'Employer Obligations',
     employerObligationsDescription: 'Employer obligations include statutory payroll rows only.',
     contributionBreakdownTitle: 'Social Security / Medicare Breakdown',
-    internalOnlyNotice: 'This employee is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
+    internalOnlyNotice: 'This HR user is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
     finalCalculationTitle: 'Final Calculation',
   },
   CA_STANDARD: {
     taxSectionTitle: 'Federal / Provincial Tax',
-    employeeDeductionsTitle: 'Employee Deductions',
+    employeeDeductionsTitle: 'HR User Deductions',
     employerObligationsTitle: 'Employer Obligations',
     employerObligationsDescription: 'Employer obligations include statutory payroll rows only.',
     contributionBreakdownTitle: 'CPP / EI Breakdown',
-    internalOnlyNotice: 'This employee is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
+    internalOnlyNotice: 'This HR user is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
     finalCalculationTitle: 'Final Calculation',
   },
   CA_QUEBEC: {
     taxSectionTitle: 'Federal / Quebec Tax',
-    employeeDeductionsTitle: 'Employee Deductions',
+    employeeDeductionsTitle: 'HR User Deductions',
     employerObligationsTitle: 'Employer Obligations',
     employerObligationsDescription: 'Quebec payroll uses QPP, QPP2, QPIP and Quebec provincial tax. Employer obligations include statutory payroll rows only.',
     contributionBreakdownTitle: 'QPP / QPIP / EI Breakdown',
-    internalOnlyNotice: 'This employee is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
+    internalOnlyNotice: 'This HR user is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
     finalCalculationTitle: 'Final Calculation',
   },
   BR: {
     taxSectionTitle: '',
-    employeeDeductionsTitle: 'Employee Deductions',
+    employeeDeductionsTitle: 'HR User Deductions',
     employerObligationsTitle: 'Employer Obligations',
     employerObligationsDescription: 'Employer obligations include statutory payroll rows only.',
     contributionBreakdownTitle: 'INSS / IRRF Breakdown',
     benefitsSectionTitle: 'Benefits / Vouchers',
-    internalOnlyNotice: 'This employee is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
+    internalOnlyNotice: 'This HR user is managed for internal payroll control only. Taxes and statutory contributions are not calculated.',
     finalCalculationTitle: 'Final Calculation',
   },
 };

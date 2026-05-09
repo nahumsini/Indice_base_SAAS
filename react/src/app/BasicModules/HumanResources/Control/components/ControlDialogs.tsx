@@ -29,7 +29,7 @@ import {
 import { CreateKioskModal } from './kiosks/CreateKioskModal';
 
 export interface ControlWorkSiteForm {
-  employee_ids: number[];
+  user_company_ids: number[];
   location_ids: number[];
   location_id: number;
   effective_start_date: string;
@@ -532,21 +532,21 @@ export function ControlAssignmentDialog({
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.employeesToAssign}</label>
             <div className="max-h-[320px] space-y-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
               {availableAssignments.length > 0 ? availableAssignments.map((assignment) => {
-                const isChecked = form.employee_ids.includes(assignment.employee_id);
+                const isChecked = form.user_company_ids.includes(assignment.user_company_id);
                 return (
-                  <label key={assignment.employee_id} className="flex items-start gap-3 rounded-lg bg-white px-3 py-3 text-sm dark:bg-gray-800">
+                  <label key={assignment.user_company_id} className="flex items-start gap-3 rounded-lg bg-white px-3 py-3 text-sm dark:bg-gray-800">
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={(event) => {
                         const nextEmployeeIds = event.target.checked
-                          ? [...form.employee_ids, assignment.employee_id]
-                          : form.employee_ids.filter((employeeId) => employeeId !== assignment.employee_id);
-                        onChange({ ...form, employee_ids: nextEmployeeIds });
+                          ? [...form.user_company_ids, assignment.user_company_id]
+                          : form.user_company_ids.filter((employeeId) => employeeId !== assignment.user_company_id);
+                        onChange({ ...form, user_company_ids: nextEmployeeIds });
                       }}
                     />
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{assignment.employee_name}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{assignment.user_name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {assignment.position_title || '—'} · {assignment.schedule_template_name || copy.labels.noSchedule}
                       </p>
@@ -555,13 +555,13 @@ export function ControlAssignmentDialog({
                 );
               }) : (
                 <div className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                  No free employees available for this date. Remove an existing shift before assigning new work.
+                  No free HR users available for this date. Remove an existing shift before assigning new work.
                 </div>
               )}
             </div>
             {assignments.length > availableAssignments.length ? (
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Busy employees are hidden from this list.
+                Busy HR users are hidden from this list.
               </p>
             ) : null}
           </div>
@@ -573,11 +573,11 @@ export function ControlAssignmentDialog({
             onClick={onSave}
             disabled={
               isSaving ||
-              form.employee_ids.length === 0 ||
+              form.user_company_ids.length === 0 ||
               form.template_id <= 0 ||
               Boolean(dateValidationMessage) ||
-              form.employee_ids.some((employeeId) => {
-                const assignment = assignments.find((item) => item.employee_id === employeeId);
+              form.user_company_ids.some((employeeId) => {
+                const assignment = assignments.find((item) => item.user_company_id === employeeId);
                 return assignment ? Boolean(getAssignmentBusyReason(assignment)) : false;
               })
             }

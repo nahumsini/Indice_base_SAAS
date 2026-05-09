@@ -106,7 +106,7 @@ export function ControlAttendanceRow({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-lg font-semibold text-gray-900 dark:text-white">{assignment.employee_name}</p>
+          <p className="truncate text-lg font-semibold text-gray-900 dark:text-white">{assignment.user_name}</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {assignment.position_title || assignment.department || copy.labels.noDepartment}
           </p>

@@ -86,11 +86,11 @@ const defaultVisibleRecordColumns: RecordColumnId[] = [
 const mapBackendRecord = (record: BackendRecordItem): EmployeeRecord => ({
   id: String(record.id),
   recordNumber: record.record_number,
-  employee: {
-    id: String(record.employee.id),
-    name: record.employee.name,
-    position: record.employee.position ?? '',
-    department: record.employee.department ?? '',
+  user: {
+    id: String(record.user.id),
+    name: record.user.name,
+    position: record.user.position ?? '',
+    department: record.user.department ?? '',
   },
   unit: record.unit?.name ?? '',
   business: record.business?.name ?? '',
@@ -102,7 +102,7 @@ const mapBackendRecord = (record: BackendRecordItem): EmployeeRecord => ({
   actionsTaken: record.actions_taken || undefined,
   witnesses: normalizeWitnesses(record.witnesses),
   reportedBy: {
-    id: String(record.reported_by.user_id ?? record.reported_by.employee_id ?? ''),
+    id: String(record.reported_by.user_id ?? record.reported_by.user_company_id ?? ''),
     name: record.reported_by.name,
   },
   eventDate: record.event_date,
@@ -126,12 +126,12 @@ const buildRecordPayload = (
   const witnesses = (data.witnesses ?? []).map((witnessName) => {
     const witnessEmployee = employees.find((item) => item.name === witnessName);
     return witnessEmployee
-      ? { employee_id: Number(witnessEmployee.id), name: witnessEmployee.name }
+      ? { user_company_id: Number(witnessEmployee.id), name: witnessEmployee.name }
       : witnessName;
   });
 
   return {
-    employee_id: Number(data.employeeId),
+    user_company_id: Number(data.employeeId),
     record_type: data.type,
     severity: data.severity,
     title: data.title.trim(),
@@ -203,8 +203,8 @@ export default function Records() {
       const searchLower = filters.search.toLowerCase().trim();
       if (searchLower) {
         const matchesSearch = [
-          record.employee.name,
-          record.employee.position,
+          record.user.name,
+          record.user.position,
           record.title,
           record.description,
           record.type,
@@ -322,7 +322,7 @@ export default function Records() {
     setEmployeeLoadError('');
 
     try {
-      const employeesResponse = await humanResourcesApi.listEmployees();
+      const employeesResponse = await humanResourcesApi.listHrUsers();
       setEmployees(
         employeesResponse.items.map((employee) => ({
           id: String(employee.id),
@@ -532,7 +532,7 @@ export default function Records() {
       doc.text(record.recordNumber || copy.pdf.recordNumber(record.id), left, cursorY);
       cursorY += 8;
 
-      addSection(copy.pdf.employee, `${record.employee.name}${record.employee.position ? ` · ${record.employee.position}` : ''}`);
+      addSection(copy.pdf.employee, `${record.user.name}${record.user.position ? ` · ${record.user.position}` : ''}`);
       ensurePage();
       addSection(copy.pdf.reportedBy, record.reportedBy.name);
       ensurePage();

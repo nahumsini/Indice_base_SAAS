@@ -229,7 +229,7 @@ const mapAssetRow = (asset: HrAsset): AssetRow => ({
   model: asset.model ?? '',
   serialNumber: asset.serial_number ?? '',
   responsibleName: asset.responsible_name || '',
-  responsibleId: asset.responsible_employee_id,
+  responsibleId: asset.responsible_user_company_id,
   responsibleEmail: asset.responsible_email ?? null,
   unitName: asset.unit_name ?? '',
   unitId: asset.unit_id,
@@ -331,7 +331,7 @@ export default function Assets() {
 
       const [assetsResult, employeesResult, unitsResult] = await Promise.allSettled([
         hrAssetsApi.listAssets({ page: 1, size: 100 }),
-        humanResourcesApi.listEmployees(),
+        humanResourcesApi.listHrUsers(),
         dashboardApi.listUnits(),
       ]);
 
@@ -485,7 +485,7 @@ export default function Assets() {
 
             if (assignmentChanged) {
               await hrAssetsApi.reassignAsset(assetEditing.backendId, {
-                responsible_employee_id: Number(desiredResponsibleId),
+                responsible_user_company_id: Number(desiredResponsibleId),
                 unit_id: desiredUnitId ?? undefined,
                 status: assignmentStatus,
                 assigned_date: desiredAssignedDate || undefined,
@@ -518,7 +518,7 @@ export default function Assets() {
         unit_id: trimmedUnit ? Number(trimmedUnit) : undefined,
         status: draft.status,
         assigned_date: assignableStatuses.includes(draft.status) ? draft.assignedDate || undefined : undefined,
-        responsible_employee_id:
+        responsible_user_company_id:
           assignableStatuses.includes(draft.status) && trimmedResponsible
             ? Number(trimmedResponsible)
             : undefined,

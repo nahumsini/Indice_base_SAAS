@@ -61,10 +61,10 @@ import {
   type AttendanceControlLocation,
   type AttendanceControlTemplate,
   type AttendanceControlTemplatePayload,
-  type BackendEmployee,
-  type BackendEmployeeDocument,
-  type BackendEmployeeProfile,
-  type EmployeeDetailsResponse,
+  type BackendHrUser,
+  type BackendHrUserDocument,
+  type BackendHrUserProfile,
+  type HrUserDetailsResponse,
 } from '../../../api/humanResources';
 import { useEmployeesTranslations } from './hooks/useEmployeesTranslations';
 import type { EmployeesTranslations } from './translations';
@@ -578,9 +578,9 @@ const employeeColumnDocumentTypeMap: Partial<Record<EmployeeColumnId, EmployeeDo
   profilePhoto: 'profile_photo',
 };
 
-type BackendEmployeeWithOptionalProfile = BackendEmployee & {
-  profile?: BackendEmployeeProfile | null;
-  documents?: BackendEmployeeDocument[];
+type BackendHrUserWithOptionalProfile = BackendHrUser & {
+  profile?: BackendHrUserProfile | null;
+  documents?: BackendHrUserDocument[];
   date_of_birth?: string | null;
   address?: string;
   national_id?: string;
@@ -598,12 +598,12 @@ type BackendEmployeeWithOptionalProfile = BackendEmployee & {
 };
 
 const mapEmployee = (
-  employee: BackendEmployee,
+  employee: BackendHrUser,
   fallbackUnitLabel: string,
   fallbackBusinessLabel: string,
 ): EmployeeViewModel => {
-  const employeeWithProfile = employee as BackendEmployeeWithOptionalProfile;
-  const profile: BackendEmployeeProfile = employeeWithProfile.profile ?? {};
+  const employeeWithProfile = employee as BackendHrUserWithOptionalProfile;
+  const profile: BackendHrUserProfile = employeeWithProfile.profile ?? {};
   const documents = createEmptyDocumentRecord();
   employeeWithProfile.documents?.forEach((document) => {
     documents[document.document_type] = document.original_filename || document.status || 'uploaded';
@@ -611,7 +611,7 @@ const mapEmployee = (
 
   return {
     id: employee.id,
-    code: employee.employee_number?.trim() || `RH-${String(employee.id).padStart(3, '0')}`,
+    code: employee.user_code?.trim() || `RH-${String(employee.id).padStart(3, '0')}`,
     firstName: employee.first_name || '',
     lastName: employee.last_name || '',
     fullName: employee.full_name || `${employee.first_name} ${employee.last_name}`.trim(),
@@ -666,7 +666,7 @@ const mapEmployee = (
   };
 };
 
-const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeFormData => {
+const toEmployeeFormData = (details?: HrUserDetailsResponse | null): EmployeeFormData => {
   const base = createEmptyEmployeeFormData();
   if (!details) {
     return base;
@@ -674,12 +674,12 @@ const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeF
 
   const next = {
     ...base,
-    employeeId: details.employee.id,
-    employeeNumber: details.employee.employee_number ?? '',
-    firstName: details.employee.first_name ?? '',
-    lastName: details.employee.last_name ?? '',
-    email: details.employee.email ?? '',
-    mobilePhone: details.employee.phone ?? '',
+    employeeId: details.user.id,
+    employeeNumber: details.user.user_code ?? '',
+    firstName: details.user.first_name ?? '',
+    lastName: details.user.last_name ?? '',
+    email: details.user.email ?? '',
+    mobilePhone: details.user.phone ?? '',
     dateOfBirth: details.profile.date_of_birth ? String(details.profile.date_of_birth) : '',
     address: details.profile.address ?? '',
     nationalId: details.profile.national_id ?? '',
@@ -693,28 +693,28 @@ const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeF
     emergencyContactName: details.profile.emergency_contact_name ?? '',
     emergencyContactRelationship: details.profile.emergency_contact_relationship ?? '',
     emergencyContactPhone: details.profile.emergency_contact_phone ?? '',
-    department: details.employee.department ?? '',
-    position: details.employee.position_title || details.employee.position || '',
-    businessUnitId: details.employee.unit_id ? String(details.employee.unit_id) : '',
-    businessId: details.employee.business_id ? String(details.employee.business_id) : '',
-    hireDate: details.employee.hire_date ? String(details.employee.hire_date) : '',
-    salaryType: details.employee.salary_type ?? 'daily',
+    department: details.user.department ?? '',
+    position: details.user.position_title || details.user.position || '',
+    businessUnitId: details.user.unit_id ? String(details.user.unit_id) : '',
+    businessId: details.user.business_id ? String(details.user.business_id) : '',
+    hireDate: details.user.hire_date ? String(details.user.hire_date) : '',
+    salaryType: details.user.salary_type ?? 'daily',
     workdayHours:
       details.profile.workday_hours !== null && details.profile.workday_hours !== undefined
         ? String(details.profile.workday_hours)
         : '8',
     salary:
-      details.employee.salary !== null && details.employee.salary !== undefined
-        ? String(details.employee.salary)
+      details.user.salary !== null && details.user.salary !== undefined
+        ? String(details.user.salary)
         : '',
     hourlyRate:
-      details.employee.hourly_rate !== null && details.employee.hourly_rate !== undefined
-        ? String(details.employee.hourly_rate)
+      details.user.hourly_rate !== null && details.user.hourly_rate !== undefined
+        ? String(details.user.hourly_rate)
         : '',
-    payPeriod: details.employee.pay_period ?? 'weekly',
-    contractType: details.employee.contract_type ?? 'permanent',
-    contractStartDate: details.employee.contract_start_date ? String(details.employee.contract_start_date) : '',
-    contractEndDate: details.employee.contract_end_date ? String(details.employee.contract_end_date) : '',
+    payPeriod: details.user.pay_period ?? 'weekly',
+    contractType: details.user.contract_type ?? 'permanent',
+    contractStartDate: details.user.contract_start_date ? String(details.user.contract_start_date) : '',
+    contractEndDate: details.user.contract_end_date ? String(details.user.contract_end_date) : '',
   } satisfies EmployeeFormData;
 
   documentTypeOrder.forEach((documentType) => {
@@ -737,11 +737,11 @@ const toEmployeeFormData = (details?: EmployeeDetailsResponse | null): EmployeeF
 };
 
 const mapEmployeeDetails = (
-  details: EmployeeDetailsResponse,
+  details: HrUserDetailsResponse,
   fallbackUnitLabel: string,
   fallbackBusinessLabel: string,
 ): EmployeeViewModel => {
-  const baseEmployee = mapEmployee(details.employee, fallbackUnitLabel, fallbackBusinessLabel);
+  const baseEmployee = mapEmployee(details.user, fallbackUnitLabel, fallbackBusinessLabel);
   const documents = createEmptyDocumentRecord();
   details.documents.forEach((document) => {
     documents[document.document_type] = document.original_filename || document.status || 'uploaded';
@@ -846,7 +846,7 @@ export default function Employees() {
     }
 
     const detailResults = await Promise.allSettled(
-      employeeIds.map((employeeId) => humanResourcesApi.getEmployeeDetails(employeeId)),
+      employeeIds.map((employeeId) => humanResourcesApi.getHrUserDetails(employeeId)),
     );
     const employeesById = new Map<number, EmployeeViewModel>();
 
@@ -893,7 +893,7 @@ export default function Employees() {
     try {
       const [employeesResponse, unitsResponse, businessesResponse, locationsResponse] = await runWithMinimumDuration(
         Promise.all([
-          humanResourcesApi.listEmployees(),
+          humanResourcesApi.listHrUsers(),
           dashboardApi.listUnits().catch(() => []),
           dashboardApi.listBusinesses().catch(() => []),
           humanResourcesApi.listAttendanceControlLocations().catch(() => ({ items: [] })),
@@ -1153,7 +1153,7 @@ export default function Employees() {
   };
 
   const refreshEmployees = async () => {
-    const response = await humanResourcesApi.listEmployees();
+    const response = await humanResourcesApi.listHrUsers();
     const mappedEmployees = response.items.map((employee) => mapEmployee(employee, copy.unitFallback, copy.businessFallback));
     setEmployees(mappedEmployees);
     setSummary(response.summary);
@@ -1174,7 +1174,7 @@ export default function Employees() {
 
     try {
       const details = await runWithMinimumDuration(
-        humanResourcesApi.getEmployeeDetails(employee.id),
+        humanResourcesApi.getHrUserDetails(employee.id),
         500,
       );
       setEditingEmployee(employee);
@@ -1200,7 +1200,7 @@ export default function Employees() {
 
       if (slot.removeExisting && slot.existingId && !slot.file) {
         try {
-          await humanResourcesApi.deleteEmployeeDocument(employeeId, slot.existingId);
+          await humanResourcesApi.deleteHrUserDocument(employeeId, slot.existingId);
         } catch (error) {
           documentErrors.push(normalizeErrorMessage(error, `Unable to delete ${documentType}.`));
         }
@@ -1211,21 +1211,21 @@ export default function Employees() {
       }
 
       try {
-        const presign = await humanResourcesApi.presignEmployeeDocumentUpload(employeeId, {
+        const presign = await humanResourcesApi.presignHrUserDocumentUpload(employeeId, {
           document_type: documentType,
           file_name: slot.file.name,
           content_type: slot.file.type,
           size_bytes: slot.file.size,
         });
 
-        await humanResourcesApi.uploadEmployeeDocument(
+        await humanResourcesApi.uploadHrUserDocument(
           presign.upload_url,
           slot.file,
           slot.file.type,
           presign.upload_headers,
         );
 
-        await humanResourcesApi.registerEmployeeDocument(employeeId, {
+        await humanResourcesApi.registerHrUserDocument(employeeId, {
           document_type: documentType,
           original_filename: slot.file.name,
           mime_type: slot.file.type,
@@ -1263,7 +1263,7 @@ export default function Employees() {
     }
 
     await humanResourcesApi.bulkAssignAttendanceSchedule({
-      employee_ids: [employeeId],
+      user_company_ids: [employeeId],
       template_id: templateId,
       effective_start_date: data.scheduleStartDate || data.hireDate,
       effective_end_date: data.scheduleEndDate || data.scheduleStartDate || data.hireDate,
@@ -1311,9 +1311,9 @@ export default function Employees() {
       contract_type: data.contractType,
       contract_start_date: data.contractStartDate,
       contract_end_date: data.contractEndDate,
-      employee_number: data.employeeNumber.trim(),
+      user_code: data.employeeNumber.trim(),
       employee: {
-        employee_number: data.employeeNumber.trim(),
+        user_code: data.employeeNumber.trim(),
         first_name: trimmedFirstName,
         last_name: trimmedLastName,
         email: trimmedEmail,
@@ -1374,8 +1374,8 @@ export default function Employees() {
         description: copy.loadingDescription,
         task: async () => {
           const savedEmployee = editingEmployee
-            ? await humanResourcesApi.updateEmployee(editingEmployee.id, payload)
-            : await humanResourcesApi.createEmployee(payload);
+            ? await humanResourcesApi.updateHrUser(editingEmployee.id, payload)
+            : await humanResourcesApi.createHrUser(payload);
 
           savedEmployeeId = savedEmployee.id;
           documentErrors = await syncEmployeeDocuments(savedEmployeeId, data);
@@ -1433,7 +1433,7 @@ export default function Employees() {
         title: copy.deleteLoadingTitle,
         description: copy.deleteLoadingDescription,
         task: async () => {
-          await humanResourcesApi.deleteEmployee(employee.id);
+          await humanResourcesApi.deleteHrUser(employee.id);
           await refreshEmployees();
         },
       });
@@ -1453,7 +1453,7 @@ export default function Employees() {
         title: copy.terminateLoadingTitle,
         description: copy.terminateLoadingDescription,
         task: async () => {
-          await humanResourcesApi.terminateEmployee(terminatingEmployee.id, {
+          await humanResourcesApi.terminateHrUser(terminatingEmployee.id, {
             exit_date: data.exitDate,
             last_working_day: data.lastWorkingDay,
             reason_type: data.reasonType || 'other',
@@ -1937,7 +1937,7 @@ export default function Employees() {
                     <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
                       <EmployeeTableActionButton
                         icon={<Edit className="h-4 w-4 text-blue-600" />}
-                        label={copy.table.editEmployeeLabel}
+                        label={copy.table.editHrUserLabel}
                         onClick={() => {
                           void openEditEmployeeModal(employee);
                         }}
@@ -1947,8 +1947,8 @@ export default function Employees() {
                         icon={<Trash2 className="h-4 w-4 text-red-600" />}
                         label={
                           employee.status === 'terminated'
-                            ? copy.table.deleteEmployeeLabel
-                            : copy.table.terminateEmployeeLabel
+                            ? copy.table.deleteHrUserLabel
+                            : copy.table.terminateHrUserLabel
                         }
                         onClick={() => {
                           void handleDeleteEmployee(employee);

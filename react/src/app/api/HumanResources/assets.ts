@@ -11,7 +11,7 @@ export interface HrAsset {
   name: string;
   model: string | null;
   serial_number: string | null;
-  responsible_employee_id: number | null;
+  responsible_user_company_id: number | null;
   responsible_name: string;
   responsible_email: string | null;
   unit_id: number | null;
@@ -53,7 +53,7 @@ export interface HrAssetsListParams {
   asset_type?: string;
   status?: HrAssetStatus;
   unit_id?: number;
-  responsible_employee_id?: number;
+  responsible_user_company_id?: number;
   page?: number;
   size?: number;
 }
@@ -64,7 +64,7 @@ export interface CreateHrAssetPayload {
   name: string;
   model?: string;
   serial_number?: string;
-  responsible_employee_id?: number;
+  responsible_user_company_id?: number;
   unit_id?: number;
   status?: HrAssetStatus;
   assigned_date?: string;
@@ -84,7 +84,7 @@ export interface UpdateHrAssetPayload {
 }
 
 export interface ReassignHrAssetPayload {
-  responsible_employee_id: number;
+  responsible_user_company_id: number;
   unit_id?: number;
   status?: Extract<HrAssetStatus, 'assigned' | 'custody'>;
   assigned_date?: string;

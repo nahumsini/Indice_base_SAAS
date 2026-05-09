@@ -41,7 +41,7 @@ interface EmployeeAccessActionsProps {
 const accessMethodOptions: Array<AttendanceAccessMethod['method_type']> = ['pin'];
 
 const defaultAccessProfileForm = (): AttendanceAccessProfilePayload => ({
-  employee_id: 0,
+  user_company_id: 0,
   status: 'active',
   default_method: 'pin',
   metadata: {
@@ -107,7 +107,7 @@ export function EmployeeAccessActions({
     setEditingAccessProfile(null);
     setAccessProfileForm({
       ...defaultAccessProfileForm(),
-      employee_id: selectedEmployee.employee_id,
+      user_company_id: selectedEmployee.user_company_id,
     });
     setShouldRegeneratePin(false);
     setIsAccessProfileDialogOpen(true);
@@ -116,7 +116,7 @@ export function EmployeeAccessActions({
   const openEditAccessProfileDialog = (profile: AttendanceAccessProfile) => {
     setEditingAccessProfile(profile);
     setAccessProfileForm({
-      employee_id: profile.employee_id,
+      user_company_id: profile.user_company_id,
       status: profile.status,
       default_method: normalizeControlAccessMethod(profile.default_method),
       last_enrolled_at: profile.last_enrolled_at ?? undefined,
@@ -181,7 +181,7 @@ export function EmployeeAccessActions({
 
     try {
       await runWithMinimumDuration(
-        humanResourcesApi.deleteFaceEnrollment(selectedEmployee.employee_id),
+        humanResourcesApi.deleteFaceEnrollment(selectedEmployee.user_company_id),
         850,
       );
       onFaceEnrollmentChange(null);
@@ -277,8 +277,8 @@ export function EmployeeAccessActions({
 
       <FaceEnrollmentModal
         isOpen={isFaceEnrollmentModalOpen}
-        employeeId={selectedEmployee.employee_id}
-        employeeName={selectedEmployee.employee_name}
+        employeeId={selectedEmployee.user_company_id}
+        employeeName={selectedEmployee.user_name}
         onClose={() => setIsFaceEnrollmentModalOpen(false)}
         onError={onError}
         onCompleted={async () => {
@@ -286,7 +286,7 @@ export function EmployeeAccessActions({
           onError('');
           try {
             const response = await runWithMinimumDuration(
-              humanResourcesApi.getFaceEnrollment(selectedEmployee.employee_id),
+              humanResourcesApi.getFaceEnrollment(selectedEmployee.user_company_id),
               850,
             );
             onFaceEnrollmentChange(response.enrollment);
@@ -345,8 +345,8 @@ function AccessProfileDialog({
   const pinStatusDescription = !hasExistingPin
     ? 'A unique 5-digit PIN will be generated automatically when you save.'
     : canRevealPin
-      ? 'A unique 5-digit PIN is saved for this employee. Reveal it when HR needs to share it.'
-      : 'This employee has an older PIN. Regenerate it to create a shareable 5-digit PIN.';
+      ? 'A unique 5-digit PIN is saved for this HR user. Reveal it when HR needs to share it.'
+      : 'This HR user has an older PIN. Regenerate it to create a shareable 5-digit PIN.';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -377,14 +377,14 @@ function AccessProfileDialog({
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.selectedEmployee}</label>
             <select
-              value={form.employee_id || ''}
-              onChange={(event) => onChange({ ...form, employee_id: Number(event.target.value) })}
+              value={form.user_company_id || ''}
+              onChange={(event) => onChange({ ...form, user_company_id: Number(event.target.value) })}
               className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             >
               <option value="0">--</option>
               {assignments.map((assignment) => (
-                <option key={assignment.employee_id} value={assignment.employee_id}>
-                  {assignment.employee_name}
+                <option key={assignment.user_company_id} value={assignment.user_company_id}>
+                  {assignment.user_name}
                 </option>
               ))}
             </select>
@@ -477,7 +477,7 @@ function AccessProfileDialog({
           <Button
             className="rounded-xl bg-white text-[#143675] hover:bg-blue-50"
             onClick={onSave}
-            disabled={isSaving || !form.employee_id}
+            disabled={isSaving || !form.user_company_id}
           >
             {copy.labels.save}
           </Button>

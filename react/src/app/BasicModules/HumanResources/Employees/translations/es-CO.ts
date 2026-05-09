@@ -64,8 +64,8 @@ export const esCO = {
     selectAllVisible: 'Seleccionar todo el personal visible',
     selectEmployee: (name: string) => `Seleccionar a ${name}`,
     deleteConfirm: '¿Eliminar permanentemente esta persona terminada?',
-    editEmployeeLabel: 'Editar persona',
-    deleteEmployeeLabel: 'Eliminar persona',
+    editHrUserLabel: 'Editar persona',
+    deleteHrUserLabel: 'Eliminar persona',
   },
   columnDescriptions: {
     ...esMX.columnDescriptions,
