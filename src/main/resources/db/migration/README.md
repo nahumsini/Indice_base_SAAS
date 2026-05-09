@@ -30,4 +30,4 @@ Rules:
 - Do not make schema changes outside Flyway once a change is Spring-owned.
 - Keep MySQL-specific SQL valid for direct execution in MySQL when possible.
 - Treat baseline migrations as immutable after adoption.
-- The next normal versioned migration should start at `V32__...`.
+- The next normal versioned migration should start at `V33__...`.
