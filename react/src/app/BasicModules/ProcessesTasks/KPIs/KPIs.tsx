@@ -321,7 +321,7 @@ export default function KPIs() {
 
   const unitOptions = useMemo(() => buildFilterOptions(processKpiUnits, 'All units'), []);
   const businessOptions = useMemo(() => buildFilterOptions(processKpiBusinesses, 'All businesses'), []);
-  const employeeOptions = useMemo(() => buildFilterOptions(processKpiEmployees, 'All employees'), []);
+  const employeeOptions = useMemo(() => buildFilterOptions(processKpiEmployees, 'All HR users'), []);
   const kpiTypeOptions = useMemo<KpiTypeFilterOption[]>(
     () => [
       { value: 'all', label: 'All KPI types' },
@@ -383,7 +383,7 @@ export default function KPIs() {
   const showEmployeeDashboard =
     (selectedKpiType === 'all' || selectedKpiType === 'performance') &&
     (normalizedKpiQuery.length === 0 ||
-      'employee performance dashboard'.includes(normalizedKpiQuery) ||
+      'hr user performance dashboard'.includes(normalizedKpiQuery) ||
       employeePerformanceRows.some((row) => row.employee.toLowerCase().includes(normalizedKpiQuery)));
 
   return (
@@ -396,7 +396,7 @@ export default function KPIs() {
           </h2>
           <p className="max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-400">
             Review operational, project, process, and people performance with filterable KPI cards and a dedicated
-            employee performance dashboard for the selected scope.
+            HR user performance dashboard for the selected scope.
           </p>
         </div>
       </section>
@@ -429,7 +429,7 @@ export default function KPIs() {
             options={businessOptions}
           />
           <FilterSelect
-            label="Employee"
+            label="HR User"
             value={selectedEmployee}
             onChange={setSelectedEmployee}
             options={employeeOptions}
@@ -550,14 +550,14 @@ export default function KPIs() {
                 <Users className="h-3.5 w-3.5" />
                 Performance KPI
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Employee performance dashboard</h3>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white">HR user performance dashboard</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Compare performance scores, compliance, quality, and output across the employees in the selected scope.
+                Compare performance scores, compliance, quality, and output across the HR users in the selected scope.
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
-              <p className="font-semibold text-slate-900 dark:text-white">{employeePerformanceRows.length} employees visible</p>
-              <p className="mt-1">Rows respond to Unit, Business, and Employee filters.</p>
+              <p className="font-semibold text-slate-900 dark:text-white">{employeePerformanceRows.length} HR users visible</p>
+              <p className="mt-1">Rows respond to Unit, Business, and HR User filters.</p>
             </div>
           </div>
 
@@ -565,7 +565,7 @@ export default function KPIs() {
             <TableHeader>
               <TableRow className="border-slate-200 dark:border-slate-700">
                 <TableHead className="px-5 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">Rank</TableHead>
-                <TableHead className="px-5 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">Employee</TableHead>
+                <TableHead className="px-5 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">HR User</TableHead>
                 <TableHead className="px-5 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">Unit</TableHead>
                 <TableHead className="px-5 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">Business</TableHead>
                 <TableHead className="px-5 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">Performance score</TableHead>
@@ -605,7 +605,7 @@ export default function KPIs() {
                     colSpan={9}
                     className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
                   >
-                    No employee performance rows match the current Unit, Business, and Employee filters.
+                    No HR user performance rows match the current Unit, Business, and HR User filters.
                   </TableCell>
                 </TableRow>
               ) : null}

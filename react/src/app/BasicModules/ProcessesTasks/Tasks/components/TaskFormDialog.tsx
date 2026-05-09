@@ -27,8 +27,7 @@ export interface TaskFormValues {
   description: string;
   processId: string;
   projectId: string;
-  assignedEmployeeId: string;
-  assignedUserId: string;
+  assignedUserCompanyId: string;
   assignedName: string;
   status: TaskStatus;
   priority: TaskPriority;
@@ -105,12 +104,10 @@ export function TaskFormDialog({
   const title = mode === 'create' ? 'Create task' : 'Edit task';
   const description =
     mode === 'create'
-      ? 'Create an operational task without forcing a process relation. A task can be assigned to an employee or to a user.'
+      ? 'Create an operational task without forcing a process relation. A task can be assigned to an HR user.'
       : 'Update the task details, assignment, and execution status without leaving the Processes and Tasks module.';
   const submitLabel = mode === 'create' ? 'Create task' : 'Save changes';
-  const hasExclusiveAssignmentConflict =
-    Boolean(form.assignedEmployeeId.trim()) && Boolean(form.assignedUserId.trim());
-  const isFormValid = Boolean(form.title.trim()) && !hasExclusiveAssignmentConflict;
+  const isFormValid = Boolean(form.title.trim());
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,14 +143,8 @@ export function TaskFormDialog({
                 {description}
               </DialogDescription>
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
-                Use either <span className="font-semibold">Assigned employee ID</span> or{' '}
-                <span className="font-semibold">Assigned user ID</span>. Leave both empty for an unassigned task.
+                Use the company-scoped <span className="font-semibold">HR user ID</span>. Leave it empty for an unassigned task.
               </div>
-              {hasExclusiveAssignmentConflict ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-                  Select only one assignment target: employee or user.
-                </div>
-              ) : null}
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -235,43 +226,24 @@ export function TaskFormDialog({
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Assigned employee ID
+                  Assigned HR user ID
                 </label>
                 <Input
                   type="number"
                   min="1"
-                  value={form.assignedEmployeeId}
+                  value={form.assignedUserCompanyId}
                   onChange={(event) =>
                     setForm((currentForm) => ({
                       ...currentForm,
-                      assignedEmployeeId: event.target.value,
+                      assignedUserCompanyId: event.target.value,
                     }))
                   }
                   placeholder="Optional"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Assigned user ID
-                </label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={form.assignedUserId}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      assignedUserId: event.target.value,
-                    }))
-                  }
-                  placeholder="Optional"
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Assigned name</label>
                 <Input

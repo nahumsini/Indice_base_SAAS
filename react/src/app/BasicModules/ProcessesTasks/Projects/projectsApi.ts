@@ -12,8 +12,8 @@ export interface ProjectRecord {
   description: string | null;
   status: ProjectStatus;
   priority: ProjectPriority | null;
+  ownerUserCompanyId: number | null;
   ownerUserId: number | null;
-  ownerEmployeeId: number | null;
   ownerName: string | null;
   businessId: number | null;
   unitId: number | null;
@@ -31,8 +31,7 @@ export interface ProjectPayload {
   description: string | null;
   status: ProjectStatus;
   priority: ProjectPriority | null;
-  ownerUserId: number | null;
-  ownerEmployeeId: number | null;
+  ownerUserCompanyId: number | null;
   ownerName: string | null;
   businessId: number | null;
   unitId: number | null;
@@ -59,8 +58,8 @@ function normalizeProject(record: Partial<ProjectRecord>): ProjectRecord {
     description: record.description ?? null,
     status: (record.status as ProjectStatus | undefined) ?? 'active',
     priority: (record.priority as ProjectPriority | null | undefined) ?? null,
+    ownerUserCompanyId: record.ownerUserCompanyId ?? null,
     ownerUserId: record.ownerUserId ?? null,
-    ownerEmployeeId: record.ownerEmployeeId ?? null,
     ownerName: record.ownerName ?? null,
     businessId: record.businessId ?? null,
     unitId: record.unitId ?? null,
@@ -83,7 +82,7 @@ function normalizeTask(record: Partial<TaskRecord>): TaskRecord {
     folio: record.folio ?? '',
     title: record.title ?? '',
     description: record.description ?? null,
-    assignedEmployeeId: record.assignedEmployeeId ?? null,
+    assignedUserCompanyId: record.assignedUserCompanyId ?? null,
     assignedUserId: record.assignedUserId ?? null,
     assignedName: record.assignedName ?? null,
     status: record.status ?? 'pending',
@@ -92,7 +91,7 @@ function normalizeTask(record: Partial<TaskRecord>): TaskRecord {
     startedAt: record.startedAt ?? null,
     completedAt: record.completedAt ?? null,
     cancelledAt: record.cancelledAt ?? null,
-    completedByEmployeeId: record.completedByEmployeeId ?? null,
+    completedByUserCompanyId: record.completedByUserCompanyId ?? null,
     completedByUserId: record.completedByUserId ?? null,
     completionNotes: record.completionNotes ?? null,
     businessId: record.businessId ?? null,

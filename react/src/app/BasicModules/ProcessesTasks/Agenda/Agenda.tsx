@@ -363,8 +363,7 @@ export default function Agenda() {
                         <p className="font-medium text-slate-900 dark:text-white">
                           {task.assignedName ?? 'Unassigned'}
                         </p>
-                        {task.assignedEmployeeId ? <p>Employee #{task.assignedEmployeeId}</p> : null}
-                        {task.assignedUserId ? <p>User #{task.assignedUserId}</p> : null}
+                        {task.assignedUserCompanyId ? <p>HR user #{task.assignedUserCompanyId}</p> : null}
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-5">
