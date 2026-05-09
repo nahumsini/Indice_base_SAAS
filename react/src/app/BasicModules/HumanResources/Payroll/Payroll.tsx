@@ -6,13 +6,11 @@ import {
   CheckCircle2,
   CreditCard,
   Download,
-  Filter,
   Globe2,
   Info,
   Landmark,
   LoaderCircle,
   MapPinned,
-  Pencil,
   PlayCircle,
   Printer,
   Save,
@@ -49,7 +47,6 @@ import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../a
 import {
   humanResourcesApi,
   type EmployeeDetailsResponse,
-  type PayrollCreateRunsPayload,
   type PayrollLineItem,
   type PayrollManualItemPayload,
   type PayrollOverviewResponse,
@@ -59,13 +56,18 @@ import {
   type PayrollRunSummary,
 } from '../../../api/humanResources';
 import { useLanguage } from '../../../shared/context';
+import { usePayrollTranslations } from './hooks/usePayrollTranslations';
+import type { PayrollTranslations } from './translations';
 import {
   PayrollRunPrintPortal,
 } from './PayrollRunPrintPortal';
 import type { PayrollRunPdfDocumentProps } from './PayrollRunPdfDocument';
 import { SelectField, DateField } from './components/PayrollFormFields';
-import { PayrollTableActionButton } from './components/PayrollTableActionButton';
 import { DetailMetric } from './components/DetailMetric';
+import { PayrollHeaderBar } from './components/PayrollHeaderBar';
+import { PayrollOperationsPanel } from './components/PayrollOperationsPanel';
+import { PayrollRunActionsMenu } from './components/PayrollRunActionsMenu';
+import { PayrollSetupGuide } from './components/PayrollSetupGuide';
 import {
   payrollBreakdownConfigByJurisdiction,
   payrollDetailedColumnsByJurisdiction,
@@ -119,734 +121,7 @@ type PayrollRateEditorMode = 'preset' | 'advanced';
 type PayrollRateValues = Pick<PayrollPreferences, PayrollRateFieldKey>;
 type PayrollRateDrafts = Record<PayrollRateProfileKey, PayrollRateValues>;
 
-const payrollCopy = {
-  en: {
-    title: 'Payroll',
-    subtitle: 'Review, process, approve, pay, and export payroll runs using real employee and attendance data.',
-    refresh: 'Refresh',
-    applyFilters: 'Apply filters',
-    retry: 'Retry',
-    loading: 'Loading payroll',
-    unauthorized: 'Your session is no longer authenticated. Sign in again and reload the module.',
-    notFound: 'The running backend does not expose the payroll API yet. Restart the Spring server on the latest branch.',
-    genericError: 'Unable to load payroll.',
-    success: {
-      preferences: 'Payroll preferences saved successfully.',
-      rates: 'Payroll rates saved successfully.',
-      runsCreated: 'Payroll runs generated successfully.',
-      lineSaved: 'Payroll line updated successfully.',
-      runEdited: 'Payroll run updated successfully.',
-      processed: 'Payroll run processed successfully.',
-      approved: 'Payroll run approved successfully.',
-      paid: 'Payroll run marked as paid.',
-      cancelled: 'Payroll run cancelled successfully.',
-    },
-    busy: {
-      refreshTitle: 'Refreshing payroll',
-      refreshDescription: 'Reloading payroll runs, preferences, and generated totals.',
-      openRunTitle: 'Opening payroll run',
-      openRunDescription: 'Loading the complete run detail and employee lines.',
-      preferencesTitle: 'Saving payroll preferences',
-      preferencesDescription: 'Persisting payroll defaults and statutory rates.',
-      ratesTitle: 'Saving payroll rates',
-      ratesDescription: 'Applying the active country profile and persisting the configured rates.',
-      generateTitle: 'Generating payroll',
-      generateDescription: 'Building payroll runs from employees, attendance, and current preferences.',
-      saveLineTitle: 'Saving payroll line',
-      saveLineDescription: 'Recalculating the selected line and updating totals.',
-      processTitle: 'Processing payroll run',
-      processDescription: 'Freezing draft values and preparing the run for approval.',
-      approveTitle: 'Approving payroll run',
-      approveDescription: 'Locking the run for finance sign-off and payment.',
-      payTitle: 'Marking payroll as paid',
-      payDescription: 'Recording the payroll run as paid and updating its status.',
-      cancelTitle: 'Cancelling payroll run',
-      cancelDescription: 'Cancelling the run and refreshing the payroll ledger.',
-      csvTitle: 'Exporting CSV',
-      csvDescription: 'Preparing the payroll ledger for spreadsheet export.',
-      pdfTitle: 'Preparing payroll PDF',
-      pdfDescription: 'Building a printable payroll report with the current run data.',
-    },
-    statuses: {
-      draft: 'Draft',
-      processed: 'Processed',
-      approved: 'Approved',
-      paid: 'Paid',
-      cancelled: 'Cancelled',
-    },
-    labels: {
-      preferences: 'Payroll preferences',
-      groupingMode: 'Grouping mode',
-      defaultDailyHours: 'Default daily hours',
-      payLeaveDays: 'Pay leave days',
-      rates: 'Rates',
-      controlPanel: 'Generate payroll',
-      frequency: 'Frequency',
-      period: 'Period',
-      periodStart: 'Period start',
-      periodEnd: 'Period end',
-      periodFrom: 'Period from',
-      periodTo: 'Period to',
-      periodThisMonth: 'This month',
-      periodLastMonth: 'Last month',
-      periodTwoMonthsAgo: 'Two months ago',
-      periodAllYear: 'All year',
-      periodCustom: 'Custom',
-      filters: 'Run filters',
-      status: 'Status',
-      unit: 'Unit',
-      business: 'Business',
-      all: 'All',
-      runs: 'Payroll runs',
-      noRuns: 'No payroll runs match the current filters.',
-      employees: 'Employees',
-      gross: 'Gross',
-      deductions: 'Deductions',
-      employerContributions: 'Employer contributions',
-      net: 'Net',
-      employee: 'Employee',
-      role: 'Role',
-      department: 'Department',
-      lineEditor: 'Line editor',
-      noLineSelected: 'Select a payroll line to inspect and edit it.',
-      includeFiscal: 'Apply fiscal deductions and employer contributions',
-      notes: 'Notes',
-      manualItems: 'Manual adjustments',
-      category: 'Category',
-      description: 'Description',
-      amount: 'Amount',
-      addManualEarning: 'Add earning',
-      addManualDeduction: 'Add deduction',
-      detail: 'Run detail',
-      noItems: 'No detail items for this line.',
-      exportCsv: 'Export CSV',
-      exportPdf: 'Export PDF',
-      process: 'Process',
-      approve: 'Approve',
-      pay: 'Mark paid',
-      cancelRun: 'Cancel run',
-      saveLine: 'Save line',
-      close: 'Close',
-      generatedRuns: 'Generated runs',
-      currentRun: 'Current run',
-      payPeriod: 'Pay period',
-      noUnit: 'No unit',
-      noBusiness: 'No business',
-      salaryType: 'Salary type',
-      daily: 'Daily',
-      hourly: 'Hourly',
-      derivedEndDateHint: 'The end date is calculated automatically from the selected frequency.',
-      regularHours: 'Regular hours',
-      overtimeHours: 'Overtime hours',
-      daysPayable: 'Payable days',
-      leaveDays: 'Leave days',
-      absenceDays: 'Absence days',
-      paidBreaks: 'Paid breaks',
-      vacationDays: 'Vacation days',
-      lateCount: 'Late count',
-      selectedRun: 'Selected run',
-      generate: 'Generate payroll',
-      save: 'Save',
-      savePreferences: 'Save preferences',
-      saveRates: 'Save rates',
-      cancel: 'Cancel',
-      closeDetail: 'Close detail',
-      employerCosts: 'Employer costs',
-      openPreferences: 'Preferences',
-      openRates: 'Rate configuration',
-      openRun: 'Open',
-      edit: 'Edit',
-      print: 'Print',
-      editDraft: 'Edit draft',
-      filterStatus: 'Status',
-      payrollType: 'Payroll type',
-      totalAmount: 'Total amount',
-      salary: 'Salary',
-      holidays: 'Holidays',
-      totalToPay: 'Total to pay',
-      taxCalculation: 'Tax calculation',
-      columns: 'Columns',
-      simplifiedPayroll: 'Simplified Payroll',
-      detailedPayroll: 'Detailed Payroll',
-      rfc: 'RFC',
-      curp: 'CURP',
-      nss: 'NSS',
-      daysWorked: 'Days Worked',
-      daysAbsent: 'Days Absent',
-      overtime: 'Overtime',
-      paidHolidays: 'Paid Holidays',
-      totalPay: 'Total Pay',
-      dailyWage: 'Daily Wage',
-      baseWage: 'Base Wage',
-      integratedDailyWage: 'Integrated Daily Wage',
-      baseContributionSalary: 'Base Contribution Salary',
-      periodSalary: 'Period Salary',
-      overtimeAmount: 'Overtime ($)',
-      bonusesCommissions: 'Bonuses/Commissions',
-      vacationBonus: 'Vacation Bonus',
-      proportionalChristmasBonus: 'Proportional Christmas Bonus',
-      totalEarnings: 'Total Earnings',
-      incomeTaxWithheld: 'Income Tax Withheld',
-      imssEmployee: 'IMSS Employee',
-      infonavitType: 'INFONAVIT (Type)',
-      infonavitDiscount: 'INFONAVIT Discount',
-      loans: 'Loans',
-      otherDiscounts: 'Other Discounts',
-      totalDeductions: 'Total Deductions',
-      taxPayroll: 'Tax Payroll',
-      netPay: 'Net Pay',
-      jurisdiction: 'Jurisdiction',
-      countryProfiles: 'Country profiles',
-      operationalSettings: 'Operational settings',
-      rateProfile: 'Rate profile',
-      presetRates: 'Presets',
-      manualRates: 'Manual',
-      activeRateProfile: 'Active rate profile',
-      noJurisdiction: 'From employee profile',
-      automatic: 'Automatic',
-      multipleBusinesses: 'Multiple businesses',
-      allUnits: 'All units',
-      allBusinesses: 'All businesses',
-      recommended: 'Recommended',
-      actionButtons: 'Action buttons',
-    },
-    summary: {
-      runs: 'Runs',
-      draft: 'Draft',
-      processed: 'Processed',
-      approved: 'Approved',
-      paid: 'Paid',
-      cancelled: 'Cancelled',
-      totalGross: 'Total gross',
-      totalNet: 'Total net',
-    },
-    groupingModes: {
-      single: 'Single',
-      unit: 'Per unit',
-      business: 'Per business',
-    },
-    frequencies: {
-      weekly: 'Weekly',
-      biweekly: 'Biweekly',
-      monthly: 'Monthly',
-    },
-    itemCategories: {
-      earning: 'Earning',
-      deduction: 'Deduction',
-      employer_contribution: 'Employer contribution',
-    },
-    preferencesInfo: {
-      title: 'Important information about payroll preferences',
-      bullets: [
-        'Default behavior: payroll runs can be separated automatically by country and province/state when local fiscal rules require it.',
-        'Automatic grouping: collaborators always remain organized by their configured pay period: weekly, biweekly, or monthly.',
-        'Customization: you can change how payroll runs are grouped to match the way your operation is structured.',
-      ],
-      selectionTitle: 'Choose how you want payroll grouped:',
-      note: 'Regardless of the grouping you choose, collaborators are always organized automatically according to the pay period configured on their profile.',
-    },
-    groupingCards: {
-      single: {
-        title: 'Single payroll (default)',
-        description: 'Everyone is kept inside one payroll run. In countries that require province or state separation, payroll is split automatically by local fiscal rules.',
-      },
-      unit: {
-        title: 'By business unit',
-        description: 'One payroll run is created for each business unit so teams can review their totals independently.',
-      },
-      business: {
-        title: 'By business',
-        description: 'One payroll run is created for each registered business, making it easier to review each operating entity.',
-      },
-    },
-    rateConfiguration: {
-      title: 'Payroll configuration',
-      subtitles: {
-        mexico: 'Define how payroll is calculated based on Mexican tax and social contribution rules.',
-        canada: 'Define how payroll is calculated based on Canadian payroll tax and contribution rules.',
-        usa: 'Define how payroll is calculated based on United States payroll tax and employer contribution rules.',
-        colombia: 'Define how payroll is calculated based on Colombian withholding and contribution rules.',
-        brazil: 'Define how payroll is calculated based on Brazilian payroll tax and social contribution rules.',
-        custom: 'Define a company-specific payroll configuration with fully manual contribution values.',
-      },
-      infoBlocks: {
-        mexico: 'Mexico payroll includes taxes and social contributions that are automatically calculated based on official rules. You can customize certain values if needed.',
-        canada: 'Canada payroll includes taxes and contributions that are usually calculated from official federal and provincial rules. You can customize certain values when needed.',
-        usa: 'United States payroll includes withholding, social taxes, and employer contributions that are commonly managed through official rules. You can customize certain values when needed.',
-        colombia: 'Colombia payroll includes withholding and contributions that typically follow statutory formulas. You can customize selected values when needed.',
-        brazil: 'Brazil payroll includes taxes and mandatory contributions that generally follow official formulas. You can customize selected values when needed.',
-        custom: 'Custom profiles give you full control over payroll rates when your company needs a specialized setup outside the standard country presets.',
-      },
-      footerNote: 'Country profiles apply standardized payroll structures while allowing flexibility for company-specific adjustments.',
-      activeProfileLabel: 'Active payroll profile',
-      saveAction: 'Save configuration',
-      viewBreakdown: 'View breakdown',
-      presetApplied: 'Using the official preset for this country profile.',
-      advancedEnabled: 'Advanced editing is enabled for this payroll field.',
-      switchToAdvanced: 'Switch to Advanced to customize this value.',
-      statusBadges: {
-        officialPreset: 'Official preset',
-        customProfile: 'Custom profile',
-        automatic: 'Automatic',
-        fixedByLaw: 'Fixed by law',
-        editable: 'Editable',
-      },
-      modeLabels: {
-        preset: 'Preset',
-        advanced: 'Advanced',
-        officialTable: 'Official table',
-        fixedRate: 'Fixed rate',
-        salaryPercentage: '% of salary',
-      },
-      mexicoCards: {
-        incomeTaxTitle: 'Income Tax (ISR)',
-        officialTableHelper: 'Calculated automatically based on SAT tax tables',
-        progressiveTooltip: 'Progressive tax based on employee income',
-        imssEmployeeTitle: 'IMSS — Employee',
-        imssEmployeeBody: 'Calculated based on Mexican social security law',
-        imssEmployerTitle: 'IMSS — Employer',
-        imssEmployerBody: 'Includes employer contributions required by law',
-        infonavitEmployeeTitle: 'INFONAVIT — Employee',
-        infonavitEmployeeHelper: 'May vary depending on employee credit conditions',
-        infonavitEmployerTitle: 'INFONAVIT — Employer',
-        infonavitEmployerValue: '5% of salary',
-        sarTitle: 'SAR (Retirement Savings)',
-        sarValue: '2%',
-        sarHelper: 'Retirement contribution required in Mexico',
-      },
-      profiles: {
-        mexico: 'Mexico',
-        canada: 'Canada',
-        usa: 'USA',
-        colombia: 'Colombia',
-        brazil: 'Brazil',
-        custom: 'Custom rate',
-      },
-      profileDescriptions: {
-        mexico: 'Configure payroll for Mexican tax and social contribution structures.',
-        canada: 'Set up payroll rates for Canadian withholding and employer obligations.',
-        usa: 'Adjust payroll rates for federal, state, and employer payroll obligations in the United States.',
-        colombia: 'Prepare withholding and contribution rates for Colombian payroll operations.',
-        brazil: 'Define tax and contribution rates for Brazilian payroll calculations.',
-        custom: 'Build a fully custom rate mix for companies with non-standard payroll rules.',
-      },
-      fieldLabels: {
-        mexico: {
-          isr_rate: 'Income tax (ISR)',
-          imss_employee_rate: 'Employee IMSS',
-          infonavit_employee_rate: 'Employee INFONAVIT',
-          imss_employer_rate: 'Employer IMSS',
-          infonavit_employer_rate: 'Employer INFONAVIT',
-          sar_employer_rate: 'Employer SAR',
-        },
-        canada: {
-          isr_rate: 'Federal / provincial tax',
-          imss_employee_rate: 'Employee CPP / QPP',
-          infonavit_employee_rate: 'Employee EI',
-          imss_employer_rate: 'Employer CPP / QPP',
-          infonavit_employer_rate: 'Employer EI',
-          sar_employer_rate: 'Employer retirement / benefits',
-        },
-        usa: {
-          isr_rate: 'Federal / state withholding',
-          imss_employee_rate: 'Employee Social Security',
-          infonavit_employee_rate: 'Employee Medicare / other',
-          imss_employer_rate: 'Employer Social Security',
-          infonavit_employer_rate: 'Employer Medicare / FUTA / SUTA',
-          sar_employer_rate: 'Employer retirement / benefits',
-        },
-        colombia: {
-          isr_rate: 'Income withholding',
-          imss_employee_rate: 'Employee health',
-          infonavit_employee_rate: 'Employee pension',
-          imss_employer_rate: 'Employer health / parafiscals',
-          infonavit_employer_rate: 'Employer pension',
-          sar_employer_rate: 'Employer severance / benefits',
-        },
-        brazil: {
-          isr_rate: 'Income tax (IRRF)',
-          imss_employee_rate: 'Employee INSS',
-          infonavit_employee_rate: 'Employee FGTS / other',
-          imss_employer_rate: 'Employer INSS',
-          infonavit_employer_rate: 'Employer FGTS',
-          sar_employer_rate: 'Employer retirement / benefits',
-        },
-        custom: {
-          isr_rate: 'Primary tax rate',
-          imss_employee_rate: 'Employee contribution A',
-          infonavit_employee_rate: 'Employee contribution B',
-          imss_employer_rate: 'Employer contribution A',
-          infonavit_employer_rate: 'Employer contribution B',
-          sar_employer_rate: 'Employer retirement / other',
-        },
-      },
-    },
-  },
-  es: {
-    title: 'Nómina',
-    subtitle: 'Revisa, procesa, aprueba, paga y exporta corridas de nómina con datos reales de colaboradores y asistencia.',
-    refresh: 'Actualizar',
-    applyFilters: 'Aplicar filtros',
-    retry: 'Reintentar',
-    loading: 'Cargando nómina',
-    unauthorized: 'Tu sesión ya no está autenticada. Inicia sesión de nuevo y vuelve a cargar el módulo.',
-    notFound: 'El backend en ejecución todavía no expone la API de nómina. Reinicia Spring con la versión más reciente.',
-    genericError: 'No se pudo cargar la nómina.',
-    success: {
-      preferences: 'Preferencias de nómina guardadas correctamente.',
-      rates: 'Tasas de nómina guardadas correctamente.',
-      runsCreated: 'Corridas de nómina generadas correctamente.',
-      lineSaved: 'Línea de nómina actualizada correctamente.',
-      runEdited: 'Corrida de nómina actualizada correctamente.',
-      processed: 'Corrida de nómina procesada correctamente.',
-      approved: 'Corrida de nómina aprobada correctamente.',
-      paid: 'Corrida de nómina marcada como pagada.',
-      cancelled: 'Corrida de nómina cancelada correctamente.',
-    },
-    busy: {
-      refreshTitle: 'Actualizando nómina',
-      refreshDescription: 'Recargando corridas, preferencias y totales de nómina.',
-      openRunTitle: 'Abriendo corrida',
-      openRunDescription: 'Cargando el detalle completo de la corrida y sus líneas.',
-      preferencesTitle: 'Guardando preferencias',
-      preferencesDescription: 'Persistiendo los valores por defecto y las tasas estatutarias.',
-      ratesTitle: 'Guardando tasas de nómina',
-      ratesDescription: 'Aplicando el perfil de país activo y persistiendo las tasas configuradas.',
-      generateTitle: 'Generando nómina',
-      generateDescription: 'Construyendo corridas con colaboradores, asistencia y preferencias actuales.',
-      saveLineTitle: 'Guardando línea de nómina',
-      saveLineDescription: 'Recalculando la línea seleccionada y actualizando sus totales.',
-      processTitle: 'Procesando corrida',
-      processDescription: 'Congelando los valores del borrador para enviarlos a aprobación.',
-      approveTitle: 'Aprobando corrida',
-      approveDescription: 'Bloqueando la corrida para visto bueno financiero y pago.',
-      payTitle: 'Marcando nómina como pagada',
-      payDescription: 'Registrando la corrida como pagada y actualizando su estatus.',
-      cancelTitle: 'Cancelando corrida',
-      cancelDescription: 'Cancelando la corrida y refrescando el libro de nómina.',
-      csvTitle: 'Exportando CSV',
-      csvDescription: 'Preparando el libro de nómina para exportarlo a hoja de cálculo.',
-      pdfTitle: 'Preparando PDF de nómina',
-      pdfDescription: 'Generando un reporte imprimible de la corrida actual.',
-    },
-    statuses: {
-      draft: 'Borrador',
-      processed: 'Procesada',
-      approved: 'Aprobada',
-      paid: 'Pagada',
-      cancelled: 'Cancelada',
-    },
-    labels: {
-      preferences: 'Preferencias de nómina',
-      groupingMode: 'Modo de agrupación',
-      defaultDailyHours: 'Horas diarias por defecto',
-      payLeaveDays: 'Pagar días de permiso',
-      rates: 'Tasas',
-      controlPanel: 'Generar nómina',
-      frequency: 'Frecuencia',
-      period: 'Período',
-      periodStart: 'Inicio del período',
-      periodEnd: 'Fin del período',
-      periodThisMonth: 'Este mes',
-      periodLastMonth: 'Mes pasado',
-      periodTwoMonthsAgo: 'Hace dos meses',
-      periodAllYear: 'Todo el año',
-      periodCustom: 'Personalizado',
-      periodFrom: 'Período desde',
-      periodTo: 'Período hasta',
-      filters: 'Filtros de corridas',
-      status: 'Estado',
-      unit: 'Unidad',
-      business: 'Negocio',
-      all: 'Todos',
-      runs: 'Corridas de nómina',
-      noRuns: 'No hay corridas que coincidan con los filtros actuales.',
-      employees: 'Colaboradores',
-      gross: 'Bruto',
-      deductions: 'Deducciones',
-      employerContributions: 'Aportaciones patronales',
-      net: 'Neto',
-      employee: 'Colaborador',
-      role: 'Puesto',
-      department: 'Departamento',
-      lineEditor: 'Editor de línea',
-      noLineSelected: 'Selecciona una línea de nómina para inspeccionarla y editarla.',
-      includeFiscal: 'Aplicar deducciones fiscales y aportaciones patronales',
-      notes: 'Notas',
-      manualItems: 'Ajustes manuales',
-      category: 'Categoría',
-      description: 'Descripción',
-      amount: 'Monto',
-      addManualEarning: 'Agregar percepción',
-      addManualDeduction: 'Agregar deducción',
-      detail: 'Detalle de corrida',
-      noItems: 'No hay conceptos detallados en esta línea.',
-      exportCsv: 'Exportar CSV',
-      exportPdf: 'Exportar PDF',
-      process: 'Procesar',
-      approve: 'Aprobar',
-      pay: 'Marcar pagada',
-      cancelRun: 'Cancelar corrida',
-      saveLine: 'Guardar línea',
-      close: 'Cerrar',
-      generatedRuns: 'Corridas generadas',
-      currentRun: 'Corrida actual',
-      payPeriod: 'Período de pago',
-      noUnit: 'Sin unidad',
-      noBusiness: 'Sin negocio',
-      salaryType: 'Tipo salarial',
-      daily: 'Diario',
-      hourly: 'Por hora',
-      derivedEndDateHint: 'La fecha final se calcula automáticamente según la frecuencia seleccionada.',
-      regularHours: 'Horas regulares',
-      overtimeHours: 'Horas extra',
-      daysPayable: 'Días pagables',
-      leaveDays: 'Días de permiso',
-      absenceDays: 'Días de ausencia',
-      paidBreaks: 'Descansos pagados',
-      vacationDays: 'Días de vacaciones',
-      lateCount: 'Retardos',
-      selectedRun: 'Corrida seleccionada',
-      generate: 'Generar nómina',
-      save: 'Guardar',
-      savePreferences: 'Guardar preferencias',
-      saveRates: 'Guardar tasas',
-      cancel: 'Cancelar',
-      closeDetail: 'Cerrar detalle',
-      employerCosts: 'Costos patronales',
-      openPreferences: 'Preferencias',
-      openRates: 'Configurar tasas',
-      openRun: 'Abrir',
-      edit: 'Editar',
-      print: 'Imprimir',
-      editDraft: 'Editar borrador',
-      filterStatus: 'Estado',
-      payrollType: 'Tipo de nómina',
-      totalAmount: 'Monto total',
-      salary: 'Salario',
-      holidays: 'Días feriados',
-      totalToPay: 'Total a pagar',
-      taxCalculation: 'Cálculo de impuestos',
-      columns: 'Columnas',
-      simplifiedPayroll: 'Nómina Simplificada',
-      detailedPayroll: 'Nómina Detallada',
-      rfc: 'RFC',
-      curp: 'CURP',
-      nss: 'NSS',
-      daysWorked: 'Días Trabajados',
-      daysAbsent: 'Días Ausentes',
-      overtime: 'Horas Extra',
-      paidHolidays: 'Días Festivos Pagados',
-      totalPay: 'Total a Pagar',
-      dailyWage: 'Salario Diario',
-      baseWage: 'Salario Base',
-      integratedDailyWage: 'Salario Diario Integrado',
-      baseContributionSalary: 'Salario Base de Cotización',
-      periodSalary: 'Salario del Período',
-      overtimeAmount: 'Horas Extra ($)',
-      bonusesCommissions: 'Bonos/Comisiones',
-      vacationBonus: 'Prima Vacacional',
-      proportionalChristmasBonus: 'Aguinaldo Proporcional',
-      totalEarnings: 'Total de Percepciones',
-      incomeTaxWithheld: 'ISR Retenido',
-      imssEmployee: 'IMSS Trabajador',
-      infonavitType: 'INFONAVIT (Tipo)',
-      infonavitDiscount: 'Descuento INFONAVIT',
-      loans: 'Préstamos',
-      otherDiscounts: 'Otros Descuentos',
-      totalDeductions: 'Total de Deducciones',
-      taxPayroll: 'Nómina Fiscal',
-      netPay: 'Neto a Pagar',
-      jurisdiction: 'Jurisdicción',
-      countryProfiles: 'Perfiles por país',
-      operationalSettings: 'Ajustes operativos',
-      rateProfile: 'Perfil de tasas',
-      presetRates: 'Predeterminados',
-      manualRates: 'Manuales',
-      activeRateProfile: 'Perfil de tasas activo',
-      noJurisdiction: 'Según perfil del colaborador',
-      automatic: 'Automático',
-      multipleBusinesses: 'Múltiples negocios',
-      allUnits: 'Todas las unidades',
-      allBusinesses: 'Todos los negocios',
-      recommended: 'Recomendado',
-      actionButtons: 'Botones de acción',
-    },
-    summary: {
-      runs: 'Corridas',
-      draft: 'Borradores',
-      processed: 'Procesadas',
-      approved: 'Aprobadas',
-      paid: 'Pagadas',
-      cancelled: 'Canceladas',
-      totalGross: 'Bruto total',
-      totalNet: 'Neto total',
-    },
-    groupingModes: {
-      single: 'Única',
-      unit: 'Por unidad',
-      business: 'Por negocio',
-    },
-    frequencies: {
-      weekly: 'Semanal',
-      biweekly: 'Quincenal',
-      monthly: 'Mensual',
-    },
-    itemCategories: {
-      earning: 'Percepción',
-      deduction: 'Deducción',
-      employer_contribution: 'Aportación patronal',
-    },
-    preferencesInfo: {
-      title: 'Información importante sobre las preferencias de nómina',
-      bullets: [
-        'Configuración predeterminada: las nóminas pueden separarse automáticamente por país y provincia/estado cuando las reglas fiscales locales lo requieran.',
-        'Agrupación automática: los colaboradores siempre se organizan según su período de pago configurado: semanal, quincenal o mensual.',
-        'Personalización: puedes cambiar la forma en que se generan las nóminas para alinearlas con la estructura de tu operación.',
-      ],
-      selectionTitle: 'Selecciona cómo deseas agrupar las nóminas:',
-      note: 'Independientemente de la agrupación que elijas, los colaboradores siempre se organizarán automáticamente según el período de pago configurado en su perfil.',
-    },
-    groupingCards: {
-      single: {
-        title: 'Nómina única (predeterminado)',
-        description: 'Todos se mantienen dentro de una sola corrida. En países que requieren separación por provincia o estado, la nómina se divide automáticamente según las reglas fiscales locales.',
-      },
-      unit: {
-        title: 'Por unidad de negocio',
-        description: 'Se crea una corrida de nómina por cada unidad de negocio para revisar los totales por equipo.',
-      },
-      business: {
-        title: 'Por negocio',
-        description: 'Se crea una corrida de nómina por cada negocio registrado, facilitando la revisión por entidad operativa.',
-      },
-    },
-    rateConfiguration: {
-      title: 'Configuración de nómina',
-      subtitles: {
-        mexico: 'Define cómo se calcula la nómina con base en las reglas mexicanas de impuestos y contribuciones sociales.',
-        canada: 'Define cómo se calcula la nómina con base en las reglas canadienses de impuestos y contribuciones.',
-        usa: 'Define cómo se calcula la nómina con base en las reglas de impuestos y aportaciones patronales de Estados Unidos.',
-        colombia: 'Define cómo se calcula la nómina con base en las reglas colombianas de retención y contribuciones.',
-        brazil: 'Define cómo se calcula la nómina con base en las reglas brasileñas de impuestos y contribuciones sociales.',
-        custom: 'Define una configuración de nómina específica para tu empresa con valores manuales y totalmente personalizados.',
-      },
-      infoBlocks: {
-        mexico: 'La nómina en México incluye impuestos y contribuciones sociales que se calculan automáticamente con base en reglas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
-        canada: 'La nómina en Canadá incluye impuestos y contribuciones que normalmente se calculan con reglas oficiales federales y provinciales. Puedes personalizar ciertos valores si lo necesitas.',
-        usa: 'La nómina en Estados Unidos incluye retenciones, impuestos sociales y aportaciones patronales que normalmente siguen reglas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
-        colombia: 'La nómina en Colombia incluye retenciones y contribuciones que generalmente siguen fórmulas legales. Puedes personalizar ciertos valores si lo necesitas.',
-        brazil: 'La nómina en Brasil incluye impuestos y contribuciones obligatorias que suelen seguir fórmulas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
-        custom: 'Los perfiles personalizados te dan control total sobre las tasas de nómina cuando tu empresa necesita una configuración especial fuera de los perfiles estándar por país.',
-      },
-      footerNote: 'Los perfiles por país aplican estructuras de nómina estandarizadas y al mismo tiempo permiten flexibilidad para ajustes específicos de tu empresa.',
-      activeProfileLabel: 'Perfil activo de nómina',
-      saveAction: 'Guardar configuración',
-      viewBreakdown: 'Ver desglose',
-      presetApplied: 'Se está usando el perfil oficial de este país.',
-      advancedEnabled: 'La edición avanzada está habilitada para este campo de nómina.',
-      switchToAdvanced: 'Cambia a Avanzado para personalizar este valor.',
-      statusBadges: {
-        officialPreset: 'Predeterminado oficial',
-        customProfile: 'Perfil personalizado',
-        automatic: 'Automático',
-        fixedByLaw: 'Fijo por ley',
-        editable: 'Editable',
-      },
-      modeLabels: {
-        preset: 'Predeterminado',
-        advanced: 'Avanzado',
-        officialTable: 'Tabla oficial',
-        fixedRate: 'Tasa fija',
-        salaryPercentage: '% del salario',
-      },
-      mexicoCards: {
-        incomeTaxTitle: 'Impuesto sobre la renta (ISR)',
-        officialTableHelper: 'Se calcula automáticamente con base en las tablas del SAT',
-        progressiveTooltip: 'Impuesto progresivo según el ingreso del colaborador',
-        imssEmployeeTitle: 'IMSS — Colaborador',
-        imssEmployeeBody: 'Se calcula con base en la ley mexicana del seguro social',
-        imssEmployerTitle: 'IMSS — Patronal',
-        imssEmployerBody: 'Incluye las contribuciones patronales requeridas por ley',
-        infonavitEmployeeTitle: 'INFONAVIT — Colaborador',
-        infonavitEmployeeHelper: 'Puede variar según las condiciones de crédito del colaborador',
-        infonavitEmployerTitle: 'INFONAVIT — Patronal',
-        infonavitEmployerValue: '5% del salario',
-        sarTitle: 'SAR (Ahorro para el retiro)',
-        sarValue: '2%',
-        sarHelper: 'Contribución de retiro obligatoria en México',
-      },
-      profiles: {
-        mexico: 'México',
-        canada: 'Canadá',
-        usa: 'USA',
-        colombia: 'Colombia',
-        brazil: 'Brasil',
-        custom: 'Tasa personalizada',
-      },
-      profileDescriptions: {
-        mexico: 'Configura la nómina para estructuras fiscales y de contribuciones mexicanas.',
-        canada: 'Configura tasas para retenciones y obligaciones patronales canadienses.',
-        usa: 'Ajusta tasas para obligaciones federales, estatales y patronales en Estados Unidos.',
-        colombia: 'Prepara retenciones y contribuciones para operaciones de nómina en Colombia.',
-        brazil: 'Define tasas de impuestos y contribuciones para cálculos de nómina en Brasil.',
-        custom: 'Construye una mezcla de tasas completamente personalizada para reglas no estándar.',
-      },
-      fieldLabels: {
-        mexico: {
-          isr_rate: 'Impuesto sobre la renta (ISR)',
-          imss_employee_rate: 'IMSS colaborador',
-          infonavit_employee_rate: 'INFONAVIT colaborador',
-          imss_employer_rate: 'IMSS patronal',
-          infonavit_employer_rate: 'INFONAVIT patronal',
-          sar_employer_rate: 'SAR patronal',
-        },
-        canada: {
-          isr_rate: 'Impuesto federal / provincial',
-          imss_employee_rate: 'CPP / QPP colaborador',
-          infonavit_employee_rate: 'EI colaborador',
-          imss_employer_rate: 'CPP / QPP patronal',
-          infonavit_employer_rate: 'EI patronal',
-          sar_employer_rate: 'Retiro / beneficios patronales',
-        },
-        usa: {
-          isr_rate: 'Retención federal / estatal',
-          imss_employee_rate: 'Seguro Social colaborador',
-          infonavit_employee_rate: 'Medicare / otros colaborador',
-          imss_employer_rate: 'Seguro Social patronal',
-          infonavit_employer_rate: 'Medicare / FUTA / SUTA patronal',
-          sar_employer_rate: 'Retiro / beneficios patronales',
-        },
-        colombia: {
-          isr_rate: 'Retención en la fuente',
-          imss_employee_rate: 'Salud colaborador',
-          infonavit_employee_rate: 'Pensión colaborador',
-          imss_employer_rate: 'Salud / parafiscales patronal',
-          infonavit_employer_rate: 'Pensión patronal',
-          sar_employer_rate: 'Cesantías / beneficios patronales',
-        },
-        brazil: {
-          isr_rate: 'Impuesto sobre la renta (IRRF)',
-          imss_employee_rate: 'INSS colaborador',
-          infonavit_employee_rate: 'FGTS / otros colaborador',
-          imss_employer_rate: 'INSS patronal',
-          infonavit_employer_rate: 'FGTS patronal',
-          sar_employer_rate: 'Retiro / beneficios patronales',
-        },
-        custom: {
-          isr_rate: 'Tasa principal de impuesto',
-          imss_employee_rate: 'Contribución colaborador A',
-          infonavit_employee_rate: 'Contribución colaborador B',
-          imss_employer_rate: 'Contribución patronal A',
-          infonavit_employer_rate: 'Contribución patronal B',
-          sar_employer_rate: 'Retiro / otros patronal',
-        },
-      },
-    },
-  },
-} as const;
-
-type PayrollCopy = typeof payrollCopy.en | typeof payrollCopy.es;
+type PayrollCopy = PayrollTranslations;
 
 const pickPayrollRateValues = (preferences: PayrollPreferences): PayrollRateValues => ({
   isr_rate: preferences.isr_rate,
@@ -913,13 +188,45 @@ const payrollRateProfileFlags: Record<PayrollRateProfileKey, string> = {
   custom: '⚙️',
 };
 
-const formatCurrency = (value: number, locale: string) =>
+const formatCurrency = (value: number, locale: string, currency = 'USD') =>
   new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
+
+const resolvePayrollCurrencyCode = (jurisdictionLabel: string) => {
+  const normalizedLabel = jurisdictionLabel.toLowerCase();
+
+  if (normalizedLabel.includes('mexico') || normalizedLabel.includes('méxico')) {
+    return 'MXN';
+  }
+  if (
+    normalizedLabel.includes('canada')
+    || normalizedLabel.includes('ontario')
+    || normalizedLabel.includes('quebec')
+    || normalizedLabel.includes('québec')
+  ) {
+    return 'CAD';
+  }
+  if (
+    normalizedLabel.includes('usa')
+    || normalizedLabel.includes('united states')
+    || normalizedLabel.includes('florida')
+    || normalizedLabel.includes('texas')
+  ) {
+    return 'USD';
+  }
+  if (normalizedLabel.includes('colombia')) {
+    return 'COP';
+  }
+  if (normalizedLabel.includes('brazil') || normalizedLabel.includes('brasil')) {
+    return 'BRL';
+  }
+
+  return 'USD';
+};
 
 const formatDate = (value: string, locale: string, fallback: string) => {
   if (!value) {
@@ -938,7 +245,7 @@ const formatDate = (value: string, locale: string, fallback: string) => {
   }).format(parsed);
 };
 
-const toErrorMessage = (error: unknown, copy: typeof payrollCopy.en | typeof payrollCopy.es) => {
+const toErrorMessage = (error: unknown, copy: PayrollCopy) => {
   if (error instanceof ApiClientError) {
     if (error.status === 404) {
       return copy.notFound;
@@ -955,6 +262,7 @@ type PayrollBusyKind =
   | 'refresh'
   | 'open-run'
   | 'save-preferences'
+  | 'generate-runs'
   | 'save-line'
   | 'process-run'
   | 'approve-run'
@@ -1518,7 +826,7 @@ const downloadFile = async (path: string, filename: string) => {
 
 export default function Payroll() {
   const { currentLanguage } = useLanguage();
-  const copy = currentLanguage.code.startsWith('es') ? payrollCopy.es : payrollCopy.en;
+  const copy = usePayrollTranslations();
 
   const [overview, setOverview] = useState<PayrollOverviewResponse | null>(null);
   // Seed data for development
@@ -1649,7 +957,6 @@ export default function Payroll() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isPreferencesDialogOpen, setIsPreferencesDialogOpen] = useState(false);
-  const [isRateConfigDialogOpen, setIsRateConfigDialogOpen] = useState(false);
   const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
   const [isEditRunDialogOpen, setIsEditRunDialogOpen] = useState(false);
   const [isEditRunDetailLoading, setIsEditRunDetailLoading] = useState(false);
@@ -1659,8 +966,6 @@ export default function Payroll() {
   const [printJob, setPrintJob] = useState<PayrollRunPdfDocumentProps | null>(null);
   const [runDialogNotice, setRunDialogNotice] = useState<PayrollDialogNotice | null>(null);
   const [preferencesForm, setPreferencesForm] = useState<PayrollPreferences>(defaultPayrollPreferences);
-  const [selectedRateProfile, setSelectedRateProfile] = useState<PayrollRateProfileKey>('mexico');
-  const [rateDrafts, setRateDrafts] = useState<PayrollRateDrafts>(() => createPayrollRateDrafts(defaultPayrollPreferences));
   const [filters, setFilters] = useState({
     period_range: 'all_year',
     period_from: '',
@@ -1687,7 +992,6 @@ export default function Payroll() {
 
   const isSaving = busyState !== null;
   const activeBusyKind = busyState?.kind ?? null;
-  const activeRateValues = rateDrafts[selectedRateProfile];
   const unitsById = useMemo(
     () => new Map(units.map((unit) => [String(unit.id), unit.name])),
     [units],
@@ -1845,10 +1149,6 @@ export default function Payroll() {
 
       setOverview(overviewResponse);
       setPreferencesForm(overviewResponse.preferences);
-      setRateDrafts((currentDrafts) => ({
-        ...currentDrafts,
-        custom: pickPayrollRateValues(overviewResponse.preferences),
-      }));
       const shouldUseSeedRuns = runsResponse.items.length === 0;
       setRuns(shouldUseSeedRuns ? seedRuns : runsResponse.items);
       setJurisdictionsByRunId(shouldUseSeedRuns ? seedJurisdictionsByRunId : {});
@@ -1879,24 +1179,6 @@ export default function Payroll() {
     () => selectedRunDetail?.lines.find((line) => line.id === selectedLineId) ?? null,
     [selectedLineId, selectedRunDetail?.lines],
   );
-
-  const updateActiveRateValue = (field: PayrollRateFieldKey, value: number) => {
-    setRateDrafts((currentDrafts) => ({
-      ...currentDrafts,
-      [selectedRateProfile]: {
-        ...currentDrafts[selectedRateProfile],
-        [field]: value,
-      },
-    }));
-  };
-
-  const openRateConfiguration = () => {
-    setRateDrafts((currentDrafts) => ({
-      ...currentDrafts,
-      custom: pickPayrollRateValues(preferencesForm),
-    }));
-    setIsRateConfigDialogOpen(true);
-  };
 
   useEffect(() => {
     if (!selectedLine) {
@@ -1984,30 +1266,6 @@ export default function Payroll() {
         await humanResourcesApi.updatePayrollPreferences(preferencesForm);
         setIsPreferencesDialogOpen(false);
         setSuccessMessage(copy.success.preferences);
-        await loadPayroll(filters, { background: true });
-      });
-    } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
-    }
-  };
-
-  const handleSaveRates = async () => {
-    const nextPreferences = applyPayrollRateValues(preferencesForm, rateDrafts[selectedRateProfile]);
-
-    try {
-      await runBusyTask({
-        kind: 'save-preferences',
-        title: copy.busy.ratesTitle,
-        description: copy.busy.ratesDescription,
-      }, async () => {
-        await humanResourcesApi.updatePayrollPreferences(nextPreferences);
-        setPreferencesForm(nextPreferences);
-        setRateDrafts((currentDrafts) => ({
-          ...currentDrafts,
-          custom: pickPayrollRateValues(nextPreferences),
-        }));
-        setIsRateConfigDialogOpen(false);
-        setSuccessMessage(copy.success.rates);
         await loadPayroll(filters, { background: true });
       });
     } catch (error) {
@@ -2211,6 +1469,44 @@ export default function Payroll() {
     }
   };
 
+  const handleApproveRunFromTable = async (run: PayrollRunSummary) => {
+    try {
+      await runBusyTask({
+        kind: 'approve-run',
+        title: copy.busy.approveTitle,
+        description: copy.busy.approveDescription,
+      }, async () => {
+        await humanResourcesApi.approvePayrollRun(run.id);
+        setSuccessMessage(copy.success.approved);
+        await loadPayroll(filters, { background: true });
+        if (selectedRunDetail?.run.id === run.id) {
+          await refreshOpenRun(run.id);
+        }
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const handleCancelRunFromTable = async (run: PayrollRunSummary) => {
+    try {
+      await runBusyTask({
+        kind: 'cancel-run',
+        title: copy.busy.cancelTitle,
+        description: copy.busy.cancelDescription,
+      }, async () => {
+        await humanResourcesApi.cancelPayrollRun(run.id);
+        setSuccessMessage(copy.success.cancelled);
+        await loadPayroll(filters, { background: true });
+        if (selectedRunDetail?.run.id === run.id) {
+          await refreshOpenRun(run.id);
+        }
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
   const resolveRunBusiness = (run: PayrollRunSummary) => {
     if (run.grouping_mode !== 'business') {
       return null;
@@ -2259,6 +1555,35 @@ export default function Payroll() {
       : copy.labels.noJurisdiction;
   };
 
+  const operationalRuns = runs.map((run) => ({
+    ...run,
+    jurisdictionLabel: resolveRunJurisdictionLabel(run),
+    unitLabel: resolveRunUnitLabel(run),
+    businessLabel: resolveRunBusinessLabel(run),
+  }));
+  const shouldShowSetupGuide = !overview?.preferences && runs.length === 0;
+  const resolveOperationalStatus = (run: PayrollRunSummary) => {
+    if (run.employees_count === 0 && run.status !== 'paid' && run.status !== 'cancelled') {
+      return {
+        label: copy.operationalStatus.blocked,
+        className: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300',
+      };
+    }
+
+    const statusClassNames: Record<PayrollRunSummary['status'], string> = {
+      draft: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300',
+      processed: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
+      approved: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300',
+      paid: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
+      cancelled: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    };
+
+    return {
+      label: run.status === 'processed' ? copy.operationalStatus.review : copy.statuses[run.status],
+      className: statusClassNames[run.status],
+    };
+  };
+
   return (
     <>
       <LoadingBarOverlay
@@ -2284,35 +1609,11 @@ export default function Payroll() {
         onClose={() => setSuccessMessage('')}
       />
 
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
-              <span className="text-2xl">💰</span>
-              {copy.title}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{copy.subtitle}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={openRateConfiguration}
-              className="gap-2 border-[#143675] text-[#143675] hover:bg-[#143675] hover:text-white"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {copy.labels.openRates}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsPreferencesDialogOpen(true)}
-              className="gap-2 border-[#143675] text-[#143675] hover:bg-[#143675] hover:text-white"
-            >
-              <Settings className="h-4 w-4" />
-              {copy.labels.openPreferences}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PayrollHeaderBar
+        copy={copy.header}
+        isBusy={isSaving}
+        onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
+      />
 
       {isLoading ? (
         <div className="space-y-6">
@@ -2321,11 +1622,10 @@ export default function Payroll() {
       ) : (
         <>
           <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-4 flex items-center gap-2">
-              <Filter className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-              <h3 className="text-base font-bold text-slate-800 dark:text-white">{copy.labels.filters}</h3>
+            <div className="mb-5">
+              <h3 className="text-base font-bold text-slate-950 dark:text-white">{copy.filterBar.title}</h3>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
               <SelectField
                 label={copy.labels.period}
                 value={filters.period_range}
@@ -2408,87 +1708,101 @@ export default function Payroll() {
             </div>
           </section>
 
+          {shouldShowSetupGuide ? (
+            <PayrollSetupGuide
+              copy={copy.setupGuide}
+              isBusy={isSaving}
+              onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
+            />
+          ) : (
+            <PayrollOperationsPanel
+              copy={copy}
+              runs={operationalRuns}
+              formatMoney={(value) => formatCurrency(value, currentLanguage.code)}
+            />
+          )}
+
           <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-700">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{copy.labels.runs}</h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Review generated runs, open a draft, and export the final ledger.</p>
+                  <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{copy.runLedger.title}</h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.runLedger.subtitle}</p>
                 </div>
                 <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  {runs.length} active view
+                  {runs.length} {copy.runLedger.currentViewSuffix}
                 </div>
               </div>
             </div>
 
-            <Table className="min-w-[1400px]">
+            <Table className="min-w-[1280px]">
               <TableHeader>
                 <TableRow className="border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
                   <TableHead
                     onClick={() => handleSortColumn('period')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.period}
                     <SortIndicator column="period" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('frequency')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.frequency}
                     <SortIndicator column="frequency" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('payrollType')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.payrollType}
                     <SortIndicator column="payrollType" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('employees')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.employees}
                     <SortIndicator column="employees" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('totalAmount')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.totalAmount}
                     <SortIndicator column="totalAmount" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('jurisdiction')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.jurisdiction}
                     <SortIndicator column="jurisdiction" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('unit')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.unit}
                     <SortIndicator column="unit" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('business')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.business}
                     <SortIndicator column="business" />
                   </TableHead>
                   <TableHead
                     onClick={() => handleSortColumn('status')}
-                    className="cursor-pointer px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     {copy.labels.status}
                     <SortIndicator column="status" />
                   </TableHead>
-                  <TableHead className="px-5 py-6 text-sm font-semibold tracking-tight text-slate-500 dark:text-slate-400">
-                    ACTIONS
+                  <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    {copy.runLedger.actions}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -2500,80 +1814,81 @@ export default function Payroll() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedRuns.map((run) => (
-                    <TableRow key={run.id} className="border-slate-200 dark:border-slate-700">
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)} → {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {copy.frequencies[run.pay_period]}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {copy.groupingModes[run.grouping_mode]}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle font-medium text-slate-900 dark:text-white">
-                        {run.employees_count}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle font-medium text-slate-900 dark:text-white">
-                        {run.net_amount.toLocaleString(currentLanguage.code, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {resolveRunJurisdictionLabel(run)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {resolveRunUnitLabel(run)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle text-slate-700 dark:text-slate-200">
-                        {resolveRunBusinessLabel(run)}
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle">
-                        <select
-                          value={run.status}
-                          onChange={(e) => handleStatusChange(run, e.target.value as PayrollRunSummary['status'])}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:border-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:hover:border-slate-500"
-                          disabled={isSaving}
-                        >
-                          <option value="draft">Review</option>
-                          <option value="processed">Processed</option>
-                          <option value="approved">Approved</option>
-                          <option value="paid">Paid</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </TableCell>
-                      <TableCell className="px-5 py-6 align-middle">
-                        <div className="flex items-center gap-2">
-                          <PayrollTableActionButton
-                            icon={<Pencil className="h-4 w-4 text-amber-600" />}
-                            label={copy.labels.edit}
-                            onClick={() => void openEditRunModal(run)}
-                            disabled={isSaving}
-                            toneClassName="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                  sortedRuns.map((run) => {
+                    const operationalStatus = resolveOperationalStatus(run);
+                    const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
+                    const runCurrencyCode = resolvePayrollCurrencyCode(runJurisdictionLabel);
+
+                    return (
+                      <TableRow key={run.id} className="border-slate-200 transition-colors hover:bg-slate-50/70 dark:border-slate-700 dark:hover:bg-slate-900/40">
+                        <TableCell className="px-5 py-5 align-middle">
+                          <div className="space-y-1">
+                            <p className="font-semibold text-slate-950 dark:text-white">
+                              {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {copy.runLedger.periodConnector} {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm font-medium text-slate-700 dark:text-slate-200">
+                          {copy.frequencies[run.pay_period]}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              {copy.groupingModes[run.grouping_mode]}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {run.grouping_label || copy.runLedger.automaticGrouping}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                            {run.employees_count}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <p className="text-sm font-bold text-slate-950 dark:text-white">
+                            {formatCurrency(run.net_amount, currentLanguage.code, runCurrencyCode)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            {copy.runLedger.netPayout} · {runCurrencyCode}
+                          </p>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                          {runJurisdictionLabel}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                          {resolveRunUnitLabel(run)}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                          {resolveRunBusinessLabel(run)}
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${operationalStatus.className}`}>
+                            {operationalStatus.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-5 py-5 align-middle">
+                          <PayrollRunActionsMenu
+                            copy={copy.runActions}
+                            run={run}
+                            isBusy={isSaving}
+                            onOpen={() => void openRunDetail(run.id)}
+                            onEdit={() => void openEditRunModal(run)}
+                            onProcess={() => void handleProcessRunFromTable(run)}
+                            onApprove={() => void handleApproveRunFromTable(run)}
+                            onMarkPaid={() => void handlePayRunFromTable(run)}
+                            onExportPdf={() => void handleDownload('pdf', run)}
+                            onExportCsv={() => void handleDownload('csv', run)}
+                            onCancel={() => void handleCancelRunFromTable(run)}
                           />
-                          <PayrollTableActionButton
-                            icon={<PlayCircle className="h-4 w-4 text-blue-600" />}
-                            label={copy.labels.process}
-                            onClick={() => void handleProcessRunFromTable(run)}
-                            disabled={isSaving || run.status !== 'draft'}
-                            toneClassName="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-950/60"
-                          />
-                          <PayrollTableActionButton
-                            icon={<Printer className="h-4 w-4 text-violet-600" />}
-                            label={copy.labels.print}
-                            onClick={() => void handleDownload('pdf', run)}
-                            disabled={isSaving}
-                            toneClassName="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-950/60"
-                          />
-                          <PayrollTableActionButton
-                            icon={<Wallet className="h-4 w-4 text-emerald-600" />}
-                            label={copy.labels.pay}
-                            onClick={() => void handlePayRunFromTable(run)}
-                            disabled={isSaving || run.status !== 'approved'}
-                            toneClassName="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -2590,20 +1905,6 @@ export default function Payroll() {
           onClose={() => setIsPreferencesDialogOpen(false)}
           onChange={setPreferencesForm}
           onSave={() => void handleSavePreferences()}
-        />
-      ) : null}
-
-      {isRateConfigDialogOpen ? (
-        <PayrollRatesDialog
-          copy={copy}
-          isOpen={isRateConfigDialogOpen}
-          isSaving={isSaving}
-          selectedProfile={selectedRateProfile}
-          values={activeRateValues}
-          onClose={() => setIsRateConfigDialogOpen(false)}
-          onSelectProfile={setSelectedRateProfile}
-          onChangeValue={updateActiveRateValue}
-          onSave={() => void handleSaveRates()}
         />
       ) : null}
 
@@ -2702,7 +2003,8 @@ function PayrollEditRunDialog({
   locale: string;
 }) {
   const runLines = detail?.lines ?? [];
-  const noRowsLabel = 'No employees available for this run.';
+  const editCopy = copy.editRun;
+  const noRowsLabel = editCopy.noRows;
   const statusLabel = copy.statuses[form.status];
   const payrollTypeLabel = copy.groupingModes[run.grouping_mode];
   const frequencyLabel = copy.frequencies[run.pay_period];
@@ -3898,7 +3200,7 @@ function PayrollEditRunDialog({
     [activeProvinceLabel, activeRunJurisdiction],
   );
   const displayJurisdictionLabel = isUnsupportedJurisdiction
-    ? rawJurisdictionLabel || unsupportedJurisdictionMeta?.country || 'Unsupported jurisdiction'
+    ? rawJurisdictionLabel || unsupportedJurisdictionMeta?.country || editCopy.unsupportedBadge
     : derivedJurisdiction;
 
   const baseSimplifiedRows: PayrollEditTableRow[] = visibleDetailedRows.map((row) => {
@@ -4145,6 +3447,12 @@ function PayrollEditRunDialog({
   ]);
 
   const detailedStatutoryColumnsForPrint = new Set<PayrollDetailedColumnKey>(activeDetailedStatutoryColumns);
+  const simplifiedStatusLabels: Record<PayrollEditTableRow['status'], string> = {
+    Processed: copy.statuses.processed,
+    Draft: copy.statuses.draft,
+    Review: copy.operationalStatus.review,
+    'Internal only': editCopy.internalOnly,
+  };
 
   const renderAttendanceSelect = (
     value: number,
@@ -4230,16 +3538,16 @@ function PayrollEditRunDialog({
         const commissionCount = row.variablePayItems.filter((item) => item.included && item.type === 'commission').length;
         const adjustmentCount = row.variablePayItems.filter((item) => item.included && item.type === 'adjustment').length;
         const summaryPieces = [
-          bonusCount > 0 ? `${bonusCount} bonuses` : '',
-          commissionCount > 0 ? `${commissionCount} commissions` : '',
-          adjustmentCount > 0 ? `${adjustmentCount} adjustments` : '',
+          bonusCount > 0 ? `${bonusCount} ${editCopy.bonuses}` : '',
+          commissionCount > 0 ? `${commissionCount} ${editCopy.commissions}` : '',
+          adjustmentCount > 0 ? `${adjustmentCount} ${editCopy.adjustments}` : '',
         ].filter(Boolean);
 
         return (
           <TableCell className="px-4 py-3 align-top">
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-emerald-700 dark:text-emerald-300">{formatAmount(row.variablePayTotal)}</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">{summaryPieces.length > 0 ? summaryPieces.join(' · ') : 'No variable items'}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{summaryPieces.length > 0 ? summaryPieces.join(' · ') : editCopy.noVariableItems}</span>
               <div>
                 <Button
                   type="button"
@@ -4248,7 +3556,7 @@ function PayrollEditRunDialog({
                   className="h-8 rounded-lg px-2.5"
                   onClick={() => setVariablePayEditorRowId(rowId)}
                 >
-                  Manage
+                  {editCopy.manage}
                 </Button>
               </div>
             </div>
@@ -4265,8 +3573,8 @@ function PayrollEditRunDialog({
             <div className="flex flex-col">
               <span>{formatAmount(row.totalDeductions)}</span>
               {!row.statutoryPayroll && (
-                <span className="text-[11px] text-slate-500 dark:text-slate-400" title="Internal-only rows include only loans, other discounts, and net adjustments.">
-                  Internal-only deductions
+                <span className="text-[11px] text-slate-500 dark:text-slate-400" title={editCopy.internalOnlyDeductionsHint}>
+                  {editCopy.internalOnlyDeductions}
                 </span>
               )}
             </div>
@@ -4283,7 +3591,7 @@ function PayrollEditRunDialog({
                 ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}
             >
-              {row.status}
+              {simplifiedStatusLabels[row.status]}
             </span>
           </TableCell>
         );
@@ -4306,7 +3614,7 @@ function PayrollEditRunDialog({
               className="h-8 rounded-lg px-2.5"
             >
               <Info className="mr-1 h-3.5 w-3.5" />
-              Breakdown
+              {editCopy.breakdown}
             </Button>
           </TableCell>
         );
@@ -4322,7 +3630,7 @@ function PayrollEditRunDialog({
 
     if (isStatutoryField && !effectiveRow.statutoryPayroll) {
       return (
-        <TableCell className="px-3 py-3 align-top text-right text-slate-400 dark:text-slate-500" title="Disabled for internal payroll control">
+        <TableCell className="px-3 py-3 align-top text-right text-slate-400 dark:text-slate-500" title={editCopy.disabledInternalControl}>
           —
         </TableCell>
       );
@@ -4453,7 +3761,7 @@ function PayrollEditRunDialog({
               className="h-8 rounded-lg px-2.5"
             >
               <Info className="mr-1 h-3.5 w-3.5" />
-              Breakdown
+              {editCopy.breakdown}
             </Button>
           </TableCell>
         );
@@ -4465,14 +3773,15 @@ function PayrollEditRunDialog({
   const formatSimplifiedPrintValue = (row: PayrollEditTableRow, key: PayrollEditTableColumnKey) => {
     switch (key) {
       case 'statutoryPayroll':
-        return row.statutoryPayroll ? 'Statutory' : 'Internal only';
+        return row.statutoryPayroll ? editCopy.statutory : editCopy.internalOnly;
       case 'employee':
       case 'unit':
       case 'business':
       case 'employmentType':
       case 'province':
-      case 'status':
         return row[key] ? String(row[key]) : '—';
+      case 'status':
+        return simplifiedStatusLabels[row.status];
       case 'daysWorked':
       case 'daysAbsent':
         return String(row[key]);
@@ -4481,14 +3790,14 @@ function PayrollEditRunDialog({
         const commissionCount = row.variablePayItems.filter((item) => item.included && item.type === 'commission').length;
         const adjustmentCount = row.variablePayItems.filter((item) => item.included && item.type === 'adjustment').length;
         const summaryParts = [
-          `${bonusCount} bonuses`,
-          `${commissionCount} commissions`,
-          `${adjustmentCount} adjustments`,
+          `${bonusCount} ${editCopy.bonuses}`,
+          `${commissionCount} ${editCopy.commissions}`,
+          `${adjustmentCount} ${editCopy.adjustments}`,
         ].filter((entry) => !entry.startsWith('0 '));
         return `${formatAmount(row.variablePayTotal)}${summaryParts.length ? ` (${summaryParts.join(' · ')})` : ''}`;
       }
       case 'breakdown':
-        return 'Available in app';
+        return editCopy.availableInApp;
       default:
         return formatAmount(row[key] as number);
     }
@@ -4501,7 +3810,7 @@ function PayrollEditRunDialog({
     }
 
     if (key === 'breakdown') {
-      return 'Available in app';
+      return editCopy.availableInApp;
     }
 
     const value = effectiveRow[key];
@@ -4524,20 +3833,20 @@ function PayrollEditRunDialog({
       return;
     }
 
-    const printTitle = `Payroll #${run.id} - ${payrollViewMode === 'simplified' ? 'Simplified' : 'Detailed'} view`;
+    const printTitle = editCopy.printTitle(run.id, payrollViewMode === 'simplified' ? editCopy.printSimplified : editCopy.printDetailed);
     const headerHtml = `
       <div class="header">
         <h1>${escapePrintHtml(printTitle)}</h1>
-        <p class="meta">Period: ${escapePrintHtml(formatDate(run.period_start_date, locale, run.period_start_date))} - ${escapePrintHtml(formatDate(run.period_end_date, locale, run.period_end_date))}</p>
-        <p class="meta">Unit: ${escapePrintHtml(unitLabel)} | Business: ${escapePrintHtml(businessLabel)} | Jurisdiction: ${escapePrintHtml(displayJurisdictionLabel)}</p>
-        <p class="meta">Status: ${escapePrintHtml(copy.statuses[form.status])}</p>
+        <p class="meta">${escapePrintHtml(editCopy.period)}: ${escapePrintHtml(formatDate(run.period_start_date, locale, run.period_start_date))} - ${escapePrintHtml(formatDate(run.period_end_date, locale, run.period_end_date))}</p>
+        <p class="meta">${escapePrintHtml(editCopy.unit)}: ${escapePrintHtml(unitLabel)} | ${escapePrintHtml(editCopy.business)}: ${escapePrintHtml(businessLabel)} | ${escapePrintHtml(editCopy.jurisdiction)}: ${escapePrintHtml(displayJurisdictionLabel)}</p>
+        <p class="meta">${escapePrintHtml(editCopy.status)}: ${escapePrintHtml(copy.statuses[form.status])}</p>
       </div>
     `;
 
     const tableHtml = payrollViewMode === 'simplified'
       ? `
         <div class="section">
-          <h2>Simplified Payroll Employees</h2>
+          <h2>${escapePrintHtml(editCopy.simplifiedEmployees)}</h2>
           <table>
             <thead>
               <tr>${simplifiedColumns.map((column) => `<th>${escapePrintHtml(column.label)}</th>`).join('')}</tr>
@@ -4550,12 +3859,12 @@ function PayrollEditRunDialog({
       }).join('')}</tr>`).join('')}
             </tbody>
           </table>
-          <p class="meta" style="margin-top:8px;">Total net pay: ${escapePrintHtml(formatAmount(totalSimplifiedNetPay))}</p>
+          <p class="meta" style="margin-top:8px;">${escapePrintHtml(editCopy.totalNetPay)}: ${escapePrintHtml(formatAmount(totalSimplifiedNetPay))}</p>
         </div>
       `
       : `
         <div class="section">
-          <h2>Detailed Payroll Employees</h2>
+          <h2>${escapePrintHtml(editCopy.detailedEmployees)}</h2>
           <table>
             <thead>
               <tr>${detailedColumns.map((column) => `<th>${escapePrintHtml(column.label)}</th>`).join('')}</tr>
@@ -4568,13 +3877,13 @@ function PayrollEditRunDialog({
       }).join('')}</tr>`).join('')}
             </tbody>
           </table>
-          <p class="meta" style="margin-top:8px;">Total net pay: ${escapePrintHtml(formatAmount(totalDetailedNetPay))}</p>
+          <p class="meta" style="margin-top:8px;">${escapePrintHtml(editCopy.totalNetPay)}: ${escapePrintHtml(formatAmount(totalDetailedNetPay))}</p>
         </div>
       `;
 
     const summaryHtml = `
       <div class="section">
-        <h2>Employer Cost Summary</h2>
+        <h2>${escapePrintHtml(editCopy.employerCostSummary)}</h2>
         <p class="meta">${escapePrintHtml(activeEmployerSummaryConfig.helperText)}</p>
         <div class="grid" style="margin-top:8px;">
           ${activeEmployerSummaryConfig.metrics.map((metric) => `
@@ -4686,16 +3995,16 @@ function PayrollEditRunDialog({
                 <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm dark:border-amber-900/50 dark:bg-slate-900/70">
                   <div className="max-w-3xl space-y-3">
                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
-                      Unsupported payroll jurisdiction
+                      {editCopy.unsupportedBadge}
                     </span>
                     <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
-                      {displayJurisdictionLabel} is not configured in this payroll modal yet.
+                      {editCopy.unsupportedTitle(displayJurisdictionLabel)}
                     </h4>
                     <p className="text-sm text-slate-600 dark:text-slate-300">
-                      This branch currently supports Mexico, Colombia, Canada Standard, Canada Quebec, and Brazil. To avoid showing the wrong statutory logic, the frontend now blocks the Mexico layout from being used for USA payroll runs.
+                      {editCopy.unsupportedDescription}
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-300">
-                      You can still update the run status and keep working in the rest of the module, but payroll tables, breakdowns, and employer cost summaries stay disabled until a dedicated United States layout is added.
+                      {editCopy.unsupportedAction}
                     </p>
                   </div>
                 </section>
@@ -4705,33 +4014,41 @@ function PayrollEditRunDialog({
                     <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                          Payroll Table
+                          {editCopy.tableTitle}
                         </h4>
                         <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
                           <button
                             type="button"
-                            onClick={() => setPayrollViewMode('simplified')}
+                            onClick={() => {
+                              if (payrollViewMode !== 'simplified') {
+                                setPayrollViewMode('simplified');
+                              }
+                            }}
                             className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'simplified'
                               ? 'bg-[#143675] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                               }`}
                           >
-                            Simplified Payroll
+                            {editCopy.simplifiedMode}
                           </button>
                           <button
                             type="button"
-                            onClick={() => setPayrollViewMode('detailed')}
+                            onClick={() => {
+                              if (payrollViewMode !== 'detailed') {
+                                setPayrollViewMode('detailed');
+                              }
+                            }}
                             className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'detailed'
                               ? 'bg-[#143675] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                               }`}
                           >
-                            Detailed Payroll
+                            {editCopy.detailedMode}
                           </button>
                         </div>
                       </div>
                       <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        Simplified view summarizes payroll for business review. Use Statutory Payroll to control which employees receive tax and social security calculations.
+                        {editCopy.tableHint}
                       </p>
                     </div>
 
@@ -4798,7 +4115,7 @@ function PayrollEditRunDialog({
                                     if (index === 0) {
                                       return (
                                         <TableCell key={column.key} className="sticky left-0 z-20 border-r border-slate-300 bg-slate-100/95 px-4 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-600 dark:bg-slate-800/95 dark:text-slate-300">
-                                          Total
+                                          {editCopy.total}
                                         </TableCell>
                                       );
                                     }
@@ -4865,7 +4182,7 @@ function PayrollEditRunDialog({
                                     if (index === 0) {
                                       return (
                                         <TableCell key={column.key} className="px-3 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                                          Total
+                                          {editCopy.total}
                                         </TableCell>
                                       );
                                     }
@@ -4882,8 +4199,8 @@ function PayrollEditRunDialog({
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
                     <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Employer Cost Summary</h4>
-                      <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Read only</span>
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{editCopy.employerCostSummary}</h4>
+                      <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{editCopy.readOnly}</span>
                     </div>
                     <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
                       {activeEmployerSummaryConfig.helperText}
@@ -4957,8 +4274,9 @@ function PayrollEditRunDialog({
       />
 
       <VariablePayModal
+        copy={copy.variablePay}
         isOpen={Boolean(variablePayEditorRow)}
-        employeeName={variablePayEditorRow?.employee || 'Employee'}
+        employeeName={variablePayEditorRow?.employee || copy.labels.employee}
         items={variablePayEditorRow ? (variablePayByRow[String(variablePayEditorRow.id)] ?? createVariablePayDefaults(variablePayEditorRow)) : []}
         onClose={() => setVariablePayEditorRowId(null)}
         onSave={(nextItems) => {
@@ -5743,61 +5061,66 @@ function PayrollPreferencesDialog({
   onChange: (value: PayrollPreferences) => void;
   onSave: () => void;
 }) {
-  const isSpanish = copy.labels.cancel === 'Cancelar';
+  const preferenceCopy = copy.preferencesDialog;
   const groupingOptions = [
-    {
-      key: 'single',
-      title: copy.groupingCards.single.title,
-      description: copy.groupingCards.single.description,
-      highlighted: true,
-    },
-    {
-      key: 'unit',
-      title: copy.groupingCards.unit.title,
-      description: copy.groupingCards.unit.description,
-      highlighted: false,
-    },
-    {
-      key: 'business',
-      title: copy.groupingCards.business.title,
-      description: copy.groupingCards.business.description,
-      highlighted: false,
-    },
+    { key: 'single', ...preferenceCopy.groupingOptions.single },
+    { key: 'unit', ...preferenceCopy.groupingOptions.unit },
+    { key: 'business', ...preferenceCopy.groupingOptions.business },
   ] as const;
 
   const selectedOption = groupingOptions.find((option) => option.key === form.grouping_mode) ?? groupingOptions[0];
-  const selectedOptionTitle = selectedOption.title;
   const optionIconMap = {
     single: Globe2,
     unit: MapPinned,
     business: Landmark,
   } as const;
-  const optionValueMap = {
-    single: isSpanish ? 'Revisión centralizada' : 'Centralized review',
-    unit: isSpanish ? 'Seguimiento por unidad' : 'Unit-by-unit review',
-    business: isSpanish ? 'Control por entidad' : 'Entity-based review',
-  } as const;
-
-  const currentSetupLabel = isSpanish ? 'Configuración actual' : 'Current setup';
-  const currentSetupDescription = isSpanish
-    ? 'Estas preferencias definen el comportamiento base que usará el módulo al crear nuevas corridas de nómina.'
-    : 'These preferences define the default behavior the module will use when new payroll runs are created.';
-  const selectionHelper = isSpanish
-    ? 'Elige la estructura que mejor se ajuste a la forma en que tu operación revisa las corridas de nómina.'
-    : 'Choose the structure that best matches how your operation reviews payroll runs.';
-  const operationalNoteTitle = isSpanish ? 'Nota operativa' : 'Operational note';
-  const activeStateLabel = isSpanish ? 'Seleccionado' : 'Selected';
-  const useThisModeLabel = isSpanish ? 'Usar este modo' : 'Use this mode';
+  const automaticSeparatorCards = [
+    {
+      title: preferenceCopy.separators.frequency.title,
+      description: preferenceCopy.separators.frequency.description,
+      Icon: CreditCard,
+    },
+    {
+      title: preferenceCopy.separators.workforce.title,
+      description: preferenceCopy.separators.workforce.description,
+      Icon: ShieldCheck,
+    },
+    {
+      title: preferenceCopy.separators.jurisdiction.title,
+      description: preferenceCopy.separators.jurisdiction.description,
+      Icon: Globe2,
+    },
+  ];
+  const preferenceSteps = [
+    { number: '1', label: preferenceCopy.steps.organization },
+    { number: '2', label: preferenceCopy.steps.automaticSeparation },
+    { number: '3', label: preferenceCopy.steps.defaults },
+  ];
   const paidLeaveValueLabel = form.pay_leave_days
-    ? (isSpanish ? 'Sí' : 'Yes')
-    : 'No';
-  const dailyHoursValueLabel = `${Number(form.default_daily_hours || 0).toFixed(2)} ${isSpanish ? 'hrs/día' : 'hrs/day'}`;
-  const dailyHoursHelper = isSpanish
-    ? 'Se usa como base de asistencia cuando se generan nuevas corridas.'
-    : 'Used as the default attendance base when new payroll runs are generated.';
-  const leaveDaysHelper = isSpanish
-    ? 'Incluye los días de permiso aprobados como días pagados por defecto.'
-    : 'Approved leave days are treated as paid days by default.';
+    ? preferenceCopy.yes
+    : preferenceCopy.no;
+  const dailyHoursHelper = preferenceCopy.dailyHoursHelper;
+  const leaveDaysHelper = preferenceCopy.leaveDaysHelper;
+  const impactMessage = preferenceCopy.impactMessage;
+  const saveButtonLabel = isSaving
+    ? preferenceCopy.saving
+    : copy.labels.savePreferences;
+  const [currentPreferenceStep, setCurrentPreferenceStep] = useState(0);
+  const isFinalPreferenceStep = currentPreferenceStep === preferenceSteps.length - 1;
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPreferenceStep(0);
+    }
+  }, [isOpen]);
+
+  const goToPreviousPreferenceStep = () => {
+    setCurrentPreferenceStep((currentStep) => Math.max(currentStep - 1, 0));
+  };
+
+  const goToNextPreferenceStep = () => {
+    setCurrentPreferenceStep((currentStep) => Math.min(currentStep + 1, preferenceSteps.length - 1));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -5805,19 +5128,19 @@ function PayrollPreferencesDialog({
         onClose();
       }
     }}>
-      <DialogContent className="!flex h-[min(88vh,920px)] max-h-[calc(100vh-3rem)] max-w-[980px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#143675] px-5 py-4 text-left text-white sm:px-6">
+      <DialogContent className="!flex h-[min(720px,calc(100vh-2rem))] w-[min(1040px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border border-[#143675]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#4a7bc8]/30 dark:bg-slate-900 [&>button]:hidden">
+        <DialogHeader className="shrink-0 bg-[#143675] px-6 py-5 text-left text-white">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/12 text-white shadow-sm ring-1 ring-white/10">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/12 text-white shadow-sm ring-1 ring-white/10">
                 <SlidersHorizontal className="h-5 w-5" />
               </div>
-              <div className="space-y-1">
-                <DialogTitle className="text-[1.35rem] font-bold leading-tight text-white sm:text-[1.55rem]">
+              <div className="min-w-0 space-y-1">
+                <DialogTitle className="text-xl font-bold leading-tight text-white">
                   {copy.labels.preferences}
                 </DialogTitle>
                 <DialogDescription className="max-w-2xl text-sm leading-6 text-blue-100">
-                  {currentSetupDescription}
+                  {preferenceCopy.subtitle}
                 </DialogDescription>
               </div>
             </div>
@@ -5825,7 +5148,7 @@ function PayrollPreferencesDialog({
               <button
                 type="button"
                 disabled={isSaving}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/65 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label={copy.labels.close}
               >
                 <X className="h-5 w-5" />
@@ -5834,260 +5157,254 @@ function PayrollPreferencesDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-950/40">
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-            <div className="space-y-5">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
-                <section className="rounded-[28px] border border-[#143675]/15 bg-white p-5 shadow-sm dark:border-[#143675]/25 dark:bg-slate-900/70">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-blue-300">
-                      <Info className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#143675]/70 dark:text-blue-300/80">
-                        {copy.labels.groupingMode}
+        <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
+          <div className="grid grid-cols-3 gap-2">
+            {preferenceSteps.map((step, index) => (
+              <button
+                key={step.number}
+                type="button"
+                disabled={isSaving}
+                onClick={() => setCurrentPreferenceStep(index)}
+                className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${currentPreferenceStep === index
+                  ? 'border-[#143675] bg-[#143675]/10 text-[#143675] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
+                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#143675]/30 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300'
+                  }`}
+                aria-current={currentPreferenceStep === index ? 'step' : undefined}
+              >
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${currentPreferenceStep >= index
+                  ? 'bg-[#143675] text-white'
+                  : 'bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700'
+                  }`}>
+                  {step.number}
+                </span>
+                <span className="truncate text-sm font-semibold">{step.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/80 p-6 dark:bg-slate-950/40">
+          <section className={`${currentPreferenceStep === 0 ? 'block' : 'hidden'}`}>
+            <div className="grid gap-5 lg:grid-cols-[0.78fr_1.22fr]">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#143675] text-sm font-bold text-white shadow-sm">
+                    1
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
+                      {preferenceCopy.steps.stepLabel('1')}
+                    </p>
+                    <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.organizationTitle}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      {preferenceCopy.organizationSubtitle}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">{preferenceCopy.selectedOrganization}</p>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#143675] shadow-sm ring-1 ring-[#143675]/10 dark:bg-slate-900 dark:text-blue-200">
+                      {selectedOption.title}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {selectedOption.examples.map((example) => (
+                      <p key={example} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700">
+                        {example}
                       </p>
-                      <h3 className="mt-1 text-[1.15rem] font-bold leading-tight text-slate-900 dark:text-white">
-                        {copy.preferencesInfo.title}
-                      </h3>
-                      <div className="mt-4 space-y-3">
-                        {copy.preferencesInfo.bullets.map((bullet, index) => (
-                          <div
-                            key={bullet}
-                            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70"
-                          >
-                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[#143675] shadow-sm dark:bg-slate-900 dark:text-blue-300">
-                              <span className="text-xs font-bold">{index + 1}</span>
-                            </div>
-                            <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
-                              {bullet}
-                            </p>
-                          </div>
-                        ))}
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {groupingOptions.map((option) => {
+                  const isSelected = form.grouping_mode === option.key;
+                  const Icon = optionIconMap[option.key];
+
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => {
+                        if (form.grouping_mode !== option.key) {
+                          onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] });
+                        }
+                      }}
+                      className={`group flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${isSelected
+                        ? 'border-[#143675] bg-[#143675]/5 shadow-sm ring-2 ring-[#143675]/10 dark:border-blue-400/60 dark:bg-[#143675]/20'
+                        : 'border-slate-200 bg-white hover:border-[#143675]/35 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-400/40'
+                        }`}
+                    >
+                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isSelected
+                        ? 'bg-[#143675] text-white'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                        }`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="text-base font-bold text-slate-900 dark:text-white">{option.title}</h4>
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${isSelected
+                            ? 'border-[#143675] bg-white text-[#143675]'
+                            : 'border-slate-300 bg-white text-slate-300 dark:border-slate-600 dark:bg-slate-900'
+                            }`}>
+                            <CheckCircle2 className="h-4 w-4" />
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">{option.description}</p>
                       </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <section className={`${currentPreferenceStep === 1 ? 'block' : 'hidden'}`}>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
+              <div className="mb-5 flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#143675]/20 bg-[#143675]/5 text-sm font-bold text-[#143675] dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-200">
+                  2
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">{preferenceCopy.steps.stepLabel('2')}</p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.separationTitle}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{preferenceCopy.separationSubtitle}</p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                {automaticSeparatorCards.map(({ title, description, Icon }) => (
+                  <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#143675] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-blue-300 dark:ring-slate-700">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div className="mt-4">
+                      <p className="text-base font-bold text-slate-900 dark:text-white">{title}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
                     </div>
                   </div>
-                </section>
+                ))}
+              </div>
+              <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 px-5 py-4 text-sm leading-6 text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
+                {preferenceCopy.separationNotice}
+              </div>
+            </div>
+          </section>
 
-                <div className="space-y-5">
-                  <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {currentSetupLabel}
-                        </p>
-                        <h3 className="mt-1 text-[1.1rem] font-bold text-slate-900 dark:text-white">
-                          {selectedOptionTitle}
-                        </h3>
-                        <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                          {selectedOption.description}
-                        </p>
-                      </div>
-                      <span className="inline-flex rounded-full border border-[#143675]/15 bg-[#143675]/8 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-[#143675]/30 dark:bg-[#143675]/15 dark:text-blue-300">
-                        {selectedOption.highlighted ? copy.labels.recommended : activeStateLabel}
+          <section className={`${currentPreferenceStep === 2 ? 'block' : 'hidden'}`}>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
+              <div className="mb-5 flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#143675]/20 bg-white text-sm font-bold text-[#143675] dark:border-blue-400/25 dark:bg-slate-900 dark:text-blue-200">
+                  3
+                </span>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
+                    {preferenceCopy.steps.stepLabel('3')}
+                  </p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.defaultsTitle}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    {preferenceCopy.defaultsSubtitle}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
+                  <label className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {copy.labels.defaultDailyHours}
+                  </label>
+                  <div className="mt-3 flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.25"
+                      disabled={isSaving}
+                      value={form.default_daily_hours}
+                      onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
+                      className="h-12 w-32 rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800/60"
+                    />
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{preferenceCopy.hoursPerDay}</span>
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{dailyHoursHelper}</p>
+                </div>
+
+                <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-[#143675]/35 dark:border-slate-700 dark:bg-slate-800/70">
+                  <input
+                    type="checkbox"
+                    checked={form.pay_leave_days}
+                    disabled={isSaving}
+                    onChange={(event) => onChange({ ...form, pay_leave_days: event.target.checked })}
+                    className="mt-1 h-5 w-5 rounded border-slate-300 text-[#143675] focus:ring-[#143675] disabled:cursor-not-allowed"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{copy.labels.payLeaveDays}</p>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${form.pay_leave_days
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                        }`}>
+                        {paidLeaveValueLabel}
                       </span>
                     </div>
-
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          {copy.labels.defaultDailyHours}
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-                          {dailyHoursValueLabel}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          {copy.labels.payLeaveDays}
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-                          {paidLeaveValueLabel}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-                        <ShieldCheck className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                          {copy.labels.operationalSettings}
-                        </h3>
-                        <div className="mt-4 space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                              {copy.labels.defaultDailyHours}
-                            </label>
-                            <input
-                              type="number"
-                              min="0.5"
-                              step="0.25"
-                              disabled={isSaving}
-                              value={form.default_daily_hours}
-                              onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
-                              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-none transition-colors focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-800/60"
-                            />
-                            <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">
-                              {dailyHoursHelper}
-                            </p>
-                          </div>
-
-                          <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-slate-600">
-                            <input
-                              type="checkbox"
-                              checked={form.pay_leave_days}
-                              disabled={isSaving}
-                              onChange={(event) => onChange({ ...form, pay_leave_days: event.target.checked })}
-                              className="mt-1 h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675] disabled:cursor-not-allowed"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                                {copy.labels.payLeaveDays}
-                              </p>
-                              <p className="mt-1 text-xs leading-6 text-slate-500 dark:text-slate-400">
-                                {leaveDaysHelper}
-                              </p>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">{leaveDaysHelper}</p>
+                  </div>
+                </label>
               </div>
-
-              <section className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h3 className="text-[1.12rem] font-bold text-slate-900 dark:text-white">
-                      {copy.preferencesInfo.selectionTitle}
-                    </h3>
-                    <p className="mt-1 text-sm leading-7 text-slate-500 dark:text-slate-400">
-                      {selectionHelper}
-                    </p>
-                  </div>
-                  {selectedOption.highlighted ? (
-                    <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-                      {copy.labels.recommended}
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-3">
-                  {groupingOptions.map((option) => {
-                    const isSelected = form.grouping_mode === option.key;
-                    const Icon = optionIconMap[option.key];
-
-                    return (
-                      <button
-                        key={option.key}
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] })}
-                        className={`group h-full w-full rounded-[28px] border px-5 py-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70 ${isSelected
-                          ? 'border-[#143675] bg-[#143675]/6 shadow-sm ring-2 ring-[#143675]/10 dark:border-[#143675]/55 dark:bg-[#143675]/14'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900/70 dark:hover:border-slate-600'
-                          }`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-colors ${isSelected
-                            ? 'bg-[#143675] text-white'
-                            : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:bg-slate-700'
-                            }`}>
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${isSelected
-                            ? 'border-[#143675] bg-white text-[#143675] dark:bg-slate-950'
-                            : 'border-slate-300 bg-white text-slate-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-600'
-                            }`}>
-                            <CheckCircle2 className="h-5 w-5" />
-                          </div>
-                        </div>
-
-                        <div className="mt-5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-[1.08rem] font-bold leading-tight text-slate-900 dark:text-white">
-                              {option.title}
-                            </h4>
-                            {option.highlighted ? (
-                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-[#143675] dark:bg-slate-800 dark:text-slate-100">
-                                {copy.labels.recommended}
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                            {option.description}
-                          </p>
-                        </div>
-
-                        <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-700">
-                          <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            {optionValueMap[option.key]}
-                          </span>
-                          <span className={`text-xs font-semibold ${isSelected ? 'text-[#143675] dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {isSelected ? activeStateLabel : useThisModeLabel}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="rounded-[24px] border border-amber-200/80 bg-amber-50/70 p-4 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/15">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-amber-600 shadow-sm dark:bg-slate-900 dark:text-amber-300">
-                    <Settings className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      {operationalNoteTitle}
-                    </p>
-                    <p className="mt-1 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {copy.preferencesInfo.note}
-                    </p>
-                  </div>
-                </div>
-              </section>
             </div>
-          </div>
+          </section>
+        </div>
 
-          <DialogFooter className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900 sm:px-6">
-            <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {copy.labels.groupingMode}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-                  {selectedOptionTitle}
-                </p>
-              </div>
+        <DialogFooter className="shrink-0 border-t border-white/15 bg-[#143675] px-6 py-4 text-white">
+          <div className="flex w-full items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">{preferenceCopy.footerTitle}</p>
+              <p className="max-w-[540px] truncate text-xs text-blue-100">{impactMessage}</p>
+            </div>
 
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex shrink-0 gap-2">
+              <Button
+                variant="outline"
+                disabled={isSaving}
+                className="h-11 rounded-xl border-white/50 bg-transparent px-5 text-sm font-semibold text-white shadow-none hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={onClose}
+              >
+                {copy.labels.cancel}
+              </Button>
+              {currentPreferenceStep > 0 ? (
                 <Button
                   variant="outline"
                   disabled={isSaving}
-                  className="h-11 rounded-2xl border-slate-200 bg-white px-5 text-base font-semibold shadow-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                  onClick={onClose}
+                  className="h-11 rounded-xl border-white/50 bg-transparent px-5 text-sm font-semibold text-white shadow-none hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={goToPreviousPreferenceStep}
                 >
-                  {copy.labels.cancel}
+                  {preferenceCopy.previous}
                 </Button>
+              ) : null}
+              {isFinalPreferenceStep ? (
                 <Button
                   onClick={onSave}
                   disabled={isSaving}
-                  className="h-11 gap-2 rounded-2xl bg-[#143675] px-5 text-base font-semibold text-white hover:bg-[#0f2855]"
+                  className="h-11 gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
-                  {copy.labels.savePreferences}
+                  {saveButtonLabel}
                 </Button>
-              </div>
+              ) : (
+                <Button
+                  onClick={goToNextPreferenceStep}
+                  disabled={isSaving}
+                  className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
+                >
+                  {preferenceCopy.next}
+                </Button>
+              )}
             </div>
-          </DialogFooter>
-        </div>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -6124,7 +5441,6 @@ function PayrollRatesDialog({
     setEditorMode('preset');
   }, [isOpen, selectedProfile]);
 
-  const isSpanish = copy.labels.cancel === 'Cancelar';
   const isCustomProfile = selectedProfile === 'custom';
   const isAdvancedMode = editorMode === 'advanced';
   const activeProfileName = copy.rateConfiguration.profiles[selectedProfile];
@@ -6133,10 +5449,10 @@ function PayrollRatesDialog({
   const infoBlockText = copy.rateConfiguration.infoBlocks[selectedProfile];
 
   const summaryStatus = isCustomProfile
-    ? (isSpanish ? 'Perfil personalizado' : 'Custom profile')
+    ? copy.rateConfiguration.statusBadges.customProfile
     : isAdvancedMode
-      ? (isSpanish ? 'Ajustado por la empresa' : 'Company adjusted')
-      : (isSpanish ? 'Predeterminado oficial' : 'Official preset');
+      ? copy.rateDialog.companyAdjusted
+      : copy.rateConfiguration.statusBadges.officialPreset;
 
   const summaryTone: 'success' | 'warning' | 'info' = isCustomProfile
     ? 'warning'
@@ -6256,7 +5572,7 @@ function PayrollRatesDialog({
   const renderAdjustableCard = (field: PayrollRateFieldKey, description: string) => {
     const Icon = iconByField[field];
     const hasValue = values[field] > 0;
-    const notConfiguredLabel = isSpanish ? 'No configurado' : 'Not configured';
+    const notConfiguredLabel = copy.rateDialog.notConfigured;
 
     return (
       <article key={field} className={`${componentCardClassName} border-amber-100 dark:border-amber-800/30`}>
@@ -6271,7 +5587,7 @@ function PayrollRatesDialog({
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            {renderStatusBadge(isSpanish ? 'Ajustable' : 'Adjustable', 'warning')}
+            {renderStatusBadge(copy.rateDialog.adjustable, 'warning')}
             {isAdvancedMode || isCustomProfile ? (
               renderPercentInput(field)
             ) : (
@@ -6285,19 +5601,10 @@ function PayrollRatesDialog({
     );
   };
 
-  const mexicoOverviewText = isSpanish
-    ? 'ISR: se calcula usando tablas fiscales oficiales. IMSS: se aplica automáticamente. INFONAVIT: depende de las condiciones del colaborador. SAR: es fijo por ley.'
-    : 'Income tax (ISR): calculated using official tax tables. Social security (IMSS): automatically applied. Housing (INFONAVIT): depends on employee conditions. Retirement (SAR): fixed by law.';
-
-  const automaticDescription = isSpanish
-    ? 'Este componente es calculado automáticamente por el sistema según reglas oficiales.'
-    : 'This component is calculated automatically by the system based on official rules.';
-  const fixedDescription = isSpanish
-    ? 'Este componente tiene una contribución fija definida por ley.'
-    : 'This component has a fixed contribution defined by law.';
-  const adjustableDescription = isSpanish
-    ? 'Este componente puede ser ajustado por la empresa cuando aplique.'
-    : 'This component can be adjusted by the company when needed.';
+  const mexicoOverviewText = copy.rateDialog.mexicoOverview;
+  const automaticDescription = copy.rateDialog.automaticDescription;
+  const fixedDescription = copy.rateDialog.fixedDescription;
+  const adjustableDescription = copy.rateDialog.adjustableDescription;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -6336,9 +5643,7 @@ function PayrollRatesDialog({
                       {renderStatusBadge(summaryStatus, summaryTone)}
                     </div>
                     <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {isSpanish
-                        ? 'Entiende cómo se calcula la nómina en este país. La mayoría de los valores se aplican automáticamente con base en reglas oficiales.'
-                        : 'Understand how payroll is calculated in this country. Most values are automatically applied based on official rules.'}
+                      {copy.rateDialog.profileIntro}
                     </p>
                   </div>
                   <div className="space-y-3">
@@ -6356,17 +5661,25 @@ function PayrollRatesDialog({
                     <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100/90 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       <button
                         type="button"
-                        onClick={() => setEditorMode('preset')}
+                        onClick={() => {
+                          if (editorMode !== 'preset') {
+                            setEditorMode('preset');
+                          }
+                        }}
                         className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${!isAdvancedMode
                           ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
                           }`}
                       >
-                        {isSpanish ? 'Resumen' : 'Overview'}
+                        {copy.rateDialog.overview}
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEditorMode('advanced')}
+                        onClick={() => {
+                          if (editorMode !== 'advanced') {
+                            setEditorMode('advanced');
+                          }
+                        }}
                         className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${isAdvancedMode
                           ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
@@ -6392,9 +5705,7 @@ function PayrollRatesDialog({
 
               {isAdvancedMode ? (
                 <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-200">
-                  {isSpanish
-                    ? 'Los cambios en modo Avanzado pueden sobrescribir reglas estándar de nómina.'
-                    : 'Changes in Advanced mode may override standard payroll rules.'}
+                  {copy.rateDialog.advancedWarning}
                 </section>
               ) : null}
 
@@ -6411,9 +5722,7 @@ function PayrollRatesDialog({
                   </div>
                   <div>
                     <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {isSpanish
-                        ? 'Este perfil muestra qué componentes de nómina se calculan automáticamente y cuáles pueden personalizarse según tu empresa.'
-                        : 'This profile shows which payroll components are calculated automatically and which can be customized based on your company.'}
+                      {copy.rateDialog.profileHelp}
                     </p>
                   </div>
                 </div>
@@ -6468,7 +5777,7 @@ function PayrollRunDialog({
   onDownloadCsv,
   onDownloadPdf,
 }: {
-  copy: typeof payrollCopy.en | typeof payrollCopy.es;
+  copy: PayrollCopy;
   locale: string;
   isOpen: boolean;
   isSaving: boolean;

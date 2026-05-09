@@ -1,13 +1,16 @@
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useProcessesTasksTranslations } from '../../hooks/useProcessesTasksTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import Agenda from './Agenda';
-import KPIs from './KPIs';
-import OrgChart from './OrgChart';
-import Processes from './Processes';
-import Projects from './Projects';
-import Tasks from './Tasks/Tasks';
+
+const Agenda = lazy(() => import('./Agenda'));
+const Tasks = lazy(() => import('./Tasks/Tasks'));
+const Projects = lazy(() => import('./Projects'));
+const Processes = lazy(() => import('./Processes'));
+const KPIs = lazy(() => import('./KPIs'));
+const OrgChart = lazy(() => import('./OrgChart'));
 
 interface ProcessesTasksProps {
   onNavigate: (page?: string) => void;
@@ -34,7 +37,7 @@ const legacyProcessTaskTabAliases: Partial<Record<string, ProcessTaskTabId>> = {
 
 export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
   const t = useProcessesTasksTranslations();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<ProcessTaskTabId>(
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<ProcessTaskTabId>(
     'calendar',
     processTaskTabIds,
     legacyProcessTaskTabAliases,
@@ -53,6 +56,12 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading process tab"
+        description="Opening the selected agenda, project, or process workspace."
+      />
+
       <div className="border-b border-gray-200 bg-white px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
         <div className="mx-auto max-w-[1600px]">
           <FavoritesBar
@@ -93,7 +102,17 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
       </div>
 
       <div className="mx-auto max-w-[1600px] px-8 py-6">
-        <ActiveComponent />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading process tab"
+              description="Downloading only the selected process workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );

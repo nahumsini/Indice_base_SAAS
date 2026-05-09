@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { dashboardApi } from '../../../api/dashboard';
 import {
   hrAssetsApi,
@@ -11,13 +11,16 @@ import { humanResourcesApi } from '../../../api/humanResources';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { SuccessToast } from '../../../components/SuccessToast';
-import { Button } from '../../../components/ui/button';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useLanguage } from '../../../shared/context';
 import { AddNewAssests, type AddNewAssetDraft, type AddNewAssetOption, type AddNewAssetType } from './AddNewAssests';
 import { AssetDetailsModal } from './AssetDetailsModal';
 import { AssetColumnConfig, AssetColumnsModal } from './AssetColumnsModal';
-import { useHRLanguage } from '../HRLanguage';
+import { AssetFilters } from './components/AssetFilters';
+import { AssetHeaderBar } from './components/AssetHeaderBar';
+import { AssetKpiStrip } from './components/AssetKpiStrip';
+import { useAssetsTranslations } from './hooks/useAssetsTranslations';
+import type { AssetsTranslations } from './translations';
 
 type AssetType = AddNewAssetType;
 type AssetTypeFilter = AssetType | 'other';
@@ -130,12 +133,12 @@ const getAssetStatusClasses = (status: HrAssetStatus) => {
   return styles[status];
 };
 
-const getAssetTypeLabel = (assetType: string, t: ReturnType<typeof useHRLanguage>) => {
+const getAssetTypeLabel = (assetType: string, t: AssetsTranslations) => {
   const labelMap: Partial<Record<AssetTypeFilter, string>> = {
-    laptop: t.assets.addNewAsset.options.laptop,
-    attendance: t.assets.filters.attendanceControl,
-    operations: t.assets.filters.operation,
-    maintenance: t.assets.filters.maintenance,
+    laptop: t.addNewAsset.options.laptop,
+    attendance: t.filters.attendanceControl,
+    operations: t.filters.operation,
+    maintenance: t.filters.maintenance,
   };
 
   const normalizedType = getAssetTypeFilter(assetType);
@@ -148,34 +151,34 @@ const getAssetTypeLabel = (assetType: string, t: ReturnType<typeof useHRLanguage
     .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
-const getAssetStatusLabel = (status: HrAssetStatus, t: ReturnType<typeof useHRLanguage>) => {
+const getAssetStatusLabel = (status: HrAssetStatus, t: AssetsTranslations) => {
   const labelMap: Record<HrAssetStatus, string> = {
-    available: t.assets.filters.available,
-    assigned: t.assets.filters.assigned,
-    maintenance: t.assets.filters.inMaintenance,
-    custody: t.assets.filters.custody,
-    inactive: t.assets.filters.inactive,
+    available: t.filters.available,
+    assigned: t.filters.assigned,
+    maintenance: t.filters.inMaintenance,
+    custody: t.filters.custody,
+    inactive: t.filters.inactive,
   };
 
   return labelMap[status];
 };
 
 const getAssetColumnConfig = (
-  t: ReturnType<typeof useHRLanguage>,
+  t: AssetsTranslations,
   visibleIds: AssetColumnId[],
 ): AssetColumnConfig[] => [
-  { id: 'id', label: t.assets.table.id, visible: visibleIds.includes('id') },
-  { id: 'type', label: t.assets.table.type, visible: visibleIds.includes('type') },
-  { id: 'asset', label: t.assets.table.asset, visible: visibleIds.includes('asset'), locked: true },
-  { id: 'model', label: t.assets.table.model, visible: visibleIds.includes('model') },
-  { id: 'serialNumber', label: t.assets.table.serialNumber, visible: visibleIds.includes('serialNumber') },
-  { id: 'responsible', label: t.assets.table.responsible, visible: visibleIds.includes('responsible') },
-  { id: 'unit', label: t.assets.table.unit, visible: visibleIds.includes('unit') },
-  { id: 'status', label: t.assets.table.status, visible: visibleIds.includes('status') },
-  { id: 'assignedAt', label: t.assets.table.assignedAt, visible: visibleIds.includes('assignedAt') },
-  { id: 'value', label: t.assets.table.value, visible: visibleIds.includes('value') },
-  { id: 'notes', label: t.assets.table.notes, visible: visibleIds.includes('notes') },
-  { id: 'actions', label: t.assets.table.actions, visible: visibleIds.includes('actions'), locked: true },
+  { id: 'id', label: t.table.id, visible: visibleIds.includes('id') },
+  { id: 'type', label: t.table.type, visible: visibleIds.includes('type') },
+  { id: 'asset', label: t.table.asset, visible: visibleIds.includes('asset'), locked: true },
+  { id: 'model', label: t.table.model, visible: visibleIds.includes('model') },
+  { id: 'serialNumber', label: t.table.serialNumber, visible: visibleIds.includes('serialNumber') },
+  { id: 'responsible', label: t.table.responsible, visible: visibleIds.includes('responsible') },
+  { id: 'unit', label: t.table.unit, visible: visibleIds.includes('unit') },
+  { id: 'status', label: t.table.status, visible: visibleIds.includes('status') },
+  { id: 'assignedAt', label: t.table.assignedAt, visible: visibleIds.includes('assignedAt') },
+  { id: 'value', label: t.table.value, visible: visibleIds.includes('value') },
+  { id: 'notes', label: t.table.notes, visible: visibleIds.includes('notes') },
+  { id: 'actions', label: t.table.actions, visible: visibleIds.includes('actions'), locked: true },
 ];
 
 const formatAssetDate = (value: string | null, locale: string) => {
@@ -237,7 +240,7 @@ const mapAssetRow = (asset: HrAsset): AssetRow => ({
 });
 
 export default function Assets() {
-  const t = useHRLanguage();
+  const t = useAssetsTranslations();
   const { currentLanguage } = useLanguage();
   const [assetRows, setAssetRows] = useState<AssetRow[]>([]);
   const [summary, setSummary] = useState<HrAssetsSummary>(emptySummary);
@@ -342,7 +345,7 @@ export default function Assets() {
       } else {
         setAssetRows([]);
         setSummary(emptySummary);
-        setLoadError(normalizeErrorMessage(assetsResult.reason, t.assets.errors.load));
+        setLoadError(normalizeErrorMessage(assetsResult.reason, t.errors.load));
       }
 
       if (employeesResult.status === 'fulfilled') {
@@ -385,7 +388,7 @@ export default function Assets() {
     return () => {
       isMounted = false;
     };
-  }, [t.assets.errors.load]);
+  }, [t.errors.load]);
 
   const handleCreateAsset = () => {
     setAssetEditing(null);
@@ -394,13 +397,13 @@ export default function Assets() {
 
   const handleViewDetails = async (asset: AssetRow) => {
     try {
-      const detail = await runAssetOperation(t.assets.actionsMenu.viewDetails, () =>
+      const detail = await runAssetOperation(t.actionsMenu.viewDetails, () =>
         hrAssetsApi.getAssetDetails(asset.backendId),
       );
       setSelectedAssetDetails(detail);
       setIsDetailsModalOpen(true);
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.assets.errors.details));
+      window.alert(normalizeErrorMessage(error, t.errors.details));
     }
   };
 
@@ -415,17 +418,17 @@ export default function Assets() {
     }
 
     try {
-      await runAssetOperation(t.assets.confirmDeactivate.confirm, () =>
+      await runAssetOperation(t.confirmDeactivate.confirm, () =>
         hrAssetsApi.changeAssetStatus(assetPendingDeactivate.backendId, {
           status: 'inactive',
           change_reason: 'deactivated',
         }),
       );
       await loadAssets();
-      setToastMessage(t.assets.actionAlerts.deactivated(assetPendingDeactivate.name));
+      setToastMessage(t.actionAlerts.deactivated(assetPendingDeactivate.name));
       setAssetPendingDeactivate(null);
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.assets.errors.status));
+      window.alert(normalizeErrorMessage(error, t.errors.status));
     }
   };
 
@@ -467,7 +470,7 @@ export default function Assets() {
           || (trimmedNotes || '') !== assetEditing.notes
           || (unitHandledByUpdate && desiredUnitId !== assetEditing.unitId);
 
-        await runAssetOperation(t.assets.actionsMenu.edit, async () => {
+        await runAssetOperation(t.actionsMenu.edit, async () => {
           if (needsMetadataUpdate) {
             await hrAssetsApi.updateAsset(assetEditing.backendId, updatePayload);
           }
@@ -502,7 +505,7 @@ export default function Assets() {
         await loadAssets();
         setIsAddAssetOpen(false);
         setAssetEditing(null);
-        setToastMessage(t.assets.addNewAsset.successUpdated(draft.name));
+        setToastMessage(t.addNewAsset.successUpdated(draft.name));
         return true;
       }
 
@@ -523,14 +526,14 @@ export default function Assets() {
         notes: trimmedNotes || undefined,
       };
 
-      await runAssetOperation(t.assets.addNewAsset.buttons.save, () => hrAssetsApi.createAsset(payload));
+      await runAssetOperation(t.addNewAsset.buttons.save, () => hrAssetsApi.createAsset(payload));
       await loadAssets();
       setIsAddAssetOpen(false);
       setAssetEditing(null);
-      setToastMessage(t.assets.addNewAsset.success(draft.name));
+      setToastMessage(t.addNewAsset.success(draft.name));
       return true;
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.assets.errors.save));
+      window.alert(normalizeErrorMessage(error, t.errors.save));
       return false;
     }
   };
@@ -565,126 +568,35 @@ export default function Assets() {
 
   return (
     <>
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
-              <span className="text-2xl">🏢</span>
-              {t.assets.title}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t.assets.subtitle}
-            </p>
-          </div>
+      <AssetHeaderBar
+        copy={t}
+        onAdd={handleCreateAsset}
+        onColumns={() => setIsColumnsModalOpen(true)}
+      />
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              className="gap-2 border-[#143675]/30 bg-white/70 text-[#143675] hover:bg-[#143675] hover:text-white dark:border-[#4a7bc8]/30 dark:bg-gray-800/50 dark:text-white dark:hover:bg-[#143675]"
-              onClick={() => setIsColumnsModalOpen(true)}
-            >
-              <Settings2 className="h-4 w-4" />
-              {t.assets.columnPicker.button}
-            </Button>
-            <Button className="gap-2 bg-[#3121a8] text-white hover:bg-[#261882]" onClick={handleCreateAsset}>
-              <Plus className="h-4 w-4" />
-              {t.assets.newAsset}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <AssetFilters
+        copy={t}
+        searchQuery={searchQuery}
+        statusFilter={statusFilter}
+        typeFilter={typeFilter}
+        unitFilter={unitFilter}
+        unitOptions={unitOptions}
+        onSearchChange={setSearchQuery}
+        onStatusChange={setStatusFilter}
+        onTypeChange={setTypeFilter}
+        onUnitChange={setUnitFilter}
+      />
 
-      <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.total}</p>
-              <p className="mt-2 text-4xl font-bold text-gray-900 dark:text-white">{summary.total_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7c5cff]/18 text-xl">📦</div>
-          </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.assigned}</p>
-              <p className="mt-2 text-4xl font-bold text-emerald-400">{summary.assigned_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/18 text-xl">✅</div>
-          </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.available}</p>
-              <p className="mt-2 text-4xl font-bold text-[#7e92ff]">{summary.available_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#5c7cff]/18 text-[10px] font-bold text-[#90a1ff]">
-              FREE
-            </div>
-          </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white/95 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t.assets.cards.maintenance}</p>
-              <p className="mt-2 text-4xl font-bold text-amber-400">{summary.maintenance_count}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/18 text-xl">🔧</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-5 grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/95 xl:grid-cols-[1.4fr_1fr_1fr_1fr]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={t.assets.searchPlaceholder}
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-          />
-        </div>
-
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value as 'all' | AssetType)}
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-        >
-          <option value="all">{t.assets.filters.allTypes}</option>
-          <option value="laptop">{t.assets.filters.computerEquipment}</option>
-          <option value="attendance">{t.assets.filters.attendanceControl}</option>
-          <option value="operations">{t.assets.filters.operation}</option>
-          <option value="maintenance">{t.assets.filters.maintenance}</option>
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as 'all' | HrAssetStatus)}
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-        >
-          <option value="all">{t.assets.filters.allStatuses}</option>
-          <option value="available">{t.assets.filters.available}</option>
-          <option value="assigned">{t.assets.filters.assigned}</option>
-          <option value="maintenance">{t.assets.filters.inMaintenance}</option>
-          <option value="custody">{t.assets.filters.custody}</option>
-          <option value="inactive">{t.assets.filters.inactive}</option>
-        </select>
-
-        <select
-          value={unitFilter}
-          onChange={(event) => setUnitFilter(event.target.value)}
-          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#4f5dff] focus:ring-2 focus:ring-[#4f5dff]/20 dark:border-gray-700 dark:bg-gray-700/50 dark:text-white"
-        >
-          <option value="all">{t.assets.filters.allUnits}</option>
-          {unitOptions.map((unit) => (
-            <option key={unit.value} value={unit.value}>
-              {unit.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <AssetKpiStrip
+        copy={t}
+        assignedCount={summary.assigned_count}
+        availableCount={summary.available_count}
+        locale={currentLanguage.code}
+        maintenanceCount={summary.maintenance_count}
+        totalCount={summary.total_count}
+        totalValueAmount={summary.total_value_amount}
+        visibleCount={filteredAssets.length}
+      />
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white/95 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
         <div className="overflow-x-auto">
@@ -710,7 +622,7 @@ export default function Assets() {
                     colSpan={assetColumnConfig.filter((column) => column.visible).length}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    {t.assets.loading}
+                    {t.loading}
                   </td>
                 </tr>
               ) : loadError ? (
@@ -728,7 +640,7 @@ export default function Assets() {
                     colSpan={assetColumnConfig.filter((column) => column.visible).length}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    {t.assets.emptyState}
+                    {t.emptyState}
                   </td>
                 </tr>
               ) : (
@@ -754,16 +666,16 @@ export default function Assets() {
                       </td>
                     ) : null}
                     {visibleColumnSet.has('model') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.model || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.model || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('serialNumber') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.serialNumber || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.serialNumber || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('responsible') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.responsibleName || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.responsibleName || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('unit') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.unitName || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.unitName || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('status') ? (
                       <td className="px-5 py-4">
@@ -790,7 +702,7 @@ export default function Assets() {
                     ) : null}
                     {visibleColumnSet.has('notes') ? (
                       <td className="max-w-[14rem] px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-                        <p className="line-clamp-2">{asset.notes || '-'}</p>
+                        <p className="line-clamp-2">{asset.notes || t.emptyValue}</p>
                       </td>
                     ) : null}
                     {visibleColumnSet.has('actions') ? (
@@ -799,8 +711,8 @@ export default function Assets() {
                           <button
                             type="button"
                             onClick={() => void handleViewDetails(asset)}
-                            aria-label={t.assets.actionsMenu.viewDetails}
-                            title={t.assets.actionsMenu.viewDetails}
+                            aria-label={t.actionsMenu.viewDetails}
+                            title={t.actionsMenu.viewDetails}
                             className="text-gray-400 transition hover:text-gray-200"
                           >
                             <Eye className="h-4 w-4" />
@@ -808,8 +720,8 @@ export default function Assets() {
                           <button
                             type="button"
                             onClick={() => handleEditAsset(asset)}
-                            aria-label={t.assets.actionsMenu.edit}
-                            title={t.assets.actionsMenu.edit}
+                            aria-label={t.actionsMenu.edit}
+                            title={t.actionsMenu.edit}
                             className="text-[#7b82ff] transition hover:text-[#9fa4ff]"
                           >
                             <Pencil className="h-4 w-4" />
@@ -817,8 +729,8 @@ export default function Assets() {
                           <button
                             type="button"
                             onClick={() => setAssetPendingDeactivate(asset)}
-                            aria-label={t.assets.actionsMenu.delete}
-                            title={t.assets.actionsMenu.delete}
+                            aria-label={t.actionsMenu.delete}
+                            title={t.actionsMenu.delete}
                             className="text-red-500 transition hover:text-red-400"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -836,11 +748,11 @@ export default function Assets() {
 
       <ConfirmDeleteDialog
         isVisible={assetPendingDeactivate !== null}
-        title={t.assets.confirmDeactivate.title}
+        title={t.confirmDeactivate.title}
         itemName={assetPendingDeactivate?.name}
-        description={t.assets.confirmDeactivate.description}
-        confirmLabel={t.assets.confirmDeactivate.confirm}
-        cancelLabel={t.assets.confirmDeactivate.cancel}
+        description={t.confirmDeactivate.description}
+        confirmLabel={t.confirmDeactivate.confirm}
+        cancelLabel={t.confirmDeactivate.cancel}
         onConfirm={() => void handleConfirmDeactivate()}
         onCancel={() => setAssetPendingDeactivate(null)}
       />
@@ -853,7 +765,7 @@ export default function Assets() {
 
       <LoadingBarOverlay
         isVisible={isSubmitting}
-        title={loadingTitle || t.assets.loading}
+        title={loadingTitle || t.loading}
       />
 
       <AddNewAssests
@@ -879,6 +791,7 @@ export default function Assets() {
       />
 
       <AssetColumnsModal
+        copy={t.columnPicker}
         isOpen={isColumnsModalOpen}
         onClose={() => setIsColumnsModalOpen(false)}
         columns={assetColumnConfig}

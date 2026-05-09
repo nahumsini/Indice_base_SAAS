@@ -14,6 +14,8 @@ public class AppWebProperties {
         "http://localhost:3000",
         "http://127.0.0.1:3000"
     ));
+    private String publicUrl = "";
+    private String invitationBaseUrl = "";
 
     public List<String> getAllowedOrigins() {
         return allowedOrigins;
@@ -29,5 +31,33 @@ public class AppWebProperties {
             .map(value -> value == null ? "" : value.trim())
             .filter(value -> !value.isBlank())
             .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    public String getPublicUrl() {
+        return publicUrl;
+    }
+
+    public void setPublicUrl(String publicUrl) {
+        this.publicUrl = normalizeBaseUrl(publicUrl);
+    }
+
+    public String getInvitationBaseUrl() {
+        return invitationBaseUrl;
+    }
+
+    public void setInvitationBaseUrl(String invitationBaseUrl) {
+        this.invitationBaseUrl = normalizeBaseUrl(invitationBaseUrl);
+    }
+
+    public String resolveInvitationBaseUrl() {
+        return invitationBaseUrl.isBlank() ? publicUrl : invitationBaseUrl;
+    }
+
+    private String normalizeBaseUrl(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value.trim().replaceAll("/+$", "");
     }
 }

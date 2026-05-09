@@ -1,9 +1,12 @@
 import { Calendar, CheckCircle, Clock, Download, FileText, User, X, XCircle } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type { PermissionItem } from '../types/permissions.types';
+import type { PermissionsTranslations } from '../translations';
 
 interface PermissionDetailModalProps {
+  copy: PermissionsTranslations;
   isOpen: boolean;
+  locale: string;
   onClose: () => void;
   permission: PermissionItem | null;
   onApprove?: (id: string) => void;
@@ -11,33 +14,23 @@ interface PermissionDetailModalProps {
   isManager?: boolean;
 }
 
-const typeLabels: Record<PermissionItem['type'], string> = {
-  vacation: 'Vacation',
-  sick_leave: 'Sick Leave',
-  personal: 'Personal',
-  maternity: 'Maternity/Paternity',
-  bereavement: 'Bereavement',
-  unpaid: 'Unpaid Leave',
-  other: 'Other',
+const typeConfig: Record<PermissionItem['type'], { color: string; bgColor: string }> = {
+  vacation: { color: 'text-blue-700 dark:text-blue-400', bgColor: 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' },
+  sick_leave: { color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' },
+  personal: { color: 'text-purple-700 dark:text-purple-400', bgColor: 'bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800' },
+  maternity: { color: 'text-pink-700 dark:text-pink-400', bgColor: 'bg-pink-100 dark:bg-pink-900/30 border-pink-200 dark:border-pink-800' },
+  bereavement: { color: 'text-gray-700 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800' },
+  unpaid: { color: 'text-orange-700 dark:text-orange-400', bgColor: 'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800' },
+  other: { color: 'text-gray-700 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800' },
 };
 
-const typeConfig: Record<PermissionItem['type'], { label: string; color: string; bgColor: string }> = {
-  vacation: { label: 'Vacation', color: 'text-blue-700 dark:text-blue-400', bgColor: 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' },
-  sick_leave: { label: 'Sick Leave', color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' },
-  personal: { label: 'Personal', color: 'text-purple-700 dark:text-purple-400', bgColor: 'bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800' },
-  maternity: { label: 'Maternity/Paternity', color: 'text-pink-700 dark:text-pink-400', bgColor: 'bg-pink-100 dark:bg-pink-900/30 border-pink-200 dark:border-pink-800' },
-  bereavement: { label: 'Bereavement', color: 'text-gray-700 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800' },
-  unpaid: { label: 'Unpaid Leave', color: 'text-orange-700 dark:text-orange-400', bgColor: 'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800' },
-  other: { label: 'Other', color: 'text-gray-700 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800' },
+const statusConfig: Record<PermissionItem['status'], { color: string; bgColor: string }> = {
+  pending: { color: 'text-yellow-700 dark:text-yellow-400', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800' },
+  approved: { color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800' },
+  rejected: { color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' },
 };
 
-const statusConfig: Record<PermissionItem['status'], { label: string; color: string; bgColor: string }> = {
-  pending: { label: 'Pending', color: 'text-yellow-700 dark:text-yellow-400', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800' },
-  approved: { label: 'Approved', color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800' },
-  rejected: { label: 'Rejected', color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' },
-};
-
-const formatDate = (value: string) => new Intl.DateTimeFormat('en-US', {
+const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(locale, {
   weekday: 'long',
   year: 'numeric',
   month: 'long',
@@ -45,7 +38,9 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('en-US', {
 }).format(new Date(value));
 
 export function PermissionDetailModal({
+  copy,
   isOpen,
+  locale,
   onClose,
   permission,
   onApprove,
@@ -66,10 +61,10 @@ export function PermissionDetailModal({
           <div className="mb-3 flex items-start justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${typeInfo.bgColor} ${typeInfo.color}`}>
-                {typeInfo.label}
+                {copy.types[permission.type]}
               </span>
               <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${statusInfo.bgColor} ${statusInfo.color}`}>
-                {statusInfo.label}
+                {copy.status[permission.status]}
               </span>
             </div>
             <button
@@ -79,8 +74,8 @@ export function PermissionDetailModal({
               <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
-          <h2 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">Permission Request</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Folio: {permission.folio}</p>
+          <h2 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">{copy.detail.title}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{copy.detail.folio(permission.folio)}</p>
         </div>
 
         <div className="space-y-6 p-6">
@@ -90,7 +85,7 @@ export function PermissionDetailModal({
                 <User className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Employee Information</h3>
+                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.employeeInformation}</h3>
                 <p className="text-lg font-semibold text-gray-900 dark:text-white">{permission.employee.name}</p>
               </div>
             </div>
@@ -100,32 +95,32 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Start Date</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.startDate}</span>
               </div>
-              <p className="font-medium text-gray-900 dark:text-white">{formatDate(permission.startDate)}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{formatDate(permission.startDate, locale)}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">End Date</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.endDate}</span>
               </div>
-              <p className="font-medium text-gray-900 dark:text-white">{formatDate(permission.endDate)}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{formatDate(permission.endDate, locale)}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Clock className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Duration</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.duration}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">
-                {permission.days} {permission.days === 1 ? 'day' : 'days'}
+                {permission.days} {permission.days === 1 ? copy.detail.day : copy.detail.days}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <FileText className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Type</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.type}</span>
               </div>
-              <p className="font-medium text-gray-900 dark:text-white">{typeLabels[permission.type]}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{copy.types[permission.type]}</p>
             </div>
           </div>
 
@@ -133,7 +128,7 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <FileText className="h-5 w-5" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Reason</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.reason}</h3>
               </div>
               <p className="whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
                 {permission.reason}
@@ -144,13 +139,13 @@ export function PermissionDetailModal({
           <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
               <Download className="h-5 w-5" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Attachments</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.attachments}</h3>
             </div>
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {permission.attachmentName || 'medical_certificate.pdf'}
+                    {permission.attachmentName || copy.detail.fallbackAttachment}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">245 KB</p>
                 </div>
@@ -163,15 +158,15 @@ export function PermissionDetailModal({
 
           <div className="grid grid-cols-1 gap-4 border-t border-gray-200 pt-5 text-sm md:grid-cols-2 dark:border-gray-700">
             <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/30">
-              <span className="mb-1 block font-medium text-gray-600 dark:text-gray-400">Created:</span>
+              <span className="mb-1 block font-medium text-gray-600 dark:text-gray-400">{copy.detail.created}</span>
               <p className="font-medium text-gray-900 dark:text-white">
-                {permission.createdAt ? formatDate(permission.createdAt) : '2026-04-01'}
+                {permission.createdAt ? formatDate(permission.createdAt, locale) : copy.detail.fallbackDate}
               </p>
             </div>
             <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/30">
-              <span className="mb-1 block font-medium text-gray-600 dark:text-gray-400">Last Updated:</span>
+              <span className="mb-1 block font-medium text-gray-600 dark:text-gray-400">{copy.detail.updated}</span>
               <p className="font-medium text-gray-900 dark:text-white">
-                {permission.updatedAt ? formatDate(permission.updatedAt) : '2026-04-01'}
+                {permission.updatedAt ? formatDate(permission.updatedAt, locale) : copy.detail.fallbackDate}
               </p>
             </div>
           </div>
@@ -180,7 +175,7 @@ export function PermissionDetailModal({
         <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
           <div />
           <div className="flex gap-3">
-            <Button onClick={onClose} variant="outline">Close</Button>
+            <Button onClick={onClose} variant="outline">{copy.actions.close}</Button>
             {isManager && permission.status === 'pending' && onApprove && onReject ? (
               <>
                 <Button
@@ -192,7 +187,7 @@ export function PermissionDetailModal({
                   className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
                 >
                   <XCircle className="h-4 w-4" />
-                  Reject
+                  {copy.actions.reject}
                 </Button>
                 <Button
                   onClick={() => {
@@ -202,7 +197,7 @@ export function PermissionDetailModal({
                   className="gap-2 bg-green-600 text-white hover:bg-green-700"
                 >
                   <CheckCircle className="h-4 w-4" />
-                  Approve
+                  {copy.actions.approve}
                 </Button>
               </>
             ) : null}

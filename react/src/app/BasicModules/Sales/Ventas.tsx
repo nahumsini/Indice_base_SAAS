@@ -1,13 +1,16 @@
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useVentasTranslations } from '../../hooks/useVentasTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import Prospectos from './Prospectos';
-import Cotizacion from './Cotizacion';
-import Productos from './Productos';
-import Postventa from './Postventa';
-import Contrato from './Contrato';
-import KPIs from './KPIs';
+
+const Prospectos = lazy(() => import('./Prospectos'));
+const Cotizacion = lazy(() => import('./Cotizacion'));
+const Productos = lazy(() => import('./Productos'));
+const Postventa = lazy(() => import('./Postventa'));
+const Contrato = lazy(() => import('./Contrato'));
+const KPIs = lazy(() => import('./KPIs'));
 
 interface VentasProps {
   onNavigate: (page?: string) => void;
@@ -34,7 +37,7 @@ const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
 
 export default function Ventas({ onNavigate }: VentasProps) {
   const t = useVentasTranslations();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<SalesTabId>(
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<SalesTabId>(
     'leads',
     salesTabIds,
     legacySalesTabAliases,
@@ -54,6 +57,12 @@ export default function Ventas({ onNavigate }: VentasProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading sales tab"
+        description="Opening the selected sales workspace."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -106,7 +115,17 @@ export default function Ventas({ onNavigate }: VentasProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <ActiveComponent />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading sales tab"
+              description="Downloading only the selected sales workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );
