@@ -1,0 +1,72 @@
+export const enCA = {
+  title: 'Incentives',
+  subtitle: 'Manage manual bonuses, automated rules, and payroll application timing.',
+  actions: {
+    columns: 'Columns',
+    addIncentive: 'Add incentive',
+  },
+  columns: {
+    incentive: 'Incentive',
+    type: 'Type',
+    scope: 'Scope',
+    amount: 'Amount',
+    application: 'Application',
+    status: 'Status',
+  },
+  filters: {
+    title: 'Filters',
+    searchLabel: 'Search incentive',
+    searchPlaceholder: 'Name, scope, amount or application',
+    type: 'Type',
+    status: 'Status',
+    allTypes: 'All types',
+    allStatuses: 'All statuses',
+  },
+  types: {
+    Automatizado: 'Automated',
+    Manual: 'Manual',
+  },
+  statuses: {
+    Activo: 'Active',
+    Programado: 'Scheduled',
+    Pausado: 'Paused',
+  },
+  kpis: {
+    total: 'Total incentives',
+    active: 'Active',
+    automated: 'Automated',
+    manual: 'Manual',
+    visibleAfterFilters: 'visible after filters',
+    eligibleEmployees: 'eligible employees',
+    summary: (
+      activeCount: number,
+      scheduledCount: number,
+      pausedCount: number,
+      selectedCount: number,
+      visibleCount: number,
+      totalCount: number,
+    ) =>
+      `Incentives summary: ${activeCount} active · ${scheduledCount} scheduled · ${pausedCount} paused · ${selectedCount} selected · showing ${visibleCount} of ${totalCount}.`,
+  },
+  columnsModal: {
+    title: 'Table columns',
+    subtitle: 'Choose the incentive columns visible in this view.',
+    close: 'Close columns modal',
+    required: 'Required',
+    done: 'Done',
+  },
+  table: {
+    empty: 'No incentives match the current filters.',
+    showing: (count: number) => `Showing ${count} incentives`,
+    page: 'Page 1 of 1',
+    previous: 'Previous',
+    next: 'Next',
+  },
+  newIncentive: {
+    selectedCollaborators: (count: number) => `${count} employees`,
+    automatedRule: 'Automated rule',
+    fixed: 'fixed',
+    pending: 'Pending',
+    nextPayroll: 'Next payroll',
+  },
+} as const;

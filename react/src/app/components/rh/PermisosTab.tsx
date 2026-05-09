@@ -1,13 +1,38 @@
+import { useMemo } from 'react';
 import { Button } from '../ui/button';
 import { Eye, Download, CalendarX } from 'lucide-react';
-import { useHRLanguage } from '../../BasicModules/HumanResources/HRLanguage';
+import { usePermissionsTranslations } from '../../BasicModules/HumanResources/Permissions/hooks/usePermissionsTranslations';
 
 interface PermisosTabProps {
   onSolicitarPermiso: () => void;
 }
 
 export function PermisosTab({ onSolicitarPermiso }: PermisosTabProps) {
-  const t = useHRLanguage().permissions;
+  const permissionCopy = usePermissionsTranslations();
+  const t = useMemo(
+    () => ({
+      title: permissionCopy.title,
+      subtitle: permissionCopy.subtitle,
+      requestPermission: permissionCopy.actions.addRequest,
+      cards: {
+        pending: permissionCopy.kpis.pending,
+        approved: permissionCopy.kpis.approved,
+        rejected: permissionCopy.kpis.rejected,
+        thisMonth: permissionCopy.kpis.thisMonth,
+      },
+      table: {
+        folio: permissionCopy.columns.folio,
+        collaborator: permissionCopy.columns.employee,
+        permissionType: permissionCopy.columns.type,
+        startDate: permissionCopy.columns.startDate,
+        endDate: permissionCopy.columns.endDate,
+        days: permissionCopy.columns.days,
+        status: permissionCopy.columns.status,
+        actions: permissionCopy.columns.actions,
+      },
+    }),
+    [permissionCopy],
+  );
 
   return (
     <>

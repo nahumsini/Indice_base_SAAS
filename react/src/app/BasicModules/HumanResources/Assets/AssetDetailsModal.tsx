@@ -19,7 +19,8 @@ import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import { useLanguage } from '../../../shared/context';
 import { type HrAsset } from '../../../api/HumanResources/assets';
-import { useHRLanguage } from '../HRLanguage';
+import { useAssetsTranslations } from './hooks/useAssetsTranslations';
+import type { AssetsTranslations } from './translations';
 import { useAssetsPortalTheme } from './useAssetsPortalTheme';
 
 interface AssetDetailsModalProps {
@@ -47,20 +48,20 @@ const getAssetTypeFilter = (assetType: string) => {
   return 'other';
 };
 
-const getAssetTypeLabel = (assetType: string, t: ReturnType<typeof useHRLanguage>) => {
+const getAssetTypeLabel = (assetType: string, t: AssetsTranslations) => {
   const normalizedType = getAssetTypeFilter(assetType);
 
   if (normalizedType === 'laptop') {
-    return t.assets.addNewAsset.options.laptop;
+    return t.addNewAsset.options.laptop;
   }
   if (normalizedType === 'attendance') {
-    return t.assets.filters.attendanceControl;
+    return t.filters.attendanceControl;
   }
   if (normalizedType === 'operations') {
-    return t.assets.filters.operation;
+    return t.filters.operation;
   }
   if (normalizedType === 'maintenance') {
-    return t.assets.filters.maintenance;
+    return t.filters.maintenance;
   }
 
   return assetType
@@ -68,13 +69,13 @@ const getAssetTypeLabel = (assetType: string, t: ReturnType<typeof useHRLanguage
     .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
-const getStatusLabel = (status: HrAsset['status'], t: ReturnType<typeof useHRLanguage>) => {
+const getStatusLabel = (status: HrAsset['status'], t: AssetsTranslations) => {
   const labelMap = {
-    available: t.assets.filters.available,
-    assigned: t.assets.filters.assigned,
-    maintenance: t.assets.filters.inMaintenance,
-    custody: t.assets.filters.custody,
-    inactive: t.assets.filters.inactive,
+    available: t.filters.available,
+    assigned: t.filters.assigned,
+    maintenance: t.filters.inMaintenance,
+    custody: t.filters.custody,
+    inactive: t.filters.inactive,
   } as const;
 
   return labelMap[status];
@@ -258,10 +259,10 @@ function SectionCard({
 }
 
 export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalProps) {
-  const t = useHRLanguage();
+  const t = useAssetsTranslations();
   const { currentLanguage } = useLanguage();
   const isDarkMode = useAssetsPortalTheme();
-  const copy = t.assets.detailsModal;
+  const copy = t.detailsModal;
 
   if (!asset) {
     return null;
@@ -300,8 +301,8 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
     { label: copy.fields.code, value: asset.asset_code },
     { label: copy.fields.type, value: getAssetTypeLabel(asset.asset_type, t) },
     { label: copy.fields.asset, value: asset.name },
-    { label: copy.fields.model, value: asset.model || '-' },
-    { label: copy.fields.serialNumber, value: asset.serial_number || '-' },
+    { label: copy.fields.model, value: asset.model || t.emptyValue },
+    { label: copy.fields.serialNumber, value: asset.serial_number || t.emptyValue },
     { label: copy.fields.notes, value: asset.notes || copy.empty.noNotes },
   ];
 
