@@ -27,6 +27,7 @@ import { RecordFilters } from './components/RecordFilters';
 import { RecordHeaderBar } from './components/RecordHeaderBar';
 import { RecordKpiStrip } from './components/RecordKpiStrip';
 import { RecordsList, type RecordColumnId } from './components/RecordsList';
+import { useRecordsResolvedLocale, useRecordsTranslations } from './hooks/useRecordsTranslations';
 import type {
   CreateRecordData,
   EmployeeRecord,
@@ -80,18 +81,6 @@ const defaultVisibleRecordColumns: RecordColumnId[] = [
   'severity',
   'date',
   'actions',
-];
-
-const recordColumns: RecordColumn[] = [
-  { id: 'id', label: 'Record', locked: true },
-  { id: 'employee', label: 'Employee', locked: true },
-  { id: 'reportedBy', label: 'Reported by' },
-  { id: 'unit', label: 'Unit' },
-  { id: 'business', label: 'Business' },
-  { id: 'type', label: 'Type' },
-  { id: 'severity', label: 'Severity' },
-  { id: 'date', label: 'Date' },
-  { id: 'actions', label: 'Actions', locked: true },
 ];
 
 const mapBackendRecord = (record: BackendRecordItem): EmployeeRecord => ({
@@ -156,6 +145,8 @@ const buildRecordPayload = (
 };
 
 export default function Records() {
+  const copy = useRecordsTranslations();
+  const locale = useRecordsResolvedLocale();
   const [records, setRecords] = useState<EmployeeRecord[]>([]);
   const [employees, setEmployees] = useState<RecordEmployeeOption[]>([]);
   const [isEmployeesLoading, setIsEmployeesLoading] = useState(false);
@@ -179,9 +170,24 @@ export default function Records() {
   const [errorMessage, setErrorMessage] = useState('');
   const [loadingState, setLoadingState] = useState({
     isVisible: false,
-    title: 'Loading records',
-    description: 'Preparing the records workspace.',
+    title: copy.loading.recordsTitle,
+    description: copy.loading.recordsDescription,
   });
+
+  const recordColumns = useMemo<RecordColumn[]>(
+    () => [
+      { id: 'id', label: copy.columns.id, locked: true },
+      { id: 'employee', label: copy.columns.employee, locked: true },
+      { id: 'reportedBy', label: copy.columns.reportedBy },
+      { id: 'unit', label: copy.columns.unit },
+      { id: 'business', label: copy.columns.business },
+      { id: 'type', label: copy.columns.type },
+      { id: 'severity', label: copy.columns.severity },
+      { id: 'date', label: copy.columns.date },
+      { id: 'actions', label: copy.columns.actions, locked: true },
+    ],
+    [copy],
+  );
 
   const unitOptions = useMemo(
     () => Array.from(new Set(records.map((record) => record.unit).filter(Boolean))).sort(),
@@ -326,7 +332,7 @@ export default function Records() {
         })),
       );
     } catch (error) {
-      setEmployeeLoadError(formatErrorMessage(error, 'Unable to load employees for this record.'));
+      setEmployeeLoadError(formatErrorMessage(error, copy.errors.loadEmployees));
     } finally {
       setIsEmployeesLoading(false);
     }
@@ -341,8 +347,8 @@ export default function Records() {
   const loadInitialData = async () => {
     setLoadingState({
       isVisible: true,
-      title: 'Loading records',
-      description: 'Preparing the records workspace.',
+      title: copy.loading.recordsTitle,
+      description: copy.loading.recordsDescription,
     });
 
     try {
@@ -352,13 +358,13 @@ export default function Records() {
       ]));
 
       if (recordsResult.status === 'rejected') {
-        setErrorMessage(formatErrorMessage(recordsResult.reason, 'Unable to load records.'));
+        setErrorMessage(formatErrorMessage(recordsResult.reason, copy.errors.loadRecords));
       }
       if (employeesResult.status === 'rejected') {
-        setEmployeeLoadError(formatErrorMessage(employeesResult.reason, 'Unable to load employees for this record.'));
+        setEmployeeLoadError(formatErrorMessage(employeesResult.reason, copy.errors.loadEmployees));
       }
     } catch (error) {
-      setErrorMessage(formatErrorMessage(error, 'Unable to load records.'));
+      setErrorMessage(formatErrorMessage(error, copy.errors.loadRecords));
     } finally {
       setLoadingState((current) => ({ ...current, isVisible: false }));
     }
@@ -393,14 +399,12 @@ export default function Records() {
   };
 
   const handleSaveRecord = async (data: CreateRecordData) => {
-    const fallbackMessage = editingRecord ? 'Unable to update record.' : 'Unable to create record.';
+    const fallbackMessage = editingRecord ? copy.errors.updateRecord : copy.errors.createRecord;
 
     setLoadingState({
       isVisible: true,
-      title: editingRecord ? 'Saving record' : 'Creating record',
-      description: editingRecord
-        ? 'Updating record details and attachments.'
-        : 'Saving the new record and any attachments.',
+      title: editingRecord ? copy.loading.savingTitle : copy.loading.creatingTitle,
+      description: editingRecord ? copy.loading.updatingDescription : copy.loading.creatingDescription,
     });
 
     try {
@@ -419,7 +423,7 @@ export default function Records() {
 
       setIsCreateModalOpen(false);
       setEditingRecord(null);
-      setSuccessMessage(editingRecord ? 'Record updated successfully.' : 'Record created successfully.');
+      setSuccessMessage(editingRecord ? copy.success.updated : copy.success.created);
     } catch (error) {
       setErrorMessage(formatErrorMessage(error, fallbackMessage));
       throw error;
@@ -431,8 +435,8 @@ export default function Records() {
   const handleRecordClick = async (record: EmployeeRecord) => {
     setLoadingState({
       isVisible: true,
-      title: 'Loading record',
-      description: 'Fetching the full record details.',
+      title: copy.loading.recordTitle,
+      description: copy.loading.recordDescription,
     });
 
     try {
@@ -440,7 +444,7 @@ export default function Records() {
       setSelectedRecord(mapBackendRecord(detailResponse.record));
       setIsDetailModalOpen(true);
     } catch (error) {
-      setErrorMessage(formatErrorMessage(error, 'Unable to load record details.'));
+      setErrorMessage(formatErrorMessage(error, copy.errors.loadDetails));
     } finally {
       setLoadingState((current) => ({ ...current, isVisible: false }));
     }
@@ -449,8 +453,8 @@ export default function Records() {
   const handleEditRecord = async (record: EmployeeRecord) => {
     setLoadingState({
       isVisible: true,
-      title: 'Loading record',
-      description: 'Preparing the record for editing.',
+      title: copy.loading.recordTitle,
+      description: copy.loading.editingDescription,
     });
 
     try {
@@ -459,7 +463,7 @@ export default function Records() {
       setIsDetailModalOpen(false);
       setIsCreateModalOpen(true);
     } catch (error) {
-      setErrorMessage(formatErrorMessage(error, 'Unable to load the selected record.'));
+      setErrorMessage(formatErrorMessage(error, copy.errors.loadSelected));
     } finally {
       setLoadingState((current) => ({ ...current, isVisible: false }));
     }
@@ -468,17 +472,17 @@ export default function Records() {
   const handleDeleteRecord = async (recordId: string) => {
     setLoadingState({
       isVisible: true,
-      title: 'Deleting record',
-      description: 'Removing the record from the active history.',
+      title: copy.loading.deletingTitle,
+      description: copy.loading.deletingDescription,
     });
 
     try {
       await runWithMinimumDuration(humanResourcesApi.deleteRecord(recordId));
       await refreshRecords();
       setSelectedRecord(null);
-      setSuccessMessage('Record deleted successfully.');
+      setSuccessMessage(copy.success.deleted);
     } catch (error) {
-      setErrorMessage(formatErrorMessage(error, 'Unable to delete record.'));
+      setErrorMessage(formatErrorMessage(error, copy.errors.deleteRecord));
       throw error;
     } finally {
       setLoadingState((current) => ({ ...current, isVisible: false }));
@@ -525,41 +529,41 @@ export default function Records() {
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
-      doc.text(record.recordNumber || `Record #${record.id}`, left, cursorY);
+      doc.text(record.recordNumber || copy.pdf.recordNumber(record.id), left, cursorY);
       cursorY += 8;
 
-      addSection('Employee', `${record.employee.name}${record.employee.position ? ` · ${record.employee.position}` : ''}`);
+      addSection(copy.pdf.employee, `${record.employee.name}${record.employee.position ? ` · ${record.employee.position}` : ''}`);
       ensurePage();
-      addSection('Reported By', record.reportedBy.name);
+      addSection(copy.pdf.reportedBy, record.reportedBy.name);
       ensurePage();
-      addSection('Event Date', new Date(record.eventDate).toLocaleString());
+      addSection(copy.pdf.eventDate, new Date(record.eventDate).toLocaleString(locale));
       ensurePage();
-      addSection('Type', record.type);
+      addSection(copy.pdf.type, copy.types[record.type]);
       ensurePage();
-      addSection('Severity', record.severity ?? 'N/A');
+      addSection(copy.pdf.severity, record.severity ? copy.severity[record.severity] : copy.pdf.notAvailable);
       ensurePage();
-      addSection('Status', record.status);
+      addSection(copy.pdf.status, copy.status[record.status]);
       ensurePage();
-      addSection('Description', record.description);
+      addSection(copy.pdf.description, record.description);
       ensurePage();
 
       if (record.actionsTaken) {
-        addSection('Actions Taken', record.actionsTaken);
+        addSection(copy.pdf.actionsTaken, record.actionsTaken);
         ensurePage();
       }
 
       if (record.witnesses?.length) {
-        addSection('Witnesses', record.witnesses.join(', '));
+        addSection(copy.pdf.witnesses, record.witnesses.join(', '));
         ensurePage();
       }
 
       if (record.attachments?.length) {
-        addSection('Attachments', record.attachments.map((attachment) => attachment.name).join(', '));
+        addSection(copy.pdf.attachments, record.attachments.map((attachment) => attachment.name).join(', '));
       }
 
       doc.save(`${sanitizeFileName(record.recordNumber || record.title)}.pdf`);
     } catch (error) {
-      setErrorMessage(formatErrorMessage(error, 'Unable to export this record.'));
+      setErrorMessage(formatErrorMessage(error, copy.errors.exportRecord));
     }
   };
 
@@ -579,6 +583,7 @@ export default function Records() {
   return (
     <div className="space-y-6">
       <RecordHeaderBar
+        copy={copy}
         onColumns={() => setIsColumnsModalOpen(true)}
         onCreate={() => {
           setEditingRecord(null);
@@ -590,6 +595,7 @@ export default function Records() {
       />
 
       <RecordFilters
+        copy={copy}
         filters={filters}
         onFiltersChange={setFilters}
         unitOptions={unitOptions}
@@ -597,6 +603,7 @@ export default function Records() {
       />
 
       <RecordKpiStrip
+        copy={copy.kpis}
         highSeverityCount={summary.high_severity_count}
         pendingCount={summary.pending_count}
         resolvedCount={summary.resolved_count}
@@ -606,6 +613,8 @@ export default function Records() {
       />
 
       <RecordsList
+        copy={copy}
+        locale={locale}
         records={paginatedRecords}
         visibleColumns={visibleRecordColumns}
         onRecordClick={(record) => {
@@ -619,6 +628,7 @@ export default function Records() {
 
       <RecordColumnsModal
         columns={recordColumns}
+        copy={copy.columnsModal}
         isOpen={isColumnsModalOpen}
         visibleColumns={visibleRecordColumns}
         onClose={() => setIsColumnsModalOpen(false)}
@@ -628,11 +638,11 @@ export default function Records() {
       {sortedRecords.length > 0 ? (
         <div className="flex flex-col gap-4 border border-gray-200 rounded-lg bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Showing {paginationStart}-{paginationEnd} of {sortedRecords.length} records
+            {copy.pagination.showing(paginationStart, paginationEnd, sortedRecords.length)}
           </p>
           <div className="flex flex-col items-start gap-3 md:items-end">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Page {safeCurrentPage} of {totalPages}
+              {copy.pagination.page(safeCurrentPage, totalPages)}
             </p>
             <Pagination className="mx-0 w-auto justify-start md:justify-end">
               <PaginationContent>
@@ -685,6 +695,7 @@ export default function Records() {
       ) : null}
 
       <CreateRecordModal
+        copy={copy}
         isOpen={isCreateModalOpen}
         onClose={() => {
           setIsCreateModalOpen(false);
@@ -701,6 +712,8 @@ export default function Records() {
       />
 
       <RecordDetailModal
+        copy={copy}
+        locale={locale}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         record={selectedRecord}

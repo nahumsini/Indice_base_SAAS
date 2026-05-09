@@ -56,6 +56,8 @@ import {
   type PayrollRunSummary,
 } from '../../../api/humanResources';
 import { useLanguage } from '../../../shared/context';
+import { usePayrollTranslations } from './hooks/usePayrollTranslations';
+import type { PayrollTranslations } from './translations';
 import {
   PayrollRunPrintPortal,
 } from './PayrollRunPrintPortal';
@@ -119,734 +121,7 @@ type PayrollRateEditorMode = 'preset' | 'advanced';
 type PayrollRateValues = Pick<PayrollPreferences, PayrollRateFieldKey>;
 type PayrollRateDrafts = Record<PayrollRateProfileKey, PayrollRateValues>;
 
-const payrollCopy = {
-  en: {
-    title: 'Payroll',
-    subtitle: 'Review, process, approve, pay, and export payroll runs using real employee and attendance data.',
-    refresh: 'Refresh',
-    applyFilters: 'Apply filters',
-    retry: 'Retry',
-    loading: 'Loading payroll',
-    unauthorized: 'Your session is no longer authenticated. Sign in again and reload the module.',
-    notFound: 'The running backend does not expose the payroll API yet. Restart the Spring server on the latest branch.',
-    genericError: 'Unable to load payroll.',
-    success: {
-      preferences: 'Payroll preferences saved successfully.',
-      rates: 'Payroll rates saved successfully.',
-      runsCreated: 'Payroll runs generated successfully.',
-      lineSaved: 'Payroll line updated successfully.',
-      runEdited: 'Payroll run updated successfully.',
-      processed: 'Payroll run processed successfully.',
-      approved: 'Payroll run approved successfully.',
-      paid: 'Payroll run marked as paid.',
-      cancelled: 'Payroll run cancelled successfully.',
-    },
-    busy: {
-      refreshTitle: 'Refreshing payroll',
-      refreshDescription: 'Reloading payroll runs, preferences, and generated totals.',
-      openRunTitle: 'Opening payroll run',
-      openRunDescription: 'Loading the complete run detail and employee lines.',
-      preferencesTitle: 'Saving payroll preferences',
-      preferencesDescription: 'Persisting payroll defaults and statutory rates.',
-      ratesTitle: 'Saving payroll rates',
-      ratesDescription: 'Applying the active country profile and persisting the configured rates.',
-      generateTitle: 'Generating payroll',
-      generateDescription: 'Building payroll runs from employees, attendance, and current preferences.',
-      saveLineTitle: 'Saving payroll line',
-      saveLineDescription: 'Recalculating the selected line and updating totals.',
-      processTitle: 'Processing payroll run',
-      processDescription: 'Freezing draft values and preparing the run for approval.',
-      approveTitle: 'Approving payroll run',
-      approveDescription: 'Locking the run for finance sign-off and payment.',
-      payTitle: 'Marking payroll as paid',
-      payDescription: 'Recording the payroll run as paid and updating its status.',
-      cancelTitle: 'Cancelling payroll run',
-      cancelDescription: 'Cancelling the run and refreshing the payroll ledger.',
-      csvTitle: 'Exporting CSV',
-      csvDescription: 'Preparing the payroll ledger for spreadsheet export.',
-      pdfTitle: 'Preparing payroll PDF',
-      pdfDescription: 'Building a printable payroll report with the current run data.',
-    },
-    statuses: {
-      draft: 'Draft',
-      processed: 'Processed',
-      approved: 'Approved',
-      paid: 'Paid',
-      cancelled: 'Cancelled',
-    },
-    labels: {
-      preferences: 'Payroll preferences',
-      groupingMode: 'Grouping mode',
-      defaultDailyHours: 'Default daily hours',
-      payLeaveDays: 'Pay leave days',
-      rates: 'Rates',
-      controlPanel: 'Generate payroll',
-      frequency: 'Frequency',
-      period: 'Period',
-      periodStart: 'Period start',
-      periodEnd: 'Period end',
-      periodFrom: 'Period from',
-      periodTo: 'Period to',
-      periodThisMonth: 'This month',
-      periodLastMonth: 'Last month',
-      periodTwoMonthsAgo: 'Two months ago',
-      periodAllYear: 'All year',
-      periodCustom: 'Custom',
-      filters: 'Run filters',
-      status: 'Status',
-      unit: 'Unit',
-      business: 'Business',
-      all: 'All',
-      runs: 'Payroll runs',
-      noRuns: 'No payroll runs match the current filters.',
-      employees: 'Employees',
-      gross: 'Gross',
-      deductions: 'Deductions',
-      employerContributions: 'Employer contributions',
-      net: 'Net',
-      employee: 'Employee',
-      role: 'Role',
-      department: 'Department',
-      lineEditor: 'Line editor',
-      noLineSelected: 'Select a payroll line to inspect and edit it.',
-      includeFiscal: 'Apply fiscal deductions and employer contributions',
-      notes: 'Notes',
-      manualItems: 'Manual adjustments',
-      category: 'Category',
-      description: 'Description',
-      amount: 'Amount',
-      addManualEarning: 'Add earning',
-      addManualDeduction: 'Add deduction',
-      detail: 'Run detail',
-      noItems: 'No detail items for this line.',
-      exportCsv: 'Export CSV',
-      exportPdf: 'Export PDF',
-      process: 'Process',
-      approve: 'Approve',
-      pay: 'Mark paid',
-      cancelRun: 'Cancel run',
-      saveLine: 'Save line',
-      close: 'Close',
-      generatedRuns: 'Generated runs',
-      currentRun: 'Current run',
-      payPeriod: 'Pay period',
-      noUnit: 'No unit',
-      noBusiness: 'No business',
-      salaryType: 'Salary type',
-      daily: 'Daily',
-      hourly: 'Hourly',
-      derivedEndDateHint: 'The end date is calculated automatically from the selected frequency.',
-      regularHours: 'Regular hours',
-      overtimeHours: 'Overtime hours',
-      daysPayable: 'Payable days',
-      leaveDays: 'Leave days',
-      absenceDays: 'Absence days',
-      paidBreaks: 'Paid breaks',
-      vacationDays: 'Vacation days',
-      lateCount: 'Late count',
-      selectedRun: 'Selected run',
-      generate: 'Generate payroll',
-      save: 'Save',
-      savePreferences: 'Save preferences',
-      saveRates: 'Save rates',
-      cancel: 'Cancel',
-      closeDetail: 'Close detail',
-      employerCosts: 'Employer costs',
-      openPreferences: 'Preferences',
-      openRates: 'Rate configuration',
-      openRun: 'Open',
-      edit: 'Edit',
-      print: 'Print',
-      editDraft: 'Edit draft',
-      filterStatus: 'Status',
-      payrollType: 'Payroll type',
-      totalAmount: 'Total amount',
-      salary: 'Salary',
-      holidays: 'Holidays',
-      totalToPay: 'Total to pay',
-      taxCalculation: 'Tax calculation',
-      columns: 'Columns',
-      simplifiedPayroll: 'Simplified Payroll',
-      detailedPayroll: 'Detailed Payroll',
-      rfc: 'RFC',
-      curp: 'CURP',
-      nss: 'NSS',
-      daysWorked: 'Days Worked',
-      daysAbsent: 'Days Absent',
-      overtime: 'Overtime',
-      paidHolidays: 'Paid Holidays',
-      totalPay: 'Total Pay',
-      dailyWage: 'Daily Wage',
-      baseWage: 'Base Wage',
-      integratedDailyWage: 'Integrated Daily Wage',
-      baseContributionSalary: 'Base Contribution Salary',
-      periodSalary: 'Period Salary',
-      overtimeAmount: 'Overtime ($)',
-      bonusesCommissions: 'Bonuses/Commissions',
-      vacationBonus: 'Vacation Bonus',
-      proportionalChristmasBonus: 'Proportional Christmas Bonus',
-      totalEarnings: 'Total Earnings',
-      incomeTaxWithheld: 'Income Tax Withheld',
-      imssEmployee: 'IMSS Employee',
-      infonavitType: 'INFONAVIT (Type)',
-      infonavitDiscount: 'INFONAVIT Discount',
-      loans: 'Loans',
-      otherDiscounts: 'Other Discounts',
-      totalDeductions: 'Total Deductions',
-      taxPayroll: 'Tax Payroll',
-      netPay: 'Net Pay',
-      jurisdiction: 'Jurisdiction',
-      countryProfiles: 'Country profiles',
-      operationalSettings: 'Operational settings',
-      rateProfile: 'Rate profile',
-      presetRates: 'Presets',
-      manualRates: 'Manual',
-      activeRateProfile: 'Active rate profile',
-      noJurisdiction: 'From employee profile',
-      automatic: 'Automatic',
-      multipleBusinesses: 'Multiple businesses',
-      allUnits: 'All units',
-      allBusinesses: 'All businesses',
-      recommended: 'Recommended',
-      actionButtons: 'Action buttons',
-    },
-    summary: {
-      runs: 'Runs',
-      draft: 'Draft',
-      processed: 'Processed',
-      approved: 'Approved',
-      paid: 'Paid',
-      cancelled: 'Cancelled',
-      totalGross: 'Total gross',
-      totalNet: 'Total net',
-    },
-    groupingModes: {
-      single: 'Single',
-      unit: 'Per unit',
-      business: 'Per business',
-    },
-    frequencies: {
-      weekly: 'Weekly',
-      biweekly: 'Biweekly',
-      monthly: 'Monthly',
-    },
-    itemCategories: {
-      earning: 'Earning',
-      deduction: 'Deduction',
-      employer_contribution: 'Employer contribution',
-    },
-    preferencesInfo: {
-      title: 'Important information about payroll preferences',
-      bullets: [
-        'Default behavior: payroll runs can be separated automatically by country and province/state when local fiscal rules require it.',
-        'Automatic grouping: collaborators always remain organized by their configured pay period: weekly, biweekly, or monthly.',
-        'Customization: you can change how payroll runs are grouped to match the way your operation is structured.',
-      ],
-      selectionTitle: 'Choose how you want payroll grouped:',
-      note: 'Regardless of the grouping you choose, collaborators are always organized automatically according to the pay period configured on their profile.',
-    },
-    groupingCards: {
-      single: {
-        title: 'Single payroll (default)',
-        description: 'Everyone is kept inside one payroll run. In countries that require province or state separation, payroll is split automatically by local fiscal rules.',
-      },
-      unit: {
-        title: 'By business unit',
-        description: 'One payroll run is created for each business unit so teams can review their totals independently.',
-      },
-      business: {
-        title: 'By business',
-        description: 'One payroll run is created for each registered business, making it easier to review each operating entity.',
-      },
-    },
-    rateConfiguration: {
-      title: 'Payroll configuration',
-      subtitles: {
-        mexico: 'Define how payroll is calculated based on Mexican tax and social contribution rules.',
-        canada: 'Define how payroll is calculated based on Canadian payroll tax and contribution rules.',
-        usa: 'Define how payroll is calculated based on United States payroll tax and employer contribution rules.',
-        colombia: 'Define how payroll is calculated based on Colombian withholding and contribution rules.',
-        brazil: 'Define how payroll is calculated based on Brazilian payroll tax and social contribution rules.',
-        custom: 'Define a company-specific payroll configuration with fully manual contribution values.',
-      },
-      infoBlocks: {
-        mexico: 'Mexico payroll includes taxes and social contributions that are automatically calculated based on official rules. You can customize certain values if needed.',
-        canada: 'Canada payroll includes taxes and contributions that are usually calculated from official federal and provincial rules. You can customize certain values when needed.',
-        usa: 'United States payroll includes withholding, social taxes, and employer contributions that are commonly managed through official rules. You can customize certain values when needed.',
-        colombia: 'Colombia payroll includes withholding and contributions that typically follow statutory formulas. You can customize selected values when needed.',
-        brazil: 'Brazil payroll includes taxes and mandatory contributions that generally follow official formulas. You can customize selected values when needed.',
-        custom: 'Custom profiles give you full control over payroll rates when your company needs a specialized setup outside the standard country presets.',
-      },
-      footerNote: 'Country profiles apply standardized payroll structures while allowing flexibility for company-specific adjustments.',
-      activeProfileLabel: 'Active payroll profile',
-      saveAction: 'Save configuration',
-      viewBreakdown: 'View breakdown',
-      presetApplied: 'Using the official preset for this country profile.',
-      advancedEnabled: 'Advanced editing is enabled for this payroll field.',
-      switchToAdvanced: 'Switch to Advanced to customize this value.',
-      statusBadges: {
-        officialPreset: 'Official preset',
-        customProfile: 'Custom profile',
-        automatic: 'Automatic',
-        fixedByLaw: 'Fixed by law',
-        editable: 'Editable',
-      },
-      modeLabels: {
-        preset: 'Preset',
-        advanced: 'Advanced',
-        officialTable: 'Official table',
-        fixedRate: 'Fixed rate',
-        salaryPercentage: '% of salary',
-      },
-      mexicoCards: {
-        incomeTaxTitle: 'Income Tax (ISR)',
-        officialTableHelper: 'Calculated automatically based on SAT tax tables',
-        progressiveTooltip: 'Progressive tax based on employee income',
-        imssEmployeeTitle: 'IMSS — Employee',
-        imssEmployeeBody: 'Calculated based on Mexican social security law',
-        imssEmployerTitle: 'IMSS — Employer',
-        imssEmployerBody: 'Includes employer contributions required by law',
-        infonavitEmployeeTitle: 'INFONAVIT — Employee',
-        infonavitEmployeeHelper: 'May vary depending on employee credit conditions',
-        infonavitEmployerTitle: 'INFONAVIT — Employer',
-        infonavitEmployerValue: '5% of salary',
-        sarTitle: 'SAR (Retirement Savings)',
-        sarValue: '2%',
-        sarHelper: 'Retirement contribution required in Mexico',
-      },
-      profiles: {
-        mexico: 'Mexico',
-        canada: 'Canada',
-        usa: 'USA',
-        colombia: 'Colombia',
-        brazil: 'Brazil',
-        custom: 'Custom rate',
-      },
-      profileDescriptions: {
-        mexico: 'Configure payroll for Mexican tax and social contribution structures.',
-        canada: 'Set up payroll rates for Canadian withholding and employer obligations.',
-        usa: 'Adjust payroll rates for federal, state, and employer payroll obligations in the United States.',
-        colombia: 'Prepare withholding and contribution rates for Colombian payroll operations.',
-        brazil: 'Define tax and contribution rates for Brazilian payroll calculations.',
-        custom: 'Build a fully custom rate mix for companies with non-standard payroll rules.',
-      },
-      fieldLabels: {
-        mexico: {
-          isr_rate: 'Income tax (ISR)',
-          imss_employee_rate: 'Employee IMSS',
-          infonavit_employee_rate: 'Employee INFONAVIT',
-          imss_employer_rate: 'Employer IMSS',
-          infonavit_employer_rate: 'Employer INFONAVIT',
-          sar_employer_rate: 'Employer SAR',
-        },
-        canada: {
-          isr_rate: 'Federal / provincial tax',
-          imss_employee_rate: 'Employee CPP / QPP',
-          infonavit_employee_rate: 'Employee EI',
-          imss_employer_rate: 'Employer CPP / QPP',
-          infonavit_employer_rate: 'Employer EI',
-          sar_employer_rate: 'Employer retirement / benefits',
-        },
-        usa: {
-          isr_rate: 'Federal / state withholding',
-          imss_employee_rate: 'Employee Social Security',
-          infonavit_employee_rate: 'Employee Medicare / other',
-          imss_employer_rate: 'Employer Social Security',
-          infonavit_employer_rate: 'Employer Medicare / FUTA / SUTA',
-          sar_employer_rate: 'Employer retirement / benefits',
-        },
-        colombia: {
-          isr_rate: 'Income withholding',
-          imss_employee_rate: 'Employee health',
-          infonavit_employee_rate: 'Employee pension',
-          imss_employer_rate: 'Employer health / parafiscals',
-          infonavit_employer_rate: 'Employer pension',
-          sar_employer_rate: 'Employer severance / benefits',
-        },
-        brazil: {
-          isr_rate: 'Income tax (IRRF)',
-          imss_employee_rate: 'Employee INSS',
-          infonavit_employee_rate: 'Employee FGTS / other',
-          imss_employer_rate: 'Employer INSS',
-          infonavit_employer_rate: 'Employer FGTS',
-          sar_employer_rate: 'Employer retirement / benefits',
-        },
-        custom: {
-          isr_rate: 'Primary tax rate',
-          imss_employee_rate: 'Employee contribution A',
-          infonavit_employee_rate: 'Employee contribution B',
-          imss_employer_rate: 'Employer contribution A',
-          infonavit_employer_rate: 'Employer contribution B',
-          sar_employer_rate: 'Employer retirement / other',
-        },
-      },
-    },
-  },
-  es: {
-    title: 'Nómina',
-    subtitle: 'Revisa, procesa, aprueba, paga y exporta corridas de nómina con datos reales de colaboradores y asistencia.',
-    refresh: 'Actualizar',
-    applyFilters: 'Aplicar filtros',
-    retry: 'Reintentar',
-    loading: 'Cargando nómina',
-    unauthorized: 'Tu sesión ya no está autenticada. Inicia sesión de nuevo y vuelve a cargar el módulo.',
-    notFound: 'El backend en ejecución todavía no expone la API de nómina. Reinicia Spring con la versión más reciente.',
-    genericError: 'No se pudo cargar la nómina.',
-    success: {
-      preferences: 'Preferencias de nómina guardadas correctamente.',
-      rates: 'Tasas de nómina guardadas correctamente.',
-      runsCreated: 'Corridas de nómina generadas correctamente.',
-      lineSaved: 'Línea de nómina actualizada correctamente.',
-      runEdited: 'Corrida de nómina actualizada correctamente.',
-      processed: 'Corrida de nómina procesada correctamente.',
-      approved: 'Corrida de nómina aprobada correctamente.',
-      paid: 'Corrida de nómina marcada como pagada.',
-      cancelled: 'Corrida de nómina cancelada correctamente.',
-    },
-    busy: {
-      refreshTitle: 'Actualizando nómina',
-      refreshDescription: 'Recargando corridas, preferencias y totales de nómina.',
-      openRunTitle: 'Abriendo corrida',
-      openRunDescription: 'Cargando el detalle completo de la corrida y sus líneas.',
-      preferencesTitle: 'Guardando preferencias',
-      preferencesDescription: 'Persistiendo los valores por defecto y las tasas estatutarias.',
-      ratesTitle: 'Guardando tasas de nómina',
-      ratesDescription: 'Aplicando el perfil de país activo y persistiendo las tasas configuradas.',
-      generateTitle: 'Generando nómina',
-      generateDescription: 'Construyendo corridas con colaboradores, asistencia y preferencias actuales.',
-      saveLineTitle: 'Guardando línea de nómina',
-      saveLineDescription: 'Recalculando la línea seleccionada y actualizando sus totales.',
-      processTitle: 'Procesando corrida',
-      processDescription: 'Congelando los valores del borrador para enviarlos a aprobación.',
-      approveTitle: 'Aprobando corrida',
-      approveDescription: 'Bloqueando la corrida para visto bueno financiero y pago.',
-      payTitle: 'Marcando nómina como pagada',
-      payDescription: 'Registrando la corrida como pagada y actualizando su estatus.',
-      cancelTitle: 'Cancelando corrida',
-      cancelDescription: 'Cancelando la corrida y refrescando el libro de nómina.',
-      csvTitle: 'Exportando CSV',
-      csvDescription: 'Preparando el libro de nómina para exportarlo a hoja de cálculo.',
-      pdfTitle: 'Preparando PDF de nómina',
-      pdfDescription: 'Generando un reporte imprimible de la corrida actual.',
-    },
-    statuses: {
-      draft: 'Borrador',
-      processed: 'Procesada',
-      approved: 'Aprobada',
-      paid: 'Pagada',
-      cancelled: 'Cancelada',
-    },
-    labels: {
-      preferences: 'Preferencias de nómina',
-      groupingMode: 'Modo de agrupación',
-      defaultDailyHours: 'Horas diarias por defecto',
-      payLeaveDays: 'Pagar días de permiso',
-      rates: 'Tasas',
-      controlPanel: 'Generar nómina',
-      frequency: 'Frecuencia',
-      period: 'Período',
-      periodStart: 'Inicio del período',
-      periodEnd: 'Fin del período',
-      periodThisMonth: 'Este mes',
-      periodLastMonth: 'Mes pasado',
-      periodTwoMonthsAgo: 'Hace dos meses',
-      periodAllYear: 'Todo el año',
-      periodCustom: 'Personalizado',
-      periodFrom: 'Período desde',
-      periodTo: 'Período hasta',
-      filters: 'Filtros de corridas',
-      status: 'Estado',
-      unit: 'Unidad',
-      business: 'Negocio',
-      all: 'Todos',
-      runs: 'Corridas de nómina',
-      noRuns: 'No hay corridas que coincidan con los filtros actuales.',
-      employees: 'Colaboradores',
-      gross: 'Bruto',
-      deductions: 'Deducciones',
-      employerContributions: 'Aportaciones patronales',
-      net: 'Neto',
-      employee: 'Colaborador',
-      role: 'Puesto',
-      department: 'Departamento',
-      lineEditor: 'Editor de línea',
-      noLineSelected: 'Selecciona una línea de nómina para inspeccionarla y editarla.',
-      includeFiscal: 'Aplicar deducciones fiscales y aportaciones patronales',
-      notes: 'Notas',
-      manualItems: 'Ajustes manuales',
-      category: 'Categoría',
-      description: 'Descripción',
-      amount: 'Monto',
-      addManualEarning: 'Agregar percepción',
-      addManualDeduction: 'Agregar deducción',
-      detail: 'Detalle de corrida',
-      noItems: 'No hay conceptos detallados en esta línea.',
-      exportCsv: 'Exportar CSV',
-      exportPdf: 'Exportar PDF',
-      process: 'Procesar',
-      approve: 'Aprobar',
-      pay: 'Marcar pagada',
-      cancelRun: 'Cancelar corrida',
-      saveLine: 'Guardar línea',
-      close: 'Cerrar',
-      generatedRuns: 'Corridas generadas',
-      currentRun: 'Corrida actual',
-      payPeriod: 'Período de pago',
-      noUnit: 'Sin unidad',
-      noBusiness: 'Sin negocio',
-      salaryType: 'Tipo salarial',
-      daily: 'Diario',
-      hourly: 'Por hora',
-      derivedEndDateHint: 'La fecha final se calcula automáticamente según la frecuencia seleccionada.',
-      regularHours: 'Horas regulares',
-      overtimeHours: 'Horas extra',
-      daysPayable: 'Días pagables',
-      leaveDays: 'Días de permiso',
-      absenceDays: 'Días de ausencia',
-      paidBreaks: 'Descansos pagados',
-      vacationDays: 'Días de vacaciones',
-      lateCount: 'Retardos',
-      selectedRun: 'Corrida seleccionada',
-      generate: 'Generar nómina',
-      save: 'Guardar',
-      savePreferences: 'Guardar preferencias',
-      saveRates: 'Guardar tasas',
-      cancel: 'Cancelar',
-      closeDetail: 'Cerrar detalle',
-      employerCosts: 'Costos patronales',
-      openPreferences: 'Preferencias',
-      openRates: 'Configurar tasas',
-      openRun: 'Abrir',
-      edit: 'Editar',
-      print: 'Imprimir',
-      editDraft: 'Editar borrador',
-      filterStatus: 'Estado',
-      payrollType: 'Tipo de nómina',
-      totalAmount: 'Monto total',
-      salary: 'Salario',
-      holidays: 'Días feriados',
-      totalToPay: 'Total a pagar',
-      taxCalculation: 'Cálculo de impuestos',
-      columns: 'Columnas',
-      simplifiedPayroll: 'Nómina Simplificada',
-      detailedPayroll: 'Nómina Detallada',
-      rfc: 'RFC',
-      curp: 'CURP',
-      nss: 'NSS',
-      daysWorked: 'Días Trabajados',
-      daysAbsent: 'Días Ausentes',
-      overtime: 'Horas Extra',
-      paidHolidays: 'Días Festivos Pagados',
-      totalPay: 'Total a Pagar',
-      dailyWage: 'Salario Diario',
-      baseWage: 'Salario Base',
-      integratedDailyWage: 'Salario Diario Integrado',
-      baseContributionSalary: 'Salario Base de Cotización',
-      periodSalary: 'Salario del Período',
-      overtimeAmount: 'Horas Extra ($)',
-      bonusesCommissions: 'Bonos/Comisiones',
-      vacationBonus: 'Prima Vacacional',
-      proportionalChristmasBonus: 'Aguinaldo Proporcional',
-      totalEarnings: 'Total de Percepciones',
-      incomeTaxWithheld: 'ISR Retenido',
-      imssEmployee: 'IMSS Trabajador',
-      infonavitType: 'INFONAVIT (Tipo)',
-      infonavitDiscount: 'Descuento INFONAVIT',
-      loans: 'Préstamos',
-      otherDiscounts: 'Otros Descuentos',
-      totalDeductions: 'Total de Deducciones',
-      taxPayroll: 'Nómina Fiscal',
-      netPay: 'Neto a Pagar',
-      jurisdiction: 'Jurisdicción',
-      countryProfiles: 'Perfiles por país',
-      operationalSettings: 'Ajustes operativos',
-      rateProfile: 'Perfil de tasas',
-      presetRates: 'Predeterminados',
-      manualRates: 'Manuales',
-      activeRateProfile: 'Perfil de tasas activo',
-      noJurisdiction: 'Según perfil del colaborador',
-      automatic: 'Automático',
-      multipleBusinesses: 'Múltiples negocios',
-      allUnits: 'Todas las unidades',
-      allBusinesses: 'Todos los negocios',
-      recommended: 'Recomendado',
-      actionButtons: 'Botones de acción',
-    },
-    summary: {
-      runs: 'Corridas',
-      draft: 'Borradores',
-      processed: 'Procesadas',
-      approved: 'Aprobadas',
-      paid: 'Pagadas',
-      cancelled: 'Canceladas',
-      totalGross: 'Bruto total',
-      totalNet: 'Neto total',
-    },
-    groupingModes: {
-      single: 'Única',
-      unit: 'Por unidad',
-      business: 'Por negocio',
-    },
-    frequencies: {
-      weekly: 'Semanal',
-      biweekly: 'Quincenal',
-      monthly: 'Mensual',
-    },
-    itemCategories: {
-      earning: 'Percepción',
-      deduction: 'Deducción',
-      employer_contribution: 'Aportación patronal',
-    },
-    preferencesInfo: {
-      title: 'Información importante sobre las preferencias de nómina',
-      bullets: [
-        'Configuración predeterminada: las nóminas pueden separarse automáticamente por país y provincia/estado cuando las reglas fiscales locales lo requieran.',
-        'Agrupación automática: los colaboradores siempre se organizan según su período de pago configurado: semanal, quincenal o mensual.',
-        'Personalización: puedes cambiar la forma en que se generan las nóminas para alinearlas con la estructura de tu operación.',
-      ],
-      selectionTitle: 'Selecciona cómo deseas agrupar las nóminas:',
-      note: 'Independientemente de la agrupación que elijas, los colaboradores siempre se organizarán automáticamente según el período de pago configurado en su perfil.',
-    },
-    groupingCards: {
-      single: {
-        title: 'Nómina única (predeterminado)',
-        description: 'Todos se mantienen dentro de una sola corrida. En países que requieren separación por provincia o estado, la nómina se divide automáticamente según las reglas fiscales locales.',
-      },
-      unit: {
-        title: 'Por unidad de negocio',
-        description: 'Se crea una corrida de nómina por cada unidad de negocio para revisar los totales por equipo.',
-      },
-      business: {
-        title: 'Por negocio',
-        description: 'Se crea una corrida de nómina por cada negocio registrado, facilitando la revisión por entidad operativa.',
-      },
-    },
-    rateConfiguration: {
-      title: 'Configuración de nómina',
-      subtitles: {
-        mexico: 'Define cómo se calcula la nómina con base en las reglas mexicanas de impuestos y contribuciones sociales.',
-        canada: 'Define cómo se calcula la nómina con base en las reglas canadienses de impuestos y contribuciones.',
-        usa: 'Define cómo se calcula la nómina con base en las reglas de impuestos y aportaciones patronales de Estados Unidos.',
-        colombia: 'Define cómo se calcula la nómina con base en las reglas colombianas de retención y contribuciones.',
-        brazil: 'Define cómo se calcula la nómina con base en las reglas brasileñas de impuestos y contribuciones sociales.',
-        custom: 'Define una configuración de nómina específica para tu empresa con valores manuales y totalmente personalizados.',
-      },
-      infoBlocks: {
-        mexico: 'La nómina en México incluye impuestos y contribuciones sociales que se calculan automáticamente con base en reglas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
-        canada: 'La nómina en Canadá incluye impuestos y contribuciones que normalmente se calculan con reglas oficiales federales y provinciales. Puedes personalizar ciertos valores si lo necesitas.',
-        usa: 'La nómina en Estados Unidos incluye retenciones, impuestos sociales y aportaciones patronales que normalmente siguen reglas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
-        colombia: 'La nómina en Colombia incluye retenciones y contribuciones que generalmente siguen fórmulas legales. Puedes personalizar ciertos valores si lo necesitas.',
-        brazil: 'La nómina en Brasil incluye impuestos y contribuciones obligatorias que suelen seguir fórmulas oficiales. Puedes personalizar ciertos valores si lo necesitas.',
-        custom: 'Los perfiles personalizados te dan control total sobre las tasas de nómina cuando tu empresa necesita una configuración especial fuera de los perfiles estándar por país.',
-      },
-      footerNote: 'Los perfiles por país aplican estructuras de nómina estandarizadas y al mismo tiempo permiten flexibilidad para ajustes específicos de tu empresa.',
-      activeProfileLabel: 'Perfil activo de nómina',
-      saveAction: 'Guardar configuración',
-      viewBreakdown: 'Ver desglose',
-      presetApplied: 'Se está usando el perfil oficial de este país.',
-      advancedEnabled: 'La edición avanzada está habilitada para este campo de nómina.',
-      switchToAdvanced: 'Cambia a Avanzado para personalizar este valor.',
-      statusBadges: {
-        officialPreset: 'Predeterminado oficial',
-        customProfile: 'Perfil personalizado',
-        automatic: 'Automático',
-        fixedByLaw: 'Fijo por ley',
-        editable: 'Editable',
-      },
-      modeLabels: {
-        preset: 'Predeterminado',
-        advanced: 'Avanzado',
-        officialTable: 'Tabla oficial',
-        fixedRate: 'Tasa fija',
-        salaryPercentage: '% del salario',
-      },
-      mexicoCards: {
-        incomeTaxTitle: 'Impuesto sobre la renta (ISR)',
-        officialTableHelper: 'Se calcula automáticamente con base en las tablas del SAT',
-        progressiveTooltip: 'Impuesto progresivo según el ingreso del colaborador',
-        imssEmployeeTitle: 'IMSS — Colaborador',
-        imssEmployeeBody: 'Se calcula con base en la ley mexicana del seguro social',
-        imssEmployerTitle: 'IMSS — Patronal',
-        imssEmployerBody: 'Incluye las contribuciones patronales requeridas por ley',
-        infonavitEmployeeTitle: 'INFONAVIT — Colaborador',
-        infonavitEmployeeHelper: 'Puede variar según las condiciones de crédito del colaborador',
-        infonavitEmployerTitle: 'INFONAVIT — Patronal',
-        infonavitEmployerValue: '5% del salario',
-        sarTitle: 'SAR (Ahorro para el retiro)',
-        sarValue: '2%',
-        sarHelper: 'Contribución de retiro obligatoria en México',
-      },
-      profiles: {
-        mexico: 'México',
-        canada: 'Canadá',
-        usa: 'USA',
-        colombia: 'Colombia',
-        brazil: 'Brasil',
-        custom: 'Tasa personalizada',
-      },
-      profileDescriptions: {
-        mexico: 'Configura la nómina para estructuras fiscales y de contribuciones mexicanas.',
-        canada: 'Configura tasas para retenciones y obligaciones patronales canadienses.',
-        usa: 'Ajusta tasas para obligaciones federales, estatales y patronales en Estados Unidos.',
-        colombia: 'Prepara retenciones y contribuciones para operaciones de nómina en Colombia.',
-        brazil: 'Define tasas de impuestos y contribuciones para cálculos de nómina en Brasil.',
-        custom: 'Construye una mezcla de tasas completamente personalizada para reglas no estándar.',
-      },
-      fieldLabels: {
-        mexico: {
-          isr_rate: 'Impuesto sobre la renta (ISR)',
-          imss_employee_rate: 'IMSS colaborador',
-          infonavit_employee_rate: 'INFONAVIT colaborador',
-          imss_employer_rate: 'IMSS patronal',
-          infonavit_employer_rate: 'INFONAVIT patronal',
-          sar_employer_rate: 'SAR patronal',
-        },
-        canada: {
-          isr_rate: 'Impuesto federal / provincial',
-          imss_employee_rate: 'CPP / QPP colaborador',
-          infonavit_employee_rate: 'EI colaborador',
-          imss_employer_rate: 'CPP / QPP patronal',
-          infonavit_employer_rate: 'EI patronal',
-          sar_employer_rate: 'Retiro / beneficios patronales',
-        },
-        usa: {
-          isr_rate: 'Retención federal / estatal',
-          imss_employee_rate: 'Seguro Social colaborador',
-          infonavit_employee_rate: 'Medicare / otros colaborador',
-          imss_employer_rate: 'Seguro Social patronal',
-          infonavit_employer_rate: 'Medicare / FUTA / SUTA patronal',
-          sar_employer_rate: 'Retiro / beneficios patronales',
-        },
-        colombia: {
-          isr_rate: 'Retención en la fuente',
-          imss_employee_rate: 'Salud colaborador',
-          infonavit_employee_rate: 'Pensión colaborador',
-          imss_employer_rate: 'Salud / parafiscales patronal',
-          infonavit_employer_rate: 'Pensión patronal',
-          sar_employer_rate: 'Cesantías / beneficios patronales',
-        },
-        brazil: {
-          isr_rate: 'Impuesto sobre la renta (IRRF)',
-          imss_employee_rate: 'INSS colaborador',
-          infonavit_employee_rate: 'FGTS / otros colaborador',
-          imss_employer_rate: 'INSS patronal',
-          infonavit_employer_rate: 'FGTS patronal',
-          sar_employer_rate: 'Retiro / beneficios patronales',
-        },
-        custom: {
-          isr_rate: 'Tasa principal de impuesto',
-          imss_employee_rate: 'Contribución colaborador A',
-          infonavit_employee_rate: 'Contribución colaborador B',
-          imss_employer_rate: 'Contribución patronal A',
-          infonavit_employer_rate: 'Contribución patronal B',
-          sar_employer_rate: 'Retiro / otros patronal',
-        },
-      },
-    },
-  },
-} as const;
-
-type PayrollCopy = typeof payrollCopy.en | typeof payrollCopy.es;
+type PayrollCopy = PayrollTranslations;
 
 const pickPayrollRateValues = (preferences: PayrollPreferences): PayrollRateValues => ({
   isr_rate: preferences.isr_rate,
@@ -970,7 +245,7 @@ const formatDate = (value: string, locale: string, fallback: string) => {
   }).format(parsed);
 };
 
-const toErrorMessage = (error: unknown, copy: typeof payrollCopy.en | typeof payrollCopy.es) => {
+const toErrorMessage = (error: unknown, copy: PayrollCopy) => {
   if (error instanceof ApiClientError) {
     if (error.status === 404) {
       return copy.notFound;
@@ -1551,7 +826,7 @@ const downloadFile = async (path: string, filename: string) => {
 
 export default function Payroll() {
   const { currentLanguage } = useLanguage();
-  const copy = payrollCopy.en;
+  const copy = usePayrollTranslations();
 
   const [overview, setOverview] = useState<PayrollOverviewResponse | null>(null);
   // Seed data for development
@@ -2290,7 +1565,7 @@ export default function Payroll() {
   const resolveOperationalStatus = (run: PayrollRunSummary) => {
     if (run.employees_count === 0 && run.status !== 'paid' && run.status !== 'cancelled') {
       return {
-        label: 'Blocked',
+        label: copy.operationalStatus.blocked,
         className: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300',
       };
     }
@@ -2304,7 +1579,7 @@ export default function Payroll() {
     };
 
     return {
-      label: run.status === 'processed' ? 'Review' : copy.statuses[run.status],
+      label: run.status === 'processed' ? copy.operationalStatus.review : copy.statuses[run.status],
       className: statusClassNames[run.status],
     };
   };
@@ -2335,6 +1610,7 @@ export default function Payroll() {
       />
 
       <PayrollHeaderBar
+        copy={copy.header}
         isBusy={isSaving}
         onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
       />
@@ -2347,7 +1623,7 @@ export default function Payroll() {
         <>
           <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-5">
-              <h3 className="text-base font-bold text-slate-950 dark:text-white">Filters</h3>
+              <h3 className="text-base font-bold text-slate-950 dark:text-white">{copy.filterBar.title}</h3>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
               <SelectField
@@ -2434,11 +1710,13 @@ export default function Payroll() {
 
           {shouldShowSetupGuide ? (
             <PayrollSetupGuide
+              copy={copy.setupGuide}
               isBusy={isSaving}
               onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
             />
           ) : (
             <PayrollOperationsPanel
+              copy={copy}
               runs={operationalRuns}
               formatMoney={(value) => formatCurrency(value, currentLanguage.code)}
             />
@@ -2448,11 +1726,11 @@ export default function Payroll() {
             <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-700">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Operational payroll runs</h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Open runs that need review, approval, payment, or export.</p>
+                  <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{copy.runLedger.title}</h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.runLedger.subtitle}</p>
                 </div>
                 <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  {runs.length} in current view
+                  {runs.length} {copy.runLedger.currentViewSuffix}
                 </div>
               </div>
             </div>
@@ -2524,7 +1802,7 @@ export default function Payroll() {
                     <SortIndicator column="status" />
                   </TableHead>
                   <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    ACTIONS
+                    {copy.runLedger.actions}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -2549,7 +1827,7 @@ export default function Payroll() {
                               {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              to {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
+                              {copy.runLedger.periodConnector} {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
                             </p>
                           </div>
                         </TableCell>
@@ -2562,7 +1840,7 @@ export default function Payroll() {
                               {copy.groupingModes[run.grouping_mode]}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {run.grouping_label || 'Automatic grouping'}
+                              {run.grouping_label || copy.runLedger.automaticGrouping}
                             </p>
                           </div>
                         </TableCell>
@@ -2576,7 +1854,7 @@ export default function Payroll() {
                             {formatCurrency(run.net_amount, currentLanguage.code, runCurrencyCode)}
                           </p>
                           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Net payout · {runCurrencyCode}
+                            {copy.runLedger.netPayout} · {runCurrencyCode}
                           </p>
                         </TableCell>
                         <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
@@ -2595,6 +1873,7 @@ export default function Payroll() {
                         </TableCell>
                         <TableCell className="px-5 py-5 align-middle">
                           <PayrollRunActionsMenu
+                            copy={copy.runActions}
                             run={run}
                             isBusy={isSaving}
                             onOpen={() => void openRunDetail(run.id)}
@@ -2724,7 +2003,8 @@ function PayrollEditRunDialog({
   locale: string;
 }) {
   const runLines = detail?.lines ?? [];
-  const noRowsLabel = 'No employees available for this run.';
+  const editCopy = copy.editRun;
+  const noRowsLabel = editCopy.noRows;
   const statusLabel = copy.statuses[form.status];
   const payrollTypeLabel = copy.groupingModes[run.grouping_mode];
   const frequencyLabel = copy.frequencies[run.pay_period];
@@ -3920,7 +3200,7 @@ function PayrollEditRunDialog({
     [activeProvinceLabel, activeRunJurisdiction],
   );
   const displayJurisdictionLabel = isUnsupportedJurisdiction
-    ? rawJurisdictionLabel || unsupportedJurisdictionMeta?.country || 'Unsupported jurisdiction'
+    ? rawJurisdictionLabel || unsupportedJurisdictionMeta?.country || editCopy.unsupportedBadge
     : derivedJurisdiction;
 
   const baseSimplifiedRows: PayrollEditTableRow[] = visibleDetailedRows.map((row) => {
@@ -4167,6 +3447,12 @@ function PayrollEditRunDialog({
   ]);
 
   const detailedStatutoryColumnsForPrint = new Set<PayrollDetailedColumnKey>(activeDetailedStatutoryColumns);
+  const simplifiedStatusLabels: Record<PayrollEditTableRow['status'], string> = {
+    Processed: copy.statuses.processed,
+    Draft: copy.statuses.draft,
+    Review: copy.operationalStatus.review,
+    'Internal only': editCopy.internalOnly,
+  };
 
   const renderAttendanceSelect = (
     value: number,
@@ -4252,16 +3538,16 @@ function PayrollEditRunDialog({
         const commissionCount = row.variablePayItems.filter((item) => item.included && item.type === 'commission').length;
         const adjustmentCount = row.variablePayItems.filter((item) => item.included && item.type === 'adjustment').length;
         const summaryPieces = [
-          bonusCount > 0 ? `${bonusCount} bonuses` : '',
-          commissionCount > 0 ? `${commissionCount} commissions` : '',
-          adjustmentCount > 0 ? `${adjustmentCount} adjustments` : '',
+          bonusCount > 0 ? `${bonusCount} ${editCopy.bonuses}` : '',
+          commissionCount > 0 ? `${commissionCount} ${editCopy.commissions}` : '',
+          adjustmentCount > 0 ? `${adjustmentCount} ${editCopy.adjustments}` : '',
         ].filter(Boolean);
 
         return (
           <TableCell className="px-4 py-3 align-top">
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-emerald-700 dark:text-emerald-300">{formatAmount(row.variablePayTotal)}</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">{summaryPieces.length > 0 ? summaryPieces.join(' · ') : 'No variable items'}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{summaryPieces.length > 0 ? summaryPieces.join(' · ') : editCopy.noVariableItems}</span>
               <div>
                 <Button
                   type="button"
@@ -4270,7 +3556,7 @@ function PayrollEditRunDialog({
                   className="h-8 rounded-lg px-2.5"
                   onClick={() => setVariablePayEditorRowId(rowId)}
                 >
-                  Manage
+                  {editCopy.manage}
                 </Button>
               </div>
             </div>
@@ -4287,8 +3573,8 @@ function PayrollEditRunDialog({
             <div className="flex flex-col">
               <span>{formatAmount(row.totalDeductions)}</span>
               {!row.statutoryPayroll && (
-                <span className="text-[11px] text-slate-500 dark:text-slate-400" title="Internal-only rows include only loans, other discounts, and net adjustments.">
-                  Internal-only deductions
+                <span className="text-[11px] text-slate-500 dark:text-slate-400" title={editCopy.internalOnlyDeductionsHint}>
+                  {editCopy.internalOnlyDeductions}
                 </span>
               )}
             </div>
@@ -4305,7 +3591,7 @@ function PayrollEditRunDialog({
                 ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}
             >
-              {row.status}
+              {simplifiedStatusLabels[row.status]}
             </span>
           </TableCell>
         );
@@ -4328,7 +3614,7 @@ function PayrollEditRunDialog({
               className="h-8 rounded-lg px-2.5"
             >
               <Info className="mr-1 h-3.5 w-3.5" />
-              Breakdown
+              {editCopy.breakdown}
             </Button>
           </TableCell>
         );
@@ -4344,7 +3630,7 @@ function PayrollEditRunDialog({
 
     if (isStatutoryField && !effectiveRow.statutoryPayroll) {
       return (
-        <TableCell className="px-3 py-3 align-top text-right text-slate-400 dark:text-slate-500" title="Disabled for internal payroll control">
+        <TableCell className="px-3 py-3 align-top text-right text-slate-400 dark:text-slate-500" title={editCopy.disabledInternalControl}>
           —
         </TableCell>
       );
@@ -4475,7 +3761,7 @@ function PayrollEditRunDialog({
               className="h-8 rounded-lg px-2.5"
             >
               <Info className="mr-1 h-3.5 w-3.5" />
-              Breakdown
+              {editCopy.breakdown}
             </Button>
           </TableCell>
         );
@@ -4487,14 +3773,15 @@ function PayrollEditRunDialog({
   const formatSimplifiedPrintValue = (row: PayrollEditTableRow, key: PayrollEditTableColumnKey) => {
     switch (key) {
       case 'statutoryPayroll':
-        return row.statutoryPayroll ? 'Statutory' : 'Internal only';
+        return row.statutoryPayroll ? editCopy.statutory : editCopy.internalOnly;
       case 'employee':
       case 'unit':
       case 'business':
       case 'employmentType':
       case 'province':
-      case 'status':
         return row[key] ? String(row[key]) : '—';
+      case 'status':
+        return simplifiedStatusLabels[row.status];
       case 'daysWorked':
       case 'daysAbsent':
         return String(row[key]);
@@ -4503,14 +3790,14 @@ function PayrollEditRunDialog({
         const commissionCount = row.variablePayItems.filter((item) => item.included && item.type === 'commission').length;
         const adjustmentCount = row.variablePayItems.filter((item) => item.included && item.type === 'adjustment').length;
         const summaryParts = [
-          `${bonusCount} bonuses`,
-          `${commissionCount} commissions`,
-          `${adjustmentCount} adjustments`,
+          `${bonusCount} ${editCopy.bonuses}`,
+          `${commissionCount} ${editCopy.commissions}`,
+          `${adjustmentCount} ${editCopy.adjustments}`,
         ].filter((entry) => !entry.startsWith('0 '));
         return `${formatAmount(row.variablePayTotal)}${summaryParts.length ? ` (${summaryParts.join(' · ')})` : ''}`;
       }
       case 'breakdown':
-        return 'Available in app';
+        return editCopy.availableInApp;
       default:
         return formatAmount(row[key] as number);
     }
@@ -4523,7 +3810,7 @@ function PayrollEditRunDialog({
     }
 
     if (key === 'breakdown') {
-      return 'Available in app';
+      return editCopy.availableInApp;
     }
 
     const value = effectiveRow[key];
@@ -4546,20 +3833,20 @@ function PayrollEditRunDialog({
       return;
     }
 
-    const printTitle = `Payroll #${run.id} - ${payrollViewMode === 'simplified' ? 'Simplified' : 'Detailed'} view`;
+    const printTitle = editCopy.printTitle(run.id, payrollViewMode === 'simplified' ? editCopy.printSimplified : editCopy.printDetailed);
     const headerHtml = `
       <div class="header">
         <h1>${escapePrintHtml(printTitle)}</h1>
-        <p class="meta">Period: ${escapePrintHtml(formatDate(run.period_start_date, locale, run.period_start_date))} - ${escapePrintHtml(formatDate(run.period_end_date, locale, run.period_end_date))}</p>
-        <p class="meta">Unit: ${escapePrintHtml(unitLabel)} | Business: ${escapePrintHtml(businessLabel)} | Jurisdiction: ${escapePrintHtml(displayJurisdictionLabel)}</p>
-        <p class="meta">Status: ${escapePrintHtml(copy.statuses[form.status])}</p>
+        <p class="meta">${escapePrintHtml(editCopy.period)}: ${escapePrintHtml(formatDate(run.period_start_date, locale, run.period_start_date))} - ${escapePrintHtml(formatDate(run.period_end_date, locale, run.period_end_date))}</p>
+        <p class="meta">${escapePrintHtml(editCopy.unit)}: ${escapePrintHtml(unitLabel)} | ${escapePrintHtml(editCopy.business)}: ${escapePrintHtml(businessLabel)} | ${escapePrintHtml(editCopy.jurisdiction)}: ${escapePrintHtml(displayJurisdictionLabel)}</p>
+        <p class="meta">${escapePrintHtml(editCopy.status)}: ${escapePrintHtml(copy.statuses[form.status])}</p>
       </div>
     `;
 
     const tableHtml = payrollViewMode === 'simplified'
       ? `
         <div class="section">
-          <h2>Simplified Payroll Employees</h2>
+          <h2>${escapePrintHtml(editCopy.simplifiedEmployees)}</h2>
           <table>
             <thead>
               <tr>${simplifiedColumns.map((column) => `<th>${escapePrintHtml(column.label)}</th>`).join('')}</tr>
@@ -4572,12 +3859,12 @@ function PayrollEditRunDialog({
       }).join('')}</tr>`).join('')}
             </tbody>
           </table>
-          <p class="meta" style="margin-top:8px;">Total net pay: ${escapePrintHtml(formatAmount(totalSimplifiedNetPay))}</p>
+          <p class="meta" style="margin-top:8px;">${escapePrintHtml(editCopy.totalNetPay)}: ${escapePrintHtml(formatAmount(totalSimplifiedNetPay))}</p>
         </div>
       `
       : `
         <div class="section">
-          <h2>Detailed Payroll Employees</h2>
+          <h2>${escapePrintHtml(editCopy.detailedEmployees)}</h2>
           <table>
             <thead>
               <tr>${detailedColumns.map((column) => `<th>${escapePrintHtml(column.label)}</th>`).join('')}</tr>
@@ -4590,13 +3877,13 @@ function PayrollEditRunDialog({
       }).join('')}</tr>`).join('')}
             </tbody>
           </table>
-          <p class="meta" style="margin-top:8px;">Total net pay: ${escapePrintHtml(formatAmount(totalDetailedNetPay))}</p>
+          <p class="meta" style="margin-top:8px;">${escapePrintHtml(editCopy.totalNetPay)}: ${escapePrintHtml(formatAmount(totalDetailedNetPay))}</p>
         </div>
       `;
 
     const summaryHtml = `
       <div class="section">
-        <h2>Employer Cost Summary</h2>
+        <h2>${escapePrintHtml(editCopy.employerCostSummary)}</h2>
         <p class="meta">${escapePrintHtml(activeEmployerSummaryConfig.helperText)}</p>
         <div class="grid" style="margin-top:8px;">
           ${activeEmployerSummaryConfig.metrics.map((metric) => `
@@ -4708,16 +3995,16 @@ function PayrollEditRunDialog({
                 <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm dark:border-amber-900/50 dark:bg-slate-900/70">
                   <div className="max-w-3xl space-y-3">
                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
-                      Unsupported payroll jurisdiction
+                      {editCopy.unsupportedBadge}
                     </span>
                     <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
-                      {displayJurisdictionLabel} is not configured in this payroll modal yet.
+                      {editCopy.unsupportedTitle(displayJurisdictionLabel)}
                     </h4>
                     <p className="text-sm text-slate-600 dark:text-slate-300">
-                      This branch currently supports Mexico, Colombia, Canada Standard, Canada Quebec, and Brazil. To avoid showing the wrong statutory logic, the frontend now blocks the Mexico layout from being used for USA payroll runs.
+                      {editCopy.unsupportedDescription}
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-300">
-                      You can still update the run status and keep working in the rest of the module, but payroll tables, breakdowns, and employer cost summaries stay disabled until a dedicated United States layout is added.
+                      {editCopy.unsupportedAction}
                     </p>
                   </div>
                 </section>
@@ -4727,7 +4014,7 @@ function PayrollEditRunDialog({
                     <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                          Payroll Table
+                          {editCopy.tableTitle}
                         </h4>
                         <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
                           <button
@@ -4742,7 +4029,7 @@ function PayrollEditRunDialog({
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                               }`}
                           >
-                            Simplified Payroll
+                            {editCopy.simplifiedMode}
                           </button>
                           <button
                             type="button"
@@ -4756,12 +4043,12 @@ function PayrollEditRunDialog({
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                               }`}
                           >
-                            Detailed Payroll
+                            {editCopy.detailedMode}
                           </button>
                         </div>
                       </div>
                       <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        Simplified view summarizes payroll for business review. Use Statutory Payroll to control which employees receive tax and social security calculations.
+                        {editCopy.tableHint}
                       </p>
                     </div>
 
@@ -4828,7 +4115,7 @@ function PayrollEditRunDialog({
                                     if (index === 0) {
                                       return (
                                         <TableCell key={column.key} className="sticky left-0 z-20 border-r border-slate-300 bg-slate-100/95 px-4 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-600 dark:bg-slate-800/95 dark:text-slate-300">
-                                          Total
+                                          {editCopy.total}
                                         </TableCell>
                                       );
                                     }
@@ -4895,7 +4182,7 @@ function PayrollEditRunDialog({
                                     if (index === 0) {
                                       return (
                                         <TableCell key={column.key} className="px-3 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                                          Total
+                                          {editCopy.total}
                                         </TableCell>
                                       );
                                     }
@@ -4912,8 +4199,8 @@ function PayrollEditRunDialog({
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
                     <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Employer Cost Summary</h4>
-                      <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Read only</span>
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{editCopy.employerCostSummary}</h4>
+                      <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{editCopy.readOnly}</span>
                     </div>
                     <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
                       {activeEmployerSummaryConfig.helperText}
@@ -4987,8 +4274,9 @@ function PayrollEditRunDialog({
       />
 
       <VariablePayModal
+        copy={copy.variablePay}
         isOpen={Boolean(variablePayEditorRow)}
-        employeeName={variablePayEditorRow?.employee || 'Employee'}
+        employeeName={variablePayEditorRow?.employee || copy.labels.employee}
         items={variablePayEditorRow ? (variablePayByRow[String(variablePayEditorRow.id)] ?? createVariablePayDefaults(variablePayEditorRow)) : []}
         onClose={() => setVariablePayEditorRowId(null)}
         onSave={(nextItems) => {
@@ -5773,35 +5061,11 @@ function PayrollPreferencesDialog({
   onChange: (value: PayrollPreferences) => void;
   onSave: () => void;
 }) {
+  const preferenceCopy = copy.preferencesDialog;
   const groupingOptions = [
-    {
-      key: 'single',
-      title: 'Single payroll',
-      description: 'Payroll stays centralized and separates automatically only when operational structure requires it.',
-      examples: [
-        'Mexico - Weekly - Operations',
-        'Mexico - Monthly - Corporate',
-        'Quebec - Weekly - Operations',
-      ],
-    },
-    {
-      key: 'unit',
-      title: 'By unit',
-      description: 'Payroll runs separate by operational unit before payroll frequency and jurisdiction grouping.',
-      examples: [
-        'North Unit - Weekly - Operations',
-        'South Unit - Monthly - Corporate',
-      ],
-    },
-    {
-      key: 'business',
-      title: 'By business',
-      description: 'Payroll runs separate by business entity before payroll frequency and jurisdiction grouping.',
-      examples: [
-        'MainCo - Weekly - Operations',
-        'Sales Group - Monthly - Corporate',
-      ],
-    },
+    { key: 'single', ...preferenceCopy.groupingOptions.single },
+    { key: 'unit', ...preferenceCopy.groupingOptions.unit },
+    { key: 'business', ...preferenceCopy.groupingOptions.business },
   ] as const;
 
   const selectedOption = groupingOptions.find((option) => option.key === form.grouping_mode) ?? groupingOptions[0];
@@ -5812,34 +5076,34 @@ function PayrollPreferencesDialog({
   } as const;
   const automaticSeparatorCards = [
     {
-      title: 'Payroll frequency',
-      description: 'Weekly, biweekly, and monthly collaborators are reviewed separately.',
+      title: preferenceCopy.separators.frequency.title,
+      description: preferenceCopy.separators.frequency.description,
       Icon: CreditCard,
     },
     {
-      title: 'Workforce structure',
-      description: 'Operational and corporate collaborators are organized independently.',
+      title: preferenceCopy.separators.workforce.title,
+      description: preferenceCopy.separators.workforce.description,
       Icon: ShieldCheck,
     },
     {
-      title: 'Jurisdiction rules',
-      description: 'Quebec payroll runs separate automatically in Canada. LATAM payroll runs stay grouped nationally.',
+      title: preferenceCopy.separators.jurisdiction.title,
+      description: preferenceCopy.separators.jurisdiction.description,
       Icon: Globe2,
     },
   ];
   const preferenceSteps = [
-    { number: '1', label: 'Organization' },
-    { number: '2', label: 'Automatic separation' },
-    { number: '3', label: 'Defaults' },
+    { number: '1', label: preferenceCopy.steps.organization },
+    { number: '2', label: preferenceCopy.steps.automaticSeparation },
+    { number: '3', label: preferenceCopy.steps.defaults },
   ];
   const paidLeaveValueLabel = form.pay_leave_days
-    ? 'Yes'
-    : 'No';
-  const dailyHoursHelper = 'Used as the default attendance base when Índice creates payroll runs.';
-  const leaveDaysHelper = 'Approved leave days are treated as paid days by default.';
-  const impactMessage = 'Payroll runs organize automatically using the selected operational structure.';
+    ? preferenceCopy.yes
+    : preferenceCopy.no;
+  const dailyHoursHelper = preferenceCopy.dailyHoursHelper;
+  const leaveDaysHelper = preferenceCopy.leaveDaysHelper;
+  const impactMessage = preferenceCopy.impactMessage;
   const saveButtonLabel = isSaving
-    ? 'Saving...'
+    ? preferenceCopy.saving
     : copy.labels.savePreferences;
   const [currentPreferenceStep, setCurrentPreferenceStep] = useState(0);
   const isFinalPreferenceStep = currentPreferenceStep === preferenceSteps.length - 1;
@@ -5876,7 +5140,7 @@ function PayrollPreferencesDialog({
                   {copy.labels.preferences}
                 </DialogTitle>
                 <DialogDescription className="max-w-2xl text-sm leading-6 text-blue-100">
-                  Choose how Índice organizes payroll runs from structure, frequency, workforce, and jurisdiction.
+                  {preferenceCopy.subtitle}
                 </DialogDescription>
               </div>
             </div>
@@ -5929,18 +5193,18 @@ function PayrollPreferencesDialog({
                   </span>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
-                      Step 1
+                      {preferenceCopy.steps.stepLabel('1')}
                     </p>
-                    <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">How payroll is organized</h3>
+                    <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.organizationTitle}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                      Choose the structure used to review payroll runs.
+                      {preferenceCopy.organizationSubtitle}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Selected organization</p>
+                    <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">{preferenceCopy.selectedOrganization}</p>
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#143675] shadow-sm ring-1 ring-[#143675]/10 dark:bg-slate-900 dark:text-blue-200">
                       {selectedOption.title}
                     </span>
@@ -6007,9 +5271,9 @@ function PayrollPreferencesDialog({
                   2
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">Step 2</p>
-                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">What separates payroll runs automatically</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Índice organizes payroll from workforce structure and payroll rules.</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">{preferenceCopy.steps.stepLabel('2')}</p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.separationTitle}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{preferenceCopy.separationSubtitle}</p>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
@@ -6026,7 +5290,7 @@ function PayrollPreferencesDialog({
                 ))}
               </div>
               <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 px-5 py-4 text-sm leading-6 text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
-                Multiple payroll runs can appear even with single payroll because frequency, workforce type, and jurisdiction still organize reviews automatically.
+                {preferenceCopy.separationNotice}
               </div>
             </div>
           </section>
@@ -6039,11 +5303,11 @@ function PayrollPreferencesDialog({
                 </span>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
-                    Step 3
+                    {preferenceCopy.steps.stepLabel('3')}
                   </p>
-                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">Operational defaults</h3>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.defaultsTitle}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    Default values used when payroll runs are reviewed.
+                    {preferenceCopy.defaultsSubtitle}
                   </p>
                 </div>
               </div>
@@ -6063,7 +5327,7 @@ function PayrollPreferencesDialog({
                       onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
                       className="h-12 w-32 rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800/60"
                     />
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">hours per day</span>
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{preferenceCopy.hoursPerDay}</span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{dailyHoursHelper}</p>
                 </div>
@@ -6097,7 +5361,7 @@ function PayrollPreferencesDialog({
         <DialogFooter className="shrink-0 border-t border-white/15 bg-[#143675] px-6 py-4 text-white">
           <div className="flex w-full items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">Payroll organization</p>
+              <p className="text-sm font-semibold text-white">{preferenceCopy.footerTitle}</p>
               <p className="max-w-[540px] truncate text-xs text-blue-100">{impactMessage}</p>
             </div>
 
@@ -6117,7 +5381,7 @@ function PayrollPreferencesDialog({
                   className="h-11 rounded-xl border-white/50 bg-transparent px-5 text-sm font-semibold text-white shadow-none hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={goToPreviousPreferenceStep}
                 >
-                  Back
+                  {preferenceCopy.previous}
                 </Button>
               ) : null}
               {isFinalPreferenceStep ? (
@@ -6135,7 +5399,7 @@ function PayrollPreferencesDialog({
                   disabled={isSaving}
                   className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
                 >
-                  Continue
+                  {preferenceCopy.next}
                 </Button>
               )}
             </div>
@@ -6177,7 +5441,6 @@ function PayrollRatesDialog({
     setEditorMode('preset');
   }, [isOpen, selectedProfile]);
 
-  const isSpanish = copy.labels.cancel === 'Cancelar';
   const isCustomProfile = selectedProfile === 'custom';
   const isAdvancedMode = editorMode === 'advanced';
   const activeProfileName = copy.rateConfiguration.profiles[selectedProfile];
@@ -6186,10 +5449,10 @@ function PayrollRatesDialog({
   const infoBlockText = copy.rateConfiguration.infoBlocks[selectedProfile];
 
   const summaryStatus = isCustomProfile
-    ? (isSpanish ? 'Perfil personalizado' : 'Custom profile')
+    ? copy.rateConfiguration.statusBadges.customProfile
     : isAdvancedMode
-      ? (isSpanish ? 'Ajustado por la empresa' : 'Company adjusted')
-      : (isSpanish ? 'Predeterminado oficial' : 'Official preset');
+      ? copy.rateDialog.companyAdjusted
+      : copy.rateConfiguration.statusBadges.officialPreset;
 
   const summaryTone: 'success' | 'warning' | 'info' = isCustomProfile
     ? 'warning'
@@ -6309,7 +5572,7 @@ function PayrollRatesDialog({
   const renderAdjustableCard = (field: PayrollRateFieldKey, description: string) => {
     const Icon = iconByField[field];
     const hasValue = values[field] > 0;
-    const notConfiguredLabel = isSpanish ? 'No configurado' : 'Not configured';
+    const notConfiguredLabel = copy.rateDialog.notConfigured;
 
     return (
       <article key={field} className={`${componentCardClassName} border-amber-100 dark:border-amber-800/30`}>
@@ -6324,7 +5587,7 @@ function PayrollRatesDialog({
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            {renderStatusBadge(isSpanish ? 'Ajustable' : 'Adjustable', 'warning')}
+            {renderStatusBadge(copy.rateDialog.adjustable, 'warning')}
             {isAdvancedMode || isCustomProfile ? (
               renderPercentInput(field)
             ) : (
@@ -6338,19 +5601,10 @@ function PayrollRatesDialog({
     );
   };
 
-  const mexicoOverviewText = isSpanish
-    ? 'ISR: se calcula usando tablas fiscales oficiales. IMSS: se aplica automáticamente. INFONAVIT: depende de las condiciones del colaborador. SAR: es fijo por ley.'
-    : 'Income tax (ISR): calculated using official tax tables. Social security (IMSS): automatically applied. Housing (INFONAVIT): depends on employee conditions. Retirement (SAR): fixed by law.';
-
-  const automaticDescription = isSpanish
-    ? 'Este componente es calculado automáticamente por el sistema según reglas oficiales.'
-    : 'This component is calculated automatically by the system based on official rules.';
-  const fixedDescription = isSpanish
-    ? 'Este componente tiene una contribución fija definida por ley.'
-    : 'This component has a fixed contribution defined by law.';
-  const adjustableDescription = isSpanish
-    ? 'Este componente puede ser ajustado por la empresa cuando aplique.'
-    : 'This component can be adjusted by the company when needed.';
+  const mexicoOverviewText = copy.rateDialog.mexicoOverview;
+  const automaticDescription = copy.rateDialog.automaticDescription;
+  const fixedDescription = copy.rateDialog.fixedDescription;
+  const adjustableDescription = copy.rateDialog.adjustableDescription;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -6389,9 +5643,7 @@ function PayrollRatesDialog({
                       {renderStatusBadge(summaryStatus, summaryTone)}
                     </div>
                     <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {isSpanish
-                        ? 'Entiende cómo se calcula la nómina en este país. La mayoría de los valores se aplican automáticamente con base en reglas oficiales.'
-                        : 'Understand how payroll is calculated in this country. Most values are automatically applied based on official rules.'}
+                      {copy.rateDialog.profileIntro}
                     </p>
                   </div>
                   <div className="space-y-3">
@@ -6419,7 +5671,7 @@ function PayrollRatesDialog({
                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
                           }`}
                       >
-                        {isSpanish ? 'Resumen' : 'Overview'}
+                        {copy.rateDialog.overview}
                       </button>
                       <button
                         type="button"
@@ -6453,9 +5705,7 @@ function PayrollRatesDialog({
 
               {isAdvancedMode ? (
                 <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-200">
-                  {isSpanish
-                    ? 'Los cambios en modo Avanzado pueden sobrescribir reglas estándar de nómina.'
-                    : 'Changes in Advanced mode may override standard payroll rules.'}
+                  {copy.rateDialog.advancedWarning}
                 </section>
               ) : null}
 
@@ -6472,9 +5722,7 @@ function PayrollRatesDialog({
                   </div>
                   <div>
                     <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {isSpanish
-                        ? 'Este perfil muestra qué componentes de nómina se calculan automáticamente y cuáles pueden personalizarse según tu empresa.'
-                        : 'This profile shows which payroll components are calculated automatically and which can be customized based on your company.'}
+                      {copy.rateDialog.profileHelp}
                     </p>
                   </div>
                 </div>
@@ -6529,7 +5777,7 @@ function PayrollRunDialog({
   onDownloadCsv,
   onDownloadPdf,
 }: {
-  copy: typeof payrollCopy.en | typeof payrollCopy.es;
+  copy: PayrollCopy;
   locale: string;
   isOpen: boolean;
   isSaving: boolean;

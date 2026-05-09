@@ -1,9 +1,12 @@
 import { Archive, CheckCircle2, CircleDollarSign, Eye, PackageCheck, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { AssetKpiCopy } from '../translations';
 
 interface AssetKpiStripProps {
   assignedCount: number;
   availableCount: number;
+  copy: AssetKpiCopy;
+  locale: string;
   maintenanceCount: number;
   selectedCount?: number;
   totalCount: number;
@@ -31,6 +34,8 @@ function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
 export function AssetKpiStrip({
   assignedCount,
   availableCount,
+  copy,
+  locale,
   maintenanceCount,
   selectedCount = 0,
   totalCount,
@@ -40,7 +45,7 @@ export function AssetKpiStrip({
   const availablePercent = totalCount > 0 ? (availableCount / totalCount) * 100 : 0;
   const assignedPercent = totalCount > 0 ? (assignedCount / totalCount) * 100 : 0;
   const maintenancePercent = totalCount > 0 ? (maintenanceCount / totalCount) * 100 : 0;
-  const formattedValue = new Intl.NumberFormat('en-US', {
+  const formattedValue = new Intl.NumberFormat(locale, {
     currency: 'USD',
     maximumFractionDigits: 0,
     style: 'currency',
@@ -49,17 +54,17 @@ export function AssetKpiStrip({
   return (
     <div className="mb-5 space-y-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Metric icon={<Archive className="h-4 w-4" />} label="Total assets" value={totalCount} />
+        <Metric icon={<Archive className="h-4 w-4" />} label={copy.cards.total} value={totalCount} />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<PackageCheck className="h-4 w-4" />} label="Assigned" value={assignedCount} valueClassName="text-emerald-600" />
+        <Metric icon={<PackageCheck className="h-4 w-4" />} label={copy.cards.assigned} value={assignedCount} valueClassName="text-emerald-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label="Available" value={availableCount} valueClassName="text-blue-600" />
+        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={copy.cards.available} value={availableCount} valueClassName="text-blue-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Wrench className="h-4 w-4" />} label="Maintenance" value={maintenanceCount} valueClassName="text-amber-600" />
+        <Metric icon={<Wrench className="h-4 w-4" />} label={copy.cards.maintenance} value={maintenanceCount} valueClassName="text-amber-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Eye className="h-4 w-4" />} label="visible after filters" value={visibleCount} valueClassName="text-[#143675]" />
+        <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visibleCount} valueClassName="text-[#143675]" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CircleDollarSign className="h-4 w-4" />} label="asset value" value={formattedValue} valueClassName="text-[#143675]" />
+        <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={copy.kpis.assetValue} value={formattedValue} valueClassName="text-[#143675]" />
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -71,7 +76,7 @@ export function AssetKpiStrip({
       </div>
 
       <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 text-sm font-medium text-[#143675] dark:border-[#4a7bc8]/25 dark:bg-[#143675]/15 dark:text-blue-100">
-        Asset summary: {assignedCount} assigned · {availableCount} available · {maintenanceCount} in maintenance · {selectedCount} selected · showing {visibleCount} of {totalCount}.
+        {copy.kpis.summary(assignedCount, availableCount, maintenanceCount, selectedCount, visibleCount, totalCount)}
       </div>
     </div>
   );

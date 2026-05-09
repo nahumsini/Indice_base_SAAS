@@ -25,7 +25,7 @@ import {
   type AttendanceControlAssignment,
   type AttendanceControlRule,
 } from '../../../../api/humanResources';
-import { useHRLanguage } from '../../HRLanguage';
+import { useControlTranslations } from '../hooks/useControlTranslations';
 
 interface TimeTableModalProps {
   isOpen: boolean;
@@ -285,7 +285,7 @@ export function TimeTableModal({
   onDateChange,
   onRemoveShift,
 }: TimeTableModalProps) {
-  const copy = useHRLanguage().attendanceControl;
+  const copy = useControlTranslations();
   const [unitFilter, setUnitFilter] = useState('');
   const [businessFilter, setBusinessFilter] = useState('');
   const [employeeTablePage, setEmployeeTablePage] = useState(1);

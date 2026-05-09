@@ -1,7 +1,9 @@
 import { AlertTriangle, CheckCircle2, Clock3, Eye, FileText, SearchCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { RecordKpiCopy } from '../translations';
 
 interface RecordKpiStripProps {
+  copy: RecordKpiCopy;
   highSeverityCount: number;
   pendingCount: number;
   resolvedCount: number;
@@ -28,6 +30,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
 }
 
 export function RecordKpiStrip({
+  copy,
   highSeverityCount,
   pendingCount,
   resolvedCount,
@@ -42,17 +45,17 @@ export function RecordKpiStrip({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Metric icon={<FileText className="h-4 w-4" />} label="Total records" value={totalCount} />
+        <Metric icon={<FileText className="h-4 w-4" />} label={copy.total} value={totalCount} />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Clock3 className="h-4 w-4" />} label="Pending" value={pendingCount} valueClassName="text-amber-600" />
+        <Metric icon={<Clock3 className="h-4 w-4" />} label={copy.pending} value={pendingCount} valueClassName="text-amber-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<SearchCheck className="h-4 w-4" />} label="Reviewed" value={reviewedCount} valueClassName="text-blue-600" />
+        <Metric icon={<SearchCheck className="h-4 w-4" />} label={copy.reviewed} value={reviewedCount} valueClassName="text-blue-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label="Resolved" value={resolvedCount} valueClassName="text-emerald-600" />
+        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={copy.resolved} value={resolvedCount} valueClassName="text-emerald-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<AlertTriangle className="h-4 w-4" />} label="High severity" value={highSeverityCount} valueClassName="text-rose-600" />
+        <Metric icon={<AlertTriangle className="h-4 w-4" />} label={copy.highSeverity} value={highSeverityCount} valueClassName="text-rose-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Eye className="h-4 w-4" />} label="visible after filters" value={visibleCount} />
+        <Metric icon={<Eye className="h-4 w-4" />} label={copy.visibleAfterFilters} value={visibleCount} />
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -64,7 +67,7 @@ export function RecordKpiStrip({
       </div>
 
       <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 text-sm font-medium text-[#143675] dark:border-[#4a7bc8]/25 dark:bg-[#143675]/15 dark:text-blue-100">
-        Records summary: {pendingCount} pending · {reviewedCount} reviewed · {resolvedCount} resolved · {highSeverityCount} high severity · showing {visibleCount} of {totalCount}.
+        {copy.summary(pendingCount, reviewedCount, resolvedCount, highSeverityCount, visibleCount, totalCount)}
       </div>
     </div>
   );

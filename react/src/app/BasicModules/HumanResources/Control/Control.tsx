@@ -65,7 +65,7 @@ import {
   type AttendanceControlTemplatePayload,
 } from '../../../api/humanResources';
 import { useLanguage } from '../../../shared/context';
-import { useHRLanguage } from '../HRLanguage';
+import { useControlTranslations } from './hooks/useControlTranslations';
 
 const padDatePart = (value: number) => `${value}`.padStart(2, '0');
 const localDateString = (date: Date) =>
@@ -250,74 +250,12 @@ const toErrorMessage = (error: unknown, copy: AttendanceControlCopy) => {
   return error instanceof Error ? error.message : copy.genericError;
 };
 
-const getControlKpiLabels = (languageCode: string): ControlKpiStripLabels => {
-  if (languageCode.toLowerCase().startsWith('es')) {
-    return {
-      absences: 'ausencias',
-      activeShifts: 'turnos activos',
-      checkIns: 'entradas registradas',
-      checkOuts: 'salidas registradas',
-      late: 'retardos',
-      noRecords: 'sin registro',
-      operationRate: 'con entrada',
-      reviewBadge: (count) => `${count} por revisar`,
-      statusLabels: {
-        absence: 'Ausencia',
-        late: 'Retardo',
-        noRecord: 'Sin registro',
-        onTrack: 'A tiempo',
-        other: 'Otros',
-      },
-      summaryInsight: ({ activeShiftCount, checkInsCount, reviewCount, totalCount }) => {
-        if (totalCount === 0) {
-          return 'Operación del día: sin colaboradores para esta fecha.';
-        }
-
-        const reviewText = reviewCount > 0
-          ? `${reviewCount} requieren seguimiento.`
-          : 'sin incidencias pendientes.';
-
-        return `Operación del día: ${checkInsCount} de ${totalCount} colaboradores ya registraron entrada, ${activeShiftCount} siguen en turno y ${reviewText}`;
-      },
-    };
-  }
-
-  return {
-    absences: 'absences',
-    activeShifts: 'active shifts',
-    checkIns: 'check-ins',
-    checkOuts: 'check-outs',
-    late: 'late',
-    noRecords: 'without record',
-    operationRate: 'checked in',
-    reviewBadge: (count) => `${count} need review`,
-    statusLabels: {
-      absence: 'Absence',
-      late: 'Late',
-      noRecord: 'No record',
-      onTrack: 'On time',
-      other: 'Other',
-    },
-    summaryInsight: ({ activeShiftCount, checkInsCount, reviewCount, totalCount }) => {
-      if (totalCount === 0) {
-        return "Today's operation: no employees for this date.";
-      }
-
-      const reviewText = reviewCount > 0
-        ? `${reviewCount} need follow-up.`
-        : 'no pending incidents.';
-
-      return `Today's operation: ${checkInsCount} of ${totalCount} employees have checked in, ${activeShiftCount} are still on shift, and ${reviewText}`;
-    },
-  };
-};
-
 export default function Control() {
   const { currentLanguage } = useLanguage();
-  const copy = useHRLanguage().attendanceControl;
+  const copy = useControlTranslations();
   const controlKpiLabels = useMemo(
-    () => getControlKpiLabels(currentLanguage.code),
-    [currentLanguage.code],
+    () => copy.kpi satisfies ControlKpiStripLabels,
+    [copy.kpi],
   );
   const headerActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#143675] shadow-none hover:bg-[#143675] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto';
   const headerPrimaryActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855] sm:w-auto';
@@ -556,24 +494,24 @@ export default function Control() {
   const unitFilterOptions = useMemo(() => {
     const options = new Map<string, string>();
     overview?.assignments.forEach((assignment) => {
-      options.set(assignmentUnitFilterKey(assignment), assignment.unit_name || 'No unit');
+      options.set(assignmentUnitFilterKey(assignment), assignment.unit_name || copy.labels.noUnit);
     });
 
     return Array.from(options, ([value, label]) => ({ value, label }))
       .sort((first, second) => first.label.localeCompare(second.label));
-  }, [overview?.assignments]);
+  }, [copy.labels.noUnit, overview?.assignments]);
 
   const businessFilterOptions = useMemo(() => {
     const options = new Map<string, string>();
     overview?.assignments
       .filter((assignment) => unitFilter === allFilterValue || assignmentUnitFilterKey(assignment) === unitFilter)
       .forEach((assignment) => {
-        options.set(assignmentBusinessFilterKey(assignment), assignment.business_name || 'No business');
+        options.set(assignmentBusinessFilterKey(assignment), assignment.business_name || copy.labels.noBusiness);
       });
 
     return Array.from(options, ([value, label]) => ({ value, label }))
       .sort((first, second) => first.label.localeCompare(second.label));
-  }, [overview?.assignments, unitFilter]);
+  }, [copy.labels.noBusiness, overview?.assignments, unitFilter]);
 
   useEffect(() => {
     if (
@@ -648,7 +586,7 @@ export default function Control() {
     () => overview?.assignments.find((assignment) => assignment.employee_id === selectedEmployeeId) ?? null,
     [overview?.assignments, selectedEmployeeId],
   );
-  const selectedEmployeeBusyReason = selectedEmployee ? getAssignmentBusyReason(selectedEmployee) : '';
+  const selectedEmployeeBusyReason = selectedEmployee ? getAssignmentBusyReason(selectedEmployee, copy) : '';
   const occupiedContractSiteLocationIds = useMemo(() => {
     const locationIds = new Set<number>();
     overview?.assignments.forEach((assignment) => {
@@ -1242,7 +1180,7 @@ export default function Control() {
     const today = todayIsoDate();
     const effectiveStartDate = controlDate < today ? today : controlDate;
     setAssignmentForm({
-      employee_ids: selectedEmployee && !getAssignmentBusyReason(selectedEmployee) ? [selectedEmployee.employee_id] : [],
+      employee_ids: selectedEmployee && !getAssignmentBusyReason(selectedEmployee, copy) ? [selectedEmployee.employee_id] : [],
       template_id: selectedEmployee?.schedule_template_id ?? selectedTemplate?.id ?? templates[0]?.id ?? 0,
       effective_start_date: effectiveStartDate,
       effective_end_date: effectiveStartDate,
@@ -1255,17 +1193,17 @@ export default function Control() {
       return;
     }
     if (controlDate < todayIsoDate()) {
-      showFailureToast('Choose today or a future date before assigning a new shift.');
+      showFailureToast(copy.labels.chooseFutureShiftDate);
       return;
     }
-    const busyReason = getAssignmentBusyReason(selectedEmployee);
+    const busyReason = getAssignmentBusyReason(selectedEmployee, copy);
     if (busyReason) {
       showFailureToast(`${busyReason}. Remove the existing shift before assigning a contract site.`);
       return;
     }
 
     if (availableContractSiteLocations.length === 0) {
-      showFailureToast('No available contract sites for this date. Sites outside their contract window or already assigned to another employee are hidden.');
+      showFailureToast(copy.labels.noAvailableContractSites);
     }
 
     const availableLocationIds = new Set(availableContractSiteLocations.map((location) => location.id));
@@ -1367,15 +1305,15 @@ export default function Control() {
   const handleBulkAssign = async () => {
     const today = todayIsoDate();
     if (!assignmentForm.effective_start_date || !assignmentForm.effective_end_date) {
-      showFailureToast('Start date and end date are required.');
+      showFailureToast(copy.labels.startEndDateRequired);
       return;
     }
     if (assignmentForm.effective_start_date < today) {
-      showFailureToast('Start date cannot be in the past.');
+      showFailureToast(copy.labels.startDatePast);
       return;
     }
     if (assignmentForm.effective_end_date < assignmentForm.effective_start_date) {
-      showFailureToast('End date must be on or after start date.');
+      showFailureToast(copy.labels.endDateBeforeStart);
       return;
     }
 
@@ -1450,11 +1388,11 @@ export default function Control() {
       return;
     }
     if (workSiteForm.effective_start_date < today) {
-      showFailureToast('Start date cannot be in the past.');
+      showFailureToast(copy.labels.startDatePast);
       return;
     }
     if (workSiteForm.effective_end_date < workSiteForm.effective_start_date) {
-      showFailureToast('End date must be on or after start date.');
+      showFailureToast(copy.labels.endDateBeforeStart);
       return;
     }
 
@@ -1464,7 +1402,7 @@ export default function Control() {
       return;
     }
     if (selectedLocation.status === 'inactive') {
-      showFailureToast('Only active contract sites can be assigned.');
+      showFailureToast(copy.labels.activeContractSiteRequired);
       return;
     }
     if (
@@ -1476,7 +1414,7 @@ export default function Control() {
     }
 
     const currentAssignment = overview?.assignments.find((assignment) => assignment.employee_id === employeeId) ?? null;
-    const busyReason = currentAssignment ? getAssignmentBusyReason(currentAssignment) : '';
+    const busyReason = currentAssignment ? getAssignmentBusyReason(currentAssignment, copy) : '';
     if (busyReason) {
       showFailureToast(`${busyReason}. Remove the existing shift before assigning a contract site.`);
       return;
@@ -1527,7 +1465,7 @@ export default function Control() {
         });
 
         setIsWorkSiteDialogOpen(false);
-        showSuccessToast('Contract site assignment saved successfully.');
+        showSuccessToast(copy.labels.workSiteAssignmentSaved);
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1699,7 +1637,7 @@ export default function Control() {
             ? copy.labels.loadingCalendar
             : isLoading
               ? copy.loading
-            : 'Saving changes';
+            : copy.labels.savingChanges;
   const loadingOverlayDescription = isClearingCalendarDaySchedule
       ? copy.labels.clearingDayScheduleDescription
       : isUpdatingCalendarDay
@@ -1710,7 +1648,7 @@ export default function Control() {
             ? copy.labels.loadingCalendarDescription
             : isLoading
               ? copy.labels.loadingControlDescription
-            : 'Please wait while the attendance control changes are saved.';
+            : copy.labels.savingChangesDescription;
 
   return (
     <>
@@ -1927,7 +1865,7 @@ export default function Control() {
               <div>
                 <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.labels.attendanceCalendar}</h3>
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  {selectedEmployee ? 'Employee monthly attendance detail' : copy.labels.selectEmployeeCalendar}
+                  {selectedEmployee ? copy.labels.employeeMonthlyAttendanceDetail : copy.labels.selectEmployeeCalendar}
                 </p>
               </div>
 
@@ -2072,8 +2010,8 @@ export default function Control() {
 
                 <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
                   <div className="flex flex-wrap gap-5 text-xs text-gray-600 dark:text-gray-300">
-                    <LegendPill color="bg-emerald-500" label="Check-in" />
-                    <LegendPill color="bg-sky-500" label="Check-out" />
+                    <LegendPill color="bg-emerald-500" label={copy.labels.checkIn} />
+                    <LegendPill color="bg-sky-500" label={copy.labels.checkOut} />
                     <LegendOutline label={copy.labels.currentDay} />
                   </div>
                 </div>

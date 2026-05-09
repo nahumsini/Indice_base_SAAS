@@ -19,10 +19,10 @@ import {
   type AttendanceControlAssignment,
   humanResourcesApi,
 } from '../../../../api/humanResources';
-import { useHRLanguage } from '../../HRLanguage';
 import { FaceEnrollmentModal } from './FaceEnrollmentModal';
+import { useControlTranslations } from '../hooks/useControlTranslations';
+import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 
-type AttendanceControlCopy = ReturnType<typeof useHRLanguage>['attendanceControl'];
 type FaceEnrollmentSummary = { id: number; status: string; enrolled_at?: string | null } | null;
 
 interface EmployeeAccessActionsProps {
@@ -78,7 +78,7 @@ export function EmployeeAccessActions({
   onSuccess,
   onError,
 }: EmployeeAccessActionsProps) {
-  const copy = useHRLanguage().attendanceControl;
+  const copy = useControlTranslations();
   const [isAccessProfileDialogOpen, setIsAccessProfileDialogOpen] = useState(false);
   const [editingAccessProfile, setEditingAccessProfile] = useState<AttendanceAccessProfile | null>(null);
   const [accessProfileForm, setAccessProfileForm] = useState<AttendanceAccessProfilePayload>(defaultAccessProfileForm());
@@ -166,7 +166,7 @@ export function EmployeeAccessActions({
 
       setIsAccessProfileDialogOpen(false);
       setShouldRegeneratePin(false);
-      onSuccess('Access profile saved successfully.');
+      onSuccess(copy.labels.accessProfileSaved);
       await Promise.resolve(onReload());
     } catch (error) {
       onError(toErrorMessage(error, copy) || copy.saveError);
@@ -185,7 +185,7 @@ export function EmployeeAccessActions({
         850,
       );
       onFaceEnrollmentChange(null);
-      onSuccess('Face enrollment removed.');
+      onSuccess(copy.labels.faceEnrollmentRemoved);
       await Promise.resolve(onReload());
     } catch (error) {
       onError(toErrorMessage(error, copy) || copy.saveError);
@@ -198,8 +198,8 @@ export function EmployeeAccessActions({
     <>
       <LoadingBarOverlay
         isVisible={isSaving}
-        title="Saving access changes"
-        description="Please wait while the employee access profile is updated."
+        title={copy.labels.savingAccessChanges}
+        description={copy.labels.savingAccessChangesDescription}
       />
 
       <div className={actionGroupClassName}>
@@ -209,16 +209,16 @@ export function EmployeeAccessActions({
             size="sm"
             className={actionButtonClassName}
             disabled={isSaving}
-            title={selectedPinMethod ? 'PIN is already configured. Open the access profile to regenerate it.' : undefined}
+            title={selectedPinMethod ? copy.labels.pinConfiguredHint : undefined}
             onClick={effectiveAccessProfile ? () => openEditAccessProfileDialog(effectiveAccessProfile) : openCreateAccessProfileDialog}
           >
             <KeyRound className="h-4 w-4" />
-            Set PIN
+            {copy.labels.setPin}
           </Button>
         ) : (
           <div className={inlineLayout ? 'flex h-9 shrink-0 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100' : 'flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'}>
             <span className={`h-2 w-2 rounded-full ${selectedPinMethod ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            {selectedPinMethod ? 'PIN set' : 'No PIN'}
+            {selectedPinMethod ? copy.labels.pinSet : copy.labels.noPin}
           </div>
         )}
         {!actionBarLayout ? (
@@ -240,7 +240,7 @@ export function EmployeeAccessActions({
           onClick={() => setIsFaceEnrollmentModalOpen(true)}
         >
           {actionBarLayout ? <ScanFace className="h-4 w-4" /> : null}
-          {faceEnrollment ? 'Re-enroll face' : 'Enroll face'}
+          {faceEnrollment ? copy.labels.reEnrollFace : copy.labels.enrollFace}
         </Button>
         {faceEnrollment && !actionBarLayout ? (
           <Button
@@ -272,7 +272,7 @@ export function EmployeeAccessActions({
         onRegeneratePin={() => setShouldRegeneratePin(true)}
         onCancelRegeneratePin={() => setShouldRegeneratePin(false)}
         onSave={() => void handleSaveAccessProfile()}
-        title={actionBarLayout ? 'Set PIN' : editingAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
+        title={actionBarLayout ? copy.labels.setPin : editingAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
       />
 
       <FaceEnrollmentModal
@@ -290,7 +290,7 @@ export function EmployeeAccessActions({
               850,
             );
             onFaceEnrollmentChange(response.enrollment);
-            onSuccess('Face enrollment completed.');
+            onSuccess(copy.labels.faceEnrollmentCompleted);
           } catch (error) {
             const message = toErrorMessage(error, copy) || copy.saveError;
             onError(message);
@@ -366,7 +366,7 @@ function AccessProfileDialog({
             type="button"
             onClick={onClose}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-            aria-label="Close"
+            aria-label={copy.labels.closeModal}
           >
             <X className="h-5 w-5" />
           </button>
@@ -449,7 +449,7 @@ function AccessProfileDialog({
                   onClick={() => setIsPinVisible((value) => !value)}
                   disabled={isSaving || !canRevealPin}
                 >
-                  {isPinVisible ? 'Hide PIN' : 'Reveal PIN'}
+                  {isPinVisible ? copy.labels.hidePin : copy.labels.revealPin}
                 </Button>
               ) : null}
             </div>

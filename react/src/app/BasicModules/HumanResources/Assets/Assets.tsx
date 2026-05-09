@@ -19,7 +19,8 @@ import { AssetColumnConfig, AssetColumnsModal } from './AssetColumnsModal';
 import { AssetFilters } from './components/AssetFilters';
 import { AssetHeaderBar } from './components/AssetHeaderBar';
 import { AssetKpiStrip } from './components/AssetKpiStrip';
-import { useHRLanguage } from '../HRLanguage';
+import { useAssetsTranslations } from './hooks/useAssetsTranslations';
+import type { AssetsTranslations } from './translations';
 
 type AssetType = AddNewAssetType;
 type AssetTypeFilter = AssetType | 'other';
@@ -132,12 +133,12 @@ const getAssetStatusClasses = (status: HrAssetStatus) => {
   return styles[status];
 };
 
-const getAssetTypeLabel = (assetType: string, t: ReturnType<typeof useHRLanguage>) => {
+const getAssetTypeLabel = (assetType: string, t: AssetsTranslations) => {
   const labelMap: Partial<Record<AssetTypeFilter, string>> = {
-    laptop: t.assets.addNewAsset.options.laptop,
-    attendance: t.assets.filters.attendanceControl,
-    operations: t.assets.filters.operation,
-    maintenance: t.assets.filters.maintenance,
+    laptop: t.addNewAsset.options.laptop,
+    attendance: t.filters.attendanceControl,
+    operations: t.filters.operation,
+    maintenance: t.filters.maintenance,
   };
 
   const normalizedType = getAssetTypeFilter(assetType);
@@ -150,34 +151,34 @@ const getAssetTypeLabel = (assetType: string, t: ReturnType<typeof useHRLanguage
     .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
-const getAssetStatusLabel = (status: HrAssetStatus, t: ReturnType<typeof useHRLanguage>) => {
+const getAssetStatusLabel = (status: HrAssetStatus, t: AssetsTranslations) => {
   const labelMap: Record<HrAssetStatus, string> = {
-    available: t.assets.filters.available,
-    assigned: t.assets.filters.assigned,
-    maintenance: t.assets.filters.inMaintenance,
-    custody: t.assets.filters.custody,
-    inactive: t.assets.filters.inactive,
+    available: t.filters.available,
+    assigned: t.filters.assigned,
+    maintenance: t.filters.inMaintenance,
+    custody: t.filters.custody,
+    inactive: t.filters.inactive,
   };
 
   return labelMap[status];
 };
 
 const getAssetColumnConfig = (
-  t: ReturnType<typeof useHRLanguage>,
+  t: AssetsTranslations,
   visibleIds: AssetColumnId[],
 ): AssetColumnConfig[] => [
-  { id: 'id', label: t.assets.table.id, visible: visibleIds.includes('id') },
-  { id: 'type', label: t.assets.table.type, visible: visibleIds.includes('type') },
-  { id: 'asset', label: t.assets.table.asset, visible: visibleIds.includes('asset'), locked: true },
-  { id: 'model', label: t.assets.table.model, visible: visibleIds.includes('model') },
-  { id: 'serialNumber', label: t.assets.table.serialNumber, visible: visibleIds.includes('serialNumber') },
-  { id: 'responsible', label: t.assets.table.responsible, visible: visibleIds.includes('responsible') },
-  { id: 'unit', label: t.assets.table.unit, visible: visibleIds.includes('unit') },
-  { id: 'status', label: t.assets.table.status, visible: visibleIds.includes('status') },
-  { id: 'assignedAt', label: t.assets.table.assignedAt, visible: visibleIds.includes('assignedAt') },
-  { id: 'value', label: t.assets.table.value, visible: visibleIds.includes('value') },
-  { id: 'notes', label: t.assets.table.notes, visible: visibleIds.includes('notes') },
-  { id: 'actions', label: t.assets.table.actions, visible: visibleIds.includes('actions'), locked: true },
+  { id: 'id', label: t.table.id, visible: visibleIds.includes('id') },
+  { id: 'type', label: t.table.type, visible: visibleIds.includes('type') },
+  { id: 'asset', label: t.table.asset, visible: visibleIds.includes('asset'), locked: true },
+  { id: 'model', label: t.table.model, visible: visibleIds.includes('model') },
+  { id: 'serialNumber', label: t.table.serialNumber, visible: visibleIds.includes('serialNumber') },
+  { id: 'responsible', label: t.table.responsible, visible: visibleIds.includes('responsible') },
+  { id: 'unit', label: t.table.unit, visible: visibleIds.includes('unit') },
+  { id: 'status', label: t.table.status, visible: visibleIds.includes('status') },
+  { id: 'assignedAt', label: t.table.assignedAt, visible: visibleIds.includes('assignedAt') },
+  { id: 'value', label: t.table.value, visible: visibleIds.includes('value') },
+  { id: 'notes', label: t.table.notes, visible: visibleIds.includes('notes') },
+  { id: 'actions', label: t.table.actions, visible: visibleIds.includes('actions'), locked: true },
 ];
 
 const formatAssetDate = (value: string | null, locale: string) => {
@@ -239,7 +240,7 @@ const mapAssetRow = (asset: HrAsset): AssetRow => ({
 });
 
 export default function Assets() {
-  const t = useHRLanguage();
+  const t = useAssetsTranslations();
   const { currentLanguage } = useLanguage();
   const [assetRows, setAssetRows] = useState<AssetRow[]>([]);
   const [summary, setSummary] = useState<HrAssetsSummary>(emptySummary);
@@ -344,7 +345,7 @@ export default function Assets() {
       } else {
         setAssetRows([]);
         setSummary(emptySummary);
-        setLoadError(normalizeErrorMessage(assetsResult.reason, t.assets.errors.load));
+        setLoadError(normalizeErrorMessage(assetsResult.reason, t.errors.load));
       }
 
       if (employeesResult.status === 'fulfilled') {
@@ -387,7 +388,7 @@ export default function Assets() {
     return () => {
       isMounted = false;
     };
-  }, [t.assets.errors.load]);
+  }, [t.errors.load]);
 
   const handleCreateAsset = () => {
     setAssetEditing(null);
@@ -396,13 +397,13 @@ export default function Assets() {
 
   const handleViewDetails = async (asset: AssetRow) => {
     try {
-      const detail = await runAssetOperation(t.assets.actionsMenu.viewDetails, () =>
+      const detail = await runAssetOperation(t.actionsMenu.viewDetails, () =>
         hrAssetsApi.getAssetDetails(asset.backendId),
       );
       setSelectedAssetDetails(detail);
       setIsDetailsModalOpen(true);
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.assets.errors.details));
+      window.alert(normalizeErrorMessage(error, t.errors.details));
     }
   };
 
@@ -417,17 +418,17 @@ export default function Assets() {
     }
 
     try {
-      await runAssetOperation(t.assets.confirmDeactivate.confirm, () =>
+      await runAssetOperation(t.confirmDeactivate.confirm, () =>
         hrAssetsApi.changeAssetStatus(assetPendingDeactivate.backendId, {
           status: 'inactive',
           change_reason: 'deactivated',
         }),
       );
       await loadAssets();
-      setToastMessage(t.assets.actionAlerts.deactivated(assetPendingDeactivate.name));
+      setToastMessage(t.actionAlerts.deactivated(assetPendingDeactivate.name));
       setAssetPendingDeactivate(null);
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.assets.errors.status));
+      window.alert(normalizeErrorMessage(error, t.errors.status));
     }
   };
 
@@ -469,7 +470,7 @@ export default function Assets() {
           || (trimmedNotes || '') !== assetEditing.notes
           || (unitHandledByUpdate && desiredUnitId !== assetEditing.unitId);
 
-        await runAssetOperation(t.assets.actionsMenu.edit, async () => {
+        await runAssetOperation(t.actionsMenu.edit, async () => {
           if (needsMetadataUpdate) {
             await hrAssetsApi.updateAsset(assetEditing.backendId, updatePayload);
           }
@@ -504,7 +505,7 @@ export default function Assets() {
         await loadAssets();
         setIsAddAssetOpen(false);
         setAssetEditing(null);
-        setToastMessage(t.assets.addNewAsset.successUpdated(draft.name));
+        setToastMessage(t.addNewAsset.successUpdated(draft.name));
         return true;
       }
 
@@ -525,14 +526,14 @@ export default function Assets() {
         notes: trimmedNotes || undefined,
       };
 
-      await runAssetOperation(t.assets.addNewAsset.buttons.save, () => hrAssetsApi.createAsset(payload));
+      await runAssetOperation(t.addNewAsset.buttons.save, () => hrAssetsApi.createAsset(payload));
       await loadAssets();
       setIsAddAssetOpen(false);
       setAssetEditing(null);
-      setToastMessage(t.assets.addNewAsset.success(draft.name));
+      setToastMessage(t.addNewAsset.success(draft.name));
       return true;
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.assets.errors.save));
+      window.alert(normalizeErrorMessage(error, t.errors.save));
       return false;
     }
   };
@@ -568,11 +569,13 @@ export default function Assets() {
   return (
     <>
       <AssetHeaderBar
+        copy={t}
         onAdd={handleCreateAsset}
         onColumns={() => setIsColumnsModalOpen(true)}
       />
 
       <AssetFilters
+        copy={t}
         searchQuery={searchQuery}
         statusFilter={statusFilter}
         typeFilter={typeFilter}
@@ -585,8 +588,10 @@ export default function Assets() {
       />
 
       <AssetKpiStrip
+        copy={t}
         assignedCount={summary.assigned_count}
         availableCount={summary.available_count}
+        locale={currentLanguage.code}
         maintenanceCount={summary.maintenance_count}
         totalCount={summary.total_count}
         totalValueAmount={summary.total_value_amount}
@@ -617,7 +622,7 @@ export default function Assets() {
                     colSpan={assetColumnConfig.filter((column) => column.visible).length}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    {t.assets.loading}
+                    {t.loading}
                   </td>
                 </tr>
               ) : loadError ? (
@@ -635,7 +640,7 @@ export default function Assets() {
                     colSpan={assetColumnConfig.filter((column) => column.visible).length}
                     className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    {t.assets.emptyState}
+                    {t.emptyState}
                   </td>
                 </tr>
               ) : (
@@ -661,16 +666,16 @@ export default function Assets() {
                       </td>
                     ) : null}
                     {visibleColumnSet.has('model') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.model || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.model || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('serialNumber') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.serialNumber || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.serialNumber || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('responsible') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.responsibleName || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.responsibleName || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('unit') ? (
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.unitName || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{asset.unitName || t.emptyValue}</td>
                     ) : null}
                     {visibleColumnSet.has('status') ? (
                       <td className="px-5 py-4">
@@ -697,7 +702,7 @@ export default function Assets() {
                     ) : null}
                     {visibleColumnSet.has('notes') ? (
                       <td className="max-w-[14rem] px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-                        <p className="line-clamp-2">{asset.notes || '-'}</p>
+                        <p className="line-clamp-2">{asset.notes || t.emptyValue}</p>
                       </td>
                     ) : null}
                     {visibleColumnSet.has('actions') ? (
@@ -706,8 +711,8 @@ export default function Assets() {
                           <button
                             type="button"
                             onClick={() => void handleViewDetails(asset)}
-                            aria-label={t.assets.actionsMenu.viewDetails}
-                            title={t.assets.actionsMenu.viewDetails}
+                            aria-label={t.actionsMenu.viewDetails}
+                            title={t.actionsMenu.viewDetails}
                             className="text-gray-400 transition hover:text-gray-200"
                           >
                             <Eye className="h-4 w-4" />
@@ -715,8 +720,8 @@ export default function Assets() {
                           <button
                             type="button"
                             onClick={() => handleEditAsset(asset)}
-                            aria-label={t.assets.actionsMenu.edit}
-                            title={t.assets.actionsMenu.edit}
+                            aria-label={t.actionsMenu.edit}
+                            title={t.actionsMenu.edit}
                             className="text-[#7b82ff] transition hover:text-[#9fa4ff]"
                           >
                             <Pencil className="h-4 w-4" />
@@ -724,8 +729,8 @@ export default function Assets() {
                           <button
                             type="button"
                             onClick={() => setAssetPendingDeactivate(asset)}
-                            aria-label={t.assets.actionsMenu.delete}
-                            title={t.assets.actionsMenu.delete}
+                            aria-label={t.actionsMenu.delete}
+                            title={t.actionsMenu.delete}
                             className="text-red-500 transition hover:text-red-400"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -743,11 +748,11 @@ export default function Assets() {
 
       <ConfirmDeleteDialog
         isVisible={assetPendingDeactivate !== null}
-        title={t.assets.confirmDeactivate.title}
+        title={t.confirmDeactivate.title}
         itemName={assetPendingDeactivate?.name}
-        description={t.assets.confirmDeactivate.description}
-        confirmLabel={t.assets.confirmDeactivate.confirm}
-        cancelLabel={t.assets.confirmDeactivate.cancel}
+        description={t.confirmDeactivate.description}
+        confirmLabel={t.confirmDeactivate.confirm}
+        cancelLabel={t.confirmDeactivate.cancel}
         onConfirm={() => void handleConfirmDeactivate()}
         onCancel={() => setAssetPendingDeactivate(null)}
       />
@@ -760,7 +765,7 @@ export default function Assets() {
 
       <LoadingBarOverlay
         isVisible={isSubmitting}
-        title={loadingTitle || t.assets.loading}
+        title={loadingTitle || t.loading}
       />
 
       <AddNewAssests
@@ -786,6 +791,7 @@ export default function Assets() {
       />
 
       <AssetColumnsModal
+        copy={t.columnPicker}
         isOpen={isColumnsModalOpen}
         onClose={() => setIsColumnsModalOpen(false)}
         columns={assetColumnConfig}

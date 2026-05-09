@@ -6,6 +6,7 @@ import { IncentiveFilters } from './components/IncentiveFilters';
 import { IncentiveHeaderBar } from './components/IncentiveHeaderBar';
 import { IncentiveKpiStrip } from './components/IncentiveKpiStrip';
 import { IncentivesTable, type IncentiveColumnId } from './components/IncentivesTable';
+import { useIncentivesTranslations } from './hooks/useIncentivesTranslations';
 
 const defaultVisibleIncentiveColumns: IncentiveColumnId[] = [
   'incentive',
@@ -16,16 +17,8 @@ const defaultVisibleIncentiveColumns: IncentiveColumnId[] = [
   'status',
 ];
 
-const incentiveColumns: IncentiveColumn[] = [
-  { id: 'incentive', label: 'Incentive', locked: true },
-  { id: 'type', label: 'Type' },
-  { id: 'scope', label: 'Scope' },
-  { id: 'amount', label: 'Amount' },
-  { id: 'application', label: 'Application' },
-  { id: 'status', label: 'Status' },
-];
-
 export default function Incentives() {
+  const copy = useIncentivesTranslations();
   const [incentivos, setIncentivos] = useState<RHIncentivo[]>(rhIncentivosSeed);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | RHIncentivo['tipo']>('all');
@@ -40,6 +33,18 @@ export default function Incentives() {
   const pausedCount = incentivos.filter((incentivo) => incentivo.estado === 'Pausado').length;
   const automaticCount = incentivos.filter((incentivo) => incentivo.tipo === 'Automatizado').length;
   const manualCount = incentivos.filter((incentivo) => incentivo.tipo === 'Manual').length;
+
+  const incentiveColumns = useMemo<IncentiveColumn[]>(
+    () => [
+      { id: 'incentive', label: copy.columns.incentive, locked: true },
+      { id: 'type', label: copy.columns.type },
+      { id: 'scope', label: copy.columns.scope },
+      { id: 'amount', label: copy.columns.amount },
+      { id: 'application', label: copy.columns.application },
+      { id: 'status', label: copy.columns.status },
+    ],
+    [copy],
+  );
 
   const filteredIncentives = useMemo(
     () =>
@@ -99,11 +104,13 @@ export default function Incentives() {
   return (
     <>
       <IncentiveHeaderBar
+        copy={copy}
         onColumns={() => setIsColumnsModalOpen(true)}
         onCreate={() => setIsModalOpen(true)}
       />
 
       <IncentiveFilters
+        copy={copy}
         searchQuery={searchQuery}
         selectedStatus={selectedStatus}
         selectedType={selectedType}
@@ -113,6 +120,7 @@ export default function Incentives() {
       />
 
       <IncentiveKpiStrip
+        copy={copy}
         activeCount={activeCount}
         automatedCount={automaticCount}
         eligibleCount={rhColaboradores.length}
@@ -125,6 +133,7 @@ export default function Incentives() {
       />
 
       <IncentivesTable
+        copy={copy}
         incentives={filteredIncentives}
         selectedIds={selectedIncentiveIds}
         visibleColumns={visibleColumns}
@@ -134,6 +143,7 @@ export default function Incentives() {
 
       <IncentiveColumnsModal
         columns={incentiveColumns}
+        copy={copy.columnsModal}
         isOpen={isColumnsModalOpen}
         visibleColumns={visibleColumns}
         onClose={() => setIsColumnsModalOpen(false)}
@@ -152,13 +162,13 @@ export default function Incentives() {
               tipo: data.tipo === 'manual' ? 'Manual' : 'Automatizado',
               alcance:
                 data.tipo === 'manual'
-                  ? `${data.colaboradoresSeleccionados.length} colaboradores`
-                  : 'Regla automatica',
+                  ? copy.newIncentive.selectedCollaborators(data.colaboradoresSeleccionados.length)
+                  : copy.newIncentive.automatedRule,
               monto:
                 data.tipo === 'manual'
-                  ? `$${data.montoManual || '0'} fijo`
-                  : `${data.montoAutomatizado || '0'} ${data.tipoMontoAuto === 'porcentaje' ? '%' : 'fijo'}`,
-              aplicacion: data.aplicacion === 'especifica' ? data.fechaEspecifica || 'Pendiente' : 'Siguiente nomina',
+                  ? `$${data.montoManual || '0'} ${copy.newIncentive.fixed}`
+                  : `${data.montoAutomatizado || '0'} ${data.tipoMontoAuto === 'porcentaje' ? '%' : copy.newIncentive.fixed}`,
+              aplicacion: data.aplicacion === 'especifica' ? data.fechaEspecifica || copy.newIncentive.pending : copy.newIncentive.nextPayroll,
               estado: data.activo ? 'Activo' : 'Pausado',
             },
             ...prev,

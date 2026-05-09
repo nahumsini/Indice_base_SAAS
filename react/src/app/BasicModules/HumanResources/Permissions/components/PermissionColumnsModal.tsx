@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import type { PermissionsTranslations } from '../translations';
 
 export interface PermissionColumn {
   id: string;
@@ -8,6 +9,7 @@ export interface PermissionColumn {
 
 interface PermissionColumnsModalProps {
   columns: PermissionColumn[];
+  copy: PermissionsTranslations['columnsModal'];
   isOpen: boolean;
   visibleColumns: string[];
   onClose: () => void;
@@ -16,6 +18,7 @@ interface PermissionColumnsModalProps {
 
 export function PermissionColumnsModal({
   columns,
+  copy,
   isOpen,
   visibleColumns,
   onClose,
@@ -30,14 +33,14 @@ export function PermissionColumnsModal({
       <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#143675]/30 bg-white shadow-2xl dark:bg-slate-900">
         <header className="flex items-center justify-between bg-[#143675] px-6 py-4 text-white">
           <div>
-            <h2 className="text-lg font-semibold">Table columns</h2>
-            <p className="text-sm text-blue-100">Choose the permission columns visible in this view.</p>
+            <h2 className="text-lg font-semibold">{copy.title}</h2>
+            <p className="text-sm text-blue-100">{copy.subtitle}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white transition hover:bg-white/10"
-            aria-label="Close columns modal"
+            aria-label={copy.close}
           >
             <X className="h-5 w-5" />
           </button>
@@ -62,7 +65,7 @@ export function PermissionColumnsModal({
                   className="h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
                 />
                 <span className="font-medium">{column.label}</span>
-                {column.locked ? <span className="ml-auto text-xs">Required</span> : null}
+                {column.locked ? <span className="ml-auto text-xs">{copy.required}</span> : null}
               </label>
             ))}
           </div>
@@ -74,7 +77,7 @@ export function PermissionColumnsModal({
             onClick={onClose}
             className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[#143675] transition hover:bg-blue-50"
           >
-            Done
+            {copy.done}
           </button>
         </footer>
       </div>

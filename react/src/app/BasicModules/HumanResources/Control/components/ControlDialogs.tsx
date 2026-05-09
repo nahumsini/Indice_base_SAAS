@@ -457,13 +457,13 @@ export function ControlAssignmentDialog({
   const hasMissingEndDate = !form.effective_end_date;
   const hasInvalidDateRange = Boolean(form.effective_end_date && form.effective_end_date < form.effective_start_date);
   const dateValidationMessage = hasMissingStartDate
-    ? 'Start date is required.'
+    ? copy.labels.startDateRequired
     : hasPastStartDate
-      ? 'Start date cannot be in the past.'
+      ? copy.labels.startDatePast
       : hasMissingEndDate
-        ? 'End date is required.'
+        ? copy.labels.endDateRequired
         : hasInvalidDateRange
-          ? 'End date must be on or after start date.'
+          ? copy.labels.endDateBeforeStart
           : '';
 
   return (
@@ -625,37 +625,40 @@ export function ControlWorkSiteDialog({
   const hasStartBeforeSiteWindow = Boolean(selectedLocation?.contract_start_date && form.effective_start_date < selectedLocation.contract_start_date);
   const hasEndAfterSiteWindow = Boolean(selectedLocation?.contract_end_date && form.effective_end_date > selectedLocation.contract_end_date);
   const dateValidationMessage = hasMissingStartDate
-    ? 'Start date is required.'
+    ? copy.labels.startDateRequired
     : hasPastStartDate
-      ? 'Start date cannot be in the past.'
+      ? copy.labels.startDatePast
       : hasMissingEndDate
-        ? 'End date is required.'
+        ? copy.labels.endDateRequired
         : hasInvalidDateRange
-          ? 'End date must be on or after start date.'
+          ? copy.labels.endDateBeforeStart
           : hasStartBeforeSiteWindow || hasEndAfterSiteWindow
-            ? `Contract site is only open from ${selectedLocation?.contract_start_date ?? 'the first configured day'} to ${selectedLocation?.contract_end_date ?? 'the last configured day'}.`
+            ? copy.labels.contractSiteWindow(
+              selectedLocation?.contract_start_date ?? copy.labels.firstConfiguredDay,
+              selectedLocation?.contract_end_date ?? copy.labels.lastConfiguredDay,
+            )
           : '';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Assign contract site and hours for {employeeName}</DialogTitle>
+          <DialogTitle>{copy.labels.assignContractSiteTitle(employeeName)}</DialogTitle>
           <DialogDescription>
-            Choose the external or contract location where this employee must check in for the selected dates.
+            {copy.labels.assignContractSiteDescription}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/60 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Contract site</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.contractSiteLabel}</p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Attendance will only be accepted from this contract site for the selected dates.
+              {copy.labels.contractSiteHint}
             </p>
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Attendance location</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.attendanceLocation}</label>
             <select
               value={form.location_id || ''}
               onChange={(event) => {
@@ -674,7 +677,7 @@ export function ControlWorkSiteDialog({
               }}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
-              <option value="">Select contract site</option>
+              <option value="">{copy.labels.selectContractSite}</option>
               {activeLocations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name} - {location.unit_name || copy.labels.noUnit} / {location.business_name || copy.labels.noBusiness}
@@ -683,7 +686,7 @@ export function ControlWorkSiteDialog({
             </select>
             {activeLocations.length === 0 ? (
               <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
-                No available contract sites for this date. Sites outside their contract window or already assigned to another employee are hidden.
+                {copy.labels.noAvailableContractSites}
               </p>
             ) : null}
           </div>

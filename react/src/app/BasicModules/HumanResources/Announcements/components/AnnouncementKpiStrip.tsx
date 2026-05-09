@@ -1,8 +1,11 @@
 import { type ReactNode } from 'react';
 import { Eye, Info, Megaphone, MousePointer2, PencilLine, Send, Timer } from 'lucide-react';
+import type { AnnouncementKpiCopy, AnnouncementsTranslations } from '../translations';
 
 interface AnnouncementKpiStripProps {
+  copy: AnnouncementKpiCopy;
   draftCount: number;
+  progressCopy: AnnouncementsTranslations['progress'];
   publishedCount: number;
   readRate: string;
   scheduledCount: number;
@@ -20,7 +23,9 @@ const getSegmentWidth = (count: number, total: number) => {
 };
 
 export function AnnouncementKpiStrip({
+  copy,
   draftCount,
+  progressCopy,
   publishedCount,
   readRate,
   scheduledCount,
@@ -34,40 +39,40 @@ export function AnnouncementKpiStrip({
     <div className="mb-6 space-y-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <AnnouncementKpiMetric icon={<Megaphone className="h-4 w-4" />} value={totalCount} label="Total announcements" />
+          <AnnouncementKpiMetric icon={<Megaphone className="h-4 w-4" />} value={totalCount} label={copy.totalAnnouncements} />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AnnouncementKpiMetric
             icon={<Send className="h-4 w-4" />}
             value={publishedCount}
-            label="Published"
+            label={copy.published}
             valueClassName="text-emerald-600 dark:text-emerald-400"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AnnouncementKpiMetric
             icon={<Timer className="h-4 w-4" />}
             value={scheduledCount}
-            label="Scheduled"
+            label={copy.scheduled}
             valueClassName="text-sky-600 dark:text-sky-300"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AnnouncementKpiMetric
             icon={<PencilLine className="h-4 w-4" />}
             value={draftCount}
-            label="Drafts"
+            label={copy.drafts}
             valueClassName="text-amber-600 dark:text-amber-300"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AnnouncementKpiMetric
             icon={<Eye className="h-4 w-4" />}
             value={visibleCount}
-            label="visible after filters"
+            label={copy.visibleAfterFilters}
             valueClassName="text-[#143675] dark:text-blue-300"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AnnouncementKpiMetric
             icon={<MousePointer2 className="h-4 w-4" />}
             value={selectedCount}
-            label="selected"
+            label={copy.selected}
             valueClassName="text-blue-600 dark:text-blue-300"
           />
         </div>
@@ -75,11 +80,11 @@ export function AnnouncementKpiStrip({
         <div className="flex flex-wrap items-center gap-2">
           {selectedCount > 0 ? (
             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-              {selectedCount} selected
+              {copy.selectedBadge(selectedCount)}
             </span>
           ) : null}
           <span className="rounded-full border border-[#143675]/15 bg-[#143675]/5 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
-            {actionRate} published rate
+            {copy.publishedRate(actionRate)}
           </span>
         </div>
       </div>
@@ -94,9 +99,9 @@ export function AnnouncementKpiStrip({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <LegendItem color="bg-emerald-500" label="Published" />
-          <LegendItem color="bg-sky-500" label="Scheduled" />
-          <LegendItem color="bg-amber-500" label="Draft" />
+          <LegendItem color="bg-emerald-500" label={progressCopy.published} />
+          <LegendItem color="bg-sky-500" label={progressCopy.scheduled} />
+          <LegendItem color="bg-amber-500" label={progressCopy.draft} />
         </div>
       </div>
 
@@ -104,7 +109,7 @@ export function AnnouncementKpiStrip({
         <div className="flex items-start gap-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#143675] dark:text-blue-300" />
           <p className="text-sm leading-relaxed text-[#143675] dark:text-blue-200">
-            Communications summary: {publishedCount} published · {scheduledCount} scheduled · {draftCount} drafts · {readRate} average read rate · showing {visibleCount} of {totalCount}.
+            {copy.summary(publishedCount, scheduledCount, draftCount, readRate, visibleCount, totalCount)}
           </p>
         </div>
       </div>

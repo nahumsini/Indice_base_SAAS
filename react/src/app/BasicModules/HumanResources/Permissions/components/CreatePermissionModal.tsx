@@ -14,8 +14,10 @@ import {
 import { Switch } from '../../../../components/ui/switch';
 import { Textarea } from '../../../../components/ui/textarea';
 import type { PermissionType } from '../types/permissions.types';
+import type { PermissionsTranslations } from '../translations';
 
 interface CreatePermissionModalProps {
+  copy: PermissionsTranslations;
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: PermissionFormData) => void;
@@ -30,7 +32,7 @@ export interface PermissionFormData {
   attachment?: File;
 }
 
-export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermissionModalProps) {
+export function CreatePermissionModal({ copy, isOpen, onClose, onSubmit }: CreatePermissionModalProps) {
   const [formData, setFormData] = useState<{
     type: PermissionType | '';
     startDate: string;
@@ -104,37 +106,37 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold">Request Permission</DialogTitle>
+          <DialogTitle className="text-2xl font-semibold">{copy.modal.title}</DialogTitle>
           <DialogDescription>
-            Fill out the form below to submit a new permission request.
+            {copy.modal.subtitle}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="permission-type">Permission Type *</Label>
+            <Label htmlFor="permission-type">{copy.modal.permissionType}</Label>
             <Select
               value={formData.type}
               onValueChange={(value) => setFormData((current) => ({ ...current, type: value as PermissionType }))}
             >
               <SelectTrigger id="permission-type">
-                <SelectValue placeholder="Select permission type" />
+                <SelectValue placeholder={copy.modal.selectPermissionType} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="vacation">Vacation</SelectItem>
-                <SelectItem value="sick_leave">Sick Leave</SelectItem>
-                <SelectItem value="personal">Personal</SelectItem>
-                <SelectItem value="maternity">Maternity/Paternity</SelectItem>
-                <SelectItem value="bereavement">Bereavement</SelectItem>
-                <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="vacation">{copy.types.vacation}</SelectItem>
+                <SelectItem value="sick_leave">{copy.types.sick_leave}</SelectItem>
+                <SelectItem value="personal">{copy.types.personal}</SelectItem>
+                <SelectItem value="maternity">{copy.types.maternity}</SelectItem>
+                <SelectItem value="bereavement">{copy.types.bereavement}</SelectItem>
+                <SelectItem value="unpaid">{copy.types.unpaid}</SelectItem>
+                <SelectItem value="other">{copy.types.other}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="permission-start">Start Date *</Label>
+              <Label htmlFor="permission-start">{copy.modal.startDate}</Label>
               <Input
                 id="permission-start"
                 type="date"
@@ -144,7 +146,7 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="permission-end">End Date *</Label>
+              <Label htmlFor="permission-end">{copy.modal.endDate}</Label>
               <Input
                 id="permission-end"
                 type="date"
@@ -158,9 +160,9 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
 
           <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4 dark:bg-gray-900/50">
             <div className="space-y-0.5">
-              <Label htmlFor="permission-half-day">Half Day</Label>
+              <Label htmlFor="permission-half-day">{copy.modal.halfDay}</Label>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Request only half of the last day
+                {copy.modal.halfDayDescription}
               </p>
             </div>
             <Switch
@@ -174,18 +176,18 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Total Days:</span>
+                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">{copy.modal.totalDays}</span>
                 <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{totalDays}</span>
               </div>
             </div>
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor="permission-reason">Reason *</Label>
+            <Label htmlFor="permission-reason">{copy.modal.reason}</Label>
             <Textarea
               id="permission-reason"
               rows={4}
-              placeholder="Please provide a brief reason for your request..."
+              placeholder={copy.modal.reasonPlaceholder}
               value={formData.reason}
               onChange={(event) => setFormData((current) => ({ ...current, reason: event.target.value }))}
               required
@@ -193,7 +195,7 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="permission-file">Attachment (Optional)</Label>
+            <Label htmlFor="permission-file">{copy.modal.attachment}</Label>
             <div className="flex items-center gap-4">
               <Button
                 type="button"
@@ -202,7 +204,7 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
                 className="gap-2"
               >
                 <Upload className="h-4 w-4" />
-                {fileName || 'Upload File'}
+                {fileName || copy.modal.uploadFile}
               </Button>
               <input
                 id="permission-file"
@@ -216,18 +218,18 @@ export function CreatePermissionModal({ isOpen, onClose, onSubmit }: CreatePermi
               ) : null}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Accepted formats: PDF, DOC, DOCX, JPG, PNG
+              {copy.modal.acceptedFormats}
             </p>
           </div>
 
           <div className="flex justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={handleClose}>{copy.modal.cancel}</Button>
             <Button
               type="submit"
               className="bg-blue-600 text-white hover:bg-blue-700"
               disabled={!formData.type || !formData.startDate || !formData.endDate || !formData.reason.trim()}
             >
-              Submit Request
+              {copy.modal.submit}
             </Button>
           </div>
         </form>

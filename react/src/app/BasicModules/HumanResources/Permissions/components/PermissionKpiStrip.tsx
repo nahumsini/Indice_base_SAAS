@@ -1,8 +1,10 @@
 import { CheckCircle2, Clock3, Eye, FileCheck2, XCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { PermissionsTranslations } from '../translations';
 
 interface PermissionKpiStripProps {
   approved: number;
+  copy: PermissionsTranslations;
   pending: number;
   rejected: number;
   total: number;
@@ -26,7 +28,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
   );
 }
 
-export function PermissionKpiStrip({ approved, pending, rejected, total, visible }: PermissionKpiStripProps) {
+export function PermissionKpiStrip({ approved, copy, pending, rejected, total, visible }: PermissionKpiStripProps) {
   const approvedPercent = total > 0 ? (approved / total) * 100 : 0;
   const pendingPercent = total > 0 ? (pending / total) * 100 : 0;
   const rejectedPercent = total > 0 ? (rejected / total) * 100 : 0;
@@ -35,17 +37,17 @@ export function PermissionKpiStrip({ approved, pending, rejected, total, visible
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Metric icon={<FileCheck2 className="h-4 w-4" />} label="Total requests" value={total} />
+        <Metric icon={<FileCheck2 className="h-4 w-4" />} label={copy.kpis.total} value={total} />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Clock3 className="h-4 w-4" />} label="Pending" value={pending} valueClassName="text-amber-600" />
+        <Metric icon={<Clock3 className="h-4 w-4" />} label={copy.kpis.pending} value={pending} valueClassName="text-amber-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label="Approved" value={approved} valueClassName="text-emerald-600" />
+        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={copy.kpis.approved} value={approved} valueClassName="text-emerald-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<XCircle className="h-4 w-4" />} label="Rejected" value={rejected} valueClassName="text-rose-600" />
+        <Metric icon={<XCircle className="h-4 w-4" />} label={copy.kpis.rejected} value={rejected} valueClassName="text-rose-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Eye className="h-4 w-4" />} label="visible after filters" value={visible} />
+        <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visible} />
         <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-[#143675] dark:bg-slate-800 dark:text-blue-100">
-          {approvalRate}% approval rate
+          {copy.kpis.approvalRate(approvalRate)}
         </span>
       </div>
 
@@ -58,7 +60,7 @@ export function PermissionKpiStrip({ approved, pending, rejected, total, visible
       </div>
 
       <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 text-sm font-medium text-[#143675] dark:border-[#4a7bc8]/25 dark:bg-[#143675]/15 dark:text-blue-100">
-        Permissions summary: {approved} approved · {pending} pending · {rejected} rejected · showing {visible} of {total}.
+        {copy.kpis.summary(approved, pending, rejected, visible, total)}
       </div>
     </div>
   );

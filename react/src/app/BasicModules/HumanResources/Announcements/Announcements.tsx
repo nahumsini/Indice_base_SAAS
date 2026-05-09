@@ -7,12 +7,8 @@ import { AnnouncementHeaderBar } from './components/AnnouncementHeaderBar';
 import { AnnouncementKpiStrip } from './components/AnnouncementKpiStrip';
 import { AnnouncementTable } from './components/AnnouncementTable';
 import { CreateAnnouncementModal } from './components/CreateAnnouncementModal';
-
-const announcementPreviewById: Record<string, string> = {
-  'COM-301': 'Next Saturday there will be changes to operating schedules for the involved units.',
-  'COM-302': 'Please complete pending evaluations before the end of the week.',
-  'COM-303': 'This month we celebrate three team birthdays.',
-};
+import { useAnnouncementsResolvedLocale, useAnnouncementsTranslations } from './hooks/useAnnouncementsTranslations';
+import type { AnnouncementsTranslations } from './translations';
 
 const readStatsById: Record<string, { read: number; total: number }> = {
   'COM-301': { read: 18, total: 22 },
@@ -20,39 +16,32 @@ const readStatsById: Record<string, { read: number; total: number }> = {
   'COM-303': { read: 0, total: 22 },
 };
 
-const audienceFilterOptions = [
-  { value: 'all', label: 'All audiences' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'leaders', label: 'Leaders' },
-  { value: 'everyone', label: 'All employees' },
-] as const;
-
-const typeFilterOptions = ['All', 'General', 'Urgent', 'Reminder', 'Celebration'] as const;
-const statusFilterOptions = ['All', 'Published', 'Scheduled', 'Draft'] as const;
+const audienceFilterValues = ['all', 'operations', 'leaders', 'everyone'] as const;
+const typeFilterValues = ['all', 'general', 'urgent', 'reminder', 'celebration'] as const;
+const statusFilterValues = ['all', 'published', 'scheduled', 'draft'] as const;
 const defaultVisibleColumnIds = ['type', 'audience', 'publication', 'reads', 'status'] as const;
-const announcementColumns: AnnouncementColumn[] = [
-  { id: 'type', label: 'Type' },
-  { id: 'audience', label: 'Audience' },
-  { id: 'publication', label: 'Publication' },
-  { id: 'reads', label: 'Reads' },
-  { id: 'status', label: 'Status' },
-  { id: 'author', label: 'Author' },
-];
 
-const typeFilterMap: Partial<Record<(typeof typeFilterOptions)[number], RHComunicado['tipo']>> = {
-  Celebration: 'Celebracion',
-  General: 'General',
-  Reminder: 'Recordatorio',
-  Urgent: 'Urgente',
+type AnnouncementAudienceFilter = (typeof audienceFilterValues)[number];
+type AnnouncementTypeFilter = (typeof typeFilterValues)[number];
+type AnnouncementStatusFilter = (typeof statusFilterValues)[number];
+
+const typeFilterMap: Partial<Record<AnnouncementTypeFilter, RHComunicado['tipo']>> = {
+  celebration: 'Celebracion',
+  general: 'General',
+  reminder: 'Recordatorio',
+  urgent: 'Urgente',
 };
 
-const statusFilterMap: Partial<Record<(typeof statusFilterOptions)[number], RHComunicado['estado']>> = {
-  Draft: 'Borrador',
-  Published: 'Publicado',
-  Scheduled: 'Programado',
+const statusFilterMap: Partial<Record<AnnouncementStatusFilter, RHComunicado['estado']>> = {
+  draft: 'Borrador',
+  published: 'Publicado',
+  scheduled: 'Programado',
 };
 
-const getAudienceGroup = (destinatarios: string) => {
+const getAnnouncementPreview = (copy: AnnouncementsTranslations, announcementId: string) =>
+  (copy.previews as Readonly<Record<string, string>>)[announcementId] ?? '';
+
+const getAudienceGroup = (destinatarios: string): AnnouncementAudienceFilter => {
   if (destinatarios.toLowerCase().includes('operaciones')) {
     return 'operations';
   }
@@ -66,6 +55,30 @@ const getAudienceGroup = (destinatarios: string) => {
   }
 
   return 'all';
+};
+
+const getAudienceDisplayLabel = (destinatarios: string, copy: AnnouncementsTranslations) => {
+  const normalizedAudience = destinatarios.toLowerCase();
+
+  if (normalizedAudience.includes('departamentos seleccionados')) {
+    return copy.audienceLabels.selectedDepartments;
+  }
+
+  if (normalizedAudience.includes('unidades seleccionadas')) {
+    return copy.audienceLabels.selectedUnits;
+  }
+
+  if (normalizedAudience.includes('destinatarios específicos')) {
+    return copy.audienceLabels.specificEmployees;
+  }
+
+  const audienceGroup = getAudienceGroup(destinatarios);
+
+  if (audienceGroup !== 'all') {
+    return copy.audienceLabels[audienceGroup];
+  }
+
+  return destinatarios || copy.audienceLabels.all;
 };
 
 const getTypeClasses = (tipo: RHComunicado['tipo']) => {
@@ -90,32 +103,74 @@ const getStatusClasses = (estado: RHComunicado['estado']) => {
 };
 
 export default function Announcements() {
+  const copy = useAnnouncementsTranslations();
+  const locale = useAnnouncementsResolvedLocale();
   const [announcements, setAnnouncements] = useState<RHComunicado[]>(rhComunicadosSeed);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<(typeof typeFilterOptions)[number]>('All');
-  const [selectedStatus, setSelectedStatus] = useState<(typeof statusFilterOptions)[number]>('All');
-  const [selectedAudience, setSelectedAudience] = useState<(typeof audienceFilterOptions)[number]['value']>('all');
+  const [selectedType, setSelectedType] = useState<AnnouncementTypeFilter>('all');
+  const [selectedStatus, setSelectedStatus] = useState<AnnouncementStatusFilter>('all');
+  const [selectedAudience, setSelectedAudience] = useState<AnnouncementAudienceFilter>('all');
   const [selectedAnnouncementIds, setSelectedAnnouncementIds] = useState<string[]>([]);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([...defaultVisibleColumnIds]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [announcementToDelete, setAnnouncementToDelete] = useState<RHComunicado | null>(null);
 
+  const announcementColumns = useMemo<AnnouncementColumn[]>(
+    () => [
+      { id: 'type', label: copy.table.columns.type },
+      { id: 'audience', label: copy.table.columns.audience },
+      { id: 'publication', label: copy.table.columns.publication },
+      { id: 'reads', label: copy.table.columns.reads },
+      { id: 'status', label: copy.table.columns.status },
+      { id: 'author', label: copy.table.columns.author },
+    ],
+    [copy],
+  );
+
+  const audienceFilterOptions = useMemo(
+    () =>
+      audienceFilterValues.map((value) => ({
+        value,
+        label: copy.filters.audienceOptions[value],
+      })),
+    [copy],
+  );
+
+  const typeFilterOptions = useMemo(
+    () =>
+      typeFilterValues.map((value) => ({
+        value,
+        label: copy.filters.typeOptions[value],
+      })),
+    [copy],
+  );
+
+  const statusFilterOptions = useMemo(
+    () =>
+      statusFilterValues.map((value) => ({
+        value,
+        label: copy.filters.statusOptions[value],
+      })),
+    [copy],
+  );
+
   const filteredAnnouncements = useMemo(
     () =>
       announcements.filter((announcement) => {
-        const preview = announcementPreviewById[announcement.id] ?? '';
-        const matchesSearch = `${announcement.titulo} ${announcement.destinatarios} ${announcement.autor} ${preview}`
+        const preview = getAnnouncementPreview(copy, announcement.id);
+        const audienceLabel = getAudienceDisplayLabel(announcement.destinatarios, copy);
+        const matchesSearch = `${announcement.titulo} ${announcement.destinatarios} ${audienceLabel} ${announcement.autor} ${preview}`
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
-        const matchesType = selectedType === 'All' || announcement.tipo === typeFilterMap[selectedType];
-        const matchesStatus = selectedStatus === 'All' || announcement.estado === statusFilterMap[selectedStatus];
+        const matchesType = selectedType === 'all' || announcement.tipo === typeFilterMap[selectedType];
+        const matchesStatus = selectedStatus === 'all' || announcement.estado === statusFilterMap[selectedStatus];
         const matchesAudience =
           selectedAudience === 'all' || getAudienceGroup(announcement.destinatarios) === selectedAudience;
 
         return matchesSearch && matchesType && matchesStatus && matchesAudience;
       }),
-    [announcements, searchQuery, selectedAudience, selectedStatus, selectedType],
+    [announcements, copy, searchQuery, selectedAudience, selectedStatus, selectedType],
   );
 
   const announcementSummary = useMemo(() => {
@@ -189,26 +244,18 @@ export default function Announcements() {
   };
 
   const handleExport = () => {
-    const header = [
-      'Announcement',
-      'Type',
-      'Audience',
-      'Publication',
-      'Reads',
-      'Status',
-      'Author',
-    ];
+    const header = [...copy.exportHeaders];
     const rows = filteredAnnouncements.map((announcement) => {
       const readStats = readStatsById[announcement.id] ?? { read: 0, total: 0 };
       const readPercentage = readStats.total > 0 ? Math.round((readStats.read / readStats.total) * 100) : 0;
 
       return [
         announcement.titulo,
-        announcement.tipo,
-        announcement.destinatarios,
+        copy.typeLabels[announcement.tipo],
+        getAudienceDisplayLabel(announcement.destinatarios, copy),
         announcement.fecha,
         `${readStats.read}/${readStats.total} (${readPercentage}%)`,
-        announcement.estado,
+        copy.statusLabels[announcement.estado],
         announcement.autor,
       ];
     });
@@ -221,7 +268,7 @@ export default function Announcements() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'hr-announcements.csv';
+    link.download = copy.exportFileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -231,12 +278,18 @@ export default function Announcements() {
   return (
     <>
       <AnnouncementHeaderBar
+        copy={{
+          pageTitle: copy.pageTitle,
+          pageSubtitle: copy.pageSubtitle,
+          ...copy.actions,
+        }}
         onAdd={() => setIsModalOpen(true)}
         onColumns={() => setIsColumnsModalOpen(true)}
         onExport={handleExport}
       />
 
       <AnnouncementFilters
+        copy={copy.filters}
         audienceOptions={audienceFilterOptions}
         searchQuery={searchQuery}
         selectedAudience={selectedAudience}
@@ -244,15 +297,15 @@ export default function Announcements() {
         selectedType={selectedType}
         statusOptions={statusFilterOptions}
         typeOptions={typeFilterOptions}
-        onAudienceChange={(value) =>
-          setSelectedAudience(value as (typeof audienceFilterOptions)[number]['value'])
-        }
+        onAudienceChange={(value) => setSelectedAudience(value as AnnouncementAudienceFilter)}
         onSearchChange={setSearchQuery}
-        onStatusChange={(value) => setSelectedStatus(value as (typeof statusFilterOptions)[number])}
-        onTypeChange={(value) => setSelectedType(value as (typeof typeFilterOptions)[number])}
+        onStatusChange={(value) => setSelectedStatus(value as AnnouncementStatusFilter)}
+        onTypeChange={(value) => setSelectedType(value as AnnouncementTypeFilter)}
       />
 
       <AnnouncementKpiStrip
+        copy={copy.kpis}
+        progressCopy={copy.progress}
         draftCount={announcementSummary.draftCount}
         publishedCount={announcementSummary.publishedCount}
         readRate={announcementSummary.readRate}
@@ -265,6 +318,8 @@ export default function Announcements() {
       <AnnouncementTable
         allVisibleSelected={allVisibleSelected}
         announcements={filteredAnnouncements}
+        copy={copy}
+        getAudienceLabel={(announcement) => getAudienceDisplayLabel(announcement.destinatarios, copy)}
         getStatusClasses={getStatusClasses}
         getTypeClasses={getTypeClasses}
         readStatsById={readStatsById}
@@ -278,6 +333,7 @@ export default function Announcements() {
 
       <AnnouncementColumnsModal
         columns={announcementColumns}
+        copy={copy.columnsModal}
         isOpen={isColumnsModalOpen}
         visibleColumns={visibleColumns}
         onClose={() => setIsColumnsModalOpen(false)}
@@ -285,6 +341,7 @@ export default function Announcements() {
       />
 
       <CreateAnnouncementModal
+        copy={copy.modal}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={(data) => {
@@ -315,7 +372,7 @@ export default function Announcements() {
                       ? 'Unidades seleccionadas'
                       : 'Destinatarios específicos',
               estado: estadoMap[data.status] ?? 'Borrador',
-              fecha: `${data.scheduledDate || new Date().toLocaleDateString('es-MX')} · ${data.scheduledTime || '09:00'}`,
+              fecha: `${data.scheduledDate || new Date().toLocaleDateString(locale)} · ${data.scheduledTime || '09:00'}`,
               autor: 'RH Central',
             },
             ...current,
@@ -333,11 +390,11 @@ export default function Announcements() {
 
       <ConfirmDeleteDialog
         isVisible={announcementToDelete !== null}
-        title="Delete announcement"
+        title={copy.deleteDialog.title}
         itemName={announcementToDelete?.titulo}
-        description="This announcement will be removed from the list."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        description={copy.deleteDialog.description}
+        confirmLabel={copy.deleteDialog.confirm}
+        cancelLabel={copy.deleteDialog.cancel}
         onConfirm={handleDeleteAnnouncement}
         onCancel={() => setAnnouncementToDelete(null)}
       />

@@ -4,9 +4,9 @@ import {
   type AttendanceCalendarDay,
   type AttendanceControlOverviewResponse,
 } from '../../../../api/humanResources';
-import type { HRLanguagePack } from '../../HRLanguage';
+import type { ControlTranslations } from '../translations';
 
-export type AttendanceControlCopy = HRLanguagePack['attendanceControl'];
+export type AttendanceControlCopy = ControlTranslations;
 
 export const statusClasses: Record<string, string> = {
   on_time: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -22,15 +22,15 @@ export const statusClasses: Record<string, string> = {
 
 type ControlAssignment = AttendanceControlOverviewResponse['assignments'][number];
 
-export function getAssignmentBusyReason(assignment: ControlAssignment) {
+export function getAssignmentBusyReason(assignment: ControlAssignment, copy?: AttendanceControlCopy) {
   if (assignment.first_check_in_at || assignment.last_check_out_at) {
-    return 'Attendance already recorded for this date';
+    return copy?.labels.assignmentBusyAttendanceRecorded ?? 'Attendance already recorded for this date';
   }
   if (assignment.active_work_site) {
-    return 'Contract site already assigned';
+    return copy?.labels.assignmentBusyContractSiteAssigned ?? 'Contract site already assigned';
   }
   if (assignment.schedule_template_id) {
-    return 'Schedule already assigned';
+    return copy?.labels.assignmentBusyScheduleAssigned ?? 'Schedule already assigned';
   }
   return '';
 }
@@ -112,7 +112,7 @@ export function ControlAttendanceRow({
           </p>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-[#143675] dark:text-[#8bb3ff]">
             <MapPin className="h-3.5 w-3.5" />
-            <span className="truncate">Contract site: {assignment.active_work_site?.location_name ?? 'None'}</span>
+            <span className="truncate">{copy.labels.contractSiteLabel}: {assignment.active_work_site?.location_name ?? copy.labels.none}</span>
           </div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses[displayStatus]}`}>
@@ -122,14 +122,14 @@ export function ControlAttendanceRow({
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AttendanceMomentPanel
-          label="Check-in"
-          time={formatTimeOnly(assignment.first_check_in_at, locale, 'No record')}
+          label={copy.labels.checkIn}
+          time={formatTimeOnly(assignment.first_check_in_at, locale, copy.labels.noRegistration)}
           location={assignment.latest_event?.location_name ?? null}
           copy={copy}
         />
         <AttendanceMomentPanel
-          label="Check-out"
-          time={formatTimeOnly(assignment.last_check_out_at, locale, 'No record')}
+          label={copy.labels.checkOut}
+          time={formatTimeOnly(assignment.last_check_out_at, locale, copy.labels.noRegistration)}
           location={assignment.latest_event?.location_name ?? null}
           copy={copy}
         />
@@ -149,7 +149,7 @@ export function AttendanceMomentPanel({
   location: string | null;
   copy: AttendanceControlCopy;
 }) {
-  const isEmpty = time === 'No record';
+  const isEmpty = time === copy.labels.noRegistration;
 
   return (
     <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-900/40">
@@ -204,8 +204,8 @@ export function ControlCalendarDayCell({
   const isLocked = day?.attendance_editable === false;
   const attendanceTooltip = day
     ? [
-        `Check-in: ${formatTimeOnly(day.first_check_in_at, locale, 'No record')}`,
-        `Check-out: ${formatTimeOnly(day.last_check_out_at, locale, 'No record')}`,
+        `${copy.labels.checkIn}: ${formatTimeOnly(day.first_check_in_at, locale, copy.labels.noRegistration)}`,
+        `${copy.labels.checkOut}: ${formatTimeOnly(day.last_check_out_at, locale, copy.labels.noRegistration)}`,
       ].join('\n')
     : undefined;
 

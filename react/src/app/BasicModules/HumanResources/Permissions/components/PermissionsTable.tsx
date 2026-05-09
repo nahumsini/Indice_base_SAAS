@@ -4,8 +4,10 @@ import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card } from '../../../../components/ui/card';
 import type { PermissionItem } from '../types/permissions.types';
+import type { PermissionsTranslations } from '../translations';
 
 interface PermissionsTableProps {
+  copy: PermissionsTranslations;
   permissions: PermissionItem[];
   visibleColumns: PermissionColumnId[];
   onView: (permission: PermissionItem) => void;
@@ -24,16 +26,6 @@ export type PermissionColumnId =
   | 'status'
   | 'actions';
 
-const typeLabels: Record<PermissionItem['type'], string> = {
-  vacation: 'Vacation',
-  sick_leave: 'Sick Leave',
-  personal: 'Personal',
-  maternity: 'Maternity/Paternity',
-  bereavement: 'Bereavement',
-  unpaid: 'Unpaid Leave',
-  other: 'Other',
-};
-
 const typeColors: Record<PermissionItem['type'], string> = {
   vacation: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   sick_leave: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -51,6 +43,7 @@ const statusColors: Record<PermissionItem['status'], string> = {
 };
 
 export function PermissionsTable({
+  copy,
   permissions,
   visibleColumns,
   onView,
@@ -64,8 +57,8 @@ export function PermissionsTable({
     return (
       <Card className="border border-gray-200 p-16 text-center shadow-sm dark:border-gray-700">
         <div className="mb-4 text-6xl">📅</div>
-        <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">No requests yet</h3>
-        <p className="text-gray-500 dark:text-gray-400">There are no permission requests to display.</p>
+        <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{copy.empty.title}</h3>
+        <p className="text-gray-500 dark:text-gray-400">{copy.empty.description}</p>
       </Card>
     );
   }
@@ -76,16 +69,16 @@ export function PermissionsTable({
         <table className="min-w-full">
           <thead className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-900/50">
             <tr>
-              {visibleColumnSet.has('folio') ? <TableHeader label="Folio" /> : null}
-              {visibleColumnSet.has('employee') ? <TableHeader label="Employee" /> : null}
-              {visibleColumnSet.has('type') ? <TableHeader label="Type" /> : null}
-              {visibleColumnSet.has('startDate') ? <TableHeader label="Start date" /> : null}
-              {visibleColumnSet.has('endDate') ? <TableHeader label="End date" /> : null}
-              {visibleColumnSet.has('days') ? <TableHeader label="Days" /> : null}
-              {visibleColumnSet.has('status') ? <TableHeader label="Status" /> : null}
+              {visibleColumnSet.has('folio') ? <TableHeader label={copy.columns.folio} /> : null}
+              {visibleColumnSet.has('employee') ? <TableHeader label={copy.columns.employee} /> : null}
+              {visibleColumnSet.has('type') ? <TableHeader label={copy.columns.type} /> : null}
+              {visibleColumnSet.has('startDate') ? <TableHeader label={copy.columns.startDate} /> : null}
+              {visibleColumnSet.has('endDate') ? <TableHeader label={copy.columns.endDate} /> : null}
+              {visibleColumnSet.has('days') ? <TableHeader label={copy.columns.days} /> : null}
+              {visibleColumnSet.has('status') ? <TableHeader label={copy.columns.status} /> : null}
               {visibleColumnSet.has('actions') ? (
                 <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
-                  Actions
+                  {copy.columns.actions}
                 </th>
               ) : null}
             </tr>
@@ -117,7 +110,7 @@ export function PermissionsTable({
                 ) : null}
                 {visibleColumnSet.has('type') ? (
                   <td className="whitespace-nowrap px-6 py-4">
-                    <Badge className={`rounded-full ${typeColors[permission.type]}`}>{typeLabels[permission.type]}</Badge>
+                    <Badge className={`rounded-full ${typeColors[permission.type]}`}>{copy.types[permission.type]}</Badge>
                   </td>
                 ) : null}
                 {visibleColumnSet.has('startDate') ? (
@@ -138,7 +131,7 @@ export function PermissionsTable({
                 {visibleColumnSet.has('status') ? (
                   <td className="whitespace-nowrap px-6 py-4">
                     <Badge className={`rounded-full ${statusColors[permission.status]}`}>
-                      {permission.status.charAt(0).toUpperCase() + permission.status.slice(1)}
+                      {copy.status[permission.status]}
                     </Badge>
                   </td>
                 ) : null}

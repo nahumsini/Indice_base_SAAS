@@ -8,6 +8,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import type { PayrollRunSummary } from '../../../../api/humanResources';
+import type { PayrollTranslations } from '../translations/types';
 
 type PayrollOperationRun = PayrollRunSummary & {
   jurisdictionLabel: string;
@@ -16,43 +17,38 @@ type PayrollOperationRun = PayrollRunSummary & {
 };
 
 type PayrollOperationsPanelProps = {
+  copy: PayrollTranslations;
   runs: PayrollOperationRun[];
   formatMoney: (value: number) => string;
 };
 
-const statusConfig = {
+const statusStyleConfig = {
   draft: {
-    label: 'Draft',
     dotClassName: 'bg-blue-500',
     textClassName: 'text-blue-700 dark:text-blue-300',
     barClassName: 'bg-blue-500',
   },
   review: {
-    label: 'Review',
     dotClassName: 'bg-amber-500',
     textClassName: 'text-amber-700 dark:text-amber-300',
     barClassName: 'bg-amber-500',
   },
   approved: {
-    label: 'Approved',
     dotClassName: 'bg-indigo-500',
     textClassName: 'text-indigo-700 dark:text-indigo-300',
     barClassName: 'bg-indigo-500',
   },
   paid: {
-    label: 'Paid',
     dotClassName: 'bg-emerald-500',
     textClassName: 'text-emerald-700 dark:text-emerald-300',
     barClassName: 'bg-emerald-500',
   },
   cancelled: {
-    label: 'Cancelled',
     dotClassName: 'bg-slate-400',
     textClassName: 'text-slate-600 dark:text-slate-300',
     barClassName: 'bg-slate-400',
   },
   blocked: {
-    label: 'Blocked',
     dotClassName: 'bg-rose-500',
     textClassName: 'text-rose-700 dark:text-rose-300',
     barClassName: 'bg-rose-500',
@@ -61,10 +57,6 @@ const statusConfig = {
 
 const isBlockedRun = (run: PayrollRunSummary) => (
   run.employees_count === 0 && run.status !== 'paid' && run.status !== 'cancelled'
-);
-
-const formatCount = (value: number, singular: string, plural: string) => (
-  `${value} ${value === 1 ? singular : plural}`
 );
 
 const getSegmentWidth = (count: number, total: number) => {
@@ -76,9 +68,14 @@ const getSegmentWidth = (count: number, total: number) => {
 };
 
 export function PayrollOperationsPanel({
+  copy,
   runs,
   formatMoney,
 }: PayrollOperationsPanelProps) {
+  const operations = copy.operations;
+  const formatRunCount = (value: number) => (
+    `${value} ${value === 1 ? operations.words.payrollRun : operations.words.payrollRuns}`
+  );
   const blockedCount = runs.filter(isBlockedRun).length;
   const draftCount = runs.filter((run) => run.status === 'draft' && !isBlockedRun(run)).length;
   const reviewCount = runs.filter((run) => run.status === 'processed' && !isBlockedRun(run)).length;
@@ -91,7 +88,7 @@ export function PayrollOperationsPanel({
   const jurisdictionCount = new Set(
     runs
       .map((run) => run.jurisdictionLabel)
-      .filter((label) => label && label !== 'Automatic' && label !== 'From employee profile'),
+      .filter((label) => label && label !== copy.labels.automatic && label !== copy.labels.noJurisdiction),
   ).size;
   const operationalStructureCount = new Set(
     runs.map((run) => `${run.unitLabel}-${run.businessLabel}`),
@@ -108,48 +105,48 @@ export function PayrollOperationsPanel({
   const totalStatusCount = statusDistribution.reduce((total, item) => total + item.count, 0);
   const paidRate = runs.length > 0 ? `${Math.round((paidCount / runs.length) * 100)}%` : '0%';
   const insightMessage = blockedCount > 0
-    ? `${formatCount(blockedCount, 'payroll run is', 'payroll runs are')} blocked by missing operational data.`
+    ? `${formatRunCount(blockedCount)} ${blockedCount === 1 ? operations.words.is : operations.words.are} ${operations.insight.blocked}`
     : approvedCount > 0
-      ? `${formatCount(approvedCount, 'payroll run is', 'payroll runs are')} approved and waiting for payment.`
+      ? `${formatRunCount(approvedCount)} ${approvedCount === 1 ? operations.words.is : operations.words.are} ${operations.insight.approved}`
       : reviewCount > 0
-        ? `${formatCount(reviewCount, 'payroll run requires', 'payroll runs require')} approval before payment.`
+        ? `${formatRunCount(reviewCount)} ${reviewCount === 1 ? operations.words.requires : operations.words.require} ${operations.insight.review}`
         : runs.length > 0
-          ? `Payroll is grouped automatically across ${Math.max(jurisdictionCount, 1)} jurisdiction signal${Math.max(jurisdictionCount, 1) === 1 ? '' : 's'} and ${Math.max(operationalStructureCount, 1)} operational structure${Math.max(operationalStructureCount, 1) === 1 ? '' : 's'}.`
-          : 'Generate payroll to see runs grouped by pay period, structure, and jurisdiction.';
+          ? `${operations.insight.groupedPrefix} ${Math.max(jurisdictionCount, 1)} ${Math.max(jurisdictionCount, 1) === 1 ? operations.words.jurisdictionSignal : operations.words.jurisdictionSignals} ${operations.insight.groupedAnd} ${Math.max(operationalStructureCount, 1)} ${Math.max(operationalStructureCount, 1) === 1 ? operations.words.operationalStructure : operations.words.operationalStructures}.`
+          : operations.insight.empty;
 
   const metrics = [
     {
-      label: 'Payroll runs',
+      label: operations.metrics.payrollRuns,
       value: runs.length,
       Icon: ClipboardCheck,
       valueClassName: 'text-[#143675]',
     },
     {
-      label: 'Pending review',
+      label: operations.metrics.pendingReview,
       value: reviewCount + draftCount,
       Icon: FileClock,
       valueClassName: reviewCount + draftCount > 0 ? 'text-amber-600' : 'text-[#143675]',
     },
     {
-      label: 'Pending payment',
+      label: operations.metrics.pendingPayment,
       value: approvedCount,
       Icon: CreditCard,
       valueClassName: approvedCount > 0 ? 'text-indigo-600' : 'text-[#143675]',
     },
     {
-      label: 'Blocked',
+      label: operations.metrics.blocked,
       value: blockedCount,
       Icon: AlertTriangle,
       valueClassName: blockedCount > 0 ? 'text-rose-600' : 'text-[#143675]',
     },
     {
-      label: 'Processed',
+      label: operations.metrics.processed,
       value: reviewCount,
       Icon: CheckCircle2,
       valueClassName: 'text-[#143675]',
     },
     {
-      label: 'Payout total',
+      label: operations.metrics.payoutTotal,
       value: formatMoney(payoutTotal),
       Icon: Wallet,
       valueClassName: 'text-[#143675]',
@@ -177,16 +174,16 @@ export function PayrollOperationsPanel({
         <div className="flex flex-wrap items-center gap-2">
           {blockedCount > 0 ? (
             <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
-              {blockedCount} blocked
+              {blockedCount} {operations.badges.blocked}
             </span>
           ) : null}
           {approvedCount > 0 ? (
             <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300">
-              {approvedCount} pending payment
+              {approvedCount} {operations.badges.pendingPayment}
             </span>
           ) : null}
           <span className="rounded-full border border-[#143675]/15 bg-[#143675]/5 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
-            {paidRate} paid rate
+            {paidRate} {operations.badges.paidRate}
           </span>
         </div>
       </div>
@@ -198,7 +195,7 @@ export function PayrollOperationsPanel({
               statusDistribution.map((item) => (
                 <div
                   key={item.key}
-                  className={`${statusConfig[item.key].barClassName} transition-all duration-300`}
+                  className={`${statusStyleConfig[item.key].barClassName} transition-all duration-300`}
                   style={{ width: getSegmentWidth(item.count, totalStatusCount) }}
                 />
               ))
@@ -211,8 +208,8 @@ export function PayrollOperationsPanel({
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
           {statusDistribution.map((item) => (
             <span key={item.key} className="flex items-center gap-1">
-              <span className={`h-2 w-2 rounded-full ${statusConfig[item.key].dotClassName}`} />
-              {statusConfig[item.key].label}
+              <span className={`h-2 w-2 rounded-full ${statusStyleConfig[item.key].dotClassName}`} />
+              {operations.statuses[item.key]}
               <span className="font-semibold text-slate-500 dark:text-slate-400">{item.count}</span>
             </span>
           ))}

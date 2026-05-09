@@ -1,6 +1,7 @@
 import { type ReactNode, useMemo, useState } from 'react';
 import { Calendar, Megaphone, Search, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import type { CreateAnnouncementModalCopy } from '../translations';
 
 interface AnnouncementEmployee {
   id: number;
@@ -24,6 +25,7 @@ export interface CreateAnnouncementFormData {
 }
 
 interface CreateAnnouncementModalProps {
+  copy: CreateAnnouncementModalCopy;
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: CreateAnnouncementFormData) => void;
@@ -57,6 +59,7 @@ const initialState: FormState = {
 };
 
 export function CreateAnnouncementModal({
+  copy,
   isOpen,
   onClose,
   onSave,
@@ -163,9 +166,9 @@ export function CreateAnnouncementModal({
               <Megaphone className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-xl font-semibold leading-7 text-white">New announcement</h2>
+              <h2 className="text-xl font-semibold leading-7 text-white">{copy.title}</h2>
               <p className="mt-1 text-sm leading-5 text-blue-100">
-                Create, target, and schedule internal HR communications.
+                {copy.subtitle}
               </p>
             </div>
           </div>
@@ -173,7 +176,7 @@ export function CreateAnnouncementModal({
             type="button"
             onClick={resetAndClose}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-            aria-label="Close"
+            aria-label={copy.close}
           >
             <X className="h-5 w-5" />
           </button>
@@ -183,61 +186,61 @@ export function CreateAnnouncementModal({
           <div className="space-y-5">
             <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Basic information</h3>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.basicInformation.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Start with the message identity and communication type.
+                  {copy.basicInformation.helper}
                 </p>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <label className="md:col-span-2">
-                  <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Title</span>
+                  <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.fields.title}</span>
                   <input
                     type="text"
                     value={formData.title}
                     onChange={(event) => updateField('title', event.target.value)}
-                    placeholder="Example: Schedule change, monthly meeting..."
+                    placeholder={copy.placeholders.title}
                     className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   />
                 </label>
 
                 <label>
-                  <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Type</span>
+                  <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.fields.type}</span>
                   <select
                     value={formData.type}
                     onChange={(event) => updateField('type', event.target.value as FormState['type'])}
                     className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   >
-                    <option value="general">General</option>
-                    <option value="urgent">Urgent</option>
-                    <option value="reminder">Reminder</option>
-                    <option value="celebration">Celebration</option>
+                    <option value="general">{copy.typeOptions.general}</option>
+                    <option value="urgent">{copy.typeOptions.urgent}</option>
+                    <option value="reminder">{copy.typeOptions.reminder}</option>
+                    <option value="celebration">{copy.typeOptions.celebration}</option>
                   </select>
                 </label>
 
                 <label>
-                  <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Audience</span>
+                  <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.fields.audience}</span>
                   <select
                     value={formData.audienceType}
                     onChange={(event) => updateField('audienceType', event.target.value as FormState['audienceType'])}
                     className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   >
-                    <option value="all">All employees</option>
-                    <option value="units">By unit</option>
-                    <option value="departments">By department</option>
-                    <option value="employees">Specific employees</option>
+                    <option value="all">{copy.audienceOptions.all}</option>
+                    <option value="units">{copy.audienceOptions.units}</option>
+                    <option value="departments">{copy.audienceOptions.departments}</option>
+                    <option value="employees">{copy.audienceOptions.employees}</option>
                   </select>
                 </label>
               </div>
             </section>
 
             {formData.audienceType === 'units' ? (
-              <AudienceOptionSection title="Select units" helperText="Choose at least one unit to publish this announcement.">
+              <AudienceOptionSection title={copy.units.title} helperText={copy.units.helper}>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   {unitOptions.map((unit) => (
                     <CheckboxPill
                       key={unit}
                       checked={formData.unitIds.includes(unit)}
-                      label={`Unit ${unit}`}
+                      label={copy.units.unitLabel(unit)}
                       onChange={() => toggleArrayValue('unitIds', unit)}
                     />
                   ))}
@@ -246,7 +249,7 @@ export function CreateAnnouncementModal({
             ) : null}
 
             {formData.audienceType === 'departments' ? (
-              <AudienceOptionSection title="Select departments" helperText="Choose at least one department to publish this announcement.">
+              <AudienceOptionSection title={copy.departments.title} helperText={copy.departments.helper}>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   {departmentOptions.map((department) => (
                     <CheckboxPill
@@ -262,8 +265,8 @@ export function CreateAnnouncementModal({
 
             {formData.audienceType === 'employees' ? (
               <AudienceOptionSection
-                title={`Select employees (${formData.employeeIds.length})`}
-                helperText="Search and choose the employees who should receive this announcement."
+                title={copy.employees.title(formData.employeeIds.length)}
+                helperText={copy.employees.helper}
               >
                 <div className="relative mb-3">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -271,7 +274,7 @@ export function CreateAnnouncementModal({
                     type="text"
                     value={employeeSearch}
                     onChange={(event) => setEmployeeSearch(event.target.value)}
-                    placeholder="Search by name or position"
+                    placeholder={copy.placeholders.employeeSearch}
                     className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   />
                 </div>
@@ -291,7 +294,7 @@ export function CreateAnnouncementModal({
                       <div className="min-w-0">
                         <p className="truncate font-medium text-gray-900 dark:text-white">{employee.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {employee.position} · Unit {employee.unit}
+                          {copy.employees.meta(employee.position, employee.unit)}
                         </p>
                       </div>
                     </label>
@@ -302,42 +305,42 @@ export function CreateAnnouncementModal({
 
             <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Message</h3>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.message.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Keep the message short, direct, and easy to scan.
+                  {copy.message.helper}
                 </p>
               </div>
               <textarea
                 value={formData.content}
                 onChange={(event) => updateField('content', event.target.value)}
                 rows={7}
-                placeholder="Write the announcement content..."
+                placeholder={copy.placeholders.message}
                 className="mt-4 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
               />
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Attachments will be added in a later frontend pass.
+                {copy.message.attachmentNote}
               </p>
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Publishing</h3>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.publishing.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Publish now or schedule the announcement for later.
+                  {copy.publishing.helper}
                 </p>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <RadioCard
                   checked={formData.publishMode === 'now'}
-                  label="Publish now"
-                  description="Make this announcement visible immediately."
+                  label={copy.publishing.publishNow.label}
+                  description={copy.publishing.publishNow.description}
                   onChange={() => updateField('publishMode', 'now')}
                 />
                 <RadioCard
                   checked={formData.publishMode === 'scheduled'}
-                  label="Schedule publication"
-                  description="Choose a specific date and time."
+                  label={copy.publishing.schedulePublication.label}
+                  description={copy.publishing.schedulePublication.description}
                   onChange={() => updateField('publishMode', 'scheduled')}
                 />
               </div>
@@ -345,7 +348,7 @@ export function CreateAnnouncementModal({
               {formData.publishMode === 'scheduled' ? (
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label>
-                    <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Date</span>
+                    <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.fields.date}</span>
                     <div className="relative">
                       <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                       <input
@@ -357,7 +360,7 @@ export function CreateAnnouncementModal({
                     </div>
                   </label>
                   <label>
-                    <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Time</span>
+                    <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.fields.time}</span>
                     <input
                       type="time"
                       value={formData.scheduledTime}
@@ -377,7 +380,7 @@ export function CreateAnnouncementModal({
             className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
             onClick={resetAndClose}
           >
-            Cancel
+            {copy.buttons.cancel}
           </Button>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -387,14 +390,14 @@ export function CreateAnnouncementModal({
               className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white disabled:border-white/15 disabled:text-white/50"
               onClick={() => submitAnnouncement('draft')}
             >
-              Save draft
+              {copy.buttons.saveDraft}
             </Button>
             <Button
               disabled={!canPublish}
               onClick={() => submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
               className="rounded-xl bg-white text-[#143675] hover:bg-blue-50 disabled:bg-white/50 disabled:text-[#143675]/60"
             >
-              {formData.publishMode === 'now' ? 'Publish now' : 'Schedule publication'}
+              {formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
             </Button>
           </div>
         </div>

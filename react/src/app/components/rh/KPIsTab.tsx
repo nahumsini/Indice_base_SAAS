@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import { Button } from '../ui/button';
-import { useHRLanguage } from '../../BasicModules/HumanResources/HRLanguage';
+import { useKPIsTranslations } from '../../BasicModules/HumanResources/KPIs/hooks/useKPIsTranslations';
 import { 
   Filter, 
   Download, 
@@ -19,7 +20,32 @@ import {
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export function KPIsTab() {
-  const t = useHRLanguage().kpis;
+  const t = useKPIsTranslations();
+  const attendanceChartData = useMemo(
+    () => t.charts.months.map((month, index) => ({
+      month,
+      attendance: [92, 94, 91, 95, 93, 96][index],
+    })),
+    [t],
+  );
+  const permissionDistributionData = useMemo(
+    () => [
+      { name: t.charts.permissionTypes.vacation, value: 35 },
+      { name: t.charts.permissionTypes.sickLeave, value: 25 },
+      { name: t.charts.permissionTypes.personal, value: 20 },
+      { name: t.charts.permissionTypes.training, value: 15 },
+      { name: t.charts.permissionTypes.other, value: 5 },
+    ],
+    [t],
+  );
+  const unitSummaryRows = useMemo(
+    () => [
+      { unit: t.units.unit10, employees: 30, attendance: '95%', absenteeism: '2.8%', payroll: '$288,000', incidents: 5 },
+      { unit: t.units.unit7, employees: 2, attendance: '97%', absenteeism: '1.5%', payroll: '$250', incidents: 0 },
+      { unit: t.units.unit8, employees: 10, attendance: '92%', absenteeism: '3.0%', payroll: '$70,000', incidents: 0 },
+    ],
+    [t],
+  );
 
   return (
     <>
@@ -61,15 +87,15 @@ export function KPIsTab() {
           </select>
           <select className="px-3 py-2 border border-[#143675]/20 dark:border-[#143675]/30 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#143675]">
             <option>{t.filters.allUnits}</option>
-            <option>Unidad 10</option>
-            <option>Unidad 8</option>
-            <option>Unidad 9</option>
+            {t.filters.units.map((unit) => (
+              <option key={unit}>{unit}</option>
+            ))}
           </select>
           <select className="px-3 py-2 border border-[#143675]/20 dark:border-[#143675]/30 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#143675]">
             <option>{t.filters.allDepartments}</option>
-            <option>Operaciones</option>
-            <option>Ventas</option>
-            <option>Administración</option>
+            {t.filters.departments.map((department) => (
+              <option key={department}>{department}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -86,7 +112,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.activeEmployees}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">42</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+3 vs mes anterior</p>
+            <p className="text-xs text-green-600 dark:text-green-400">{t.notes.previousMonth}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -97,7 +123,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.punctuality}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">94%</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Entradas a tiempo</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.onTimeEntries}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -108,7 +134,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.absenteeism}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">3.1%</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Días perdidos</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.lostDays}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -119,7 +145,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.tardiness}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">18</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Este mes</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.thisMonth}</p>
           </div>
         </div>
       </div>
@@ -136,7 +162,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.permissionsRequested}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">22</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Este mes</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.thisMonth}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -147,7 +173,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.absenceDays}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">41</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Impacto operativo</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.operationalImpact}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -158,7 +184,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.payrollCost}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">$358,250</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Total mensual</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.monthlyTotal}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -169,7 +195,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.avgCostPerEmployee}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">$8,530</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Costo laboral medio</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.averageLabourCost}</p>
           </div>
         </div>
       </div>
@@ -186,7 +212,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.assignedAssets}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">39</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Equipos entregados</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.assignedEquipment}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -197,7 +223,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.assetsInMaintenance}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">3</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Equipos fuera de servicio</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.outOfServiceEquipment}</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -208,7 +234,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.workIncidents}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">5</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Actas registradas</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t.notes.registeredRecords}</p>
           </div>
 
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg shadow-sm border-2 border-green-200 dark:border-green-700 p-6">
@@ -219,7 +245,7 @@ export function KPIsTab() {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.cards.teamHealth}</p>
             <p className="text-4xl font-bold text-green-600 dark:text-green-400 mb-1">87<span className="text-2xl text-gray-500 dark:text-gray-400">/100</span></p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Índice general del clima laboral</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{t.notes.workforceHealthIndex}</p>
           </div>
         </div>
       </div>
@@ -232,17 +258,10 @@ export function KPIsTab() {
           <ResponsiveContainer width="100%" height={300}>
             <LineChart 
               id="asistencia-chart"
-              data={[
-                { mes: 'Ene', asistencia: 92 },
-                { mes: 'Feb', asistencia: 94 },
-                { mes: 'Mar', asistencia: 91 },
-                { mes: 'Abr', asistencia: 95 },
-                { mes: 'May', asistencia: 93 },
-                { mes: 'Jun', asistencia: 96 },
-              ]}
+              data={attendanceChartData}
             >
               <CartesianGrid key="grid-asistencia" strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis key="xaxis-asistencia" dataKey="mes" stroke="#6b7280" style={{ fontSize: '12px' }} />
+              <XAxis key="xaxis-asistencia" dataKey="month" stroke="#6b7280" style={{ fontSize: '12px' }} />
               <YAxis key="yaxis-asistencia" stroke="#6b7280" style={{ fontSize: '12px' }} domain={[85, 100]} />
               <Tooltip 
                 key="tooltip-asistencia"
@@ -254,7 +273,7 @@ export function KPIsTab() {
                 }} 
               />
               <Legend key="legend-asistencia" wrapperStyle={{ fontSize: '12px' }} />
-              <Line key="line-asistencia" type="monotone" dataKey="asistencia" stroke="#3b82f6" strokeWidth={2} name={`% ${t.cards.punctuality}`} />
+              <Line key="line-asistencia" type="monotone" dataKey="attendance" stroke="#3b82f6" strokeWidth={2} name={`% ${t.cards.punctuality}`} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -266,13 +285,7 @@ export function KPIsTab() {
             <PieChart id="permisos-chart">
               <Pie
                 key="pie-permisos"
-                data={[
-                  { name: 'Vacaciones', value: 35 },
-                  { name: 'Enfermedad', value: 25 },
-                  { name: 'Personal', value: 20 },
-                  { name: 'Capacitación', value: 15 },
-                  { name: 'Otros', value: 5 },
-                ]}
+                data={permissionDistributionData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -311,42 +324,20 @@ export function KPIsTab() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Unidad 10</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">30</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">95%</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">2.8%</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">$288,000</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">5</td>
-              </tr>
-              <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Unidad 7</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">2</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">97%</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">1.5%</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">$250</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">0</td>
-              </tr>
-              <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Unidad 8</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">10</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">92%</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">3.0%</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">$70,000</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">0</td>
-              </tr>
+              {unitSummaryRows.map((row) => (
+                <tr key={row.unit} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{row.unit}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{row.employees}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">{row.attendance}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">{row.absenteeism}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{row.payroll}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{row.incidents}</td>
+                </tr>
+              ))}
             </tbody>
             <tfoot className="bg-gray-50 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-600">
               <tr>

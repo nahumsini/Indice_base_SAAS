@@ -1,10 +1,13 @@
 import { type ReactNode } from 'react';
 import { Calendar, Clock, Pencil, Trash2 } from 'lucide-react';
 import { type RHComunicado } from '../../mockData';
+import type { AnnouncementTableCopy } from '../translations';
 
 interface AnnouncementTableProps {
   allVisibleSelected: boolean;
   announcements: RHComunicado[];
+  copy: AnnouncementTableCopy;
+  getAudienceLabel: (announcement: RHComunicado) => string;
   getStatusClasses: (status: RHComunicado['estado']) => string;
   getTypeClasses: (type: RHComunicado['tipo']) => string;
   readStatsById: Record<string, { read: number; total: number }>;
@@ -16,28 +19,11 @@ interface AnnouncementTableProps {
   onToggleRow: (announcementId: string) => void;
 }
 
-const announcementPreviewById: Record<string, string> = {
-  'COM-301': 'Next Saturday there will be changes to operating schedules for the involved units.',
-  'COM-302': 'Please complete pending evaluations before the end of the week.',
-  'COM-303': 'This month we celebrate three team birthdays.',
-};
-
-const typeLabels: Record<RHComunicado['tipo'], string> = {
-  Celebracion: 'Celebration',
-  General: 'General',
-  Recordatorio: 'Reminder',
-  Urgente: 'Urgent',
-};
-
-const statusLabels: Record<RHComunicado['estado'], string> = {
-  Borrador: 'Draft',
-  Programado: 'Scheduled',
-  Publicado: 'Published',
-};
-
 export function AnnouncementTable({
   allVisibleSelected,
   announcements,
+  copy,
+  getAudienceLabel,
   getStatusClasses,
   getTypeClasses,
   readStatsById,
@@ -64,21 +50,21 @@ export function AnnouncementTable({
                   className="h-4 w-4 rounded border-slate-300 bg-transparent text-[#143675] focus:ring-[#143675]"
                 />
               </th>
-              <TableHeader>Announcement</TableHeader>
-              {canShow('type') ? <TableHeader>Type</TableHeader> : null}
-              {canShow('audience') ? <TableHeader>Audience</TableHeader> : null}
-              {canShow('publication') ? <TableHeader>Publication</TableHeader> : null}
-              {canShow('reads') ? <TableHeader>Reads</TableHeader> : null}
-              {canShow('status') ? <TableHeader>Status</TableHeader> : null}
-              {canShow('author') ? <TableHeader>Author</TableHeader> : null}
-              <TableHeader>Actions</TableHeader>
+              <TableHeader>{copy.table.columns.announcement}</TableHeader>
+              {canShow('type') ? <TableHeader>{copy.table.columns.type}</TableHeader> : null}
+              {canShow('audience') ? <TableHeader>{copy.table.columns.audience}</TableHeader> : null}
+              {canShow('publication') ? <TableHeader>{copy.table.columns.publication}</TableHeader> : null}
+              {canShow('reads') ? <TableHeader>{copy.table.columns.reads}</TableHeader> : null}
+              {canShow('status') ? <TableHeader>{copy.table.columns.status}</TableHeader> : null}
+              {canShow('author') ? <TableHeader>{copy.table.columns.author}</TableHeader> : null}
+              <TableHeader>{copy.table.columns.actions}</TableHeader>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {announcements.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                  No announcements match the current filters.
+                  {copy.table.emptyState}
                 </td>
               </tr>
             ) : (
@@ -110,7 +96,7 @@ export function AnnouncementTable({
                             {announcement.titulo}
                           </p>
                           <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500 dark:text-slate-400">
-                            {announcementPreviewById[announcement.id] ?? 'No preview available.'}
+                            {(copy.previews as Readonly<Record<string, string>>)[announcement.id] ?? copy.table.noPreview}
                           </p>
                         </div>
                       </div>
@@ -118,13 +104,13 @@ export function AnnouncementTable({
                     {canShow('type') ? (
                       <td className="px-5 py-5 align-middle">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getTypeClasses(announcement.tipo)}`}>
-                          {typeLabels[announcement.tipo]}
+                          {copy.typeLabels[announcement.tipo]}
                         </span>
                       </td>
                     ) : null}
                     {canShow('audience') ? (
                       <td className="min-w-[190px] px-5 py-5 align-middle text-sm text-slate-600 dark:text-slate-300">
-                        {announcement.destinatarios}
+                        {getAudienceLabel(announcement)}
                       </td>
                     ) : null}
                     {canShow('publication') ? (
@@ -136,7 +122,7 @@ export function AnnouncementTable({
                           </p>
                           <p className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                             <Clock className="h-4 w-4 text-slate-400" />
-                            {scheduledTime ?? 'No time'}
+                            {scheduledTime ?? copy.table.noTime}
                           </p>
                         </div>
                       </td>
@@ -149,7 +135,7 @@ export function AnnouncementTable({
                     {canShow('status') ? (
                       <td className="px-5 py-5 align-middle">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(announcement.estado)}`}>
-                          {statusLabels[announcement.estado]}
+                          {copy.statusLabels[announcement.estado]}
                         </span>
                       </td>
                     ) : null}
@@ -163,7 +149,7 @@ export function AnnouncementTable({
                         <button
                           type="button"
                           className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
-                          title="Edit"
+                          title={copy.table.edit}
                           onClick={() => onEdit(announcement)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -171,7 +157,7 @@ export function AnnouncementTable({
                         <button
                           type="button"
                           className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
-                          title="Delete"
+                          title={copy.table.delete}
                           onClick={() => onDelete(announcement)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -187,12 +173,12 @@ export function AnnouncementTable({
       </div>
 
       <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-        <span>Showing {announcements.length} announcements</span>
+        <span>{copy.table.showing(announcements.length)}</span>
         <div className="flex items-center gap-3">
-          <span>Page 1 of 1</span>
-          <button className="rounded-lg px-2 py-1 text-slate-400" disabled>Previous</button>
+          <span>{copy.table.pageInfo}</span>
+          <button className="rounded-lg px-2 py-1 text-slate-400" disabled>{copy.table.previous}</button>
           <span className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">1</span>
-          <button className="rounded-lg px-2 py-1 text-slate-400" disabled>Next</button>
+          <button className="rounded-lg px-2 py-1 text-slate-400" disabled>{copy.table.next}</button>
         </div>
       </div>
     </div>

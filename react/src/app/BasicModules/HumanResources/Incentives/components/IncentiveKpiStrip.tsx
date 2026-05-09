@@ -1,9 +1,11 @@
 import { Bot, CheckCircle2, Eye, Gift, HandCoins, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { IncentivesTranslations } from '../translations';
 
 interface IncentiveKpiStripProps {
   activeCount: number;
   automatedCount: number;
+  copy: IncentivesTranslations;
   eligibleCount: number;
   manualCount: number;
   pausedCount: number;
@@ -33,6 +35,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
 export function IncentiveKpiStrip({
   activeCount,
   automatedCount,
+  copy,
   eligibleCount,
   manualCount,
   pausedCount,
@@ -48,17 +51,17 @@ export function IncentiveKpiStrip({
   return (
     <div className="mb-5 space-y-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Metric icon={<Gift className="h-4 w-4" />} label="Total incentives" value={totalCount} />
+        <Metric icon={<Gift className="h-4 w-4" />} label={copy.kpis.total} value={totalCount} />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label="Active" value={activeCount} valueClassName="text-emerald-600" />
+        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={copy.kpis.active} value={activeCount} valueClassName="text-emerald-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Bot className="h-4 w-4" />} label="Automated" value={automatedCount} valueClassName="text-blue-600" />
+        <Metric icon={<Bot className="h-4 w-4" />} label={copy.kpis.automated} value={automatedCount} valueClassName="text-blue-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<HandCoins className="h-4 w-4" />} label="Manual" value={manualCount} valueClassName="text-amber-600" />
+        <Metric icon={<HandCoins className="h-4 w-4" />} label={copy.kpis.manual} value={manualCount} valueClassName="text-amber-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Eye className="h-4 w-4" />} label="visible after filters" value={visibleCount} />
+        <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visibleCount} />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Users className="h-4 w-4" />} label="eligible employees" value={eligibleCount} />
+        <Metric icon={<Users className="h-4 w-4" />} label={copy.kpis.eligibleEmployees} value={eligibleCount} />
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -70,7 +73,7 @@ export function IncentiveKpiStrip({
       </div>
 
       <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 text-sm font-medium text-[#143675] dark:border-[#4a7bc8]/25 dark:bg-[#143675]/15 dark:text-blue-100">
-        Incentives summary: {activeCount} active · {scheduledCount} scheduled · {pausedCount} paused · {selectedCount} selected · showing {visibleCount} of {totalCount}.
+        {copy.kpis.summary(activeCount, scheduledCount, pausedCount, selectedCount, visibleCount, totalCount)}
       </div>
     </div>
   );

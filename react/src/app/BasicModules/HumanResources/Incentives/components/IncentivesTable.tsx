@@ -1,4 +1,5 @@
 import type { RHIncentivo } from '../../mockData';
+import type { IncentivesTranslations } from '../translations';
 
 export type IncentiveColumnId =
   | 'incentive'
@@ -9,6 +10,7 @@ export type IncentiveColumnId =
   | 'status';
 
 interface IncentivesTableProps {
+  copy: IncentivesTranslations;
   incentives: RHIncentivo[];
   selectedIds: string[];
   visibleColumns: IncentiveColumnId[];
@@ -27,18 +29,8 @@ const typeClasses: Record<RHIncentivo['tipo'], string> = {
   Manual: 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300',
 };
 
-const statusLabels: Record<RHIncentivo['estado'], string> = {
-  Activo: 'Active',
-  Programado: 'Scheduled',
-  Pausado: 'Paused',
-};
-
-const typeLabels: Record<RHIncentivo['tipo'], string> = {
-  Automatizado: 'Automated',
-  Manual: 'Manual',
-};
-
 export function IncentivesTable({
+  copy,
   incentives,
   selectedIds,
   visibleColumns,
@@ -62,19 +54,19 @@ export function IncentivesTable({
                   className="h-4 w-4 rounded border-gray-300 text-[#143675] focus:ring-[#143675]"
                 />
               </th>
-              {visibleColumnSet.has('incentive') ? <TableHeader label="Incentive" /> : null}
-              {visibleColumnSet.has('type') ? <TableHeader label="Type" /> : null}
-              {visibleColumnSet.has('scope') ? <TableHeader label="Scope" /> : null}
-              {visibleColumnSet.has('amount') ? <TableHeader label="Amount" /> : null}
-              {visibleColumnSet.has('application') ? <TableHeader label="Application" /> : null}
-              {visibleColumnSet.has('status') ? <TableHeader label="Status" /> : null}
+              {visibleColumnSet.has('incentive') ? <TableHeader label={copy.columns.incentive} /> : null}
+              {visibleColumnSet.has('type') ? <TableHeader label={copy.columns.type} /> : null}
+              {visibleColumnSet.has('scope') ? <TableHeader label={copy.columns.scope} /> : null}
+              {visibleColumnSet.has('amount') ? <TableHeader label={copy.columns.amount} /> : null}
+              {visibleColumnSet.has('application') ? <TableHeader label={copy.columns.application} /> : null}
+              {visibleColumnSet.has('status') ? <TableHeader label={copy.columns.status} /> : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {incentives.length === 0 ? (
               <tr>
                 <td colSpan={visibleColumns.length + 1} className="px-5 py-10 text-center text-sm text-slate-500">
-                  No incentives match the current filters.
+                  {copy.table.empty}
                 </td>
               </tr>
             ) : (
@@ -97,7 +89,7 @@ export function IncentivesTable({
                   {visibleColumnSet.has('type') ? (
                     <td className="px-5 py-4">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${typeClasses[incentive.tipo]}`}>
-                        {typeLabels[incentive.tipo]}
+                        {copy.types[incentive.tipo]}
                       </span>
                     </td>
                   ) : null}
@@ -113,7 +105,7 @@ export function IncentivesTable({
                   {visibleColumnSet.has('status') ? (
                     <td className="px-5 py-4">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses[incentive.estado]}`}>
-                        {statusLabels[incentive.estado]}
+                        {copy.statuses[incentive.estado]}
                       </span>
                     </td>
                   ) : null}
@@ -125,11 +117,11 @@ export function IncentivesTable({
       </div>
 
       <div className="flex flex-col gap-3 border-t border-gray-200 px-5 py-4 text-sm text-slate-600 dark:border-gray-700 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between">
-        <span>Showing {incentives.length} incentives</span>
+        <span>{copy.table.showing(incentives.length)}</span>
         <div className="flex items-center gap-3">
-          <span>Page 1 of 1</span>
-          <button type="button" className="text-slate-400" disabled>Previous</button>
-          <button type="button" className="text-slate-400" disabled>Next</button>
+          <span>{copy.table.page}</span>
+          <button type="button" className="text-slate-400" disabled>{copy.table.previous}</button>
+          <button type="button" className="text-slate-400" disabled>{copy.table.next}</button>
         </div>
       </div>
     </div>

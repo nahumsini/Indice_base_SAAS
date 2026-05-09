@@ -17,8 +17,10 @@ import {
   DropdownMenuTrigger,
 } from '../../../../components/ui/dropdown-menu';
 import type { PayrollRunSummary } from '../../../../api/humanResources';
+import type { PayrollRunActionsCopy } from '../translations/types';
 
 type PayrollRunActionsMenuProps = {
+  copy: PayrollRunActionsCopy;
   run: PayrollRunSummary;
   isBusy: boolean;
   onOpen: () => void;
@@ -32,6 +34,7 @@ type PayrollRunActionsMenuProps = {
 };
 
 export function PayrollRunActionsMenu({
+  copy,
   run,
   isBusy,
   onOpen,
@@ -63,8 +66,8 @@ export function PayrollRunActionsMenu({
         type="button"
         disabled={isBusy}
         onClick={canEdit ? onEdit : onOpen}
-        title="Review payroll"
-        aria-label="Review payroll"
+        title={copy.reviewPayroll}
+        aria-label={copy.reviewPayroll}
         className={`${actionButtonClassName} border ${reviewTone}`}
       >
         <Pencil className="h-4 w-4" />
@@ -75,8 +78,8 @@ export function PayrollRunActionsMenu({
         variant="outline"
         disabled={isBusy || !canProcess}
         onClick={onProcess}
-        title="Process payroll"
-        aria-label="Process payroll"
+        title={copy.processPayroll}
+        aria-label={copy.processPayroll}
         className={`${actionButtonClassName} border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300`}
       >
         <PlayCircle className="h-4 w-4" />
@@ -87,8 +90,8 @@ export function PayrollRunActionsMenu({
         variant="outline"
         disabled={isBusy || !canApprove}
         onClick={onApprove}
-        title="Approve payroll"
-        aria-label="Approve payroll"
+        title={copy.approvePayroll}
+        aria-label={copy.approvePayroll}
         className={`${actionButtonClassName} border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300`}
       >
         <CheckCircle2 className="h-4 w-4" />
@@ -99,8 +102,8 @@ export function PayrollRunActionsMenu({
         variant="outline"
         disabled={isBusy}
         onClick={onExportPdf}
-        title="Print payroll"
-        aria-label="Print payroll"
+        title={copy.printPayroll}
+        aria-label={copy.printPayroll}
         className={`${actionButtonClassName} border-violet-200 bg-violet-50 text-violet-600 hover:bg-violet-100 dark:border-violet-900/50 dark:bg-violet-950/30 dark:text-violet-300`}
       >
         <Printer className="h-4 w-4" />
@@ -111,8 +114,8 @@ export function PayrollRunActionsMenu({
         variant="outline"
         disabled={isBusy || !canPay || isPaid}
         onClick={onMarkPaid}
-        title="Mark payroll as paid"
-        aria-label="Mark payroll as paid"
+        title={copy.markPayrollAsPaid}
+        aria-label={copy.markPayrollAsPaid}
         className={`${actionButtonClassName} border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300`}
       >
         <Wallet className="h-4 w-4" />
@@ -125,8 +128,8 @@ export function PayrollRunActionsMenu({
             variant="outline"
             disabled={isBusy}
             className={`${actionButtonClassName} border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800`}
-            aria-label="More payroll actions"
-            title="More payroll actions"
+            aria-label={copy.morePayrollActions}
+            title={copy.morePayrollActions}
           >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
@@ -134,12 +137,12 @@ export function PayrollRunActionsMenu({
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onClick={onOpen}>
             <Pencil className="mr-2 h-4 w-4 text-amber-600" />
-            Open details
+            {copy.openDetails}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onExportCsv}>
             <Download className="mr-2 h-4 w-4 text-slate-600" />
-            Export CSV
+            {copy.exportCsv}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -148,7 +151,7 @@ export function PayrollRunActionsMenu({
             className="text-rose-700 focus:text-rose-700 dark:text-rose-300 dark:focus:text-rose-300"
           >
             <Ban className="mr-2 h-4 w-4" />
-            Cancel
+            {copy.cancel}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

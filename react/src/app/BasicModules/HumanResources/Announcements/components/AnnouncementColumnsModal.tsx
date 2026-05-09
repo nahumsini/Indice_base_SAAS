@@ -1,5 +1,6 @@
 import { Columns3, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import type { AnnouncementColumnsModalCopy } from '../translations';
 
 export interface AnnouncementColumn {
   id: string;
@@ -9,6 +10,7 @@ export interface AnnouncementColumn {
 
 interface AnnouncementColumnsModalProps {
   columns: AnnouncementColumn[];
+  copy: AnnouncementColumnsModalCopy;
   isOpen: boolean;
   visibleColumns: string[];
   onClose: () => void;
@@ -17,6 +19,7 @@ interface AnnouncementColumnsModalProps {
 
 export function AnnouncementColumnsModal({
   columns,
+  copy,
   isOpen,
   visibleColumns,
   onClose,
@@ -35,9 +38,9 @@ export function AnnouncementColumnsModal({
               <Columns3 className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-xl font-semibold leading-7 text-white">Table columns</h2>
+              <h2 className="text-xl font-semibold leading-7 text-white">{copy.title}</h2>
               <p className="mt-1 text-sm leading-5 text-blue-100">
-                Choose which announcement details are visible in the table.
+                {copy.subtitle}
               </p>
             </div>
           </div>
@@ -45,7 +48,7 @@ export function AnnouncementColumnsModal({
             type="button"
             onClick={onClose}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-            aria-label="Close"
+            aria-label={copy.close}
           >
             <X className="h-5 w-5" />
           </button>
@@ -77,7 +80,7 @@ export function AnnouncementColumnsModal({
 
         <div className="flex justify-end border-t border-white/10 bg-[#143675] px-6 py-4">
           <Button className="rounded-xl bg-white text-[#143675] hover:bg-blue-50" onClick={onClose}>
-            Done
+            {copy.done}
           </Button>
         </div>
       </div>

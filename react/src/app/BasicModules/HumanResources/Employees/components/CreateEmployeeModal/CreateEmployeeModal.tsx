@@ -27,8 +27,9 @@ import {
   validatePostalCodeForCountry,
 } from '../../../../../components/ManualLocationFields';
 import type { AttendanceControlLocation } from '../../../../../api/humanResources';
+import { useEmployeesTranslations } from '../../hooks/useEmployeesTranslations';
 import { HelperText } from './components/HelperText';
-import { StepProgress } from './components/StepProgress';
+import { StepProgress, type WizardStep } from './components/StepProgress';
 import { BasicInfoStep } from './steps/BasicInfoStep';
 import { ContactStep } from './steps/ContactStep';
 import { DocumentsStep } from './steps/DocumentsStep';
@@ -157,6 +158,7 @@ const SUPPORTED_DOCUMENT_TYPES = new Set([
   'image/webp',
 ]);
 const MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024;
+const modalStepIcons = [User, Phone, Briefcase, FileText] as const;
 
 const createDocumentSlot = (documentType: EmployeeDocumentType): EmployeeDocumentSlot => ({
   documentType,
@@ -215,357 +217,6 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
     profile_photo: createDocumentSlot('profile_photo'),
   },
 });
-
-const modalCopy = {
-  en: {
-    titleCreate: 'Add employee',
-    titleEdit: 'Edit employee',
-    subtitle:
-      'Create the complete HR profile, contact data, assignment, and documents in one flow.',
-    steps: [
-      { id: 1, label: 'Basic Info', icon: User },
-      { id: 2, label: 'Contact', icon: Phone },
-      { id: 3, label: 'Job', icon: Briefcase },
-      { id: 4, label: 'Documents', icon: FileText },
-    ],
-    buttons: {
-      cancel: 'Cancel',
-      back: 'Back',
-      continue: 'Continue',
-      next: 'Next',
-      save: 'Save',
-      createEmployee: 'Create Employee',
-      saveCompleteLater: 'Save and complete later',
-      chooseFile: 'Upload document',
-      replaceFile: 'Replace file',
-      removeCurrent: 'Remove current',
-      undoRemove: 'Undo remove',
-      viewCurrent: 'View current',
-    },
-    feedback: {
-      profileStarted: 'Employee profile started',
-      draftSaved: 'Progress saved locally for this session.',
-    },
-    sections: {
-      employee: 'Basic employee information',
-      employeeDescription: 'Start with only the fields needed to identify the employee.',
-      contact: 'Contact details',
-      contactDescription: 'Add location, phone numbers, and optional identifiers that can be completed later.',
-      role: 'Job and compensation',
-      roleDescription: 'Define the employee role, organization, payroll basis, and contract.',
-      documents: 'Employee documents',
-    },
-    groups: {
-      identity: 'Identity',
-      account: 'Account',
-      location: 'Location',
-      phones: 'Phones',
-      identifiers: 'Identifiers',
-      role: 'Role',
-      organization: 'Organization',
-      schedule: 'Schedule',
-      compensation: 'Compensation',
-      contract: 'Contract',
-    },
-    labels: {
-      employeeNumber: 'Employee number',
-      firstName: 'First name',
-      lastName: 'Last name',
-      email: 'Email address',
-      dateOfBirth: 'Date of birth',
-      address: 'Address',
-      nationalId: 'National ID',
-      taxId: 'Tax ID',
-      socialSecurityNumber: 'Social security number',
-      registrationCountry: 'Registration country',
-      stateProvince: 'Province / State',
-      city: 'City',
-      postalCode: 'Postal code',
-      mobilePhone: 'Mobile phone',
-      alternatePhone: 'Alternate phone',
-      emergencyContactName: 'Emergency contact name',
-      emergencyContactRelationship: 'Relationship',
-      emergencyContactPhone: 'Emergency contact phone',
-      department: 'Department',
-      position: 'Position',
-      businessUnitId: 'Business unit',
-      businessId: 'Business',
-      hireDate: 'Hire date',
-      scheduleOnHire: 'Add employee to schedule',
-      scheduleStartDate: 'Schedule start date',
-      scheduleEndDate: 'Schedule end date',
-      scheduleStartTime: 'Start time',
-      scheduleEndTime: 'End time',
-      scheduleMealMinutes: 'Meal minutes',
-      scheduleRestMinutes: 'Rest minutes',
-      scheduleLateAfterMinutes: 'Mark late after',
-      scheduleBlockAfterGracePeriod: 'Mark late after threshold',
-      scheduleLocationRule: 'Location rule',
-      scheduleLocationId: 'Exact location',
-      salaryType: 'Salary type',
-      workdayHours: 'Workday hours',
-      salary: 'Salary',
-      hourlyRate: 'Hourly wage',
-      payPeriod: 'Pay period',
-      contractType: 'Contract type',
-      contractStartDate: 'Contract start date',
-      contractEndDate: 'Contract end date',
-    },
-    helpers: {
-      email: 'This email is only for HR records. System access is managed separately.',
-      employeeNumberAuto: 'Generated automatically when the employee is saved.',
-      alternatePhone: 'Optional. Useful if the primary mobile phone is unavailable.',
-      taxId: 'Optional. Required for tax and payroll processes.',
-      socialSecurityNumber: 'Optional. You can add this later.',
-      documents: 'Allowed formats: PDF, JPG, PNG, WEBP. Maximum 5MB per file.',
-      documentRemoved: 'The current document will be deleted when you save.',
-      scheduleOnHire: 'Creates a strict weekly schedule within the selected date range. Standard working days are Monday to Friday.',
-      scheduleBusinessLocation: 'The employee will clock in from the Business Structure location assigned to their business.',
-      scheduleExactLocation: 'The selected exact location will be enforced for this employee schedule.',
-      noScheduleLocations: 'No active attendance locations are available for the selected business or unit.',
-    },
-    placeholders: {
-      employeeNumber: 'Auto-generated on save',
-      firstName: 'e.g. John',
-      lastName: 'e.g. Perez Ramirez',
-      email: 'name@email.com',
-      address: 'Street, number, city, state, ZIP code',
-      nationalId: 'e.g. GARC800101HDFRNN09',
-      taxId: 'e.g. GARR800101ABC',
-      socialSecurityNumber: 'e.g. 12345678901',
-      phone: 'e.g. 4165551234',
-      emergencyContactName: 'e.g. Maria Perez',
-      emergencyContactRelationship: 'e.g. Spouse',
-      stateProvince: 'e.g. Ontario',
-      city: 'e.g. Toronto',
-      postalCode: 'e.g. M5V 2T6',
-      workdayHours: 'e.g. 8',
-      salary: 'e.g. 12000.00',
-      hourlyRate: 'e.g. 75.00',
-      scheduleMealMinutes: 'e.g. 30',
-      scheduleRestMinutes: 'e.g. 0',
-      scheduleLateAfterMinutes: 'e.g. 10',
-      select: 'Select...',
-      noFile: 'No file uploaded',
-      fileUploaded: 'Uploaded',
-    },
-    options: {
-      departments: ['Operations', 'Administration', 'Sales', 'Human Resources'],
-      positions: ['Room attendant', 'Coordinator', 'Maintenance', 'Laundry'],
-      salaryTypes: [
-        { value: 'daily', label: 'Daily salary' },
-        { value: 'hourly', label: 'Hourly salary' },
-      ],
-      payPeriods: [
-        { value: 'weekly', label: 'Weekly' },
-        { value: 'biweekly', label: 'Biweekly' },
-        { value: 'monthly', label: 'Monthly' },
-      ],
-      contractTypes: [
-        { value: 'permanent', label: 'Permanent' },
-        { value: 'temporary', label: 'Temporary' },
-      ],
-      scheduleLocationRules: [
-        { value: 'business', label: 'Use employee business location' },
-        { value: 'exact', label: 'Force one exact location' },
-      ],
-    },
-    documents: {
-      birth_certificate: 'Birth certificate',
-      government_id: 'Government ID',
-      proof_of_address: 'Proof of address',
-      resume: 'Resume',
-      profile_photo: 'Profile photo',
-    },
-    validation: {
-      required: 'This field is required.',
-      invalidEmail: 'Enter a valid email address.',
-      invalidPhone: 'Enter a valid phone number.',
-      invalidHours: 'Workday hours must be between 1 and 24.',
-      invalidAmount: 'Enter an amount greater than zero.',
-      invalidScheduleTime: 'End time cannot equal start time.',
-      invalidMinutes: 'Enter zero or a positive number.',
-      contractDates: 'Contract end date must be the same as or after the start date.',
-      documentType: 'Only PDF, JPG, PNG, or WEBP files are allowed.',
-      documentSize: 'Each file must be 5MB or smaller.',
-    },
-    stepOf: (current: number, total: number) => `Step ${current} of ${total}`,
-  },
-  es: {
-    titleCreate: 'Agregar colaborador',
-    titleEdit: 'Editar colaborador',
-    subtitle:
-      'Crea el perfil completo de RH, contacto, asignación y documentos en un solo flujo.',
-    steps: [
-      { id: 1, label: 'Información básica', icon: User },
-      { id: 2, label: 'Contacto', icon: Phone },
-      { id: 3, label: 'Trabajo', icon: Briefcase },
-      { id: 4, label: 'Documentos', icon: FileText },
-    ],
-    buttons: {
-      cancel: 'Cancelar',
-      back: 'Atrás',
-      continue: 'Continuar',
-      next: 'Siguiente',
-      save: 'Guardar',
-      createEmployee: 'Crear colaborador',
-      saveCompleteLater: 'Guardar y completar después',
-      chooseFile: 'Subir documento',
-      replaceFile: 'Reemplazar archivo',
-      removeCurrent: 'Eliminar actual',
-      undoRemove: 'Deshacer',
-      viewCurrent: 'Ver actual',
-    },
-    feedback: {
-      profileStarted: 'Perfil del colaborador iniciado',
-      draftSaved: 'Progreso guardado localmente en esta sesión.',
-    },
-    sections: {
-      employee: 'Información básica del colaborador',
-      employeeDescription: 'Empieza solo con los datos necesarios para identificar al colaborador.',
-      contact: 'Datos de contacto',
-      contactDescription: 'Agrega ubicación, teléfonos e identificadores opcionales que puedes completar después.',
-      role: 'Trabajo y compensación',
-      roleDescription: 'Define puesto, organización, base de pago y contrato.',
-      documents: 'Documentos del colaborador',
-    },
-    groups: {
-      identity: 'Identidad',
-      account: 'Cuenta',
-      location: 'Ubicación',
-      phones: 'Teléfonos',
-      identifiers: 'Identificadores',
-      role: 'Rol',
-      organization: 'Organización',
-      schedule: 'Horario',
-      compensation: 'Compensación',
-      contract: 'Contrato',
-    },
-    labels: {
-      employeeNumber: 'Número de colaborador',
-      firstName: 'Nombre',
-      lastName: 'Apellidos',
-      email: 'Correo electrónico',
-      dateOfBirth: 'Fecha de nacimiento',
-      address: 'Dirección',
-      nationalId: 'Identificación nacional',
-      taxId: 'RFC',
-      socialSecurityNumber: 'NSS',
-      registrationCountry: 'País de registro',
-      stateProvince: 'Provincia / Estado',
-      city: 'Ciudad',
-      postalCode: 'Código postal',
-      mobilePhone: 'Teléfono móvil',
-      alternatePhone: 'Teléfono alterno',
-      emergencyContactName: 'Nombre del contacto',
-      emergencyContactRelationship: 'Relación',
-      emergencyContactPhone: 'Teléfono de emergencia',
-      department: 'Departamento',
-      position: 'Puesto',
-      businessUnitId: 'Unidad de negocio',
-      businessId: 'Negocio',
-      hireDate: 'Fecha de ingreso',
-      scheduleOnHire: 'Agregar colaborador a horario',
-      scheduleStartDate: 'Fecha de inicio del horario',
-      scheduleEndDate: 'Fecha de fin del horario',
-      scheduleStartTime: 'Hora de entrada',
-      scheduleEndTime: 'Hora de salida',
-      scheduleMealMinutes: 'Minutos de comida',
-      scheduleRestMinutes: 'Minutos de descanso',
-      scheduleLateAfterMinutes: 'Marcar tarde después de',
-      scheduleBlockAfterGracePeriod: 'Umbral para marcar tarde',
-      scheduleLocationRule: 'Regla de ubicación',
-      scheduleLocationId: 'Ubicación exacta',
-      salaryType: 'Tipo de salario',
-      workdayHours: 'Horas de jornada',
-      salary: 'Salario',
-      hourlyRate: 'Sueldo por hora',
-      payPeriod: 'Periodo de pago',
-      contractType: 'Tipo de contrato',
-      contractStartDate: 'Inicio de contrato',
-      contractEndDate: 'Fin de contrato',
-    },
-    helpers: {
-      email: 'Este correo se usa solo para registros de RH. El acceso al sistema se administra por separado.',
-      employeeNumberAuto: 'Se genera automáticamente cuando se guarda el colaborador.',
-      alternatePhone: 'Opcional. Útil si el teléfono principal no está disponible.',
-      taxId: 'Opcional. Requerido para procesos fiscales y de nómina.',
-      socialSecurityNumber: 'Opcional. Puedes agregarlo después.',
-      documents: 'Formatos permitidos: PDF, JPG, PNG, WEBP. Máximo 5MB por archivo.',
-      documentRemoved: 'El documento actual se eliminará al guardar.',
-      scheduleOnHire: 'Crea un horario estricto semanal dentro del rango seleccionado. Los días estándar son lunes a viernes.',
-      scheduleBusinessLocation: 'El colaborador registrará asistencia desde la ubicación de Business Structure asignada a su negocio.',
-      scheduleExactLocation: 'La ubicación exacta seleccionada se aplicará para este horario.',
-      noScheduleLocations: 'No hay ubicaciones activas para el negocio o unidad seleccionada.',
-    },
-    placeholders: {
-      employeeNumber: 'Se genera al guardar',
-      firstName: 'Ej. Juan',
-      lastName: 'Ej. Pérez Ramírez',
-      email: 'nombre@correo.com',
-      address: 'Calle, número, ciudad, estado, CP',
-      nationalId: 'Ej. GARC800101HDFRNN09',
-      taxId: 'Ej. GARR800101ABC',
-      socialSecurityNumber: 'Ej. 12345678901',
-      phone: 'Ej. 5512345678',
-      emergencyContactName: 'Ej. María Pérez',
-      emergencyContactRelationship: 'Ej. Esposa',
-      stateProvince: 'Ej. Ciudad de México',
-      city: 'Ej. Ciudad de México',
-      postalCode: 'Ej. 01000',
-      workdayHours: 'Ej. 8',
-      salary: 'Ej. 12000.00',
-      hourlyRate: 'Ej. 75.00',
-      scheduleMealMinutes: 'Ej. 30',
-      scheduleRestMinutes: 'Ej. 0',
-      scheduleLateAfterMinutes: 'Ej. 10',
-      select: 'Selecciona...',
-      noFile: 'Ningún archivo subido',
-      fileUploaded: 'Subido',
-    },
-    options: {
-      departments: ['Operaciones', 'Administración', 'Ventas', 'Recursos Humanos'],
-      positions: ['Camarista', 'Coordinador', 'Mantenimiento', 'Lavandería'],
-      salaryTypes: [
-        { value: 'daily', label: 'Salario por día' },
-        { value: 'hourly', label: 'Salario por hora' },
-      ],
-      payPeriods: [
-        { value: 'weekly', label: 'Semanal' },
-        { value: 'biweekly', label: 'Quincenal' },
-        { value: 'monthly', label: 'Mensual' },
-      ],
-      contractTypes: [
-        { value: 'permanent', label: 'Permanente' },
-        { value: 'temporary', label: 'Temporal' },
-      ],
-      scheduleLocationRules: [
-        { value: 'business', label: 'Usar ubicación del negocio del colaborador' },
-        { value: 'exact', label: 'Forzar una ubicación exacta' },
-      ],
-    },
-    documents: {
-      birth_certificate: 'Acta de nacimiento',
-      government_id: 'Identificación oficial',
-      proof_of_address: 'Comprobante de domicilio',
-      resume: 'CV',
-      profile_photo: 'Foto de perfil',
-    },
-    validation: {
-      required: 'Este campo es obligatorio.',
-      invalidEmail: 'Ingresa un correo válido.',
-      invalidPhone: 'Ingresa un teléfono válido.',
-      invalidHours: 'Las horas de jornada deben estar entre 1 y 24.',
-      invalidAmount: 'Ingresa un monto mayor a cero.',
-      invalidScheduleTime: 'La salida no puede ser igual a la entrada.',
-      invalidMinutes: 'Ingresa cero o un número positivo.',
-      contractDates: 'La fecha de fin debe ser igual o posterior a la de inicio.',
-      documentType: 'Solo se permiten archivos PDF, JPG, PNG o WEBP.',
-      documentSize: 'Cada archivo debe ser de 5MB o menos.',
-    },
-    stepOf: (current: number, total: number) => `Paso ${current} de ${total}`,
-  },
-} as const;
 
 const modalLabelClassName = 'mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200';
 const modalControlClassName =
@@ -707,7 +358,7 @@ export function CreateEmployeeModal({
   attendanceLocations = [],
 }: EmployeeModalProps) {
   const { currentLanguage } = useLanguage();
-  const copy = currentLanguage.code.startsWith('es') ? modalCopy.es : modalCopy.en;
+  const copy = useEmployeesTranslations().modal;
 
   const formRef = useRef<HTMLFormElement | null>(null);
   const formDataRef = useRef<EmployeeFormData>(createEmptyEmployeeFormData());
@@ -717,6 +368,13 @@ export function CreateEmployeeModal({
   const [touchedFields, setTouchedFields] = useState<Partial<Record<EmployeeFieldKey, boolean>>>({});
   const [documentErrors, setDocumentErrors] = useState<Partial<Record<EmployeeDocumentType, string>>>({});
   const [statusFeedback, setStatusFeedback] = useState('');
+  const modalSteps = useMemo<readonly WizardStep[]>(
+    () => copy.steps.map((step, index) => ({
+      ...step,
+      icon: modalStepIcons[index] ?? User,
+    })),
+    [copy.steps],
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -1024,12 +682,12 @@ export function CreateEmployeeModal({
     if (!data.scheduleStartDate) {
       errors.scheduleStartDate = copy.validation.required;
     } else if (data.scheduleStartDate < dateInputValue()) {
-      errors.scheduleStartDate = 'Start date cannot be in the past.';
+      errors.scheduleStartDate = copy.validation.scheduleStartPast;
     }
     if (!data.scheduleEndDate) {
       errors.scheduleEndDate = copy.validation.required;
     } else if (data.scheduleStartDate && data.scheduleEndDate < data.scheduleStartDate) {
-      errors.scheduleEndDate = 'End date must be on or after start date.';
+      errors.scheduleEndDate = copy.validation.scheduleEndBeforeStart;
     }
     if (!data.scheduleStartTime) {
       errors.scheduleStartTime = copy.validation.required;
@@ -1338,7 +996,7 @@ export function CreateEmployeeModal({
       return;
     }
 
-    if (currentStep < copy.steps.length) {
+    if (currentStep < modalSteps.length) {
       if (currentStep === 1 && isCreateMode) {
         localDraftDataRef.current = nextFormData;
         setStatusFeedback(copy.feedback.profileStarted);
@@ -1356,10 +1014,10 @@ export function CreateEmployeeModal({
   }
 
   const currentStepValid = currentStepFields.every((field) => !validationErrors[field]);
-  const progressPercentage = `${(currentStep / copy.steps.length) * 100}%`;
+  const progressPercentage = `${(currentStep / modalSteps.length) * 100}%`;
   const primaryButtonLabel = currentStep === 1
     ? copy.buttons.continue
-    : currentStep === copy.steps.length
+    : currentStep === modalSteps.length
       ? isCreateMode
         ? copy.buttons.createEmployee
         : copy.buttons.save
@@ -1382,7 +1040,7 @@ export function CreateEmployeeModal({
             </div>
             <div>
               <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#143675] shadow-sm">
-                {copy.stepOf(currentStep, copy.steps.length)}
+                {copy.stepOf(currentStep, modalSteps.length)}
               </div>
               <h2 className="text-xl font-semibold tracking-tight text-white">
                 {mode === 'edit' ? copy.titleEdit : copy.titleCreate}
@@ -1396,16 +1054,16 @@ export function CreateEmployeeModal({
             type="button"
             onClick={() => handleClose()}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-            aria-label="Close modal"
+            aria-label={copy.buttons.closeModal}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <StepProgress
-          steps={copy.steps}
+          steps={modalSteps}
           currentStep={currentStep}
-          progressLabel={copy.stepOf(currentStep, copy.steps.length)}
+          progressLabel={copy.stepOf(currentStep, modalSteps.length)}
           progressPercentage={progressPercentage}
           onStepSelect={(stepId) => {
             if (stepId > currentStep && !currentStepValid) {

@@ -1,13 +1,16 @@
 import { Columns3, Download, Plus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import type { AnnouncementHeaderCopy } from '../translations';
 
 interface AnnouncementHeaderBarProps {
+  copy: AnnouncementHeaderCopy;
   onAdd: () => void;
   onColumns: () => void;
   onExport: () => void;
 }
 
 export function AnnouncementHeaderBar({
+  copy,
   onAdd,
   onColumns,
   onExport,
@@ -18,10 +21,10 @@ export function AnnouncementHeaderBar({
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
             <span className="text-2xl">📢</span>
-            Announcements
+            {copy.pageTitle}
           </h2>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-            Internal updates, segmented messages, and scheduled communications.
+            {copy.pageSubtitle}
           </p>
         </div>
 
@@ -32,7 +35,7 @@ export function AnnouncementHeaderBar({
             onClick={onExport}
           >
             <Download className="h-4 w-4" />
-            Export
+            {copy.export}
           </Button>
           <Button
             variant="outline"
@@ -40,14 +43,14 @@ export function AnnouncementHeaderBar({
             onClick={onColumns}
           >
             <Columns3 className="h-4 w-4" />
-            Columns
+            {copy.columns}
           </Button>
           <Button
             className="h-11 justify-center gap-2 rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855]"
             onClick={onAdd}
           >
             <Plus className="h-4 w-4" />
-            Add announcement
+            {copy.addAnnouncement}
           </Button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import { PermissionHeaderBar } from './components/PermissionHeaderBar';
 import { PermissionKpiStrip } from './components/PermissionKpiStrip';
 import { PermissionsTable, type PermissionColumnId } from './components/PermissionsTable';
 import { mockPermissions } from './data/permissions.mock';
+import { usePermissionsResolvedLocale, usePermissionsTranslations } from './hooks/usePermissionsTranslations';
 import type { PermissionItem, PermissionFilterState } from './types/permissions.types';
 
 const defaultVisiblePermissionColumns: PermissionColumnId[] = [
@@ -20,18 +21,9 @@ const defaultVisiblePermissionColumns: PermissionColumnId[] = [
   'actions',
 ];
 
-const permissionColumns: PermissionColumn[] = [
-  { id: 'folio', label: 'Folio', locked: true },
-  { id: 'employee', label: 'Employee', locked: true },
-  { id: 'type', label: 'Type' },
-  { id: 'startDate', label: 'Start date' },
-  { id: 'endDate', label: 'End date' },
-  { id: 'days', label: 'Days' },
-  { id: 'status', label: 'Status' },
-  { id: 'actions', label: 'Actions', locked: true },
-];
-
 export default function Permissions() {
+  const copy = usePermissionsTranslations();
+  const locale = usePermissionsResolvedLocale();
   const [permissions, setPermissions] = useState<PermissionItem[]>(mockPermissions);
   const [filters, setFilters] = useState<PermissionFilterState>({
     search: '',
@@ -48,6 +40,20 @@ export default function Permissions() {
   const [selectedPermission, setSelectedPermission] = useState<PermissionItem | null>(null);
 
   const isManager = true;
+
+  const permissionColumns = useMemo<PermissionColumn[]>(
+    () => [
+      { id: 'folio', label: copy.columns.folio, locked: true },
+      { id: 'employee', label: copy.columns.employee, locked: true },
+      { id: 'type', label: copy.columns.type },
+      { id: 'startDate', label: copy.columns.startDate },
+      { id: 'endDate', label: copy.columns.endDate },
+      { id: 'days', label: copy.columns.days },
+      { id: 'status', label: copy.columns.status },
+      { id: 'actions', label: copy.columns.actions, locked: true },
+    ],
+    [copy],
+  );
 
   const filteredPermissions = useMemo(() => {
     return permissions.filter((permission) => {
@@ -146,13 +152,15 @@ export default function Permissions() {
   return (
     <div className="space-y-6">
       <PermissionHeaderBar
+        copy={copy}
         onColumns={() => setIsColumnsModalOpen(true)}
         onCreate={() => setIsCreateModalOpen(true)}
       />
 
-      <PermissionFilters filters={filters} onFiltersChange={setFilters} isManager={isManager} permissions={permissions} />
+      <PermissionFilters copy={copy} filters={filters} onFiltersChange={setFilters} isManager={isManager} permissions={permissions} />
 
       <PermissionKpiStrip
+        copy={copy}
         approved={stats.approved}
         pending={stats.pending}
         rejected={stats.rejected}
@@ -161,6 +169,7 @@ export default function Permissions() {
       />
 
       <PermissionsTable
+        copy={copy}
         permissions={filteredPermissions}
         visibleColumns={visiblePermissionColumns}
         onView={(permission) => {
@@ -174,6 +183,7 @@ export default function Permissions() {
 
       <PermissionColumnsModal
         columns={permissionColumns}
+        copy={copy.columnsModal}
         isOpen={isColumnsModalOpen}
         visibleColumns={visiblePermissionColumns}
         onClose={() => setIsColumnsModalOpen(false)}
@@ -181,12 +191,15 @@ export default function Permissions() {
       />
 
       <CreatePermissionModal
+        copy={copy}
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreatePermission}
       />
 
       <PermissionDetailModal
+        copy={copy}
+        locale={locale}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         permission={selectedPermission}
