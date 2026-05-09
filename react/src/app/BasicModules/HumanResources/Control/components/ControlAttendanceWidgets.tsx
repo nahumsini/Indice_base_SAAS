@@ -1,12 +1,12 @@
-import { type ReactNode } from 'react';
-import { MapPin } from 'lucide-react';
+import { type MouseEvent, type ReactNode } from 'react';
+import { ImageIcon, MapPin } from 'lucide-react';
 import {
   type AttendanceCalendarDay,
   type AttendanceControlOverviewResponse,
 } from '../../../../api/humanResources';
-import type { HRLanguagePack } from '../../HRLanguage';
+import type { ControlTranslations } from '../translations';
 
-export type AttendanceControlCopy = HRLanguagePack['attendanceControl'];
+export type AttendanceControlCopy = ControlTranslations;
 
 export const statusClasses: Record<string, string> = {
   on_time: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -22,20 +22,42 @@ export const statusClasses: Record<string, string> = {
 
 type ControlAssignment = AttendanceControlOverviewResponse['assignments'][number];
 
-export function getAssignmentBusyReason(assignment: ControlAssignment) {
+export function getAssignmentBusyReason(assignment: ControlAssignment, copy?: AttendanceControlCopy) {
   if (assignment.first_check_in_at || assignment.last_check_out_at) {
-    return 'Attendance already recorded for this date';
+    return copy?.labels.assignmentBusyAttendanceRecorded ?? 'Attendance already recorded for this date';
   }
   if (assignment.active_work_site) {
-    return 'Contract site already assigned';
+    return copy?.labels.assignmentBusyContractSiteAssigned ?? 'Contract site already assigned';
   }
   if (assignment.schedule_template_id) {
-    return 'Schedule already assigned';
+    return copy?.labels.assignmentBusyScheduleAssigned ?? 'Schedule already assigned';
   }
   return '';
 }
 
 export const isAssignmentFreeForWork = (assignment: ControlAssignment) => !getAssignmentBusyReason(assignment);
+
+const attendanceRowBorderClass = (assignment: ControlAssignment) => {
+  const displayStatus = assignment.corrected_status ?? assignment.today_status;
+
+  if (displayStatus === 'absence') {
+    return 'border-l-rose-500';
+  }
+
+  if (assignment.first_check_in_at && !assignment.last_check_out_at) {
+    return 'border-l-amber-500';
+  }
+
+  if (displayStatus === 'late') {
+    return 'border-l-amber-500';
+  }
+
+  if (displayStatus === 'on_time' || assignment.first_check_in_at) {
+    return 'border-l-emerald-500';
+  }
+
+  return 'border-l-gray-300 dark:border-l-gray-600';
+};
 
 export function formatDate(value: string | null | undefined, locale: string, fallback: string) {
   if (!value) {
@@ -70,14 +92,15 @@ export function ControlAttendanceRow({
   onSelect: () => void;
 }) {
   const displayStatus = assignment.corrected_status ?? assignment.today_status;
+  const rowBorderClassName = attendanceRowBorderClass(assignment);
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full border-b border-gray-200 px-4 py-4 text-left transition-colors dark:border-gray-700 ${
+      className={`w-full border-b border-l-4 border-b-gray-200 px-4 py-4 text-left transition-colors dark:border-b-gray-700 ${rowBorderClassName} ${
         selected
-          ? 'border-l-4 border-l-[#1463ff] bg-[#1463ff]/5'
+          ? 'bg-[#1463ff]/5 shadow-[inset_0_0_0_1px_rgba(20,99,255,0.12)]'
           : 'hover:bg-gray-50 dark:hover:bg-gray-900/40'
       }`}
     >
@@ -89,7 +112,7 @@ export function ControlAttendanceRow({
           </p>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-[#143675] dark:text-[#8bb3ff]">
             <MapPin className="h-3.5 w-3.5" />
-            <span className="truncate">Contract site: {assignment.active_work_site?.location_name ?? 'None'}</span>
+            <span className="truncate">{copy.labels.contractSiteLabel}: {assignment.active_work_site?.location_name ?? copy.labels.none}</span>
           </div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses[displayStatus]}`}>
@@ -126,10 +149,12 @@ export function AttendanceMomentPanel({
   location: string | null;
   copy: AttendanceControlCopy;
 }) {
+  const isEmpty = time === copy.labels.noRegistration;
+
   return (
     <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-900/40">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-[#1f9d55] dark:text-emerald-300">{time}</p>
+      <p className={`mt-2 text-lg font-semibold ${isEmpty ? 'text-gray-500 dark:text-gray-400' : 'text-[#1f9d55] dark:text-emerald-300'}`}>{time}</p>
       <div className="mt-3 flex items-center gap-1.5 text-xs text-[#1463ff] dark:text-[#8bb3ff]">
         <MapPin className="h-3.5 w-3.5" />
         <span className="truncate">{location || copy.labels.openLocation}</span>
@@ -156,28 +181,49 @@ export function ControlCalendarDayCell({
   copy,
   day,
   dayNumber,
+  isMultiSelected = false,
   isSelected,
+  locale,
+  onMouseDown,
+  onMouseEnter,
+  onMouseUp,
   onSelect,
 }: {
   copy: AttendanceControlCopy;
   day: AttendanceCalendarDay | null;
   dayNumber: number;
+  isMultiSelected?: boolean;
   isSelected: boolean;
+  locale: string;
+  onMouseDown?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onMouseEnter?: () => void;
+  onMouseUp?: () => void;
   onSelect: () => void;
 }) {
   const statusTone = day ? dayTone(day) : null;
   const isLocked = day?.attendance_editable === false;
+  const attendanceTooltip = day
+    ? [
+        `${copy.labels.checkIn}: ${formatTimeOnly(day.first_check_in_at, locale, copy.labels.noRegistration)}`,
+        `${copy.labels.checkOut}: ${formatTimeOnly(day.last_check_out_at, locale, copy.labels.noRegistration)}`,
+      ].join('\n')
+    : undefined;
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : undefined}
-      className={`min-h-[92px] rounded-2xl border p-3 text-left transition-colors ${
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
+      onMouseUp={onMouseUp}
+      title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : attendanceTooltip}
+      className={`min-h-[92px] select-none rounded-2xl border p-3 text-left transition-colors ${
         isSelected
-          ? 'border-[#1463ff] bg-[#1463ff]/5 shadow-[inset_0_0_0_1px_rgba(20,99,255,0.15)]'
+          ? 'border-[#1463ff] bg-[#1463ff]/10 shadow-[0_0_0_3px_rgba(20,99,255,0.14),inset_0_0_0_1px_rgba(20,99,255,0.18)]'
+          : isMultiSelected
+          ? 'border-[#143675] bg-[#143675]/10 shadow-[inset_0_0_0_1px_rgba(20,54,117,0.18)]'
           : 'border-gray-200 bg-white hover:border-[#1463ff]/35 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#8bb3ff]/40'
-      } ${isLocked ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800/70 dark:bg-amber-950/20' : ''}`}
+      }`}
     >
       <div className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</div>
       {day ? (
@@ -190,11 +236,6 @@ export function ControlCalendarDayCell({
             <div className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold ${statusTone}`}>
               {dayBadge(copy, day)}
             </div>
-          ) : null}
-          {isLocked ? (
-            <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
-              {copy.labels.notModifiable}
-            </p>
           ) : null}
         </div>
       ) : null}
@@ -222,9 +263,9 @@ export function LegendOutline({ label }: { label: string }) {
 
 export function DayInfoStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+    <div className="min-h-[84px] rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{value}</p>
+      <p className="mt-3 text-base font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -234,12 +275,44 @@ export function DayEvidenceCard({
   photoUrl,
   location,
   copy,
+  compact = false,
 }: {
   label: string;
   photoUrl: string | null;
   location: string | null;
   copy: AttendanceControlCopy;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
+        <div className="mt-2 flex items-center gap-2">
+          {photoUrl ? (
+            <img
+              src={photoUrl}
+              alt={label}
+              className="h-10 w-10 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-900/40"
+              title={copy.labels.noEvidence}
+            >
+              <ImageIcon className="h-4 w-4" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-xs text-[#1463ff] dark:text-[#8bb3ff]">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{location || copy.labels.noLocationHistory}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
@@ -308,6 +381,13 @@ export function applyCalendarDayUpdate(
     system_status: AttendanceCalendarDay['system_status'];
     corrected_status?: AttendanceCalendarDay['corrected_status'];
     notes?: string | null;
+    entry_registered?: boolean;
+    exit_registered?: boolean;
+    first_check_in_at?: string | null;
+    last_check_out_at?: string | null;
+    minutes_late?: number;
+    first_location?: AttendanceCalendarDay['first_location'];
+    last_location?: AttendanceCalendarDay['last_location'];
   },
 ): AttendanceCalendarDay {
   return {
@@ -316,6 +396,13 @@ export function applyCalendarDayUpdate(
     system_status: result.system_status,
     corrected_status: result.corrected_status ?? null,
     notes: result.notes ?? null,
+    entry_registered: result.entry_registered ?? day.entry_registered,
+    exit_registered: result.exit_registered ?? day.exit_registered,
+    first_check_in_at: result.first_check_in_at ?? day.first_check_in_at,
+    last_check_out_at: result.last_check_out_at ?? day.last_check_out_at,
+    minutes_late: result.minutes_late ?? day.minutes_late,
+    first_location: result.first_location ?? day.first_location,
+    last_location: result.last_location ?? day.last_location,
   };
 }
 

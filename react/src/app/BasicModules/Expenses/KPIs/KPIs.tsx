@@ -1,7 +1,17 @@
-export default function KPIs() {
+import GastosKPIPage from './GastosKPIPage';
+import type { Expense } from '../types/expenses.types';
+import type { ProviderRecord } from '../Providers/useProveedoresLogic';
+
+interface KPIsProps {
+  expenses: Expense[];
+  providers: ProviderRecord[];
+}
+
+export default function KPIs({ expenses, providers }: KPIsProps) {
   return (
-    <div className="space-y-6">
-      <p className="text-gray-500 dark:text-gray-400">Contenido de KPIs</p>
-    </div>
+    <GastosKPIPage
+      expenses={expenses}
+      providers={providers}
+    />
   );
 }

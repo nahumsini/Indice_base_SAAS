@@ -10,6 +10,7 @@ import {
 } from '../../../../../../../components/ui/dialog';
 import { Switch } from '../../../../../../../components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../../../../components/ui/tabs';
+import type { PayrollVariablePayCopy } from '../../../../translations/types';
 
 export type VariablePayItem = {
     id: string;
@@ -30,43 +31,13 @@ export type VariablePayItem = {
 };
 
 type VariablePayModalProps = {
+    copy: PayrollVariablePayCopy;
     isOpen: boolean;
     employeeName: string;
     items: VariablePayItem[];
     onClose: () => void;
     onSave: (items: VariablePayItem[]) => void;
 };
-
-type BonusTemplate = {
-    id: string;
-    name: string;
-    description: string;
-    defaultAmount: number;
-};
-
-type CommissionTemplate = {
-    id: string;
-    name: string;
-    description: string;
-    defaultBaseAmount: number;
-    defaultRate: number;
-};
-
-const bonusTemplates: BonusTemplate[] = [
-    { id: 'performance_bonus', name: 'Performance bonus', description: 'Reward for performance goals.', defaultAmount: 150 },
-    { id: 'attendance_bonus', name: 'Attendance bonus', description: 'Bonus for perfect attendance.', defaultAmount: 90 },
-    { id: 'productivity_bonus', name: 'Productivity bonus', description: 'Bonus based on output targets.', defaultAmount: 120 },
-    { id: 'holiday_bonus', name: 'Holiday bonus', description: 'Special holiday period bonus.', defaultAmount: 110 },
-    { id: 'custom_bonus', name: 'Custom bonus', description: 'Create a custom manual bonus.', defaultAmount: 0 },
-];
-
-const commissionTemplates: CommissionTemplate[] = [
-    { id: 'sales_commission', name: 'Sales commission', description: 'Commission for sales transactions.', defaultBaseAmount: 1000, defaultRate: 4 },
-    { id: 'contract_commission', name: 'Contract commission', description: 'Commission for contract closures.', defaultBaseAmount: 1200, defaultRate: 3.5 },
-    { id: 'referral_commission', name: 'Referral commission', description: 'Commission for successful referrals.', defaultBaseAmount: 800, defaultRate: 5 },
-    { id: 'service_commission', name: 'Service commission', description: 'Commission for service delivery.', defaultBaseAmount: 900, defaultRate: 3 },
-    { id: 'custom_commission', name: 'Custom commission', description: 'Create a custom manual commission.', defaultBaseAmount: 0, defaultRate: 0 },
-];
 
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -99,12 +70,15 @@ const normalizeItem = (item: VariablePayItem): VariablePayItem => ({
 });
 
 export function VariablePayModal({
+    copy,
     isOpen,
     employeeName,
     items,
     onClose,
     onSave,
 }: VariablePayModalProps) {
+    const bonusTemplates = copy.templates.bonuses;
+    const commissionTemplates = copy.templates.commissions;
     const [localItems, setLocalItems] = useState<VariablePayItem[]>(items);
     const [addMode, setAddMode] = useState<'bonus' | 'commission' | 'adjustment' | null>(null);
 
@@ -157,11 +131,11 @@ export function VariablePayModal({
         )));
     };
 
-    const applyBonusTemplate = (template: BonusTemplate) => {
+    const applyBonusTemplate = (template: PayrollVariablePayCopy['templates']['bonuses'][number]) => {
         setSelectedBonusTemplateId(template.id);
     };
 
-    const applyCommissionTemplate = (template: CommissionTemplate) => {
+    const applyCommissionTemplate = (template: PayrollVariablePayCopy['templates']['commissions'][number]) => {
         setSelectedCommissionTemplateId(template.id);
     };
 
@@ -217,7 +191,7 @@ export function VariablePayModal({
                 id: makeId(),
                 type: 'adjustment',
                 source: 'manual',
-                name: reason || 'Manual adjustment',
+                name: reason || copy.manualAdjustmentFallback,
                 amount: signedAmount,
                 taxable: adjustmentDraft.taxable,
                 included: true,
@@ -249,7 +223,7 @@ export function VariablePayModal({
 
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
                 <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                    <span>Taxable</span>
+                    <span>{copy.labels.taxable}</span>
                     <Switch checked={item.taxable} onCheckedChange={(checked) => updateItem(item.id, { taxable: checked })} />
                 </label>
                 <Button
@@ -260,7 +234,7 @@ export function VariablePayModal({
                     onClick={() => removeItem(item.id)}
                 >
                     <Trash2 className="mr-1 h-3.5 w-3.5" />
-                    Remove
+                    {copy.labels.remove}
                 </Button>
             </div>
         </div>
@@ -276,7 +250,7 @@ export function VariablePayModal({
                 <DialogContent className="z-[140] flex h-[min(88vh,860px)] max-w-[980px] flex-col gap-0 overflow-hidden p-0">
                     <DialogHeader className="border-b border-[#0f2855] bg-[#143675] px-5 py-4">
                         <DialogTitle className="text-lg font-semibold text-white">
-                            Manage variable pay
+                            {copy.title}
                         </DialogTitle>
                         <p className="text-sm text-blue-100">{employeeName}</p>
                     </DialogHeader>
@@ -284,24 +258,24 @@ export function VariablePayModal({
                     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
                         <Tabs defaultValue="bonuses" className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
-                                <TabsTrigger value="commissions">Commissions</TabsTrigger>
-                                <TabsTrigger value="adjustments">Adjustments</TabsTrigger>
+                                <TabsTrigger value="bonuses">{copy.tabs.bonuses}</TabsTrigger>
+                                <TabsTrigger value="commissions">{copy.tabs.commissions}</TabsTrigger>
+                                <TabsTrigger value="adjustments">{copy.tabs.adjustments}</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="bonuses" className="space-y-3">
                                 <div className="flex justify-end">
                                     <Button type="button" size="sm" className="h-8 bg-[#143675] px-2 text-white hover:bg-[#0f2855]" onClick={() => setAddMode('bonus')}>
                                         <Plus className="mr-1 h-3.5 w-3.5" />
-                                        + Add bonus
+                                        {copy.actions.addBonus}
                                     </Button>
                                 </div>
                                 <div className="space-y-2">
                                     {bonuses.length === 0 ? (
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">No bonuses added.</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{copy.empty.bonuses}</p>
                                     ) : bonuses.map((item) => renderSummaryCard(
                                         item,
-                                        item.source === 'automatic' ? 'Automatic bonus' : 'Manual bonus',
+                                        item.source === 'automatic' ? copy.badges.automaticBonus : copy.badges.manualBonus,
                                     ))}
                                 </div>
                             </TabsContent>
@@ -310,15 +284,15 @@ export function VariablePayModal({
                                 <div className="flex justify-end">
                                     <Button type="button" size="sm" className="h-8 bg-[#143675] px-2 text-white hover:bg-[#0f2855]" onClick={() => setAddMode('commission')}>
                                         <Plus className="mr-1 h-3.5 w-3.5" />
-                                        + Add commissions
+                                        {copy.actions.addCommission}
                                     </Button>
                                 </div>
                                 <div className="space-y-2">
                                     {commissions.length === 0 ? (
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">No commissions added.</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{copy.empty.commissions}</p>
                                     ) : commissions.map((item) => renderSummaryCard(
                                         item,
-                                        item.source === 'automatic' ? 'Automatic commission' : 'Manual commission',
+                                        item.source === 'automatic' ? copy.badges.automaticCommission : copy.badges.manualCommission,
                                     ))}
                                 </div>
                             </TabsContent>
@@ -335,21 +309,21 @@ export function VariablePayModal({
                                         }}
                                     >
                                         <Plus className="mr-1 h-3.5 w-3.5" />
-                                        + Add adjustment
+                                        {copy.actions.addAdjustment}
                                     </Button>
                                 </div>
                                 <div className="space-y-2">
                                     {adjustments.length === 0 ? (
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">No adjustments added.</p>
-                                    ) : adjustments.map((item) => renderSummaryCard(item, 'Manual adjustment'))}
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{copy.empty.adjustments}</p>
+                                    ) : adjustments.map((item) => renderSummaryCard(item, copy.badges.manualAdjustment))}
                                 </div>
                             </TabsContent>
                         </Tabs>
                     </div>
 
                     <DialogFooter className="border-t border-slate-200 px-5 py-4 dark:border-slate-700">
-                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button type="button" onClick={() => onSave(localItems)} className="bg-[#143675] text-white hover:bg-[#0f2855]">Save changes</Button>
+                        <Button type="button" variant="outline" onClick={onClose}>{copy.actions.cancel}</Button>
+                        <Button type="button" onClick={() => onSave(localItems)} className="bg-[#143675] text-white hover:bg-[#0f2855]">{copy.actions.saveChanges}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -359,7 +333,7 @@ export function VariablePayModal({
             }}>
                 <DialogContent overlayClassName="z-[220]" className="z-[230] max-w-[760px]">
                     <DialogHeader>
-                        <DialogTitle>Add manual bonus</DialogTitle>
+                        <DialogTitle>{copy.labels.addManualBonus}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         {bonusTemplates.map((template) => (
@@ -375,8 +349,8 @@ export function VariablePayModal({
                         ))}
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>Cancel</Button>
-                        <Button type="button" onClick={addBonus} className="bg-[#143675] text-white hover:bg-[#0f2855]">Add selected bonus</Button>
+                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
+                        <Button type="button" onClick={addBonus} className="bg-[#143675] text-white hover:bg-[#0f2855]">{copy.actions.addSelectedBonus}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -386,7 +360,7 @@ export function VariablePayModal({
             }}>
                 <DialogContent overlayClassName="z-[220]" className="z-[230] max-w-[760px]">
                     <DialogHeader>
-                        <DialogTitle>Add manual commission</DialogTitle>
+                        <DialogTitle>{copy.labels.addManualCommission}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         {commissionTemplates.map((template) => (
@@ -401,12 +375,12 @@ export function VariablePayModal({
                             </button>
                         ))}
                         <div className="rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
-                            Commission amount: <span className="font-semibold text-slate-900 dark:text-slate-100">${money(selectedCommissionAmount)}</span>
+                            {copy.labels.commissionAmount}: <span className="font-semibold text-slate-900 dark:text-slate-100">${money(selectedCommissionAmount)}</span>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>Cancel</Button>
-                        <Button type="button" onClick={addCommission} className="bg-[#143675] text-white hover:bg-[#0f2855]">Add selected commission</Button>
+                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
+                        <Button type="button" onClick={addCommission} className="bg-[#143675] text-white hover:bg-[#0f2855]">{copy.actions.addSelectedCommission}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -419,7 +393,7 @@ export function VariablePayModal({
             }}>
                 <DialogContent overlayClassName="z-[220]" className="z-[230] max-w-[760px]">
                     <DialogHeader>
-                        <DialogTitle>Add payroll adjustment</DialogTitle>
+                        <DialogTitle>{copy.labels.addPayrollAdjustment}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -428,27 +402,27 @@ export function VariablePayModal({
                                 onClick={() => setAdjustmentDraft((current) => ({ ...current, kind: 'earning' }))}
                                 className={`h-9 rounded-md border px-3 text-left text-sm font-medium ${adjustmentDraft.kind === 'earning' ? 'border-[#143675] bg-[#143675]/5 text-[#143675]' : 'border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-200'}`}
                             >
-                                Perception (+)
+                                {copy.labels.perception}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setAdjustmentDraft((current) => ({ ...current, kind: 'deduction' }))}
                                 className={`h-9 rounded-md border px-3 text-left text-sm font-medium ${adjustmentDraft.kind === 'deduction' ? 'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300' : 'border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-200'}`}
                             >
-                                Deduction (-)
+                                {copy.labels.deduction}
                             </button>
                         </div>
 
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <label className="text-xs text-slate-600 dark:text-slate-300">Reason
+                            <label className="text-xs text-slate-600 dark:text-slate-300">{copy.labels.reason}
                                 <input
                                     value={adjustmentDraft.reason}
                                     onChange={(event) => setAdjustmentDraft((current) => ({ ...current, reason: event.target.value }))}
-                                    placeholder="Overtime correction"
+                                    placeholder={copy.labels.placeholderReason}
                                     className="mt-1 h-9 w-full rounded-md border border-slate-200 px-2 text-sm dark:border-slate-600 dark:bg-slate-900"
                                 />
                             </label>
-                            <label className="text-xs text-slate-600 dark:text-slate-300">Amount
+                            <label className="text-xs text-slate-600 dark:text-slate-300">{copy.labels.amount}
                                 <input
                                     type="number"
                                     min={0}
@@ -461,19 +435,19 @@ export function VariablePayModal({
                         </div>
 
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                            This adjustment will be saved as {adjustmentDraft.kind === 'deduction' ? 'negative (discount)' : 'positive (earning)'} amount.
+                            {copy.labels.adjustmentSavedAs} {adjustmentDraft.kind === 'deduction' ? copy.labels.negativeAmount : copy.labels.positiveAmount} {copy.labels.amountSuffix}
                         </p>
 
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <label className="flex items-center justify-between rounded-md border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-700">
-                                Taxable
+                                {copy.labels.taxable}
                                 <Switch
                                     checked={adjustmentDraft.taxable}
                                     onCheckedChange={(checked) => setAdjustmentDraft((current) => ({ ...current, taxable: checked }))}
                                 />
                             </label>
                             <label className="flex items-center justify-between rounded-md border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-700">
-                                Affects net pay
+                                {copy.labels.affectsNetPay}
                                 <Switch
                                     checked={adjustmentDraft.affectsNetPay}
                                     onCheckedChange={(checked) => setAdjustmentDraft((current) => ({ ...current, affectsNetPay: checked }))}
@@ -481,7 +455,7 @@ export function VariablePayModal({
                             </label>
                         </div>
 
-                        <label className="text-xs text-slate-600 dark:text-slate-300">Notes
+                        <label className="text-xs text-slate-600 dark:text-slate-300">{copy.labels.notes}
                             <input
                                 value={adjustmentDraft.notes}
                                 onChange={(event) => setAdjustmentDraft((current) => ({ ...current, notes: event.target.value }))}
@@ -490,14 +464,14 @@ export function VariablePayModal({
                         </label>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
                         <Button
                             type="button"
                             onClick={addAdjustment}
                             disabled={!adjustmentDraft.reason.trim()}
                             className="bg-[#143675] text-white hover:bg-[#0f2855] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            Add adjustment
+                            {copy.actions.addAdjustment}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

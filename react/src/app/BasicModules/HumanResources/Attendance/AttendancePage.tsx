@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, MapPin, User, View } from 'lucide-react';
 import { AttendanceRecorderPhotoCard } from './AttendanceRecorderPhotoCard';
-import { CalendarioAsistencia } from '../../../components/CalendarioAsistencia';
+import { AttendanceRecordsModal } from './AttendanceRecordsModal';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { useAttendancePhotoUpload } from '../../../hooks/useAttendancePhotoUpload';
 import { useLanguage } from '../../../shared/context';
@@ -28,11 +22,7 @@ import {
   type AttendanceDashboardResponse,
   type AttendanceLocation,
 } from '../../../api/humanResources';
-import {
-  dashboardApi,
-  type BackendBusiness,
-  type BackendUnit,
-} from '../../../api/dashboard';
+import { useAttendanceTranslations } from './hooks/useAttendanceTranslations';
 
 const padDatePart = (value: number) => `${value}`.padStart(2, '0');
 const localDateString = (date: Date) =>
@@ -57,12 +47,21 @@ const formatAttendanceTime = (value: string | null | undefined, locale: string) 
   }).format(parsedDate);
 };
 
-const formatAttendanceBusinessLocationOption = (location: AttendanceLocation) => {
-  const businessName = location.business_name?.trim();
-  return businessName && businessName !== location.name
-    ? `${location.name} - ${businessName}`
-    : location.name;
-};
+const formatAttendanceBusinessOption = (location: AttendanceLocation) => (
+  location.business_name?.trim() || location.name
+);
+
+const formatAttendanceLocationOption = (location: AttendanceLocation, fallback: string) => (
+  location.name?.trim() || location.business_name?.trim() || fallback
+);
+
+const attendanceLocationUnitKey = (location: AttendanceLocation) => (
+  location.unit_id ? String(location.unit_id) : 'unassigned'
+);
+
+const attendanceLocationBusinessKey = (location: AttendanceLocation) => (
+  location.business_id ? String(location.business_id) : `location:${location.id}`
+);
 
 type AttendanceUnitOption = {
   id: string;
@@ -75,251 +74,12 @@ type AttendanceBusinessOption = {
   name: string;
 };
 
-const backendBusinessUnitId = (business: BackendBusiness) => business.unit_id ?? business.unitId ?? null;
-
-const attendanceCopy = {
-  en: {
-    title: 'Attendance',
-    subtitle: 'Register your user entry/exit with photo and location.',
-    viewRecords: 'View my records',
-    markBlock: 'Mark block',
-    loading: {
-      refreshTitle: 'Updating attendance',
-      refreshDescription: 'We are syncing the HR operation.',
-      registerTitle: 'Recording attendance',
-      registerDescription: 'We are saving the photo, validating the location, and updating the daily record.',
-      correctTitle: 'Correcting status',
-      correctDescription: 'We are saving the manual correction in the backend.',
-    },
-    success: {
-      checkIn: 'Check-in recorded successfully.',
-      checkOut: 'Check-out recorded successfully.',
-      correctionApplied: 'Correction applied successfully.',
-      correctionCleared: 'Correction cleared successfully.',
-    },
-    summary: {
-      onTime: 'On time',
-      late: 'Late',
-      leave: 'Leave',
-      rest: 'Rest',
-      absence: 'No record',
-      pending: 'Pending',
-      not_scheduled: 'Not scheduled',
-      totalMonitored: 'Total monitored',
-    },
-    statuses: {
-      on_time: 'On time',
-      late: 'Late',
-      leave: 'Leave',
-      rest: 'Rest',
-      absence: 'No record',
-      pending: 'Pending',
-      not_scheduled: 'Not scheduled',
-    },
-    labels: {
-      collaborator: 'User',
-      employeeBrowser: 'User history',
-      employeeBrowserHint: 'Review your user history before interacting with the calendar or manual recorder.',
-      employeePicker: 'Selected user',
-      previousEmployee: 'Previous',
-      nextEmployee: 'Next',
-      searchEmployee: 'Search employee',
-      searchPlaceholder: 'Name or code',
-      employeeList: 'Users in scope',
-      employeeListHint: 'Your monthly history and today’s record are loaded from your user account.',
-      noEmployeesFound: 'No users match the current search.',
-      noEmployeesAvailable: 'No users available yet.',
-      unassignedUnit: 'No unit',
-      unassignedPosition: 'No role',
-      employeeSummary: 'Employee summary',
-      position: 'Position',
-      unit: 'Unit',
-      department: 'Department',
-      todayStatus: "Today's status",
-      latestLocation: 'Latest location',
-      noDepartment: 'No department',
-      noEmployeeSelected: 'Your user attendance profile is not available yet.',
-      retry: 'Retry',
-      statusLoggedIn: 'Logged in',
-      statusCheckedOut: 'Checked out',
-      statusReady: 'Ready to check in',
-    },
-    recorder: {
-      employee: 'User',
-      noEmployeeSelected: 'No signed-in user',
-      selectEmployeeHint: 'A signed-in user is required to enable photo and location recording.',
-      photo: 'Photo',
-      photoRequired: 'Required to record',
-      takePhoto: 'Take photo',
-      chooseFromGallery: 'Choose from gallery',
-      retakePhoto: 'Retake photo',
-      capturedPhotoLabel: 'Captured photo preview',
-      savedPhotoLabel: 'Latest recorded photo',
-      photoLockedHint: 'Photo captured. Complete your attendance record before taking another one.',
-      photoAlreadyRecordedHint: 'Today\'s attendance photo is already locked.',
-      photoHint: 'Tip: keep your face centered and use good lighting.',
-      location: 'Location',
-      unit: 'Unit',
-      business: 'Business',
-      selectUnit: 'Select unit',
-      selectBusiness: 'Select business',
-      locationRequired: 'Matched automatically from your current position',
-      getLocation: 'Get location',
-      refreshLocation: 'Refresh location',
-      noLocation: 'No location',
-      record: 'Record',
-      recordHint: 'It will be enabled when there is photo + location',
-      checkIn: 'Check-in',
-      checkOut: 'Check-out',
-      locationReady: 'Location ready',
-      locationUnsupported: 'This browser does not support geolocation.',
-      locationDenied: 'You must allow location access to register attendance.',
-      locationUnavailable: 'The device location could not be retrieved.',
-      photoRequiredError: 'Take a photo before recording attendance.',
-      locationRequiredError: 'Select the unit and business before recording attendance.',
-      checkInAlreadyRecorded: 'Check-in has already been recorded for today.',
-      checkOutRequiresCheckIn: 'Check-out requires an active check-in.',
-      statusActiveTitle: 'You are checked in.',
-      statusActiveDescription: 'Checked in at',
-      statusCheckedOutTitle: 'You are checked out for today.',
-      statusCheckedOutDescription: 'Last check-out recorded at',
-      statusIdleTitle: 'You have not checked in yet.',
-      statusIdleDescription: 'Take a photo and capture your location when you are ready to check in.',
-      submitHint: 'Photo and location will be validated when you submit.',
-      checkoutReadyHint: 'You are checked in. Check-out is ready when you are.',
-      cameraUnsupported: 'This browser cannot open the webcam.',
-      cameraPermissionDenied: 'You must allow camera access to take a photo.',
-      cameraUnavailable: 'The webcam could not be started.',
-      capturePhoto: 'Capture photo',
-      cancelCamera: 'Cancel',
-    },
-  },
-  es: {
-    title: 'Asistencia',
-    subtitle: 'Registra la entrada/salida de tu usuario con foto y ubicación.',
-    viewRecords: 'Ver mis registros',
-    markBlock: 'Marcar bloque',
-    loading: {
-      refreshTitle: 'Actualizando asistencia',
-      refreshDescription: 'Estamos sincronizando la operación de RH.',
-      registerTitle: 'Registrando asistencia',
-      registerDescription: 'Estamos guardando la foto, validando la ubicación y actualizando el expediente diario.',
-      correctTitle: 'Corrigiendo estatus',
-      correctDescription: 'Estamos guardando la corrección manual en el backend.',
-    },
-    success: {
-      checkIn: 'Ingreso registrado correctamente.',
-      checkOut: 'Salida registrada correctamente.',
-      correctionApplied: 'Corrección aplicada correctamente.',
-      correctionCleared: 'Corrección eliminada correctamente.',
-    },
-    summary: {
-      onTime: 'A tiempo',
-      late: 'Retardos',
-      leave: 'Permisos',
-      rest: 'Descanso',
-      absence: 'Sin registro',
-      pending: 'Pendiente',
-      not_scheduled: 'Sin horario',
-      totalMonitored: 'Total monitoreado',
-    },
-    statuses: {
-      on_time: 'A tiempo',
-      late: 'Retardo',
-      leave: 'Permiso',
-      rest: 'Descanso',
-      absence: 'Sin registro',
-      pending: 'Pendiente',
-      not_scheduled: 'Sin horario',
-    },
-    labels: {
-      collaborator: 'Usuario',
-      employeeBrowser: 'Historial de usuario',
-      employeeBrowserHint: 'Revisa tu historial de usuario antes de interactuar con el calendario o el registro manual.',
-      employeePicker: 'Usuario seleccionado',
-      previousEmployee: 'Anterior',
-      nextEmployee: 'Siguiente',
-      searchEmployee: 'Buscar colaborador',
-      searchPlaceholder: 'Nombre o código',
-      employeeList: 'Usuarios en alcance',
-      employeeListHint: 'Tu historial mensual y el registro de hoy se cargan desde tu cuenta de usuario.',
-      noEmployeesFound: 'No hay usuarios con esa búsqueda.',
-      noEmployeesAvailable: 'Aún no hay usuarios disponibles.',
-      unassignedUnit: 'Sin unidad',
-      unassignedPosition: 'Sin puesto',
-      employeeSummary: 'Resumen del colaborador',
-      position: 'Puesto',
-      unit: 'Unidad',
-      department: 'Departamento',
-      todayStatus: 'Estado de hoy',
-      latestLocation: 'Última ubicación',
-      noDepartment: 'Sin departamento',
-      noEmployeeSelected: 'Tu perfil de asistencia de usuario no está disponible.',
-      retry: 'Reintentar',
-      statusLoggedIn: 'Sesión activa',
-      statusCheckedOut: 'Salida registrada',
-      statusReady: 'Listo para ingresar',
-    },
-    recorder: {
-      employee: 'Usuario',
-      noEmployeeSelected: 'No hay un usuario autenticado',
-      selectEmployeeHint: 'Necesitas un usuario autenticado para habilitar la foto y la ubicación.',
-      photo: 'Foto',
-      photoRequired: 'Obligatoria para registrar',
-      takePhoto: 'Tomar foto',
-      chooseFromGallery: 'Elegir de galería',
-      retakePhoto: 'Tomar de nuevo',
-      capturedPhotoLabel: 'Vista previa capturada',
-      savedPhotoLabel: 'Última foto registrada',
-      photoLockedHint: 'La foto ya fue capturada. Completa tu registro de asistencia antes de tomar otra.',
-      photoAlreadyRecordedHint: 'La foto de asistencia de hoy ya quedó bloqueada.',
-      photoHint: 'Tip: keep your face centered and use good lighting.',
-      location: 'Ubicación',
-      unit: 'Unidad',
-      business: 'Negocio',
-      selectUnit: 'Seleccionar unidad',
-      selectBusiness: 'Seleccionar negocio',
-      locationRequired: 'Se valida automáticamente con tu ubicación actual',
-      getLocation: 'Obtener ubicación',
-      refreshLocation: 'Actualizar ubicación',
-      noLocation: 'Sin ubicación',
-      record: 'Registro',
-      recordHint: 'Se habilitará cuando exista foto + ubicación',
-      checkIn: 'Registrar ingreso',
-      checkOut: 'Registrar salida',
-      locationReady: 'Ubicación lista',
-      locationUnsupported: 'Este navegador no soporta geolocalización.',
-      locationDenied: 'Debes permitir la ubicación para registrar asistencia.',
-      locationUnavailable: 'No se pudo obtener la ubicación del dispositivo.',
-      photoRequiredError: 'Toma una foto antes de registrar asistencia.',
-      locationRequiredError: 'Selecciona la unidad y el negocio antes de registrar asistencia.',
-      checkInAlreadyRecorded: 'El ingreso de hoy ya fue registrado.',
-      checkOutRequiresCheckIn: 'Debes registrar un ingreso antes de registrar la salida.',
-      statusActiveTitle: 'Ya registraste tu ingreso.',
-      statusActiveDescription: 'Ingreso registrado a las',
-      statusCheckedOutTitle: 'Tu salida de hoy ya fue registrada.',
-      statusCheckedOutDescription: 'Última salida registrada a las',
-      statusIdleTitle: 'Aún no registras ingreso.',
-      statusIdleDescription: 'Toma una foto y captura tu ubicación cuando estés listo para registrar ingreso.',
-      submitHint: 'La foto y la ubicación se validarán al momento de registrar.',
-      checkoutReadyHint: 'Tu salida ya está lista para registrarse cuando quieras.',
-      cameraUnsupported: 'Este navegador no puede abrir la webcam.',
-      cameraPermissionDenied: 'Debes permitir el acceso a la cámara para tomar la foto.',
-      cameraUnavailable: 'No se pudo iniciar la webcam.',
-      capturePhoto: 'Capturar foto',
-      cancelCamera: 'Cancelar',
-    },
-  },
-} as const;
-
 export default function Attendance() {
   const { currentLanguage } = useLanguage();
-  const copy = currentLanguage.code.startsWith('es') ? attendanceCopy.es : attendanceCopy.en;
+  const copy = useAttendanceTranslations();
   const [currentAttendanceDate, setCurrentAttendanceDate] = useState(todayIsoDate());
   const [dashboard, setDashboard] = useState<AttendanceDashboardResponse | null>(null);
   const [calendar, setCalendar] = useState<AttendanceCalendarResponse | null>(null);
-  const [organizationUnits, setOrganizationUnits] = useState<BackendUnit[]>([]);
-  const [organizationBusinesses, setOrganizationBusinesses] = useState<BackendBusiness[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(todayMonth());
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
@@ -330,83 +90,76 @@ export default function Attendance() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [recorderUnitKey, setRecorderUnitKey] = useState('');
+  const [recorderBusinessKey, setRecorderBusinessKey] = useState('');
   const [recorderLocationId, setRecorderLocationId] = useState('');
   const [recorderLocationState, setRecorderLocationState] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-  const registrationRef = useRef<HTMLDivElement | null>(null);
   const successToastTimeoutRef = useRef<number | null>(null);
   const attendancePhotoUpload = useAttendancePhotoUpload();
   const attendanceLocations = useMemo(() => dashboard?.locations ?? [], [dashboard?.locations]);
+  const recorderSelectorLocations = useMemo(() => {
+    const businessLocations = attendanceLocations.filter((location) => location.business_id);
+    return businessLocations.length ? businessLocations : attendanceLocations;
+  }, [attendanceLocations]);
   const attendanceUnitOptions = useMemo<AttendanceUnitOption[]>(() => {
-    if (organizationUnits.length) {
-      return organizationUnits
-        .filter((unit) => unit.id != null)
-        .map((unit) => ({
-          id: String(unit.id),
-          name: unit.name?.trim() || copy.labels.unassignedUnit,
-        }));
-    }
-
     const unitOptionsByKey = new Map<string, string>();
 
-    attendanceLocations.forEach((location) => {
-      const unitKey = location.unit_id ? String(location.unit_id) : 'unassigned';
+    recorderSelectorLocations.forEach((location) => {
+      const unitKey = attendanceLocationUnitKey(location);
       if (!unitOptionsByKey.has(unitKey)) {
         unitOptionsByKey.set(unitKey, location.unit_name?.trim() || copy.labels.unassignedUnit);
       }
     });
 
     return Array.from(unitOptionsByKey, ([id, name]) => ({ id, name }));
-  }, [attendanceLocations, copy.labels.unassignedUnit, organizationUnits]);
+  }, [copy.labels.unassignedUnit, recorderSelectorLocations]);
   const allBusinessOptions = useMemo<AttendanceBusinessOption[]>(() => {
-    if (organizationBusinesses.length) {
-      return organizationBusinesses.reduce<AttendanceBusinessOption[]>((options, business) => {
-        const unitId = backendBusinessUnitId(business);
-        if (business.id == null || unitId == null) {
-          return options;
-        }
-
-        options.push({
-          id: String(business.id),
-          unitId: String(unitId),
-          name: business.name?.trim() || copy.recorder.business,
-        });
-        return options;
-      }, []);
-    }
-
     const businessOptionsByKey = new Map<string, AttendanceBusinessOption>();
-    attendanceLocations.forEach((location) => {
-      const unitId = location.unit_id ? String(location.unit_id) : 'unassigned';
-      const businessId = location.business_id ? String(location.business_id) : `location:${location.id}`;
+    recorderSelectorLocations.forEach((location) => {
+      const unitId = attendanceLocationUnitKey(location);
+      const businessId = attendanceLocationBusinessKey(location);
       if (!businessOptionsByKey.has(businessId)) {
         businessOptionsByKey.set(businessId, {
           id: businessId,
           unitId,
-          name: location.business_name?.trim() || formatAttendanceBusinessLocationOption(location),
+          name: formatAttendanceBusinessOption(location),
         });
       }
     });
 
     return Array.from(businessOptionsByKey.values());
-  }, [attendanceLocations, copy.recorder.business, organizationBusinesses]);
+  }, [recorderSelectorLocations]);
   const businessLocationOptions = useMemo(
     () => recorderUnitKey
       ? allBusinessOptions.filter((business) => business.unitId === recorderUnitKey)
       : [],
     [allBusinessOptions, recorderUnitKey],
   );
+  const attendanceLocationOptions = useMemo(
+    () => recorderBusinessKey
+      ? recorderSelectorLocations.filter((location) => (
+        attendanceLocationBusinessKey(location) === recorderBusinessKey
+        && (!recorderUnitKey || attendanceLocationUnitKey(location) === recorderUnitKey)
+      ))
+      : [],
+    [recorderBusinessKey, recorderSelectorLocations, recorderUnitKey],
+  );
   const selectedAttendanceUnit = useMemo(
     () => attendanceUnitOptions.find((unit) => unit.id === recorderUnitKey) ?? null,
     [attendanceUnitOptions, recorderUnitKey],
   );
   const selectedAttendanceBusiness = useMemo(
-    () => businessLocationOptions.find((business) => business.id === recorderLocationId) ?? null,
-    [businessLocationOptions, recorderLocationId],
+    () => businessLocationOptions.find((business) => business.id === recorderBusinessKey) ?? null,
+    [businessLocationOptions, recorderBusinessKey],
   );
-  const hasSelectedAttendanceLocation = Boolean(recorderUnitKey && recorderLocationId);
+  const selectedAttendanceLocation = useMemo(
+    () => attendanceLocations.find((location) => String(location.id) === recorderLocationId) ?? null,
+    [attendanceLocations, recorderLocationId],
+  );
+  const hasSelectedAttendanceLocation = Boolean(selectedAttendanceLocation);
+  const shouldShowAttendanceLocationSelectors = recorderSelectorLocations.length > 0;
   const selectedItem = useMemo(() => dashboard?.items[0] ?? null, [dashboard?.items]);
   const selectedEmployeeOption = useMemo(() => dashboard?.employees[0] ?? null, [dashboard?.employees]);
   const selectedEmployeeId = selectedItem?.employee_id ?? null;
@@ -415,6 +168,7 @@ export default function Attendance() {
     [selectedItem],
   );
   const latestRecordedPhotoUrl = selectedItem?.last_photo_url || selectedItem?.first_photo_url || null;
+  const selectedUserAvatarUrl = selectedItem?.avatar_url || selectedEmployeeOption?.avatar_url || '';
   const statusBadgeLabel = punchState.hasActiveCheckIn
     ? copy.labels.statusLoggedIn
     : punchState.hasCheckOut
@@ -447,7 +201,7 @@ export default function Attendance() {
     setErrorMessage('');
 
     try {
-      const response = await refreshDashboardSnapshot(attendanceDate);
+      const response = await runWithMinimumDuration(refreshDashboardSnapshot(attendanceDate));
       return response;
     } catch (error) {
       setDashboard(null);
@@ -471,33 +225,6 @@ export default function Attendance() {
       setIsLoadingCalendar(false);
     }
   };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    Promise.all([
-      dashboardApi.listUnits(),
-      dashboardApi.listBusinesses(),
-    ]).then(([units, businesses]) => {
-      if (!isMounted) {
-        return;
-      }
-
-      setOrganizationUnits(units);
-      setOrganizationBusinesses(businesses);
-    }).catch(() => {
-      if (!isMounted) {
-        return;
-      }
-
-      setOrganizationUnits([]);
-      setOrganizationBusinesses([]);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     void loadDashboard(currentAttendanceDate);
@@ -526,27 +253,66 @@ export default function Attendance() {
   }, [calendarMonth, selectedItem]);
 
   useEffect(() => {
+    if (recorderSelectorLocations.length === 1) {
+      const [singleLocation] = recorderSelectorLocations;
+      setRecorderUnitKey(attendanceLocationUnitKey(singleLocation));
+      setRecorderBusinessKey(attendanceLocationBusinessKey(singleLocation));
+      setRecorderLocationId(String(singleLocation.id));
+      return;
+    }
+
     if (!attendanceUnitOptions.length) {
       setRecorderUnitKey('');
+      setRecorderBusinessKey('');
       setRecorderLocationId('');
+      return;
+    }
+    if (attendanceUnitOptions.length === 1) {
+      setRecorderUnitKey(attendanceUnitOptions[0].id);
       return;
     }
 
     setRecorderUnitKey((currentUnitKey) => (
       attendanceUnitOptions.some((unit) => unit.id === currentUnitKey) ? currentUnitKey : ''
     ));
-  }, [attendanceUnitOptions]);
+  }, [attendanceUnitOptions, recorderSelectorLocations]);
 
   useEffect(() => {
+    if (recorderSelectorLocations.length === 1) {
+      return;
+    }
+
     if (!businessLocationOptions.length) {
+      setRecorderBusinessKey('');
+      setRecorderLocationId('');
+      return;
+    }
+
+    setRecorderBusinessKey((currentBusinessKey) => (
+      businessLocationOptions.some((business) => business.id === currentBusinessKey)
+        ? currentBusinessKey
+        : businessLocationOptions.length === 1
+          ? businessLocationOptions[0].id
+          : ''
+    ));
+  }, [businessLocationOptions, recorderSelectorLocations.length]);
+
+  useEffect(() => {
+    if (recorderSelectorLocations.length === 1) {
+      return;
+    }
+
+    if (!recorderBusinessKey || !attendanceLocationOptions.length) {
       setRecorderLocationId('');
       return;
     }
 
     setRecorderLocationId((currentLocationId) => (
-      businessLocationOptions.some((location) => String(location.id) === currentLocationId) ? currentLocationId : ''
+      attendanceLocationOptions.some((location) => String(location.id) === currentLocationId)
+        ? currentLocationId
+        : String(attendanceLocationOptions[0].id)
     ));
-  }, [businessLocationOptions]);
+  }, [attendanceLocationOptions, recorderBusinessKey, recorderSelectorLocations.length]);
 
   useEffect(() => {
     attendancePhotoUpload.clearPhoto();
@@ -596,7 +362,7 @@ export default function Attendance() {
     setIsSubmitting(true);
 
     try {
-      await runWithMinimumDuration(task(), 850);
+      await runWithMinimumDuration(task());
     } finally {
       setIsSubmitting(false);
     }
@@ -712,19 +478,18 @@ export default function Attendance() {
             event_type: eventType,
             event_kind: eventType,
             auth_method: 'manual_override',
+            location_id: selectedAttendanceLocation?.id,
             latitude: coordinates.latitude,
             longitude: coordinates.longitude,
             photo_url: photoObjectKey,
             event_timestamp: eventTimestamp,
             metadata: {
-              selected_unit_id: selectedAttendanceUnit && /^\d+$/.test(selectedAttendanceUnit.id)
-                ? Number(selectedAttendanceUnit.id)
-                : null,
-              selected_unit_name: selectedAttendanceUnit?.name ?? null,
-              selected_business_id: selectedAttendanceBusiness && /^\d+$/.test(selectedAttendanceBusiness.id)
-                ? Number(selectedAttendanceBusiness.id)
-                : null,
-              selected_business_name: selectedAttendanceBusiness?.name ?? null,
+              selected_unit_id: selectedAttendanceLocation?.unit_id ?? null,
+              selected_unit_name: selectedAttendanceUnit?.name ?? selectedAttendanceLocation?.unit_name ?? null,
+              selected_business_id: selectedAttendanceLocation?.business_id ?? null,
+              selected_business_name: selectedAttendanceLocation?.business_name ?? selectedAttendanceBusiness?.name ?? null,
+              selected_location_id: selectedAttendanceLocation?.id ?? null,
+              selected_location_name: selectedAttendanceLocation?.name ?? null,
             },
           });
 
@@ -816,29 +581,25 @@ export default function Attendance() {
         durationMs={4200}
       />
 
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
+      <div className="mb-5 rounded-lg border border-[#143675]/30 bg-[#143675]/10 p-6 shadow-sm dark:border-[#143675]/40 dark:bg-[#143675]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
               <span className="text-2xl">📅</span>
               {copy.title}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               {copy.subtitle}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" className="gap-2" onClick={() => setIsRecordsOpen(true)} disabled={!selectedItem}>
+            <Button
+              className="h-11 gap-2 rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855] disabled:bg-gray-300 disabled:text-gray-500"
+              onClick={() => setIsRecordsOpen(true)}
+              disabled={!selectedItem}
+            >
               <View className="h-4 w-4" />
               {copy.viewRecords}
-            </Button>
-            <Button
-              className="bg-[#143675] text-white hover:bg-[#0f2855]"
-              onClick={() => {
-                registrationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }}
-            >
-              {copy.markBlock}
             </Button>
           </div>
         </div>
@@ -863,9 +624,17 @@ export default function Attendance() {
             <>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                    <User className="h-5 w-5" />
-                  </div>
+                  {selectedUserAvatarUrl ? (
+                    <img
+                      src={selectedUserAvatarUrl}
+                      alt={selectedItem.employee_name}
+                      className="h-12 w-12 rounded-full border border-blue-100 object-cover shadow-sm dark:border-blue-900/50"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                      <User className="h-5 w-5" />
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{copy.labels.collaborator}</p>
                     <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{selectedItem.employee_name}</p>
@@ -915,6 +684,7 @@ export default function Attendance() {
                   photoLockedHint={copy.recorder.photoLockedHint}
                   photo={attendancePhotoUpload.photo}
                   disabled={photoCaptureDisabled}
+                  showGalleryUpload={false}
                   onPhotoChange={attendancePhotoUpload.setCapturedPhoto}
                   onError={setErrorMessage}
                   errors={{
@@ -945,7 +715,7 @@ export default function Attendance() {
           )}
         </div>
 
-        <div ref={registrationRef} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="mb-6">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -959,53 +729,64 @@ export default function Attendance() {
               </div>
             </div>
 
-            <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                  {copy.recorder.unit}
-                </span>
-                <select
-                  value={recorderUnitKey}
-                  onChange={(event) => {
-                    const nextUnitKey = event.target.value;
-                    setRecorderUnitKey(nextUnitKey);
-                    setRecorderLocationId('');
-                  }}
-                  disabled={recorderDisabled || attendanceUnitOptions.length === 0}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
-                >
-                  <option value="">{copy.recorder.selectUnit}</option>
-                  {attendanceUnitOptions.length ? (
-                    attendanceUnitOptions.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </option>
-                    ))
-                  ) : null}
-                </select>
-              </label>
+            {shouldShowAttendanceLocationSelectors ? (
+              <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    {copy.recorder.unit}
+                  </span>
+                  <select
+                    value={recorderUnitKey}
+                    onChange={(event) => {
+                      const nextUnitKey = event.target.value;
+                      setRecorderUnitKey(nextUnitKey);
+                      setRecorderBusinessKey('');
+                      setRecorderLocationId('');
+                    }}
+                    disabled={recorderDisabled || attendanceUnitOptions.length === 0}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
+                  >
+                    <option value="">{copy.recorder.selectUnit}</option>
+                    {attendanceUnitOptions.length ? (
+                      attendanceUnitOptions.map((unit) => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.name}
+                        </option>
+                      ))
+                    ) : null}
+                  </select>
+                </label>
 
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                  {copy.recorder.business}
-                </span>
-                <select
-                  value={recorderLocationId}
-                  onChange={(event) => setRecorderLocationId(event.target.value)}
-                  disabled={recorderDisabled || !recorderUnitKey || businessLocationOptions.length === 0}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
-                >
-                  <option value="">{copy.recorder.selectBusiness}</option>
-                  {businessLocationOptions.length ? (
-                    businessLocationOptions.map((business) => (
-                      <option key={business.id} value={business.id}>
-                        {business.name}
-                      </option>
-                    ))
-                  ) : null}
-                </select>
-              </label>
-            </div>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    {copy.recorder.business}
+                  </span>
+                  <select
+                    value={recorderBusinessKey}
+                    onChange={(event) => {
+                      setRecorderBusinessKey(event.target.value);
+                      setRecorderLocationId('');
+                    }}
+                    disabled={recorderDisabled || !recorderUnitKey || businessLocationOptions.length === 0}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
+                  >
+                    <option value="">{copy.recorder.selectBusiness}</option>
+                    {businessLocationOptions.length ? (
+                      businessLocationOptions.map((business) => (
+                        <option key={business.id} value={business.id}>
+                          {business.name}
+                        </option>
+                      ))
+                    ) : null}
+                  </select>
+                </label>
+              </div>
+            ) : selectedAttendanceLocation ? (
+              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <span className="font-medium">{copy.recorder.location}:</span>{' '}
+                {formatAttendanceLocationOption(selectedAttendanceLocation, copy.recorder.location)}
+              </div>
+            ) : null}
 
             <Button
               type="button"
@@ -1066,27 +847,19 @@ export default function Attendance() {
         </div>
       </div>
 
-      <Dialog open={isRecordsOpen} onOpenChange={setIsRecordsOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>{copy.viewRecords}</DialogTitle>
-          </DialogHeader>
-          {selectedItem && calendar ? (
-            <CalendarioAsistencia
-              colaboradorNombre={calendar.employee.full_name}
-              month={calendarMonth}
-              days={calendar.items}
-              isLoading={isLoadingCalendar}
-              onMonthChange={setCalendarMonth}
-              onUpdateStatus={handleUpdateStatus}
-            />
-          ) : (
-            <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-              {copy.labels.noEmployeeSelected}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <AttendanceRecordsModal
+        calendar={selectedItem ? calendar : null}
+        closeLabel={copy.closeRecords}
+        emptyMessage={copy.labels.noEmployeeSelected}
+        isLoadingCalendar={isLoadingCalendar}
+        isOpen={isRecordsOpen}
+        month={calendarMonth}
+        subtitle={copy.recordsModalSubtitle}
+        title={copy.viewRecords}
+        onMonthChange={setCalendarMonth}
+        onOpenChange={setIsRecordsOpen}
+        onUpdateStatus={handleUpdateStatus}
+      />
     </>
   );
 }

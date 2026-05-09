@@ -53,6 +53,7 @@ interface LiveFaceChallengeProps {
   onRestart?: () => void;
   resetToken?: string | number;
   copy?: Partial<LiveFaceChallengeCopy>;
+  compact?: boolean;
 }
 
 const CHALLENGE_STEPS: ChallengeStepId[] = ['neutral', 'left', 'right'];
@@ -102,6 +103,7 @@ export function LiveFaceChallenge({
   onRestart,
   resetToken,
   copy,
+  compact = false,
 }: LiveFaceChallengeProps) {
   const mergedCopy = useMemo(
     () => ({
@@ -584,15 +586,15 @@ export function LiveFaceChallenge({
   const isBusy = status === 'initializing' || status === 'submitting';
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className={`rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${compact ? 'p-3' : 'p-6'}`}>
+      <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between ${compact ? 'gap-2' : 'gap-4'}`}>
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-[#8bb3ff]">
+          <div className={`flex items-center justify-center rounded-full bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-[#8bb3ff] ${compact ? 'h-9 w-9' : 'h-12 w-12'}`}>
             <ScanFace className="h-5 w-5" />
           </div>
           <div>
             <h4 className="font-semibold text-gray-900 dark:text-white">{title}</h4>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+            <p className={`text-sm text-gray-500 dark:text-gray-400 ${compact ? 'mt-0.5' : 'mt-1'}`}>{helperText}</p>
           </div>
         </div>
         <span className="inline-flex items-center rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-medium text-[#143675] dark:bg-[#143675]/20 dark:text-[#8bb3ff]">
@@ -600,7 +602,7 @@ export function LiveFaceChallenge({
         </span>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className={`flex flex-wrap gap-2 ${compact ? 'mt-3' : 'mt-5'}`}>
         {CHALLENGE_STEPS.map((step, index) => {
           const isActive = currentStepIndex === index && status !== 'success';
           const isCaptured = Boolean(capturedSteps[step]);
@@ -621,13 +623,13 @@ export function LiveFaceChallenge({
         })}
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-gray-200 bg-black dark:border-gray-700">
+      <div className={`overflow-hidden rounded-2xl border border-gray-200 bg-black dark:border-gray-700 ${compact ? 'mt-3' : 'mt-5'}`}>
         <div className="relative">
           <video
             ref={videoRef}
             playsInline
             muted
-            className="h-[360px] w-full object-cover"
+            className={`${compact ? 'h-[230px]' : 'h-[360px]'} w-full object-cover`}
             style={{ transform: 'scaleX(-1)' }}
           />
           <canvas ref={canvasRef} className="hidden" />
@@ -636,16 +638,16 @@ export function LiveFaceChallenge({
             <div className="h-[72%] w-[52%] rounded-[48%] border-2 border-white/75 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]" />
           </div>
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-4 py-5 text-center">
+          <div className={`pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-4 text-center ${compact ? 'py-3' : 'py-5'}`}>
             <p className="text-xs uppercase tracking-[0.2em] text-white/70">
               {mergedCopy.stepLabels[currentStep]}
             </p>
-            <p className="mt-1 text-lg font-semibold text-white">{statusContent.message}</p>
+            <p className={`mt-1 font-semibold text-white ${compact ? 'text-sm' : 'text-lg'}`}>{statusContent.message}</p>
           </div>
         </div>
       </div>
 
-      <div className={`mt-4 rounded-xl border px-4 py-4 ${statusContent.tone}`}>
+      <div className={`rounded-xl border ${compact ? 'mt-3 px-3 py-2' : 'mt-4 px-4 py-4'} ${statusContent.tone}`}>
         <div className="flex items-start gap-3">
           <div className="mt-0.5 shrink-0">
             {statusContent.icon}
@@ -657,7 +659,7 @@ export function LiveFaceChallenge({
         </div>
 
         {status.startsWith('hold_') ? (
-          <div className="mt-4">
+          <div className={compact ? 'mt-2' : 'mt-4'}>
             <div className="mb-2 flex items-center justify-between text-xs font-medium uppercase tracking-[0.16em]">
               <span>{mergedCopy.holdMeterLabel}</span>
               <span>{Math.round(holdProgress * 100)}%</span>
@@ -672,28 +674,32 @@ export function LiveFaceChallenge({
         ) : null}
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={!onCancel || isBusy}
-        >
-          {mergedCopy.cancel}
-        </Button>
-        {showRetry ? (
-          <Button
-            type="button"
-            className="bg-[#143675] text-white hover:bg-[#0f2855]"
-            onClick={() => {
-              void initializeChallenge();
-            }}
-            disabled={isBusy}
-          >
-            {mergedCopy.retry}
-          </Button>
-        ) : null}
-      </div>
+      {onCancel || showRetry ? (
+        <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${compact ? 'mt-3' : 'mt-5'}`}>
+          {onCancel ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isBusy}
+            >
+              {mergedCopy.cancel}
+            </Button>
+          ) : null}
+          {showRetry ? (
+            <Button
+              type="button"
+              className="bg-[#143675] text-white hover:bg-[#0f2855]"
+              onClick={() => {
+                void initializeChallenge();
+              }}
+              disabled={isBusy}
+            >
+              {mergedCopy.retry}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

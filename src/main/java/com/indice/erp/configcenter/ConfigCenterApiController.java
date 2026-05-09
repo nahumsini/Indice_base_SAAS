@@ -1,11 +1,18 @@
 package com.indice.erp.configcenter;
 
+import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.config.AppWebProperties;
+import com.indice.erp.location.GoogleMapsCoordinateExtractor;
+import com.indice.erp.storage.ObjectStorageDisabledException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,8 +21,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-import com.indice.erp.auth.SessionAuthService;
-import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 
 @RestController
 @RequestMapping("/api/v1/config-center")
@@ -24,15 +29,21 @@ public class ConfigCenterApiController {
     private final SessionAuthService sessionAuthService;
     private final ConfigCenterService configCenterService;
     private final GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
+    private final InvitationEmailService invitationEmailService;
+    private final AppWebProperties appWebProperties;
 
     public ConfigCenterApiController(
         SessionAuthService sessionAuthService,
         ConfigCenterService configCenterService,
-        GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor
+        GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
+        InvitationEmailService invitationEmailService,
+        AppWebProperties appWebProperties
     ) {
         this.sessionAuthService = sessionAuthService;
         this.configCenterService = configCenterService;
         this.googleMapsCoordinateExtractor = googleMapsCoordinateExtractor;
+        this.invitationEmailService = invitationEmailService;
+        this.appWebProperties = appWebProperties;
     }
 
     @GetMapping("/current-user")
@@ -53,9 +64,37 @@ public class ConfigCenterApiController {
         }
 
         try {
-            return ResponseEntity.ok(
-                configCenterService.saveCurrentUser(current.get().userId(), current.get().role(), payload)
+            var savedUser = configCenterService.saveCurrentUser(
+                current.get().companyId(),
+                current.get().userId(),
+                current.get().role(),
+                payload
             );
+            var displayName = displayName(savedUser);
+            if (!displayName.isBlank()) {
+                session.setAttribute(SessionAuthService.SESSION_USER_NAME, displayName);
+            }
+            return ResponseEntity.ok(savedUser);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/current-user/avatar/presign-upload")
+    public ResponseEntity<?> createCurrentUserAvatarUpload(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var current = sessionAuthService.currentUser(session);
+        if (current.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(configCenterService.createCurrentUserAvatarUpload(
+                current.get().companyId(),
+                current.get().userId(),
+                payload
+            ));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -91,8 +130,32 @@ public class ConfigCenterApiController {
         }
     }
 
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<?> deleteUser(HttpSession session, @PathVariable long userId) {
+        var current = sessionAuthService.currentUser(session);
+        if (current.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(configCenterService.deleteUser(
+                current.get().companyId(),
+                current.get().userId(),
+                userId
+            ));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/users/invite")
-    public ResponseEntity<?> inviteUser(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> inviteUser(
+        HttpSession session,
+        HttpServletRequest request,
+        @RequestBody Map<String, Object> payload
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
@@ -100,10 +163,29 @@ public class ConfigCenterApiController {
 
         try {
             var result = configCenterService.inviteUser(current.get().companyId(), current.get().userId(), payload);
-            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                "email", result.get("email"),
-                "invite_link", buildInviteLink(String.valueOf(result.get("token")))
-            ));
+            var inviteLink = buildInviteLink(request, String.valueOf(result.get("token")));
+            var emailResult = invitationEmailService.sendInvitation(
+                String.valueOf(result.get("email")),
+                String.valueOf(result.get("full_name")),
+                inviteLink
+            );
+            return ResponseEntity.status(HttpStatus.CREATED).body(invitationResponse(result, inviteLink, emailResult));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/users/invitations/{invitationId}")
+    public ResponseEntity<?> deleteInvitation(HttpSession session, @PathVariable long invitationId) {
+        var current = sessionAuthService.currentUser(session);
+        if (current.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(configCenterService.deleteInvitation(current.get().companyId(), invitationId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -112,6 +194,7 @@ public class ConfigCenterApiController {
     @PostMapping("/users/invitations/{invitationId}/resend")
     public ResponseEntity<?> resendInvitation(
         HttpSession session,
+        HttpServletRequest request,
         @PathVariable long invitationId,
         @RequestBody(required = false) Map<String, Object> payload
     ) {
@@ -123,10 +206,13 @@ public class ConfigCenterApiController {
         try {
             var requestPayload = payload == null ? Map.<String, Object>of() : payload;
             var result = configCenterService.resendInvitation(current.get().companyId(), invitationId, requestPayload);
-            return ResponseEntity.ok(Map.of(
-                "email", result.get("email"),
-                "invite_link", buildInviteLink(String.valueOf(result.get("token")))
-            ));
+            var inviteLink = buildInviteLink(request, String.valueOf(result.get("token")));
+            var emailResult = invitationEmailService.sendInvitation(
+                String.valueOf(result.get("email")),
+                String.valueOf(result.get("full_name")),
+                inviteLink
+            );
+            return ResponseEntity.ok(invitationResponse(result, inviteLink, emailResult));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -189,17 +275,109 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        var result = new LinkedHashMap<String, Object>();
-        result.put("logo", null);
-        result.put("data", configCenterService.saveEmpresa(current.get().companyId(), current.get().userId(), payload));
-        result.put("message", "Company data saved");
-        return ResponseEntity.ok(result);
+        try {
+            var result = new LinkedHashMap<String, Object>();
+            result.put("logo", null);
+            result.put("data", configCenterService.saveEmpresa(current.get().companyId(), current.get().userId(), payload));
+            result.put("message", "Company data saved");
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
     }
 
-    private String buildInviteLink(String token) {
+    private String buildInviteLink(HttpServletRequest request, String token) {
+        var configuredBaseUrl = appWebProperties.resolveInvitationBaseUrl();
+        if (!configuredBaseUrl.isBlank()) {
+            return configuredBaseUrl + "/invite/" + token;
+        }
+
+        var browserBaseUrl = browserBaseUrl(request);
+        if (!browserBaseUrl.isBlank()) {
+            return browserBaseUrl + "/invite/" + token;
+        }
+
         return ServletUriComponentsBuilder.fromCurrentContextPath()
             .path("/invite/")
             .path(token)
             .toUriString();
+    }
+
+    private String browserBaseUrl(HttpServletRequest request) {
+        if (request == null) {
+            return "";
+        }
+
+        var origin = originFromHeader(request.getHeader("Origin"));
+        if (!origin.isBlank() && isAllowedOrigin(origin)) {
+            return origin;
+        }
+
+        var refererOrigin = originFromHeader(request.getHeader("Referer"));
+        if (!refererOrigin.isBlank() && isAllowedOrigin(refererOrigin)) {
+            return refererOrigin;
+        }
+
+        return "";
+    }
+
+    private String originFromHeader(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+
+        try {
+            var uri = URI.create(value.trim());
+            if (uri.getScheme() == null || uri.getHost() == null) {
+                return "";
+            }
+
+            var scheme = uri.getScheme().toLowerCase();
+            if (!scheme.equals("http") && !scheme.equals("https")) {
+                return "";
+            }
+
+            var port = uri.getPort();
+            return scheme + "://" + uri.getHost() + (port >= 0 ? ":" + port : "");
+        } catch (IllegalArgumentException ex) {
+            return "";
+        }
+    }
+
+    private boolean isAllowedOrigin(String origin) {
+        var allowedOrigins = appWebProperties.getAllowedOrigins();
+        if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+            return true;
+        }
+
+        return allowedOrigins.stream()
+            .map(value -> value == null ? "" : value.trim().replaceAll("/+$", ""))
+            .anyMatch(origin::equals);
+    }
+
+    private Map<String, Object> invitationResponse(
+        Map<String, Object> result,
+        String inviteLink,
+        InvitationEmailResult emailResult
+    ) {
+        var response = new LinkedHashMap<String, Object>();
+        response.put("email", result.get("email"));
+        response.put("invite_link", inviteLink);
+        response.put("email_sent", emailResult.sent());
+        response.put("email_status", emailResult.status());
+        response.put("email_message", emailResult.message());
+        return response;
+    }
+
+    private String displayName(Map<String, Object> user) {
+        return String.join(
+            " ",
+            text(user.get("primer_nombre")),
+            text(user.get("apellido_paterno"))
+        ).trim();
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 }

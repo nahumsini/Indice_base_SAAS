@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog';
 import { cn } from '../../../components/ui/utils';
-import { useHRLanguage } from '../HRLanguage';
+import { useAssetsTranslations } from './hooks/useAssetsTranslations';
 import { useAssetsPortalTheme } from './useAssetsPortalTheme';
 
 export type AddNewAssetType = 'laptop' | 'attendance' | 'operations' | 'maintenance';
@@ -67,7 +67,7 @@ export function AddNewAssests({
   mode = 'create',
   initialDraft = null,
 }: AddNewAssestsProps) {
-  const t = useHRLanguage().assets.addNewAsset;
+  const t = useAssetsTranslations().addNewAsset;
   const baseDraft = initialDraft ?? emptyDraft;
   const [draft, setDraft] = useState<AddNewAssetDraft>(baseDraft);
   const isDarkMode = useAssetsPortalTheme();

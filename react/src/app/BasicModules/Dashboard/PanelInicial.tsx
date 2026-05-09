@@ -1,16 +1,15 @@
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 
-// Import all tab components
-import Profile from './Profile';
-import BusinessStructure from './BusinessStructure';
-import BusinessProfile from './BusinessProfile';
-import PersonalPerformance from './PersonalPerformance';
-import Plan from './Plan';
-import Billing from './Billing';
-import Users from './Users';
+const Profile = lazy(() => import('./Profile'));
+const BusinessStructure = lazy(() => import('./BusinessStructure'));
+const BusinessProfile = lazy(() => import('./BusinessProfile'));
+const PersonalPerformance = lazy(() => import('./PersonalPerformance'));
+const Users = lazy(() => import('./Users'));
 
 interface PanelInicialProps {
   onNavigate: (page?: string) => void;
@@ -21,8 +20,6 @@ const subTabIds = [
   'business-structure',
   'business-profile',
   'personal-performance',
-  'plan',
-  'billing',
   'users',
 ] as const;
 
@@ -32,13 +29,12 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
   perfil: 'profile',
   estructuraEmpresarial: 'business-structure',
   perfilEmpresarial: 'business-profile',
-  facturacion: 'billing',
   usuarios: 'users',
 };
 
 export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
-  const { activeTab: activeSubTab, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
+  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
     'profile',
     subTabIds,
     legacySubTabAliases,
@@ -49,16 +45,28 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
     { id: 'business-structure', label: t.panelInicial.tabs.businessStructure, emoji: '🏢', component: BusinessStructure },
     { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, emoji: '📊', component: BusinessProfile },
     { id: 'personal-performance', label: t.panelInicial.tabs.personalPerformance, emoji: '📈', component: PersonalPerformance },
-    { id: 'plan', label: t.panelInicial.tabs.plan, emoji: '📋', component: Plan },
-    { id: 'billing', label: t.panelInicial.tabs.billing, emoji: '🧾', component: Billing },
     { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
   ];
 
   // Get the active component
   const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
 
+  const handleTabClick = (tabId: PanelInicialTabId) => {
+    if (tabId === activeSubTab) {
+      return;
+    }
+
+    setActiveSubTab(tabId);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading Home Panel tab"
+        description="Opening the selected configuration workspace."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-4 sm:px-8 sm:py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -79,7 +87,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
                 {t.panelInicial.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Configure your profile, business structure, billing, and more.
+                Configure your profile, business structure, users, and more.
               </p>
             </div>
             <Button
@@ -102,7 +110,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
                       ? 'bg-purple-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
-                  onClick={() => setActiveSubTab(tab.id as PanelInicialTabId)}
+                  onClick={() => handleTabClick(tab.id as PanelInicialTabId)}
                 >
                   <span>{tab.emoji}</span>
                   <span>{tab.label}</span>
@@ -115,7 +123,17 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
 
       {/* Contenido Principal */}
       <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
-        <ActiveComponent />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading Home Panel tab"
+              description="Downloading only the selected configuration workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );

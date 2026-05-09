@@ -3,15 +3,21 @@ import { useLanguage } from '../../shared/context';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, X } from 'lucide-react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+
+const moduleModalOutlineButtonClassName =
+  'h-10 rounded-xl border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50 dark:border-white/25 dark:bg-white/10 dark:text-white dark:hover:bg-white/20';
+const moduleModalPrimaryButtonClassName =
+  'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] shadow-sm hover:bg-slate-100 hover:text-[#143675] focus-visible:ring-white/40 dark:bg-white dark:text-[#143675] dark:hover:bg-slate-100';
 
 export interface ColumnConfig {
   id: string;
   label: string;
   visible: boolean;
-  locked?: boolean; // Para columnas que no se pueden ocultar
+  locked?: boolean; // Columns that cannot be hidden.
+  description?: string;
 }
 
 interface ColumnasConfigModalProps {
@@ -50,6 +56,10 @@ function DraggableColumnItem({
   const [, drop] = useDrop({
     accept: 'column',
     hover: (item: { index: number }) => {
+      if (index < 0 || item.index < 0) {
+        return;
+      }
+
       if (item.index !== index) {
         moveColumn(item.index, index);
         item.index = index;
@@ -64,9 +74,9 @@ function DraggableColumnItem({
           preview(drop(node));
         }
       }}
-      className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 transition-all ${
+      className={`flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all dark:border-slate-700 dark:bg-slate-800 ${
         isDragging ? 'opacity-50' : ''
-      } ${isFixed ? 'bg-gray-50 dark:bg-gray-800' : 'hover:shadow-sm'}`}
+      } ${isFixed ? 'bg-slate-50 dark:bg-slate-900/60' : 'hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)]'}`}
     >
       <div
         ref={(node) => {
@@ -74,9 +84,9 @@ function DraggableColumnItem({
             drag(node);
           }
         }}
-        className={isFixed ? 'cursor-not-allowed' : 'cursor-move'}
+        className={isFixed ? 'cursor-not-allowed' : 'cursor-grab'}
       >
-        <GripVertical className="h-5 w-5 text-gray-400" />
+        <GripVertical className="h-5 w-5 text-[#143675] dark:text-blue-300" />
       </div>
       
       <Checkbox
@@ -86,16 +96,20 @@ function DraggableColumnItem({
         disabled={column.locked}
       />
       
-      <label
-        htmlFor={column.id}
-        className={`flex-1 text-sm ${
-          isFixed
-            ? 'text-gray-500 dark:text-gray-500'
-            : 'text-gray-900 dark:text-white cursor-pointer'
-        }`}
-      >
-        {column.label}
-        {isFixed && <span className="ml-2 text-xs text-gray-400">({fixedLabel})</span>}
+      <label htmlFor={column.id} className="min-w-0 flex-1 cursor-pointer">
+        <span
+          className={`block truncate text-base font-semibold ${
+            isFixed ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-white'
+          }`}
+        >
+          {column.label}
+          {isFixed && <span className="ml-2 text-xs text-slate-400">({fixedLabel})</span>}
+        </span>
+        {column.description ? (
+          <span className="mt-0.5 block text-sm leading-5 text-slate-600 dark:text-slate-400">
+            {column.description}
+          </span>
+        ) : null}
       </label>
     </div>
   );
@@ -188,80 +202,100 @@ export function ColumnasConfigModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCancel}>
-      <DialogContent hideCloseButton className="max-w-2xl max-h-[80vh] flex flex-col p-0">
+      <DialogContent
+        hideCloseButton
+        className="!flex h-[min(84vh,820px)] max-h-[calc(100vh-3rem)] max-w-[760px] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800"
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>{copy.title}</DialogTitle>
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
-        {/* Header con estilo homologado */}
-        <div className="px-6 py-5 bg-[#143675] dark:bg-[#0f2855] flex items-center justify-between rounded-t-lg">
-          <h2 className="text-xl font-semibold text-white" aria-hidden="true">
-            {copy.title}
-          </h2>
-          <button
-            onClick={handleCancel}
-            className="text-white/70 hover:text-white transition-colors"
-            aria-label={copy.close}
-          >
-            <span className="text-2xl">×</span>
-          </button>
+        <div className="shrink-0 bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="pr-4 text-xl font-semibold leading-tight tracking-tight text-white" aria-hidden="true">
+              {copy.title}
+            </h2>
+            <button
+              onClick={handleCancel}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label={copy.close}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-hidden flex flex-col px-6 pt-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4" aria-hidden="true">
-            {copy.description}
-          </p>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-900/60">
+          <div className="shrink-0 border-b border-slate-200/80 bg-white px-6 py-4 sm:px-7 dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-2.5">
+                <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400" aria-hidden="true">
+                  {copy.description}
+                </p>
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-3.5 py-1.5 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
+                  {copy.visibleCount(visibleCount, totalColumns)}
+                </span>
+              </div>
 
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                {copy.visibleCount(visibleCount, totalColumns)}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleSelectAll}>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  onClick={handleSelectAll}
+                >
                   {copy.selectAll}
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleDeselectAll}>
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  onClick={handleDeselectAll}
+                >
                   {copy.deselectAll}
                 </Button>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-2 space-y-2">
-            <DndProvider backend={HTML5Backend}>
-              {fixedColumns.map((column) => (
-                <DraggableColumnItem
-                  key={column.id}
-                  column={column}
-                  index={-1}
-                  moveColumn={() => {}}
-                  toggleColumn={() => {}}
-                  fixedLabel={copy.fixed}
-                />
-              ))}
-              {localColumns.map((column, index) => (
-                <DraggableColumnItem
-                  key={column.id}
-                  column={column}
-                  index={index}
-                  moveColumn={moveColumn}
-                  toggleColumn={toggleColumn}
-                  fixedLabel={copy.fixed}
-                />
-              ))}
-            </DndProvider>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+            <div className="space-y-3 pr-2 pb-2 sm:pr-3">
+              <DndProvider backend={HTML5Backend}>
+                {fixedColumns.map((column) => (
+                  <DraggableColumnItem
+                    key={column.id}
+                    column={column}
+                    index={-1}
+                    moveColumn={() => {}}
+                    toggleColumn={() => {}}
+                    fixedLabel={copy.fixed}
+                  />
+                ))}
+                {localColumns.map((column, index) => (
+                  <DraggableColumnItem
+                    key={column.id}
+                    column={column}
+                    index={index}
+                    moveColumn={moveColumn}
+                    toggleColumn={toggleColumn}
+                    fixedLabel={copy.fixed}
+                  />
+                ))}
+              </DndProvider>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-6 pb-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <Button variant="outline" onClick={handleCancel}>
+        <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-end gap-3 bg-[#143675] px-6 py-3 dark:bg-[#143675]">
+          <Button
+            variant="outline"
+            className={moduleModalOutlineButtonClassName}
+            onClick={handleCancel}
+          >
             {copy.cancel}
           </Button>
           <Button
             onClick={handleSave}
-            className="bg-[#143675] hover:bg-[#0f2855] text-white"
+            className={moduleModalPrimaryButtonClassName}
           >
             {copy.apply}
           </Button>
