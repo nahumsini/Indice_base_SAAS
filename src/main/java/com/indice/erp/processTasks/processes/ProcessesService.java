@@ -1,4 +1,4 @@
-package com.indice.erp.processes;
+package com.indice.erp.processTasks.processes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

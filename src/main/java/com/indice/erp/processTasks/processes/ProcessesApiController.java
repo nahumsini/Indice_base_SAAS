@@ -1,4 +1,4 @@
-package com.indice.erp.processTasks;
+package com.indice.erp.processTasks.processes;
 
 import com.indice.erp.auth.SessionAuthService;
 import jakarta.servlet.http.HttpSession;
@@ -16,17 +16,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/process-tasks")
-public class ProcessTasksApiController {
+@RequestMapping("/api/v1/processes")
+public class ProcessesApiController {
 
     private final SessionAuthService sessionAuthService;
-    private final ProcessTasksService processTasksService;
+    private final ProcessesService processesService;
 
-    public ProcessTasksApiController(
+    public ProcessesApiController(
             SessionAuthService sessionAuthService,
-            ProcessTasksService processTasksService) {
+            ProcessesService processesService) {
         this.sessionAuthService = sessionAuthService;
-        this.processTasksService = processTasksService;
+        this.processesService = processesService;
     }
 
     @GetMapping
@@ -36,7 +36,7 @@ public class ProcessTasksApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        return ResponseEntity.ok(processTasksService.listTasks(user.get().companyId()));
+        return ResponseEntity.ok(processesService.listProcesses(user.get().companyId()));
     }
 
     @PostMapping
@@ -49,18 +49,20 @@ public class ProcessTasksApiController {
         try {
             return ResponseEntity
                     .status(HttpStatus.CREATED)
-                    .body(processTasksService.createTask(user.get().companyId(), user.get().userId(), payload));
-        } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+                    .body(processesService.createProcess(
+                            user.get().companyId(),
+                            user.get().userId(),
+                            user.get().userName(),
+                            payload));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 
-    @PutMapping("/{taskId}")
+    @PutMapping("/{processId}")
     public ResponseEntity<?> update(
             HttpSession session,
-            @PathVariable long taskId,
+            @PathVariable long processId,
             @RequestBody Map<String, Object> payload) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
@@ -69,7 +71,7 @@ public class ProcessTasksApiController {
 
         try {
             return ResponseEntity.ok(
-                    processTasksService.updateTask(user.get().companyId(), user.get().userId(), taskId, payload));
+                    processesService.updateProcess(user.get().companyId(), processId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -77,56 +79,18 @@ public class ProcessTasksApiController {
         }
     }
 
-    @DeleteMapping("/{taskId}")
-    public ResponseEntity<?> delete(HttpSession session, @PathVariable long taskId) {
+    @DeleteMapping("/{processId}")
+    public ResponseEntity<?> delete(HttpSession session, @PathVariable long processId) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            processTasksService.deleteTask(user.get().companyId(), taskId);
+            processesService.deleteProcess(user.get().companyId(), processId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
     }
-
-    @PostMapping("/{taskId}/complete")
-    public ResponseEntity<?> complete(
-            HttpSession session,
-            @PathVariable long taskId,
-            @RequestBody(required = false) Map<String, Object> payload) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
-        }
-
-        try {
-            return ResponseEntity.ok(processTasksService.completeTask(
-                    user.get().companyId(),
-                    user.get().userId(),
-                    taskId,
-                    payload == null ? Map.of() : payload));
-        } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
-        }
-    }
-
-    @PostMapping("/{taskId}/cancel")
-    public ResponseEntity<?> cancel(HttpSession session, @PathVariable long taskId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
-        }
-
-        try {
-            return ResponseEntity.ok(processTasksService.cancelTask(user.get().companyId(), taskId));
-        } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-        }
-    }
 }
-

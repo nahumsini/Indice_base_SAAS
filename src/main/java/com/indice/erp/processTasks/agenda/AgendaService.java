@@ -1,4 +1,4 @@
-package com.indice.erp.agenda;
+package com.indice.erp.processTasks.agenda;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -35,13 +35,12 @@ public class AgendaService {
                                task.due_date,
                                task.completed_at,
                                task.cancelled_at,
-                               task.assigned_employee_id,
-                               task.assigned_user_id,
+                               task.assigned_user_company_id,
+                               assigned_user_company.user_id AS assigned_user_id,
                                COALESCE(
                                    NULLIF(task.assigned_name, ''),
-                                   NULLIF(TRIM(CONCAT_WS(' ', COALESCE(employee.first_name, ''), COALESCE(employee.last_name, ''))), ''),
-                                   NULLIF(TRIM(user_ref.full_name), ''),
-                                   NULLIF(TRIM(user_ref.email), ''),
+                                   NULLIF(TRIM(assigned_user.full_name), ''),
+                                   NULLIF(TRIM(assigned_user.email), ''),
                                    NULL
                                ) AS resolved_assigned_name,
                                task.process_id,
@@ -61,9 +60,9 @@ public class AgendaService {
                         LEFT JOIN projects project ON project.id = task.project_id
                             AND project.company_id = task.company_id
                             AND project.deleted_at IS NULL
-                        LEFT JOIN hr_employees employee ON employee.id = task.assigned_employee_id
-                            AND employee.company_id = task.company_id
-                        LEFT JOIN users user_ref ON user_ref.id = task.assigned_user_id
+                        LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = task.assigned_user_company_id
+                            AND assigned_user_company.company_id = task.company_id
+                        LEFT JOIN users assigned_user ON assigned_user.id = assigned_user_company.user_id
                         WHERE task.company_id = ?
                           AND task.deleted_at IS NULL
                           AND task.due_date IS NOT NULL
@@ -123,7 +122,7 @@ public class AgendaService {
         row.put("dueDate", dueDate != null ? dueDate.toString() : null);
         row.put("completedAt", toDateTimeString(rs.getTimestamp("completed_at")));
         row.put("cancelledAt", toDateTimeString(rs.getTimestamp("cancelled_at")));
-        row.put("assignedEmployeeId", rs.getObject("assigned_employee_id", Long.class));
+        row.put("assignedUserCompanyId", rs.getObject("assigned_user_company_id", Long.class));
         row.put("assignedUserId", rs.getObject("assigned_user_id", Long.class));
         row.put("assignedName", rs.getString("resolved_assigned_name"));
         row.put("processId", rs.getObject("process_id", Long.class));
