@@ -1,3 +1,4 @@
+import { Badge } from '../../../../components/ui/badge';
 import type { EstructuraType } from '../types';
 
 interface StructureCopy {
@@ -14,6 +15,7 @@ interface StructureCopy {
     switchPrompt: string;
     switchAction: string;
     multiNote: string;
+    selected: string;
     structurePreviewTitle: string;
     structurePreviewLines: string[];
   };
@@ -54,13 +56,13 @@ export function OperationTypeSection({
               }
             }}
             disabled={isSimpleDisabled}
-            className={`p-4 rounded-lg border-2 transition-all text-left ${
+            className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
               estructuraType === 'simple'
-                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                ? 'border-purple-600 bg-purple-50/80 shadow-sm ring-2 ring-purple-100 dark:border-purple-400 dark:bg-purple-900/25 dark:ring-purple-900/40'
+                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700'
             } ${
               isSimpleDisabled
-                ? 'cursor-not-allowed opacity-55 hover:border-gray-200 dark:hover:border-gray-700'
+                ? 'cursor-not-allowed opacity-55 hover:translate-y-0 hover:border-gray-200 hover:shadow-none dark:hover:border-gray-700'
                 : ''
             }`}
           >
@@ -76,9 +78,18 @@ export function OperationTypeSection({
                   <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
                 )}
               </div>
-              <span className="font-semibold text-gray-900 dark:text-white">
+              <span className={`font-semibold ${
+                estructuraType === 'simple'
+                  ? 'text-gray-950 dark:text-white'
+                  : 'text-gray-800 dark:text-gray-200'
+              }`}>
                 {structure.mode.simpleTitle}
               </span>
+              {estructuraType === 'simple' ? (
+                <Badge className="bg-purple-600 text-white dark:bg-purple-500">
+                  {structure.mode.selected}
+                </Badge>
+              ) : null}
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 ml-7 mb-2">
               {structure.mode.simpleDescription}
@@ -91,10 +102,10 @@ export function OperationTypeSection({
           <button
             type="button"
             onClick={() => onEstructuraTypeChange('multi')}
-            className={`p-4 rounded-lg border-2 transition-all text-left ${
+            className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
               estructuraType === 'multi'
-                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                ? 'border-purple-600 bg-purple-50/80 shadow-sm ring-2 ring-purple-100 dark:border-purple-400 dark:bg-purple-900/25 dark:ring-purple-900/40'
+                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700'
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
@@ -109,9 +120,18 @@ export function OperationTypeSection({
                   <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
                 )}
               </div>
-              <span className="font-semibold text-gray-900 dark:text-white">
+              <span className={`font-semibold ${
+                estructuraType === 'multi'
+                  ? 'text-gray-950 dark:text-white'
+                  : 'text-gray-800 dark:text-gray-200'
+              }`}>
                 {structure.mode.multiTitle}
               </span>
+              {estructuraType === 'multi' ? (
+                <Badge className="bg-purple-600 text-white dark:bg-purple-500">
+                  {structure.mode.selected}
+                </Badge>
+              ) : null}
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 ml-7 mb-2">
               {structure.mode.multiDescription}

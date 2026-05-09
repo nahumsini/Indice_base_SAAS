@@ -1,10 +1,16 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { useDeferredTabChange } from './useDeferredTabChange';
+
+interface RoutedModuleTabOptions {
+  minimumLoadingDurationMs?: number;
+}
 
 export function useRoutedModuleTab<T extends string>(
   defaultTab: T,
   validTabs: readonly T[],
   legacyTabAliases: Partial<Record<string, T>> = {},
+  options: RoutedModuleTabOptions = {},
 ) {
   const navigate = useNavigate();
   const params = useParams();
@@ -15,6 +21,15 @@ export function useRoutedModuleTab<T extends string>(
   const isValidTab = validTabs.includes(resolvedTab as T);
   const activeTab = isValidTab ? (resolvedTab as T) : defaultTab;
   const shouldRedirect = !requestedTab || !isValidTab || requestedTab !== activeTab;
+  const { changeTab, isTabLoading } = useDeferredTabChange(
+    activeTab,
+    (nextTab) => {
+      if (pageId) {
+        navigate(`/${pageId}/${nextTab}`);
+      }
+    },
+    options.minimumLoadingDurationMs,
+  );
 
   useEffect(() => {
     if (!pageId || !shouldRedirect) {
@@ -25,15 +40,16 @@ export function useRoutedModuleTab<T extends string>(
   }, [activeTab, navigate, pageId, shouldRedirect]);
 
   const setActiveTab = (nextTab: T) => {
-    if (!pageId) {
+    if (!pageId || nextTab === activeTab) {
       return;
     }
 
-    navigate(`/${pageId}/${nextTab}`);
+    changeTab(nextTab);
   };
 
   return {
     activeTab,
+    isTabLoading,
     setActiveTab,
   };
 }

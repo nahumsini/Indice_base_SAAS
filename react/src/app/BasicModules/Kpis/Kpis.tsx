@@ -1,10 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useKpisTranslations } from '../../hooks/useKpisTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import KPIs from './KPIs';
-import InformesContables from './InformesContables';
-import InformesAutomatizados from './InformesAutomatizados';
+
+const KPIs = lazy(() => import('./KPIs'));
+const InformesContables = lazy(() => import('./InformesContables'));
+const InformesAutomatizados = lazy(() => import('./InformesAutomatizados'));
 
 interface KpisProps {
   onNavigate: (page?: string) => void;
@@ -25,7 +28,7 @@ const legacyKpiTabAliases: Partial<Record<string, KpiTabId>> = {
 
 export default function Kpis({ onNavigate }: KpisProps) {
   const t = useKpisTranslations();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<KpiTabId>(
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<KpiTabId>(
     'kpis',
     kpiTabIds,
     legacyKpiTabAliases,
@@ -42,6 +45,12 @@ export default function Kpis({ onNavigate }: KpisProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading KPI tab"
+        description="Opening the selected reports workspace."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -94,7 +103,17 @@ export default function Kpis({ onNavigate }: KpisProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <ActiveComponent />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading KPI tab"
+              description="Downloading only the selected report workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );

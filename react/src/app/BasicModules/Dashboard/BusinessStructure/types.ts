@@ -18,6 +18,14 @@ export interface LocationCoordinateFormValues {
   googleMapsUrl: string;
 }
 
+export interface BusinessAddressFormValues {
+  street: string;
+  country: string;
+  state: string;
+  city: string;
+  zip: string;
+}
+
 export interface Negocio extends LocationCoordinateData {
   id: string;
   name: string;
@@ -39,6 +47,7 @@ export interface Unidad extends LocationCoordinateData {
   id: string;
   name: string;
   legacyUnitId?: number;
+  isCorporateOffice?: boolean;
   logo?: string;
   industria?: string;
   direccion?: string;

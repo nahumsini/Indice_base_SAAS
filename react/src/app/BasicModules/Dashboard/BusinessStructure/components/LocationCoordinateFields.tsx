@@ -2,6 +2,7 @@ import { Link2, LocateFixed } from 'lucide-react';
 import { useState } from 'react';
 import { configCenterApi } from '../../../../api/configCenter';
 import { Button } from '../../../../components/ui/button';
+import { useLanguage } from '../../../../shared/context';
 import { inputClassName } from '../constants';
 import type { LocationCoordinateFormValues } from '../types';
 
@@ -9,6 +10,7 @@ interface LocationCoordinateFieldsProps {
   values: LocationCoordinateFormValues;
   onChange: (updates: Partial<LocationCoordinateFormValues>) => void;
   disabled?: boolean;
+  requireGoogleMapsLink?: boolean;
 }
 
 const coordinateInputClassName = `${inputClassName} font-mono`;
@@ -17,7 +19,10 @@ export function LocationCoordinateFields({
   values,
   onChange,
   disabled = false,
+  requireGoogleMapsLink = false,
 }: LocationCoordinateFieldsProps) {
+  const { t } = useLanguage();
+  const actions = t.panelInicial.structure.actions;
   const [statusMessage, setStatusMessage] = useState('');
   const [statusTone, setStatusTone] = useState<'success' | 'error'>('success');
   const [isExtracting, setIsExtracting] = useState(false);
@@ -101,6 +106,7 @@ export function LocationCoordinateFields({
         <div className="flex-1">
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Google Maps link
+            {requireGoogleMapsLink ? <span className="ml-1 text-red-500">*</span> : null}
           </label>
           <input
             type="text"
@@ -109,6 +115,7 @@ export function LocationCoordinateFields({
             placeholder="Paste Google Maps link"
             className={inputClassName}
             disabled={disabled || isExtracting}
+            required={requireGoogleMapsLink}
           />
         </div>
         <div className="grid grid-cols-2 gap-2 lg:w-auto">
@@ -119,7 +126,7 @@ export function LocationCoordinateFields({
             disabled={disabled || isExtracting || isLocating}
           >
             <Link2 className="h-4 w-4" />
-            {isExtracting ? 'Extracting...' : 'Extract'}
+            {actions.extract}
           </Button>
           <Button
             type="button"
@@ -128,7 +135,7 @@ export function LocationCoordinateFields({
             disabled={disabled || isExtracting || isLocating}
           >
             <LocateFixed className="h-4 w-4" />
-            {isLocating ? 'Locating...' : 'Here'}
+            {actions.useLocation}
           </Button>
         </div>
       </div>

@@ -179,6 +179,13 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
 
   const unreadCount = notifications.filter(n => n.isUnread).length;
   const uniqueModules = Array.from(new Set(notifications.map(n => n.module)));
+  const handleTabChange = (nextTab: string) => {
+    if (nextTab === activeTab) {
+      return;
+    }
+
+    setActiveTab(nextTab);
+  };
 
   if (!isOpen) return null;
 
@@ -248,7 +255,7 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all">
                 Todas ({notifications.length})

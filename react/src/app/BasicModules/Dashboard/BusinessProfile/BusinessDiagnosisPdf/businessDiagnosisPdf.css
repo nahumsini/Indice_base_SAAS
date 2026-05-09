@@ -23,7 +23,7 @@
 }
 
 .bdpdf-report-page {
-  background: #eef2f7;
+  background: linear-gradient(180deg, #f4f7fb 0%, #eaf0f7 100%);
   box-sizing: border-box;
   color: #172033;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -33,8 +33,8 @@
 }
 
 .bdpdf-page-card {
-  background: #ffffff;
-  border: 1px solid #d7dfeb;
+  background: #f8fafc;
+  border: 1px solid #dbe3ef;
   box-sizing: border-box;
   border-radius: 20px;
   box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
@@ -124,6 +124,9 @@
 }
 
 .bdpdf-page-content {
+  background:
+    radial-gradient(circle at top right, rgba(147, 197, 253, 0.12), transparent 32%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   padding: 26px 28px 28px;
 }
 
@@ -235,7 +238,7 @@
 
 .bdpdf-summary-card,
 .bdpdf-panel-card {
-  background: #f8fafc;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
   border: 1px solid #d7dfeb;
   border-radius: 18px;
   padding: 16px 18px;
@@ -256,7 +259,7 @@
 }
 
 .bdpdf-highlight-card {
-  background: linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #eef4fb 100%);
   border: 1px solid #d7dfeb;
   border-radius: 18px;
   min-height: 116px;
@@ -266,6 +269,46 @@
 .bdpdf-highlight-card.bdpdf-highlight-card--accent {
   background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
   border-color: #bfdbfe;
+}
+
+.bdpdf-highlight-card--level {
+  background: linear-gradient(180deg, #faf5ff 0%, #f3e8ff 100%);
+  border-color: #e9d5ff;
+}
+
+.bdpdf-highlight-card.color-people {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #bfdbfe;
+}
+
+.bdpdf-highlight-card.color-processes {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a;
+}
+
+.bdpdf-highlight-card.color-products {
+  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  border-color: #fed7aa;
+}
+
+.bdpdf-highlight-card.color-finance {
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #bbf7d0;
+}
+
+.bdpdf-highlight-card--score.score-high {
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac;
+}
+
+.bdpdf-highlight-card--score.score-medium {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a;
+}
+
+.bdpdf-highlight-card--score.score-low {
+  background: linear-gradient(180deg, #fff1f2 0%, #fee2e2 100%);
+  border-color: #fecaca;
 }
 
 .bdpdf-highlight-label {
@@ -283,6 +326,18 @@
   font-weight: 700;
   line-height: 1;
   margin: 0 0 8px;
+}
+
+.bdpdf-highlight-card--score.score-high .bdpdf-highlight-value {
+  color: #047857;
+}
+
+.bdpdf-highlight-card--score.score-medium .bdpdf-highlight-value {
+  color: #b45309;
+}
+
+.bdpdf-highlight-card--score.score-low .bdpdf-highlight-value {
+  color: #b91c1c;
 }
 
 .bdpdf-highlight-text {
@@ -483,7 +538,7 @@
 }
 
 .bdpdf-recommendation-card {
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border: 1px solid #d7dfeb;
   border-radius: 18px;
   min-height: 190px;
@@ -628,6 +683,345 @@
   padding-top: 12px;
 }
 
+.bdpdf-cover {
+  background:
+    radial-gradient(circle at top right, rgba(168, 85, 247, 0.18), transparent 34%),
+    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.16), transparent 38%),
+    linear-gradient(90deg, #e8ebff 0%, #f6f0e5 52%, #ddf7ed 100%);
+  color: #111827;
+  padding: 26px 28px 24px;
+}
+
+.bdpdf-cover .bdpdf-brand-badge {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(124, 58, 237, 0.16);
+  color: #6d28d9;
+}
+
+.bdpdf-cover .bdpdf-report-id {
+  color: #475569;
+}
+
+.bdpdf-cover-topline {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.bdpdf-cover-main {
+  align-items: center;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.bdpdf-cover-title {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.08;
+  margin: 0 0 10px;
+}
+
+.bdpdf-cover-subtitle {
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 520px;
+}
+
+.bdpdf-cover-logo {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(124, 58, 237, 0.16);
+  border-radius: 18px;
+  height: 76px;
+  object-fit: contain;
+  padding: 12px;
+  width: 76px;
+}
+
+.bdpdf-cover-logo--empty {
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(37, 99, 235, 0.08)),
+    rgba(255, 255, 255, 0.62);
+}
+
+.bdpdf-cover .bdpdf-meta-card {
+  background: rgba(255, 255, 255, 0.68);
+  border-color: rgba(148, 163, 184, 0.34);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.bdpdf-cover .bdpdf-meta-label {
+  color: #64748b;
+}
+
+.bdpdf-cover .bdpdf-meta-value {
+  color: #172033;
+}
+
+.bdpdf-executive-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 156px minmax(0, 1fr);
+}
+
+.bdpdf-score-hero-card {
+  background: linear-gradient(180deg, #ffffff 0%, #eef4fb 100%);
+  border: 1px solid #d7dfeb;
+  border-radius: 20px;
+  min-height: 142px;
+  padding: 18px;
+}
+
+.bdpdf-score-hero-card.score-high {
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac;
+}
+
+.bdpdf-score-hero-card.score-medium {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a;
+}
+
+.bdpdf-score-hero-card.score-low {
+  background: linear-gradient(180deg, #fff1f2 0%, #fee2e2 100%);
+  border-color: #fecaca;
+}
+
+.bdpdf-score-hero-value {
+  color: #0f2a4f;
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 0.95;
+  margin: 0 0 8px;
+}
+
+.bdpdf-score-hero-value.score-high {
+  color: #047857;
+}
+
+.bdpdf-score-hero-value.score-medium {
+  color: #b45309;
+}
+
+.bdpdf-score-hero-value.score-low {
+  color: #b91c1c;
+}
+
+.bdpdf-lead--secondary {
+  color: #475569;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.bdpdf-dashboard-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1.05fr 0.95fr;
+}
+
+.bdpdf-chart-card,
+.bdpdf-progress-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f6fb 100%);
+  border: 1px solid #d7dfeb;
+  border-radius: 18px;
+  min-height: 292px;
+  padding: 16px;
+}
+
+.bdpdf-chart-title {
+  color: #13294b;
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+
+.bdpdf-maturity-rail {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.bdpdf-maturity-track {
+  background: #e2e8f0;
+  border-radius: 999px;
+  height: 10px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.bdpdf-maturity-fill {
+  background: linear-gradient(90deg, #2563eb 0%, #d97706 36%, #ea580c 68%, #059669 100%);
+  border-radius: 999px;
+  height: 100%;
+}
+
+.bdpdf-maturity-step {
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #64748b;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 10px 12px;
+}
+
+.bdpdf-maturity-step.is-active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.bdpdf-maturity-dot {
+  background: #cbd5e1;
+  border-radius: 999px;
+  height: 10px;
+  width: 10px;
+}
+
+.bdpdf-maturity-step.is-active .bdpdf-maturity-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.bdpdf-maturity-label {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.bdpdf-pillar-card--executive {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-left: 5px solid #cbd5e1;
+}
+
+.bdpdf-pillar-card--executive.color-people,
+.bdpdf-table-card.color-people,
+.bdpdf-recommendation-card.color-people {
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
+  border-color: #bfdbfe;
+  border-left: 5px solid #2563eb;
+}
+
+.bdpdf-pillar-card--executive.color-processes,
+.bdpdf-table-card.color-processes,
+.bdpdf-recommendation-card.color-processes {
+  background: linear-gradient(180deg, #fffbeb 0%, #fffaf0 100%);
+  border-color: #fde68a;
+  border-left: 5px solid #d97706;
+}
+
+.bdpdf-pillar-card--executive.color-products,
+.bdpdf-table-card.color-products,
+.bdpdf-recommendation-card.color-products {
+  background: linear-gradient(180deg, #fff7ed 0%, #fffaf5 100%);
+  border-color: #fed7aa;
+  border-left: 5px solid #ea580c;
+}
+
+.bdpdf-pillar-card--executive.color-finance,
+.bdpdf-table-card.color-finance,
+.bdpdf-recommendation-card.color-finance {
+  background: linear-gradient(180deg, #f0fdf4 0%, #f7fff9 100%);
+  border-color: #bbf7d0;
+  border-left: 5px solid #059669;
+}
+
+.bdpdf-table-card.color-people .bdpdf-table-title {
+  background: #eff6ff;
+}
+
+.bdpdf-table-card.color-processes .bdpdf-table-title {
+  background: #fffbeb;
+}
+
+.bdpdf-table-card.color-products .bdpdf-table-title {
+  background: #fff7ed;
+}
+
+.bdpdf-table-card.color-finance .bdpdf-table-title {
+  background: #f0fdf4;
+}
+
+.bdpdf-radar-legend {
+  display: grid;
+  gap: 6px 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: -4px;
+}
+
+.bdpdf-radar-legend-item {
+  align-items: center;
+  color: #475569;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.bdpdf-radar-dot {
+  border-radius: 999px;
+  height: 8px;
+  width: 8px;
+}
+
+.bdpdf-radar-dot.people {
+  background: #2563eb;
+}
+
+.bdpdf-radar-dot.processes {
+  background: #d97706;
+}
+
+.bdpdf-radar-dot.products {
+  background: #ea580c;
+}
+
+.bdpdf-radar-dot.finance {
+  background: #059669;
+}
+
+.bdpdf-insight-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.bdpdf-insight-box p {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+}
+
+.bdpdf-insight-box p:first-child {
+  margin-top: 0;
+}
+
+.bdpdf-recommendation-strip {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.bdpdf-recommendation-strip p {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+}
+
+.bdpdf-recommendation-strip p:first-child {
+  margin-top: 0;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -734,7 +1128,10 @@
   .bdpdf-highlight-card,
   .bdpdf-pillar-card,
   .bdpdf-analysis-card,
+  .bdpdf-chart-card,
+  .bdpdf-progress-card,
   .bdpdf-recommendation-card,
+  .bdpdf-recommendation-strip,
   .bdpdf-plan-card,
   .bdpdf-table-card,
   .bdpdf-table tbody tr {

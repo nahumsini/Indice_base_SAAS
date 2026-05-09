@@ -49,8 +49,11 @@ export function PersonalPerformancePrintPortal({
     }
 
     hasTriggeredRef.current = true;
+    const previousTitle = document.title;
+    document.title = job.fileName;
 
     const handleAfterPrint = () => {
+      document.title = previousTitle;
       hasTriggeredRef.current = false;
       onComplete();
     };
@@ -64,6 +67,7 @@ export function PersonalPerformancePrintPortal({
     return () => {
       window.clearTimeout(triggerId);
       window.removeEventListener('afterprint', handleAfterPrint);
+      document.title = previousTitle;
     };
   }, [host, job, onComplete]);
 

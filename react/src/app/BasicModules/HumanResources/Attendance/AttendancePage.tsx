@@ -28,11 +28,6 @@ import {
   type AttendanceDashboardResponse,
   type AttendanceLocation,
 } from '../../../api/humanResources';
-import {
-  dashboardApi,
-  type BackendBusiness,
-  type BackendUnit,
-} from '../../../api/dashboard';
 
 const padDatePart = (value: number) => `${value}`.padStart(2, '0');
 const localDateString = (date: Date) =>
@@ -57,12 +52,21 @@ const formatAttendanceTime = (value: string | null | undefined, locale: string) 
   }).format(parsedDate);
 };
 
-const formatAttendanceBusinessLocationOption = (location: AttendanceLocation) => {
-  const businessName = location.business_name?.trim();
-  return businessName && businessName !== location.name
-    ? `${location.name} - ${businessName}`
-    : location.name;
-};
+const formatAttendanceBusinessOption = (location: AttendanceLocation) => (
+  location.business_name?.trim() || location.name
+);
+
+const formatAttendanceLocationOption = (location: AttendanceLocation) => (
+  location.name?.trim() || location.business_name?.trim() || 'Location'
+);
+
+const attendanceLocationUnitKey = (location: AttendanceLocation) => (
+  location.unit_id ? String(location.unit_id) : 'unassigned'
+);
+
+const attendanceLocationBusinessKey = (location: AttendanceLocation) => (
+  location.business_id ? String(location.business_id) : `location:${location.id}`
+);
 
 type AttendanceUnitOption = {
   id: string;
@@ -74,8 +78,6 @@ type AttendanceBusinessOption = {
   unitId: string;
   name: string;
 };
-
-const backendBusinessUnitId = (business: BackendBusiness) => business.unit_id ?? business.unitId ?? null;
 
 const attendanceCopy = {
   en: {
@@ -163,7 +165,7 @@ const attendanceCopy = {
       business: 'Business',
       selectUnit: 'Select unit',
       selectBusiness: 'Select business',
-      locationRequired: 'Matched automatically from your current position',
+      locationRequired: 'Choose the unit and business; your device location is validated when you record.',
       getLocation: 'Get location',
       refreshLocation: 'Refresh location',
       noLocation: 'No location',
@@ -176,7 +178,7 @@ const attendanceCopy = {
       locationDenied: 'You must allow location access to register attendance.',
       locationUnavailable: 'The device location could not be retrieved.',
       photoRequiredError: 'Take a photo before recording attendance.',
-      locationRequiredError: 'Select the unit and business before recording attendance.',
+      locationRequiredError: 'An attendance location is required before recording attendance.',
       checkInAlreadyRecorded: 'Check-in has already been recorded for today.',
       checkOutRequiresCheckIn: 'Check-out requires an active check-in.',
       statusActiveTitle: 'You are checked in.',
@@ -279,7 +281,7 @@ const attendanceCopy = {
       business: 'Negocio',
       selectUnit: 'Seleccionar unidad',
       selectBusiness: 'Seleccionar negocio',
-      locationRequired: 'Se valida automáticamente con tu ubicación actual',
+      locationRequired: 'Selecciona la unidad y el negocio; la ubicación del dispositivo se valida al registrar.',
       getLocation: 'Obtener ubicación',
       refreshLocation: 'Actualizar ubicación',
       noLocation: 'Sin ubicación',
@@ -292,7 +294,7 @@ const attendanceCopy = {
       locationDenied: 'Debes permitir la ubicación para registrar asistencia.',
       locationUnavailable: 'No se pudo obtener la ubicación del dispositivo.',
       photoRequiredError: 'Toma una foto antes de registrar asistencia.',
-      locationRequiredError: 'Selecciona la unidad y el negocio antes de registrar asistencia.',
+      locationRequiredError: 'Se requiere una ubicación de asistencia antes de registrar.',
       checkInAlreadyRecorded: 'El ingreso de hoy ya fue registrado.',
       checkOutRequiresCheckIn: 'Debes registrar un ingreso antes de registrar la salida.',
       statusActiveTitle: 'Ya registraste tu ingreso.',
@@ -318,8 +320,6 @@ export default function Attendance() {
   const [currentAttendanceDate, setCurrentAttendanceDate] = useState(todayIsoDate());
   const [dashboard, setDashboard] = useState<AttendanceDashboardResponse | null>(null);
   const [calendar, setCalendar] = useState<AttendanceCalendarResponse | null>(null);
-  const [organizationUnits, setOrganizationUnits] = useState<BackendUnit[]>([]);
-  const [organizationBusinesses, setOrganizationBusinesses] = useState<BackendBusiness[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(todayMonth());
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
@@ -330,6 +330,7 @@ export default function Attendance() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [recorderUnitKey, setRecorderUnitKey] = useState('');
+  const [recorderBusinessKey, setRecorderBusinessKey] = useState('');
   const [recorderLocationId, setRecorderLocationId] = useState('');
   const [recorderLocationState, setRecorderLocationState] = useState<{
     latitude: number;
@@ -339,74 +340,67 @@ export default function Attendance() {
   const successToastTimeoutRef = useRef<number | null>(null);
   const attendancePhotoUpload = useAttendancePhotoUpload();
   const attendanceLocations = useMemo(() => dashboard?.locations ?? [], [dashboard?.locations]);
+  const recorderSelectorLocations = useMemo(() => {
+    const businessLocations = attendanceLocations.filter((location) => location.business_id);
+    return businessLocations.length ? businessLocations : attendanceLocations;
+  }, [attendanceLocations]);
   const attendanceUnitOptions = useMemo<AttendanceUnitOption[]>(() => {
-    if (organizationUnits.length) {
-      return organizationUnits
-        .filter((unit) => unit.id != null)
-        .map((unit) => ({
-          id: String(unit.id),
-          name: unit.name?.trim() || copy.labels.unassignedUnit,
-        }));
-    }
-
     const unitOptionsByKey = new Map<string, string>();
 
-    attendanceLocations.forEach((location) => {
-      const unitKey = location.unit_id ? String(location.unit_id) : 'unassigned';
+    recorderSelectorLocations.forEach((location) => {
+      const unitKey = attendanceLocationUnitKey(location);
       if (!unitOptionsByKey.has(unitKey)) {
         unitOptionsByKey.set(unitKey, location.unit_name?.trim() || copy.labels.unassignedUnit);
       }
     });
 
     return Array.from(unitOptionsByKey, ([id, name]) => ({ id, name }));
-  }, [attendanceLocations, copy.labels.unassignedUnit, organizationUnits]);
+  }, [copy.labels.unassignedUnit, recorderSelectorLocations]);
   const allBusinessOptions = useMemo<AttendanceBusinessOption[]>(() => {
-    if (organizationBusinesses.length) {
-      return organizationBusinesses.reduce<AttendanceBusinessOption[]>((options, business) => {
-        const unitId = backendBusinessUnitId(business);
-        if (business.id == null || unitId == null) {
-          return options;
-        }
-
-        options.push({
-          id: String(business.id),
-          unitId: String(unitId),
-          name: business.name?.trim() || copy.recorder.business,
-        });
-        return options;
-      }, []);
-    }
-
     const businessOptionsByKey = new Map<string, AttendanceBusinessOption>();
-    attendanceLocations.forEach((location) => {
-      const unitId = location.unit_id ? String(location.unit_id) : 'unassigned';
-      const businessId = location.business_id ? String(location.business_id) : `location:${location.id}`;
+    recorderSelectorLocations.forEach((location) => {
+      const unitId = attendanceLocationUnitKey(location);
+      const businessId = attendanceLocationBusinessKey(location);
       if (!businessOptionsByKey.has(businessId)) {
         businessOptionsByKey.set(businessId, {
           id: businessId,
           unitId,
-          name: location.business_name?.trim() || formatAttendanceBusinessLocationOption(location),
+          name: formatAttendanceBusinessOption(location),
         });
       }
     });
 
     return Array.from(businessOptionsByKey.values());
-  }, [attendanceLocations, copy.recorder.business, organizationBusinesses]);
+  }, [recorderSelectorLocations]);
   const businessLocationOptions = useMemo(
     () => recorderUnitKey
       ? allBusinessOptions.filter((business) => business.unitId === recorderUnitKey)
       : [],
     [allBusinessOptions, recorderUnitKey],
   );
+  const attendanceLocationOptions = useMemo(
+    () => recorderBusinessKey
+      ? recorderSelectorLocations.filter((location) => (
+        attendanceLocationBusinessKey(location) === recorderBusinessKey
+        && (!recorderUnitKey || attendanceLocationUnitKey(location) === recorderUnitKey)
+      ))
+      : [],
+    [recorderBusinessKey, recorderSelectorLocations, recorderUnitKey],
+  );
   const selectedAttendanceUnit = useMemo(
     () => attendanceUnitOptions.find((unit) => unit.id === recorderUnitKey) ?? null,
     [attendanceUnitOptions, recorderUnitKey],
   );
   const selectedAttendanceBusiness = useMemo(
-    () => businessLocationOptions.find((business) => business.id === recorderLocationId) ?? null,
-    [businessLocationOptions, recorderLocationId],
+    () => businessLocationOptions.find((business) => business.id === recorderBusinessKey) ?? null,
+    [businessLocationOptions, recorderBusinessKey],
   );
-  const hasSelectedAttendanceLocation = Boolean(recorderUnitKey && recorderLocationId);
+  const selectedAttendanceLocation = useMemo(
+    () => attendanceLocations.find((location) => String(location.id) === recorderLocationId) ?? null,
+    [attendanceLocations, recorderLocationId],
+  );
+  const hasSelectedAttendanceLocation = Boolean(selectedAttendanceLocation);
+  const shouldShowAttendanceLocationSelectors = recorderSelectorLocations.length > 0;
   const selectedItem = useMemo(() => dashboard?.items[0] ?? null, [dashboard?.items]);
   const selectedEmployeeOption = useMemo(() => dashboard?.employees[0] ?? null, [dashboard?.employees]);
   const selectedEmployeeId = selectedItem?.employee_id ?? null;
@@ -415,6 +409,7 @@ export default function Attendance() {
     [selectedItem],
   );
   const latestRecordedPhotoUrl = selectedItem?.last_photo_url || selectedItem?.first_photo_url || null;
+  const selectedUserAvatarUrl = selectedItem?.avatar_url || selectedEmployeeOption?.avatar_url || '';
   const statusBadgeLabel = punchState.hasActiveCheckIn
     ? copy.labels.statusLoggedIn
     : punchState.hasCheckOut
@@ -447,7 +442,7 @@ export default function Attendance() {
     setErrorMessage('');
 
     try {
-      const response = await refreshDashboardSnapshot(attendanceDate);
+      const response = await runWithMinimumDuration(refreshDashboardSnapshot(attendanceDate));
       return response;
     } catch (error) {
       setDashboard(null);
@@ -471,33 +466,6 @@ export default function Attendance() {
       setIsLoadingCalendar(false);
     }
   };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    Promise.all([
-      dashboardApi.listUnits(),
-      dashboardApi.listBusinesses(),
-    ]).then(([units, businesses]) => {
-      if (!isMounted) {
-        return;
-      }
-
-      setOrganizationUnits(units);
-      setOrganizationBusinesses(businesses);
-    }).catch(() => {
-      if (!isMounted) {
-        return;
-      }
-
-      setOrganizationUnits([]);
-      setOrganizationBusinesses([]);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     void loadDashboard(currentAttendanceDate);
@@ -526,27 +494,66 @@ export default function Attendance() {
   }, [calendarMonth, selectedItem]);
 
   useEffect(() => {
+    if (recorderSelectorLocations.length === 1) {
+      const [singleLocation] = recorderSelectorLocations;
+      setRecorderUnitKey(attendanceLocationUnitKey(singleLocation));
+      setRecorderBusinessKey(attendanceLocationBusinessKey(singleLocation));
+      setRecorderLocationId(String(singleLocation.id));
+      return;
+    }
+
     if (!attendanceUnitOptions.length) {
       setRecorderUnitKey('');
+      setRecorderBusinessKey('');
       setRecorderLocationId('');
+      return;
+    }
+    if (attendanceUnitOptions.length === 1) {
+      setRecorderUnitKey(attendanceUnitOptions[0].id);
       return;
     }
 
     setRecorderUnitKey((currentUnitKey) => (
       attendanceUnitOptions.some((unit) => unit.id === currentUnitKey) ? currentUnitKey : ''
     ));
-  }, [attendanceUnitOptions]);
+  }, [attendanceUnitOptions, recorderSelectorLocations]);
 
   useEffect(() => {
+    if (recorderSelectorLocations.length === 1) {
+      return;
+    }
+
     if (!businessLocationOptions.length) {
+      setRecorderBusinessKey('');
+      setRecorderLocationId('');
+      return;
+    }
+
+    setRecorderBusinessKey((currentBusinessKey) => (
+      businessLocationOptions.some((business) => business.id === currentBusinessKey)
+        ? currentBusinessKey
+        : businessLocationOptions.length === 1
+          ? businessLocationOptions[0].id
+          : ''
+    ));
+  }, [businessLocationOptions, recorderSelectorLocations.length]);
+
+  useEffect(() => {
+    if (recorderSelectorLocations.length === 1) {
+      return;
+    }
+
+    if (!recorderBusinessKey || !attendanceLocationOptions.length) {
       setRecorderLocationId('');
       return;
     }
 
     setRecorderLocationId((currentLocationId) => (
-      businessLocationOptions.some((location) => String(location.id) === currentLocationId) ? currentLocationId : ''
+      attendanceLocationOptions.some((location) => String(location.id) === currentLocationId)
+        ? currentLocationId
+        : String(attendanceLocationOptions[0].id)
     ));
-  }, [businessLocationOptions]);
+  }, [attendanceLocationOptions, recorderBusinessKey, recorderSelectorLocations.length]);
 
   useEffect(() => {
     attendancePhotoUpload.clearPhoto();
@@ -596,7 +603,7 @@ export default function Attendance() {
     setIsSubmitting(true);
 
     try {
-      await runWithMinimumDuration(task(), 850);
+      await runWithMinimumDuration(task());
     } finally {
       setIsSubmitting(false);
     }
@@ -712,19 +719,18 @@ export default function Attendance() {
             event_type: eventType,
             event_kind: eventType,
             auth_method: 'manual_override',
+            location_id: selectedAttendanceLocation?.id,
             latitude: coordinates.latitude,
             longitude: coordinates.longitude,
             photo_url: photoObjectKey,
             event_timestamp: eventTimestamp,
             metadata: {
-              selected_unit_id: selectedAttendanceUnit && /^\d+$/.test(selectedAttendanceUnit.id)
-                ? Number(selectedAttendanceUnit.id)
-                : null,
-              selected_unit_name: selectedAttendanceUnit?.name ?? null,
-              selected_business_id: selectedAttendanceBusiness && /^\d+$/.test(selectedAttendanceBusiness.id)
-                ? Number(selectedAttendanceBusiness.id)
-                : null,
-              selected_business_name: selectedAttendanceBusiness?.name ?? null,
+              selected_unit_id: selectedAttendanceLocation?.unit_id ?? null,
+              selected_unit_name: selectedAttendanceUnit?.name ?? selectedAttendanceLocation?.unit_name ?? null,
+              selected_business_id: selectedAttendanceLocation?.business_id ?? null,
+              selected_business_name: selectedAttendanceLocation?.business_name ?? selectedAttendanceBusiness?.name ?? null,
+              selected_location_id: selectedAttendanceLocation?.id ?? null,
+              selected_location_name: selectedAttendanceLocation?.name ?? null,
             },
           });
 
@@ -863,9 +869,17 @@ export default function Attendance() {
             <>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                    <User className="h-5 w-5" />
-                  </div>
+                  {selectedUserAvatarUrl ? (
+                    <img
+                      src={selectedUserAvatarUrl}
+                      alt={selectedItem.employee_name}
+                      className="h-12 w-12 rounded-full border border-blue-100 object-cover shadow-sm dark:border-blue-900/50"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                      <User className="h-5 w-5" />
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{copy.labels.collaborator}</p>
                     <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{selectedItem.employee_name}</p>
@@ -959,53 +973,64 @@ export default function Attendance() {
               </div>
             </div>
 
-            <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                  {copy.recorder.unit}
-                </span>
-                <select
-                  value={recorderUnitKey}
-                  onChange={(event) => {
-                    const nextUnitKey = event.target.value;
-                    setRecorderUnitKey(nextUnitKey);
-                    setRecorderLocationId('');
-                  }}
-                  disabled={recorderDisabled || attendanceUnitOptions.length === 0}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
-                >
-                  <option value="">{copy.recorder.selectUnit}</option>
-                  {attendanceUnitOptions.length ? (
-                    attendanceUnitOptions.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </option>
-                    ))
-                  ) : null}
-                </select>
-              </label>
+            {shouldShowAttendanceLocationSelectors ? (
+              <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    {copy.recorder.unit}
+                  </span>
+                  <select
+                    value={recorderUnitKey}
+                    onChange={(event) => {
+                      const nextUnitKey = event.target.value;
+                      setRecorderUnitKey(nextUnitKey);
+                      setRecorderBusinessKey('');
+                      setRecorderLocationId('');
+                    }}
+                    disabled={recorderDisabled || attendanceUnitOptions.length === 0}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
+                  >
+                    <option value="">{copy.recorder.selectUnit}</option>
+                    {attendanceUnitOptions.length ? (
+                      attendanceUnitOptions.map((unit) => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.name}
+                        </option>
+                      ))
+                    ) : null}
+                  </select>
+                </label>
 
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                  {copy.recorder.business}
-                </span>
-                <select
-                  value={recorderLocationId}
-                  onChange={(event) => setRecorderLocationId(event.target.value)}
-                  disabled={recorderDisabled || !recorderUnitKey || businessLocationOptions.length === 0}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
-                >
-                  <option value="">{copy.recorder.selectBusiness}</option>
-                  {businessLocationOptions.length ? (
-                    businessLocationOptions.map((business) => (
-                      <option key={business.id} value={business.id}>
-                        {business.name}
-                      </option>
-                    ))
-                  ) : null}
-                </select>
-              </label>
-            </div>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    {copy.recorder.business}
+                  </span>
+                  <select
+                    value={recorderBusinessKey}
+                    onChange={(event) => {
+                      setRecorderBusinessKey(event.target.value);
+                      setRecorderLocationId('');
+                    }}
+                    disabled={recorderDisabled || !recorderUnitKey || businessLocationOptions.length === 0}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
+                  >
+                    <option value="">{copy.recorder.selectBusiness}</option>
+                    {businessLocationOptions.length ? (
+                      businessLocationOptions.map((business) => (
+                        <option key={business.id} value={business.id}>
+                          {business.name}
+                        </option>
+                      ))
+                    ) : null}
+                  </select>
+                </label>
+              </div>
+            ) : selectedAttendanceLocation ? (
+              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <span className="font-medium">{copy.recorder.location}:</span>{' '}
+                {formatAttendanceLocationOption(selectedAttendanceLocation)}
+              </div>
+            ) : null}
 
             <Button
               type="button"

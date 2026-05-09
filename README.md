@@ -23,6 +23,8 @@ cd ~/Documents/Indice/Indice_base_SAAS
 ./mvnw spring-boot:run
 ```
 
+Spring Boot DevTools is enabled for local runs. Backend changes restart automatically after the changed Java classes are recompiled by your IDE or by running Maven compile.
+
 Default URL:
 
 - `http://127.0.0.1:8082`

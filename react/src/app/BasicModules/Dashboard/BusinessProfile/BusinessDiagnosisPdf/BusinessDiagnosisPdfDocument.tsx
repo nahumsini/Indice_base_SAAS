@@ -1,4 +1,13 @@
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+} from 'recharts';
+
 import type { BusinessProfileSectionKey } from '../../../../api/HomePanel/BusinessProfile/businessProfile';
+import type { BusinessDiagnosisPdfCopy } from '../../../../context/LanguageContext';
 import type {
   BusinessDiagnosisScoreReport,
   DiagnosisPillarScore,
@@ -13,14 +22,11 @@ export type BusinessDiagnosisPdfDocumentProps = {
   subtitle: string;
   generatedAt: Date;
   reportId: string;
+  copy: BusinessDiagnosisPdfCopy;
+  fileName: string;
+  locale: string;
   companyName?: string | null;
-};
-
-const PILLAR_MODULES: Record<BusinessProfileSectionKey, string> = {
-  people: 'Human Resources',
-  processes: 'Processes and tasks',
-  products: 'CRM / Point of Sale',
-  finance: 'Expenses and KPIs',
+  logoUrl?: string | null;
 };
 
 const PILLAR_COLOR_CLASS: Record<BusinessProfileSectionKey, string> = {
@@ -30,33 +36,23 @@ const PILLAR_COLOR_CLASS: Record<BusinessProfileSectionKey, string> = {
   finance: 'finance',
 };
 
-const PILLAR_PRIORITY_ACTIONS: Record<BusinessProfileSectionKey, string[]> = {
-  people: [
-    'Clarify responsibilities, delegation rules, and weekly accountability.',
-    'Reduce founder dependency with documented ownership and follow-up.',
-  ],
-  processes: [
-    'Document the most repeated workflows and assign a clear owner to each flow.',
-    'Track execution visibly so tasks stop depending on memory and manual chasing.',
-  ],
-  products: [
-    'Sharpen the offer, pricing logic, and the way channel performance is reviewed.',
-    'Give the team a clearer commercial story so sales and delivery stay aligned.',
-  ],
-  finance: [
-    'Increase visibility on cash, margins, and recurring financial review routines.',
-    'Move decisions from intuition toward structured numbers and forward-looking control.',
-  ],
+const RADAR_COLORS: Record<BusinessProfileSectionKey, { stroke: string; fill: string }> = {
+  people: { stroke: '#2563eb', fill: '#dbeafe' },
+  processes: { stroke: '#d97706', fill: '#fef3c7' },
+  products: { stroke: '#ea580c', fill: '#ffedd5' },
+  finance: { stroke: '#059669', fill: '#dcfce7' },
 };
 
-const formatReportDate = (value: Date) => new Intl.DateTimeFormat(undefined, {
+const RADAR_KEYS: BusinessProfileSectionKey[] = ['people', 'processes', 'products', 'finance'];
+
+const formatReportDate = (value: Date, locale: string) => new Intl.DateTimeFormat(locale, {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
 }).format(value);
 
-const getCompanyLabel = (companyName?: string | null) => (
-  companyName && companyName.trim().length > 0 ? companyName.trim() : 'Current business'
+const getEntityLabel = (value: string | null | undefined, fallback: string) => (
+  value && value.trim().length > 0 ? value.trim() : fallback
 );
 
 const sortPillarsByScore = (report: BusinessDiagnosisScoreReport) => (
@@ -80,87 +76,87 @@ const getLowestQuestion = (pillar: DiagnosisPillarScore): DiagnosisQuestionScore
   ));
 };
 
-const getExecutiveSummary = (report: BusinessDiagnosisScoreReport) => {
-  const sortedPillars = sortPillarsByScore(report);
-  const strongestPillar = sortedPillars[0];
-  const weakestPillar = sortedPillars[sortedPillars.length - 1];
-  const maturityName = report.overall.maturity.name;
-
-  return `This business currently sits at ${maturityName} with a Business Maturity Index of ${report.overall.averageScore}/100. `
-    + `${strongestPillar.title} is the strongest pillar today, while ${weakestPillar.title} needs the earliest intervention. `
-    + 'The next move is to turn current effort into repeatable routines, clearer ownership, and better decision visibility.';
-};
-
-const getOverallInterpretation = (report: BusinessDiagnosisScoreReport) => {
-  const score = report.overall.averageScore;
-
+const getScoreBand = (score: number) => {
   if (score <= 40) {
-    return 'The operating model is still highly reactive. There is significant exposure to founder dependency, low process visibility, and weak decision discipline.';
+    return 'critical';
   }
-
   if (score <= 60) {
-    return 'The company has a working base, but still relies on manual follow-up and reactive control. Formal structure is present in parts, not across the whole business.';
+    return 'emerging';
   }
-
   if (score <= 75) {
-    return 'The business is becoming organized and more predictable, but a few weak spots can still slow scale or reduce visibility if they are not tightened now.';
+    return 'organized';
   }
-
   if (score <= 90) {
-    return 'The business is operating with strong structure and is close to being fully scalable. The focus now is on consistency, monitoring, and leverage across teams.';
+    return 'scalable';
   }
 
-  return 'The business shows a highly mature operating model with strong structure, visibility, and discipline. The priority is sustaining standards while scaling further.';
+  return 'optimized';
 };
 
-const getPillarInterpretation = (pillar: DiagnosisPillarScore) => {
-  if (pillar.averageScore <= 40) {
-    return `${pillar.title} is operating in a reactive mode. The section still depends too much on improvisation, which creates friction and weak repeatability.`;
+const getScoreTone = (score: number) => {
+  if (score >= 76) {
+    return 'high';
+  }
+  if (score >= 60) {
+    return 'medium';
   }
 
-  if (pillar.averageScore <= 60) {
-    return `${pillar.title} has basic structure in place, but it still leans on manual follow-up and inconsistent discipline. The operation works, but not smoothly enough yet.`;
-  }
-
-  if (pillar.averageScore <= 75) {
-    return `${pillar.title} shows a healthy level of organization. The next step is to make that structure more consistent and measurable so it scales with less effort.`;
-  }
-
-  if (pillar.averageScore <= 90) {
-    return `${pillar.title} is strong and close to scalable maturity. The focus should be on keeping visibility high and making execution more systematic.`;
-  }
-
-  return `${pillar.title} performs at a very mature level. The opportunity is no longer basic control, but sustaining excellence while the business grows.`;
+  return 'low';
 };
 
-const getOpportunityNarrative = (pillar: DiagnosisPillarScore) => {
+const getProgressStepIndex = (score: number) => {
+  if (score <= 40) {
+    return 0;
+  }
+  if (score <= 75) {
+    return 1;
+  }
+  if (score <= 90) {
+    return 2;
+  }
+
+  return 3;
+};
+
+const getLevelLabel = (level: number, copy: BusinessDiagnosisPdfCopy) => {
+  const levelKey = `level${Math.max(1, Math.min(5, level))}` as keyof BusinessDiagnosisPdfCopy['levelNames'];
+  return copy.levelNames[levelKey];
+};
+
+const applyTemplate = (template: string, values: Record<string, string | number>) => (
+  Object.entries(values).reduce((nextTemplate, [key, value]) => (
+    nextTemplate.split(`{${key}}`).join(String(value))
+  ), template)
+);
+
+const getExecutiveSummary = (
+  report: BusinessDiagnosisScoreReport,
+  strongestPillar: DiagnosisPillarScore,
+  weakestPillar: DiagnosisPillarScore,
+  copy: BusinessDiagnosisPdfCopy,
+) => applyTemplate(copy.summaryTemplate, {
+  score: report.overall.averageScore,
+  strongest: strongestPillar.title,
+  weakest: weakestPillar.title,
+});
+
+const getPillarInterpretation = (pillar: DiagnosisPillarScore, copy: BusinessDiagnosisPdfCopy) => (
+  applyTemplate(copy.pillarInterpretations[getScoreBand(pillar.averageScore)], {
+    section: pillar.title,
+  })
+);
+
+const getOpportunityNarrative = (pillar: DiagnosisPillarScore, copy: BusinessDiagnosisPdfCopy) => {
   const lowestQuestion = getLowestQuestion(pillar);
 
   if (!lowestQuestion) {
-    return 'This pillar still needs a completed answer set before a more precise opportunity statement can be generated.';
+    return copy.incompleteOpportunity;
   }
 
-  return `The most immediate opportunity is "${lowestQuestion.question}". The selected answer was "${lowestQuestion.selectedOptionLabel ?? 'Pending'}", which shows where operational discipline can improve first.`;
-};
-
-const getPriorityPillars = (report: BusinessDiagnosisScoreReport) => (
-  [...report.pillars]
-    .sort((left, right) => left.averageScore - right.averageScore)
-    .slice(0, 3)
-);
-
-const getActionPlan = (report: BusinessDiagnosisScoreReport) => {
-  const priorityPillars = getPriorityPillars(report);
-
-  return {
-    immediate: [
-      `Review the three weakest pillars: ${priorityPillars.map((pillar) => pillar.title).join(', ')}.`,
-      'Confirm owners for each improvement area and start a weekly execution review.',
-      'Save the diagnosis as a baseline and compare progress after the next operating cycle.',
-    ],
-    thirtyDays: priorityPillars.flatMap((pillar) => PILLAR_PRIORITY_ACTIONS[pillar.key].slice(0, 1)),
-    sixtyDays: priorityPillars.flatMap((pillar) => PILLAR_PRIORITY_ACTIONS[pillar.key].slice(1, 2)),
-  };
+  return applyTemplate(copy.opportunityTemplate, {
+    question: lowestQuestion.question,
+    answer: lowestQuestion.selectedOptionLabel ?? copy.pending,
+  });
 };
 
 export function BusinessDiagnosisPdfDocument({
@@ -169,98 +165,203 @@ export function BusinessDiagnosisPdfDocument({
   subtitle,
   generatedAt,
   reportId,
+  copy,
+  locale,
   companyName,
+  logoUrl,
 }: BusinessDiagnosisPdfDocumentProps) {
   const sortedPillars = sortPillarsByScore(report);
   const strongestPillar = sortedPillars[0];
-  const priorityPillar = [...sortedPillars].reverse()[0];
-  const actionPlan = getActionPlan(report);
+  const weakestPillar = sortedPillars[sortedPillars.length - 1];
+  const overallScoreTone = getScoreTone(report.overall.averageScore);
+  const currentProgressStep = getProgressStepIndex(report.overall.averageScore);
+  const maturityProgressPercent = copy.progressLevels.length > 1
+    ? (currentProgressStep / (copy.progressLevels.length - 1)) * 100
+    : 0;
+  const radarData = report.pillars.map((pillar) => ({
+    label: pillar.title,
+    people: pillar.key === 'people' ? pillar.averageScore : 0,
+    processes: pillar.key === 'processes' ? pillar.averageScore : 0,
+    products: pillar.key === 'products' ? pillar.averageScore : 0,
+    finance: pillar.key === 'finance' ? pillar.averageScore : 0,
+  }));
+  const overallLevel = getLevelLabel(report.overall.maturity.level, copy);
+  const overallInterpretation = copy.overallInterpretations[getScoreBand(report.overall.averageScore)];
 
   return (
-    <div className="bdpdf-report-shell">
+    <div className="bdpdf-report-shell bdpdf-report-shell--executive">
       <section className="bdpdf-report-page">
-        <div className="bdpdf-page-card">
-          <div className="bdpdf-hero">
-            <div className="bdpdf-hero-topline">
-              <div className="bdpdf-brand-badge">Indice diagnosis report</div>
+        <div className="bdpdf-page-card bdpdf-page-card--cover">
+          <div className="bdpdf-cover">
+            <div className="bdpdf-cover-topline">
+              <div className="bdpdf-brand-badge">{copy.brandBadge}</div>
               <div className="bdpdf-report-id">{reportId}</div>
             </div>
 
-            <h1 className="bdpdf-hero-title">{title}</h1>
-            <p className="bdpdf-hero-subtitle">{subtitle}</p>
+            <div className="bdpdf-cover-main">
+              <div>
+                <h1 className="bdpdf-cover-title">{title}</h1>
+                <p className="bdpdf-cover-subtitle">{subtitle}</p>
+              </div>
+              {logoUrl ? (
+                <img className="bdpdf-cover-logo" src={logoUrl} alt="" />
+              ) : (
+                <div className="bdpdf-cover-logo bdpdf-cover-logo--empty" aria-hidden="true" />
+              )}
+            </div>
 
             <div className="bdpdf-hero-meta">
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Company</p>
-                <p className="bdpdf-meta-value">{getCompanyLabel(companyName)}</p>
+                <p className="bdpdf-meta-label">{copy.companyLabel}</p>
+                <p className="bdpdf-meta-value">{getEntityLabel(companyName, copy.companyFallback)}</p>
               </div>
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Generated</p>
-                <p className="bdpdf-meta-value">{formatReportDate(generatedAt)}</p>
+                <p className="bdpdf-meta-label">{copy.generatedLabel}</p>
+                <p className="bdpdf-meta-value">{formatReportDate(generatedAt, locale)}</p>
               </div>
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Answered</p>
-                <p className="bdpdf-meta-value">{report.overall.answeredCount}/{report.overall.totalQuestions} questions</p>
+                <p className="bdpdf-meta-label">{copy.answeredLabel}</p>
+                <p className="bdpdf-meta-value">
+                  {report.overall.answeredCount}/{report.overall.totalQuestions} {copy.questionsLabel}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="bdpdf-page-content">
-            <div className="bdpdf-section">
+            <div className="bdpdf-section bdpdf-executive-summary">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Executive summary</h2>
-                <p className="bdpdf-section-caption">A compact view of current maturity and where to act first</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.executiveSummaryTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.executiveSummaryCaption}</p>
+                </div>
               </div>
 
-              <div className="bdpdf-summary-grid">
-                <div className="bdpdf-summary-card">
-                  <p className="bdpdf-lead">{getExecutiveSummary(report)}</p>
+              <div className="bdpdf-executive-grid">
+                <div className={`bdpdf-score-hero-card score-${overallScoreTone}`}>
+                  <p className="bdpdf-highlight-label">{copy.totalScore}</p>
+                  <p className={`bdpdf-score-hero-value score-${overallScoreTone}`}>{report.overall.averageScore}</p>
+                  <p className="bdpdf-highlight-text">{copy.outOf100}</p>
                 </div>
-                <div className="bdpdf-panel-card">
-                  <p className="bdpdf-lead">{getOverallInterpretation(report)}</p>
+                <div className="bdpdf-summary-card">
+                  <p className="bdpdf-lead">{getExecutiveSummary(report, strongestPillar, weakestPillar, copy)}</p>
+                  <p className="bdpdf-lead bdpdf-lead--secondary">{overallInterpretation}</p>
                 </div>
               </div>
 
               <div className="bdpdf-highlight-grid">
-                <div className="bdpdf-highlight-card bdpdf-highlight-card--accent">
-                  <p className="bdpdf-highlight-label">Business Maturity Index</p>
+                <div className={`bdpdf-highlight-card bdpdf-highlight-card--score score-${overallScoreTone}`}>
+                  <p className="bdpdf-highlight-label">{copy.totalScore}</p>
                   <p className="bdpdf-highlight-value">{report.overall.averageScore}</p>
-                  <p className="bdpdf-highlight-text">out of 100</p>
+                  <p className="bdpdf-highlight-text">{copy.outOf100}</p>
                 </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Maturity level</p>
-                  <p className="bdpdf-highlight-value">L{report.overall.maturity.level}</p>
-                  <p className="bdpdf-highlight-text">{report.overall.maturity.name}</p>
+                <div className="bdpdf-highlight-card bdpdf-highlight-card--level">
+                  <p className="bdpdf-highlight-label">{copy.maturityLevel}</p>
+                  <p className="bdpdf-highlight-value">{overallLevel}</p>
+                  <p className="bdpdf-highlight-text">{report.overall.maturity.level}/5</p>
                 </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Strongest pillar</p>
+                <div className={`bdpdf-highlight-card color-${PILLAR_COLOR_CLASS[strongestPillar.key]}`}>
+                  <p className="bdpdf-highlight-label">{copy.strongestPillar}</p>
                   <p className="bdpdf-highlight-value">{strongestPillar.averageScore}</p>
                   <p className="bdpdf-highlight-text">{strongestPillar.title}</p>
                 </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Priority pillar</p>
-                  <p className="bdpdf-highlight-value">{priorityPillar.averageScore}</p>
-                  <p className="bdpdf-highlight-text">{priorityPillar.title}</p>
+                <div className={`bdpdf-highlight-card color-${PILLAR_COLOR_CLASS[weakestPillar.key]}`}>
+                  <p className="bdpdf-highlight-label">{copy.weakestPillar}</p>
+                  <p className="bdpdf-highlight-value">{weakestPillar.averageScore}</p>
+                  <p className="bdpdf-highlight-text">{weakestPillar.title}</p>
                 </div>
               </div>
             </div>
 
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Pillar overview</h2>
-                <p className="bdpdf-section-caption">Score, maturity, completion, and next module to activate</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.dashboardTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.dashboardCaption}</p>
+                </div>
+              </div>
+
+              <div className="bdpdf-dashboard-grid">
+                <div className="bdpdf-chart-card">
+                  <h3 className="bdpdf-chart-title">{copy.radarTitle}</h3>
+                  <RadarChart width={310} height={245} data={radarData} outerRadius={86}>
+                    <PolarGrid stroke="#d8e2f0" />
+                    <PolarAngleAxis dataKey="label" tick={{ fill: '#475569', fontSize: 11 }} />
+                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                    {RADAR_KEYS.map((key) => (
+                      <Radar
+                        key={key}
+                        dataKey={key}
+                        stroke={RADAR_COLORS[key].stroke}
+                        fill={RADAR_COLORS[key].fill}
+                        fillOpacity={0.7}
+                        strokeWidth={2}
+                        isAnimationActive={false}
+                      />
+                    ))}
+                  </RadarChart>
+                  <div className="bdpdf-radar-legend">
+                    {report.pillars.map((pillar) => (
+                      <span className="bdpdf-radar-legend-item" key={pillar.key}>
+                        <span className={`bdpdf-radar-dot ${PILLAR_COLOR_CLASS[pillar.key]}`} />
+                        {pillar.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bdpdf-progress-card">
+                  <h3 className="bdpdf-chart-title">{copy.progressTitle}</h3>
+                  <div className="bdpdf-maturity-track">
+                    <div
+                      className="bdpdf-maturity-fill"
+                      style={{ width: `${maturityProgressPercent}%` }}
+                    />
+                  </div>
+                  <div className="bdpdf-maturity-rail">
+                    {copy.progressLevels.map((level, index) => (
+                      <div
+                        key={level}
+                        className={`bdpdf-maturity-step ${index <= currentProgressStep ? 'is-active' : ''}`}
+                      >
+                        <span className="bdpdf-maturity-dot" />
+                        <span className="bdpdf-maturity-label">{level}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bdpdf-report-page">
+        <div className="bdpdf-page-card">
+          <div className="bdpdf-page-content">
+            <div className="bdpdf-section">
+              <div className="bdpdf-section-heading">
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.pillarBreakdownTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.pillarBreakdownCaption}</p>
+                </div>
               </div>
 
               <div className="bdpdf-pillars-grid">
                 {report.pillars.map((pillar) => (
-                  <article className="bdpdf-pillar-card" key={pillar.key}>
+                  <article
+                    className={`bdpdf-pillar-card bdpdf-pillar-card--executive color-${PILLAR_COLOR_CLASS[pillar.key]}`}
+                    key={pillar.key}
+                  >
                     <div className="bdpdf-pillar-header">
                       <div>
                         <h3 className="bdpdf-pillar-title">{pillar.title}</h3>
-                        <p className="bdpdf-pillar-subtitle">{pillar.answeredCount}/{pillar.totalQuestions} answered</p>
+                        <p className="bdpdf-pillar-subtitle">
+                          {pillar.answeredCount}/{pillar.totalQuestions} {copy.questionsLabel}
+                        </p>
                       </div>
                       <span className={`bdpdf-score-chip level-${pillar.maturity.level}`}>
-                        {pillar.maturity.name}
+                        {getLevelLabel(pillar.maturity.level, copy)}
                       </span>
                     </div>
 
@@ -269,7 +370,7 @@ export function BusinessDiagnosisPdfDocument({
                         {pillar.averageScore}
                         <span>/100</span>
                       </p>
-                      <p className="bdpdf-section-caption">{PILLAR_MODULES[pillar.key]}</p>
+                      <p className="bdpdf-section-caption">{copy.moduleLabels[pillar.key]}</p>
                     </div>
 
                     <div className="bdpdf-progress-bar">
@@ -279,52 +380,17 @@ export function BusinessDiagnosisPdfDocument({
                       />
                     </div>
 
-                    <ul className="bdpdf-info-list">
-                      <li>
-                        <span className="bdpdf-bullet">•</span>
-                        <span>{getPillarInterpretation(pillar)}</span>
-                      </li>
-                      <li>
-                        <span className="bdpdf-bullet">•</span>
-                        <span>{getOpportunityNarrative(pillar)}</span>
-                      </li>
-                    </ul>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bdpdf-report-page">
-        <div className="bdpdf-page-card">
-          <div className="bdpdf-page-content">
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Detailed analysis</h2>
-                <p className="bdpdf-section-caption">Where the business is performing well and where it should improve first</p>
-              </div>
-
-              <div className="bdpdf-analysis-grid">
-                {report.pillars.map((pillar) => (
-                  <article className="bdpdf-analysis-card" key={pillar.key}>
-                    <div className="bdpdf-analysis-card-head">
-                      <h3 className="bdpdf-analysis-title">{pillar.title}</h3>
-                      <span className={`bdpdf-score-chip level-${pillar.maturity.level}`}>
-                        {pillar.averageScore}/100
-                      </span>
+                    <div className="bdpdf-insight-box">
+                      <p>{getPillarInterpretation(pillar, copy)}</p>
+                      <p>{getOpportunityNarrative(pillar, copy)}</p>
                     </div>
-                    <div className="bdpdf-analysis-card-body">
-                      <p className="bdpdf-analysis-copy">{getPillarInterpretation(pillar)}</p>
-                      <ul className="bdpdf-info-list">
-                        {PILLAR_PRIORITY_ACTIONS[pillar.key].map((actionItem) => (
-                          <li key={actionItem}>
-                            <span className="bdpdf-bullet">•</span>
-                            <span>{actionItem}</span>
-                          </li>
-                        ))}
-                      </ul>
+
+                    <div className="bdpdf-recommendation-strip">
+                      <p className="bdpdf-recommendation-rank">{copy.recommendationLabel}</p>
+                      <p>{copy.priorityActions[pillar.key][0]}</p>
+                      <p className="bdpdf-recommendation-module">
+                        {copy.suggestedModuleLabel}: <strong>{copy.moduleLabels[pillar.key]}</strong>
+                      </p>
                     </div>
                   </article>
                 ))}
@@ -333,71 +399,28 @@ export function BusinessDiagnosisPdfDocument({
 
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Strategic recommendations</h2>
-                <p className="bdpdf-section-caption">Priority actions connected directly to the ERP modules that can help</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.weakestPillar}</h2>
+                  <p className="bdpdf-section-caption">{copy.dashboardCaption}</p>
+                </div>
               </div>
 
               <div className="bdpdf-recommendation-grid">
-                {getPriorityPillars(report).map((pillar, index) => (
-                  <article className="bdpdf-recommendation-card" key={pillar.key}>
-                    <div className="bdpdf-recommendation-rank">Priority {index + 1}</div>
+                {sortedPillars.slice().reverse().slice(0, 3).map((pillar, index) => (
+                  <article className={`bdpdf-recommendation-card color-${PILLAR_COLOR_CLASS[pillar.key]}`} key={pillar.key}>
+                    <div className="bdpdf-recommendation-rank">{copy.priorityLabel} {index + 1}</div>
                     <h3 className="bdpdf-recommendation-title">{pillar.title}</h3>
-                    <p className="bdpdf-recommendation-body">{getOpportunityNarrative(pillar)}</p>
+                    <p className="bdpdf-recommendation-body">{copy.priorityActions[pillar.key][0]}</p>
                     <p className="bdpdf-recommendation-module">
-                      Suggested module: <strong>{PILLAR_MODULES[pillar.key]}</strong>
+                      {copy.suggestedModuleLabel}: <strong>{copy.moduleLabels[pillar.key]}</strong>
                     </p>
                   </article>
                 ))}
               </div>
-            </div>
-
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Action plan</h2>
-                <p className="bdpdf-section-caption">A practical 60-day sequence to move from diagnosis into execution</p>
-              </div>
-
-              <div className="bdpdf-plan-grid">
-                <article className="bdpdf-plan-card">
-                  <h4>Immediate next steps</h4>
-                  <ul>
-                    {actionPlan.immediate.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="bdpdf-plan-card">
-                  <h4>Next 30 days</h4>
-                  <ul>
-                    {actionPlan.thirtyDays.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="bdpdf-plan-card">
-                  <h4>Days 30 to 60</h4>
-                  <ul>
-                    {actionPlan.sixtyDays.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="bdpdf-plan-card">
-                  <h4>Conclusion</h4>
-                  <ul>
-                    <li>The diagnosis already gives a measurable baseline for future operating reviews.</li>
-                    <li>The biggest gains will come from lifting the weakest pillars without losing momentum in the strongest one.</li>
-                    <li>Indice can turn this diagnosis into action when the recommended modules are activated with clear ownership.</li>
-                  </ul>
-                </article>
-              </div>
 
               <div className="bdpdf-footer-note">
-                <span>Indice · Business diagnosis report</span>
-                <span>Generated automatically from Business Profile answers</span>
+                <span>{copy.footerLeft}</span>
+                <span>{copy.footerRight}</span>
               </div>
             </div>
           </div>
@@ -409,20 +432,22 @@ export function BusinessDiagnosisPdfDocument({
           <div className="bdpdf-page-content">
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Response appendix</h2>
-                <p className="bdpdf-section-caption">Detailed answer list with the selected response and converted points</p>
+                <div>
+                  <h2 className="bdpdf-section-title">{copy.detailedAnswersTitle}</h2>
+                  <p className="bdpdf-section-caption">{copy.detailedAnswersCaption}</p>
+                </div>
               </div>
 
               {report.pillars.map((pillar) => (
-                <article className="bdpdf-table-card bdpdf-section" key={pillar.key}>
+                <article className={`bdpdf-table-card bdpdf-section color-${PILLAR_COLOR_CLASS[pillar.key]}`} key={pillar.key}>
                   <h3 className="bdpdf-table-title">{pillar.title}</h3>
                   <table className="bdpdf-table">
                     <thead>
                       <tr>
                         <th style={{ width: '7%' }}>#</th>
-                        <th style={{ width: '43%' }}>Question</th>
-                        <th style={{ width: '34%' }}>Selected answer</th>
-                        <th style={{ width: '16%' }}>Score</th>
+                        <th style={{ width: '43%' }}>{copy.questionColumn}</th>
+                        <th style={{ width: '34%' }}>{copy.selectedAnswerColumn}</th>
+                        <th style={{ width: '16%' }}>{copy.scoreColumn}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -430,7 +455,7 @@ export function BusinessDiagnosisPdfDocument({
                         <tr key={`${pillar.key}-${question.index}`}>
                           <td className="bdpdf-question-number">{question.index}</td>
                           <td>{question.question}</td>
-                          <td>{question.selectedOptionLabel ?? <span className="bdpdf-muted">Pending</span>}</td>
+                          <td>{question.selectedOptionLabel ?? <span className="bdpdf-muted">{copy.pending}</span>}</td>
                           <td>{question.points}/100</td>
                         </tr>
                       ))}

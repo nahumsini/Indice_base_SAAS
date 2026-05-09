@@ -2,14 +2,18 @@ package com.indice.erp.configcenter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.storage.DisabledObjectStorageService;
+import com.indice.erp.storage.ObjectStorageProperties;
 import java.sql.ResultSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,8 +37,21 @@ class ConfigCenterServiceTest {
     private BCryptPasswordEncoder passwordEncoder;
 
     @Test
+    void deleteUserRejectsCurrentUserBeforeQueryingDatabase() {
+        var service = newService();
+
+        var error = assertThrows(
+            IllegalArgumentException.class,
+            () -> service.deleteUser(1L, 7L, 7L)
+        );
+
+        assertEquals("You cannot delete your own user.", error.getMessage());
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
     void getEmpresaReadsConfigCenterSettingsFromCompanySettings() throws Exception {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
@@ -105,7 +122,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void getEmpresaKeepsExplicitEmptyStructureMap() throws Exception {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
@@ -145,7 +162,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void saveEmpresaPersistsSettingsJsonAndKeepsExistingTemplateFields() {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
@@ -192,8 +209,145 @@ class ConfigCenterServiceTest {
     }
 
     @Test
+    void saveEmpresaPersistsHeadquartersLocationWithAddress() throws Exception {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+        when(jdbcTemplate.update(anyString(), eq(1L), anyString())).thenReturn(1);
+
+        var address = new LinkedHashMap<String, Object>();
+        address.put("street", "123 King St W");
+        address.put("country", "Canada");
+        address.put("state", "Ontario");
+        address.put("city", "Toronto");
+        address.put("zip", "M5H 1J9");
+
+        var headquartersLocation = new LinkedHashMap<String, Object>();
+        headquartersLocation.put("google_maps_url", "https://maps.google.com/?q=123+King+St+W");
+        headquartersLocation.put("latitude", "43.6487000");
+        headquartersLocation.put("longitude", "-79.3817000");
+        headquartersLocation.put("radius_meters", 150);
+        headquartersLocation.put("coordinate_source", "google_maps_link");
+        headquartersLocation.put("address", address);
+
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("headquarters_location", headquartersLocation);
+        payload.put("sync_company_location", false);
+
+        var saved = service.saveEmpresa(1L, 1L, payload);
+
+        @SuppressWarnings("unchecked")
+        var savedAddress = (Map<String, Object>) saved.get("address");
+        assertEquals("123 King St W", savedAddress.get("street"));
+        assertEquals("Canada", savedAddress.get("country"));
+        assertEquals("Toronto", savedAddress.get("city"));
+        assertEquals("https://maps.google.com/?q=123+King+St+W", saved.get("google_maps_url"));
+
+        ArgumentCaptor<String> settingsCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(startsWith("INSERT INTO company_settings"), eq(1L), settingsCaptor.capture());
+
+        var settingsJson = new ObjectMapper().readTree(settingsCaptor.getValue());
+        var storedLocation = settingsJson.path("config_center").path("empresa_template").path("headquarters_location");
+        assertEquals("43.6487", storedLocation.path("latitude").asText());
+        assertEquals("-79.3817", storedLocation.path("longitude").asText());
+        assertEquals(150, storedLocation.path("radius_meters").asInt());
+        assertEquals("google_maps_link", storedLocation.path("coordinate_source").asText());
+        assertEquals("123 King St W", storedLocation.path("address").path("street").asText());
+        assertEquals("M5H 1J9", storedLocation.path("address").path("zip").asText());
+    }
+
+    @Test
+    void getEmpresaReturnsStoredHeadquartersLocationAndAddress() throws Exception {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(1L);
+            when(rs.getString("name")).thenReturn("Empresa Demo Spring");
+            when(rs.getString("logo_url")).thenReturn(null);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("""
+            {
+              "config_center": {
+                "estructura": "multi",
+                "colaboradores": 7,
+                "empresa_template": {
+                  "headquarters_location": {
+                    "google_maps_url": "https://maps.google.com/?q=123+King+St+W",
+                    "latitude": 43.6487000,
+                    "longitude": -79.3817000,
+                    "radius_meters": 150,
+                    "coordinate_source": "google_maps_link",
+                    "address": {
+                      "street": "123 King St W",
+                      "country": "Canada",
+                      "state": "Ontario",
+                      "city": "Toronto",
+                      "zip": "M5H 1J9"
+                    }
+                  }
+                },
+                "map": []
+              }
+            }
+            """));
+
+        @SuppressWarnings("unchecked")
+        var empresa = (Map<String, Object>) service.getEmpresa(1L);
+
+        assertEquals("https://maps.google.com/?q=123+King+St+W", empresa.get("google_maps_url"));
+        assertEquals(150, empresa.get("radius_meters"));
+
+        @SuppressWarnings("unchecked")
+        var address = (Map<String, Object>) empresa.get("address");
+        assertEquals("123 King St W", address.get("street"));
+        assertEquals("Ontario", address.get("state"));
+
+        @SuppressWarnings("unchecked")
+        var location = (Map<String, Object>) empresa.get("headquarters_location");
+        assertEquals("google_maps_link", location.get("coordinate_source"));
+        assertEquals(address, location.get("address"));
+    }
+
+    @Test
+    void saveEmpresaRejectsInvalidHeadquartersLatitude() {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+
+        var headquartersLocation = new LinkedHashMap<String, Object>();
+        headquartersLocation.put("latitude", "100.0000000");
+        headquartersLocation.put("longitude", "-79.3817000");
+
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("headquarters_location", headquartersLocation);
+
+        assertThrows(IllegalArgumentException.class, () -> service.saveEmpresa(1L, 1L, payload));
+    }
+
+    @Test
     void saveStructureAllowsEmptyMultiModeForOnboarding() {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(jdbcTemplate.query(
             eq("""
@@ -249,8 +403,127 @@ class ConfigCenterServiceTest {
     }
 
     @Test
+    void saveStructurePreservesSelectedCorporateOfficeUnit() throws Exception {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id, name
+                FROM units
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id,
+                       unit_id,
+                       name,
+                       latitude,
+                       longitude,
+                       radius_meters,
+                       coordinate_source,
+                       google_maps_url
+                FROM businesses
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+        when(jdbcTemplate.queryForObject(eq("SELECT LAST_INSERT_ID()"), eq(Long.class)))
+            .thenReturn(10L, 100L, 20L, 200L);
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_employees WHERE company_id = ?", Integer.class, 1L))
+            .thenReturn(0);
+
+        var firstUnit = new LinkedHashMap<String, Object>();
+        firstUnit.put("name", "Warehouse");
+        firstUnit.put("businesses", List.of(Map.of("name", "Warehouse Ops")));
+
+        var corporateUnit = new LinkedHashMap<String, Object>();
+        corporateUnit.put("name", "Toronto");
+        corporateUnit.put("is_corporate_office", true);
+        corporateUnit.put("businesses", List.of(Map.of("name", "Toronto Ops")));
+
+        var saved = service.saveStructure(1L, 1L, Map.of(
+            "estructura", "multi",
+            "map", List.of(firstUnit, corporateUnit)
+        ));
+
+        @SuppressWarnings("unchecked")
+        var responseMap = (List<Map<String, Object>>) saved.get("map");
+        assertEquals(false, responseMap.getFirst().get("is_corporate_office"));
+        assertEquals(true, responseMap.get(1).get("is_corporate_office"));
+        assertEquals("Warehouse", responseMap.getFirst().get("name"));
+        assertEquals("Toronto", responseMap.get(1).get("name"));
+
+        ArgumentCaptor<String> settingsCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(startsWith("INSERT INTO company_settings"), eq(1L), settingsCaptor.capture());
+        var settingsJson = new ObjectMapper().readTree(settingsCaptor.getValue());
+        var storedMap = settingsJson.path("config_center").path("map");
+        assertEquals(false, storedMap.get(0).path("is_corporate_office").asBoolean());
+        assertEquals(true, storedMap.get(1).path("is_corporate_office").asBoolean());
+    }
+
+    @Test
+    void inviteUserRejectsGloballyRegisteredEmailBeforeCreatingInvitation() {
+        var service = newService();
+
+        when(jdbcTemplate.queryForObject(
+            eq("""
+                SELECT COUNT(*)
+                FROM users u
+                INNER JOIN user_companies uc ON uc.user_id = u.id
+                WHERE uc.company_id = ?
+                  AND LOWER(u.email) = ?
+                """),
+            eq(Integer.class),
+            eq(1L),
+            eq("taken@example.com")
+        )).thenReturn(0);
+        when(jdbcTemplate.queryForObject(
+            eq("""
+                SELECT COUNT(*)
+                FROM user_invitations
+                WHERE company_id = ?
+                  AND LOWER(email) = ?
+                  AND COALESCE(status, 'pending') = 'pending'
+                  AND (? IS NULL OR id <> ?)
+                """),
+            eq(Integer.class),
+            eq(1L),
+            eq("taken@example.com"),
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.isNull()
+        )).thenReturn(0);
+        when(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM users WHERE LOWER(email) = ?",
+            Integer.class,
+            "taken@example.com"
+        )).thenReturn(1);
+
+        var error = assertThrows(
+            IllegalArgumentException.class,
+            () -> service.inviteUser(1L, 1L, Map.of(
+                "name", "Taken User",
+                "email", "Taken@example.com",
+                "role", "User"
+            ))
+        );
+
+        assertEquals("That email is already registered.", error.getMessage());
+    }
+
+    @Test
     void saveCurrentUserUpdatesPasswordHashWhenNewPasswordIsProvided() {
-        var service = new ConfigCenterService(jdbcTemplate, new ObjectMapper(), passwordEncoder);
+        var service = newService();
 
         when(passwordEncoder.encode("newSecret123")).thenReturn("encoded-password");
         when(jdbcTemplate.update("UPDATE users SET full_name = ? WHERE id = ?", "Ada Demo", 1L)).thenReturn(1);
@@ -263,7 +536,9 @@ class ConfigCenterServiceTest {
                        COALESCE(p.phone, '') AS phone,
                        COALESCE(p.country, '') AS country,
                        COALESCE(p.preferred_language, 'es-419') AS preferred_language,
-                       COALESCE(p.avatar_url, '') AS avatar_url
+                       COALESCE(p.avatar_url, '') AS avatar_url,
+                       COALESCE(p.avatar_object_key, '') AS avatar_object_key,
+                       COALESCE(p.avatar_content_type, '') AS avatar_content_type
                 FROM users u
                 LEFT JOIN user_profiles p ON p.user_id = u.id
                 WHERE u.id = ?
@@ -282,10 +557,12 @@ class ConfigCenterServiceTest {
             when(rs.getString("country")).thenReturn("CA");
             when(rs.getString("preferred_language")).thenReturn("en-US");
             when(rs.getString("avatar_url")).thenReturn(null);
+            when(rs.getString("avatar_object_key")).thenReturn(null);
+            when(rs.getString("avatar_content_type")).thenReturn(null);
             return List.of(rowMapper.mapRow(rs, 0));
         });
 
-        var saved = service.saveCurrentUser(1L, "admin", Map.of(
+        var saved = service.saveCurrentUser(7L, 1L, "admin", Map.of(
             "primer_nombre", "Ada",
             "apellido_paterno", "Demo",
             "country", "CA",
@@ -298,5 +575,15 @@ class ConfigCenterServiceTest {
         verify(jdbcTemplate).update("UPDATE users SET password_hash = ? WHERE id = ?", "encoded-password", 1L);
         assertEquals("ada@example.com", saved.get("email"));
         assertEquals("CA", saved.get("country"));
+    }
+
+    private ConfigCenterService newService() {
+        return new ConfigCenterService(
+            jdbcTemplate,
+            new ObjectMapper(),
+            passwordEncoder,
+            new DisabledObjectStorageService(),
+            new ObjectStorageProperties()
+        );
     }
 }

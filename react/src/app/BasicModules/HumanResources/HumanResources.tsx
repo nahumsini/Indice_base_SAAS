@@ -1,17 +1,20 @@
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { useHRLanguage } from './HRLanguage';
-import Employees from './Employees';
-import Attendance from './Attendance/Attendance';
-import Control from './Control';
-import Payroll from './Payroll';
-import Announcements from './Announcements';
-import Assets from './Assets';
-import Records from './Records';
-import Permissions from './Permissions';
-import Incentives from './Incentives';
-import KPIs from './KPIs';
+
+const Employees = lazy(() => import('./Employees'));
+const Attendance = lazy(() => import('./Attendance/Attendance'));
+const Control = lazy(() => import('./Control'));
+const Payroll = lazy(() => import('./Payroll'));
+const Announcements = lazy(() => import('./Announcements'));
+const Assets = lazy(() => import('./Assets'));
+const Records = lazy(() => import('./Records'));
+const Permissions = lazy(() => import('./Permissions'));
+const Incentives = lazy(() => import('./Incentives'));
+const KPIs = lazy(() => import('./KPIs'));
 
 interface HumanResourcesProps {
   onNavigate: (page?: string) => void;
@@ -45,7 +48,7 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
 
 export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   const t = useHRLanguage();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
     'collaborators',
     humanResourcesTabIds,
     legacyHumanResourcesTabAliases,
@@ -67,8 +70,22 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   // Get the active component
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Employees;
 
+  const handleTabClick = (tabId: HumanResourcesTabId) => {
+    if (tabId === activeTab) {
+      return;
+    }
+
+    setActiveTab(tabId);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading HR tab"
+        description="Opening the selected human resources workspace."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
@@ -104,7 +121,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as HumanResourcesTabId)}
+                onClick={() => handleTabClick(tab.id as HumanResourcesTabId)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-blue-600 text-white shadow-md'
@@ -121,7 +138,17 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <ActiveComponent />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading HR tab"
+              description="Downloading only the selected human resources workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );
