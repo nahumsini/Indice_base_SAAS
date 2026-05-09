@@ -150,7 +150,7 @@ class ConfigCenterServiceTest {
               }
             }
             """));
-        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_employees WHERE company_id = ?", Integer.class, 1L))
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_users WHERE company_id = ?", Integer.class, 1L))
             .thenReturn(0);
 
         @SuppressWarnings("unchecked")
@@ -381,7 +381,7 @@ class ConfigCenterServiceTest {
             org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
             eq(1L)
         )).thenReturn(List.of("{}"));
-        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_employees WHERE company_id = ?", Integer.class, 1L))
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_users WHERE company_id = ?", Integer.class, 1L))
             .thenReturn(0);
         when(jdbcTemplate.update(anyString(), eq(1L), anyString())).thenReturn(1);
 
@@ -440,7 +440,7 @@ class ConfigCenterServiceTest {
         )).thenReturn(List.of("{}"));
         when(jdbcTemplate.queryForObject(eq("SELECT LAST_INSERT_ID()"), eq(Long.class)))
             .thenReturn(10L, 100L, 20L, 200L);
-        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_employees WHERE company_id = ?", Integer.class, 1L))
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_users WHERE company_id = ?", Integer.class, 1L))
             .thenReturn(0);
 
         var firstUnit = new LinkedHashMap<String, Object>();

@@ -11,8 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
-import com.indice.erp.hr.employees.HrEmployeeApiController;
-import com.indice.erp.hr.employees.HrEmployeeService;
+import com.indice.erp.hr.users.HrUserApiController;
+import com.indice.erp.hr.users.HrUserService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -27,8 +27,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(HrEmployeeApiController.class)
-class HrEmployeeApiControllerTest {
+@WebMvcTest(HrUserApiController.class)
+class HrUserApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -37,13 +37,13 @@ class HrEmployeeApiControllerTest {
     private SessionAuthService sessionAuthService;
 
     @MockitoBean
-    private HrEmployeeService hrEmployeeService;
+    private HrUserService hrUserService;
 
     @Test
     void listReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/v1/hr/employees"))
+        mockMvc.perform(get("/api/v1/hr/users"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.message").value("Unauthorized"));
     }
@@ -51,29 +51,29 @@ class HrEmployeeApiControllerTest {
     @Test
     void listReturnsExpectedEnvelopeForAuthenticatedSession() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
-        var employee = new LinkedHashMap<String, Object>();
-        employee.put("id", 2L);
-        employee.put("full_name", "Second Empleado");
-        employee.put("email", "second.employee.spring@example.com");
-        employee.put("employee_number", "");
-        employee.put("status", "active");
-        employee.put("position_title", "Senior Analyst");
-        employee.put("department", "Finance");
-        employee.put("phone", "");
-        employee.put("hire_date", null);
-        employee.put("salary", new BigDecimal("6500.00"));
+        var hrUser = new LinkedHashMap<String, Object>();
+        hrUser.put("id", 2L);
+        hrUser.put("full_name", "Second Empleado");
+        hrUser.put("email", "second.hr-user.spring@example.com");
+        hrUser.put("user_code", "");
+        hrUser.put("status", "active");
+        hrUser.put("position_title", "Senior Analyst");
+        hrUser.put("department", "Finance");
+        hrUser.put("phone", "");
+        hrUser.put("hire_date", null);
+        hrUser.put("salary", new BigDecimal("6500.00"));
 
         var serviceResult = new LinkedHashMap<String, Object>();
-        serviceResult.put("rows", List.of(employee));
+        serviceResult.put("rows", List.of(hrUser));
         serviceResult.put("meta", Map.of(
             "total_count", 1,
             "total_payroll_amount_monthly", new BigDecimal("6500.00")
         ));
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrEmployeeService.listEmployees(1L)).willReturn(serviceResult);
+        given(hrUserService.listUsers(1L)).willReturn(serviceResult);
 
-        mockMvc.perform(get("/api/v1/hr/employees"))
+        mockMvc.perform(get("/api/v1/hr/users"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.count").value(1))
             .andExpect(jsonPath("$.items[0].full_name").value("Second Empleado"))
@@ -81,14 +81,14 @@ class HrEmployeeApiControllerTest {
     }
 
     @Test
-    void updateReturnsNotFoundWhenEmployeeIsMissing() throws Exception {
+    void updateReturnsNotFoundWhenHrUserIsMissing() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrEmployeeService.updateEmployee(anyLong(), any(Map.class)))
-            .willThrow(new NoSuchElementException("Employee not found."));
+        given(hrUserService.updateUser(anyLong(), any(Map.class)))
+            .willThrow(new NoSuchElementException("HR user not found."));
 
-        mockMvc.perform(put("/api/v1/hr/employees/999")
+        mockMvc.perform(put("/api/v1/hr/users/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -96,15 +96,15 @@ class HrEmployeeApiControllerTest {
                     }
                     """))
             .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.message").value("Employee not found."));
+            .andExpect(jsonPath("$.message").value("HR user not found."));
     }
 
     @Test
-    void detailsReturnsExpandedEmployeeEnvelope() throws Exception {
+    void detailsReturnsExpandedHrUserEnvelope() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         var detailBody = new LinkedHashMap<String, Object>();
-        detailBody.put("employee_id", 12L);
-        detailBody.put("employee", Map.of(
+        detailBody.put("user_company_id", 12L);
+        detailBody.put("user", Map.of(
             "id", 12L,
             "full_name", "Jordan Smith",
             "email", "jordan@example.com"
@@ -116,12 +116,12 @@ class HrEmployeeApiControllerTest {
         detailBody.put("documents", List.of());
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrEmployeeService.getEmployeeDetails(1L, 12L)).willReturn(detailBody);
+        given(hrUserService.getUserDetails(1L, 12L)).willReturn(detailBody);
 
-        mockMvc.perform(get("/api/v1/hr/employees/12"))
+        mockMvc.perform(get("/api/v1/hr/users/12"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.employee_id").value(12))
-            .andExpect(jsonPath("$.employee.full_name").value("Jordan Smith"))
+            .andExpect(jsonPath("$.user_company_id").value(12))
+            .andExpect(jsonPath("$.user.full_name").value("Jordan Smith"))
             .andExpect(jsonPath("$.profile.registration_country").value("CA"))
             .andExpect(jsonPath("$.access").doesNotExist())
             .andExpect(jsonPath("$.documents").isArray());
@@ -132,10 +132,10 @@ class HrEmployeeApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrEmployeeService.createDocumentUpload(anyLong(), anyLong(), any(Map.class)))
+        given(hrUserService.createDocumentUpload(anyLong(), anyLong(), any(Map.class)))
             .willThrow(new ObjectStorageDisabledException("Object storage is not enabled."));
 
-        mockMvc.perform(post("/api/v1/hr/employees/12/documents/presign-upload")
+        mockMvc.perform(post("/api/v1/hr/users/12/documents/presign-upload")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {

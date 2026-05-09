@@ -1,4 +1,4 @@
-package com.indice.erp.hr.employees;
+package com.indice.erp.hr.users;
 
 import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
 import static com.indice.erp.hr.shared.HrPayloadUtils.parseBigDecimal;
@@ -27,11 +27,12 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class HrEmployeeService {
+public class HrUserService {
 
     private static final long MAX_DOCUMENT_SIZE_BYTES = 5L * 1024L * 1024L;
 
@@ -39,8 +40,9 @@ public class HrEmployeeService {
     private final HrAttendanceService hrAttendanceService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public HrEmployeeService(
+    public HrUserService(
         JdbcTemplate jdbcTemplate,
         HrAttendanceService hrAttendanceService,
         ObjectStorageService objectStorageService,
@@ -52,11 +54,11 @@ public class HrEmployeeService {
         this.objectStorageProperties = objectStorageProperties;
     }
 
-    public Map<String, Object> listEmployees(long companyId) {
-        var employees = jdbcTemplate.query(
+    public Map<String, Object> listUsers(long companyId) {
+        var hrUsers = jdbcTemplate.query(
             """
                 SELECT e.id,
-                       e.employee_number,
+                       e.user_code AS user_code,
                        e.first_name,
                        e.last_name,
                        e.email,
@@ -80,14 +82,18 @@ public class HrEmployeeService {
                        e.termination_reason_type,
                        e.termination_reason_code,
                        e.termination_summary,
+                       e.user_id,
+                       e.user_company_id,
+                       e.work_profile_id,
                        COALESCE(e.status, 'active') AS status
-                FROM hr_employees e
+                FROM hr_users e
                 LEFT JOIN units u ON u.id = e.unit_id
                 LEFT JOIN businesses b ON b.id = e.business_id
                 WHERE e.company_id = ?
+                  AND e.work_profile_id IS NOT NULL
                 ORDER BY e.id DESC
                 """,
-            (rs, rowNum) -> mapEmployeeRow(rs),
+            (rs, rowNum) -> mapHrUserRow(rs),
             companyId
         );
 
@@ -103,8 +109,9 @@ public class HrEmployeeService {
                                ELSE COALESCE(salary, 0) * 30
                            END
                        ), 0) AS total_payroll_amount_monthly
-                FROM hr_employees
+                FROM hr_users
                 WHERE company_id = ?
+                  AND work_profile_id IS NOT NULL
                 """,
             (rs, rowNum) -> {
                 var body = new LinkedHashMap<String, Object>();
@@ -119,189 +126,98 @@ public class HrEmployeeService {
         );
 
         var result = new LinkedHashMap<String, Object>();
-        result.put("rows", employees);
+        result.put("rows", hrUsers);
         result.put("meta", summary != null ? summary : Map.of());
         return result;
     }
 
-    public Map<String, Object> getEmployeeDetails(long companyId, long employeeId) {
-        requireEmployee(companyId, employeeId);
-        return employeeDetails(employeeId, companyId);
+    public Map<String, Object> getUserDetails(long companyId, long userCompanyId) {
+        requireHrUser(companyId, userCompanyId);
+        return hrUserDetails(userCompanyId, companyId);
     }
 
     @Transactional
-    public Map<String, Object> createEmployee(long companyId, long createdBy, Map<String, Object> payload) {
-        var employeePayload = mergedSectionPayload(payload, "employee");
+    public Map<String, Object> createUser(long companyId, long createdBy, Map<String, Object> payload) {
+        var userPayload = mergedSectionPayload(payload, "user");
         var profilePayload = mergedSectionPayload(payload, "profile");
 
-        var draft = buildEmployeeDraft(companyId, employeePayload);
-        draft = draft.withEmployeeNumber(resolveEmployeeNumberForCreate(companyId, draft.employeeNumber()));
-        var employeeDraft = draft;
+        var draft = buildHrUserDraft(companyId, userPayload);
+        draft = draft.withUserCode(resolveUserCodeForCreate(companyId, draft.userCode()));
+        var hrUserDraft = draft;
         var profileDraft = buildProfileDraft(profilePayload, ProfileDraft.empty());
+        var userRole = normalizeUserRole(stringValue(userPayload, "role", "user_role", "access_role"));
 
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            var statement = connection.prepareStatement(
-                """
-                    INSERT INTO hr_employees
-                    (company_id, employee_number, first_name, last_name, email, phone, position, department, unit_id, business_id, hire_date, salary, pay_period, salary_type, hourly_rate, contract_type, contract_start_date, contract_end_date, status, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                new String[] {"id"}
-            );
-            statement.setLong(1, companyId);
-            statement.setString(2, nullable(employeeDraft.employeeNumber()));
-            statement.setString(3, employeeDraft.firstName());
-            statement.setString(4, employeeDraft.lastName());
-            statement.setString(5, employeeDraft.email());
-            statement.setString(6, nullable(employeeDraft.phone()));
-            statement.setString(7, nullable(employeeDraft.position()));
-            statement.setString(8, nullable(employeeDraft.department()));
-            setNullableLong(statement, 9, employeeDraft.unitId());
-            setNullableLong(statement, 10, employeeDraft.businessId());
-            if (employeeDraft.hireDate() == null) {
-                statement.setNull(11, Types.DATE);
-            } else {
-                statement.setObject(11, employeeDraft.hireDate());
-            }
-            if (employeeDraft.salary() == null) {
-                statement.setNull(12, Types.DECIMAL);
-            } else {
-                statement.setBigDecimal(12, employeeDraft.salary());
-            }
-            statement.setString(13, employeeDraft.payPeriod());
-            statement.setString(14, employeeDraft.salaryType());
-            if (employeeDraft.hourlyRate() == null) {
-                statement.setNull(15, Types.DECIMAL);
-            } else {
-                statement.setBigDecimal(15, employeeDraft.hourlyRate());
-            }
-            statement.setString(16, employeeDraft.contractType());
-            if (employeeDraft.contractStartDate() == null) {
-                statement.setNull(17, Types.DATE);
-            } else {
-                statement.setObject(17, employeeDraft.contractStartDate());
-            }
-            if (employeeDraft.contractEndDate() == null) {
-                statement.setNull(18, Types.DATE);
-            } else {
-                statement.setObject(18, employeeDraft.contractEndDate());
-            }
-            statement.setString(19, employeeDraft.status());
-            statement.setLong(20, createdBy);
-            return statement;
-        }, keyHolder);
-
-        var employeeId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
-        upsertEmployeeProfile(companyId, employeeId, profileDraft);
-        hrAttendanceService.ensureDefaultAccessProfile(companyId, employeeId, createdBy);
-        return employeeDetails(employeeId, companyId);
+        var userIdentity = mirrorHrUserIdentity(companyId, createdBy, 0L, hrUserDraft, profileDraft, userRole);
+        ensureDefaultUserAccessProfile(companyId, userIdentity, createdBy);
+        return hrUserDetails(userIdentity.userCompanyId(), companyId);
     }
 
     @Transactional
-    public Map<String, Object> updateEmployee(long companyId, Map<String, Object> payload) {
-        var employeeId = parseLong(payload, "id", "employee_id");
-        if (employeeId == null || employeeId <= 0) {
+    public Map<String, Object> updateUser(long companyId, Map<String, Object> payload) {
+        var userCompanyId = parseLong(payload, "id", "user_company_id");
+        if (userCompanyId == null || userCompanyId <= 0) {
             throw new IllegalArgumentException("id is required.");
         }
 
-        requireEmployee(companyId, employeeId);
+        requireHrUser(companyId, userCompanyId);
 
-        var employeePayload = mergedSectionPayload(payload, "employee");
+        var userPayload = mergedSectionPayload(payload, "user");
         var profilePayload = mergedSectionPayload(payload, "profile");
 
-        var draft = buildEmployeeDraft(companyId, employeePayload);
-        draft = draft.withEmployeeNumber(resolveEmployeeNumberForUpdate(companyId, employeeId, draft.employeeNumber()));
-        var currentProfile = loadProfileDraft(companyId, employeeId);
+        var draft = buildHrUserDraft(companyId, userPayload);
+        draft = draft.withUserCode(resolveUserCodeForUpdate(companyId, userCompanyId, draft.userCode()));
+        var currentProfile = loadProfileDraft(companyId, userCompanyId);
         var profileDraft = buildProfileDraft(profilePayload, currentProfile);
+        var userRole = normalizeUserRole(stringValue(userPayload, "role", "user_role", "access_role"));
 
-        var rowsUpdated = jdbcTemplate.update(
-            """
-                UPDATE hr_employees
-                SET employee_number = ?,
-                    first_name = ?,
-                    last_name = ?,
-                    email = ?,
-                    phone = ?,
-                    position = ?,
-                    department = ?,
-                    unit_id = ?,
-                    business_id = ?,
-                    hire_date = ?,
-                    salary = ?,
-                    pay_period = ?,
-                    salary_type = ?,
-                    hourly_rate = ?,
-                    contract_type = ?,
-                    contract_start_date = ?,
-                    contract_end_date = ?,
-                    status = ?
-                WHERE id = ? AND company_id = ?
-                """,
-            nullable(draft.employeeNumber()),
-            draft.firstName(),
-            draft.lastName(),
-            draft.email(),
-            nullable(draft.phone()),
-            nullable(draft.position()),
-            nullable(draft.department()),
-            draft.unitId(),
-            draft.businessId(),
-            draft.hireDate(),
-            draft.salary(),
-            draft.payPeriod(),
-            draft.salaryType(),
-            draft.hourlyRate(),
-            draft.contractType(),
-            draft.contractStartDate(),
-            draft.contractEndDate(),
-            draft.status(),
-            employeeId,
-            companyId
-        );
-
-        if (rowsUpdated == 0) {
-            throw new NoSuchElementException("Employee not found.");
-        }
-
-        upsertEmployeeProfile(companyId, employeeId, profileDraft);
-        return employeeDetails(employeeId, companyId);
+        var userIdentity = loadUserWorkIdentity(companyId, userCompanyId);
+        updateExistingUserIdentity(userIdentity.userId(), draft, profileDraft);
+        updateUserCompany(companyId, userIdentity.userCompanyId(), draft.status(), userRole);
+        upsertUserWorkProfile(companyId, userIdentity.userCompanyId(), userIdentity.userId(), null, draft, profileDraft);
+        ensureDefaultUserAccessProfile(companyId, userIdentity, null);
+        return hrUserDetails(userCompanyId, companyId);
     }
 
     @Transactional
-    public void deleteEmployee(long companyId, long employeeId) {
-        requireEmployee(companyId, employeeId);
+    public void deleteUser(long companyId, long userCompanyId) {
+        requireHrUser(companyId, userCompanyId);
 
         var documentObjectKeys = jdbcTemplate.query(
             """
                 SELECT object_key
-                FROM hr_employee_documents
-                WHERE company_id = ? AND employee_id = ?
+                FROM user_documents
+                WHERE company_id = ? AND user_company_id = ?
                 """,
             (rs, rowNum) -> safe(rs.getString("object_key")),
             companyId,
-            employeeId
+            userCompanyId
+        );
+
+        jdbcTemplate.update(
+            "DELETE FROM user_documents WHERE user_company_id = ? AND company_id = ?",
+            userCompanyId,
+            companyId
         );
 
         var rowsUpdated = jdbcTemplate.update(
-            "DELETE FROM hr_employees WHERE id = ? AND company_id = ?",
-            employeeId,
+            "DELETE FROM user_work_profiles WHERE user_company_id = ? AND company_id = ?",
+            userCompanyId,
             companyId
         );
         if (rowsUpdated == 0) {
-            throw new NoSuchElementException("Employee not found.");
+            throw new NoSuchElementException("HR user not found.");
         }
 
         if (objectStorageService.isEnabled()) {
             documentObjectKeys.stream()
                 .filter(key -> key != null && !key.isBlank())
-                .forEach(this::deleteEmployeeDocumentObjectQuietly);
+                .forEach(this::deleteUserDocumentObjectQuietly);
         }
     }
 
     @Transactional
-    public Map<String, Object> terminateEmployee(long companyId, long employeeId, Map<String, Object> payload) {
-        requireEmployee(companyId, employeeId);
+    public Map<String, Object> terminateUser(long companyId, long userCompanyId, Map<String, Object> payload) {
+        requireHrUser(companyId, userCompanyId);
 
         var exitDate = parseDate(payload, "exit_date", "termination_date");
         if (exitDate == null) {
@@ -322,33 +238,38 @@ public class HrEmployeeService {
 
         var rowsUpdated = jdbcTemplate.update(
             """
-                UPDATE hr_employees
+                UPDATE user_work_profiles
                 SET status = 'terminated',
                     termination_date = ?,
                     last_working_day = ?,
                     termination_reason_type = ?,
                     termination_reason_code = ?,
                     termination_summary = ?
-                WHERE id = ? AND company_id = ?
+                WHERE user_company_id = ? AND company_id = ?
                 """,
             exitDate,
             lastWorkingDay,
             reasonType,
             reasonCode,
             summary,
-            employeeId,
+            userCompanyId,
             companyId
         );
 
         if (rowsUpdated == 0) {
-            throw new NoSuchElementException("Employee not found.");
+            throw new NoSuchElementException("HR user not found.");
         }
+        jdbcTemplate.update(
+            "UPDATE user_companies SET status = 'inactive' WHERE id = ? AND company_id = ?",
+            userCompanyId,
+            companyId
+        );
 
-        return employeeDetails(employeeId, companyId);
+        return hrUserDetails(userCompanyId, companyId);
     }
 
-    public Map<String, Object> createDocumentUpload(long companyId, long employeeId, Map<String, Object> payload) {
-        requireEmployee(companyId, employeeId);
+    public Map<String, Object> createDocumentUpload(long companyId, long userCompanyId, Map<String, Object> payload) {
+        requireHrUser(companyId, userCompanyId);
 
         if (!objectStorageService.isEnabled()) {
             throw new ObjectStorageDisabledException("Object storage is not enabled.");
@@ -365,7 +286,7 @@ public class HrEmployeeService {
             throw new IllegalArgumentException("Documents must be 5MB or smaller.");
         }
 
-        var objectKey = buildEmployeeDocumentObjectKey(companyId, employeeId, documentType, originalFileName, contentType);
+        var objectKey = buildHrUserDocumentObjectKey(companyId, userCompanyId, documentType, originalFileName, contentType);
         var upload = objectStorageService.presignUpload(
             documentsBucket(),
             objectKey,
@@ -383,20 +304,20 @@ public class HrEmployeeService {
     }
 
     @Transactional
-    public Map<String, Object> registerEmployeeDocument(
+    public Map<String, Object> registerUserDocument(
         long companyId,
         long uploadedByUserId,
-        long employeeId,
+        long userCompanyId,
         Map<String, Object> payload
     ) {
-        requireEmployee(companyId, employeeId);
+        requireHrUser(companyId, userCompanyId);
 
         if (!objectStorageService.isEnabled()) {
             throw new ObjectStorageDisabledException("Object storage is not enabled.");
         }
 
         var documentType = normalizeDocumentType(stringValue(payload, "document_type", "documentType"));
-        var objectKey = normalizeDocumentObjectKey(companyId, employeeId, documentType, stringValue(payload, "object_key", "objectKey"));
+        var objectKey = normalizeDocumentObjectKey(companyId, userCompanyId, documentType, stringValue(payload, "object_key", "objectKey"));
         var originalFileName = normalizeOriginalFileName(stringValue(payload, "original_filename", "originalFileName", "file_name", "fileName"));
         var mimeType = normalizeDocumentContentType(stringValue(payload, "mime_type", "mimeType", "content_type", "contentType"));
         var sizeBytes = parseLong(payload, "size_bytes", "sizeBytes");
@@ -411,28 +332,28 @@ public class HrEmployeeService {
         var existingRows = jdbcTemplate.query(
             """
                 SELECT id, object_key
-                FROM hr_employee_documents
-                WHERE company_id = ? AND employee_id = ? AND document_type = ?
+                FROM user_documents
+                WHERE company_id = ? AND user_company_id = ? AND document_type = ?
                 LIMIT 1
                 """,
-            (rs, rowNum) -> new EmployeeDocumentRef(rs.getLong("id"), safe(rs.getString("object_key"))),
+            (rs, rowNum) -> new HrUserDocumentRef(rs.getLong("id"), safe(rs.getString("object_key"))),
             companyId,
-            employeeId,
+            userCompanyId,
             documentType
         );
 
         if (!existingRows.isEmpty()) {
             var existing = existingRows.getFirst();
             if (!existing.objectKey().equals(objectKey)) {
-                deleteEmployeeDocumentObjectQuietly(existing.objectKey());
+                deleteUserDocumentObjectQuietly(existing.objectKey());
             }
         }
 
         jdbcTemplate.update(
             """
-                INSERT INTO hr_employee_documents
-                (company_id, employee_id, document_type, original_filename, mime_type, size_bytes, object_key, status, uploaded_by_user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)
+                INSERT INTO user_documents
+                (company_id, user_company_id, user_id, document_type, original_filename, mime_type, size_bytes, object_key, status, uploaded_by_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
                 ON DUPLICATE KEY UPDATE
                   original_filename = VALUES(original_filename),
                   mime_type = VALUES(mime_type),
@@ -443,7 +364,8 @@ public class HrEmployeeService {
                   updated_at = CURRENT_TIMESTAMP
                 """,
             companyId,
-            employeeId,
+            userCompanyId,
+            loadUserWorkIdentity(companyId, userCompanyId).userId(),
             documentType,
             originalFileName,
             mimeType,
@@ -452,41 +374,41 @@ public class HrEmployeeService {
             uploadedByUserId
         );
 
-        return loadEmployeeDocument(companyId, employeeId, documentType);
+        return loadHrUserDocument(companyId, userCompanyId, documentType);
     }
 
     @Transactional
-    public void deleteEmployeeDocument(long companyId, long employeeId, long documentId) {
-        requireEmployee(companyId, employeeId);
+    public void deleteUserDocument(long companyId, long userCompanyId, long documentId) {
+        requireHrUser(companyId, userCompanyId);
 
         var rows = jdbcTemplate.query(
             """
                 SELECT object_key
-                FROM hr_employee_documents
-                WHERE id = ? AND company_id = ? AND employee_id = ?
+                FROM user_documents
+                WHERE id = ? AND company_id = ? AND user_company_id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> safe(rs.getString("object_key")),
             documentId,
             companyId,
-            employeeId
+            userCompanyId
         );
 
         if (rows.isEmpty()) {
-            throw new NoSuchElementException("Employee document not found.");
+            throw new NoSuchElementException("HR user document not found.");
         }
 
         jdbcTemplate.update(
-            "DELETE FROM hr_employee_documents WHERE id = ? AND company_id = ? AND employee_id = ?",
+            "DELETE FROM user_documents WHERE id = ? AND company_id = ? AND user_company_id = ?",
             documentId,
             companyId,
-            employeeId
+            userCompanyId
         );
 
-        deleteEmployeeDocumentObjectQuietly(rows.getFirst());
+        deleteUserDocumentObjectQuietly(rows.getFirst());
     }
 
-    private EmployeeDraft buildEmployeeDraft(long companyId, Map<String, Object> payload) {
+    private HrUserDraft buildHrUserDraft(long companyId, Map<String, Object> payload) {
         var firstName = stringValue(payload, "first_name", "firstName", "nombre");
         var lastName = stringValue(payload, "last_name", "lastName", "apellidos");
         var email = normalizeEmail(stringValue(payload, "email", "correo"));
@@ -494,8 +416,8 @@ public class HrEmployeeService {
             throw new IllegalArgumentException("first_name, last_name, and email are required.");
         }
 
-        var employeeNumber = normalizeEmployeeNumber(
-            stringValue(payload, "employee_number", "employeeNumber", "employee_code")
+        var userCode = normalizeUserCode(
+            stringValue(payload, "user_code", "userCode", "user_code")
         );
         var phone = normalizePhoneValue(stringValue(payload, "phone", "telefono", "telefonoMovil", "mobile_phone"));
         var position = stringValue(payload, "position", "job_title", "puesto");
@@ -510,7 +432,7 @@ public class HrEmployeeService {
         var contractType = normalizeContractType(stringValue(payload, "contract_type", "contractType", "tipoContrato"));
         var contractStartDate = parseDate(payload, "contract_start_date", "contractStartDate", "fechaInicioContrato");
         var contractEndDate = parseDate(payload, "contract_end_date", "contractEndDate", "fechaFinContrato");
-        var status = normalizeEmployeeStatus(stringValue(payload, "status", "estado"));
+        var status = normalizeHrUserStatus(stringValue(payload, "status", "estado"));
 
         if (position.isBlank()) {
             throw new IllegalArgumentException("position is required.");
@@ -544,19 +466,19 @@ public class HrEmployeeService {
 
         if ("daily".equals(salaryType)) {
             if (salary == null) {
-                throw new IllegalArgumentException("salary is required for daily employees.");
+                throw new IllegalArgumentException("salary is required for daily users.");
             }
             if (salary.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("salary must be greater than zero for daily employees.");
+                throw new IllegalArgumentException("salary must be greater than zero for daily users.");
             }
         }
 
         if ("hourly".equals(salaryType)) {
             if (hourlyRate == null) {
-                throw new IllegalArgumentException("hourly_rate is required for hourly employees.");
+                throw new IllegalArgumentException("hourly_rate is required for hourly users.");
             }
             if (hourlyRate.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("hourly_rate must be greater than zero for hourly employees.");
+                throw new IllegalArgumentException("hourly_rate must be greater than zero for hourly users.");
             }
             salary = salary == null ? BigDecimal.ZERO : salary;
         }
@@ -565,8 +487,8 @@ public class HrEmployeeService {
             contractStartDate = hireDate;
         }
 
-        return new EmployeeDraft(
-            employeeNumber,
+        return new HrUserDraft(
+            userCode,
             firstName,
             lastName,
             email,
@@ -608,14 +530,212 @@ public class HrEmployeeService {
         );
     }
 
-    private void upsertEmployeeProfile(long companyId, long employeeId, ProfileDraft draft) {
+    private UserWorkIdentity mirrorHrUserIdentity(
+        long companyId,
+        Long createdBy,
+        long ignoredUserCompanyId,
+        HrUserDraft draft,
+        ProfileDraft profileDraft,
+        String requestedRole
+    ) {
+        var userId = findOrCreateUser(draft);
+        upsertUserProfile(userId, draft, profileDraft);
+        var userCompanyId = findOrCreateUserCompany(companyId, userId, draft.status(), requestedRole);
+        upsertUserWorkProfile(companyId, userCompanyId, userId, createdBy, draft, profileDraft);
+        return new UserWorkIdentity(userCompanyId, userId);
+    }
+
+    private long findOrCreateUser(HrUserDraft draft) {
+        var existingRows = jdbcTemplate.query(
+            """
+                SELECT id
+                FROM users
+                WHERE email = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            draft.email()
+        );
+
+        if (!existingRows.isEmpty()) {
+            var userId = existingRows.getFirst();
+            jdbcTemplate.update(
+                "UPDATE users SET full_name = ? WHERE id = ?",
+                nullable(draft.fullName()),
+                userId
+            );
+            return userId;
+        }
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO users (email, password_hash, full_name)
+                    VALUES (?, ?, ?)
+                    """,
+                new String[] {"id"}
+            );
+            statement.setString(1, draft.email());
+            statement.setString(2, passwordEncoder.encode(UUID.randomUUID().toString()));
+            statement.setString(3, nullable(draft.fullName()));
+            return statement;
+        }, keyHolder);
+
+        if (keyHolder.getKey() == null) {
+            throw new IllegalStateException("Unable to create user for Human Resources profile.");
+        }
+        return keyHolder.getKey().longValue();
+    }
+
+    private void upsertUserProfile(long userId, HrUserDraft draft, ProfileDraft profileDraft) {
         jdbcTemplate.update(
             """
-                INSERT INTO hr_employee_profiles
-                (employee_id, company_id, date_of_birth, address, national_id, tax_id, social_security_number, registration_country, state_province, city, postal_code, alternate_phone, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, workday_hours)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO user_profiles (user_id, full_name, phone, country, preferred_language)
+                VALUES (?, ?, ?, ?, 'es-419')
                 ON DUPLICATE KEY UPDATE
-                  company_id = VALUES(company_id),
+                  full_name = VALUES(full_name),
+                  phone = VALUES(phone),
+                  country = VALUES(country),
+                  preferred_language = COALESCE(user_profiles.preferred_language, VALUES(preferred_language)),
+                  updated_at = CURRENT_TIMESTAMP
+                """,
+            userId,
+            nullable(draft.fullName()),
+            nullable(draft.phone()),
+            nullable(profileDraft.registrationCountry())
+        );
+    }
+
+    private void updateExistingUserIdentity(long userId, HrUserDraft draft, ProfileDraft profileDraft) {
+        jdbcTemplate.update(
+            "UPDATE users SET email = ?, full_name = ? WHERE id = ?",
+            draft.email(),
+            nullable(draft.fullName()),
+            userId
+        );
+        upsertUserProfile(userId, draft, profileDraft);
+    }
+
+    private long findOrCreateUserCompany(long companyId, long userId, String workStatus, String requestedRole) {
+        var existingRows = jdbcTemplate.query(
+            """
+                SELECT id
+                FROM user_companies
+                WHERE company_id = ? AND user_id = ?
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            companyId,
+            userId
+        );
+
+        var accessStatus = userCompanyStatusForWorkStatus(workStatus);
+        if (!existingRows.isEmpty()) {
+            var userCompanyId = existingRows.getFirst();
+            if (requestedRole == null) {
+                jdbcTemplate.update(
+                    "UPDATE user_companies SET status = ?, visibility = COALESCE(NULLIF(visibility, ''), 'all') WHERE id = ?",
+                    accessStatus,
+                    userCompanyId
+                );
+            } else {
+                jdbcTemplate.update(
+                    "UPDATE user_companies SET role = ?, status = ?, visibility = COALESCE(NULLIF(visibility, ''), 'all') WHERE id = ?",
+                    requestedRole,
+                    accessStatus,
+                    userCompanyId
+                );
+            }
+            return userCompanyId;
+        }
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO user_companies (user_id, company_id, role, status, visibility)
+                    VALUES (?, ?, ?, ?, 'all')
+                    """,
+                new String[] {"id"}
+            );
+            statement.setLong(1, userId);
+            statement.setLong(2, companyId);
+            statement.setString(3, requestedRole == null ? "user" : requestedRole);
+            statement.setString(4, accessStatus);
+            return statement;
+        }, keyHolder);
+
+        if (keyHolder.getKey() == null) {
+            throw new IllegalStateException("Unable to create company access for Human Resources user.");
+        }
+        return keyHolder.getKey().longValue();
+    }
+
+    private void updateUserCompany(long companyId, long userCompanyId, String workStatus, String requestedRole) {
+        var accessStatus = userCompanyStatusForWorkStatus(workStatus);
+        if (requestedRole == null) {
+            jdbcTemplate.update(
+                """
+                    UPDATE user_companies
+                    SET status = ?,
+                        visibility = COALESCE(NULLIF(visibility, ''), 'all')
+                    WHERE id = ? AND company_id = ?
+                    """,
+                accessStatus,
+                userCompanyId,
+                companyId
+            );
+            return;
+        }
+
+        jdbcTemplate.update(
+            """
+                UPDATE user_companies
+                SET role = ?,
+                    status = ?,
+                    visibility = COALESCE(NULLIF(visibility, ''), 'all')
+                WHERE id = ? AND company_id = ?
+                """,
+            requestedRole,
+            accessStatus,
+            userCompanyId,
+            companyId
+        );
+    }
+
+    private void upsertUserWorkProfile(
+        long companyId,
+        long userCompanyId,
+        long userId,
+        Long createdBy,
+        HrUserDraft draft,
+        ProfileDraft profileDraft
+    ) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_work_profiles
+                (company_id, user_company_id, user_id, user_code, position, department, unit_id, business_id,
+                 hire_date, salary, pay_period, salary_type, hourly_rate, contract_type, contract_start_date,
+                 contract_end_date, date_of_birth, address, national_id, tax_id, social_security_number,
+                 registration_country, state_province, city, postal_code, alternate_phone, emergency_contact_name,
+                 emergency_contact_relationship, emergency_contact_phone, workday_hours, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                  user_code = VALUES(user_code),
+                  position = VALUES(position),
+                  department = VALUES(department),
+                  unit_id = VALUES(unit_id),
+                  business_id = VALUES(business_id),
+                  hire_date = VALUES(hire_date),
+                  salary = VALUES(salary),
+                  pay_period = VALUES(pay_period),
+                  salary_type = VALUES(salary_type),
+                  hourly_rate = VALUES(hourly_rate),
+                  contract_type = VALUES(contract_type),
+                  contract_start_date = VALUES(contract_start_date),
+                  contract_end_date = VALUES(contract_end_date),
                   date_of_birth = VALUES(date_of_birth),
                   address = VALUES(address),
                   national_id = VALUES(national_id),
@@ -630,28 +750,100 @@ public class HrEmployeeService {
                   emergency_contact_relationship = VALUES(emergency_contact_relationship),
                   emergency_contact_phone = VALUES(emergency_contact_phone),
                   workday_hours = VALUES(workday_hours),
+                  status = VALUES(status),
                   updated_at = CURRENT_TIMESTAMP
                 """,
-            employeeId,
             companyId,
-            draft.dateOfBirth(),
-            nullable(draft.address()),
-            nullable(draft.nationalId()),
-            nullable(draft.taxId()),
-            nullable(draft.socialSecurityNumber()),
-            nullable(draft.registrationCountry()),
-            nullable(draft.stateProvince()),
-            nullable(draft.city()),
-            nullable(draft.postalCode()),
-            nullable(draft.alternatePhone()),
-            nullable(draft.emergencyContactName()),
-            nullable(draft.emergencyContactRelationship()),
-            nullable(draft.emergencyContactPhone()),
-            draft.workdayHours()
+            userCompanyId,
+            userId,
+            nullable(draft.userCode()),
+            nullable(draft.position()),
+            nullable(draft.department()),
+            draft.unitId(),
+            draft.businessId(),
+            draft.hireDate(),
+            draft.salary(),
+            draft.payPeriod(),
+            draft.salaryType(),
+            draft.hourlyRate(),
+            draft.contractType(),
+            draft.contractStartDate(),
+            draft.contractEndDate(),
+            profileDraft.dateOfBirth(),
+            nullable(profileDraft.address()),
+            nullable(profileDraft.nationalId()),
+            nullable(profileDraft.taxId()),
+            nullable(profileDraft.socialSecurityNumber()),
+            nullable(profileDraft.registrationCountry()),
+            nullable(profileDraft.stateProvince()),
+            nullable(profileDraft.city()),
+            nullable(profileDraft.postalCode()),
+            nullable(profileDraft.alternatePhone()),
+            nullable(profileDraft.emergencyContactName()),
+            nullable(profileDraft.emergencyContactRelationship()),
+            nullable(profileDraft.emergencyContactPhone()),
+            profileDraft.workdayHours(),
+            draft.status(),
+            nullableCreatedBy(createdBy)
         );
     }
 
-    private ProfileDraft loadProfileDraft(long companyId, long employeeId) {
+    private void ensureDefaultUserAccessProfile(long companyId, UserWorkIdentity identity, Long createdBy) {
+        var existingRows = jdbcTemplate.query(
+            """
+                SELECT id
+                FROM user_access_profiles
+                WHERE company_id = ? AND user_company_id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            companyId,
+            identity.userCompanyId()
+        );
+        if (!existingRows.isEmpty()) {
+            return;
+        }
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_access_profiles
+                (company_id, user_company_id, user_id, status, default_method, metadata_json, created_by)
+                VALUES (?, ?, ?, 'active', 'pin', CAST(? AS JSON), ?)
+                ON DUPLICATE KEY UPDATE
+                  status = VALUES(status),
+                  default_method = VALUES(default_method),
+                  metadata_json = VALUES(metadata_json),
+                  updated_at = CURRENT_TIMESTAMP
+                """,
+            companyId,
+            identity.userCompanyId(),
+            identity.userId(),
+            "{\"supports_face_recognition\":false}",
+            nullableCreatedBy(createdBy)
+        );
+    }
+
+    private UserWorkIdentity loadUserWorkIdentity(long companyId, long userCompanyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT wp.user_company_id,
+                       wp.user_id
+                FROM user_work_profiles wp
+                WHERE wp.company_id = ?
+                  AND wp.user_company_id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new UserWorkIdentity(rs.getLong("user_company_id"), rs.getLong("user_id")),
+            companyId,
+            userCompanyId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("HR user not found.");
+        }
+        return rows.getFirst();
+    }
+
+    private ProfileDraft loadProfileDraft(long companyId, long userCompanyId) {
         var rows = jdbcTemplate.query(
             """
                 SELECT date_of_birth,
@@ -668,8 +860,8 @@ public class HrEmployeeService {
                        emergency_contact_relationship,
                        emergency_contact_phone,
                        workday_hours
-                FROM hr_employee_profiles
-                WHERE employee_id = ? AND company_id = ?
+                FROM user_work_profiles
+                WHERE user_company_id = ? AND company_id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> new ProfileDraft(
@@ -688,7 +880,7 @@ public class HrEmployeeService {
                 safe(rs.getString("emergency_contact_phone")),
                 rs.getBigDecimal("workday_hours") == null ? new BigDecimal("8.00") : rs.getBigDecimal("workday_hours")
             ),
-            employeeId,
+            userCompanyId,
             companyId
         );
 
@@ -737,65 +929,65 @@ public class HrEmployeeService {
         }
     }
 
-    private String resolveEmployeeNumberForCreate(long companyId, String requestedEmployeeNumber) {
-        var normalized = normalizeEmployeeNumber(requestedEmployeeNumber);
+    private String resolveUserCodeForCreate(long companyId, String requestedUserCode) {
+        var normalized = normalizeUserCode(requestedUserCode);
         if (!normalized.isBlank()) {
-            ensureUniqueEmployeeNumber(companyId, normalized, null);
-            synchronizeEmployeeNumberSequence(companyId, normalized);
+            ensureUniqueUserCode(companyId, normalized, null);
+            synchronizeUserCodeSequence(companyId, normalized);
             return normalized;
         }
-        return generateNextEmployeeNumber(companyId);
+        return generateNextUserCode(companyId);
     }
 
-    private String resolveEmployeeNumberForUpdate(long companyId, long employeeId, String requestedEmployeeNumber) {
-        var normalized = normalizeEmployeeNumber(requestedEmployeeNumber);
+    private String resolveUserCodeForUpdate(long companyId, long userCompanyId, String requestedUserCode) {
+        var normalized = normalizeUserCode(requestedUserCode);
         if (!normalized.isBlank()) {
-            ensureUniqueEmployeeNumber(companyId, normalized, employeeId);
-            synchronizeEmployeeNumberSequence(companyId, normalized);
+            ensureUniqueUserCode(companyId, normalized, userCompanyId);
+            synchronizeUserCodeSequence(companyId, normalized);
             return normalized;
         }
 
-        var currentEmployeeNumber = loadCurrentEmployeeNumber(companyId, employeeId);
-        if (currentEmployeeNumber != null && !currentEmployeeNumber.isBlank()) {
-            return currentEmployeeNumber;
+        var currentUserCode = loadCurrentUserCode(companyId, userCompanyId);
+        if (currentUserCode != null && !currentUserCode.isBlank()) {
+            return currentUserCode;
         }
 
-        return generateNextEmployeeNumber(companyId);
+        return generateNextUserCode(companyId);
     }
 
-    private void ensureEmployeeNumberSequenceRow(long companyId) {
+    private void ensureUserCodeSequenceRow(long companyId) {
         jdbcTemplate.update(
             """
-                INSERT INTO hr_employee_number_sequences (company_id, prefix, padding, next_number)
-                SELECT ?, 'EMP', 4,
+                INSERT INTO user_number_sequences (company_id, prefix, padding, next_number)
+                SELECT ?, 'USR', 4,
                        COALESCE(MAX(
                          CASE
-                           WHEN TRIM(COALESCE(employee_number, '')) REGEXP '^EMP-[0-9]+$'
-                             THEN CAST(SUBSTRING(TRIM(employee_number), 5) AS UNSIGNED)
+                           WHEN TRIM(COALESCE(user_code, '')) REGEXP '^USR-[0-9]+$'
+                             THEN CAST(SUBSTRING(TRIM(user_code), 5) AS UNSIGNED)
                            ELSE 0
                          END
                        ), 0) + 1
-                FROM hr_employees
+                FROM user_work_profiles
                 WHERE company_id = ?
                 ON DUPLICATE KEY UPDATE
-                  next_number = GREATEST(hr_employee_number_sequences.next_number, VALUES(next_number))
+                  next_number = GREATEST(user_number_sequences.next_number, VALUES(next_number))
                 """,
             companyId,
             companyId
         );
     }
 
-    private EmployeeNumberSequenceRow loadEmployeeNumberSequence(long companyId) {
-        ensureEmployeeNumberSequenceRow(companyId);
+    private UserCodeSequenceRow loadUserCodeSequence(long companyId) {
+        ensureUserCodeSequenceRow(companyId);
 
         var rows = jdbcTemplate.query(
             """
                 SELECT prefix, padding, next_number
-                FROM hr_employee_number_sequences
+                FROM user_number_sequences
                 WHERE company_id = ?
                 FOR UPDATE
                 """,
-            (rs, rowNum) -> new EmployeeNumberSequenceRow(
+            (rs, rowNum) -> new UserCodeSequenceRow(
                 safe(rs.getString("prefix")),
                 rs.getInt("padding"),
                 rs.getLong("next_number")
@@ -804,20 +996,20 @@ public class HrEmployeeService {
         );
 
         if (rows.isEmpty()) {
-            throw new IllegalStateException("Employee number sequence could not be initialized.");
+            throw new IllegalStateException("User code sequence could not be initialized.");
         }
 
         return rows.getFirst();
     }
 
-    private String generateNextEmployeeNumber(long companyId) {
+    private String generateNextUserCode(long companyId) {
         while (true) {
-            var sequence = loadEmployeeNumberSequence(companyId);
-            var candidate = formatEmployeeNumber(sequence.prefix(), sequence.padding(), sequence.nextNumber());
+            var sequence = loadUserCodeSequence(companyId);
+            var candidate = formatUserCode(sequence.prefix(), sequence.padding(), sequence.nextNumber());
 
             jdbcTemplate.update(
                 """
-                    UPDATE hr_employee_number_sequences
+                    UPDATE user_number_sequences
                     SET next_number = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE company_id = ?
                     """,
@@ -825,20 +1017,20 @@ public class HrEmployeeService {
                 companyId
             );
 
-            if (!employeeNumberExists(companyId, candidate, null)) {
+            if (!userCodeExists(companyId, candidate, null)) {
                 return candidate;
             }
         }
     }
 
-    private void synchronizeEmployeeNumberSequence(long companyId, String employeeNumber) {
-        var normalized = normalizeEmployeeNumber(employeeNumber);
+    private void synchronizeUserCodeSequence(long companyId, String userCode) {
+        var normalized = normalizeUserCode(userCode);
         if (normalized.isBlank()) {
             return;
         }
 
-        var sequence = loadEmployeeNumberSequence(companyId);
-        var expectedPrefix = normalizeEmployeeNumberPrefix(sequence.prefix()) + "-";
+        var sequence = loadUserCodeSequence(companyId);
+        var expectedPrefix = normalizeUserCodePrefix(sequence.prefix()) + "-";
         var normalizedUpper = normalized.toUpperCase(Locale.ROOT);
 
         if (!normalizedUpper.startsWith(expectedPrefix)) {
@@ -861,7 +1053,7 @@ public class HrEmployeeService {
         if (nextNumber > sequence.nextNumber()) {
             jdbcTemplate.update(
                 """
-                    UPDATE hr_employee_number_sequences
+                    UPDATE user_number_sequences
                     SET next_number = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE company_id = ?
                     """,
@@ -871,14 +1063,14 @@ public class HrEmployeeService {
         }
     }
 
-    private String formatEmployeeNumber(String prefix, int padding, long nextNumber) {
-        var normalizedPrefix = normalizeEmployeeNumberPrefix(prefix);
+    private String formatUserCode(String prefix, int padding, long nextNumber) {
+        var normalizedPrefix = normalizeUserCodePrefix(prefix);
         var effectivePadding = Math.max(padding, 4);
         var digits = String.format(Locale.ROOT, "%0" + effectivePadding + "d", nextNumber);
         return normalizedPrefix + "-" + digits;
     }
 
-    private String normalizeEmployeeNumberPrefix(String prefix) {
+    private String normalizeUserCodePrefix(String prefix) {
         var normalizedPrefix = prefix == null ? "" : prefix.trim().toUpperCase(Locale.ROOT);
         while (normalizedPrefix.endsWith("-")) {
             normalizedPrefix = normalizedPrefix.substring(0, normalizedPrefix.length() - 1).trim();
@@ -886,82 +1078,82 @@ public class HrEmployeeService {
         return normalizedPrefix.isBlank() ? "EMP" : normalizedPrefix;
     }
 
-    private boolean employeeNumberExists(long companyId, String employeeNumber, Long excludedEmployeeId) {
-        if (employeeNumber == null || employeeNumber.isBlank()) {
+    private boolean userCodeExists(long companyId, String userCode, Long excludedUserCompanyId) {
+        if (userCode == null || userCode.isBlank()) {
             return false;
         }
 
         Integer count;
-        if (excludedEmployeeId == null) {
+        if (excludedUserCompanyId == null) {
             count = jdbcTemplate.queryForObject(
                 """
                     SELECT COUNT(*)
-                    FROM hr_employees
+                    FROM user_work_profiles
                     WHERE company_id = ?
-                      AND employee_number = ?
+                      AND user_code = ?
                     """,
                 Integer.class,
                 companyId,
-                employeeNumber
+                userCode
             );
         } else {
             count = jdbcTemplate.queryForObject(
                 """
                     SELECT COUNT(*)
-                    FROM hr_employees
+                    FROM user_work_profiles
                     WHERE company_id = ?
-                      AND employee_number = ?
-                      AND id <> ?
+                      AND user_code = ?
+                      AND user_company_id <> ?
                     """,
                 Integer.class,
                 companyId,
-                employeeNumber,
-                excludedEmployeeId
+                userCode,
+                excludedUserCompanyId
             );
         }
 
         return count != null && count > 0;
     }
 
-    private void ensureUniqueEmployeeNumber(long companyId, String employeeNumber, Long excludedEmployeeId) {
-        if (employeeNumberExists(companyId, employeeNumber, excludedEmployeeId)) {
-            throw new IllegalArgumentException("employee_number must be unique.");
+    private void ensureUniqueUserCode(long companyId, String userCode, Long excludedUserCompanyId) {
+        if (userCodeExists(companyId, userCode, excludedUserCompanyId)) {
+            throw new IllegalArgumentException("user_code must be unique.");
         }
     }
 
-    private String loadCurrentEmployeeNumber(long companyId, long employeeId) {
+    private String loadCurrentUserCode(long companyId, long userCompanyId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT COALESCE(employee_number, '') AS employee_number
-                FROM hr_employees
-                WHERE company_id = ? AND id = ?
+                SELECT COALESCE(user_code, '') AS user_code
+                FROM user_work_profiles
+                WHERE company_id = ? AND user_company_id = ?
                 LIMIT 1
                 """,
-            (rs, rowNum) -> safe(rs.getString("employee_number")),
+            (rs, rowNum) -> safe(rs.getString("user_code")),
             companyId,
-            employeeId
+            userCompanyId
         );
 
         return rows.isEmpty() ? "" : rows.getFirst();
     }
 
-    private void requireEmployee(long companyId, long employeeId) {
+    private void requireHrUser(long companyId, long userCompanyId) {
         var count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employees WHERE company_id = ? AND id = ?",
+            "SELECT COUNT(*) FROM user_work_profiles WHERE company_id = ? AND user_company_id = ?",
             Integer.class,
             companyId,
-            employeeId
+            userCompanyId
         );
         if (count == null || count == 0) {
-            throw new NoSuchElementException("Employee not found.");
+            throw new NoSuchElementException("HR user not found.");
         }
     }
 
-    private Map<String, Object> employeeDetails(long employeeId, long companyId) {
+    private Map<String, Object> hrUserDetails(long userCompanyId, long companyId) {
         var rows = jdbcTemplate.query(
             """
                 SELECT e.id,
-                       e.employee_number,
+                       e.user_code AS user_code,
                        e.first_name,
                        e.last_name,
                        e.email,
@@ -985,31 +1177,38 @@ public class HrEmployeeService {
                        e.termination_reason_type,
                        e.termination_reason_code,
                        e.termination_summary,
+                       e.user_id,
+                       e.user_company_id,
+                       e.work_profile_id,
                        COALESCE(e.status, 'active') AS status
-                FROM hr_employees e
+                FROM hr_users e
                 LEFT JOIN units u ON u.id = e.unit_id
                 LEFT JOIN businesses b ON b.id = e.business_id
                 WHERE e.id = ? AND e.company_id = ?
+                  AND e.work_profile_id IS NOT NULL
                 LIMIT 1
                 """,
-            (rs, rowNum) -> mapEmployeeRow(rs),
-            employeeId,
+            (rs, rowNum) -> mapHrUserRow(rs),
+            userCompanyId,
             companyId
         );
 
         if (rows.isEmpty()) {
-            throw new NoSuchElementException("Employee not found.");
+            throw new NoSuchElementException("HR user not found.");
         }
 
         var result = new LinkedHashMap<String, Object>();
-        result.put("employee_id", employeeId);
-        result.put("employee", rows.getFirst());
-        result.put("profile", loadEmployeeProfile(companyId, employeeId));
-        result.put("documents", loadEmployeeDocuments(companyId, employeeId));
+        result.put("user_company_id", userCompanyId);
+        result.put("user", rows.getFirst());
+        result.put("user_id", rows.getFirst().get("user_id"));
+        result.put("user_company_id", rows.getFirst().get("user_company_id"));
+        result.put("work_profile_id", rows.getFirst().get("work_profile_id"));
+        result.put("profile", loadHrUserProfile(companyId, userCompanyId));
+        result.put("documents", loadHrUserDocuments(companyId, userCompanyId));
         return result;
     }
 
-    private Map<String, Object> loadEmployeeProfile(long companyId, long employeeId) {
+    private Map<String, Object> loadHrUserProfile(long companyId, long userCompanyId) {
         var rows = jdbcTemplate.query(
             """
                 SELECT date_of_birth,
@@ -1026,8 +1225,8 @@ public class HrEmployeeService {
                        emergency_contact_relationship,
                        emergency_contact_phone,
                        workday_hours
-                FROM hr_employee_profiles
-                WHERE employee_id = ? AND company_id = ?
+                FROM user_work_profiles
+                WHERE user_company_id = ? AND company_id = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> {
@@ -1048,7 +1247,7 @@ public class HrEmployeeService {
                 profile.put("workday_hours", rs.getBigDecimal("workday_hours") == null ? new BigDecimal("8.00") : rs.getBigDecimal("workday_hours"));
                 return profile;
             },
-            employeeId,
+            userCompanyId,
             companyId
         );
 
@@ -1074,7 +1273,7 @@ public class HrEmployeeService {
         return emptyProfile;
     }
 
-    private List<Map<String, Object>> loadEmployeeDocuments(long companyId, long employeeId) {
+    private List<Map<String, Object>> loadHrUserDocuments(long companyId, long userCompanyId) {
         return jdbcTemplate.query(
             """
                 SELECT id,
@@ -1086,17 +1285,17 @@ public class HrEmployeeService {
                        status,
                        created_at,
                        updated_at
-                FROM hr_employee_documents
-                WHERE company_id = ? AND employee_id = ?
+                FROM user_documents
+                WHERE company_id = ? AND user_company_id = ?
                 ORDER BY FIELD(document_type, 'birth_certificate', 'government_id', 'proof_of_address', 'resume', 'profile_photo'), id ASC
                 """,
             (rs, rowNum) -> mapDocumentRow(rs),
             companyId,
-            employeeId
+            userCompanyId
         );
     }
 
-    private Map<String, Object> loadEmployeeDocument(long companyId, long employeeId, String documentType) {
+    private Map<String, Object> loadHrUserDocument(long companyId, long userCompanyId, String documentType) {
         var rows = jdbcTemplate.query(
             """
                 SELECT id,
@@ -1108,60 +1307,64 @@ public class HrEmployeeService {
                        status,
                        created_at,
                        updated_at
-                FROM hr_employee_documents
-                WHERE company_id = ? AND employee_id = ? AND document_type = ?
+                FROM user_documents
+                WHERE company_id = ? AND user_company_id = ? AND document_type = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> mapDocumentRow(rs),
             companyId,
-            employeeId,
+            userCompanyId,
             documentType
         );
 
         if (rows.isEmpty()) {
-            throw new NoSuchElementException("Employee document not found.");
+            throw new NoSuchElementException("HR user document not found.");
         }
 
         return rows.getFirst();
     }
 
-    private Map<String, Object> mapEmployeeRow(ResultSet rs) throws SQLException {
+    private Map<String, Object> mapHrUserRow(ResultSet rs) throws SQLException {
         var fullName = String.join(
             " ",
             safe(rs.getString("first_name")),
             safe(rs.getString("last_name"))
         ).trim();
 
-        var employee = new LinkedHashMap<String, Object>();
-        employee.put("id", rs.getLong("id"));
-        employee.put("employee_number", safe(rs.getString("employee_number")));
-        employee.put("first_name", safe(rs.getString("first_name")));
-        employee.put("last_name", safe(rs.getString("last_name")));
-        employee.put("full_name", fullName);
-        employee.put("email", safe(rs.getString("email")));
-        employee.put("phone", safe(rs.getString("phone")));
-        employee.put("position", safe(rs.getString("position")));
-        employee.put("position_title", safe(rs.getString("position")));
-        employee.put("department", safe(rs.getString("department")));
-        employee.put("unit_id", getNullableLong(rs, "unit_id"));
-        employee.put("unit_name", safe(rs.getString("unit_name")));
-        employee.put("business_id", getNullableLong(rs, "business_id"));
-        employee.put("business_name", safe(rs.getString("business_name")));
-        employee.put("hire_date", rs.getObject("hire_date"));
-        employee.put("salary", rs.getBigDecimal("salary"));
-        employee.put("pay_period", normalizePayPeriod(rs.getString("pay_period")));
-        employee.put("salary_type", normalizeSalaryType(rs.getString("salary_type")));
-        employee.put("hourly_rate", rs.getBigDecimal("hourly_rate"));
-        employee.put("contract_type", normalizeContractType(rs.getString("contract_type")));
-        employee.put("contract_start_date", rs.getObject("contract_start_date"));
-        employee.put("contract_end_date", rs.getObject("contract_end_date"));
-        employee.put("termination_date", rs.getObject("termination_date"));
-        employee.put("last_working_day", rs.getObject("last_working_day"));
-        employee.put("termination_reason_type", safe(rs.getString("termination_reason_type")));
-        employee.put("termination_reason_code", safe(rs.getString("termination_reason_code")));
-        employee.put("termination_summary", safe(rs.getString("termination_summary")));
-        employee.put("status", normalizeEmployeeStatus(rs.getString("status")));
-        return employee;
+        var hrUser = new LinkedHashMap<String, Object>();
+        hrUser.put("id", rs.getLong("id"));
+        hrUser.put("legacy_user_company_id", rs.getLong("id"));
+        hrUser.put("user_id", getNullableLong(rs, "user_id"));
+        hrUser.put("user_company_id", getNullableLong(rs, "user_company_id"));
+        hrUser.put("work_profile_id", getNullableLong(rs, "work_profile_id"));
+        hrUser.put("user_code", safe(rs.getString("user_code")));
+        hrUser.put("first_name", safe(rs.getString("first_name")));
+        hrUser.put("last_name", safe(rs.getString("last_name")));
+        hrUser.put("full_name", fullName);
+        hrUser.put("email", safe(rs.getString("email")));
+        hrUser.put("phone", safe(rs.getString("phone")));
+        hrUser.put("position", safe(rs.getString("position")));
+        hrUser.put("position_title", safe(rs.getString("position")));
+        hrUser.put("department", safe(rs.getString("department")));
+        hrUser.put("unit_id", getNullableLong(rs, "unit_id"));
+        hrUser.put("unit_name", safe(rs.getString("unit_name")));
+        hrUser.put("business_id", getNullableLong(rs, "business_id"));
+        hrUser.put("business_name", safe(rs.getString("business_name")));
+        hrUser.put("hire_date", rs.getObject("hire_date"));
+        hrUser.put("salary", rs.getBigDecimal("salary"));
+        hrUser.put("pay_period", normalizePayPeriod(rs.getString("pay_period")));
+        hrUser.put("salary_type", normalizeSalaryType(rs.getString("salary_type")));
+        hrUser.put("hourly_rate", rs.getBigDecimal("hourly_rate"));
+        hrUser.put("contract_type", normalizeContractType(rs.getString("contract_type")));
+        hrUser.put("contract_start_date", rs.getObject("contract_start_date"));
+        hrUser.put("contract_end_date", rs.getObject("contract_end_date"));
+        hrUser.put("termination_date", rs.getObject("termination_date"));
+        hrUser.put("last_working_day", rs.getObject("last_working_day"));
+        hrUser.put("termination_reason_type", safe(rs.getString("termination_reason_type")));
+        hrUser.put("termination_reason_code", safe(rs.getString("termination_reason_code")));
+        hrUser.put("termination_summary", safe(rs.getString("termination_summary")));
+        hrUser.put("status", normalizeHrUserStatus(rs.getString("status")));
+        return hrUser;
     }
 
     private Map<String, Object> mapDocumentRow(ResultSet rs) throws SQLException {
@@ -1191,7 +1394,7 @@ public class HrEmployeeService {
         );
     }
 
-    private void deleteEmployeeDocumentObjectQuietly(String objectKey) {
+    private void deleteUserDocumentObjectQuietly(String objectKey) {
         if (objectKey == null || objectKey.isBlank() || !objectStorageService.isEnabled()) {
             return;
         }
@@ -1199,7 +1402,7 @@ public class HrEmployeeService {
         try {
             objectStorageService.deleteObject(documentsBucket(), objectKey);
         } catch (RuntimeException ignored) {
-            // Deleting the employee record should not fail because the document object is already missing.
+            // Deleting the HR user profile should not fail because the document object is already missing.
         }
     }
 
@@ -1282,14 +1485,29 @@ public class HrEmployeeService {
         };
     }
 
-    private String normalizeEmployeeStatus(String value) {
+    private String normalizeHrUserStatus(String value) {
         var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
             case "", "active", "activo" -> "active";
             case "inactive", "inactivo" -> "inactive";
             case "terminated", "terminado" -> "terminated";
-            default -> throw new IllegalArgumentException("Unsupported employee status.");
+            default -> throw new IllegalArgumentException("Unsupported HR user status.");
         };
+    }
+
+    private String normalizeUserRole(String value) {
+        var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return null;
+        }
+        if (normalized.length() > 20 || !normalized.matches("[a-z0-9_-]+")) {
+            throw new IllegalArgumentException("role must be 20 characters or fewer and use letters, numbers, underscores, or dashes.");
+        }
+        return normalized;
+    }
+
+    private String userCompanyStatusForWorkStatus(String workStatus) {
+        return "active".equals(normalizeHrUserStatus(workStatus)) ? "active" : "inactive";
     }
 
     private String normalizeTerminationReasonType(String value) {
@@ -1323,29 +1541,29 @@ public class HrEmployeeService {
         };
     }
 
-    private String normalizeDocumentObjectKey(long companyId, long employeeId, String documentType, String objectKey) {
+    private String normalizeDocumentObjectKey(long companyId, long userCompanyId, String documentType, String objectKey) {
         if (objectKey == null || objectKey.isBlank()) {
             throw new IllegalArgumentException("object_key is required.");
         }
 
         var normalizedKey = objectKey.trim();
-        var expectedPrefix = "hr/employees/" + companyId + "/" + employeeId + "/documents/" + documentType + "/";
+        var expectedPrefix = "hr/users/" + companyId + "/" + userCompanyId + "/documents/" + documentType + "/";
         if (!normalizedKey.startsWith(expectedPrefix)) {
-            throw new IllegalArgumentException("object_key must match the expected employee document upload prefix.");
+            throw new IllegalArgumentException("object_key must match the expected user document upload prefix.");
         }
         return normalizedKey;
     }
 
-    private String buildEmployeeDocumentObjectKey(
+    private String buildHrUserDocumentObjectKey(
         long companyId,
-        long employeeId,
+        long userCompanyId,
         String documentType,
         String originalFileName,
         String contentType
     ) {
-        return "hr/employees/"
+        return "hr/users/"
             + companyId + "/"
-            + employeeId + "/documents/"
+            + userCompanyId + "/documents/"
             + documentType + "/"
             + UUID.randomUUID()
             + "-"
@@ -1424,14 +1642,14 @@ public class HrEmployeeService {
         return normalized;
     }
 
-    private String normalizeEmployeeNumber(String value) {
+    private String normalizeUserCode(String value) {
         if (value == null || value.isBlank()) {
             return "";
         }
 
         var normalized = value.trim().toUpperCase(Locale.ROOT);
         if (normalized.length() > 50) {
-            throw new IllegalArgumentException("employee_number must be 50 characters or fewer.");
+            throw new IllegalArgumentException("user_code must be 50 characters or fewer.");
         }
         return normalized;
     }
@@ -1456,6 +1674,10 @@ public class HrEmployeeService {
         return rs.wasNull() ? null : value;
     }
 
+    private Long nullableCreatedBy(Long createdBy) {
+        return createdBy == null || createdBy <= 0 ? null : createdBy;
+    }
+
     private void setNullableLong(java.sql.PreparedStatement statement, int parameterIndex, Long value) throws SQLException {
         if (value == null) {
             statement.setNull(parameterIndex, Types.BIGINT);
@@ -1464,8 +1686,8 @@ public class HrEmployeeService {
         }
     }
 
-    private record EmployeeDraft(
-        String employeeNumber,
+    private record HrUserDraft(
+        String userCode,
         String firstName,
         String lastName,
         String email,
@@ -1488,9 +1710,9 @@ public class HrEmployeeService {
             return String.join(" ", firstName, lastName).trim();
         }
 
-        private EmployeeDraft withEmployeeNumber(String nextEmployeeNumber) {
-            return new EmployeeDraft(
-                nextEmployeeNumber,
+        private HrUserDraft withUserCode(String nextUserCode) {
+            return new HrUserDraft(
+                nextUserCode,
                 firstName,
                 lastName,
                 email,
@@ -1558,13 +1780,19 @@ public class HrEmployeeService {
     ) {
     }
 
-    private record EmployeeDocumentRef(
+    private record HrUserDocumentRef(
         long id,
         String objectKey
     ) {
     }
 
-    private record EmployeeNumberSequenceRow(
+    private record UserWorkIdentity(
+        long userCompanyId,
+        long userId
+    ) {
+    }
+
+    private record UserCodeSequenceRow(
         String prefix,
         int padding,
         long nextNumber
