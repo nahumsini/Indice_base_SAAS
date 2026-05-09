@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import {
@@ -23,7 +23,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PreferenciasNominaModal } from '../PreferenciasNominaModal';
 import { EditarNominaModal } from '../EditarNominaModal';
-import { useHRLanguage } from '../../BasicModules/HumanResources/HRLanguage';
+import { usePayrollTranslations } from '../../BasicModules/HumanResources/Payroll/hooks/usePayrollTranslations';
 
 interface Nomina {
   id: number;
@@ -71,7 +71,44 @@ interface NominasTabProps {
 }
 
 export function NominasTab({ colaboradores }: NominasTabProps) {
-  const t = useHRLanguage().payroll;
+  const payrollCopy = usePayrollTranslations();
+  const t = useMemo(
+    () => ({
+      title: payrollCopy.title,
+      subtitle: payrollCopy.subtitle,
+      preferences: payrollCopy.labels.preferences,
+      filtersTitle: payrollCopy.labels.filters,
+      activeFilters: payrollCopy.labels.activeFilters,
+      clearFilters: payrollCopy.labels.clearFilters,
+      filters: {
+        allRecords: payrollCopy.labels.all,
+        thisMonth: payrollCopy.labels.periodThisMonth,
+        thisYear: payrollCopy.labels.periodAllYear,
+        allUnits: payrollCopy.labels.allUnits,
+        allBusinesses: payrollCopy.labels.allBusinesses,
+        period: payrollCopy.labels.period,
+        unit: payrollCopy.labels.unit,
+        business: payrollCopy.labels.business,
+      },
+      table: {
+        period: payrollCopy.labels.period,
+        dates: `${payrollCopy.labels.periodStart} / ${payrollCopy.labels.periodEnd}`,
+        frequency: payrollCopy.labels.frequency,
+        employees: payrollCopy.labels.employees,
+        totalAmount: payrollCopy.labels.totalAmount,
+        status: payrollCopy.labels.status,
+        unit: payrollCopy.labels.unit,
+        business: payrollCopy.labels.business,
+        actions: payrollCopy.labels.actionButtons,
+        noResults: payrollCopy.labels.noRuns,
+        adjustFilters: payrollCopy.applyFilters,
+        payrollCount: payrollCopy.summary.runs,
+        employeeCount: payrollCopy.labels.employees,
+        total: payrollCopy.labels.totalAmount,
+      },
+    }),
+    [payrollCopy],
+  );
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [periodoFilter, setPeriodoFilter] = useState('Todos los registros');

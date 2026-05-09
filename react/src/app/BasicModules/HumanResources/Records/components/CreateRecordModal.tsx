@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Calendar, ChevronDown, Info, Trash2, Upload, UserPlus, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type {
@@ -9,8 +9,10 @@ import type {
   RecordStatus,
   RecordType,
 } from '../types/records.types';
+import type { CreateRecordModalCopy } from '../translations';
 
 interface CreateRecordModalProps {
+  copy: CreateRecordModalCopy;
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: CreateRecordData) => Promise<void> | void;
@@ -21,23 +23,16 @@ interface CreateRecordModalProps {
   editingRecord?: EmployeeRecord | null;
 }
 
-const typeOptions: Array<{ value: RecordType; label: string; description: string; icon: string }> = [
-  { value: 'incident', label: 'Incident', description: 'Safety violations, workplace accidents', icon: '🔴' },
-  { value: 'warning', label: 'Warning', description: 'Policy violations, conduct issues', icon: '🟠' },
-  { value: 'recognition', label: 'Recognition', description: 'Outstanding performance, achievements', icon: '🟢' },
-  { value: 'observation', label: 'Observation', description: 'Positive behaviors, potential', icon: '🔵' },
-  { value: 'training', label: 'Training', description: 'Completed courses, certifications', icon: '🟣' },
+const typeOptionIcons: Array<{ value: RecordType; icon: string }> = [
+  { value: 'incident', icon: '🔴' },
+  { value: 'warning', icon: '🟠' },
+  { value: 'recognition', icon: '🟢' },
+  { value: 'observation', icon: '🔵' },
+  { value: 'training', icon: '🟣' },
 ];
 
-const titleSuggestions: Record<RecordType, string[]> = {
-  incident: ['Workplace Safety Violation', 'Equipment Damage', 'Accident Report', 'Protocol Breach'],
-  warning: ['Attendance Issue', 'Policy Violation', 'Conduct Warning', 'Performance Concern'],
-  recognition: ['Outstanding Performance', 'Innovation Award', 'Customer Excellence', 'Team Leadership'],
-  observation: ['Positive Behavior', 'Initiative Demonstrated', 'Team Collaboration', 'Problem Solving'],
-  training: ['Training Completed', 'Certification Achieved', 'Skill Development', 'Professional Growth'],
-};
-
 export function CreateRecordModal({
+  copy,
   isOpen,
   onClose,
   onSave,
@@ -75,6 +70,15 @@ export function CreateRecordModal({
   const [witnessSearch, setWitnessSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const witnessDropdownRef = useRef<HTMLDivElement | null>(null);
+  const typeOptions = useMemo(
+    () =>
+      typeOptionIcons.map((option) => ({
+        ...option,
+        description: copy.typeDescriptions[option.value],
+        label: copy.types[option.value],
+      })),
+    [copy],
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -193,7 +197,7 @@ export function CreateRecordModal({
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-gray-800">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {editingRecord ? 'Edit Record' : 'New Record'}
+            {editingRecord ? copy.modal.editTitle : copy.modal.newTitle}
           </h2>
           <button
             onClick={onClose}
@@ -207,21 +211,21 @@ export function CreateRecordModal({
           <div className="flex gap-3 rounded-r-lg border-l-4 border-blue-500 bg-blue-50 p-4 dark:bg-blue-900/20">
             <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
             <div className="text-sm text-blue-900 dark:text-blue-200">
-              <p className="mb-1 font-semibold">Important Notice</p>
+              <p className="mb-1 font-semibold">{copy.modal.noticeTitle}</p>
               <p className="text-blue-800 dark:text-blue-300">
-                This record will be stored in the employee history and may be used for reviews, compliance, and follow-up decisions.
+                {copy.modal.noticeDescription}
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
             <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-              Basic Information
+              {copy.modal.basicInformation}
             </h3>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Employee <span className="text-red-500">*</span>
+                {copy.modal.employee} <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.employeeId}
@@ -231,10 +235,10 @@ export function CreateRecordModal({
               >
                 <option value="">
                   {isEmployeesLoading
-                    ? 'Loading employees...'
+                    ? copy.modal.loadingEmployees
                     : hasEmployeeOptions
-                      ? 'Select an employee'
-                      : 'No employees available'}
+                      ? copy.modal.selectEmployee
+                      : copy.modal.noEmployees}
                 </option>
                 {employees.map((employee) => (
                   <option key={employee.id} value={employee.id}>
@@ -253,21 +257,21 @@ export function CreateRecordModal({
                       onClick={onRetryEmployees}
                       disabled={isEmployeesLoading}
                     >
-                      Retry
+                      {copy.modal.retry}
                     </Button>
                   ) : null}
                 </div>
               ) : null}
               {!isEmployeesLoading && !employeeLoadError && !hasEmployeeOptions ? (
                 <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-                  No HR employees are available yet. Create or sync employees first before adding a record.
+                  {copy.modal.noEmployeesHint}
                 </p>
               ) : null}
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Event Date <span className="text-red-500">*</span>
+                {copy.modal.eventDate} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -282,7 +286,7 @@ export function CreateRecordModal({
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Record Status <span className="text-red-500">*</span>
+                {copy.modal.recordStatus} <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.status}
@@ -292,15 +296,15 @@ export function CreateRecordModal({
                 }))}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
-                <option value="pending">Pending</option>
-                <option value="reviewed">Reviewed</option>
-                <option value="resolved">Resolved</option>
+                <option value="pending">{copy.status.pending}</option>
+                <option value="reviewed">{copy.status.reviewed}</option>
+                <option value="resolved">{copy.status.resolved}</option>
               </select>
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Record Type <span className="text-red-500">*</span>
+                {copy.modal.recordType} <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                 {typeOptions.map((option) => (
@@ -327,7 +331,7 @@ export function CreateRecordModal({
             {requiresSeverity ? (
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Severity <span className="text-red-500">*</span>
+                  {copy.modal.severity} <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {(['low', 'medium', 'high'] as RecordSeverity[]).map((level) => (
@@ -345,7 +349,7 @@ export function CreateRecordModal({
                           : 'border-gray-200 text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600'
                       }`}
                     >
-                      {level === 'low' ? '🟢' : level === 'medium' ? '🟡' : '🔴'} {level}
+                      {level === 'low' ? '🟢' : level === 'medium' ? '🟡' : '🔴'} {copy.severity[level]}
                     </button>
                   ))}
                 </div>
@@ -355,26 +359,26 @@ export function CreateRecordModal({
 
           <div className="space-y-4">
             <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-              Record Details
+              {copy.modal.recordDetails}
             </h3>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Title <span className="text-red-500">*</span>
+                {copy.modal.title} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(event) => setFormData((current) => ({ ...current, title: event.target.value }))}
                 onFocus={() => formData.type && setShowTitleSuggestions(true)}
-                placeholder="Brief summary of the record"
+                placeholder={copy.modal.titlePlaceholder}
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
               {showTitleSuggestions && formData.type && !formData.title ? (
                 <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50">
-                  <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">Suggestions:</p>
+                  <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">{copy.modal.suggestions}</p>
                   <div className="flex flex-wrap gap-2">
-                    {titleSuggestions[formData.type].map((suggestion) => (
+                    {copy.titleSuggestions[formData.type].map((suggestion) => (
                       <button
                         key={suggestion}
                         type="button"
@@ -394,43 +398,43 @@ export function CreateRecordModal({
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Description <span className="text-red-500">*</span>
+                {copy.modal.description} <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={formData.description}
                 onChange={(event) => setFormData((current) => ({ ...current, description: event.target.value }))}
                 rows={4}
                 maxLength={1000}
-                placeholder="Provide detailed information about the record..."
+                placeholder={copy.modal.descriptionPlaceholder}
                 className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {formData.description.length} / 1000 characters
+                {copy.modal.characters(formData.description.length, 1000)}
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
             <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-              Actions & Context
+              {copy.modal.actionsContext}
             </h3>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Actions Taken
+                {copy.modal.actionsTaken}
               </label>
               <textarea
                 value={formData.actionsTaken}
                 onChange={(event) => setFormData((current) => ({ ...current, actionsTaken: event.target.value }))}
                 rows={3}
-                placeholder="Describe any corrective actions, follow-ups, or outcomes..."
+                placeholder={copy.modal.actionsPlaceholder}
                 className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Witnesses
+                {copy.modal.witnesses}
               </label>
 
               {formData.witnesses.length > 0 ? (
@@ -464,7 +468,7 @@ export function CreateRecordModal({
                 >
                   <span className="flex items-center gap-2 text-sm">
                     <UserPlus className="h-4 w-4" />
-                    Select witnesses from employee list
+                    {copy.modal.selectWitnesses}
                   </span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${showWitnessDropdown ? 'rotate-180' : ''}`} />
                 </button>
@@ -476,7 +480,7 @@ export function CreateRecordModal({
                         type="text"
                         value={witnessSearch}
                         onChange={(event) => setWitnessSearch(event.target.value)}
-                        placeholder="Search employees..."
+                        placeholder={copy.modal.witnessSearchPlaceholder}
                         className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         autoFocus
                       />
@@ -501,7 +505,7 @@ export function CreateRecordModal({
                         </button>
                       )) : (
                         <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                          {witnessSearch ? 'No employees found' : 'All employees already selected or unavailable'}
+                          {witnessSearch ? copy.modal.noEmployeesFound : copy.modal.allEmployeesSelected}
                         </div>
                       )}
                     </div>
@@ -513,13 +517,13 @@ export function CreateRecordModal({
 
           <div className="space-y-4">
             <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-              Attachments
+              {copy.modal.attachments}
             </h3>
 
             <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-400 dark:border-gray-600 dark:hover:border-blue-600">
               <Upload className="mx-auto mb-3 h-10 w-10 text-gray-400" />
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
-                Drag & drop files here or click to browse
+                {copy.modal.dropFiles}
               </p>
               <input
                 type="file"
@@ -532,7 +536,7 @@ export function CreateRecordModal({
                 htmlFor="record-file-upload"
                 className="inline-block cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
               >
-                Choose Files
+                {copy.modal.chooseFiles}
               </label>
             </div>
 
@@ -568,7 +572,7 @@ export function CreateRecordModal({
 
         <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-            Cancel
+            {copy.modal.cancel}
           </Button>
           <Button
             type="button"
@@ -576,7 +580,7 @@ export function CreateRecordModal({
             disabled={!isFullyValid || isSaving}
             className="bg-blue-600 text-white hover:bg-blue-700"
           >
-            {isSaving ? 'Saving...' : editingRecord ? 'Save Changes' : 'Create Record'}
+            {isSaving ? copy.modal.saving : editingRecord ? copy.modal.saveChanges : copy.modal.createRecord}
           </Button>
         </div>
       </div>

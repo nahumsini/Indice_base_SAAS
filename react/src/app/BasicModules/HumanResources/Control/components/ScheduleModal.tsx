@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import { X, Search, Clock, MapPin } from 'lucide-react';
+import {
+  CalendarRange,
+  CheckCircle2,
+  Clock,
+  Info,
+  MapPin,
+  Save,
+  Search,
+  UserCheck,
+  X,
+} from 'lucide-react';
 import { FailureToast } from '../../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../../components/LoadingBarOverlay';
 import {
@@ -21,7 +31,6 @@ import {
   type AttendanceControlTemplatePayload,
 } from '../../../../api/humanResources';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../../api/dashboard';
-import { useHRLanguage } from '../../HRLanguage';
 
 interface HorarioDiaDraft {
   dayOfWeek: number;
@@ -32,6 +41,8 @@ interface HorarioDiaDraft {
   descanso: number;
   isRestDay: boolean;
 }
+
+type ScheduleLocationRule = 'business' | 'temporary' | 'open';
 
 interface ScheduleModalProps {
   isOpen: boolean;
@@ -61,6 +72,7 @@ const employeesPerPage = 10;
 const defaultScheduleTemplateName = 'Default Schedule';
 const defaultScheduleStartTime = '08:00';
 const defaultScheduleEndTime = '16:00';
+const permanentScheduleEndDate = '9999-12-31';
 const scheduleSaveMinimumLoadingMs = 2000;
 const isDefaultNoShiftDay = (dayOfWeek: number) => dayOfWeek === 6 || dayOfWeek === 7;
 const dateInputValue = (date = new Date()) => {
@@ -183,6 +195,19 @@ const formatLocationOption = (location: AttendanceControlLocation) => {
   return scope ? `${location.name} - ${scope}` : location.name;
 };
 
+const formatEffectiveDate = (value: string) => {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
 export function ScheduleModal({
   isOpen,
   onClose,
@@ -192,22 +217,17 @@ export function ScheduleModal({
   effectiveStartDate,
   onApplied,
 }: ScheduleModalProps) {
-  const copy = useHRLanguage().attendanceControl;
   const todayDate = dateInputValue();
   const requestedAvailabilityDate = effectiveStartDate?.trim() || todayDate;
   const defaultAvailabilityDate = requestedAvailabilityDate < todayDate ? todayDate : requestedAvailabilityDate;
   const [searchQuery, setSearchQuery] = useState('');
   const [unidadFilter, setUnidadFilter] = useState('');
   const [negocioFilter, setNegocioFilter] = useState('');
-  const [availableOnly, setAvailableOnly] = useState(false);
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
   const [appliedUnidadFilter, setAppliedUnidadFilter] = useState('');
   const [appliedNegocioFilter, setAppliedNegocioFilter] = useState('');
-  const [appliedAvailableOnly, setAppliedAvailableOnly] = useState(false);
   const [availabilityDate, setAvailabilityDate] = useState(defaultAvailabilityDate);
   const [appliedAvailabilityDate, setAppliedAvailabilityDate] = useState(defaultAvailabilityDate);
-  const [assignmentEndDate, setAssignmentEndDate] = useState('');
-  const [appliedAssignmentEndDate, setAppliedAssignmentEndDate] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
   const [selectedEmployeeAssignments, setSelectedEmployeeAssignments] = useState<Record<number, AttendanceControlAssignment>>({});
   const [candidateAssignments, setCandidateAssignments] = useState<AttendanceControlAssignment[]>([]);
@@ -215,12 +235,19 @@ export function ScheduleModal({
   const [organizationBusinesses, setOrganizationBusinesses] = useState<BackendBusiness[]>([]);
   const [candidateTotalCount, setCandidateTotalCount] = useState(0);
   const [candidateTotalPages, setCandidateTotalPages] = useState(1);
-  const [candidateAvailableCount, setCandidateAvailableCount] = useState(0);
+  const [, setCandidateAvailableCount] = useState(0);
   const [candidateBusyCount, setCandidateBusyCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
+  const [selectedScheduleTemplateId, setSelectedScheduleTemplateId] = useState<number | null>(null);
+  const [createdTemplates, setCreatedTemplates] = useState<AttendanceControlTemplate[]>([]);
+  const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
+  const [templateNameDraft, setTemplateNameDraft] = useState('');
+  const [templateNameError, setTemplateNameError] = useState('');
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [modoHorario, setModoHorario] = useState<'Horario estricto' | 'Horario abierto'>('Horario estricto');
   const [toleranciaIngreso, setToleranciaIngreso] = useState(10);
+  const [locationRule, setLocationRule] = useState<ScheduleLocationRule>('business');
   const [noPermitirFueraUbicacion, setNoPermitirFueraUbicacion] = useState(false);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState('');
   const [horarios, setHorarios] = useState<HorarioDiaDraft[]>(emptyScheduleDays());
@@ -231,43 +258,38 @@ export function ScheduleModal({
   const leftPanelScrollRef = useRef<HTMLDivElement>(null);
   const rightPanelScrollRef = useRef<HTMLDivElement>(null);
 
+  const availableTemplates = useMemo(() => {
+    const templateMap = new Map<number, AttendanceControlTemplate>();
+    templates.forEach((template) => templateMap.set(template.id, template));
+    createdTemplates.forEach((template) => templateMap.set(template.id, template));
+    return Array.from(templateMap.values());
+  }, [createdTemplates, templates]);
+
   const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
-    [selectedTemplateId, templates],
+    () => availableTemplates.find((template) => template.id === selectedScheduleTemplateId) ?? null,
+    [availableTemplates, selectedScheduleTemplateId],
   );
   const assignmentEffectiveStartDate = appliedAvailabilityDate || defaultAvailabilityDate;
-  const assignmentEffectiveEndDate = appliedAssignmentEndDate.trim();
-  const hasMissingAssignmentEndDate = !assignmentEffectiveEndDate;
   const hasPastAssignmentStartDate = assignmentEffectiveStartDate < todayDate;
-  const hasInvalidAssignmentDateRange = Boolean(
-    assignmentEffectiveEndDate && assignmentEffectiveEndDate < assignmentEffectiveStartDate,
-  );
   const assignmentDateError = hasPastAssignmentStartDate
-    ? 'Start date cannot be in the past.'
-    : hasMissingAssignmentEndDate
-      ? 'End date is required.'
-      : hasInvalidAssignmentDateRange
-        ? 'End date must be on or after start date.'
-        : '';
+    ? 'Effective date cannot be in the past.'
+    : '';
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    const templateDraft = draftFromTemplate(null);
+    const initialTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null;
+    const templateDraft = draftFromTemplate(initialTemplate);
     setSearchQuery('');
     setUnidadFilter('');
     setNegocioFilter('');
-    setAvailableOnly(false);
     setAppliedSearchQuery('');
     setAppliedUnidadFilter('');
     setAppliedNegocioFilter('');
-    setAppliedAvailableOnly(false);
     setAvailabilityDate(defaultAvailabilityDate);
     setAppliedAvailabilityDate(defaultAvailabilityDate);
-    setAssignmentEndDate(defaultAvailabilityDate);
-    setAppliedAssignmentEndDate(defaultAvailabilityDate);
     setSelectedEmployeeIds([]);
     setSelectedEmployeeAssignments({});
     setCandidateAssignments([]);
@@ -278,15 +300,21 @@ export function ScheduleModal({
     setCandidateAvailableCount(0);
     setCandidateBusyCount(0);
     setCurrentPage(1);
-    setSelectedTemplateName(defaultScheduleTemplateName);
+    setSelectedTemplateName(initialTemplate?.name ?? defaultScheduleTemplateName);
+    setSelectedScheduleTemplateId(initialTemplate?.id ?? null);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
+    setLocationRule(templateDraft.noPermitirFueraUbicacion ? 'temporary' : 'business');
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
     setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
     setHorarios(templateDraft.horarios);
+    setIsSaveTemplateModalOpen(false);
+    setTemplateNameDraft('');
+    setTemplateNameError('');
+    setIsSavingTemplate(false);
     setErrorMessage('');
     setFailureToastMessage('');
-  }, [defaultAvailabilityDate, isOpen]);
+  }, [defaultAvailabilityDate, isOpen, selectedTemplateId, templates]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -346,13 +374,11 @@ export function ScheduleModal({
 
     humanResourcesApi.listAttendanceScheduleCandidates({
       date: assignmentEffectiveStartDate,
-      effective_end_date: assignmentEffectiveEndDate || undefined,
       page: currentPage,
       size: employeesPerPage,
       search: appliedSearchQuery,
       unit_id: appliedUnidadFilter,
       business_id: appliedNegocioFilter,
-      available_only: appliedAvailableOnly ? 1 : undefined,
     })
       .then((response) => {
         if (!active) {
@@ -391,11 +417,9 @@ export function ScheduleModal({
     };
   }, [
     appliedNegocioFilter,
-    appliedAvailableOnly,
     appliedAvailabilityDate,
     appliedSearchQuery,
     appliedUnidadFilter,
-    assignmentEffectiveEndDate,
     assignmentEffectiveStartDate,
     assignmentDateError,
     currentPage,
@@ -419,7 +443,6 @@ export function ScheduleModal({
   const pageStartIndex = (safeCurrentPage - 1) * employeesPerPage;
   const paginatedAssignments = candidateAssignments;
   const visibleAssignableEmployeeIds = paginatedAssignments
-    .filter((assignment) => assignment.can_assign_schedule !== false)
     .map((assignment) => assignment.employee_id);
   const allVisibleSelected = visibleAssignableEmployeeIds.length > 0
     && visibleAssignableEmployeeIds.every((employeeId) => selectedEmployeeIds.includes(employeeId));
@@ -438,7 +461,7 @@ export function ScheduleModal({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [appliedAssignmentEndDate, appliedAvailabilityDate, appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, isOpen]);
+  }, [appliedAvailabilityDate, appliedNegocioFilter, appliedSearchQuery, appliedUnidadFilter, isOpen]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -682,18 +705,15 @@ export function ScheduleModal({
   }
 
   const isHorarioAbierto = modoHorario === 'Horario abierto';
-  const isEmployeeAssignable = (employeeId: number) =>
-    candidateAssignments.find((assignment) => assignment.employee_id === employeeId)?.can_assign_schedule !== false;
 
   const rememberSelectedAssignments = (assignments: AttendanceControlAssignment[]) => {
-    const assignableAssignments = assignments.filter((assignment) => assignment.can_assign_schedule !== false);
-    if (assignableAssignments.length === 0) {
+    if (assignments.length === 0) {
       return;
     }
 
     setSelectedEmployeeAssignments((current) => {
       const next = { ...current };
-      assignableAssignments.forEach((assignment) => {
+      assignments.forEach((assignment) => {
         next[assignment.employee_id] = assignment;
       });
       return next;
@@ -715,10 +735,6 @@ export function ScheduleModal({
   };
 
   const toggleEmployee = (employeeId: number) => {
-    if (!isEmployeeAssignable(employeeId)) {
-      return;
-    }
-
     const isSelected = selectedEmployeeIds.includes(employeeId);
     const assignment = assignmentByEmployeeId.get(employeeId);
     if (isSelected) {
@@ -735,10 +751,6 @@ export function ScheduleModal({
   };
 
   const setEmployeeSelection = (employeeId: number, shouldSelect: boolean) => {
-    if (shouldSelect && !isEmployeeAssignable(employeeId)) {
-      return;
-    }
-
     if (shouldSelect) {
       const assignment = assignmentByEmployeeId.get(employeeId);
       if (assignment) {
@@ -771,7 +783,11 @@ export function ScheduleModal({
   };
 
   const handleLocationRuleChange = (value: string) => {
-    const useExactLocation = value === 'fixed';
+    const nextRule = (value === 'temporary' || value === 'open' || value === 'business')
+      ? value
+      : 'business';
+    const useExactLocation = nextRule === 'temporary';
+    setLocationRule(nextRule);
     setNoPermitirFueraUbicacion(useExactLocation);
     if (!useExactLocation) {
       setUbicacionSeleccionada('');
@@ -799,6 +815,28 @@ export function ScheduleModal({
     );
   };
 
+  const copyMondayToAllDays = () => {
+    setHorarios((current) => {
+      const monday = current.find((item) => item.dayOfWeek === 1) ?? current[0];
+      if (!monday) {
+        return current;
+      }
+
+      return current.map((item) => (
+        item.dayOfWeek === monday.dayOfWeek
+          ? item
+          : {
+            ...item,
+            entrada: monday.entrada,
+            salida: monday.salida,
+            comida: monday.comida,
+            descanso: monday.descanso,
+            isRestDay: monday.isRestDay,
+          }
+      ));
+    });
+  };
+
   const showFailureToast = (message: string) => {
     setFailureToastMessage('');
     window.setTimeout(() => setFailureToastMessage(message), 0);
@@ -820,9 +858,7 @@ export function ScheduleModal({
   const applyCandidateFilters = (
     nextUnitFilter = unidadFilter,
     nextBusinessFilter = negocioFilter,
-    nextAvailableOnly = availableOnly,
     nextAvailabilityDate = availabilityDate,
-    nextAssignmentEndDate = assignmentEndDate,
   ) => {
     const resolvedBusinessFilter = resolveBusinessFilterForUnit(nextBusinessFilter, nextUnitFilter);
     const resolvedAvailabilityDate = nextAvailabilityDate || defaultAvailabilityDate;
@@ -831,9 +867,7 @@ export function ScheduleModal({
     setAppliedSearchQuery(searchQuery);
     setAppliedUnidadFilter(nextUnitFilter);
     setAppliedNegocioFilter(resolvedBusinessFilter);
-    setAppliedAvailableOnly(nextAvailableOnly);
     setAppliedAvailabilityDate(resolvedAvailabilityDate);
-    setAppliedAssignmentEndDate(nextAssignmentEndDate);
   };
 
   const handleUnitFilterChange = (value: string) => {
@@ -855,28 +889,12 @@ export function ScheduleModal({
     applyCandidateFilters(nextUnitFilter, value);
   };
 
-  const handleAvailableOnlyChange = (checked: boolean) => {
-    const nextBusinessFilter = resolveBusinessFilterForUnit(negocioFilter, unidadFilter);
-    setAvailableOnly(checked);
-    setNegocioFilter(nextBusinessFilter);
-    applyCandidateFilters(unidadFilter, nextBusinessFilter, checked);
-  };
-
   const handleAvailabilityDateChange = (value: string) => {
     setAvailabilityDate(value);
     if (!value) {
       return;
     }
-    const nextAssignmentEndDate = assignmentEndDate && assignmentEndDate >= value ? assignmentEndDate : value;
-    setAssignmentEndDate(nextAssignmentEndDate);
-    applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, value, nextAssignmentEndDate);
-    setSelectedEmployeeIds([]);
-    setSelectedEmployeeAssignments({});
-  };
-
-  const handleAssignmentEndDateChange = (value: string) => {
-    setAssignmentEndDate(value);
-    applyCandidateFilters(unidadFilter, negocioFilter, availableOnly, availabilityDate, value);
+    applyCandidateFilters(unidadFilter, negocioFilter, value);
     setSelectedEmployeeIds([]);
     setSelectedEmployeeAssignments({});
   };
@@ -888,8 +906,10 @@ export function ScheduleModal({
   const limpiarHorarios = () => {
     const templateDraft = draftFromTemplate(null);
     setSelectedTemplateName(defaultScheduleTemplateName);
+    setSelectedScheduleTemplateId(null);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
+    setLocationRule(templateDraft.noPermitirFueraUbicacion ? 'temporary' : 'business');
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
     setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
     setHorarios(templateDraft.horarios);
@@ -899,15 +919,30 @@ export function ScheduleModal({
     });
   };
 
-  const buildTemplatePayload = (): AttendanceControlTemplatePayload | null => {
-    if (selectedEmployeeIds.length === 0) {
-      const message = 'Select at least one employee.';
-      setErrorMessage(message);
-      showFailureToast(message);
-      return null;
+  const handleScheduleTemplateChange = (value: string) => {
+    if (!value) {
+      limpiarHorarios();
+      return;
     }
 
-    if (!isHorarioAbierto && noPermitirFueraUbicacion && !ubicacionSeleccionada) {
+    const template = availableTemplates.find((option) => String(option.id) === value) ?? null;
+    const templateDraft = draftFromTemplate(template);
+    setSelectedScheduleTemplateId(template?.id ?? null);
+    setSelectedTemplateName(template?.name ?? defaultScheduleTemplateName);
+    setModoHorario(templateDraft.modoHorario);
+    setToleranciaIngreso(templateDraft.toleranciaIngreso);
+    setLocationRule(templateDraft.noPermitirFueraUbicacion ? 'temporary' : 'business');
+    setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
+    setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
+    setHorarios(templateDraft.horarios);
+    setErrorMessage('');
+    window.requestAnimationFrame(() => {
+      rightPanelScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  const buildTemplatePayload = (templateName = selectedTemplateName.trim() || defaultScheduleTemplateName): AttendanceControlTemplatePayload | null => {
+    if (noPermitirFueraUbicacion && !ubicacionSeleccionada) {
       const message = 'Select the allowed location for this schedule.';
       setErrorMessage(message);
       showFailureToast(message);
@@ -939,12 +974,12 @@ export function ScheduleModal({
     });
 
     return {
-      name: selectedTemplateName.trim() || defaultScheduleTemplateName,
+      name: templateName,
       status: 'active',
       schedule_mode: isHorarioAbierto ? 'open' : 'strict',
       block_after_grace_period: false,
-      enforce_location: !isHorarioAbierto && noPermitirFueraUbicacion,
-      location_id: !isHorarioAbierto && noPermitirFueraUbicacion && ubicacionSeleccionada ? Number(ubicacionSeleccionada) : null,
+      enforce_location: noPermitirFueraUbicacion,
+      location_id: noPermitirFueraUbicacion && ubicacionSeleccionada ? Number(ubicacionSeleccionada) : null,
       days,
     };
   };
@@ -957,6 +992,13 @@ export function ScheduleModal({
 
     try {
       const appliedResult = await runWithMinimumDuration((async () => {
+        if (selectedEmployeeIds.length === 0) {
+          const message = 'Select at least one employee.';
+          setErrorMessage(message);
+          showFailureToast(message);
+          return null;
+        }
+
         const payload = buildTemplatePayload();
         if (!payload) {
           return null;
@@ -974,7 +1016,7 @@ export function ScheduleModal({
           : false;
         const reusableTemplate = sameAsSelectedTemplate
           ? selectedTemplate
-          : templates.find((template) =>
+          : availableTemplates.find((template) =>
             template.status !== 'inactive' &&
               normalizedPayload === normalizeTemplatePayload(payloadFromTemplate(template)),
           ) ?? null;
@@ -982,7 +1024,7 @@ export function ScheduleModal({
         let templateId = reusableTemplate?.id ?? null;
         let appliedTemplateName = reusableTemplate?.name ?? payload.name;
         if (!templateId) {
-          const templateName = templates.some((template) => template.name === payload.name)
+          const templateName = availableTemplates.some((template) => template.name === payload.name)
             ? `${payload.name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
             : payload.name;
           const response = await humanResourcesApi.createAttendanceControlTemplate({
@@ -991,13 +1033,14 @@ export function ScheduleModal({
           });
           templateId = response.template.id;
           appliedTemplateName = response.template.name;
+          setCreatedTemplates((current) => [...current.filter((template) => template.id !== response.template.id), response.template]);
         }
 
         await humanResourcesApi.bulkAssignAttendanceSchedule({
           employee_ids: selectedEmployeeIds,
           template_id: templateId,
           effective_start_date: assignmentEffectiveStartDate,
-          effective_end_date: assignmentEffectiveEndDate,
+          effective_end_date: permanentScheduleEndDate,
         });
 
         return {
@@ -1022,12 +1065,69 @@ export function ScheduleModal({
     }
   };
 
+  const openSaveTemplateModal = () => {
+    setTemplateNameDraft(selectedTemplateName && selectedTemplateName !== defaultScheduleTemplateName ? selectedTemplateName : '');
+    setTemplateNameError('');
+    setIsSaveTemplateModalOpen(true);
+  };
+
+  const closeSaveTemplateModal = () => {
+    if (isSavingTemplate) {
+      return;
+    }
+
+    setIsSaveTemplateModalOpen(false);
+    setTemplateNameError('');
+  };
+
+  const saveScheduleTemplate = async () => {
+    const templateName = templateNameDraft.trim();
+    if (!templateName) {
+      setTemplateNameError('Enter a template name.');
+      return;
+    }
+
+    if (availableTemplates.some((template) => template.name.trim().toLowerCase() === templateName.toLowerCase())) {
+      setTemplateNameError('A template with this name already exists.');
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    setTemplateNameError('');
+    setErrorMessage('');
+    setFailureToastMessage('');
+
+    try {
+      const payload = buildTemplatePayload(templateName);
+      if (!payload) {
+        setTemplateNameError('Complete the schedule rules before saving the template.');
+        return;
+      }
+
+      const response = await humanResourcesApi.createAttendanceControlTemplate(payload);
+      setCreatedTemplates((current) => [...current.filter((template) => template.id !== response.template.id), response.template]);
+      setSelectedScheduleTemplateId(response.template.id);
+      setSelectedTemplateName(response.template.name);
+      setIsSaveTemplateModalOpen(false);
+      setTemplateNameDraft('');
+      window.requestAnimationFrame(() => {
+        rightPanelScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The template could not be saved.';
+      setTemplateNameError(message);
+      showFailureToast(message);
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
   return (
     <>
       <LoadingBarOverlay
         isVisible={isSubmitting}
-        title="Applying schedule"
-        description="Saving the schedule and assigning it to the selected employees."
+        title="Saving schedule"
+        description="Saving the active employee schedule from the selected date onward."
         className="z-[95]"
       />
       <FailureToast
@@ -1036,563 +1136,1190 @@ export function ScheduleModal({
         onClose={() => setFailureToastMessage('')}
         className="z-[100]"
       />
+      <SaveTemplateModal
+        errorMessage={templateNameError}
+        isOpen={isSaveTemplateModalOpen}
+        isSaving={isSavingTemplate}
+        templateName={templateNameDraft}
+        onClose={closeSaveTemplateModal}
+        onSave={() => void saveScheduleTemplate()}
+        onTemplateNameChange={setTemplateNameDraft}
+      />
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-        <div className="my-8 flex max-h-[90vh] w-full max-w-[96rem] flex-col overflow-hidden rounded-lg bg-white text-gray-900 shadow-xl dark:border dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
-        <div className="flex items-center justify-between border-b border-[#143675] bg-[#143675] p-6">
-          <div className="flex items-center gap-2">
-            <Clock className="h-6 w-6 text-white" />
-            <h2 className="text-xl font-semibold text-white">{copy.labels.setSchedules}</h2>
-          </div>
-          <button type="button" onClick={onClose} className="text-white transition-colors hover:text-blue-100">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <section
-          aria-label="Find employees for the schedule"
-          className="border-b border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/70"
-        >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(22rem,2fr)_repeat(2,minmax(10rem,0.85fr))_repeat(2,minmax(12rem,1fr))_auto_auto] xl:items-end">
-            <div className="min-w-0">
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Search employee</label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Name or code"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              />
-            </div>
-            <div className="min-w-0">
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start date</label>
-              <input
-                type="date"
-                value={availabilityDate}
-                onChange={(event) => handleAvailabilityDateChange(event.target.value)}
-                min={todayDate}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              />
-            </div>
-            <div className="min-w-0">
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End date</label>
-              <input
-                type="date"
-                value={assignmentEndDate}
-                onChange={(event) => handleAssignmentEndDateChange(event.target.value)}
-                min={availabilityDate || todayDate}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              />
-            </div>
-            <div className="min-w-0">
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Unit</label>
-              <select
-                value={unidadFilter}
-                onChange={(event) => handleUnitFilterChange(event.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              >
-                <option value="">All</option>
-                {unitOptions.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="min-w-0">
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Business</label>
-              <select
-                value={negocioFilter}
-                onChange={(event) => handleBusinessFilterChange(event.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              >
-                <option value="">All</option>
-                {businessOptions.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="schedule-available-only"
-                  checked={availableOnly}
-                  onCheckedChange={(checked) => handleAvailableOnlyChange(checked === true)}
-                />
-                <label htmlFor="schedule-available-only" className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Available only
-                </label>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+        <div className="my-8 flex max-h-[92vh] w-full max-w-[96rem] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
+          <div className="flex shrink-0 items-start justify-between gap-4 bg-[#143675] px-6 py-4 text-white">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-xl font-semibold tracking-tight text-white">Edit employee schedule</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
+                  Choose any employee and save the schedule that stays active from the selected date onward.
+                </p>
               </div>
             </div>
-            <div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label="Close modal"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-950/40">
+            {errorMessage ? (
+              <div className="shrink-0 px-5 pt-5">
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
+                  {errorMessage}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,1.05fr)_minmax(28rem,0.95fr)]">
+              <section className="order-2 flex min-h-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:order-1">
+                <div ref={leftPanelScrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+                  <EmployeeSelectionTable
+                    allVisibleSelected={allVisibleSelected}
+                    assignmentEffectiveStartDate={assignmentEffectiveStartDate}
+                    availabilityDate={availabilityDate}
+                    businessOptions={businessOptions}
+                    candidateBusyCount={candidateBusyCount}
+                    candidateTotalCount={candidateTotalCount}
+                    changePage={changePage}
+                    currentPage={safeCurrentPage}
+                    isLoadingCandidates={isLoadingCandidates}
+                    negocioFilter={negocioFilter}
+                    paginatedAssignments={paginatedAssignments}
+                    paginationEnd={paginationEnd}
+                    paginationItems={paginationItems}
+                    paginationStart={paginationStart}
+                    searchQuery={searchQuery}
+                    selectedEmployeeIds={selectedEmployeeIds}
+                    setEmployeeSelection={setEmployeeSelection}
+                    setSearchQuery={setSearchQuery}
+                    todayDate={todayDate}
+                    toggleAll={toggleAll}
+                    toggleEmployee={toggleEmployee}
+                    totalPages={totalPages}
+                    unidadFilter={unidadFilter}
+                    unitOptions={unitOptions}
+                    visibleAssignableEmployeeIds={visibleAssignableEmployeeIds}
+                    onApplySearchFilters={applySearchFilters}
+                    onAvailabilityDateChange={handleAvailabilityDateChange}
+                    onBusinessFilterChange={handleBusinessFilterChange}
+                    onOpenSaveTemplateModal={openSaveTemplateModal}
+                    onUnitFilterChange={handleUnitFilterChange}
+                  />
+                </div>
+              </section>
+
+              <section className="order-1 flex min-h-0 flex-col bg-white dark:bg-slate-950 lg:order-2">
+                <div ref={rightPanelScrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 pb-28">
+                  <ScheduleBuilder
+                    employeeBusinessLocationSummary={employeeBusinessLocationSummary}
+                    exactLocationOptions={exactLocationOptions}
+                    exactLocationWarning={exactLocationWarning}
+                    horarios={horarios}
+                    isHorarioAbierto={isHorarioAbierto}
+                    isSubmitting={isSubmitting}
+                    locationRule={locationRule}
+                    locationScopeFallbackMessage={locationScopeFallbackMessage}
+                    locationScopeSummary={locationScopeSummary}
+                    selectedEmployeeBusinessWarning={selectedEmployeeBusinessWarning}
+                    selectedScheduleTemplateId={selectedScheduleTemplateId}
+                    selectedTemplateName={selectedTemplateName}
+                    templates={availableTemplates}
+                    toleranciaIngreso={toleranciaIngreso}
+                    ubicacionSeleccionada={ubicacionSeleccionada}
+                    onCopyMondayToAllDays={copyMondayToAllDays}
+                    onHorarioChange={updateHorario}
+                    onLocationRuleChange={handleLocationRuleChange}
+                    onModeChange={setModoHorario}
+                    onResetSchedule={limpiarHorarios}
+                    onScheduleTemplateChange={handleScheduleTemplateChange}
+                    onToleranciaIngresoChange={setToleranciaIngreso}
+                    onUbicacionSeleccionadaChange={setUbicacionSeleccionada}
+                    onWorkingDayChange={updateWorkingDay}
+                  />
+                  <ScheduleImpactSummary
+                    assignmentDateError={assignmentDateError}
+                    effectiveStartDate={assignmentEffectiveStartDate}
+                    selectedEmployeeCount={selectedEmployeeIds.length}
+                  />
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-col gap-3 bg-[#143675] px-6 py-3 text-white md:flex-row md:items-center md:justify-between">
+            <ScheduleImpactSummary
+              assignmentDateError={assignmentDateError}
+              effectiveStartDate={assignmentEffectiveStartDate}
+              selectedEmployeeCount={selectedEmployeeIds.length}
+              compact
+            />
+            <div className="flex shrink-0 items-center justify-end gap-3">
               <Button
-                className="w-full gap-2 whitespace-nowrap bg-[#143675] px-4 text-white hover:bg-[#0f2855] xl:w-auto"
                 type="button"
-                onClick={applySearchFilters}
+                variant="outline"
+                onClick={onClose}
+                className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
               >
-                <Search className="h-4 w-4" />
-                Search
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void aplicarHorarios()}
+                className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+                disabled={selectedEmployeeIds.length === 0 || isSubmitting || Boolean(assignmentDateError)}
+                title={
+                  selectedEmployeeIds.length === 0
+                    ? 'Select at least one employee first.'
+                    : assignmentDateError
+                      ? assignmentDateError
+                      : undefined
+                }
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Save schedule
               </Button>
             </div>
           </div>
-        </section>
+        </div>
+      </div>
+    </>
+  );
+}
 
-        <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-gray-950">
-          {errorMessage ? (
-            <div className="px-6 pt-6">
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
-                {errorMessage}
-              </div>
-            </div>
-          ) : null}
+function SaveTemplateModal({
+  errorMessage,
+  isOpen,
+  isSaving,
+  templateName,
+  onClose,
+  onSave,
+  onTemplateNameChange,
+}: {
+  errorMessage: string;
+  isOpen: boolean;
+  isSaving: boolean;
+  templateName: string;
+  onClose: () => void;
+  onSave: () => void;
+  onTemplateNameChange: (value: string) => void;
+}) {
+  if (!isOpen) {
+    return null;
+  }
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-2 lg:divide-x lg:divide-gray-200 lg:overflow-hidden dark:lg:divide-gray-700">
-            <section
-              aria-labelledby="available-employees-heading"
-              className="min-h-0 bg-white dark:bg-gray-950"
-            >
-              <div ref={leftPanelScrollRef} className="p-6 lg:h-full lg:overflow-y-auto">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h3 id="available-employees-heading" className="font-semibold text-gray-900 dark:text-white">
-                    Employees
-                  </h3>
-                  <div className="flex flex-wrap justify-end gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span>
-                      {`Available ${
-                        assignmentEffectiveEndDate
-                          ? `${assignmentEffectiveStartDate} to ${assignmentEffectiveEndDate}`
-                          : `on ${assignmentEffectiveStartDate}`
-                      }: `}
-                      <span className="font-medium text-gray-900 dark:text-white">{candidateAvailableCount}</span>
-                    </span>
-                    <span>Busy: <span className="font-medium text-amber-700 dark:text-amber-300">{candidateBusyCount}</span></span>
-                    <span>Selected: <span className="font-medium text-blue-600 dark:text-blue-400">{selectedEmployeeIds.length}</span></span>
-                  </div>
-                </div>
-
-              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                <table className="w-full">
-	                  <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
-	                    <tr>
-	                      <th className="w-10 px-3 py-2 text-left">
-	                        <Checkbox
-                            checked={allVisibleSelected}
-                            disabled={isLoadingCandidates || visibleAssignableEmployeeIds.length === 0}
-                            onCheckedChange={toggleAll}
-                          />
-	                      </th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Code</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Employee</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Dept</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Schedule status</th>
-                    </tr>
-	                  </thead>
-	                  <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-	                    {isLoadingCandidates ? (
-	                      <tr>
-	                        <td colSpan={5} className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-	                          Loading employees...
-	                        </td>
-	                      </tr>
-	                    ) : candidateTotalCount === 0 ? (
-	                      <tr>
-	                        <td colSpan={5} className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-	                          No employees match these filters.
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedAssignments.map((assignment) => {
-                        const isSelected = selectedEmployeeIds.includes(assignment.employee_id);
-                        const canAssign = assignment.can_assign_schedule !== false;
-                        const statusText = canAssign ? 'Available' : assignment.schedule_busy_reason || 'Already assigned';
-
-                        return (
-                        <tr
-                          key={assignment.employee_id}
-                          className={`${
-                            canAssign ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50' : 'bg-gray-50/70 text-gray-500 dark:bg-gray-900/30'
-                          } ${isSelected ? 'bg-blue-50/70 dark:bg-blue-900/10' : ''}`}
-                          onClick={() => toggleEmployee(assignment.employee_id)}
-                        >
-                          <td className="px-3 py-3">
-                            <Checkbox
-                              checked={isSelected}
-                              disabled={!canAssign}
-                              onCheckedChange={(checked) => setEmployeeSelection(assignment.employee_id, checked === true)}
-                              onClick={(event) => event.stopPropagation()}
-                            />
-                          </td>
-                          <td className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">
-                            {assignment.employee_number || assignment.employee_id}
-                          </td>
-                          <td className="px-3 py-3 text-sm text-gray-900 dark:text-white">
-                            {assignment.employee_name}
-                          </td>
-                          <td className="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">
-                            {assignment.department || assignment.position_title || '—'}
-                          </td>
-                          <td className="px-3 py-3">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                canAssign
-                                  ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
-                              }`}
-                            >
-                              {statusText}
-                            </span>
-                          </td>
-                        </tr>
-                      )})
-                    )}
-                  </tbody>
-	                </table>
-	              </div>
-	              {!isLoadingCandidates && candidateTotalCount > 0 ? (
-	                <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-	                  <p className="text-sm text-gray-500 dark:text-gray-400">
-	                    Showing {paginationStart}-{paginationEnd} of {candidateTotalCount} employees
-	                  </p>
-	                  {candidateBusyCount > 0 ? (
-	                    <p className="text-xs text-gray-500 dark:text-gray-400">
-	                      {appliedAvailableOnly
-                          ? `${candidateBusyCount} unavailable employees are hidden.`
-                          : `${candidateBusyCount} employees are already scheduled or locked for this date.`}
-	                    </p>
-	                  ) : null}
-                  <div className="flex flex-col items-start gap-3 md:items-end">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Page {safeCurrentPage} of {totalPages}
-                    </p>
-                    <Pagination className="mx-0 w-auto justify-start md:justify-end">
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            href="#"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              changePage(safeCurrentPage - 1);
-                            }}
-                            aria-disabled={safeCurrentPage === 1}
-                            className={safeCurrentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
-                          />
-                        </PaginationItem>
-                        {paginationItems.map((item, index) => (
-                          item === 'ellipsis' ? (
-                            <PaginationItem key={`ellipsis-${index}`}>
-                              <PaginationEllipsis />
-                            </PaginationItem>
-                          ) : (
-                            <PaginationItem key={item}>
-                              <PaginationLink
-                                href="#"
-                                isActive={item === safeCurrentPage}
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  changePage(item);
-                                }}
-                              >
-                                {item}
-                              </PaginationLink>
-                            </PaginationItem>
-                          )
-                        ))}
-                        <PaginationItem>
-                          <PaginationNext
-                            href="#"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              changePage(safeCurrentPage + 1);
-                            }}
-                            aria-disabled={safeCurrentPage === totalPages}
-                            className={safeCurrentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                </div>
-              ) : null}
-              </div>
-            </section>
-
-            <section
-              aria-labelledby="schedule-details-heading"
-              className="min-h-0 bg-white dark:bg-gray-950"
-            >
-              <div ref={rightPanelScrollRef} className="p-6 lg:h-full lg:overflow-y-auto">
-              <div className="mb-4">
-                <h3 id="schedule-details-heading" className="font-semibold text-gray-900 dark:text-white">
-                  Schedule details
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  This schedule will be applied to every selected employee from {assignmentEffectiveStartDate}
-                  {assignmentEffectiveEndDate ? ` to ${assignmentEffectiveEndDate}` : ' onward'}.
-                </p>
-              </div>
-
-              <div className="mb-4 flex items-center gap-2">
-                <span className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                  {selectedTemplateName}
-                </span>
-                <Button variant="outline" size="sm" onClick={limpiarHorarios} disabled={isSubmitting}>
-                  Reset schedule
-                </Button>
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Schedule type</label>
-                <select
-                  value={modoHorario}
-                  onChange={(event) => setModoHorario(event.target.value as 'Horario estricto' | 'Horario abierto')}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="Horario estricto">Strict schedule</option>
-                  <option value="Horario abierto">Open schedule</option>
-                </select>
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Open: no fixed start/end time and check-in is allowed at any saved Business Structure location. Strict: employees follow the times below and check in only at their dedicated location.
-                </p>
-              </div>
-
-              {modoHorario === 'Horario estricto' ? (
-                <>
-                  <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
-                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mark late after</label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max="60"
-                        value={toleranciaIngreso}
-                        onChange={(event) => setToleranciaIngreso(Number(event.target.value) || 0)}
-                        className="w-24 rounded-lg border border-gray-300 bg-white px-3 py-2 text-center text-sm text-gray-900 focus:border-orange-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                      />
-                      <span className="text-sm text-gray-600 dark:text-gray-400">minutes</span>
-                    </div>
-                    <p className="mt-2 text-xs text-orange-700 dark:text-orange-300">
-                      Employees can still clock in after this time. The attendance record will be marked late.
-                    </p>
-                  </div>
-
-                  <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/20">
-                    <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Location rule
-                    </label>
-                    <select
-                      value={noPermitirFueraUbicacion ? 'fixed' : 'employee-business'}
-                      onChange={(event) => handleLocationRuleChange(event.target.value)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    >
-                      <option value="employee-business">Use each employee business location</option>
-                      <option value="fixed">Force one exact location</option>
-                    </select>
-                    <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                      {noPermitirFueraUbicacion
-                        ? 'Employees can only clock in from the selected location.'
-                        : 'Employees clock in from the Business Structure location assigned to their business.'}
-                    </p>
-
-                    {noPermitirFueraUbicacion ? (
-                      <div className="mt-3">
-                        <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                          <MapPin className="mr-1 inline h-3 w-3" />
-                          Allowed location
-                        </label>
-                        <select
-                          value={ubicacionSeleccionada}
-                          onChange={(event) => setUbicacionSeleccionada(event.target.value)}
-                          disabled={exactLocationOptions.length === 0}
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        >
-                          <option value="">{exactLocationOptions.length === 0 ? 'No active locations available' : 'Select location'}</option>
-                          {exactLocationOptions.map((location) => (
-                            <option key={location.id} value={location.id}>{formatLocationOption(location)}</option>
-                          ))}
-                        </select>
-                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                          {locationScopeSummary}
-                        </p>
-                        {locationScopeFallbackMessage ? (
-                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                            {locationScopeFallbackMessage}
-                          </p>
-                        ) : null}
-                        {exactLocationWarning ? (
-                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                            {exactLocationWarning}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="mt-3 flex items-start gap-2 rounded-md border border-blue-100 bg-white p-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
-                        <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                        <div>
-                          <p>{employeeBusinessLocationSummary}</p>
-                          {selectedEmployeeBusinessWarning ? (
-                            <p className="mt-1 text-amber-700 dark:text-amber-300">
-                              {selectedEmployeeBusinessWarning}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-                  <div className="flex items-start gap-3">
-                    <Clock className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600 dark:text-green-400" />
-                    <div>
-                      <p className="text-sm font-medium text-green-900 dark:text-green-100">Open schedule enabled</p>
-                      <p className="mt-1 text-xs text-green-700 dark:text-green-300">
-                        No fixed start or end time is stored. Employees can check in from any active Business Structure location in the company profile.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isHorarioAbierto ? (
-                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">Working days</p>
-                  </div>
-                  <div className="grid gap-2 bg-white p-4 sm:grid-cols-2 dark:bg-gray-950">
-                    {horarios.map((horario, index) => {
-                      const isWorkingDay = !horario.isRestDay;
-
-                      return (
-                        <div
-                          key={horario.dayOfWeek}
-                          className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-                            isWorkingDay
-                              ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-                              : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={isWorkingDay}
-                              onCheckedChange={(checked) => updateWorkingDay(index, checked === true)}
-                            />
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">{horario.dia}</span>
-                          </div>
-                          <span
-                            className={`text-xs font-medium ${
-                              isWorkingDay ? 'text-green-700 dark:text-green-300' : 'text-gray-500 dark:text-gray-400'
-                            }`}
-                          >
-                            {isWorkingDay ? 'Working' : 'No shift'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Work day</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Start</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">End</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Meal (min)</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Break (min)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                        {horarios.map((horario, index) => {
-                          const isOvernightShift = !horario.isRestDay
-                            && Boolean(horario.entrada)
-                            && Boolean(horario.salida)
-                            && horario.salida < horario.entrada;
-
-                          return (
-                            <tr key={horario.dayOfWeek}>
-                            <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  checked={!horario.isRestDay}
-                                  onCheckedChange={(checked) => updateWorkingDay(index, checked === true)}
-                                />
-                                {horario.dia}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3">
-                              <input
-                                type="time"
-                                value={horario.entrada}
-                                onChange={(event) => updateHorario(index, 'entrada', event.target.value)}
-                                disabled={horario.isRestDay}
-                                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            </td>
-                            <td className="px-3 py-3">
-                              <input
-                                type="time"
-                                value={horario.salida}
-                                onChange={(event) => updateHorario(index, 'salida', event.target.value)}
-                                disabled={horario.isRestDay}
-                                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                              {isOvernightShift ? (
-                                <p className="mt-1 text-[11px] font-medium text-blue-600 dark:text-blue-300">Ends next day</p>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-3">
-                              <input
-                                type="number"
-                                min="0"
-                                value={horario.comida}
-                                onChange={(event) => updateHorario(index, 'comida', Number(event.target.value) || 0)}
-                                className="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            </td>
-                            <td className="px-3 py-3">
-                              <input
-                                type="number"
-                                min="0"
-                                value={horario.descanso}
-                                onChange={(event) => updateHorario(index, 'descanso', Number(event.target.value) || 0)}
-                                className="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              />
-                            </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-              </div>
-            </section>
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
+        <div className="flex items-center justify-between gap-3 bg-[#143675] px-5 py-4 text-white">
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-white">Save schedule template</h3>
+            <p className="mt-1 text-sm text-white/75">Name this schedule so you can reuse it later.</p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Close template modal"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-900/70">
-          <Button type="button" variant="outline" onClick={onClose}>
+        <div className="space-y-3 p-5">
+          <label>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              Template name
+            </span>
+            <input
+              autoFocus
+              type="text"
+              value={templateName}
+              onChange={(event) => onTemplateNameChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  onSave();
+                }
+              }}
+              placeholder="Example: Office schedule"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+          </label>
+          {errorMessage ? (
+            <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+              {errorMessage}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              This saves the current type, workdays, times, location rule, and attendance rules.
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 bg-[#143675] px-5 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isSaving}
+            className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
+          >
             Cancel
           </Button>
           <Button
             type="button"
-            onClick={() => void aplicarHorarios()}
-            className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
-            disabled={selectedEmployeeIds.length === 0 || isSubmitting || Boolean(assignmentDateError)}
-            title={
-              selectedEmployeeIds.length === 0
-                ? 'Select at least one employee first.'
-                : assignmentDateError
-                  ? assignmentDateError
-                  : undefined
-            }
+            onClick={onSave}
+            disabled={isSaving}
+            className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
           >
-            Apply schedule
+            <Save className="h-4 w-4" />
+            {isSaving ? 'Saving...' : 'Save template'}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function EmployeeSelectionTable({
+  allVisibleSelected,
+  assignmentEffectiveStartDate,
+  availabilityDate,
+  businessOptions,
+  candidateBusyCount,
+  candidateTotalCount,
+  changePage,
+  currentPage,
+  isLoadingCandidates,
+  negocioFilter,
+  paginatedAssignments,
+  paginationEnd,
+  paginationItems,
+  paginationStart,
+  searchQuery,
+  selectedEmployeeIds,
+  setEmployeeSelection,
+  setSearchQuery,
+  todayDate,
+  toggleAll,
+  toggleEmployee,
+  totalPages,
+  unidadFilter,
+  unitOptions,
+  visibleAssignableEmployeeIds,
+  onApplySearchFilters,
+  onAvailabilityDateChange,
+  onBusinessFilterChange,
+  onOpenSaveTemplateModal,
+  onUnitFilterChange,
+}: {
+  allVisibleSelected: boolean;
+  assignmentEffectiveStartDate: string;
+  availabilityDate: string;
+  businessOptions: ReadonlyArray<readonly [string, string]>;
+  candidateBusyCount: number;
+  candidateTotalCount: number;
+  changePage: (page: number) => void;
+  currentPage: number;
+  isLoadingCandidates: boolean;
+  negocioFilter: string;
+  paginatedAssignments: AttendanceControlAssignment[];
+  paginationEnd: number;
+  paginationItems: Array<number | 'ellipsis'>;
+  paginationStart: number;
+  searchQuery: string;
+  selectedEmployeeIds: number[];
+  setEmployeeSelection: (employeeId: number, shouldSelect: boolean) => void;
+  setSearchQuery: (value: string) => void;
+  todayDate: string;
+  toggleAll: () => void;
+  toggleEmployee: (employeeId: number) => void;
+  totalPages: number;
+  unidadFilter: string;
+  unitOptions: ReadonlyArray<readonly [string, string]>;
+  visibleAssignableEmployeeIds: number[];
+  onApplySearchFilters: () => void;
+  onAvailabilityDateChange: (value: string) => void;
+  onBusinessFilterChange: (value: string) => void;
+  onOpenSaveTemplateModal: () => void;
+  onUnitFilterChange: (value: string) => void;
+}) {
+  return (
+    <>
+      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 6</p>
+            <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Employee selection</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Assign the configured schedule to the employees who need it.
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff]">
+            <UserCheck className="h-3.5 w-3.5" />
+            Permanent schedule
+          </span>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="md:col-span-2">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Search employee</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Name or code"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </label>
+
+          <div>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Effective from</span>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={availabilityDate}
+                min={todayDate}
+                onChange={(event) => onAvailabilityDateChange(event.target.value)}
+                className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onOpenSaveTemplateModal}
+                className="h-10 shrink-0 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#143675] shadow-sm hover:bg-blue-50 hover:text-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8bb3ff] dark:hover:bg-blue-950/20"
+              >
+                <Save className="h-4 w-4" />
+                <span className="hidden xl:inline">Save as template</span>
+              </Button>
+            </div>
+          </div>
+
+          <label>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Unit</span>
+            <select
+              value={unidadFilter}
+              onChange={(event) => onUnitFilterChange(event.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            >
+              <option value="">All</option>
+              {unitOptions.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Business</span>
+            <select
+              value={negocioFilter}
+              onChange={(event) => onBusinessFilterChange(event.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            >
+              <option value="">All</option>
+              {businessOptions.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            This schedule will stay active until a new one is saved for the employee.
+          </p>
+          <Button
+            className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
+            type="button"
+            onClick={onApplySearchFilters}
+          >
+            <Search className="h-4 w-4" />
+            Search
+          </Button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 id="available-employees-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
+              Employees
+            </h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              New schedule starts on {assignmentEffectiveStartDate}.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              {candidateTotalCount} shown
+            </span>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 dark:bg-blue-950/30 dark:text-blue-200">
+              {selectedEmployeeIds.length} selected
+            </span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px]">
+            <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+              <tr>
+                <th className="w-10 px-3 py-2 text-left">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    disabled={isLoadingCandidates || visibleAssignableEmployeeIds.length === 0}
+                    onCheckedChange={toggleAll}
+                  />
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Code</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Employee</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Dept</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Current schedule</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-950">
+              {isLoadingCandidates ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    Loading employees...
+                  </td>
+                </tr>
+              ) : candidateTotalCount === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No employees match these filters.
+                  </td>
+                </tr>
+              ) : (
+                paginatedAssignments.map((assignment) => {
+                  const isSelected = selectedEmployeeIds.includes(assignment.employee_id);
+                  const hasScheduleNotice = assignment.can_assign_schedule === false;
+                  const lockedReason = assignment.schedule_busy_reason || 'Existing schedule or attendance detected';
+                  const isAttendanceLocked = lockedReason.toLowerCase().includes('attendance');
+                  const currentScheduleName = assignment.schedule_template_name || 'No schedule saved';
+                  const statusTooltip = hasScheduleNotice
+                    ? isAttendanceLocked
+                      ? 'Attendance already exists for the effective date. The new permanent schedule will still be saved from the selected date if the backend accepts the update.'
+                      : lockedReason
+                    : 'This employee can receive a new active schedule.';
+
+                  return (
+                    <tr
+                      key={assignment.employee_id}
+                      title={statusTooltip}
+                      className={`cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 ${
+                        isSelected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-100 dark:bg-blue-950/20 dark:ring-blue-900/40' : ''
+                      }`}
+                      onClick={() => toggleEmployee(assignment.employee_id)}
+                    >
+                      <td className="px-3 py-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => setEmployeeSelection(assignment.employee_id, checked === true)}
+                          onClick={(event) => event.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-3 py-3 text-sm text-slate-600 dark:text-slate-400">
+                        {assignment.employee_number || assignment.employee_id}
+                      </td>
+                      <td className="px-3 py-3 text-sm font-medium text-slate-950 dark:text-white">
+                        {assignment.employee_name}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-slate-600 dark:text-slate-400">
+                        {assignment.department || assignment.position_title || '-'}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          title={statusTooltip}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            hasScheduleNotice
+                              ? isAttendanceLocked
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-200'
+                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200'
+                          }`}
+                        >
+                          {hasScheduleNotice ? <Info className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                          {currentScheduleName}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {!isLoadingCandidates && candidateTotalCount > 0 ? (
+          <div className="flex flex-col gap-4 border-t border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Showing {paginationStart}-{paginationEnd} of {candidateTotalCount} employees
+              </p>
+              {candidateBusyCount > 0 ? (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {candidateBusyCount} employees have existing schedule or attendance context on this date. You can still select them for a new active schedule.
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-col items-start gap-2 md:items-end">
+              <p className="text-sm text-slate-500 dark:text-slate-400">Page {currentPage} of {totalPages}</p>
+              <Pagination className="mx-0 w-auto justify-start md:justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        changePage(currentPage - 1);
+                      }}
+                      aria-disabled={currentPage === 1}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
+                    />
+                  </PaginationItem>
+                  {paginationItems.map((item, index) => (
+                    item === 'ellipsis' ? (
+                      <PaginationItem key={`ellipsis-${index}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : (
+                      <PaginationItem key={item}>
+                        <PaginationLink
+                          href="#"
+                          isActive={item === currentPage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            changePage(item);
+                          }}
+                        >
+                          {item}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        changePage(currentPage + 1);
+                      }}
+                      aria-disabled={currentPage === totalPages}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </>
+  );
+}
+
+function ScheduleBuilder({
+  employeeBusinessLocationSummary,
+  exactLocationOptions,
+  exactLocationWarning,
+  horarios,
+  isHorarioAbierto,
+  isSubmitting,
+  locationRule,
+  locationScopeFallbackMessage,
+  locationScopeSummary,
+  selectedEmployeeBusinessWarning,
+  selectedScheduleTemplateId,
+  selectedTemplateName,
+  templates,
+  toleranciaIngreso,
+  ubicacionSeleccionada,
+  onCopyMondayToAllDays,
+  onHorarioChange,
+  onLocationRuleChange,
+  onModeChange,
+  onResetSchedule,
+  onScheduleTemplateChange,
+  onToleranciaIngresoChange,
+  onUbicacionSeleccionadaChange,
+  onWorkingDayChange,
+}: {
+  employeeBusinessLocationSummary: string;
+  exactLocationOptions: AttendanceControlLocation[];
+  exactLocationWarning: string;
+  horarios: HorarioDiaDraft[];
+  isHorarioAbierto: boolean;
+  isSubmitting: boolean;
+  locationRule: ScheduleLocationRule;
+  locationScopeFallbackMessage: string;
+  locationScopeSummary: string;
+  selectedEmployeeBusinessWarning: string;
+  selectedScheduleTemplateId: number | null;
+  selectedTemplateName: string;
+  templates: AttendanceControlTemplate[];
+  toleranciaIngreso: number;
+  ubicacionSeleccionada: string;
+  onCopyMondayToAllDays: () => void;
+  onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
+  onLocationRuleChange: (value: string) => void;
+  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  onResetSchedule: () => void;
+  onScheduleTemplateChange: (value: string) => void;
+  onToleranciaIngresoChange: (value: number) => void;
+  onUbicacionSeleccionadaChange: (value: string) => void;
+  onWorkingDayChange: (index: number, isWorkingDay: boolean) => void;
+}) {
+  const activeTemplates = templates.filter((template) => template.status !== 'inactive');
+
+  return (
+    <section aria-labelledby="schedule-details-heading" className="space-y-5">
+      <div className="rounded-2xl border border-[#143675]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8bb3ff]/30 dark:bg-blue-950/20">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 id="schedule-details-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
+              Schedule configuration
+            </h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Configure the schedule first, then select the employees who will receive it.
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#143675] shadow-sm dark:bg-slate-950 dark:text-[#8bb3ff]">
+            Step 1
+          </span>
+        </div>
+
+        <ScheduleTypeSelector
+          isHorarioAbierto={isHorarioAbierto}
+          onModeChange={onModeChange}
+        />
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onResetSchedule} disabled={isSubmitting}>
+            Reset schedule
+          </Button>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            Strict stores start/end times. Open stores workdays without fixed punch times.
+          </span>
         </div>
       </div>
-    </>
+
+      {!isHorarioAbierto ? (
+        <ScheduleTemplateSelector
+          activeTemplates={activeTemplates}
+          selectedScheduleTemplateId={selectedScheduleTemplateId}
+          selectedTemplateName={selectedTemplateName}
+          onScheduleTemplateChange={onScheduleTemplateChange}
+        />
+      ) : null}
+
+      <WorkingGrid
+        horarios={horarios}
+        isHorarioAbierto={isHorarioAbierto}
+        onCopyMondayToAllDays={onCopyMondayToAllDays}
+        onHorarioChange={onHorarioChange}
+        onWorkingDayChange={onWorkingDayChange}
+      />
+
+      {!isHorarioAbierto ? (
+        <ScheduleRulesSection
+          horarios={horarios}
+          toleranciaIngreso={toleranciaIngreso}
+          onHorarioChange={onHorarioChange}
+          onToleranciaIngresoChange={onToleranciaIngresoChange}
+        />
+      ) : null}
+
+      <LocationRuleSelector
+        employeeBusinessLocationSummary={employeeBusinessLocationSummary}
+        exactLocationOptions={exactLocationOptions}
+        exactLocationWarning={exactLocationWarning}
+        locationRule={locationRule}
+        locationScopeFallbackMessage={locationScopeFallbackMessage}
+        locationScopeSummary={locationScopeSummary}
+        selectedEmployeeBusinessWarning={selectedEmployeeBusinessWarning}
+        ubicacionSeleccionada={ubicacionSeleccionada}
+        onLocationRuleChange={onLocationRuleChange}
+        onUbicacionSeleccionadaChange={onUbicacionSeleccionadaChange}
+      />
+    </section>
+  );
+}
+
+function ScheduleTypeSelector({
+  isHorarioAbierto,
+  onModeChange,
+}: {
+  isHorarioAbierto: boolean;
+  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+}) {
+  return (
+    <div>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Schedule type</span>
+      <div className="grid gap-3 md:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onModeChange('Horario estricto')}
+          className={`rounded-2xl border p-4 text-left transition-all ${
+            !isHorarioAbierto
+              ? 'border-[#143675] bg-white ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+              : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+              !isHorarioAbierto ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+            }`}
+            >
+              {!isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">Strict schedule</p>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                Formal start and end times are required for attendance access.
+              </p>
+            </div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => onModeChange('Horario abierto')}
+          className={`rounded-2xl border p-4 text-left transition-all ${
+            isHorarioAbierto
+              ? 'border-[#143675] bg-white ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+              : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+              isHorarioAbierto ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+            }`}
+            >
+              {isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">Open schedule</p>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                Workdays are active, but no fixed access time is stored.
+              </p>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleTemplateSelector({
+  activeTemplates,
+  selectedScheduleTemplateId,
+  selectedTemplateName,
+  onScheduleTemplateChange,
+}: {
+  activeTemplates: AttendanceControlTemplate[];
+  selectedScheduleTemplateId: number | null;
+  selectedTemplateName: string;
+  onScheduleTemplateChange: (value: string) => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 2</p>
+          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Template</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use a saved strict template or continue with the current setup.</p>
+        </div>
+        <span className="inline-flex shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-blue-950/40 dark:text-[#8bb3ff]">
+          {selectedTemplateName}
+        </span>
+      </div>
+      <select
+        value={selectedScheduleTemplateId ? String(selectedScheduleTemplateId) : ''}
+        onChange={(event) => onScheduleTemplateChange(event.target.value)}
+        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+      >
+        <option value="">Default schedule</option>
+        {activeTemplates.map((template) => (
+          <option key={template.id} value={template.id}>{template.name}</option>
+        ))}
+      </select>
+    </section>
+  );
+}
+
+function WorkingGrid({
+  horarios,
+  isHorarioAbierto,
+  onCopyMondayToAllDays,
+  onHorarioChange,
+  onWorkingDayChange,
+}: {
+  horarios: HorarioDiaDraft[];
+  isHorarioAbierto: boolean;
+  onCopyMondayToAllDays: () => void;
+  onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
+  onWorkingDayChange: (index: number, isWorkingDay: boolean) => void;
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 3</p>
+          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Working grid</h3>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={onCopyMondayToAllDays}>
+          Copy Monday to all days
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px]">
+          <thead className="bg-white dark:bg-slate-950">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Day</th>
+              {!isHorarioAbierto ? (
+                <>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Start</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">End</th>
+                </>
+              ) : null}
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {horarios.map((horario, index) => {
+              const isWorkingDay = !horario.isRestDay;
+              const isOvernightShift = !horario.isRestDay
+                && Boolean(horario.entrada)
+                && Boolean(horario.salida)
+                && horario.salida < horario.entrada;
+
+              return (
+                <tr key={horario.dayOfWeek}>
+                  <td className="px-3 py-3 text-sm font-medium text-slate-950 dark:text-white">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={isWorkingDay}
+                        onCheckedChange={(checked) => onWorkingDayChange(index, checked === true)}
+                      />
+                      {horario.dia}
+                    </div>
+                  </td>
+                  {!isHorarioAbierto ? (
+                    <>
+                      <td className="px-3 py-3">
+                        <input
+                          type="time"
+                          value={horario.entrada}
+                          onChange={(event) => onHorarioChange(index, 'entrada', event.target.value)}
+                          disabled={horario.isRestDay}
+                          className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <input
+                          type="time"
+                          value={horario.salida}
+                          onChange={(event) => onHorarioChange(index, 'salida', event.target.value)}
+                          disabled={horario.isRestDay}
+                          className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        />
+                        {isOvernightShift ? (
+                          <p className="mt-1 text-[11px] font-medium text-blue-600 dark:text-blue-300">Ends next day</p>
+                        ) : null}
+                      </td>
+                    </>
+                  ) : null}
+                  <td className="px-3 py-3">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      isWorkingDay
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                    }`}
+                    >
+                      {isWorkingDay ? 'Working' : 'No shift'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function ScheduleRulesSection({
+  horarios,
+  toleranciaIngreso,
+  onHorarioChange,
+  onToleranciaIngresoChange,
+}: {
+  horarios: HorarioDiaDraft[];
+  toleranciaIngreso: number;
+  onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
+  onToleranciaIngresoChange: (value: number) => void;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 4</p>
+          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Attendance rules</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Rules that apply only to strict schedules.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/60 dark:bg-orange-950/30">
+          <label className="mb-2 block text-sm font-semibold text-slate-900 dark:text-white">Mark late after</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min="0"
+              max="60"
+              value={toleranciaIngreso}
+              onChange={(event) => onToleranciaIngresoChange(Number(event.target.value) || 0)}
+              className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+          </div>
+          <p className="mt-2 text-xs text-orange-700 dark:text-orange-300">
+            Employees can still clock in after this time. The attendance record will be marked late.
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm font-semibold text-slate-950 dark:text-white">Meal and break minutes</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Optional minutes stored per workday.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px]">
+            <thead>
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Day</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Meal</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Break</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {horarios.map((horario, index) => (
+                <tr key={horario.dayOfWeek}>
+                  <td className="px-3 py-3 text-sm font-medium text-slate-900 dark:text-white">{horario.dia}</td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      min="0"
+                      value={horario.comida}
+                      onChange={(event) => onHorarioChange(index, 'comida', Number(event.target.value) || 0)}
+                      className="h-9 w-20 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      min="0"
+                      value={horario.descanso}
+                      onChange={(event) => onHorarioChange(index, 'descanso', Number(event.target.value) || 0)}
+                      className="h-9 w-20 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LocationRuleSelector({
+  employeeBusinessLocationSummary,
+  exactLocationOptions,
+  exactLocationWarning,
+  locationRule,
+  locationScopeFallbackMessage,
+  locationScopeSummary,
+  selectedEmployeeBusinessWarning,
+  ubicacionSeleccionada,
+  onLocationRuleChange,
+  onUbicacionSeleccionadaChange,
+}: {
+  employeeBusinessLocationSummary: string;
+  exactLocationOptions: AttendanceControlLocation[];
+  exactLocationWarning: string;
+  locationRule: ScheduleLocationRule;
+  locationScopeFallbackMessage: string;
+  locationScopeSummary: string;
+  selectedEmployeeBusinessWarning: string;
+  ubicacionSeleccionada: string;
+  onLocationRuleChange: (value: string) => void;
+  onUbicacionSeleccionadaChange: (value: string) => void;
+}) {
+  const locationOptions: Array<{
+    value: ScheduleLocationRule;
+    title: string;
+    description: string;
+  }> = [
+    {
+      value: 'business',
+      title: 'Force to employee business location',
+      description: 'Use the active location saved for each employee business.',
+    },
+    {
+      value: 'temporary',
+      title: 'Temporary location',
+      description: 'Force all selected employees to one temporary location.',
+    },
+    {
+      value: 'open',
+      title: 'Open (no restriction)',
+      description: 'Do not enforce a specific check-in location from this schedule.',
+    },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 5</p>
+        <h3 className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-white">
+          <MapPin className="h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
+          Location rule
+        </h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Choose how location validation should behave for this schedule.
+        </p>
+      </div>
+
+      <div className="grid gap-3">
+        {locationOptions.map((option) => {
+          const isSelected = locationRule === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onLocationRuleChange(option.value)}
+              className={`rounded-2xl border p-4 text-left transition-all ${
+                isSelected
+                  ? 'border-[#143675] bg-blue-50 ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+                  : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                  isSelected ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+                }`}
+                >
+                  {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-950 dark:text-white">{option.title}</p>
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{option.description}</p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {locationRule === 'temporary' ? (
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            Temporary location
+          </label>
+          <select
+            value={ubicacionSeleccionada}
+            onChange={(event) => onUbicacionSeleccionadaChange(event.target.value)}
+            disabled={exactLocationOptions.length === 0}
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          >
+            <option value="">{exactLocationOptions.length === 0 ? 'No active locations available' : 'Select location'}</option>
+            {exactLocationOptions.map((location) => (
+              <option key={location.id} value={location.id}>{formatLocationOption(location)}</option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{locationScopeSummary}</p>
+          {locationScopeFallbackMessage ? (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{locationScopeFallbackMessage}</p>
+          ) : null}
+          {exactLocationWarning ? (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{exactLocationWarning}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {locationRule === 'business' ? (
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
+          <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <div>
+            <p>{employeeBusinessLocationSummary}</p>
+            {selectedEmployeeBusinessWarning ? (
+              <p className="mt-1 text-amber-700 dark:text-amber-300">{selectedEmployeeBusinessWarning}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {locationRule === 'open' ? (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
+          No exact location will be enforced by this schedule.
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ScheduleImpactSummary({
+  assignmentDateError,
+  compact = false,
+  effectiveStartDate,
+  selectedEmployeeCount,
+}: {
+  assignmentDateError: string;
+  compact?: boolean;
+  effectiveStartDate: string;
+  selectedEmployeeCount: number;
+}) {
+  const formattedStartDate = formatEffectiveDate(effectiveStartDate);
+  const hasSelectedEmployees = selectedEmployeeCount > 0;
+  const startMessage = `Schedule will be applied starting ${formattedStartDate}.`;
+  const overrideMessage = hasSelectedEmployees
+    ? 'Existing schedules will be overridden.'
+    : 'Select employees after reviewing the schedule.';
+
+  if (compact) {
+    return (
+      <div className="min-w-0 text-sm">
+        <p className="font-semibold text-white">{selectedEmployeeCount} employee{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
+        <p className="mt-0.5 max-w-2xl truncate text-white/75">{assignmentDateError || `${startMessage} ${overrideMessage}`}</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
+      <div className="flex items-start gap-3">
+        <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-[#8bb3ff]" />
+        <div>
+          <p className="font-semibold">{selectedEmployeeCount} employee{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
+          <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{assignmentDateError || startMessage}</p>
+          {!assignmentDateError ? (
+            <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{overrideMessage}</p>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }

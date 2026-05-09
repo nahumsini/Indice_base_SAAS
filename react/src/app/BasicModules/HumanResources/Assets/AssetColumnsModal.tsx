@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog';
 import { cn } from '../../../components/ui/utils';
-import { useHRLanguage } from '../HRLanguage';
+import type { AssetColumnPickerCopy } from './translations';
 import { useAssetsPortalTheme } from './useAssetsPortalTheme';
 
 export interface AssetColumnConfig {
@@ -21,6 +21,7 @@ export interface AssetColumnConfig {
 }
 
 interface AssetColumnsModalProps {
+  copy: AssetColumnPickerCopy;
   isOpen: boolean;
   onClose: () => void;
   columns: AssetColumnConfig[];
@@ -28,12 +29,12 @@ interface AssetColumnsModalProps {
 }
 
 export function AssetColumnsModal({
+  copy,
   isOpen,
   onClose,
   columns,
   onApply,
 }: AssetColumnsModalProps) {
-  const t = useHRLanguage().assets.columnPicker;
   const isDarkMode = useAssetsPortalTheme();
   const [localColumns, setLocalColumns] = useState<AssetColumnConfig[]>(columns);
 
@@ -85,17 +86,17 @@ export function AssetColumnsModal({
           )}
         >
           <DialogTitle className={cn('text-xl font-semibold', isDarkMode ? 'text-white' : 'text-gray-900')}>
-            {t.title}
+            {copy.title}
           </DialogTitle>
           <DialogDescription className={cn('text-sm', isDarkMode ? 'text-slate-300' : 'text-gray-600')}>
-            {t.subtitle}
+            {copy.subtitle}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 px-6 py-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className={cn('text-sm', isDarkMode ? 'text-slate-300' : 'text-gray-600')}>
-              {t.visibleCount(visibleCount, localColumns.length)}
+              {copy.visibleCount(visibleCount, localColumns.length)}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -109,7 +110,7 @@ export function AssetColumnsModal({
                     : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900',
                 )}
               >
-                {t.selectAll}
+                {copy.selectAll}
               </Button>
               <Button
                 type="button"
@@ -122,7 +123,7 @@ export function AssetColumnsModal({
                     : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900',
                 )}
               >
-                {t.reset}
+                {copy.reset}
               </Button>
             </div>
           </div>
@@ -150,7 +151,7 @@ export function AssetColumnsModal({
                   </p>
                   {column.locked ? (
                     <p className={cn('mt-0.5 text-xs', isDarkMode ? 'text-slate-400' : 'text-gray-500')}>
-                      {t.required}
+                      {copy.required}
                     </p>
                   ) : null}
                 </div>
@@ -175,10 +176,10 @@ export function AssetColumnsModal({
                 : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900',
             )}
           >
-            {t.cancel}
+            {copy.cancel}
           </Button>
           <Button type="button" onClick={handleApply} className="bg-[#5d35ff] text-white hover:bg-[#4e29ef]">
-            {t.apply}
+            {copy.apply}
           </Button>
         </DialogFooter>
       </DialogContent>
