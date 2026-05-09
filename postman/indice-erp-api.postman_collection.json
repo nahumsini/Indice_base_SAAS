@@ -353,11 +353,11 @@
       "name": "Human Resources",
       "item": [
         {
-          "name": "GET Employees",
+          "name": "GET HR Users",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/api/v1/hr/employees",
+              "raw": "{{base_url}}/api/v1/hr/users",
               "host": [
                 "{{base_url}}"
               ],
@@ -365,13 +365,13 @@
                 "api",
                 "v1",
                 "hr",
-                "employees"
+                "users"
               ]
             }
           }
         },
         {
-          "name": "POST Create Employee",
+          "name": "POST Create HR User",
           "event": [
             {
               "listen": "test",
@@ -380,7 +380,7 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "if (json && json.id) {",
-                  "  pm.collectionVariables.set('employee_id', String(json.id));",
+                  "  pm.collectionVariables.set('hr_user_id', String(json.id));",
                   "}"
                 ]
               }
@@ -399,7 +399,7 @@
               "raw": "{\n  \"first_name\": \"Postman\",\n  \"last_name\": \"Employee\",\n  \"email\": \"postman.{{$timestamp}}@example.com\",\n  \"position\": \"Analyst\",\n  \"department\": \"Operations\",\n  \"salary\": \"5000.00\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/hr/employees",
+              "raw": "{{base_url}}/api/v1/hr/users",
               "host": [
                 "{{base_url}}"
               ],
@@ -407,13 +407,13 @@
                 "api",
                 "v1",
                 "hr",
-                "employees"
+                "users"
               ]
             }
           }
         },
         {
-          "name": "PUT Update Employee",
+          "name": "PUT Update HR User",
           "request": {
             "method": "PUT",
             "header": [
@@ -427,7 +427,7 @@
               "raw": "{\n  \"position\": \"Senior Analyst\",\n  \"department\": \"Finance\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/hr/employees/{{employee_id}}",
+              "raw": "{{base_url}}/api/v1/hr/users/{{hr_user_id}}",
               "host": [
                 "{{base_url}}"
               ],
@@ -435,18 +435,18 @@
                 "api",
                 "v1",
                 "hr",
-                "employees",
-                "{{employee_id}}"
+                "users",
+                "{{hr_user_id}}"
               ]
             }
           }
         },
         {
-          "name": "POST Terminate Employee",
+          "name": "POST Terminate HR User",
           "request": {
             "method": "POST",
             "url": {
-              "raw": "{{base_url}}/api/v1/hr/employees/{{employee_id}}/terminate",
+              "raw": "{{base_url}}/api/v1/hr/users/{{hr_user_id}}/terminate",
               "host": [
                 "{{base_url}}"
               ],
@@ -454,19 +454,19 @@
                 "api",
                 "v1",
                 "hr",
-                "employees",
-                "{{employee_id}}",
+                "users",
+                "{{hr_user_id}}",
                 "terminate"
               ]
             }
           }
         },
         {
-          "name": "DELETE Employee",
+          "name": "DELETE HR User",
           "request": {
             "method": "DELETE",
             "url": {
-              "raw": "{{base_url}}/api/v1/hr/employees/{{employee_id}}",
+              "raw": "{{base_url}}/api/v1/hr/users/{{hr_user_id}}",
               "host": [
                 "{{base_url}}"
               ],
@@ -474,8 +474,8 @@
                 "api",
                 "v1",
                 "hr",
-                "employees",
-                "{{employee_id}}"
+                "users",
+                "{{hr_user_id}}"
               ]
             }
           }
@@ -500,7 +500,7 @@
       "type": "string"
     },
     {
-      "key": "employee_id",
+      "key": "hr_user_id",
       "value": "",
       "type": "string"
     }
