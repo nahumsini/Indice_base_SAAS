@@ -20,6 +20,8 @@ cd ~/Documents/Indice/Indice_base_SAAS
 ./mvnw spring-boot:run
 ```
 
+Local backend runs include Spring Boot DevTools. When Java classes are recompiled, the running backend restarts automatically. If your editor does not compile on save, run `./mvnw -q -DskipTests compile` after edits to trigger the restart.
+
 Default URL:
 
 - `http://127.0.0.1:8082`

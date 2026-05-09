@@ -502,8 +502,8 @@ class HrFirstRunIntegrationTest {
             null,
             days
         );
-        assignSchedule(session, dailyEmployeeId, templateId, overnightDate.toString(), effectiveEndDate.toString());
-        assignSchedule(session, hourlyEmployeeId, templateId, overnightDate.toString(), effectiveEndDate.toString());
+        seedScheduleAssignment(dailyEmployeeId, templateId, overnightDate, effectiveEndDate);
+        seedScheduleAssignment(hourlyEmployeeId, templateId, overnightDate, effectiveEndDate);
         seedAttendanceCheckIn(
             dailyEmployeeId,
             dailyLocationId,
@@ -820,7 +820,6 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "event_type", "check_in",
-                    "location_id", firstLocationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
                     "event_timestamp", attendanceTimestamp("08:42:00")
@@ -990,17 +989,18 @@ class HrFirstRunIntegrationTest {
                 .content(objectMapper.writeValueAsString(Map.of(
                     "employee_ids", List.of(employeeId),
                     "template_id", templateId,
-                    "effective_start_date", "2026-04-10"
+                    "effective_start_date", TEST_ATTENDANCE_DAY,
+                    "effective_end_date", TEST_ATTENDANCE_DAY
                 )))
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.assigned_count").value(1))
             .andExpect(jsonPath("$.template_name").value("Late Shift " + uniqueSuffix));
 
-	        mockMvc.perform(
-	            get("/api/v1/hr/attendance/control-overview")
+        mockMvc.perform(
+            get("/api/v1/hr/attendance/control-overview")
                 .session(session)
-                .param("date", "2026-04-10")
+                .param("date", TEST_ATTENDANCE_DAY)
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.assignments[?(@.employee_id==" + employeeId + ")].schedule_template_name").value("Late Shift " + uniqueSuffix));
@@ -1011,8 +1011,8 @@ class HrFirstRunIntegrationTest {
             var session = authenticatedSession();
             var uniqueSuffix = System.currentTimeMillis();
             var employeeId = createEmployeeForTests(session, uniqueSuffix);
-            var targetDate = "2026-04-10";
-            var nextDate = "2026-04-11";
+            var targetDate = TEST_ATTENDANCE_DAY;
+            var nextDate = TEST_ATTENDANCE_DATE.plusDays(1).toString();
         var templateId = createScheduleTemplate(
             session,
             "Clear Candidate Shift " + uniqueSuffix,
@@ -1028,7 +1028,7 @@ class HrFirstRunIntegrationTest {
                 Map.of("day_of_week", 7, "late_after_minutes", 0, "is_rest_day", true)
             )
         );
-        assignSchedule(session, employeeId, templateId, targetDate);
+        assignSchedule(session, employeeId, templateId, targetDate, nextDate);
 
 	        var beforeResponse = mockMvc.perform(
 	            get("/api/v1/hr/attendance/schedule-candidates")
@@ -1111,8 +1111,8 @@ class HrFirstRunIntegrationTest {
         var otherBusiness = businessFixtures.get(1);
         var openEmployeeId = createEmployeeForTests(session, uniqueSuffix, employeeBusiness);
         var strictEmployeeId = createEmployeeForTests(session, uniqueSuffix + 1, employeeBusiness);
-        var openPin = "open-" + uniqueSuffix;
-        var strictPin = "strict-" + uniqueSuffix;
+        var openPin = pinForSuffix(uniqueSuffix, 11);
+        var strictPin = pinForSuffix(uniqueSuffix, 12);
         activatePinAccess(session, openEmployeeId, openPin);
         activatePinAccess(session, strictEmployeeId, strictPin);
         var attendanceDate = java.time.LocalDate.now();
@@ -1293,7 +1293,7 @@ class HrFirstRunIntegrationTest {
         );
         assertThat(activeWorkSiteLocationId).isEqualTo(transferLocationId);
 
-        var pin = "scope-" + uniqueSuffix;
+        var pin = pinForSuffix(uniqueSuffix, 21);
         activatePinAccess(session, employeeId, pin);
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
@@ -1350,8 +1350,8 @@ class HrFirstRunIntegrationTest {
             var uniqueSuffix = System.currentTimeMillis();
 	        var employeeId = createEmployeeForTests(session, uniqueSuffix);
 	        var locationId = createBusinessLocationForEmployee(employeeId, uniqueSuffix, "Pin Flow");
-	        var validPin = String.valueOf(100000 + Math.floorMod(uniqueSuffix, 900000));
-	        var invalidPin = validPin + "9";
+	        var validPin = pinForSuffix(uniqueSuffix, 31);
+	        var invalidPin = pinForSuffix(uniqueSuffix, 32);
 
             var profileId = jdbcTemplate.queryForObject(
             "SELECT id FROM hr_employee_access_profiles WHERE employee_id = ? LIMIT 1",
@@ -1366,11 +1366,11 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                         "access_profile_id", profileId,
-                        "method_type", "pin",
-                        "secret", validPin,
-                        "status", "active",
-                    "priority", 10
-                )))
+	                        "method_type", "pin",
+	                        "secret", validPin,
+	                        "status", "active",
+	                    "priority", 0
+	                )))
         )
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.access_method.method_type").value("pin"));
@@ -1388,23 +1388,16 @@ class HrFirstRunIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.access_profile.default_method").value("pin"));
 
-        var kioskDeviceId = jdbcTemplate.queryForObject(
-            "SELECT id FROM hr_kiosk_devices WHERE company_id = 1 AND code = 'spring-front-kiosk' LIMIT 1",
-            Long.class
-        );
-        assertThat(kioskDeviceId).isNotNull();
-
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                         "employee_id", employeeId,
-                        "event_kind", "check_in",
-                        "auth_method", "pin",
-                        "credential_payload", invalidPin,
-                        "kiosk_device_id", kioskDeviceId,
-	                    "location_id", locationId,
+	                        "event_kind", "check_in",
+	                        "auth_method", "pin",
+	                        "credential_payload", invalidPin,
+		                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
                     "event_timestamp", attendanceTimestamp("08:35:00")
@@ -1434,11 +1427,10 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                         "employee_id", employeeId,
-                        "event_kind", "check_in",
-                        "auth_method", "pin",
-                        "credential_payload", validPin,
-                        "kiosk_device_id", kioskDeviceId,
-	                    "location_id", locationId,
+	                        "event_kind", "check_in",
+	                        "auth_method", "pin",
+	                        "credential_payload", validPin,
+		                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
                     "event_timestamp", attendanceTimestamp("08:35:00")
@@ -1453,11 +1445,10 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                         "employee_id", employeeId,
-                        "event_kind", "break_out",
-                        "auth_method", "pin",
-                        "credential_payload", validPin,
-                        "kiosk_device_id", kioskDeviceId,
-	                    "location_id", locationId,
+	                        "event_kind", "break_out",
+	                        "auth_method", "pin",
+	                        "credential_payload", validPin,
+		                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
                     "event_timestamp", attendanceTimestamp("13:00:00")
@@ -1472,11 +1463,10 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                         "employee_id", employeeId,
-                        "event_kind", "break_in",
-                        "auth_method", "pin",
-                        "credential_payload", validPin,
-                        "kiosk_device_id", kioskDeviceId,
-	                    "location_id", locationId,
+	                        "event_kind", "break_in",
+	                        "auth_method", "pin",
+	                        "credential_payload", validPin,
+		                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
                     "event_timestamp", attendanceTimestamp("13:40:00")
@@ -1491,11 +1481,10 @@ class HrFirstRunIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                         "employee_id", employeeId,
-                        "event_kind", "check_out",
-                        "auth_method", "pin",
-                        "credential_payload", validPin,
-                        "kiosk_device_id", kioskDeviceId,
-	                    "location_id", locationId,
+	                        "event_kind", "check_out",
+	                        "auth_method", "pin",
+	                        "credential_payload", validPin,
+		                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
                     "event_timestamp", attendanceTimestamp("17:15:00")
@@ -1552,9 +1541,8 @@ class HrFirstRunIntegrationTest {
                 .content(objectMapper.writeValueAsString(Map.of(
                     "employee_id", employeeId,
                     "event_kind", "check_in",
-                    "auth_method", "manual_override",
-                    "kiosk_device_id", 1,
-                    "location_id", locationId,
+	                    "auth_method", "manual_override",
+	                    "location_id", locationId,
                     "latitude", 25.6866140,
                     "longitude", -100.3161130,
                     "event_timestamp", attendanceTimestamp("08:35:00")
@@ -2116,7 +2104,7 @@ class HrFirstRunIntegrationTest {
                     "method_type", "pin",
                     "secret", pin,
                     "status", "active",
-                    "priority", 10
+                    "priority", 0
                 )))
         )
             .andExpect(status().isCreated())
@@ -2134,6 +2122,10 @@ class HrFirstRunIntegrationTest {
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.access_profile.default_method").value("pin"));
+    }
+
+    private String pinForSuffix(long uniqueSuffix, int offset) {
+        return String.format("%05d", 10000 + Math.floorMod(uniqueSuffix + offset, 90000));
     }
 
     private long createHourlyEmployeeForTests(HttpSession session, long uniqueSuffix) throws Exception {
@@ -2310,6 +2302,25 @@ class HrFirstRunIntegrationTest {
         );
     }
 
+    private void seedScheduleAssignment(
+        long employeeId,
+        long templateId,
+        LocalDate effectiveStartDate,
+        LocalDate effectiveEndDate
+    ) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO hr_employee_schedule_assignments
+                (company_id, employee_id, template_id, effective_start_date, effective_end_date, status, created_by)
+                VALUES (1, ?, ?, ?, ?, 'active', 1)
+                """,
+            employeeId,
+            templateId,
+            effectiveStartDate,
+            effectiveEndDate
+        );
+    }
+
     private long createScheduleTemplate(
         HttpSession session,
         String name,
@@ -2346,7 +2357,7 @@ class HrFirstRunIntegrationTest {
     }
 
         private void assignSchedule(HttpSession session, long employeeId, long templateId, String effectiveStartDate) throws Exception {
-            assignSchedule(session, employeeId, templateId, effectiveStartDate, null);
+            assignSchedule(session, employeeId, templateId, effectiveStartDate, effectiveStartDate);
         }
 
         private void assignSchedule(

@@ -16,6 +16,7 @@ interface ModuleCardProps {
   size?: 'small' | 'medium' | 'large';
   stepNumber?: number;
   isHighlighted?: boolean;
+  onboardingTarget?: string;
 }
 
 const colorClasses = {
@@ -82,11 +83,18 @@ export function ModuleCard({
   size = 'medium',
   stepNumber,
   isHighlighted,
+  onboardingTarget,
 }: ModuleCardProps) {
   const sizeClasses = {
     small: 'p-2',
     medium: 'p-3',
     large: 'p-3.5',
+  };
+
+  const cardSizeClasses = {
+    small: 'w-[140px] min-w-[140px] max-w-[140px] h-[112px] min-h-[112px]',
+    medium: 'w-[170px] min-w-[170px] max-w-[170px] h-[136px] min-h-[136px]',
+    large: 'w-[210px] min-w-[210px] max-w-[210px] h-[168px] min-h-[168px]',
   };
 
   const iconSizeClasses = {
@@ -119,12 +127,21 @@ export function ModuleCard({
     large: 72,
   };
 
+  const iconAreaClasses = {
+    small: 'h-[58px]',
+    medium: 'h-[76px]',
+    large: 'h-[100px]',
+  };
+
   return (
     <Card 
       onClick={onClick}
+      data-onboarding-target={onboardingTarget}
+      tabIndex={onboardingTarget ? -1 : undefined}
+      aria-label={title}
       className={`
       ${sizeClasses[size]} 
-      aspect-[5/4]
+      ${cardSizeClasses[size]}
       hover:shadow-md hover:-translate-y-1
       transition-all duration-300 
       cursor-pointer 
@@ -132,10 +149,11 @@ export function ModuleCard({
       group 
       bg-white dark:bg-gray-800
       border-2
-      ${isHighlighted ? 'border-blue-500 shadow-lg shadow-blue-200 scale-105 ring-4 ring-blue-100' : colorClasses[color].border}
+      ${isHighlighted ? 'border-blue-500 shadow-lg shadow-blue-200 ring-4 ring-blue-100 dark:ring-blue-900/40' : colorClasses[color].border}
       flex-shrink-0
-      w-[140px] md:w-auto
       snap-center
+      overflow-hidden
+      focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40
     `}>
       {/* Step Number Badge - Solo visible cuando stepNumber está presente */}
       {stepNumber !== undefined && (
@@ -168,13 +186,13 @@ export function ModuleCard({
         </button>
       )}
       
-      <div className="flex flex-col items-center justify-center text-center h-full">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center text-center">
         {emoji ? (
-          <div className="transition-transform group-hover:scale-110 flex-1 flex items-center justify-center mb-1">
+          <div className={`transition-transform group-hover:scale-110 flex ${iconAreaClasses[size]} flex-none items-center justify-center mb-1`}>
             <span className={`${emojiSizeClasses[size]} group-hover:animate-bounce-subtle`}>{emoji}</span>
           </div>
         ) : iconType ? (
-          <div className="transition-transform group-hover:scale-110 flex-1 flex items-center justify-center mb-1">
+          <div className={`transition-transform group-hover:scale-110 flex ${iconAreaClasses[size]} flex-none items-center justify-center mb-1`}>
             <FlatIcon type={iconType} size={flatIconSizes[size]} />
           </div>
         ) : Icon ? (
@@ -185,7 +203,7 @@ export function ModuleCard({
             transition-transform 
             group-hover:scale-110
             animate-pulse-glow
-            flex-1 flex items-center justify-center mb-1
+            flex ${iconAreaClasses[size]} flex-none items-center justify-center mb-1
           `}>
             <Icon className={`${iconSizeClasses[size]} ${colorClasses[color].icon} group-hover:animate-bounce-subtle`} />
           </div>

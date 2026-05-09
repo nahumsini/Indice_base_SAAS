@@ -9,6 +9,8 @@ export const gastosTranslations = {
       presupuestos: 'Presupuestos',
       proveedores: 'Proveedores',
       kpis: 'KPIs',
+      accountingAccounts: 'Cuentas contables',
+      paymentAccounts: 'Cuentas de pago',
     },
   },
   'es-CO': {
@@ -20,6 +22,8 @@ export const gastosTranslations = {
       presupuestos: 'Presupuestos',
       proveedores: 'Proveedores',
       kpis: 'KPIs',
+      accountingAccounts: 'Cuentas contables',
+      paymentAccounts: 'Cuentas de pago',
     },
   },
   'en-US': {
@@ -31,6 +35,8 @@ export const gastosTranslations = {
       presupuestos: 'Budgets',
       proveedores: 'Suppliers',
       kpis: 'KPIs',
+      accountingAccounts: 'Accounting accounts',
+      paymentAccounts: 'Payment accounts',
     },
   },
   'en-CA': {
@@ -42,6 +48,8 @@ export const gastosTranslations = {
       presupuestos: 'Budgets',
       proveedores: 'Suppliers',
       kpis: 'KPIs',
+      accountingAccounts: 'Accounting accounts',
+      paymentAccounts: 'Payment accounts',
     },
   },
   'fr-CA': {
@@ -53,6 +61,8 @@ export const gastosTranslations = {
       presupuestos: 'Budgets',
       proveedores: 'Fournisseurs',
       kpis: 'ICP',
+      accountingAccounts: 'Comptes comptables',
+      paymentAccounts: 'Comptes de paiement',
     },
   },
   'pt-BR': {
@@ -64,6 +74,8 @@ export const gastosTranslations = {
       presupuestos: 'Orçamentos',
       proveedores: 'Fornecedores',
       kpis: 'KPIs',
+      accountingAccounts: 'Contas contabeis',
+      paymentAccounts: 'Contas de pagamento',
     },
   },
   'ko-CA': {
@@ -75,6 +87,8 @@ export const gastosTranslations = {
       presupuestos: '예산',
       proveedores: '공급업체',
       kpis: 'KPI',
+      accountingAccounts: '회계 계정',
+      paymentAccounts: '결제 계정',
     },
   },
   'zh-CA': {
@@ -86,6 +100,8 @@ export const gastosTranslations = {
       presupuestos: '预算',
       proveedores: '供应商',
       kpis: '关键绩效指标',
+      accountingAccounts: '会计账户',
+      paymentAccounts: '付款账户',
     },
   },
 };

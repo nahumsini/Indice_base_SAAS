@@ -4,6 +4,9 @@ export const endpoints = {
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',
   },
+  invitations: {
+    base: '/api/v1/invitations',
+  },
   dashboard: {
     modules: '/api/v1/modules',
     units: '/api/v1/org/units',
@@ -21,6 +24,7 @@ export const endpoints = {
     saveEmpresa: '/api/v1/config-center/company',
     locationCoordinateExtraction: '/api/v1/config-center/locations/extract-coordinates',
     saveCurrentUser: '/api/v1/config-center/current-user',
+    currentUserAvatarPresignUpload: '/api/v1/config-center/current-user/avatar/presign-upload',
   },
   humanResources: {
     employeesList: '/api/v1/hr/employees',

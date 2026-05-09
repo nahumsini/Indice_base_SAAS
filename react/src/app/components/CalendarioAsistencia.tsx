@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Camera, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
+import { cn } from './ui/utils';
 import type { AttendanceCalendarDay, AttendanceCorrectionStatus } from '../api/humanResources';
 import { useLanguage } from '../shared/context';
 
@@ -15,6 +16,7 @@ interface CalendarioAsistenciaProps {
     date: string,
     status: AttendanceCorrectionStatus | '',
   ) => Promise<void>;
+  displayMode?: 'card' | 'embedded';
 }
 
 const calendarCopy = {
@@ -233,6 +235,7 @@ export function CalendarioAsistencia({
   isLoading,
   onMonthChange,
   onUpdateStatus,
+  displayMode = 'card',
 }: CalendarioAsistenciaProps) {
   const { currentLanguage } = useLanguage();
   const copy = currentLanguage.code.startsWith('es') ? calendarCopy.es : calendarCopy.en;
@@ -342,8 +345,15 @@ export function CalendarioAsistencia({
   ];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <div
+      className={cn(
+        'text-gray-900 dark:text-gray-100',
+        displayMode === 'card'
+          ? 'rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800'
+          : 'bg-transparent',
+      )}
+    >
+      <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/70 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.title}</h3>
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{colaboradorNombre}</p>
@@ -363,11 +373,11 @@ export function CalendarioAsistencia({
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40"
+            className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/70"
           >
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
               {card.label}
@@ -377,7 +387,7 @@ export function CalendarioAsistencia({
         ))}
       </div>
 
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900/70 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
             <ChevronLeft className="h-4 w-4" />
@@ -392,7 +402,7 @@ export function CalendarioAsistencia({
         </h4>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
         <div className="mb-2 grid grid-cols-7 gap-2">
           {weekdayLabels.map((weekday) => (
             <div key={weekday} className="py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -482,7 +492,7 @@ export function CalendarioAsistencia({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 border-t border-gray-200 pt-4 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-400">
+      <div className="flex flex-wrap gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-400">
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded-full bg-emerald-500" />
           <span>{copy.legend.entry}</span>
@@ -497,7 +507,7 @@ export function CalendarioAsistencia({
         </div>
       </div>
 
-      <div className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
+      <div className="mt-5">
         {selectedDay ? (
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
             <div className="space-y-4">

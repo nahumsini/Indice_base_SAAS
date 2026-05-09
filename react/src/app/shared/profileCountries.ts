@@ -1,6 +1,12 @@
-import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
+import { Country } from 'country-state-city';
+import {
+  getCountryCallingCode,
+  isSupportedCountry,
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from 'libphonenumber-js/max';
 
-export type ProfileCountry = 'AR' | 'BR' | 'CA' | 'CL' | 'CO' | 'ES' | 'MX' | 'PE' | 'US';
+export type ProfileCountry = string;
 
 export type ProfileCountryOption = {
   code: ProfileCountry;
@@ -11,58 +17,66 @@ export type ProfileCountryOption = {
 
 export const DEFAULT_PROFILE_COUNTRY: ProfileCountry = 'MX';
 
+const PRIORITY_PROFILE_COUNTRY_CODES = ['MX', 'US', 'CA', 'ES', 'CO', 'AR', 'BR', 'CL', 'PE'] as const;
+
+const normalizePhoneCode = (phoneCode: string) => {
+  const primaryPhoneCode = phoneCode.split(/\s+and\s+/i)[0]?.trim() ?? '';
+  return primaryPhoneCode.startsWith('+') ? primaryPhoneCode : `+${primaryPhoneCode}`;
+};
+
+const getDialCodeForCountry = (countryCode: string, phoneCode: string) => (
+  isSupportedCountry(countryCode as CountryCode)
+    ? `+${getCountryCallingCode(countryCode as CountryCode)}`
+    : normalizePhoneCode(phoneCode)
+);
+
+const allCountryOptions = Country.getAllCountries().map((country) => ({
+  code: country.isoCode,
+  dialCode: getDialCodeForCountry(country.isoCode, country.phonecode),
+  flag: country.flag,
+  fallbackName: country.name,
+}));
+
+const priorityCountryOptions = PRIORITY_PROFILE_COUNTRY_CODES
+  .map((countryCode) => allCountryOptions.find((country) => country.code === countryCode))
+  .filter((country): country is ProfileCountryOption => Boolean(country));
+
+const priorityCountryCodes = new Set(priorityCountryOptions.map((country) => country.code));
+
 export const PROFILE_COUNTRY_OPTIONS: ProfileCountryOption[] = [
-  { code: 'MX', dialCode: '+52', flag: '🇲🇽', fallbackName: 'Mexico' },
-  { code: 'US', dialCode: '+1', flag: '🇺🇸', fallbackName: 'United States' },
-  { code: 'CA', dialCode: '+1', flag: '🇨🇦', fallbackName: 'Canada' },
-  { code: 'ES', dialCode: '+34', flag: '🇪🇸', fallbackName: 'Spain' },
-  { code: 'CO', dialCode: '+57', flag: '🇨🇴', fallbackName: 'Colombia' },
-  { code: 'AR', dialCode: '+54', flag: '🇦🇷', fallbackName: 'Argentina' },
-  { code: 'BR', dialCode: '+55', flag: '🇧🇷', fallbackName: 'Brazil' },
-  { code: 'CL', dialCode: '+56', flag: '🇨🇱', fallbackName: 'Chile' },
-  { code: 'PE', dialCode: '+51', flag: '🇵🇪', fallbackName: 'Peru' },
+  ...priorityCountryOptions,
+  ...allCountryOptions
+    .filter((country) => !priorityCountryCodes.has(country.code))
+    .sort((firstCountry, secondCountry) => (
+      firstCountry.fallbackName.localeCompare(secondCountry.fallbackName, 'en')
+    )),
 ];
 
 const PROFILE_COUNTRY_BY_CODE = new Map(
   PROFILE_COUNTRY_OPTIONS.map((country) => [country.code, country] as const),
 );
 
-const COUNTRY_BY_DIAL_CODE: Partial<Record<string, ProfileCountry>> = {
-  '+1': 'US',
-  '+34': 'ES',
-  '+51': 'PE',
-  '+52': 'MX',
-  '+54': 'AR',
-  '+55': 'BR',
-  '+56': 'CL',
-  '+57': 'CO',
-};
+const COUNTRY_BY_DIAL_CODE: Partial<Record<string, ProfileCountry>> = PROFILE_COUNTRY_OPTIONS.reduce(
+  (countryByDialCode, country) => {
+    if (!countryByDialCode[country.dialCode]) {
+      countryByDialCode[country.dialCode] = country.code;
+    }
+
+    return countryByDialCode;
+  },
+  {} as Partial<Record<string, ProfileCountry>>,
+);
 
 const PHONE_PREFIX_PATTERN = /^(\+\d{1,3})\s*(.*)$/;
 
 export function isProfileCountry(value: string): value is ProfileCountry {
-  return PROFILE_COUNTRY_BY_CODE.has(value as ProfileCountry);
+  return PROFILE_COUNTRY_BY_CODE.has(value);
 }
 
 export function normalizeProfileCountry(value?: string): ProfileCountry | undefined {
   const normalizedValue = (value ?? '').trim().toUpperCase();
   return isProfileCountry(normalizedValue) ? normalizedValue : undefined;
 }
-
-const COUNTRY_NAME_TO_CODE: Record<string, ProfileCountry> = {
-  argentina: 'AR',
-  brazil: 'BR',
-  brasil: 'BR',
-  canada: 'CA',
-  chile: 'CL',
-  colombia: 'CO',
-  espana: 'ES',
-  spain: 'ES',
-  mexico: 'MX',
-  peru: 'PE',
-  estadosunidos: 'US',
-  unitedstates: 'US',
-};
 
 const normalizeCountryName = (value?: string) => (
   (value ?? '')
@@ -73,6 +87,19 @@ const normalizeCountryName = (value?: string) => (
     .replace(/[^a-z]/g, '')
 );
 
+const COUNTRY_NAME_ALIASES: Record<string, ProfileCountry> = {
+  brasil: 'BR',
+  espana: 'ES',
+  estadosunidos: 'US',
+  unitedstatesofamerica: 'US',
+  usa: 'US',
+};
+
+const COUNTRY_NAME_TO_CODE = new Map<string, ProfileCountry>([
+  ...PROFILE_COUNTRY_OPTIONS.map((country) => [normalizeCountryName(country.fallbackName), country.code] as const),
+  ...Object.entries(COUNTRY_NAME_ALIASES),
+]);
+
 export function resolveProfileCountry(value?: string): ProfileCountry | undefined {
   const normalizedCode = normalizeProfileCountry(value);
   if (normalizedCode) {
@@ -80,7 +107,7 @@ export function resolveProfileCountry(value?: string): ProfileCountry | undefine
   }
 
   const normalizedName = normalizeCountryName(value);
-  return normalizedName ? COUNTRY_NAME_TO_CODE[normalizedName] : undefined;
+  return normalizedName ? COUNTRY_NAME_TO_CODE.get(normalizedName) : undefined;
 }
 
 export function getDefaultProfileCountry(): ProfileCountry {

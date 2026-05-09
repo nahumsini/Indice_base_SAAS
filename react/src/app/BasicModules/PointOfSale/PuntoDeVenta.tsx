@@ -1,85 +1,87 @@
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { usePuntoDeVentaTranslations } from '../../hooks/usePuntoDeVentaTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import Facturacion from './Facturacion';
-import Inventario from './Inventario';
-import Historial from './Historial';
-import Precios from './Precios';
-import Arqueos from './Arqueos';
-import Turnos from './Turnos';
-import Clientes from './Clientes';
-import Productos from './Productos';
-import Descuentos from './Descuentos';
-import KPIs from './KPIs';
+
+const Sale = lazy(() => import('./Sale/Sale'));
+const Cortes = lazy(() => import('./Cortes'));
+const Clientes = lazy(() => import('./Clientes'));
+const Productos = lazy(() => import('./Productos'));
+const Inventario = lazy(() => import('./Inventario'));
+const OrdenesCompra = lazy(() => import('./OrdenesCompra'));
+const Facturacion = lazy(() => import('./Facturacion'));
+const Descuentos = lazy(() => import('./Descuentos'));
+const KPIs = lazy(() => import('./KPIs'));
 
 interface PuntoDeVentaProps {
   onNavigate: (page?: string) => void;
 }
 
 const pointOfSaleTabIds = [
-  'billing',
-  'inventory',
-  'history',
-  'pricing',
-  'cash-counts',
-  'shifts',
-  'customers',
-  'products',
-  'discounts',
+  'sale',
+  'cortes',
+  'clientes',
+  'productos',
+  'inventario',
+  'ordenesCompra',
+  'facturacion',
+  'descuentos',
   'kpis',
 ] as const;
 
 type PointOfSaleTabId = (typeof pointOfSaleTabIds)[number];
 
 const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
-  facturacion: 'billing',
-  inventario: 'inventory',
-  historial: 'history',
-  precios: 'pricing',
-  arqueos: 'cash-counts',
-  turnos: 'shifts',
-  clientes: 'customers',
-  productos: 'products',
-  descuentos: 'discounts',
+  venta: 'sale',
+  arqueos: 'cortes',
+  productos: 'productos',
+  ordenesCompra: 'ordenesCompra',
+  ordenes_compra: 'ordenesCompra',
 };
 
 export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
   const t = usePuntoDeVentaTranslations();
-  const { activeTab, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
-    'billing',
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
+    'sale',
     pointOfSaleTabIds,
     legacyPointOfSaleTabAliases,
   );
 
   const tabs = [
-    { id: 'billing', label: t.tabs.facturacion, emoji: '🧾', component: Facturacion },
-    { id: 'inventory', label: t.tabs.inventario, emoji: '📦', component: Inventario },
-    { id: 'history', label: t.tabs.historial, emoji: '📜', component: Historial },
-    { id: 'pricing', label: t.tabs.precios, emoji: '💵', component: Precios },
-    { id: 'cash-counts', label: t.tabs.arqueos, emoji: '💰', component: Arqueos },
-    { id: 'shifts', label: t.tabs.turnos, emoji: '🔄', component: Turnos },
-    { id: 'customers', label: t.tabs.clientes, emoji: '👥', component: Clientes },
-    { id: 'products', label: t.tabs.productos, emoji: '🛍️', component: Productos },
-    { id: 'discounts', label: t.tabs.descuentos, emoji: '🎁', component: Descuentos },
-    { id: 'kpis', label: t.tabs.kpis, emoji: '📊', component: KPIs },
+    { id: 'sale' as const, label: 'Venta', emoji: '🛒', component: Sale },
+    { id: 'cortes' as const, label: t.tabs.arqueos, emoji: '💰', component: Cortes },
+    { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👥', component: Clientes },
+    { id: 'productos' as const, label: t.tabs.productos, emoji: '🛍️', component: Productos },
+    { id: 'inventario' as const, label: t.tabs.inventario, emoji: '📦', component: Inventario },
+    { id: 'ordenesCompra' as const, label: t.tabs.ordenesCompra, emoji: '📋', component: OrdenesCompra },
+    { id: 'facturacion' as const, label: t.tabs.facturacion, emoji: '🧾', component: Facturacion },
+    { id: 'descuentos' as const, label: t.tabs.descuentos, emoji: '🎁', component: Descuentos },
+    { id: 'kpis' as const, label: t.tabs.kpis, emoji: '📊', component: KPIs },
   ];
 
   // Get the active component
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Facturacion;
+  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Sale;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title="Loading point of sale tab"
+        description="Opening the selected sales operation workspace."
+      />
+
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
           {/* Barra de Favoritos */}
           <FavoritesBar 
             onNavigate={(page) => {
-              if (page === 'point-of-sale') return;
+              if (page === 'punto-de-venta') return; // Ya estamos aquí
               onNavigate(page);
             }} 
-            currentModule="point-of-sale" 
+            currentModule="punto-de-venta" 
           />
           
           <div className="flex items-start justify-between">
@@ -105,7 +107,7 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as PointOfSaleTabId)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-orange-500 text-white shadow-md'
@@ -122,7 +124,17 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <ActiveComponent />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading point of sale tab"
+              description="Downloading only the selected sales operation workspace."
+            />
+          )}
+        >
+          <ActiveComponent />
+        </Suspense>
       </div>
     </div>
   );

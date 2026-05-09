@@ -1,14 +1,29 @@
 import { useMemo, useState } from 'react';
-import { Calendar, Plus } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
 import { CreatePermissionModal, type PermissionFormData } from './components/CreatePermissionModal';
+import { PermissionColumnsModal, type PermissionColumn } from './components/PermissionColumnsModal';
 import { PermissionDetailModal } from './components/PermissionDetailModal';
 import { PermissionFilters } from './components/PermissionFilters';
-import { PermissionsTable } from './components/PermissionsTable';
+import { PermissionHeaderBar } from './components/PermissionHeaderBar';
+import { PermissionKpiStrip } from './components/PermissionKpiStrip';
+import { PermissionsTable, type PermissionColumnId } from './components/PermissionsTable';
 import { mockPermissions } from './data/permissions.mock';
+import { usePermissionsResolvedLocale, usePermissionsTranslations } from './hooks/usePermissionsTranslations';
 import type { PermissionItem, PermissionFilterState } from './types/permissions.types';
 
+const defaultVisiblePermissionColumns: PermissionColumnId[] = [
+  'folio',
+  'employee',
+  'type',
+  'startDate',
+  'endDate',
+  'days',
+  'status',
+  'actions',
+];
+
 export default function Permissions() {
+  const copy = usePermissionsTranslations();
+  const locale = usePermissionsResolvedLocale();
   const [permissions, setPermissions] = useState<PermissionItem[]>(mockPermissions);
   const [filters, setFilters] = useState<PermissionFilterState>({
     search: '',
@@ -18,9 +33,27 @@ export default function Permissions() {
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [visiblePermissionColumns, setVisiblePermissionColumns] = useState<PermissionColumnId[]>(
+    defaultVisiblePermissionColumns,
+  );
   const [selectedPermission, setSelectedPermission] = useState<PermissionItem | null>(null);
 
   const isManager = true;
+
+  const permissionColumns = useMemo<PermissionColumn[]>(
+    () => [
+      { id: 'folio', label: copy.columns.folio, locked: true },
+      { id: 'employee', label: copy.columns.employee, locked: true },
+      { id: 'type', label: copy.columns.type },
+      { id: 'startDate', label: copy.columns.startDate },
+      { id: 'endDate', label: copy.columns.endDate },
+      { id: 'days', label: copy.columns.days },
+      { id: 'status', label: copy.columns.status },
+      { id: 'actions', label: copy.columns.actions, locked: true },
+    ],
+    [copy],
+  );
 
   const filteredPermissions = useMemo(() => {
     return permissions.filter((permission) => {
@@ -103,55 +136,42 @@ export default function Permissions() {
     )));
   };
 
+  const handleToggleColumn = (columnId: string) => {
+    const column = permissionColumns.find((item) => item.id === columnId);
+    if (column?.locked) {
+      return;
+    }
+
+    setVisiblePermissionColumns((current) =>
+      current.includes(columnId as PermissionColumnId)
+        ? current.filter((id) => id !== columnId)
+        : [...current, columnId as PermissionColumnId],
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl bg-gray-100 px-6 py-8 dark:bg-gray-900">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="mb-2 flex items-center gap-2 text-3xl font-bold text-gray-900 dark:text-white">
-              <Calendar className="h-8 w-8" />
-              Permissions & Absences
-            </h2>
-            <p className="text-base text-gray-600 dark:text-gray-400">
-              Manage employee requests, vacations, and absences
-            </p>
-          </div>
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            New Request
-          </Button>
-        </div>
-      </div>
+      <PermissionHeaderBar
+        copy={copy}
+        onColumns={() => setIsColumnsModalOpen(true)}
+        onCreate={() => setIsCreateModalOpen(true)}
+      />
 
-      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-        <span className="flex items-center gap-1.5">
-          📋 <span className="font-medium text-gray-900 dark:text-white">{stats.total}</span> total requests
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ⏳ <span className="font-medium text-yellow-600 dark:text-yellow-400">{stats.pending}</span> pending
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ✓ <span className="font-medium text-green-600 dark:text-green-400">{stats.approved}</span> approved
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">•</span>
-        <span className="flex items-center gap-1.5">
-          ✕ <span className="font-medium text-red-600 dark:text-red-400">{stats.rejected}</span> rejected
-        </span>
-      </div>
+      <PermissionFilters copy={copy} filters={filters} onFiltersChange={setFilters} isManager={isManager} permissions={permissions} />
 
-      <PermissionFilters filters={filters} onFiltersChange={setFilters} isManager={isManager} permissions={permissions} />
-
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        Showing {filteredPermissions.length} of {permissions.length} requests
-      </div>
+      <PermissionKpiStrip
+        copy={copy}
+        approved={stats.approved}
+        pending={stats.pending}
+        rejected={stats.rejected}
+        total={stats.total}
+        visible={filteredPermissions.length}
+      />
 
       <PermissionsTable
+        copy={copy}
         permissions={filteredPermissions}
+        visibleColumns={visiblePermissionColumns}
         onView={(permission) => {
           setSelectedPermission(permission);
           setIsDetailModalOpen(true);
@@ -161,13 +181,25 @@ export default function Permissions() {
         isManager={isManager}
       />
 
+      <PermissionColumnsModal
+        columns={permissionColumns}
+        copy={copy.columnsModal}
+        isOpen={isColumnsModalOpen}
+        visibleColumns={visiblePermissionColumns}
+        onClose={() => setIsColumnsModalOpen(false)}
+        onToggleColumn={handleToggleColumn}
+      />
+
       <CreatePermissionModal
+        copy={copy}
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreatePermission}
       />
 
       <PermissionDetailModal
+        copy={copy}
+        locale={locale}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         permission={selectedPermission}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -14,6 +15,8 @@ interface ConfirmDeleteDialogProps {
   description?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmDisabled?: boolean;
+  children?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -25,6 +28,8 @@ export function ConfirmDeleteDialog({
   description,
   confirmLabel = 'Delete',
   cancelLabel = 'Cancel',
+  confirmDisabled = false,
+  children,
   onConfirm,
   onCancel,
 }: ConfirmDeleteDialogProps) {
@@ -55,6 +60,11 @@ export function ConfirmDeleteDialog({
               {itemName}
             </div>
           ) : null}
+          {children ? (
+            <div className="mt-4">
+              {children}
+            </div>
+          ) : null}
         </DialogHeader>
 
         <div className="flex flex-col-reverse gap-3 bg-gray-50 px-5 py-4 dark:bg-gray-900/40 sm:flex-row sm:justify-end">
@@ -70,6 +80,7 @@ export function ConfirmDeleteDialog({
             type="button"
             variant="destructive"
             onClick={onConfirm}
+            disabled={confirmDisabled}
             className="w-full sm:w-auto"
           >
             {confirmLabel}
