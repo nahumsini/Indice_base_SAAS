@@ -18,7 +18,7 @@ services:
     depends_on:
       - minio
     volumes:
-      - ./ops/minio/attendance-cors.json:/config/attendance-cors.json:ro
+      - ./ops/minio/attendance-cors.xml:/config/attendance-cors.xml:ro
     entrypoint: >
       /bin/sh -c "
       until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 2; done &&
@@ -26,8 +26,8 @@ services:
       mc anonymous set none local/indice-hr-attendance &&
       mc mb --ignore-existing local/indice-hr-biometric &&
       mc anonymous set none local/indice-hr-biometric &&
-      mc cors set local/indice-hr-attendance /config/attendance-cors.json &&
-      mc cors set local/indice-hr-biometric /config/attendance-cors.json
+      mc cors set local/indice-hr-attendance /config/attendance-cors.xml || true &&
+      mc cors set local/indice-hr-biometric /config/attendance-cors.xml || true
       "
 
   face-service:
