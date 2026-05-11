@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import { router } from './app/routes';
 import { FavoritesProvider, LanguageProvider } from './app/shared/context';
+import { PettyCashProvider } from './app/BasicModules/PettyCash/context/PettyCashContext';
 import './styles/index.css';
 
 const rootElement = document.getElementById('root');
@@ -15,7 +16,9 @@ createRoot(rootElement).render(
   <StrictMode>
     <LanguageProvider>
       <FavoritesProvider>
-        <RouterProvider router={router} />
+        <PettyCashProvider>
+          <RouterProvider router={router} />
+        </PettyCashProvider>
       </FavoritesProvider>
     </LanguageProvider>
   </StrictMode>,

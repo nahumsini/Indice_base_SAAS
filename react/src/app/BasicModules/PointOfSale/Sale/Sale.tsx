@@ -11,6 +11,69 @@ import { ShiftBar } from './components/ShiftBar';
 import { TicketModal } from './components/TicketModal';
 import { DiscountModal } from './components/DiscountModal';
 import { ReturnModal } from './components/ReturnModal';
+import { IndiceSignalBar } from './components/IndiceSignalBar';
+import { OperationalActivityFeed, type OperationalActivity } from './components/OperationalActivityFeed';
+import { SaleSidePanel, type SaleSidePanelState } from './components/SaleSidePanel';
+import { SmartAlertsStrip, type SmartAlert } from './components/SmartAlertsStrip';
+import { SuspendedSalesPanel, type SuspendedSale } from './components/SuspendedSalesPanel';
+import { TouchKeypad } from './components/TouchKeypad';
+
+function buildInitialActivities(): OperationalActivity[] {
+  const now = Date.now();
+
+  return [
+    {
+      id: 'activity-sale-completed',
+      type: 'sale',
+      title: 'Sale completed',
+      description: 'Counter ticket collected with mixed payment',
+      timestamp: new Date(now - 5 * 60 * 1000),
+      actor: 'Ana POS',
+      badge: '$1,250',
+      tone: 'success',
+    },
+    {
+      id: 'activity-shift-opened',
+      type: 'shift',
+      title: 'Shift opened',
+      description: 'Juan opened register 01',
+      timestamp: new Date(now - 18 * 60 * 1000),
+      actor: 'Juan',
+      badge: 'Register 01',
+      tone: 'info',
+    },
+    {
+      id: 'activity-low-stock',
+      type: 'stock',
+      title: 'Low stock detected',
+      description: 'Reorder point reached in quick-sale products',
+      timestamp: new Date(now - 31 * 60 * 1000),
+      actor: 'System',
+      badge: 'Stock',
+      tone: 'warning',
+    },
+    {
+      id: 'activity-invoice-generated',
+      type: 'invoice',
+      title: 'Invoice generated',
+      description: 'Customer invoice sent by email',
+      timestamp: new Date(now - 44 * 60 * 1000),
+      actor: 'Finance',
+      badge: 'PDF/XML',
+      tone: 'neutral',
+    },
+    {
+      id: 'activity-return-processed',
+      type: 'return',
+      title: 'Return processed',
+      description: 'Partial return authorized by supervisor',
+      timestamp: new Date(now - 56 * 60 * 1000),
+      actor: 'Supervisor',
+      badge: 'Return',
+      tone: 'danger',
+    },
+  ];
+}
 
 export default function Sale() {
   const [cart, setCart] = useState<SaleItem[]>([]);
@@ -21,6 +84,10 @@ export default function Sale() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [lastAddedItem, setLastAddedItem] = useState<string | null>(null);
   const [cashReceived, setCashReceived] = useState<number>(0);
+  const [selectedQuickQuantity, setSelectedQuickQuantity] = useState(1);
+  const [suspendedSales, setSuspendedSales] = useState<SuspendedSale[]>([]);
+  const [recentActivities, setRecentActivities] = useState<OperationalActivity[]>(buildInitialActivities);
+  const [sidePanel, setSidePanel] = useState<SaleSidePanelState | null>(null);
 
   // Shift management
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
@@ -50,6 +117,17 @@ export default function Sale() {
   const [blockSalesWithoutStock, setBlockSalesWithoutStock] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  const pushActivity = (activity: Omit<OperationalActivity, 'id' | 'timestamp'>) => {
+    setRecentActivities((currentActivities) => [
+      {
+        ...activity,
+        id: `activity-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        timestamp: new Date(),
+      },
+      ...currentActivities,
+    ].slice(0, 20));
+  };
 
   // Check if shift is needed on mount
   useEffect(() => {
@@ -109,6 +187,83 @@ export default function Sale() {
     return { subtotal, tax, total, paid, remaining, change, isPaid };
   }, [cart, payments]);
 
+  const stockSignals = useMemo(() => {
+    const lowStockProducts = mockProducts.filter(
+      (product) => product.status === 'active' && product.useInventory && product.currentStock <= product.minStock,
+    );
+    const outOfStockProducts = lowStockProducts.filter((product) => product.currentStock <= 0);
+    const topProduct = mockProducts.find((product) => product.status === 'active');
+
+    return {
+      lowStockProducts,
+      outOfStockProducts,
+      topProduct,
+    };
+  }, []);
+
+  const smartAlerts = useMemo<SmartAlert[]>(() => {
+    const { lowStockProducts, outOfStockProducts, topProduct } = stockSignals;
+    const alerts: SmartAlert[] = [];
+
+    if (outOfStockProducts.length > 0) {
+      alerts.push({
+        id: 'out-of-stock',
+        category: 'Risk',
+        title: 'Product out of stock',
+        description: `${outOfStockProducts[0].name} cannot be sold without override.`,
+        tone: 'critical',
+        actionLabel: 'Open decision panel',
+        onAction: () => setSidePanel({ type: 'product', product: outOfStockProducts[0] }),
+      });
+    }
+
+    if (lowStockProducts.length > 0) {
+      alerts.push({
+        id: 'low-stock',
+        category: 'Risk',
+        title: 'Critical stock',
+        description: `${lowStockProducts.length} product${lowStockProducts.length === 1 ? '' : 's'} need replenishment.`,
+        tone: 'warning',
+        actionLabel: 'Open decision panel',
+        onAction: () => setSidePanel({ type: 'product', product: lowStockProducts[0] }),
+      });
+    }
+
+    if (topProduct) {
+      alerts.push({
+        id: 'top-product',
+        category: 'Opportunity',
+        title: 'Top seller detected',
+        description: `${topProduct.name} is moving faster than usual.`,
+        tone: 'hot',
+        actionLabel: 'Open decision panel',
+        onAction: () => setSidePanel({ type: 'product', product: topProduct }),
+      });
+    }
+
+    if (currentShift && currentShift.totalSales > 0) {
+      alerts.push({
+        id: 'sales-trend',
+        category: 'Opportunity',
+        title: 'Sales trend up',
+        description: 'Current shift is pacing above the usual morning baseline.',
+        tone: 'success',
+      });
+    }
+
+    if (suspendedSales.length > 0) {
+      alerts.push({
+        id: 'suspended-sales',
+        category: 'Control',
+        title: 'Open tickets waiting',
+        description: `${suspendedSales.length} suspended sale${suspendedSales.length === 1 ? '' : 's'} need follow-up.`,
+        tone: 'info',
+      });
+    }
+
+    return alerts.slice(0, 4);
+  }, [currentShift, stockSignals, suspendedSales.length]);
+
   // Handle barcode scan
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,7 +283,7 @@ export default function Sale() {
   };
 
   // Add to cart
-  const addToCart = (product: any) => {
+  const addToCart = (product: any, quantity = 1) => {
     // Check stock
     if (product.useInventory) {
       const currentInCart = cart.find(item => item.productId === product.id)?.quantity || 0;
@@ -142,7 +297,7 @@ export default function Sale() {
             return;
           }
         }
-      } else if (currentInCart + 1 > product.currentStock) {
+      } else if (currentInCart + quantity > product.currentStock) {
         alert(`Stock insuficiente. Disponible: ${product.currentStock}`);
         return;
       }
@@ -151,20 +306,21 @@ export default function Sale() {
     const existingItem = cart.find(item => item.productId === product.id);
 
     if (existingItem) {
-      updateQuantity(existingItem.id, existingItem.quantity + 1);
+      updateQuantity(existingItem.id, existingItem.quantity + quantity);
       setLastAddedItem(existingItem.id);
     } else {
+      const subtotal = product.salePrice * quantity;
       const newItem: SaleItem = {
         id: `item-${Date.now()}-${product.id}`,
         productId: product.id,
         name: product.name,
         price: product.salePrice,
-        quantity: 1,
+        quantity,
         discount: 0,
         discountType: 'percentage',
-        subtotal: product.salePrice,
-        tax: product.salePrice * 0.16,
-        total: product.salePrice * 1.16,
+        subtotal,
+        tax: subtotal * 0.16,
+        total: subtotal * 1.16,
       };
       setCart([newItem, ...cart]); // Add to top
       setLastAddedItem(newItem.id);
@@ -261,6 +417,81 @@ export default function Sale() {
     }
   };
 
+  const suspendCurrentSale = () => {
+    if (cart.length === 0) {
+      return;
+    }
+
+    const suspendedSale: SuspendedSale = {
+      id: `suspended-${Date.now()}`,
+      title: `Ticket ${suspendedSales.length + 1}`,
+      items: [...cart],
+      payments: [...payments],
+      total: totals.total,
+      createdAt: new Date(),
+    };
+
+    setSuspendedSales([suspendedSale, ...suspendedSales]);
+    setCart([]);
+    setPayments([]);
+    setCashReceived(0);
+    setBarcodeInput('');
+    pushActivity({
+      type: 'sale',
+      title: 'Sale suspended',
+      description: `${suspendedSale.items.length} lines parked for later recovery`,
+      actor: currentShift?.cashierName ?? 'Cashier',
+      badge: formatCurrency(suspendedSale.total),
+      tone: 'info',
+    });
+  };
+
+  const resumeSuspendedSale = (saleId: string) => {
+    const suspendedSale = suspendedSales.find((sale) => sale.id === saleId);
+    if (!suspendedSale) {
+      return;
+    }
+
+    if ((cart.length > 0 || payments.length > 0) && !confirm('Replace the current ticket with this suspended sale?')) {
+      return;
+    }
+
+    setCart(suspendedSale.items);
+    setPayments(suspendedSale.payments);
+    setSuspendedSales(suspendedSales.filter((sale) => sale.id !== saleId));
+    pushActivity({
+      type: 'sale',
+      title: 'Suspended sale resumed',
+      description: `${suspendedSale.title} returned to the selling surface`,
+      actor: currentShift?.cashierName ?? 'Cashier',
+      badge: formatCurrency(suspendedSale.total),
+      tone: 'success',
+    });
+  };
+
+  const discardSuspendedSale = (saleId: string) => {
+    setSuspendedSales(suspendedSales.filter((sale) => sale.id !== saleId));
+  };
+
+  const openSalePanel = () => {
+    setSidePanel({
+      type: 'sale',
+      cart,
+      payments,
+      totals,
+      cashierName: currentShift?.cashierName ?? 'No active cashier',
+    });
+  };
+
+  const toggleFullscreenMode = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+      return;
+    }
+
+    document.exitFullscreen?.();
+  };
+
   // Add payment
   const handleAddPayment = (method: PaymentMethod) => {
     if (cart.length === 0) {
@@ -305,8 +536,8 @@ export default function Sale() {
   };
 
   // Complete sale
-  const completeSale = () => {
-    if (!totals.isPaid) {
+  const completeSale = (salePayments = payments, saleTotals = totals) => {
+    if (!saleTotals.isPaid) {
       alert('El pago no está completo. Agrega más pagos para cubrir el total.');
       return;
     }
@@ -323,16 +554,16 @@ export default function Sale() {
     setLastSale({
       saleNumber,
       items: [...cart],
-      payments: [...payments],
-      totals: { ...totals },
+      payments: [...salePayments],
+      totals: { ...saleTotals },
     });
 
     // Update shift with sale
-    const cashPayment = payments.find(p => p.method === 'cash')?.amount || 0;
+    const cashPayment = salePayments.find(p => p.method === 'cash')?.amount || 0;
     setCurrentShift({
       ...currentShift,
       sales: currentShift.sales + 1,
-      totalSales: currentShift.totalSales + totals.total,
+      totalSales: currentShift.totalSales + saleTotals.total,
       expectedCash: currentShift.expectedCash + cashPayment,
     });
 
@@ -353,6 +584,14 @@ export default function Sale() {
 
     // Show ticket
     setShowTicketModal(true);
+    pushActivity({
+      type: 'sale',
+      title: 'Sale completed',
+      description: `${cart.length} lines collected by ${currentShift.cashierName}`,
+      actor: currentShift.cashierName,
+      badge: formatCurrency(saleTotals.total),
+      tone: 'success',
+    });
   };
 
   // Quick exact payment (no modal)
@@ -374,11 +613,20 @@ export default function Sale() {
       amount: totals.remaining,
     };
 
-    setPayments([...payments, exactPayment]);
+    const nextPayments = [...payments, exactPayment];
+    const nextTotals = {
+      ...totals,
+      paid: totals.total,
+      remaining: 0,
+      change: 0,
+      isPaid: true,
+    };
+
+    setPayments(nextPayments);
 
     // Complete sale immediately
     setTimeout(() => {
-      completeSale();
+      completeSale(nextPayments, nextTotals);
     }, 100);
   };
 
@@ -398,6 +646,14 @@ export default function Sale() {
 
     setCurrentShift(newShift);
     setShowOpenShiftModal(false);
+    pushActivity({
+      type: 'shift',
+      title: 'Shift opened',
+      description: `Initial cash ${formatCurrency(initialCash)}`,
+      actor: cashierName,
+      badge: 'Register open',
+      tone: 'info',
+    });
   };
 
   // Close shift
@@ -456,6 +712,14 @@ export default function Sale() {
     });
 
     alert(`${type === 'entry' ? 'Entrada' : 'Salida'} registrada: ${formatCurrency(amount)}`);
+    pushActivity({
+      type: 'cash',
+      title: type === 'entry' ? 'Cash entry recorded' : 'Cash withdrawal recorded',
+      description: reason,
+      actor: currentShift.cashierName,
+      badge: formatCurrency(amount),
+      tone: type === 'entry' ? 'success' : 'warning',
+    });
   };
 
   // Process return
@@ -465,6 +729,14 @@ export default function Sale() {
 
     alert(`Devolución ${type === 'full' ? 'total' : 'parcial'} procesada.\nVenta: ${saleId}\n\nNota de crédito generada.`);
     setShowReturnModal(false);
+    pushActivity({
+      type: 'return',
+      title: 'Return processed',
+      description: `${type === 'full' ? 'Full' : 'Partial'} return for sale ${saleId}`,
+      actor: currentShift?.cashierName ?? 'Supervisor',
+      badge: 'Credit note',
+      tone: 'danger',
+    });
   };
 
   // Keyboard shortcuts
@@ -566,7 +838,21 @@ export default function Sale() {
         onOpenReturn={() => setShowReturnModal(true)}
       />
 
-      <div className="h-[calc(100vh-290px)] flex gap-4 mt-2">
+      <div className="mt-3">
+        <IndiceSignalBar
+          salesTrendLabel={currentShift.totalSales > 0 ? '+18% shift pace' : 'baseline shift pace'}
+          lowStockCount={stockSignals.lowStockProducts.length}
+          suspendedCount={suspendedSales.length}
+          activeAlertCount={smartAlerts.length}
+          isShiftActive={Boolean(currentShift)}
+        />
+      </div>
+
+      <div className="mt-3">
+        <SmartAlertsStrip alerts={smartAlerts} />
+      </div>
+
+      <div className="h-[calc(100vh-390px)] min-h-[720px] flex gap-4 mt-3">
       {/* Left Panel - Quick Products */}
       <div className="w-80 flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
         {/* Header */}
@@ -607,7 +893,7 @@ export default function Sale() {
               return (
                 <button
                   key={product.id}
-                  onClick={() => addToCart(product)}
+                  onClick={() => addToCart(product, selectedQuickQuantity)}
                   disabled={isOutOfStock && blockSalesWithoutStock}
                   className={`relative group p-4 rounded-xl border-2 transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                     isOutOfStock
@@ -621,6 +907,12 @@ export default function Sale() {
                   <div className="absolute top-2 right-2 w-6 h-6 bg-orange-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-sm">
                     {index + 1}
                   </div>
+
+                  {selectedQuickQuantity > 1 && (
+                    <div className="absolute bottom-2 right-2 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm dark:bg-white dark:text-gray-900">
+                      x{selectedQuickQuantity}
+                    </div>
+                  )}
 
                   {/* Stock Status Badge */}
                   {isOutOfStock && (
@@ -736,7 +1028,14 @@ export default function Sale() {
                       </div>
 
                       {/* Product Info */}
-                      <div className="flex-1 min-w-0">
+                      <div
+                        className="flex-1 min-w-0 cursor-pointer rounded-lg p-1 -m-1 transition hover:bg-white/70 dark:hover:bg-gray-800/50"
+                        onClick={() => {
+                          if (product) {
+                            setSidePanel({ type: 'product', product });
+                          }
+                        }}
+                      >
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-gray-900 dark:text-white truncate">
                             {item.name}
@@ -910,6 +1209,17 @@ export default function Sale() {
           )}
         </div>
 
+        <div className="border-b border-gray-200 p-4 dark:border-gray-700">
+          <SuspendedSalesPanel
+            suspendedSales={suspendedSales}
+            canSuspend={cart.length > 0}
+            onSuspend={suspendCurrentSale}
+            onResume={resumeSuspendedSale}
+            onDiscard={discardSuspendedSale}
+            formatCurrency={formatCurrency}
+          />
+        </div>
+
         {/* Payments List */}
         {payments.length > 0 && (
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -955,7 +1265,18 @@ export default function Sale() {
         )}
 
         {/* Payment Methods */}
-        <div className="flex-1 p-6 space-y-3">
+        <div className="flex-1 p-6 space-y-3 overflow-y-auto">
+          <TouchKeypad
+            selectedQuantity={selectedQuickQuantity}
+            suspendedCount={suspendedSales.length}
+            canSuspendSale={cart.length > 0}
+            onQuantityChange={setSelectedQuickQuantity}
+            onOpenSalePanel={openSalePanel}
+            onOpenReturn={() => setShowReturnModal(true)}
+            onSuspendSale={suspendCurrentSale}
+            onFullscreen={toggleFullscreenMode}
+          />
+
           {/* Quick Exact Payment Button */}
           {!totals.isPaid && payments.length === 0 && (
             <button
@@ -1029,7 +1350,7 @@ export default function Sale() {
         {/* Complete Sale Button */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-700">
           <button
-            onClick={completeSale}
+            onClick={() => completeSale()}
             disabled={!totals.isPaid}
             className={`w-full p-4 rounded-xl font-bold text-lg shadow-lg transition-all ${
               totals.isPaid
@@ -1048,39 +1369,17 @@ export default function Sale() {
           </button>
         </div>
 
-        {/* Keyboard Shortcuts Info */}
-        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 space-y-3">
-          <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Atajos de Teclado:</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-2">
-                <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded font-mono">1-9</kbd>
-                <span className="text-gray-600 dark:text-gray-400">Productos</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded font-mono">F1</kbd>
-                <span className="text-gray-600 dark:text-gray-400">Efectivo</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded font-mono">F2</kbd>
-                <span className="text-gray-600 dark:text-gray-400">Tarjeta</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded font-mono">F3</kbd>
-                <span className="text-gray-600 dark:text-gray-400">Transfer</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded font-mono">F4</kbd>
-                <span className="text-gray-600 dark:text-gray-400">Cobrar</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded font-mono">ESC</kbd>
-                <span className="text-gray-600 dark:text-gray-400">Cancelar</span>
-              </div>
-            </div>
-          </div>
+        {/* Operational Activity */}
+        <div className="border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+          <OperationalActivityFeed activities={recentActivities} />
         </div>
       </div>
+
+      <SaleSidePanel
+        panel={sidePanel}
+        onClose={() => setSidePanel(null)}
+        formatCurrency={formatCurrency}
+      />
 
       {/* Payment Modal */}
       <AddPaymentModal

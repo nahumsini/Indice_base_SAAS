@@ -270,6 +270,7 @@ type TranslationDictionary = {
       facturacion: string;
       correoElectronico: string;
       climaLaboral: string;
+      afiliados: string;
       indiceAgenteVentas: string;
       indiceAnalitica: string;
       capacitacion: string;
@@ -1756,6 +1757,7 @@ const translations: Translations = {
       facturacion: 'Facturación',
       correoElectronico: 'Correo electrónico',
       climaLaboral: 'Clima laboral',
+      afiliados: 'Afiliados',
       indiceAgenteVentas: 'Índice Agente de Ventas',
       indiceAnalitica: 'Índice Analítica',
       capacitacion: 'Capacitación',
@@ -2587,6 +2589,7 @@ const translations: Translations = {
       facturacion: 'Facturación',
       correoElectronico: 'Correo electrónico',
       climaLaboral: 'Clima laboral',
+      afiliados: 'Afiliados',
       indiceAgenteVentas: 'Índice Agente de Ventas',
       indiceAnalitica: 'Índice Analítica',
       capacitacion: 'Capacitación',
@@ -3418,6 +3421,7 @@ const translations: Translations = {
       facturacion: 'Billing',
       correoElectronico: 'Email',
       climaLaboral: 'Work climate',
+      afiliados: 'Affiliates',
       indiceAgenteVentas: 'Sales Agent Index',
       indiceAnalitica: 'Analytics Index',
       capacitacion: 'Training',
@@ -4249,6 +4253,7 @@ const translations: Translations = {
       facturacion: 'Billing',
       correoElectronico: 'Email',
       climaLaboral: 'Work climate',
+      afiliados: 'Affiliates',
       indiceAgenteVentas: 'Sales Agent Index',
       indiceAnalitica: 'Analytics Index',
       capacitacion: 'Training',
@@ -5080,6 +5085,7 @@ const translations: Translations = {
       facturacion: 'Facturation',
       correoElectronico: 'Courriel',
       climaLaboral: 'Climat de travail',
+      afiliados: 'Affiliés',
       indiceAgenteVentas: 'Index Agent de Ventes',
       indiceAnalitica: 'Index Analytique',
       capacitacion: 'Formation',
@@ -5911,6 +5917,7 @@ const translations: Translations = {
       facturacion: 'Faturamento',
       correoElectronico: 'E-mail',
       climaLaboral: 'Clima de trabalho',
+      afiliados: 'Afiliados',
       indiceAgenteVentas: 'Índice Agente de Vendas',
       indiceAnalitica: 'Índice Analítica',
       capacitacion: 'Treinamento',
@@ -6742,6 +6749,7 @@ const translations: Translations = {
       facturacion: '청구',
       correoElectronico: '이메일',
       climaLaboral: '근무 환경',
+      afiliados: '제휴 회원',
       indiceAgenteVentas: '판매 에이전트 지수',
       indiceAnalitica: '분석 지수',
       capacitacion: '교육',
@@ -7573,6 +7581,7 @@ const translations: Translations = {
       facturacion: '计费',
       correoElectronico: '电子邮件',
       climaLaboral: '工作环境',
+      afiliados: '关联会员',
       indiceAgenteVentas: '销售代理指数',
       indiceAnalitica: '分析指数',
       capacitacion: '培训',

@@ -85,7 +85,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       case 'accounting':
         return <AccountingAccounts />;
       case 'payment_accounts':
-        return <PaymentAccounts />;
+        return <PaymentAccounts onNavigate={onNavigate} />;
       case 'expenses':
       default:
         return <Expenses expenses={expenses} onExpensesChange={setExpenses} />;

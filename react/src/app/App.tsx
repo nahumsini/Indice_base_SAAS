@@ -58,6 +58,7 @@ const Formularios = lazy(() => import('./ComplementaryModules/Forms'));
 const FacturacionComplementaria = lazy(() => import('./ComplementaryModules/Invoicing'));
 const CorreoElectronico = lazy(() => import('./ComplementaryModules/Email'));
 const ClimaLaboral = lazy(() => import('./ComplementaryModules/WorkClimate'));
+const Afiliados = lazy(() => import('./ComplementaryModules/Affiliates'));
 const AgenteVentas = lazy(() => import('./AIModules/SalesAgent'));
 const Analitica = lazy(() => import('./AIModules/Analytics'));
 const Capacitacion = lazy(() => import('./AIModules/Training'));
@@ -578,6 +579,8 @@ export default function App() {
       <Ventas onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
       <Kpis onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'affiliate-management' ? (
+      <Afiliados onNavigate={handleModuleNavigation} />
     ) : StandaloneModuleComponent ? (
       <StandaloneModuleShell onBack={() => handleModuleNavigation('dashboard')}>
         <StandaloneModuleComponent />
