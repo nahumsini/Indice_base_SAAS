@@ -74,7 +74,7 @@ class HrPayrollApiControllerTest {
                 "id", 5,
                 "status", "draft",
                 "pay_period", "weekly",
-                "employees_count", 2
+                "users_count", 2
             ))
         ));
 
@@ -93,15 +93,15 @@ class HrPayrollApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.items[0].id").value(5))
             .andExpect(jsonPath("$.items[0].status").value("draft"))
-            .andExpect(jsonPath("$.items[0].employees_count").value(2));
+            .andExpect(jsonPath("$.items[0].users_count").value(2));
     }
 
     @Test
-    void createRunsReturnsBadRequestWhenNoEmployeesMatchSelectedFrequency() throws Exception {
+    void createRunsReturnsBadRequestWhenNoHrUsersMatchSelectedFrequency() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrPayrollService.createRuns(eq(1L), eq(1L), anyMap()))
-            .willThrow(new IllegalArgumentException("No active employees are configured for the selected pay frequency."));
+            .willThrow(new IllegalArgumentException("No active HR users are configured for the selected pay frequency."));
 
         mockMvc.perform(
             post("/api/v1/hr/payroll/runs")
@@ -116,6 +116,6 @@ class HrPayrollApiControllerTest {
                     """)
         )
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("No active employees are configured for the selected pay frequency."));
+            .andExpect(jsonPath("$.message").value("No active HR users are configured for the selected pay frequency."));
     }
 }

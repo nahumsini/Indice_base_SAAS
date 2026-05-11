@@ -26,8 +26,7 @@ export interface ProjectFormValues {
   description: string;
   status: ProjectStatus;
   priority: ProjectPriority | 'none';
-  ownerUserId: string;
-  ownerEmployeeId: string;
+  ownerUserCompanyId: string;
   ownerName: string;
   businessId: string;
   unitId: string;
@@ -100,8 +99,7 @@ export function ProjectFormDialog({
 }: ProjectFormDialogProps) {
   const title = mode === 'create' ? 'Create project' : 'Edit project';
   const submitLabel = mode === 'create' ? 'Create project' : 'Save changes';
-  const hasOwnerConflict = Boolean(form.ownerUserId.trim()) && Boolean(form.ownerEmployeeId.trim());
-  const isFormValid = Boolean(form.name.trim()) && !hasOwnerConflict;
+  const isFormValid = Boolean(form.name.trim());
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -133,12 +131,6 @@ export function ProjectFormDialog({
             <DialogDescription className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
               Projects organize tasks and keep ownership, dates, and status scoped to the current company.
             </DialogDescription>
-
-            {hasOwnerConflict ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-                Use either owner employee ID or owner user ID, not both.
-              </div>
-            ) : null}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
@@ -174,24 +166,13 @@ export function ProjectFormDialog({
                 options={priorityOptions}
               />
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Owner user ID</label>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Owner HR user ID</label>
                 <Input
                   type="number"
                   min="1"
-                  value={form.ownerUserId}
-                  onChange={(event) => setForm((current) => ({ ...current, ownerUserId: event.target.value }))}
-                  placeholder="Optional"
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Owner employee ID</label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={form.ownerEmployeeId}
-                  onChange={(event) => setForm((current) => ({ ...current, ownerEmployeeId: event.target.value }))}
+                  value={form.ownerUserCompanyId}
+                  onChange={(event) => setForm((current) => ({ ...current, ownerUserCompanyId: event.target.value }))}
                   placeholder="Optional"
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />

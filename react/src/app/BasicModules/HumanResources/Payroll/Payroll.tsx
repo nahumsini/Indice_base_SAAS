@@ -46,7 +46,7 @@ import { ApiClientError, buildApiUrl } from '../../../lib/apiClient';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import {
   humanResourcesApi,
-  type EmployeeDetailsResponse,
+  type HrUserDetailsResponse,
   type PayrollLineItem,
   type PayrollManualItemPayload,
   type PayrollOverviewResponse,
@@ -100,8 +100,8 @@ import {
 const PAYROLL_PRINT_REPORT_ID_PREFIX = 'IDX-PR';
 const payrollRateFieldKeys = [
   'isr_rate',
-  'imss_employee_rate',
-  'infonavit_employee_rate',
+  'imss_user_rate',
+  'infonavit_user_rate',
   'imss_employer_rate',
   'infonavit_employer_rate',
   'sar_employer_rate',
@@ -125,8 +125,8 @@ type PayrollCopy = PayrollTranslations;
 
 const pickPayrollRateValues = (preferences: PayrollPreferences): PayrollRateValues => ({
   isr_rate: preferences.isr_rate,
-  imss_employee_rate: preferences.imss_employee_rate,
-  infonavit_employee_rate: preferences.infonavit_employee_rate,
+  imss_user_rate: preferences.imss_user_rate,
+  infonavit_user_rate: preferences.infonavit_user_rate,
   imss_employer_rate: preferences.imss_employer_rate,
   infonavit_employer_rate: preferences.infonavit_employer_rate,
   sar_employer_rate: preferences.sar_employer_rate,
@@ -172,8 +172,8 @@ const defaultPayrollPreferences: PayrollPreferences = {
   default_daily_hours: 8,
   pay_leave_days: true,
   isr_rate: 0.1,
-  imss_employee_rate: 0.04,
-  infonavit_employee_rate: 0.03,
+  imss_user_rate: 0.04,
+  infonavit_user_rate: 0.03,
   imss_employer_rate: 0.07,
   infonavit_employer_rate: 0.05,
   sar_employer_rate: 0.02,
@@ -839,7 +839,7 @@ export default function Payroll() {
       grouping_mode: 'single',
       grouping_label: '',
       grouping_key: '',
-      employees_count: 12,
+      users_count: 12,
       gross_amount: 16450,
       deductions_amount: 3340,
       employer_contributions_amount: 2260,
@@ -854,7 +854,7 @@ export default function Payroll() {
       grouping_mode: 'single',
       grouping_label: '',
       grouping_key: '',
-      employees_count: 9,
+      users_count: 9,
       gross_amount: 13120,
       deductions_amount: 2620,
       employer_contributions_amount: 1980,
@@ -869,7 +869,7 @@ export default function Payroll() {
       grouping_mode: 'single',
       grouping_label: '',
       grouping_key: '',
-      employees_count: 15,
+      users_count: 15,
       gross_amount: 19840,
       deductions_amount: 4170,
       employer_contributions_amount: 2985,
@@ -884,7 +884,7 @@ export default function Payroll() {
       grouping_mode: 'unit',
       grouping_label: 'Sales',
       grouping_key: '1',
-      employees_count: 8,
+      users_count: 8,
       gross_amount: 10490,
       deductions_amount: 1940,
       employer_contributions_amount: 1430,
@@ -899,7 +899,7 @@ export default function Payroll() {
       grouping_mode: 'business',
       grouping_label: 'MainCo',
       grouping_key: '2',
-      employees_count: 15,
+      users_count: 15,
       gross_amount: 21400,
       deductions_amount: 3920,
       employer_contributions_amount: 3240,
@@ -914,7 +914,7 @@ export default function Payroll() {
       grouping_mode: 'business',
       grouping_label: 'North America',
       grouping_key: '3',
-      employees_count: 11,
+      users_count: 11,
       gross_amount: 16900,
       deductions_amount: 3420,
       employer_contributions_amount: 2480,
@@ -929,7 +929,7 @@ export default function Payroll() {
       grouping_mode: 'single',
       grouping_label: '',
       grouping_key: '',
-      employees_count: 19,
+      users_count: 19,
       gross_amount: 41800,
       deductions_amount: 8470,
       employer_contributions_amount: 6150,
@@ -1025,8 +1025,8 @@ export default function Payroll() {
           bValue = b.grouping_mode;
           break;
         case 'employees':
-          aValue = a.employees_count;
-          bValue = b.employees_count;
+          aValue = a.users_count;
+          bValue = b.users_count;
           break;
         case 'totalAmount':
           aValue = a.net_amount;
@@ -1385,7 +1385,7 @@ export default function Payroll() {
     setIsEditRunDetailLoading(true);
     setEditRunForm({
       status: run.status,
-      employeesCount: String(run.employees_count),
+      employeesCount: String(run.users_count),
       netAmount: String(run.net_amount),
       jurisdiction: jurisdictionsByRunId[run.id] ?? '',
     });
@@ -1414,7 +1414,7 @@ export default function Payroll() {
         ? {
           ...run,
           status: editRunForm.status,
-          employees_count: Number.isFinite(parsedEmployees) ? Math.max(0, parsedEmployees) : run.employees_count,
+          users_count: Number.isFinite(parsedEmployees) ? Math.max(0, parsedEmployees) : run.users_count,
           net_amount: Number.isFinite(parsedNetAmount) ? Math.max(0, parsedNetAmount) : run.net_amount,
         }
         : run
@@ -1563,7 +1563,7 @@ export default function Payroll() {
   }));
   const shouldShowSetupGuide = !overview?.preferences && runs.length === 0;
   const resolveOperationalStatus = (run: PayrollRunSummary) => {
-    if (run.employees_count === 0 && run.status !== 'paid' && run.status !== 'cancelled') {
+    if (run.users_count === 0 && run.status !== 'paid' && run.status !== 'cancelled') {
       return {
         label: copy.operationalStatus.blocked,
         className: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300',
@@ -1846,7 +1846,7 @@ export default function Payroll() {
                         </TableCell>
                         <TableCell className="px-5 py-5 align-middle">
                           <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                            {run.employees_count}
+                            {run.users_count}
                           </span>
                         </TableCell>
                         <TableCell className="px-5 py-5 align-middle">
@@ -2042,11 +2042,11 @@ function PayrollEditRunDialog({
   const [breakdownRow, setBreakdownRow] = useState<PayrollRow | null>(null);
   const [variablePayByRow, setVariablePayByRow] = useState<Record<string, VariablePayItem[]>>({});
   const [variablePayEditorRowId, setVariablePayEditorRowId] = useState<string | null>(null);
-  const [employeeProfilesById, setEmployeeProfilesById] = useState<Record<number, EmployeeDetailsResponse['profile']>>({});
+  const [employeeProfilesById, setEmployeeProfilesById] = useState<Record<number, HrUserDetailsResponse['profile']>>({});
   const runLineEmployeeIds = useMemo(
     () => Array.from(new Set(
       runLines
-        .map((line) => line.employee_id)
+        .map((line) => line.user_company_id)
         .filter((employeeId): employeeId is number => Number.isFinite(employeeId)),
     )),
     [detail?.lines],
@@ -2063,7 +2063,7 @@ function PayrollEditRunDialog({
 
       const resolvedProfiles = await Promise.all(runLineEmployeeIds.map(async (employeeId) => {
         try {
-          const details = await humanResourcesApi.getEmployeeDetails(employeeId);
+          const details = await humanResourcesApi.getHrUserDetails(employeeId);
           return [employeeId, details.profile] as const;
         } catch {
           return [employeeId, {}] as const;
@@ -2529,7 +2529,7 @@ function PayrollEditRunDialog({
   });
 
   const detailedDetailRows: PayrollDetailedRow[] = runLines.map((line, index) => {
-    const jurisdictionProfile = resolveEmployeeJurisdictionProfile(line.employee_id, index);
+    const jurisdictionProfile = resolveEmployeeJurisdictionProfile(line.user_company_id, index);
     const statutoryPayroll = index > 1;
     const earnings = aggregateLineAmount(line, 'earning');
     const deductions = aggregateLineAmount(line, 'deduction');
@@ -2657,7 +2657,7 @@ function PayrollEditRunDialog({
       jurisdiction: jurisdictionProfile.jurisdiction,
       country: jurisdictionProfile.country,
       province: jurisdictionProfile.province,
-      employee: line.employee_name,
+      employee: line.user_name,
       rfc: jurisdictionProfile.taxId || `RFC${String(index + 1).padStart(13, '0')}`,
       curp: `CURP${String(index + 1).padStart(14, '0')}`,
       nss: jurisdictionProfile.socialSecurityNumber || String(10000000000 + index).padStart(11, '0'),
@@ -3401,7 +3401,7 @@ function PayrollEditRunDialog({
   const runSummaryCards: Array<{ label: string; value: string; key?: 'status' }> = [
     { label: copy.labels.frequency, value: frequencyLabel },
     { label: copy.labels.payrollType, value: payrollTypeLabel },
-    { label: copy.labels.employees, value: String(visibleDetailedRows.length || run.employees_count) },
+    { label: copy.labels.employees, value: String(visibleDetailedRows.length || run.users_count) },
     { label: copy.labels.jurisdiction, value: displayJurisdictionLabel },
     { label: copy.labels.status, value: statusLabel, key: 'status' as const },
   ];
@@ -4503,7 +4503,7 @@ function PayrollBreakdownModal({
   const summaryRows: BreakdownValueRow[] = !effectiveEmployee
     ? []
     : [
-      { label: 'Employee name', value: effectiveEmployee.employee },
+      { label: 'HR User name', value: effectiveEmployee.employee },
       { label: 'Jurisdiction', value: jurisdictionLabel || '—' },
       { label: 'Unit', value: effectiveEmployee.unit || '—' },
       { label: 'Business', value: effectiveEmployee.business || '—' },
@@ -4633,39 +4633,39 @@ function PayrollBreakdownModal({
     ? []
     : isCanadaStandard
       ? [
-        { label: 'Employee CPP', value: effectiveEmployee.employeeCpp, tone: 'negative' },
-        { label: 'Employee CPP2', value: effectiveEmployee.employeeCpp2, tone: 'negative' },
-        { label: 'Employee EI', value: effectiveEmployee.employeeEi, tone: 'negative' },
+        { label: 'HR User CPP', value: effectiveEmployee.employeeCpp, tone: 'negative' },
+        { label: 'HR User CPP2', value: effectiveEmployee.employeeCpp2, tone: 'negative' },
+        { label: 'HR User EI', value: effectiveEmployee.employeeEi, tone: 'negative' },
         { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
         { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
       ]
       : isUsaPayroll
         ? [
-          { label: 'Employee Social Security', value: effectiveEmployee.employeeCpp, tone: 'negative' },
-          { label: 'Employee Medicare', value: effectiveEmployee.employeeEi, tone: 'negative' },
+          { label: 'HR User Social Security', value: effectiveEmployee.employeeCpp, tone: 'negative' },
+          { label: 'HR User Medicare', value: effectiveEmployee.employeeEi, tone: 'negative' },
           { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
           { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
         ]
       : isCanadaQuebec
         ? [
-          { label: 'Employee QPP', value: effectiveEmployee.employeeQpp, tone: 'negative' },
-          { label: 'Employee QPP2', value: effectiveEmployee.employeeQpp2, tone: 'negative' },
-          { label: 'Employee QPIP', value: effectiveEmployee.employeeQpip, tone: 'negative' },
-          { label: 'Employee EI', value: effectiveEmployee.employeeEi, tone: 'negative' },
+          { label: 'HR User QPP', value: effectiveEmployee.employeeQpp, tone: 'negative' },
+          { label: 'HR User QPP2', value: effectiveEmployee.employeeQpp2, tone: 'negative' },
+          { label: 'HR User QPIP', value: effectiveEmployee.employeeQpip, tone: 'negative' },
+          { label: 'HR User EI', value: effectiveEmployee.employeeEi, tone: 'negative' },
           { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
           { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
         ]
         : isColombiaPayroll
           ? [
-            { label: 'Employee health', value: effectiveEmployee.employeeHealth, tone: 'negative' },
-            { label: 'Employee pension', value: effectiveEmployee.employeePension, tone: 'negative' },
+            { label: 'HR User health', value: effectiveEmployee.employeeHealth, tone: 'negative' },
+            { label: 'HR User pension', value: effectiveEmployee.employeePension, tone: 'negative' },
             { label: 'Withholding tax', value: effectiveEmployee.withholdingTax, tone: 'negative' },
             { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
             { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
           ]
         : isBrazilPayroll
           ? [
-            { label: 'Employee INSS', value: effectiveEmployee.employeeInss, tone: 'negative' },
+            { label: 'HR User INSS', value: effectiveEmployee.employeeInss, tone: 'negative' },
             { label: 'IRRF', value: effectiveEmployee.irrf, tone: 'negative' },
             { label: 'Transportation voucher', value: effectiveEmployee.transportationVoucher, tone: 'negative' },
             { label: 'Meal / benefits deduction', value: effectiveEmployee.mealBenefitsDeduction, tone: 'negative' },
@@ -4673,7 +4673,7 @@ function PayrollBreakdownModal({
             { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
           ]
         : [
-          { label: 'Employee IMSS', value: effectiveEmployee.employeeImss, tone: 'negative' },
+          { label: 'HR User IMSS', value: effectiveEmployee.employeeImss, tone: 'negative' },
           { label: 'INFONAVIT type', value: effectiveEmployee.infonavitType },
           { label: 'INFONAVIT discount', value: effectiveEmployee.infonavitDiscount, tone: 'negative' },
           { label: 'Loans', value: effectiveEmployee.loans, tone: 'negative' },
@@ -4838,7 +4838,7 @@ function PayrollBreakdownModal({
         <div class="section">
           <h2>${escapePrintHtml(breakdownConfig.contributionBreakdownTitle)}</h2>
           <table>
-            <thead><tr><th>Concept</th><th class="num">Employer</th><th class="num">Employee</th></tr></thead>
+            <thead><tr><th>Concept</th><th class="num">Employer</th><th class="num">HR User</th></tr></thead>
             <tbody>
               ${contributionBreakdown.map((row) => `<tr><td>${escapePrintHtml(row.concept)}</td><td class="num">${escapePrintHtml(formatNumber(row.employer))}</td><td class="num">${escapePrintHtml(formatNumber(row.employee))}</td></tr>`).join('')}
             </tbody>
@@ -4934,7 +4934,7 @@ function PayrollBreakdownModal({
                       <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.taxSectionTitle}</h4>
                       {!isCanadaPayroll && !isUsaPayroll && !isBrazilPayroll && !isColombiaPayroll && (
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          ISR is calculated before applying the employment subsidy. The final ISR is the amount withheld from the employee.
+                          ISR is calculated before applying the employment subsidy. The final ISR is the amount withheld from the HR user.
                         </p>
                       )}
                       {renderValueRows(taxRows)}
@@ -4971,7 +4971,7 @@ function PayrollBreakdownModal({
                         <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700">
                           <th className="py-2 pr-3">Concept</th>
                           <th className="py-2 px-3 text-right">Employer</th>
-                          <th className="py-2 pl-3 text-right">Employee</th>
+                          <th className="py-2 pl-3 text-right">HR User</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -5462,16 +5462,16 @@ function PayrollRatesDialog({
 
   const iconByField: Record<PayrollRateFieldKey, typeof Wallet> = {
     isr_rate: Wallet,
-    imss_employee_rate: ShieldCheck,
-    infonavit_employee_rate: CreditCard,
+    imss_user_rate: ShieldCheck,
+    infonavit_user_rate: CreditCard,
     imss_employer_rate: ShieldCheck,
     infonavit_employer_rate: CreditCard,
     sar_employer_rate: Landmark,
   };
 
-  const automaticFields: PayrollRateFieldKey[] = ['isr_rate', 'imss_employee_rate', 'imss_employer_rate'];
+  const automaticFields: PayrollRateFieldKey[] = ['isr_rate', 'imss_user_rate', 'imss_employer_rate'];
   const fixedByLawFields: PayrollRateFieldKey[] = ['infonavit_employer_rate'];
-  const adjustableFields: PayrollRateFieldKey[] = ['infonavit_employee_rate', 'sar_employer_rate'];
+  const adjustableFields: PayrollRateFieldKey[] = ['infonavit_user_rate', 'sar_employer_rate'];
 
   const handlePercentInputChange = (field: PayrollRateFieldKey, nextValue: string) => {
     onChangeValue(field, parseRateInputPercent(nextValue));
@@ -5894,7 +5894,7 @@ function PayrollRunDialog({
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3">
-                    <DetailMetric label={copy.labels.employees} value={String(detail.run.employees_count)} />
+                    <DetailMetric label={copy.labels.employees} value={String(detail.run.users_count)} />
                     <DetailMetric label={copy.labels.gross} value={formatCurrency(detail.run.gross_amount, locale)} />
                     <DetailMetric label={copy.labels.deductions} value={formatCurrency(detail.run.deductions_amount, locale)} />
                     <DetailMetric label={copy.labels.net} value={formatCurrency(detail.run.net_amount, locale)} />
@@ -5914,7 +5914,7 @@ function PayrollRunDialog({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{line.employee_name}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{line.user_name}</p>
                           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                             {line.position_title || '—'} · {line.department || '—'}
                           </p>
@@ -5935,7 +5935,7 @@ function PayrollRunDialog({
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{copy.labels.employee}</p>
-                          <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedLine.employee_name}</p>
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedLine.user_name}</p>
                           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             {selectedLine.position_title || '—'} · {selectedLine.department || '—'}
                           </p>

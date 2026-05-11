@@ -124,9 +124,9 @@ export const zhCA = {
     selectAllVisible: '选择所有可见员工',
     selectEmployee: (name: string) => `选择 ${name}`,
     deleteConfirm: '是否永久删除该已离职员工？',
-    editEmployeeLabel: '编辑员工',
-    terminateEmployeeLabel: '处理离职',
-    deleteEmployeeLabel: '删除员工',
+    editHrUserLabel: '编辑员工',
+    terminateHrUserLabel: '处理离职',
+    deleteHrUserLabel: '删除员工',
   },
   columnDescriptions: {
     employee: '显示姓名和内部编号的员工主身份信息。',

@@ -5,7 +5,7 @@ export type RecordStatus = 'pending' | 'reviewed' | 'resolved';
 export interface EmployeeRecord {
   id: string;
   recordNumber?: string;
-  employee: {
+  user: {
     id: string;
     name: string;
     position: string;

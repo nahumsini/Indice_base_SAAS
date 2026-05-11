@@ -38,7 +38,7 @@ export function EmployeeActionBar({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-gray-900 dark:text-white">Action bar</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Manage the selected employee attendance setup.</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Manage the selected HR user attendance setup.</p>
         </div>
       </div>
 

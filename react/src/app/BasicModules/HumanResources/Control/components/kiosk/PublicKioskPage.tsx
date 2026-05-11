@@ -48,7 +48,7 @@ export default function Kiosk() {
   const [bootstrap, setBootstrap] = useState<PublicKioskBootstrapResponse | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<PublicKioskMethod>('pin');
   const [credentialValue, setCredentialValue] = useState('');
-  const [identifiedEmployee, setIdentifiedEmployee] = useState<PublicKioskIdentifyResponse['employee'] | null>(null);
+  const [identifiedHrUser, setIdentifiedHrUser] = useState<PublicKioskIdentifyResponse['user'] | null>(null);
   const [todayActivity, setTodayActivity] = useState<PublicKioskDayActivity | null>(null);
   const [identificationToken, setIdentificationToken] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -69,7 +69,7 @@ export default function Kiosk() {
 
   const resetFlow = (options?: { reason?: string; keepError?: boolean }) => {
     setCredentialValue('');
-    setIdentifiedEmployee(null);
+    setIdentifiedHrUser(null);
     setTodayActivity(null);
     setIdentificationToken('');
     setExpiresAt('');
@@ -208,13 +208,13 @@ export default function Kiosk() {
     ? faceVerificationSessionId !== null
     : fallbackPhotoUpload.photo !== null;
   const canIdentify = credentialValue.trim().length > 0 && busyState === 'idle' && !isLoading;
-  const canPunch = identifiedEmployee !== null
+  const canPunch = identifiedHrUser !== null
     && identificationToken.length > 0
     && locationState !== null
     && hasIdentityEvidence
     && busyState === 'idle';
   const credentialPlaceholder = copy.pinPlaceholder;
-  const activeTodayActivity = identifiedEmployee
+  const activeTodayActivity = identifiedHrUser
     ? todayActivity ?? {
       attendance_date: localDateString(new Date()),
       status: 'pending' as const,
@@ -428,13 +428,13 @@ export default function Kiosk() {
 
     try {
       const response = await runWithMinimumDuration(
-        humanResourcesApi.identifyPublicKioskEmployee(deviceToken, {
+        humanResourcesApi.identifyPublicKioskHrUser(deviceToken, {
           auth_method: 'pin',
           credential_payload: credentialValue.trim(),
         }),
         KIOSK_MINIMUM_LOADING_MS,
       );
-      setIdentifiedEmployee(response.employee);
+      setIdentifiedHrUser(response.user);
       setTodayActivity(response.today_activity ?? null);
       setIdentificationToken(response.identification_token);
       setExpiresAt(response.expires_at);
@@ -596,10 +596,10 @@ export default function Kiosk() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{copy.identifyTitle}</p>
                     <h2 className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
-                      {identifiedEmployee ? copy.identifiedTitle : copy.identifyTitle}
+                      {identifiedHrUser ? copy.identifiedTitle : copy.identifyTitle}
                     </h2>
                     <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                      {identifiedEmployee ? copy.identifiedHint : copy.identifyDescription}
+                      {identifiedHrUser ? copy.identifiedHint : copy.identifyDescription}
                     </p>
                   </div>
                   <Button type="button" variant="outline" className="gap-2" onClick={() => resetFlow()}>
@@ -614,7 +614,7 @@ export default function Kiosk() {
                   </div>
                 ) : null}
 
-                {!identifiedEmployee ? (
+                {!identifiedHrUser ? (
                   <div className="mt-4 space-y-4">
                     <div className="rounded-2xl border border-[#143675]/15 bg-[#143675]/6 px-3 py-2 text-sm font-medium text-[#143675] dark:border-[#8bb3ff]/20 dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
                       {copy.methods[selectedMethod]}
@@ -657,13 +657,13 @@ export default function Kiosk() {
                   <div className="mt-4 space-y-4">
                     <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-3 dark:border-emerald-800/50 dark:bg-emerald-950/40">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#143675] text-base font-semibold text-white">
-                        {deriveInitials(identifiedEmployee.full_name)}
+                        {deriveInitials(identifiedHrUser.full_name)}
                       </div>
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">{copy.identifiedTitle}</p>
-                        <p className="mt-0.5 text-xl font-semibold text-slate-950 dark:text-white">{identifiedEmployee.full_name}</p>
+                        <p className="mt-0.5 text-xl font-semibold text-slate-950 dark:text-white">{identifiedHrUser.full_name}</p>
                         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                          {identifiedEmployee.employee_number || identifiedEmployee.position_title || identifiedEmployee.department || '—'}
+                          {identifiedHrUser.user_code || identifiedHrUser.position_title || identifiedHrUser.department || '—'}
                         </p>
                         {expiresAt ? (
                           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
@@ -765,7 +765,7 @@ export default function Kiosk() {
               </section>
 
               <aside className="min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                {identifiedEmployee ? (
+                {identifiedHrUser ? (
                   <div className="space-y-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -813,7 +813,7 @@ export default function Kiosk() {
                               helperText={copy.facePending}
                               onSubmit={handleFaceVerification}
                               compact
-                              resetToken={`${identifiedEmployee.id}:${identificationToken}`}
+                              resetToken={`${identifiedHrUser.id}:${identificationToken}`}
                               onRestart={() => {
                                 setFaceVerificationSessionId(null);
                                 setFaceStatus('idle');

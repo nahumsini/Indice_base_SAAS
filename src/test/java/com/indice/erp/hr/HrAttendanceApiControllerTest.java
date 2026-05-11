@@ -15,6 +15,7 @@ import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.HrFaceService;
 import com.indice.erp.hr.attendance.HrAttendanceApiController;
 import com.indice.erp.hr.attendance.HrAttendanceService;
+import com.indice.erp.hr.attendance.api.PublicKioskAttendanceApiController;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +26,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(HrAttendanceApiController.class)
+@WebMvcTest({HrAttendanceApiController.class, PublicKioskAttendanceApiController.class})
 class HrAttendanceApiControllerTest {
 
     @Autowired
@@ -56,20 +57,20 @@ class HrAttendanceApiControllerTest {
         given(hrAttendanceService.controlOverview(eq(1L), any())).willReturn(Map.of(
             "date", "2026-04-07",
             "summary", Map.of(
-                "employees_count", 1,
+                "users_count", 1,
                 "locations_count", 1,
                 "templates_count", 1
             ),
             "locations", java.util.List.of(Map.of("id", 1, "name", "Spring HQ")),
             "templates", java.util.List.of(Map.of("id", 1, "name", "Spring Default Schedule")),
-            "assignments", java.util.List.of(Map.of("employee_id", 2, "employee_name", "Second Empleado"))
+            "assignments", java.util.List.of(Map.of("user_company_id", 2, "user_name", "Second Empleado"))
         ));
 
         mockMvc.perform(get("/api/v1/hr/attendance/control-overview").param("date", "2026-04-07"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.summary.locations_count").value(1))
             .andExpect(jsonPath("$.templates[0].name").value("Spring Default Schedule"))
-            .andExpect(jsonPath("$.assignments[0].employee_name").value("Second Empleado"));
+            .andExpect(jsonPath("$.assignments[0].user_name").value("Second Empleado"));
     }
 
     @Test
@@ -78,16 +79,16 @@ class HrAttendanceApiControllerTest {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrAttendanceService.selfDashboard(eq(1L), eq(7L), any())).willReturn(Map.of(
             "date", "2026-04-07",
-            "summary", Map.of("total_employees", 1, "on_time_count", 1),
-            "items", java.util.List.of(Map.of("employee_id", 12, "status", "on_time")),
-            "employees", java.util.List.of(Map.of("id", 12, "full_name", "Attendance User")),
+            "summary", Map.of("total_users", 1, "on_time_count", 1),
+            "items", java.util.List.of(Map.of("user_company_id", 12, "status", "on_time")),
+            "users", java.util.List.of(Map.of("id", 12, "full_name", "Attendance User")),
             "locations", java.util.List.of()
         ));
 
         mockMvc.perform(get("/api/v1/hr/attendance/me/dashboard").param("date", "2026-04-07"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.summary.total_employees").value(1))
-            .andExpect(jsonPath("$.items[0].employee_id").value(12));
+            .andExpect(jsonPath("$.summary.total_users").value(1))
+            .andExpect(jsonPath("$.items[0].user_company_id").value(12));
     }
 
     @Test
@@ -149,7 +150,7 @@ class HrAttendanceApiControllerTest {
         given(hrAttendanceService.bulkAssignScheduleTemplate(eq(1L), eq(1L), anyMap())).willReturn(Map.of(
             "assigned_count", 1,
             "template_name", "Late Shift",
-            "assignments", java.util.List.of(Map.of("employee_id", 2, "employee_name", "Second Empleado"))
+            "assignments", java.util.List.of(Map.of("user_company_id", 2, "user_name", "Second Empleado"))
         ));
 
         mockMvc.perform(
@@ -157,7 +158,7 @@ class HrAttendanceApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "employee_ids": [2],
+                      "user_company_ids": [2],
                       "template_id": 4,
                       "effective_start_date": "2026-04-10"
                     }
@@ -166,7 +167,7 @@ class HrAttendanceApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.assigned_count").value(1))
             .andExpect(jsonPath("$.template_name").value("Late Shift"))
-            .andExpect(jsonPath("$.assignments[0].employee_name").value("Second Empleado"));
+            .andExpect(jsonPath("$.assignments[0].user_name").value("Second Empleado"));
     }
 
     @Test
@@ -211,9 +212,9 @@ class HrAttendanceApiControllerTest {
         given(hrAttendanceService.publicKioskIdentify(eq("device-token"), anyMap())).willReturn(Map.of(
             "auth_attempt_event_id", 10,
             "auth_method", "pin",
-            "employee", Map.of(
+            "user", Map.of(
                 "id", 12,
-                "employee_number", "EMP-0012",
+                "user_code", "USR-0012",
                 "full_name", "Attendance User"
             ),
             "identification_token", "signed-token",
@@ -231,7 +232,7 @@ class HrAttendanceApiControllerTest {
                     """)
         )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.employee.id").value(12))
+            .andExpect(jsonPath("$.user.id").value(12))
             .andExpect(jsonPath("$.identification_token").value("signed-token"));
     }
 
@@ -239,7 +240,7 @@ class HrAttendanceApiControllerTest {
     void publicKioskPunchReturnsCreatedPayloadWithoutAuthentication() throws Exception {
         given(hrAttendanceService.publicKioskPunch(eq("device-token"), anyMap())).willReturn(Map.of(
             "event_id", 14,
-            "employee_id", 12,
+            "user_company_id", 12,
             "event_kind", "check_in",
             "status", "on_time"
         ));
@@ -264,7 +265,7 @@ class HrAttendanceApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrAttendanceService.saveAccessProfile(eq(1L), eq(1L), eq(null), anyMap())).willReturn(Map.of(
-            "access_profile", Map.of("id", 7, "employee_id", 2, "default_method", "manual_override")
+            "access_profile", Map.of("id", 7, "user_company_id", 2, "default_method", "manual_override")
         ));
 
         mockMvc.perform(
@@ -272,7 +273,7 @@ class HrAttendanceApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "employee_id": 2,
+                      "user_company_id": 2,
                       "status": "active",
                       "default_method": "manual_override"
                     }
@@ -318,7 +319,7 @@ class HrAttendanceApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "employee_id": 2,
+                      "user_company_id": 2,
                       "content_type": "image/jpeg"
                     }
                     """)
@@ -343,7 +344,7 @@ class HrAttendanceApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "employee_id": 2,
+                      "user_company_id": 2,
                       "content_type": "image/jpeg",
                       "event_type": "check_in"
                     }
@@ -367,7 +368,7 @@ class HrAttendanceApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "employee_id": 2,
+                      "user_company_id": 2,
                       "content_type": "image/jpeg"
                     }
                     """)
@@ -381,7 +382,7 @@ class HrAttendanceApiControllerTest {
         var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrAttendanceService.recordSelfKioskEvent(eq(1L), eq(7L), anyMap())).willReturn(Map.of(
-            "employee_id", 12,
+            "user_company_id", 12,
             "status", "on_time"
         ));
 
@@ -398,7 +399,7 @@ class HrAttendanceApiControllerTest {
                     """)
         )
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.employee_id").value(12))
+            .andExpect(jsonPath("$.user_company_id").value(12))
             .andExpect(jsonPath("$.status").value("on_time"));
     }
 
@@ -407,7 +408,7 @@ class HrAttendanceApiControllerTest {
         var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrAttendanceService.updateSelfDailyRecord(eq(1L), eq(7L), any(), anyMap())).willReturn(Map.of(
-            "employee_id", 12,
+            "user_company_id", 12,
             "date", "2026-04-07",
             "effective_status", "leave"
         ));
@@ -422,7 +423,7 @@ class HrAttendanceApiControllerTest {
                     """)
         )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.employee_id").value(12))
+            .andExpect(jsonPath("$.user_company_id").value(12))
             .andExpect(jsonPath("$.effective_status").value("leave"));
     }
 }

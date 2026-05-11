@@ -125,9 +125,9 @@ export const frCA = {
     selectAllVisible: 'Sélectionner tous les employés visibles',
     selectEmployee: (name: string) => `Sélectionner ${name}`,
     deleteConfirm: 'Supprimer définitivement cet employé terminé?',
-    editEmployeeLabel: 'Modifier l’employé',
-    terminateEmployeeLabel: 'Terminer l’emploi',
-    deleteEmployeeLabel: 'Supprimer l’employé',
+    editHrUserLabel: 'Modifier l’employé',
+    terminateHrUserLabel: 'Terminer l’emploi',
+    deleteHrUserLabel: 'Supprimer l’employé',
   },
   columnDescriptions: {
     ...enCA.columnDescriptions,

@@ -1,6 +1,6 @@
-package com.indice.erp.projects;
+package com.indice.erp.processTasks.projects;
 
-import com.indice.erp.processTasks.ProcessTasksService;
+import com.indice.erp.processTasks.tasks.ProcessTasksService;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -36,13 +36,17 @@ public class ProjectsService {
     public Map<String, Object> listProjects(long companyId) {
         var rows = jdbcTemplate.query(
                 """
-                        SELECT id, company_id, folio, name, description, status, priority, owner_user_id,
-                               owner_employee_id, owner_name, business_id, unit_id, start_date, due_date,
-                               completed_at, cancelled_at, created_by, created_at, updated_at
-                        FROM projects
-                        WHERE company_id = ?
-                          AND deleted_at IS NULL
-                        ORDER BY id DESC
+                        SELECT project.id, project.company_id, project.folio, project.name, project.description,
+                               project.status, project.priority, project.owner_user_company_id,
+                               owner_user_company.user_id AS owner_user_id,
+                               project.owner_name, project.business_id, project.unit_id, project.start_date, project.due_date,
+                               project.completed_at, project.cancelled_at, project.created_by, project.created_at, project.updated_at
+                        FROM projects project
+                        LEFT JOIN user_companies owner_user_company ON owner_user_company.id = project.owner_user_company_id
+                            AND owner_user_company.company_id = project.company_id
+                        WHERE project.company_id = ?
+                          AND project.deleted_at IS NULL
+                        ORDER BY project.id DESC
                         """,
                 (rs, rowNum) -> mapProjectRow(rs),
                 companyId);
@@ -56,7 +60,10 @@ public class ProjectsService {
     @Transactional
     public Map<String, Object> createProject(long companyId, long userId, Map<String, Object> payload) {
         var command = parseProjectCommand(payload);
-        validateReferences(companyId, command);
+        var ownerUserCompany = requireActiveUserCompany(
+                companyId,
+                command.ownerUserCompanyId(),
+                "Owner user not found.");
         var folio = nextProjectFolio(companyId);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -64,7 +71,7 @@ public class ProjectsService {
             PreparedStatement statement = connection.prepareStatement(
                     """
                             INSERT INTO projects
-                            (company_id, folio, name, description, status, priority, owner_user_id, owner_employee_id,
+                            (company_id, folio, name, description, status, priority, owner_user_id, owner_user_company_id,
                              owner_name, business_id, unit_id, start_date, due_date, completed_at, cancelled_at, created_by)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
@@ -76,8 +83,8 @@ public class ProjectsService {
             setNullableString(statement, 4, command.description());
             statement.setString(5, command.status());
             setNullableString(statement, 6, command.priority());
-            setNullableLong(statement, 7, command.ownerUserId());
-            setNullableLong(statement, 8, command.ownerEmployeeId());
+            setNullableLong(statement, 7, ownerUserCompany != null ? ownerUserCompany.userId() : null);
+            setNullableLong(statement, 8, ownerUserCompany != null ? ownerUserCompany.id() : null);
             setNullableString(statement, 9, command.ownerName());
             setNullableLong(statement, 10, command.businessId());
             setNullableLong(statement, 11, command.unitId());
@@ -97,7 +104,10 @@ public class ProjectsService {
     public Map<String, Object> updateProject(long companyId, long projectId, Map<String, Object> payload) {
         requireProject(companyId, projectId);
         var command = parseProjectCommand(payload);
-        validateReferences(companyId, command);
+        var ownerUserCompany = requireActiveUserCompany(
+                companyId,
+                command.ownerUserCompanyId(),
+                "Owner user not found.");
 
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
@@ -108,7 +118,7 @@ public class ProjectsService {
                                 status = ?,
                                 priority = ?,
                                 owner_user_id = ?,
-                                owner_employee_id = ?,
+                                owner_user_company_id = ?,
                                 owner_name = ?,
                                 business_id = ?,
                                 unit_id = ?,
@@ -125,8 +135,8 @@ public class ProjectsService {
             setNullableString(statement, 2, command.description());
             statement.setString(3, command.status());
             setNullableString(statement, 4, command.priority());
-            setNullableLong(statement, 5, command.ownerUserId());
-            setNullableLong(statement, 6, command.ownerEmployeeId());
+            setNullableLong(statement, 5, ownerUserCompany != null ? ownerUserCompany.userId() : null);
+            setNullableLong(statement, 6, ownerUserCompany != null ? ownerUserCompany.id() : null);
             setNullableString(statement, 7, command.ownerName());
             setNullableLong(statement, 8, command.businessId());
             setNullableLong(statement, 9, command.unitId());
@@ -201,13 +211,17 @@ public class ProjectsService {
     public Map<String, Object> getProject(long companyId, long projectId) {
         var rows = jdbcTemplate.query(
                 """
-                        SELECT id, company_id, folio, name, description, status, priority, owner_user_id,
-                               owner_employee_id, owner_name, business_id, unit_id, start_date, due_date,
-                               completed_at, cancelled_at, created_by, created_at, updated_at
-                        FROM projects
-                        WHERE company_id = ?
-                          AND id = ?
-                          AND deleted_at IS NULL
+                        SELECT project.id, project.company_id, project.folio, project.name, project.description,
+                               project.status, project.priority, project.owner_user_company_id,
+                               owner_user_company.user_id AS owner_user_id,
+                               project.owner_name, project.business_id, project.unit_id, project.start_date, project.due_date,
+                               project.completed_at, project.cancelled_at, project.created_by, project.created_at, project.updated_at
+                        FROM projects project
+                        LEFT JOIN user_companies owner_user_company ON owner_user_company.id = project.owner_user_company_id
+                            AND owner_user_company.company_id = project.company_id
+                        WHERE project.company_id = ?
+                          AND project.id = ?
+                          AND project.deleted_at IS NULL
                         """,
                 (rs, rowNum) -> mapProjectRow(rs),
                 companyId,
@@ -238,52 +252,11 @@ public class ProjectsService {
         }
     }
 
-    private void validateReferences(long companyId, ProjectCommand command) {
-        if (command.ownerEmployeeId() != null) {
-            requireScopedRecord(
-                    """
-                            SELECT COUNT(*)
-                            FROM hr_employees
-                            WHERE company_id = ?
-                              AND id = ?
-                            """,
-                    companyId,
-                    command.ownerEmployeeId(),
-                    "Owner employee not found.");
-        }
-
-        if (command.ownerUserId() != null) {
-            Integer count = jdbcTemplate.queryForObject(
-                    """
-                            SELECT COUNT(*)
-                            FROM user_companies
-                            WHERE company_id = ?
-                              AND user_id = ?
-                              AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
-                            """,
-                    Integer.class,
-                    companyId,
-                    command.ownerUserId());
-
-            if (count == null || count == 0) {
-                throw new NoSuchElementException("Owner user not found.");
-            }
-        }
-    }
-
-    private void requireScopedRecord(String sql, long companyId, long id, String message) {
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, companyId, id);
-        if (count == null || count == 0) {
-            throw new NoSuchElementException(message);
-        }
-    }
-
     private ProjectCommand parseProjectCommand(Map<String, Object> payload) {
-        var ownerUserId = optionalLong(payload, "ownerUserId");
-        var ownerEmployeeId = optionalLong(payload, "ownerEmployeeId");
+        var ownerUserCompanyId = optionalLong(payload, "ownerUserCompanyId");
 
-        if (ownerUserId != null && ownerEmployeeId != null) {
-            throw new IllegalArgumentException("A project can have an owner employee or owner user, but not both.");
+        if (optionalLong(payload, "ownerUserId") != null) {
+            throw new IllegalArgumentException("ownerUserId is no longer supported. Use ownerUserCompanyId.");
         }
 
         return new ProjectCommand(
@@ -291,8 +264,7 @@ public class ProjectsService {
                 optionalString(payload, "description"),
                 requiredAllowedValue(payload, "status", ALLOWED_STATUSES),
                 optionalAllowedValue(payload, "priority", ALLOWED_PRIORITIES),
-                ownerUserId,
-                ownerEmployeeId,
+                ownerUserCompanyId,
                 optionalString(payload, "ownerName"),
                 optionalLong(payload, "businessId"),
                 optionalLong(payload, "unitId"),
@@ -327,8 +299,8 @@ public class ProjectsService {
         row.put("description", rs.getString("description"));
         row.put("status", rs.getString("status"));
         row.put("priority", rs.getString("priority"));
+        row.put("ownerUserCompanyId", rs.getObject("owner_user_company_id", Long.class));
         row.put("ownerUserId", rs.getObject("owner_user_id", Long.class));
-        row.put("ownerEmployeeId", rs.getObject("owner_employee_id", Long.class));
         row.put("ownerName", rs.getString("owner_name"));
         row.put("businessId", rs.getObject("business_id", Long.class));
         row.put("unitId", rs.getObject("unit_id", Long.class));
@@ -445,17 +417,45 @@ public class ProjectsService {
         return value != null ? value.toLocalDateTime().toString() : null;
     }
 
+    private UserCompanyReference requireActiveUserCompany(long companyId, Long userCompanyId, String message) {
+        if (userCompanyId == null) {
+            return null;
+        }
+
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT id, user_id
+                        FROM user_companies
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                        """,
+                (rs, rowNum) -> new UserCompanyReference(
+                        rs.getLong("id"),
+                        rs.getLong("user_id")),
+                companyId,
+                userCompanyId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException(message);
+        }
+
+        return rows.getFirst();
+    }
+
     private record ProjectCommand(
             String name,
             String description,
             String status,
             String priority,
-            Long ownerUserId,
-            Long ownerEmployeeId,
+            Long ownerUserCompanyId,
             String ownerName,
             Long businessId,
             Long unitId,
             LocalDate startDate,
             LocalDate dueDate) {
+    }
+
+    private record UserCompanyReference(long id, long userId) {
     }
 }

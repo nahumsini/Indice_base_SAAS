@@ -7,9 +7,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
-record AttendanceEmployee(
+record AttendanceHrUser(
     long id,
-    String employeeNumber,
+    String userCode,
     String fullName,
     String positionTitle,
     String department,
@@ -34,7 +34,7 @@ record AttendanceUser(
 }
 
 record ScheduleRule(
-    long employeeId,
+    long userCompanyId,
     long templateId,
     String scheduleMode,
     boolean blockAfterGracePeriod,
@@ -70,7 +70,7 @@ record ScheduleWindow(
 }
 
 record CurrentScheduleAssignment(
-    long employeeId,
+    long userCompanyId,
     long templateId,
     String templateName,
     LocalDate effectiveStartDate,
@@ -152,8 +152,8 @@ record LocationRow(
     Integer requiredDaysPerWeek,
     String managedSource,
     String status,
-    int assignedEmployeeCount,
-    String assignedEmployeeNames
+    int assignedUserCount,
+    String assignedUserNames
 ) {
     LocationRow(
         long id,
@@ -172,8 +172,8 @@ record LocationRow(
         LocalTime requiredEndTime,
         Integer requiredDaysPerWeek,
         String status,
-        int assignedEmployeeCount,
-        String assignedEmployeeNames
+        int assignedUserCount,
+        String assignedUserNames
     ) {
         this(
             id,
@@ -193,15 +193,15 @@ record LocationRow(
             requiredDaysPerWeek,
             "",
             status,
-            assignedEmployeeCount,
-            assignedEmployeeNames
+            assignedUserCount,
+            assignedUserNames
         );
     }
 }
 
 record WorkSiteAssignmentRow(
     long id,
-    long employeeId,
+    long userCompanyId,
     LocationRow location,
     LocalDate effectiveStartDate,
     LocalDate effectiveEndDate,
@@ -246,13 +246,13 @@ record PinThrottleState(
 record AccessProfileRow(
     long id,
     long companyId,
-    long employeeId,
+    long userCompanyId,
     String status,
     String defaultMethod,
     LocalDateTime lastEnrolledAt,
     String metadataJson,
-    String employeeNumber,
-    String employeeName,
+    String userCode,
+    String userName,
     List<AccessMethodRow> methods
 ) {
 }
@@ -267,17 +267,17 @@ record AccessMethodRow(
     String status,
     int priority,
     String metadataJson,
-    long employeeId,
-    String employeeNumber,
-    String employeeName
+    long userCompanyId,
+    String userCode,
+    String userName
 ) {
 }
 
 record ControlActivityRow(
     long id,
-    long employeeId,
-    String employeeNumber,
-    String employeeName,
+    long userCompanyId,
+    String userCode,
+    String userName,
     Long kioskDeviceId,
     String kioskDeviceName,
     Long locationId,
@@ -310,13 +310,14 @@ record AttendanceEventRow(
     String eventKind,
     String notes,
     String metadataJson,
-    Long supersedesEventId
+    Long supersedesEventId,
+    Long createdBy
 ) {
 }
 
 record AutoCheckoutCandidate(
     long companyId,
-    long employeeId,
+    long userCompanyId,
     LocalDate attendanceDate,
     LocalDateTime firstCheckInAt,
     Long firstLocationId
@@ -330,7 +331,7 @@ record AttendanceOperationalState(
 }
 
 record PublicKioskIdentificationToken(
-    long employeeId,
+    long userCompanyId,
     String authMethod,
     long expiresAtEpochSeconds
 ) {
@@ -338,14 +339,14 @@ record PublicKioskIdentificationToken(
 
 record PublicKioskContext(
     KioskDeviceRow kioskDevice,
-    AttendanceEmployee employee,
+    AttendanceHrUser user,
     PublicKioskIdentificationToken tokenClaims
 ) {
 }
 
 record DailyRecordRow(
     long id,
-    long employeeId,
+    long userCompanyId,
     LocalDate attendanceDate,
     String systemStatus,
     String correctedStatus,

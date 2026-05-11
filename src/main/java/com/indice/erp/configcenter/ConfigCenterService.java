@@ -1196,7 +1196,7 @@ public class ConfigCenterService {
         if (existingLocationId == null) {
             jdbcTemplate.update(
                 """
-                    INSERT INTO hr_attendance_locations
+                    INSERT INTO attendance_locations
                     (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters,
                      required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, managed_source, created_by)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'business_structure', ?)
@@ -1221,7 +1221,7 @@ public class ConfigCenterService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_attendance_locations
+                UPDATE attendance_locations
                 SET unit_id = ?,
                     business_id = ?,
                     contract_start_date = ?,
@@ -1271,7 +1271,7 @@ public class ConfigCenterService {
         if (existingLocationId == null) {
             jdbcTemplate.update(
                 """
-                    INSERT INTO hr_attendance_locations
+                    INSERT INTO attendance_locations
                     (company_id, unit_id, business_id, contract_start_date, contract_end_date, name, latitude, longitude, radius_meters,
                      required_hours_per_day, required_start_time, required_end_time, required_days_per_week, status, managed_source, created_by)
                     VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'business_structure', ?)
@@ -1294,7 +1294,7 @@ public class ConfigCenterService {
 
         jdbcTemplate.update(
             """
-                UPDATE hr_attendance_locations
+                UPDATE attendance_locations
                 SET unit_id = NULL,
                     business_id = NULL,
                     contract_start_date = ?,
@@ -1330,7 +1330,7 @@ public class ConfigCenterService {
         var rows = jdbcTemplate.query(
             """
                 SELECT id
-                FROM hr_attendance_locations
+                FROM attendance_locations
                 WHERE company_id = ?
                   AND business_id = ?
                   AND managed_source = 'business_structure'
@@ -1348,7 +1348,7 @@ public class ConfigCenterService {
         var rows = jdbcTemplate.query(
             """
                 SELECT id
-                FROM hr_attendance_locations
+                FROM attendance_locations
                 WHERE company_id = ?
                   AND business_id IS NULL
                   AND unit_id IS NULL
@@ -1365,7 +1365,7 @@ public class ConfigCenterService {
     private void deactivateBusinessStructureAttendanceLocation(long companyId, long businessId) {
         jdbcTemplate.update(
             """
-                UPDATE hr_attendance_locations
+                UPDATE attendance_locations
                 SET status = 'inactive'
                 WHERE company_id = ?
                   AND business_id = ?
@@ -1379,7 +1379,7 @@ public class ConfigCenterService {
     private void deactivateCompanyStructureAttendanceLocation(long companyId) {
         jdbcTemplate.update(
             """
-                UPDATE hr_attendance_locations
+                UPDATE attendance_locations
                 SET status = 'inactive'
                 WHERE company_id = ?
                   AND business_id IS NULL
@@ -2027,7 +2027,7 @@ public class ConfigCenterService {
         }
 
         var totalEmployees = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_employees WHERE company_id = ?",
+            "SELECT COUNT(*) FROM hr_users WHERE company_id = ?",
             Integer.class,
             companyId
         );

@@ -89,10 +89,10 @@ const buildExecutiveSummary = (detail: PayrollRunDetailResponse, locale: string)
   const highestNetLine = [...lines].sort((left, right) => right.net_amount - left.net_amount)[0];
   const manualAdjustmentsCount = lines.reduce((total, line) => total + getManualAdjustments(line).length, 0);
 
-  return `This payroll run covers ${lines.length} employee${lines.length === 1 ? '' : 's'} from ${formatDate(run.period_start_date, locale)} to ${formatDate(run.period_end_date, locale)}. `
+  return `This payroll run covers ${lines.length} HR user${lines.length === 1 ? '' : 's'} from ${formatDate(run.period_start_date, locale)} to ${formatDate(run.period_end_date, locale)}. `
     + `Net payroll closes at ${formatCurrency(run.net_amount, locale)} with ${formatCurrency(run.deductions_amount, locale)} in deductions and `
     + `${formatCurrency(run.employer_contributions_amount, locale)} in employer-side costs. `
-    + `${highestNetLine ? `${highestNetLine.employee_name} has the largest net payout in this run. ` : ''}`
+    + `${highestNetLine ? `${highestNetLine.user_name} has the largest net payout in this run. ` : ''}`
     + `${manualAdjustmentsCount > 0 ? `${manualAdjustmentsCount} manual adjustment${manualAdjustmentsCount === 1 ? '' : 's'} were applied across the ledger.` : 'No manual adjustments were applied in this run.'}`;
 };
 
@@ -161,8 +161,8 @@ export function PayrollRunPdfDocument({
 }: PayrollRunPdfDocumentProps) {
   const topLines = getTopLines(detail.lines);
   const totals = getTotals(detail);
-  const averageNet = detail.run.employees_count > 0 ? detail.run.net_amount / detail.run.employees_count : 0;
-  const averageGross = detail.run.employees_count > 0 ? detail.run.gross_amount / detail.run.employees_count : 0;
+  const averageNet = detail.run.users_count > 0 ? detail.run.net_amount / detail.run.users_count : 0;
+  const averageGross = detail.run.users_count > 0 ? detail.run.gross_amount / detail.run.users_count : 0;
   const ledgerChunks = chunkArray(detail.lines, LEDGER_PAGE_SIZE);
   const statusTone = levelTone(statusLabel);
 
@@ -215,7 +215,7 @@ export function PayrollRunPdfDocument({
                 <div className="bdpdf-highlight-card bdpdf-highlight-card--accent">
                   <p className="bdpdf-highlight-label">Net payroll</p>
                   <p className="bdpdf-highlight-value">{formatCurrency(detail.run.net_amount, locale)}</p>
-                  <p className="bdpdf-highlight-text">Employee take-home total for this run</p>
+                  <p className="bdpdf-highlight-text">HR User take-home total for this run</p>
                 </div>
                 <div className="bdpdf-highlight-card">
                   <p className="bdpdf-highlight-label">Gross payroll</p>
@@ -230,7 +230,7 @@ export function PayrollRunPdfDocument({
                 <div className="bdpdf-highlight-card">
                   <p className="bdpdf-highlight-label">Average net</p>
                   <p className="bdpdf-highlight-value">{formatCurrency(averageNet, locale)}</p>
-                  <p className="bdpdf-highlight-text">Per employee across {detail.run.employees_count} payroll lines</p>
+                  <p className="bdpdf-highlight-text">Per HR user across {detail.run.users_count} payroll lines</p>
                 </div>
               </div>
             </div>
@@ -288,7 +288,7 @@ export function PayrollRunPdfDocument({
                   <ul className="bdpdf-info-list">
                     <li><span className="bdpdf-bullet">•</span> Default daily hours: {formatWholeNumber(preferences.default_daily_hours, locale)}</li>
                     <li><span className="bdpdf-bullet">•</span> ISR rate: {formatRate(preferences.isr_rate)}</li>
-                    <li><span className="bdpdf-bullet">•</span> Employee burden: {formatRate(preferences.imss_employee_rate + preferences.infonavit_employee_rate)}</li>
+                    <li><span className="bdpdf-bullet">•</span> HR User burden: {formatRate(preferences.imss_user_rate + preferences.infonavit_user_rate)}</li>
                     <li><span className="bdpdf-bullet">•</span> Employer burden: {formatRate(preferences.imss_employer_rate + preferences.infonavit_employer_rate + preferences.sar_employer_rate)}</li>
                   </ul>
                 </article>
@@ -306,7 +306,7 @@ export function PayrollRunPdfDocument({
                   <article className="prpdf-employee-card" key={line.id}>
                     <div className="prpdf-employee-head">
                       <div>
-                        <h3 className="prpdf-employee-title">{line.employee_name}</h3>
+                        <h3 className="prpdf-employee-title">{line.user_name}</h3>
                         <p className="prpdf-employee-subtitle">
                           {[line.position_title, line.department, line.unit_name].filter(Boolean).join(' · ') || 'Active payroll line'}
                         </p>
@@ -344,7 +344,7 @@ export function PayrollRunPdfDocument({
 
             <div className="bdpdf-footer-note">
               <span>Run period: {formatDate(detail.run.period_start_date, locale)} to {formatDate(detail.run.period_end_date, locale)}</span>
-              <span>Average gross per employee: {formatCurrency(averageGross, locale)}</span>
+              <span>Average gross per HR user: {formatCurrency(averageGross, locale)}</span>
             </div>
           </div>
         </div>
@@ -356,7 +356,7 @@ export function PayrollRunPdfDocument({
             <div className="bdpdf-page-content">
               <div className="bdpdf-section">
                 <div className="bdpdf-section-heading">
-                  <h2 className="bdpdf-section-title">Employee ledger</h2>
+                  <h2 className="bdpdf-section-title">HR User ledger</h2>
                   <p className="bdpdf-section-caption">
                     Page {chunkIndex + 1} of {ledgerChunks.length} · Payroll period {formatDate(detail.run.period_start_date, locale)} to {formatDate(detail.run.period_end_date, locale)}
                   </p>
@@ -367,7 +367,7 @@ export function PayrollRunPdfDocument({
                   <table className="bdpdf-table prpdf-ledger-table">
                     <thead>
                       <tr>
-                        <th>Employee</th>
+                        <th>HR User</th>
                         <th>Scope</th>
                         <th>Payable</th>
                         <th>Gross</th>
@@ -380,7 +380,7 @@ export function PayrollRunPdfDocument({
                       {chunk.map((line) => (
                         <tr key={line.id}>
                           <td>
-                            <div className="prpdf-cell-title">{line.employee_name}</div>
+                            <div className="prpdf-cell-title">{line.user_name}</div>
                             <div className="prpdf-cell-subtitle">{line.position_title || 'Role not set'}</div>
                           </td>
                           <td>
@@ -418,7 +418,7 @@ export function PayrollRunPdfDocument({
                     return (
                       <article className="prpdf-adjustment-card" key={`adjustment-${line.id}`}>
                         <div className="prpdf-adjustment-head">
-                          <h3 className="prpdf-adjustment-title">{line.employee_name}</h3>
+                          <h3 className="prpdf-adjustment-title">{line.user_name}</h3>
                           <span className={`bdpdf-score-chip ${manualAdjustments.length > 0 ? 'level-4' : 'level-2'}`}>
                             {manualAdjustments.length > 0 ? `${manualAdjustments.length} manual` : 'No manual edits'}
                           </span>
@@ -427,7 +427,7 @@ export function PayrollRunPdfDocument({
                         {line.notes ? (
                           <p className="prpdf-adjustment-note">{line.notes}</p>
                         ) : (
-                          <p className="prpdf-adjustment-note prpdf-adjustment-note--muted">No payroll note was added for this employee.</p>
+                          <p className="prpdf-adjustment-note prpdf-adjustment-note--muted">No payroll note was added for this HR user.</p>
                         )}
 
                         {manualAdjustments.length > 0 ? (

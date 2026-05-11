@@ -5,7 +5,7 @@ import { NuevoComunicadoModal } from '../../../components/NuevoComunicadoModal';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { Button } from '../../../components/ui/button';
 import { Skeleton } from '../../../components/ui/skeleton';
-import { humanResourcesApi, type AnnouncementListItem, type BackendEmployee } from '../../../api/humanResources';
+import { humanResourcesApi, type AnnouncementListItem, type BackendHrUser } from '../../../api/humanResources';
 
 const statusClasses: Record<AnnouncementListItem['status'], string> = {
   published: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -53,7 +53,7 @@ export default function Comunicados() {
     scheduled_count: 0,
     draft_count: 0,
   });
-  const [employees, setEmployees] = useState<BackendEmployee[]>([]);
+  const [employees, setEmployees] = useState<BackendHrUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,7 +81,7 @@ export default function Comunicados() {
     try {
       const [announcementsResponse, employeesResponse] = await Promise.all([
         humanResourcesApi.listAnnouncements(),
-        humanResourcesApi.listEmployees(),
+        humanResourcesApi.listHrUsers(),
       ]);
 
       setAnnouncements(announcementsResponse.items);
@@ -128,7 +128,7 @@ export default function Comunicados() {
           scheduled_for: scheduledFor,
           unit_ids: data.destinatarios === 'units' ? data.unidades : undefined,
           department_names: data.destinatarios === 'departments' ? data.departamentos : undefined,
-          employee_ids: data.destinatarios === 'employees' ? data.colaboradoresEspecificos : undefined,
+          user_company_ids: data.destinatarios === 'employees' ? data.colaboradoresEspecificos : undefined,
         }),
         850,
       );

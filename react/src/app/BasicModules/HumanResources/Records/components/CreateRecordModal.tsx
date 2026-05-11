@@ -87,7 +87,7 @@ export function CreateRecordModal({
 
     if (editingRecord) {
       setFormData({
-        employeeId: editingRecord.employee.id,
+        employeeId: editingRecord.user.id,
         status: editingRecord.status,
         type: editingRecord.type,
         severity: editingRecord.severity ?? '',

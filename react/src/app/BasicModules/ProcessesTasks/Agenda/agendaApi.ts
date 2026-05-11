@@ -13,7 +13,7 @@ export interface AgendaTaskItem {
   dueDate: string;
   completedAt: string | null;
   cancelledAt: string | null;
-  assignedEmployeeId: number | null;
+  assignedUserCompanyId: number | null;
   assignedUserId: number | null;
   assignedName: string | null;
   processId: number | null;
@@ -49,7 +49,7 @@ function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTaskItem {
     dueDate: record.dueDate ?? record.agendaDate ?? '',
     completedAt: record.completedAt ?? null,
     cancelledAt: record.cancelledAt ?? null,
-    assignedEmployeeId: record.assignedEmployeeId ?? null,
+    assignedUserCompanyId: record.assignedUserCompanyId ?? null,
     assignedUserId: record.assignedUserId ?? null,
     assignedName: record.assignedName ?? null,
     processId: record.processId ?? null,

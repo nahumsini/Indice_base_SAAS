@@ -1,9 +1,13 @@
 import { apiClient } from '../lib/apiClient';
 import { endpoints } from './endpoints';
 
-export interface BackendEmployee {
+export interface BackendHrUser {
   id: number;
-  employee_number?: string;
+  legacy_user_company_id?: number;
+  user_id?: number | null;
+  user_company_id?: number | null;
+  work_profile_id?: number | null;
+  user_code?: string;
   first_name: string;
   last_name: string;
   full_name: string;
@@ -32,7 +36,7 @@ export interface BackendEmployee {
   status: 'active' | 'inactive' | 'terminated';
 }
 
-export interface BackendEmployeeProfile {
+export interface BackendHrUserProfile {
   date_of_birth?: string | null;
   address?: string;
   national_id?: string;
@@ -49,7 +53,7 @@ export interface BackendEmployeeProfile {
   workday_hours?: number | null;
 }
 
-export interface BackendEmployeeDocument {
+export interface BackendHrUserDocument {
   id: number;
   document_type: 'birth_certificate' | 'government_id' | 'proof_of_address' | 'resume' | 'profile_photo';
   original_filename: string;
@@ -62,30 +66,32 @@ export interface BackendEmployeeDocument {
   updated_at?: string | null;
 }
 
-export interface EmployeeDetailsResponse {
-  employee_id: number;
-  employee: BackendEmployee;
-  profile: BackendEmployeeProfile;
-  documents: BackendEmployeeDocument[];
+export interface HrUserDetailsResponse {
+  user_company_id: number;
+  user_id?: number | null;
+  work_profile_id?: number | null;
+  user: BackendHrUser;
+  profile: BackendHrUserProfile;
+  documents: BackendHrUserDocument[];
 }
 
-export interface EmployeeDocumentPresignPayload {
-  document_type: BackendEmployeeDocument['document_type'];
+export interface HrUserDocumentPresignPayload {
+  document_type: BackendHrUserDocument['document_type'];
   file_name: string;
   content_type: string;
   size_bytes: number;
 }
 
-export interface EmployeeDocumentPresignResponse {
-  document_type: BackendEmployeeDocument['document_type'];
+export interface HrUserDocumentPresignResponse {
+  document_type: BackendHrUserDocument['document_type'];
   object_key: string;
   upload_url: string;
   expires_at: string;
   upload_headers: Record<string, string>;
 }
 
-export interface RegisterEmployeeDocumentPayload {
-  document_type: BackendEmployeeDocument['document_type'];
+export interface RegisterHrUserDocumentPayload {
+  document_type: BackendHrUserDocument['document_type'];
   original_filename: string;
   mime_type: string;
   size_bytes: number;
@@ -94,7 +100,7 @@ export interface RegisterEmployeeDocumentPayload {
 
 export interface BackendRecordWitness {
   id: number;
-  employee_id?: number | null;
+  user_company_id?: number | null;
   name: string;
   created_at?: string | null;
 }
@@ -123,7 +129,7 @@ export interface BackendRecordActivity {
 export interface BackendRecordItem {
   id: number;
   record_number?: string;
-  employee: {
+  user: {
     id: number;
     name: string;
     position?: string;
@@ -146,7 +152,7 @@ export interface BackendRecordItem {
   event_date: string;
   reported_by: {
     user_id?: number | null;
-    employee_id?: number | null;
+    user_company_id?: number | null;
     name: string;
   };
   created_at?: string | null;
@@ -178,14 +184,14 @@ export interface RecordDetailsResponse {
 }
 
 export interface CreateRecordPayload {
-  employee_id: number;
+  user_company_id: number;
   record_type: BackendRecordItem['type'];
   severity?: NonNullable<BackendRecordItem['severity']>;
   title: string;
   description: string;
   actions_taken?: string;
   event_date: string;
-  witnesses?: Array<string | { employee_id?: number | null; name: string }>;
+  witnesses?: Array<string | { user_company_id?: number | null; name: string }>;
 }
 
 export interface RecordAttachmentPresignPayload {
@@ -208,8 +214,8 @@ export interface RegisterRecordAttachmentPayload {
   object_key: string;
 }
 
-export interface EmployeesListResponse {
-  items: BackendEmployee[];
+export interface HrUsersListResponse {
+  items: BackendHrUser[];
   count: number;
   summary: {
     total_count: number;
@@ -249,12 +255,11 @@ export type AttendanceStatus = 'on_time' | 'late' | 'leave' | 'rest' | 'absence'
 export type AttendanceCorrectionStatus = Exclude<AttendanceStatus, 'pending' | 'not_scheduled'>;
 
 export interface AttendanceDashboardItem {
-  subject_type?: 'employee' | 'user';
+  subject_type?: 'user';
   user_id?: number;
-  user_company_id?: number;
-  employee_id: number;
-  employee_number?: string;
-  employee_name: string;
+  user_company_id: number;
+  user_code?: string;
+  user_name: string;
   avatar_url?: string | null;
   position_title?: string;
   department?: string;
@@ -274,17 +279,17 @@ export interface AttendanceDashboardItem {
   first_location?: AttendanceLocation | null;
   last_location?: AttendanceLocation | null;
   schedule_rule?: AttendanceControlRule | null;
-  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
+  active_work_site?: AttendanceHrUserWorkSiteAssignment | null;
   first_photo_url?: string | null;
   last_photo_url?: string | null;
 }
 
-export interface AttendanceEmployeeOption {
-  subject_type?: 'employee' | 'user';
+export interface AttendanceHrUserOption {
+  subject_type?: 'user';
   user_id?: number;
   user_company_id?: number;
   id: number;
-  employee_number?: string;
+  user_code?: string;
   full_name: string;
   avatar_url?: string | null;
   position_title?: string;
@@ -298,8 +303,7 @@ export interface AttendanceEmployeeOption {
 export interface AttendanceDashboardResponse {
   date: string;
   summary: {
-    total_employees: number;
-    total_users?: number;
+    total_users: number;
     on_time_count: number;
     late_count: number;
     leave_count: number;
@@ -309,7 +313,7 @@ export interface AttendanceDashboardResponse {
     kiosk_enabled: boolean;
   };
   items: AttendanceDashboardItem[];
-  employees: AttendanceEmployeeOption[];
+  users: AttendanceHrUserOption[];
   locations: AttendanceLocation[];
 }
 
@@ -329,14 +333,14 @@ export interface AttendanceCalendarDay {
   first_location?: AttendanceLocation | null;
   last_location?: AttendanceLocation | null;
   schedule_rule?: AttendanceControlRule | null;
-  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
+  active_work_site?: AttendanceHrUserWorkSiteAssignment | null;
   first_photo_url?: string | null;
   last_photo_url?: string | null;
   notes?: string | null;
 }
 
 export interface AttendanceCalendarResponse {
-  employee: {
+  user: {
     id: number;
     full_name: string;
     avatar_url?: string | null;
@@ -382,8 +386,8 @@ export interface AttendanceControlLocation {
   required_days_per_week?: number | null;
   managed_source?: string | null;
   status?: string;
-  assigned_employee_count?: number;
-  assigned_employee_names?: string | null;
+  assigned_user_count?: number;
+  assigned_user_names?: string | null;
 }
 
 export interface AttendanceControlTemplateDay {
@@ -405,13 +409,13 @@ export interface AttendanceControlTemplate {
   enforce_location?: boolean;
   location_id?: number | null;
   location_name?: string | null;
-  employees_assigned_count: number;
+  users_assigned_count: number;
   days: AttendanceControlTemplateDay[];
 }
 
-export interface AttendanceEmployeeWorkSiteAssignment {
+export interface AttendanceHrUserWorkSiteAssignment {
   id: number;
-  employee_id: number;
+  user_company_id: number;
   location_id: number;
   location_name: string;
   location: AttendanceControlLocation;
@@ -442,9 +446,9 @@ export interface AttendanceAccessMethod {
   id: number;
   company_id: number;
   access_profile_id: number;
-  employee_id: number;
-  employee_number?: string;
-  employee_name: string;
+  user_company_id: number;
+  user_code?: string;
+  user_name: string;
   method_type: 'pin' | 'badge' | 'password' | 'manual_override' | 'facial_recognition';
   credential_ref?: string | null;
   pin_code?: string | null;
@@ -456,9 +460,9 @@ export interface AttendanceAccessMethod {
 export interface AttendanceAccessProfile {
   id: number;
   company_id: number;
-  employee_id: number;
-  employee_number?: string;
-  employee_name: string;
+  user_company_id: number;
+  user_code?: string;
+  user_name: string;
   status: 'active' | 'inactive';
   default_method: AttendanceAccessMethod['method_type'];
   last_enrolled_at?: string | null;
@@ -473,12 +477,12 @@ export interface AttendanceAccessProfile {
 }
 
 export interface AttendanceControlAssignment {
-  employee_id: number;
-  employee_number?: string;
-  employee_name: string;
+  user_company_id: number;
+  user_code?: string;
+  user_name: string;
   position_title?: string;
   department?: string;
-  employee_status: string;
+  user_status: string;
   unit_id?: number | null;
   unit_name?: string;
   business_id?: number | null;
@@ -501,7 +505,7 @@ export interface AttendanceControlAssignment {
   minutes_late: number;
   allowed_locations?: AttendanceControlLocation[];
   business_locations?: AttendanceControlLocation[];
-  active_work_site?: AttendanceEmployeeWorkSiteAssignment | null;
+  active_work_site?: AttendanceHrUserWorkSiteAssignment | null;
   access_profile?: AttendanceAccessProfile | null;
   latest_event?: AttendanceControlRecentEvent | null;
   can_assign_schedule?: boolean;
@@ -510,9 +514,9 @@ export interface AttendanceControlAssignment {
 
 export interface AttendanceControlRecentEvent {
   id: number;
-  employee_id: number;
-  employee_number?: string;
-  employee_name: string;
+  user_company_id: number;
+  user_code?: string;
+  user_name: string;
   kiosk_device_id?: number | null;
   kiosk_device_name?: string;
   location_id?: number | null;
@@ -529,11 +533,11 @@ export interface AttendanceControlRecentEvent {
 export interface AttendanceControlOverviewResponse {
   date: string;
   summary: {
-    employees_count: number;
+    users_count: number;
     locations_count: number;
     templates_count: number;
-    assigned_employees_count: number;
-    unassigned_employees_count: number;
+    assigned_users_count: number;
+    unassigned_users_count: number;
     late_today_count: number;
     manual_corrections_count: number;
     records_today_count: number;
@@ -621,18 +625,18 @@ export interface AttendanceControlTemplatesResponse {
 }
 
 export interface AttendanceControlAssignmentPayload {
-  employee_ids: number[];
+  user_company_ids: number[];
   template_id: number;
   effective_start_date: string;
   effective_end_date?: string;
 }
 
-export interface AttendanceEmployeeAllowedLocationsPayload {
+export interface AttendanceHrUserAllowedLocationsPayload {
   location_ids: number[];
 }
 
 export interface AttendanceWorkSiteAssignmentPayload {
-  employee_ids: number[];
+  user_company_ids: number[];
   location_id: number;
   template_id?: number;
   effective_start_date: string;
@@ -642,25 +646,25 @@ export interface AttendanceWorkSiteAssignmentPayload {
 export interface AttendanceWorkSiteAssignmentResponse {
   assigned_count: number;
   location: AttendanceControlLocation;
-  assignments: AttendanceEmployeeWorkSiteAssignment[];
+  assignments: AttendanceHrUserWorkSiteAssignment[];
 }
 
 export interface AttendanceWorkAssignmentClearPayload {
-  employee_id: number;
+  user_company_id: number;
   date: string;
 }
 
 export interface AttendanceWorkAssignmentClearResponse {
-  employee_id: number;
-  employee_name: string;
+  user_company_id: number;
+  user_name: string;
   date: string;
   schedule_assignments_cleared: number;
   work_site_assignments_cleared: number;
 }
 
 export interface AttendanceControlAssignmentResult {
-  employee_id: number;
-  employee_name: string;
+  user_company_id: number;
+  user_name: string;
   template_id: number;
   template_name: string;
   effective_start_date: string;
@@ -697,7 +701,7 @@ export interface AttendanceAccessProfilesResponse {
 }
 
 export interface AttendanceAccessProfilePayload {
-  employee_id: number;
+  user_company_id: number;
   status: 'active' | 'inactive';
   default_method: AttendanceAccessMethod['method_type'];
   last_enrolled_at?: string;
@@ -725,8 +729,8 @@ export interface PayrollPreferences {
   default_daily_hours: number;
   pay_leave_days: boolean;
   isr_rate: number;
-  imss_employee_rate: number;
-  infonavit_employee_rate: number;
+  imss_user_rate: number;
+  infonavit_user_rate: number;
   imss_employer_rate: number;
   infonavit_employer_rate: number;
   sar_employer_rate: number;
@@ -756,7 +760,7 @@ export interface PayrollRunSummary {
   period_start_date: string;
   period_end_date: string;
   status: 'draft' | 'processed' | 'approved' | 'paid' | 'cancelled';
-  employees_count: number;
+  users_count: number;
   gross_amount: number;
   deductions_amount: number;
   employer_contributions_amount: number;
@@ -787,9 +791,9 @@ export interface PayrollLineItem {
 
 export interface PayrollRunLine {
   id: number;
-  employee_id: number;
-  employee_number?: string;
-  employee_name: string;
+  user_company_id: number;
+  user_code?: string;
+  user_name: string;
   position_title?: string;
   department?: string;
   unit_id?: number | null;
@@ -834,7 +838,7 @@ export interface PayrollUpdateLinePayload {
 }
 
 export interface AttendanceKioskEventPayload {
-  employee_id?: number;
+  user_company_id?: number;
   event_type?: 'check_in' | 'check_out' | 'break_out' | 'break_in';
   event_kind?: 'auth_attempt' | 'check_in' | 'break_out' | 'break_in' | 'check_out' | 'manual_override' | 'correction';
   location_id?: number;
@@ -883,9 +887,9 @@ export interface PublicKioskDayActivity {
 export interface PublicKioskIdentifyResponse {
   auth_attempt_event_id: number;
   auth_method: 'pin';
-  employee: {
+  user: {
     id: number;
-    employee_number?: string;
+    user_code?: string;
     full_name: string;
     position_title?: string;
     department?: string;
@@ -908,7 +912,7 @@ export interface PublicKioskPunchRequest {
 
 export interface PublicKioskPunchResponse {
   event_id: number;
-  employee_id: number;
+  user_company_id: number;
   event_kind: 'check_in' | 'check_out';
   auth_method: 'pin';
   result_status: 'success';
@@ -922,7 +926,7 @@ export interface PublicKioskPunchResponse {
 }
 
 export interface AttendanceMediaPresignRequest {
-  employee_id?: number;
+  user_company_id?: number;
   content_type: string;
   event_type?: 'check_in' | 'check_out' | 'break_out' | 'break_in';
   event_timestamp?: string;
@@ -951,7 +955,7 @@ export interface AttendanceManualEventPayload {
 }
 
 export interface AttendanceDailyRecordUpdateResponse {
-  employee_id: number;
+  user_company_id: number;
   date: string;
   event_id?: number;
   event_kind?: AttendanceManualEventKind;
@@ -973,7 +977,7 @@ export interface AttendanceDailyRecordUpdateResponse {
 
 export interface FaceEnrollmentSessionResponse {
   id: number;
-  employee_id: number;
+  user_company_id: number;
   status: string;
   required_steps: string[];
   expires_at: string;
@@ -990,7 +994,7 @@ export interface FaceCapturePresignResponse {
 export interface FaceEnrollmentStatusResponse {
   enrollment: {
     id: number;
-    employee_id: number;
+    user_company_id: number;
     status: string;
     enrolled_at?: string | null;
     required_steps?: string[];
@@ -999,7 +1003,7 @@ export interface FaceEnrollmentStatusResponse {
 
 export interface FaceVerificationSessionResponse {
   session_id: number;
-  employee_id: number;
+  user_company_id: number;
   required_steps: string[];
   expires_at: string;
   status: string;
@@ -1007,7 +1011,7 @@ export interface FaceVerificationSessionResponse {
 
 export interface FaceVerificationResultResponse {
   session_id: number;
-  employee_id: number;
+  user_company_id: number;
   status: string;
   matched: boolean;
   liveness_passed: boolean;
@@ -1048,7 +1052,7 @@ export interface CreateAnnouncementPayload {
   scheduled_for?: string;
   unit_ids?: string[];
   department_names?: string[];
-  employee_ids?: number[];
+  user_company_ids?: number[];
 }
 
 const toQueryString = (params: Record<string, string | number | undefined>) => {
@@ -1065,47 +1069,47 @@ const toQueryString = (params: Record<string, string | number | undefined>) => {
 };
 
 export const humanResourcesApi = {
-  listEmployees() {
-    return apiClient<EmployeesListResponse>(endpoints.humanResources.employeesList);
+  listHrUsers() {
+    return apiClient<HrUsersListResponse>(endpoints.humanResources.hrUsersList);
   },
 
-  getEmployeeDetails(id: string | number) {
-    return apiClient<EmployeeDetailsResponse>(`${endpoints.humanResources.employeeDetails}/${id}`);
+  getHrUserDetails(id: string | number) {
+    return apiClient<HrUserDetailsResponse>(`${endpoints.humanResources.hrUserDetails}/${id}`);
   },
 
-  createEmployee(payload: Record<string, unknown>) {
-    return apiClient<BackendEmployee>(endpoints.humanResources.employeeCreate, {
+  createHrUser(payload: Record<string, unknown>) {
+    return apiClient<BackendHrUser>(endpoints.humanResources.hrUserCreate, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
-  updateEmployee(id: string | number, payload: Record<string, unknown>) {
-    return apiClient<BackendEmployee>(`${endpoints.humanResources.employeeUpdate}/${id}`, {
+  updateHrUser(id: string | number, payload: Record<string, unknown>) {
+    return apiClient<BackendHrUser>(`${endpoints.humanResources.hrUserUpdate}/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
   },
 
-  deleteEmployee(id: string | number) {
-    return apiClient<{ success: boolean }>(`${endpoints.humanResources.employeeDelete}/${id}`, {
+  deleteHrUser(id: string | number) {
+    return apiClient<{ success: boolean }>(`${endpoints.humanResources.hrUserDelete}/${id}`, {
       method: 'DELETE',
     });
   },
 
-  terminateEmployee(id: string | number, payload: TerminationPayload) {
-    return apiClient<BackendEmployee>(`${endpoints.humanResources.employeeTerminate}/${id}/terminate`, {
+  terminateHrUser(id: string | number, payload: TerminationPayload) {
+    return apiClient<BackendHrUser>(`${endpoints.humanResources.hrUserTerminate}/${id}/terminate`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
-  presignEmployeeDocumentUpload(
-    employeeId: string | number,
-    payload: EmployeeDocumentPresignPayload,
+  presignHrUserDocumentUpload(
+    userCompanyId: string | number,
+    payload: HrUserDocumentPresignPayload,
   ) {
-    return apiClient<EmployeeDocumentPresignResponse>(
-      `${endpoints.humanResources.employeeDocuments}/${employeeId}/documents/presign-upload`,
+    return apiClient<HrUserDocumentPresignResponse>(
+      `${endpoints.humanResources.hrUserDocuments}/${userCompanyId}/documents/presign-upload`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -1113,7 +1117,7 @@ export const humanResourcesApi = {
     );
   },
 
-  async uploadEmployeeDocument(
+  async uploadHrUserDocument(
     uploadUrl: string,
     file: Blob,
     contentType: string,
@@ -1132,16 +1136,16 @@ export const humanResourcesApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Employee document upload failed.');
+      throw new Error('HR user document upload failed.');
     }
   },
 
-  registerEmployeeDocument(
-    employeeId: string | number,
-    payload: RegisterEmployeeDocumentPayload,
+  registerHrUserDocument(
+    userCompanyId: string | number,
+    payload: RegisterHrUserDocumentPayload,
   ) {
-    return apiClient<BackendEmployeeDocument>(
-      `${endpoints.humanResources.employeeDocuments}/${employeeId}/documents`,
+    return apiClient<BackendHrUserDocument>(
+      `${endpoints.humanResources.hrUserDocuments}/${userCompanyId}/documents`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -1149,9 +1153,9 @@ export const humanResourcesApi = {
     );
   },
 
-  deleteEmployeeDocument(employeeId: string | number, documentId: string | number) {
+  deleteHrUserDocument(userCompanyId: string | number, documentId: string | number) {
     return apiClient<{ success: boolean }>(
-      `${endpoints.humanResources.employeeDocuments}/${employeeId}/documents/${documentId}`,
+      `${endpoints.humanResources.hrUserDocuments}/${userCompanyId}/documents/${documentId}`,
       {
         method: 'DELETE',
       },
@@ -1247,9 +1251,9 @@ export const humanResourcesApi = {
     });
   },
 
-  replaceAttendanceEmployeeAllowedLocations(employeeId: string | number, payload: AttendanceEmployeeAllowedLocationsPayload) {
-    return apiClient<{ employee_id: number; allowed_locations: AttendanceControlLocation[] }>(
-      `${endpoints.humanResources.attendanceCalendar}/${employeeId}/allowed-locations`,
+  replaceAttendanceHrUserAllowedLocations(userCompanyId: string | number, payload: AttendanceHrUserAllowedLocationsPayload) {
+    return apiClient<{ user_company_id: number; allowed_locations: AttendanceControlLocation[] }>(
+      `${endpoints.humanResources.attendanceCalendar}/${userCompanyId}/allowed-locations`,
       {
         method: 'PUT',
         body: JSON.stringify(payload),
@@ -1340,9 +1344,9 @@ export const humanResourcesApi = {
     });
   },
 
-  getAttendanceCalendar(employeeId: string | number, month: string) {
+  getAttendanceCalendar(userCompanyId: string | number, month: string) {
     return apiClient<AttendanceCalendarResponse>(
-      `${endpoints.humanResources.attendanceCalendar}/${employeeId}/calendar${toQueryString({ month })}`,
+      `${endpoints.humanResources.attendanceCalendar}/${userCompanyId}/calendar${toQueryString({ month })}`,
     );
   },
 
@@ -1359,7 +1363,7 @@ export const humanResourcesApi = {
     });
   },
 
-  presignMyAttendancePhotoUpload(payload: Omit<AttendanceMediaPresignRequest, 'employee_id'>) {
+  presignMyAttendancePhotoUpload(payload: Omit<AttendanceMediaPresignRequest, 'user_company_id'>) {
     return apiClient<AttendanceMediaPresignResponse>(endpoints.humanResources.attendanceSelfMediaPresignUpload, {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -1396,7 +1400,7 @@ export const humanResourcesApi = {
     });
   },
 
-  recordMyAttendanceKioskEvent(payload: Omit<AttendanceKioskEventPayload, 'employee_id'>) {
+  recordMyAttendanceKioskEvent(payload: Omit<AttendanceKioskEventPayload, 'user_company_id'>) {
     return apiClient<{ status: string }>(endpoints.humanResources.attendanceSelfKioskEvents, {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -1407,7 +1411,7 @@ export const humanResourcesApi = {
     return apiClient<PublicKioskBootstrapResponse>(`${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/bootstrap`);
   },
 
-  identifyPublicKioskEmployee(deviceToken: string, payload: PublicKioskIdentifyRequest) {
+  identifyPublicKioskHrUser(deviceToken: string, payload: PublicKioskIdentifyRequest) {
     return apiClient<PublicKioskIdentifyResponse>(`${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/identify`, {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -1423,7 +1427,7 @@ export const humanResourcesApi = {
 
   presignPublicKioskAttendancePhotoUpload(
     deviceToken: string,
-    payload: Omit<AttendanceMediaPresignRequest, 'employee_id'> & { identification_token: string },
+    payload: Omit<AttendanceMediaPresignRequest, 'user_company_id'> & { identification_token: string },
   ) {
     return apiClient<AttendanceMediaPresignResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/media/presign-upload`,
@@ -1470,10 +1474,10 @@ export const humanResourcesApi = {
     );
   },
 
-  createFaceEnrollmentSession(employeeId: number) {
+  createFaceEnrollmentSession(userCompanyId: number) {
     return apiClient<FaceEnrollmentSessionResponse>(endpoints.humanResources.faceEnrollmentSessions, {
       method: 'POST',
-      body: JSON.stringify({ employee_id: employeeId }),
+      body: JSON.stringify({ user_company_id: userCompanyId }),
     });
   },
 
@@ -1490,20 +1494,20 @@ export const humanResourcesApi = {
     });
   },
 
-  getFaceEnrollment(employeeId: number) {
-    return apiClient<FaceEnrollmentStatusResponse>(`${endpoints.humanResources.faceEnrollments}/${employeeId}`);
+  getFaceEnrollment(userCompanyId: number) {
+    return apiClient<FaceEnrollmentStatusResponse>(`${endpoints.humanResources.faceEnrollments}/${userCompanyId}`);
   },
 
-  deleteFaceEnrollment(employeeId: number) {
-    return apiClient<{ success: boolean }>(`${endpoints.humanResources.faceEnrollments}/${employeeId}`, {
+  deleteFaceEnrollment(userCompanyId: number) {
+    return apiClient<{ success: boolean }>(`${endpoints.humanResources.faceEnrollments}/${userCompanyId}`, {
       method: 'DELETE',
     });
   },
 
-  createFaceVerificationSession(employeeId: number) {
+  createFaceVerificationSession(userCompanyId: number) {
     return apiClient<FaceVerificationSessionResponse>(endpoints.humanResources.attendanceFaceVerificationSessions, {
       method: 'POST',
-      body: JSON.stringify({ employee_id: employeeId }),
+      body: JSON.stringify({ user_company_id: userCompanyId }),
     });
   },
 
@@ -1526,9 +1530,9 @@ export const humanResourcesApi = {
     });
   },
 
-  updateAttendanceDailyRecord(employeeId: string | number, date: string, payload: AttendanceCorrectionPayload) {
+  updateAttendanceDailyRecord(userCompanyId: string | number, date: string, payload: AttendanceCorrectionPayload) {
     return apiClient<AttendanceDailyRecordUpdateResponse>(
-      `${endpoints.humanResources.attendanceDailyRecords}/${employeeId}/${date}`,
+      `${endpoints.humanResources.attendanceDailyRecords}/${userCompanyId}/${date}`,
       {
         method: 'PUT',
         body: JSON.stringify(payload),
@@ -1536,9 +1540,9 @@ export const humanResourcesApi = {
     );
   },
 
-  recordManualAttendanceEvent(employeeId: string | number, date: string, payload: AttendanceManualEventPayload) {
+  recordManualAttendanceEvent(userCompanyId: string | number, date: string, payload: AttendanceManualEventPayload) {
     return apiClient<AttendanceDailyRecordUpdateResponse>(
-      `${endpoints.humanResources.attendanceDailyRecords}/${employeeId}/${date}/manual-events`,
+      `${endpoints.humanResources.attendanceDailyRecords}/${userCompanyId}/${date}/manual-events`,
       {
         method: 'POST',
         body: JSON.stringify(payload),

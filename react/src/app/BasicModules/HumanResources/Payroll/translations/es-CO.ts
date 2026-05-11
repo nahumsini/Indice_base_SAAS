@@ -12,8 +12,8 @@ export const esCO = {
   },
   labels: {
     ...esMX.labels,
-    employees: 'Personal',
-    employee: 'Persona',
+    employees: 'Usuarios',
+    employee: 'Usuario',
     payrollType: 'Tipo de pago',
     rfc: 'NIT',
     curp: 'Documento',

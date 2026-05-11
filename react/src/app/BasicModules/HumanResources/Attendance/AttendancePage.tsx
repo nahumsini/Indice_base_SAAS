@@ -161,8 +161,8 @@ export default function Attendance() {
   const hasSelectedAttendanceLocation = Boolean(selectedAttendanceLocation);
   const shouldShowAttendanceLocationSelectors = recorderSelectorLocations.length > 0;
   const selectedItem = useMemo(() => dashboard?.items[0] ?? null, [dashboard?.items]);
-  const selectedEmployeeOption = useMemo(() => dashboard?.employees[0] ?? null, [dashboard?.employees]);
-  const selectedEmployeeId = selectedItem?.employee_id ?? null;
+  const selectedEmployeeOption = useMemo(() => dashboard?.users[0] ?? null, [dashboard?.users]);
+  const selectedEmployeeId = selectedItem?.user_company_id ?? null;
   const punchState = useMemo(
     () => deriveAttendancePunchState(selectedItem),
     [selectedItem],
@@ -627,7 +627,7 @@ export default function Attendance() {
                   {selectedUserAvatarUrl ? (
                     <img
                       src={selectedUserAvatarUrl}
-                      alt={selectedItem.employee_name}
+                      alt={selectedItem.user_name}
                       className="h-12 w-12 rounded-full border border-blue-100 object-cover shadow-sm dark:border-blue-900/50"
                     />
                   ) : (
@@ -637,12 +637,12 @@ export default function Attendance() {
                   )}
                   <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{copy.labels.collaborator}</p>
-                    <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{selectedItem.employee_name}</p>
+                    <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{selectedItem.user_name}</p>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {selectedItem.position_title || selectedItem.department || copy.labels.unassignedPosition}
                     </p>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {selectedEmployeeOption?.employee_number || copy.labels.unassignedUnit}
+                      {selectedEmployeeOption?.user_code || copy.labels.unassignedUnit}
                     </p>
                   </div>
                 </div>

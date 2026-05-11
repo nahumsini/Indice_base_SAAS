@@ -5,7 +5,7 @@ export const enUS = {
   ...enCA,
   labels: {
     ...enCA.labels,
-    noJurisdiction: 'From employee profile',
+    noJurisdiction: 'From HR user profile',
   },
   rateConfiguration: {
     ...enCA.rateConfiguration,
