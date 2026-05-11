@@ -27,15 +27,17 @@ public class InvitationEmailService {
     private final String provider;
     private final String fromAddress;
     private final String fromName;
+    private final String replyToAddress;
     private final String sendgridApiKey;
 
     public InvitationEmailService(
         ObjectProvider<JavaMailSender> mailSenderProvider,
         RestClient.Builder restClientBuilder,
-        @Value("${app.email.enabled:false}") boolean enabled,
-        @Value("${app.email.provider:smtp}") String provider,
+        @Value("${app.email.enabled:true}") boolean enabled,
+        @Value("${app.email.provider:sendgrid}") String provider,
         @Value("${app.email.from:no-reply@indice.local}") String fromAddress,
         @Value("${app.email.from-name:Indice ERP}") String fromName,
+        @Value("${app.email.reply-to:}") String replyToAddress,
         @Value("${app.email.sendgrid.api-key:}") String sendgridApiKey
     ) {
         this.mailSenderProvider = mailSenderProvider;
@@ -44,6 +46,7 @@ public class InvitationEmailService {
         this.provider = provider == null ? "smtp" : provider.trim().toLowerCase();
         this.fromAddress = fromAddress == null ? "" : fromAddress.trim();
         this.fromName = fromName == null ? "" : fromName.trim();
+        this.replyToAddress = replyToAddress == null ? "" : replyToAddress.trim();
         this.sendgridApiKey = sendgridApiKey == null ? "" : sendgridApiKey.trim();
     }
 
@@ -73,6 +76,9 @@ public class InvitationEmailService {
             var message = new SimpleMailMessage();
             if (!fromAddress.isBlank()) {
                 message.setFrom(fromAddress);
+            }
+            if (!replyToAddress.isBlank()) {
+                message.setReplyTo(replyToAddress);
             }
             message.setTo(email);
             message.setSubject(INVITATION_SUBJECT);
@@ -116,17 +122,20 @@ public class InvitationEmailService {
             from.put("name", fromName);
         }
 
-        return Map.of(
-            "personalizations", List.of(Map.of(
-                "to", List.of(Map.of("email", email)),
-                "subject", INVITATION_SUBJECT
-            )),
-            "from", from,
-            "content", List.of(Map.of(
-                "type", "text/plain",
-                "value", buildInvitationText(fullName, inviteLink)
-            ))
-        );
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("personalizations", List.of(Map.of(
+            "to", List.of(Map.of("email", email)),
+            "subject", INVITATION_SUBJECT
+        )));
+        payload.put("from", from);
+        if (!replyToAddress.isBlank()) {
+            payload.put("reply_to", Map.of("email", replyToAddress));
+        }
+        payload.put("content", List.of(Map.of(
+            "type", "text/plain",
+            "value", buildInvitationText(fullName, inviteLink)
+        )));
+        return payload;
     }
 
     private String buildInvitationText(String fullName, String inviteLink) {
