@@ -4,7 +4,7 @@ import type { PayrollTranslations } from './types';
 export const zhCA = {
   ...enCA,
   title: '薪资',
-  subtitle: '使用真实员工和考勤数据审核、批准、支付并导出薪资批次。',
+  subtitle: '使用真实用户和考勤数据审核、批准、支付并导出薪资批次。',
   refresh: '刷新',
   loading: '正在加载薪资',
   header: {
@@ -16,8 +16,8 @@ export const zhCA = {
   labels: {
     ...enCA.labels,
     preferences: '薪资偏好设置',
-    employees: '员工',
-    employee: '员工',
+    employees: '用户',
+    employee: '用户',
     payrollType: '薪资类型',
     exportCsv: '导出 CSV',
     exportPdf: '导出 PDF',

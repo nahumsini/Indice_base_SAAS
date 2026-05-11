@@ -67,8 +67,7 @@ function createDefaultTaskForm(): TaskFormValues {
     description: '',
     processId: '',
     projectId: '',
-    assignedEmployeeId: '',
-    assignedUserId: '',
+    assignedUserCompanyId: '',
     assignedName: '',
     status: 'pending',
     priority: 'medium',
@@ -84,8 +83,7 @@ function toTaskFormValues(task: TaskRecord): TaskFormValues {
     description: task.description ?? '',
     processId: task.processId?.toString() ?? '',
     projectId: task.projectId?.toString() ?? '',
-    assignedEmployeeId: task.assignedEmployeeId?.toString() ?? '',
-    assignedUserId: task.assignedUserId?.toString() ?? '',
+    assignedUserCompanyId: task.assignedUserCompanyId?.toString() ?? '',
     assignedName: task.assignedName ?? '',
     status: task.status,
     priority: task.priority,
@@ -114,20 +112,14 @@ function parseOptionalNumber(value: string, fieldLabel: string) {
 }
 
 function buildTaskPayload(form: TaskFormValues): TaskPayload {
-  const assignedEmployeeId = parseOptionalNumber(form.assignedEmployeeId, 'Assigned employee ID');
-  const assignedUserId = parseOptionalNumber(form.assignedUserId, 'Assigned user ID');
-
-  if (assignedEmployeeId !== null && assignedUserId !== null) {
-    throw new Error('A task can be assigned to an employee or to a user, but not both.');
-  }
+  const assignedUserCompanyId = parseOptionalNumber(form.assignedUserCompanyId, 'Assigned HR user ID');
 
   return {
     title: form.title.trim(),
     description: form.description.trim() ? form.description.trim() : null,
     processId: parseOptionalNumber(form.processId, 'Process ID'),
     projectId: parseOptionalNumber(form.projectId, 'Project ID'),
-    assignedEmployeeId,
-    assignedUserId,
+    assignedUserCompanyId,
     assignedName: form.assignedName.trim() ? form.assignedName.trim() : null,
     status: form.status,
     priority: form.priority,
@@ -504,8 +496,7 @@ export default function Tasks() {
                 <TableCell className="px-5 py-5">
                   <div className="min-w-[180px] space-y-1 text-sm text-slate-700 dark:text-slate-200">
                     <p className="font-medium text-slate-900 dark:text-white">{task.assignedName ?? 'Unassigned'}</p>
-                    {task.assignedEmployeeId ? <p>Employee #{task.assignedEmployeeId}</p> : null}
-                    {task.assignedUserId ? <p>User #{task.assignedUserId}</p> : null}
+                    {task.assignedUserCompanyId ? <p>HR user #{task.assignedUserCompanyId}</p> : null}
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5">

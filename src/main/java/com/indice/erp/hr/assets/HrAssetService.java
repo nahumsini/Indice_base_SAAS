@@ -28,7 +28,7 @@ public class HrAssetService {
 
     private static final Set<String> VALID_STATUSES = Set.of("available", "assigned", "maintenance", "custody", "inactive");
     private static final Set<String> ASSIGNABLE_STATUSES = Set.of("assigned", "custody");
-    private static final Set<String> ACTIVE_EMPLOYEE_STATUSES = Set.of("active", "activo");
+    private static final Set<String> ACTIVE_HR_USER_STATUSES = Set.of("active", "activo");
     private static final Set<String> ACTIVE_UNIT_STATUSES = Set.of("active", "activo");
     private static final Pattern ASSET_CODE_PATTERN = Pattern.compile("^[A-Z0-9][A-Z0-9._-]{1,79}$");
     private static final Pattern ASSET_TYPE_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9 _-]{0,49}$");
@@ -58,7 +58,7 @@ public class HrAssetService {
                        a.name,
                        a.model,
                        a.serial_number,
-                       a.responsible_employee_id,
+                       a.responsible_user_company_id,
                        e.first_name,
                        e.last_name,
                        e.email AS responsible_email,
@@ -74,8 +74,8 @@ public class HrAssetService {
                        updated_by.full_name AS updated_by_name,
                        a.created_at,
                        a.updated_at
-                FROM hr_assets a
-                LEFT JOIN hr_employees e ON e.id = a.responsible_employee_id
+                FROM user_assets a
+                LEFT JOIN hr_users e ON e.id = a.responsible_user_company_id
                 LEFT JOIN units u ON u.id = a.unit_id
                 LEFT JOIN users created_by ON created_by.id = a.created_by_user_id
                 LEFT JOIN users updated_by ON updated_by.id = a.updated_by_user_id
@@ -92,7 +92,7 @@ public class HrAssetService {
                 rs.getString("name"),
                 rs.getString("model"),
                 rs.getString("serial_number"),
-                nullableLong(rs.getObject("responsible_employee_id")),
+                nullableLong(rs.getObject("responsible_user_company_id")),
                 fullName(rs.getString("first_name"), rs.getString("last_name")),
                 rs.getString("responsible_email"),
                 nullableLong(rs.getObject("unit_id")),
@@ -112,7 +112,7 @@ public class HrAssetService {
         );
 
         var totalCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM hr_assets a " + query.whereClause(),
+            "SELECT COUNT(*) FROM user_assets a " + query.whereClause(),
             Long.class,
             query.params().toArray()
         );
@@ -126,7 +126,7 @@ public class HrAssetService {
                        SUM(CASE WHEN a.status = 'custody' THEN 1 ELSE 0 END) AS custody_count,
                        SUM(CASE WHEN a.status = 'inactive' THEN 1 ELSE 0 END) AS inactive_count,
                        COALESCE(SUM(a.value_amount), 0) AS total_value_amount
-                FROM hr_assets a
+                FROM user_assets a
                 """
                 + query.whereClause(),
             (rs, rowNum) -> {
@@ -177,10 +177,10 @@ public class HrAssetService {
             jdbcTemplate.update(connection -> {
                 var statement = connection.prepareStatement(
                     """
-                        INSERT INTO hr_assets
-                        (company_id, asset_code, asset_type, name, model, serial_number, responsible_employee_id, unit_id, status, assigned_at,
+                        INSERT INTO user_assets
+                        (company_id, asset_code, asset_type, name, model, serial_number, responsible_user_company_id, responsible_user_id, unit_id, status, assigned_at,
                          value_amount, notes, created_by_user_id, updated_by_user_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                     new String[] {"id"}
                 );
@@ -190,14 +190,15 @@ public class HrAssetService {
                 statement.setString(4, draft.name());
                 statement.setString(5, nullable(draft.model()));
                 statement.setString(6, nullable(draft.serialNumber()));
-                setNullableLong(statement, 7, draft.responsibleEmployeeId());
-                setNullableLong(statement, 8, draft.unitId());
-                statement.setString(9, draft.status());
-                setNullableDateTime(statement, 10, draft.assignedAt());
-                setNullableBigDecimal(statement, 11, draft.valueAmount());
-                statement.setString(12, nullable(draft.notes()));
-                setNullableLong(statement, 13, actorUserId);
+                setNullableLong(statement, 7, draft.responsibleUserCompanyId());
+                setNullableLong(statement, 8, resolveUserId(companyId, draft.responsibleUserCompanyId()));
+                setNullableLong(statement, 9, draft.unitId());
+                statement.setString(10, draft.status());
+                setNullableDateTime(statement, 11, draft.assignedAt());
+                setNullableBigDecimal(statement, 12, draft.valueAmount());
+                statement.setString(13, nullable(draft.notes()));
                 setNullableLong(statement, 14, actorUserId);
+                setNullableLong(statement, 15, actorUserId);
                 return statement;
             }, keyHolder);
         } catch (DataIntegrityViolationException ex) {
@@ -225,7 +226,7 @@ public class HrAssetService {
             insertAssignmentHistory(
                 companyId,
                 assetId,
-                draft.responsibleEmployeeId(),
+                draft.responsibleUserCompanyId(),
                 draft.unitId(),
                 draft.status(),
                 draft.assignedAt(),
@@ -291,7 +292,7 @@ public class HrAssetService {
 
         var rowsUpdated = jdbcTemplate.update(
             """
-                UPDATE hr_assets
+                UPDATE user_assets
                 SET asset_code = ?,
                     asset_type = ?,
                     name = ?,
@@ -341,8 +342,8 @@ public class HrAssetService {
             return applyAssignmentChange(companyId, actorUserId, current, command);
         }
 
-        if (containsAnyKey(payload, "responsible_employee_id", "responsibleEmployeeId", "employee_id", "responsible", "responsible_name")) {
-            throw new IllegalArgumentException("responsible_employee_id can only be set for assigned or custody assets.");
+        if (containsAnyKey(payload, "responsible_user_company_id", "responsibleUserCompanyId", "user_company_id", "responsible", "responsible_name")) {
+            throw new IllegalArgumentException("responsible_user_company_id can only be set for assigned or custody assets.");
         }
 
         if (current.status().equals(targetStatus)) {
@@ -363,8 +364,8 @@ public class HrAssetService {
 
         var rowsUpdated = jdbcTemplate.update(
             """
-                UPDATE hr_assets
-                SET responsible_employee_id = NULL,
+                UPDATE user_assets
+                SET responsible_user_company_id = NULL,
                     unit_id = ?,
                     status = ?,
                     assigned_at = NULL,
@@ -404,7 +405,7 @@ public class HrAssetService {
             """
                 SELECT h.id,
                        h.assignment_status,
-                       h.responsible_employee_id,
+                       h.responsible_user_company_id,
                        e.first_name,
                        e.last_name,
                        e.email AS responsible_email,
@@ -419,8 +420,8 @@ public class HrAssetService {
                        ended_by.full_name AS ended_by_name,
                        h.created_at,
                        h.updated_at
-                FROM hr_asset_assignments h
-                LEFT JOIN hr_employees e ON e.id = h.responsible_employee_id
+                FROM user_asset_assignments h
+                LEFT JOIN hr_users e ON e.id = h.responsible_user_company_id
                 LEFT JOIN units u ON u.id = h.unit_id
                 LEFT JOIN users created_by ON created_by.id = h.created_by_user_id
                 LEFT JOIN users ended_by ON ended_by.id = h.ended_by_user_id
@@ -432,7 +433,7 @@ public class HrAssetService {
                 var item = new LinkedHashMap<String, Object>();
                 item.put("id", rs.getLong("id"));
                 item.put("assignment_status", safe(rs.getString("assignment_status")));
-                item.put("responsible_employee_id", nullableLong(rs.getObject("responsible_employee_id")));
+                item.put("responsible_user_company_id", nullableLong(rs.getObject("responsible_user_company_id")));
                 item.put("responsible_name", fullName(rs.getString("first_name"), rs.getString("last_name")));
                 item.put("responsible_email", safe(rs.getString("responsible_email")));
                 item.put("unit_id", nullableLong(rs.getObject("unit_id")));
@@ -463,7 +464,7 @@ public class HrAssetService {
                        changed_by.full_name AS changed_by_name,
                        h.changed_at,
                        h.created_at
-                FROM hr_asset_status_history h
+                FROM user_asset_status_history h
                 LEFT JOIN users changed_by ON changed_by.id = h.changed_by_user_id
                 WHERE h.company_id = ?
                   AND h.asset_id = ?
@@ -515,25 +516,27 @@ public class HrAssetService {
         AssetState current,
         AssignmentCommand command
     ) {
-        if (Objects.equals(current.responsibleEmployeeId(), command.responsibleEmployeeId())
+        if (Objects.equals(current.responsibleUserCompanyId(), command.responsibleUserCompanyId())
             && Objects.equals(current.unitId(), command.unitId())
             && current.status().equals(command.status())) {
-            throw new IllegalArgumentException("Asset is already assigned to this responsible employee with the same status.");
+            throw new IllegalArgumentException("Asset is already assigned to this responsible HR user with the same status.");
         }
 
         closeOpenAssignments(companyId, current.id(), command.assignedAt(), actorUserId);
 
         var rowsUpdated = jdbcTemplate.update(
             """
-                UPDATE hr_assets
-                SET responsible_employee_id = ?,
+                UPDATE user_assets
+                SET responsible_user_company_id = ?,
+                    responsible_user_id = ?,
                     unit_id = ?,
                     status = ?,
                     assigned_at = ?,
                     updated_by_user_id = ?
                 WHERE id = ? AND company_id = ?
                 """,
-            command.responsibleEmployeeId(),
+            command.responsibleUserCompanyId(),
+            resolveUserId(companyId, command.responsibleUserCompanyId()),
             command.unitId(),
             command.status(),
             Timestamp.valueOf(command.assignedAt()),
@@ -549,7 +552,7 @@ public class HrAssetService {
         insertAssignmentHistory(
             companyId,
             current.id(),
-            command.responsibleEmployeeId(),
+            command.responsibleUserCompanyId(),
             command.unitId(),
             command.status(),
             command.assignedAt(),
@@ -579,11 +582,11 @@ public class HrAssetService {
         var name = normalizeRequiredText(requiredString(payload, "name", "asset_name", "assetName"), "name", 160);
         var model = normalizeOptionalText(stringValue(payload, "model"), "model", 160);
         var serialNumber = normalizeOptionalText(stringValue(payload, "serial_number", "serialNumber"), "serial_number", 160);
-        var responsibleEmployeeId = resolveEmployeeId(companyId, payload, false);
+        var responsibleUserCompanyId = resolveUserCompanyId(companyId, payload, false);
         var unitId = resolveUnitId(companyId, payload);
         var statusValue = stringValue(payload, "status", "state");
         var status = statusValue.isBlank()
-            ? (responsibleEmployeeId != null ? "assigned" : "available")
+            ? (responsibleUserCompanyId != null ? "assigned" : "available")
             : normalizeStatus(statusValue);
         var assignedAt = parseDateTime(payload, "assigned_at", "assignedAt", "assigned_date", "assignedDate");
         var valueAmount = parseFlexibleBigDecimal(payload, "value", "value_amount", "valueAmount");
@@ -595,15 +598,15 @@ public class HrAssetService {
         );
 
         if (ASSIGNABLE_STATUSES.contains(status)) {
-            if (responsibleEmployeeId == null) {
-                throw new IllegalArgumentException("responsible_employee_id is required for assigned or custody assets.");
+            if (responsibleUserCompanyId == null) {
+                throw new IllegalArgumentException("responsible_user_company_id is required for assigned or custody assets.");
             }
             if (assignedAt == null) {
                 assignedAt = LocalDateTime.now();
             }
         } else {
-            if (responsibleEmployeeId != null) {
-                throw new IllegalArgumentException("responsible_employee_id can only be set when the asset status is assigned or custody.");
+            if (responsibleUserCompanyId != null) {
+                throw new IllegalArgumentException("responsible_user_company_id can only be set when the asset status is assigned or custody.");
             }
             if (assignedAt != null) {
                 throw new IllegalArgumentException("assigned_at can only be set when the asset status is assigned or custody.");
@@ -616,7 +619,7 @@ public class HrAssetService {
             name,
             model,
             serialNumber,
-            responsibleEmployeeId,
+            responsibleUserCompanyId,
             unitId,
             status,
             assignedAt,
@@ -638,7 +641,7 @@ public class HrAssetService {
             throw new IllegalArgumentException("Reassign endpoint only supports assigned or custody status.");
         }
 
-        var responsibleEmployeeId = resolveEmployeeId(companyId, payload, true);
+        var responsibleUserCompanyId = resolveUserCompanyId(companyId, payload, true);
         var unitId = hasAnyKey(payload, "unit_id", "unitId", "unit")
             ? resolveUnitId(companyId, payload)
             : fallbackUnitId;
@@ -657,7 +660,7 @@ public class HrAssetService {
         );
 
         return new AssignmentCommand(
-            responsibleEmployeeId,
+            responsibleUserCompanyId,
             unitId,
             status,
             assignedAt,
@@ -686,7 +689,7 @@ public class HrAssetService {
                        a.name,
                        a.model,
                        a.serial_number,
-                       a.responsible_employee_id,
+                       a.responsible_user_company_id,
                        e.first_name,
                        e.last_name,
                        e.email AS responsible_email,
@@ -702,8 +705,8 @@ public class HrAssetService {
                        updated_by.full_name AS updated_by_name,
                        a.created_at,
                        a.updated_at
-                FROM hr_assets a
-                LEFT JOIN hr_employees e ON e.id = a.responsible_employee_id
+                FROM user_assets a
+                LEFT JOIN hr_users e ON e.id = a.responsible_user_company_id
                 LEFT JOIN units u ON u.id = a.unit_id
                 LEFT JOIN users created_by ON created_by.id = a.created_by_user_id
                 LEFT JOIN users updated_by ON updated_by.id = a.updated_by_user_id
@@ -718,7 +721,7 @@ public class HrAssetService {
                 rs.getString("name"),
                 rs.getString("model"),
                 rs.getString("serial_number"),
-                nullableLong(rs.getObject("responsible_employee_id")),
+                nullableLong(rs.getObject("responsible_user_company_id")),
                 fullName(rs.getString("first_name"), rs.getString("last_name")),
                 rs.getString("responsible_email"),
                 nullableLong(rs.getObject("unit_id")),
@@ -755,13 +758,13 @@ public class HrAssetService {
                        name,
                        model,
                        serial_number,
-                       responsible_employee_id,
+                       responsible_user_company_id,
                        unit_id,
                        status,
                        assigned_at,
                        value_amount,
                        notes
-                FROM hr_assets
+                FROM user_assets
                 WHERE company_id = ?
                   AND id = ?
                 LIMIT 1
@@ -774,7 +777,7 @@ public class HrAssetService {
                 safe(rs.getString("name")),
                 safe(rs.getString("model")),
                 safe(rs.getString("serial_number")),
-                nullableLong(rs.getObject("responsible_employee_id")),
+                nullableLong(rs.getObject("responsible_user_company_id")),
                 nullableLong(rs.getObject("unit_id")),
                 safe(rs.getString("status")),
                 asLocalDateTime(rs.getTimestamp("assigned_at")),
@@ -794,7 +797,7 @@ public class HrAssetService {
     private void closeOpenAssignments(long companyId, long assetId, LocalDateTime endedAt, long actorUserId) {
         jdbcTemplate.update(
             """
-                UPDATE hr_asset_assignments
+                UPDATE user_asset_assignments
                 SET ended_at = ?,
                     ended_by_user_id = ?
                 WHERE company_id = ?
@@ -811,7 +814,7 @@ public class HrAssetService {
     private void insertAssignmentHistory(
         long companyId,
         long assetId,
-        Long responsibleEmployeeId,
+        Long responsibleUserCompanyId,
         Long unitId,
         String status,
         LocalDateTime startedAt,
@@ -820,13 +823,14 @@ public class HrAssetService {
     ) {
         jdbcTemplate.update(
             """
-                INSERT INTO hr_asset_assignments
-                (company_id, asset_id, responsible_employee_id, unit_id, assignment_status, started_at, notes, created_by_user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO user_asset_assignments
+                (company_id, asset_id, responsible_user_company_id, responsible_user_id, unit_id, assignment_status, started_at, notes, created_by_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
             companyId,
             assetId,
-            responsibleEmployeeId,
+            responsibleUserCompanyId,
+            resolveUserId(companyId, responsibleUserCompanyId),
             unitId,
             status,
             Timestamp.valueOf(startedAt),
@@ -847,7 +851,7 @@ public class HrAssetService {
     ) {
         jdbcTemplate.update(
             """
-                INSERT INTO hr_asset_status_history
+                INSERT INTO user_asset_status_history
                 (company_id, asset_id, from_status, to_status, change_reason, notes, changed_by_user_id, changed_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -864,7 +868,7 @@ public class HrAssetService {
 
     private void ensureUniqueAssetCode(long companyId, String assetCode, Long currentAssetId) {
         var sql = new StringBuilder(
-            "SELECT COUNT(*) FROM hr_assets WHERE company_id = ? AND LOWER(asset_code) = LOWER(?)"
+            "SELECT COUNT(*) FROM user_assets WHERE company_id = ? AND LOWER(asset_code) = LOWER(?)"
         );
         var params = new ArrayList<Object>();
         params.add(companyId);
@@ -886,7 +890,7 @@ public class HrAssetService {
         }
 
         var sql = new StringBuilder(
-            "SELECT COUNT(*) FROM hr_assets WHERE company_id = ? AND LOWER(serial_number) = LOWER(?)"
+            "SELECT COUNT(*) FROM user_assets WHERE company_id = ? AND LOWER(serial_number) = LOWER(?)"
         );
         var params = new ArrayList<Object>();
         params.add(companyId);
@@ -902,19 +906,19 @@ public class HrAssetService {
         }
     }
 
-    private Long resolveEmployeeId(long companyId, Map<String, Object> payload, boolean required) {
-        var explicitEmployeeId = parseLong(payload, "responsible_employee_id", "responsibleEmployeeId", "employee_id");
-        if (explicitEmployeeId != null) {
-            return requireActiveEmployee(companyId, explicitEmployeeId);
+    private Long resolveUserCompanyId(long companyId, Map<String, Object> payload, boolean required) {
+        var explicitUserCompanyId = parseLong(payload, "responsible_user_company_id", "responsibleUserCompanyId", "user_company_id");
+        if (explicitUserCompanyId != null) {
+            return requireActiveHrUser(companyId, explicitUserCompanyId);
         }
 
         var label = stringValue(payload, "responsible", "responsible_name", "responsible_email");
         if (!label.isBlank()) {
-            return findEmployeeByLabel(companyId, label);
+            return findHrUserByLabel(companyId, label);
         }
 
         if (required) {
-            throw new IllegalArgumentException("responsible_employee_id is required.");
+            throw new IllegalArgumentException("responsible_user_company_id is required.");
         }
 
         return null;
@@ -937,11 +941,11 @@ public class HrAssetService {
         return null;
     }
 
-    private Long requireActiveEmployee(long companyId, long employeeId) {
-        var employees = jdbcTemplate.query(
+    private Long requireActiveHrUser(long companyId, long userCompanyId) {
+        var hrUsers = jdbcTemplate.query(
             """
                 SELECT id, status
-                FROM hr_employees
+                FROM hr_users
                 WHERE company_id = ?
                   AND id = ?
                 LIMIT 1
@@ -951,27 +955,49 @@ public class HrAssetService {
                 "status", safe(rs.getString("status"))
             ),
             companyId,
-            employeeId
+            userCompanyId
         );
 
-        if (employees.isEmpty()) {
-            throw new NoSuchElementException("Responsible employee not found.");
+        if (hrUsers.isEmpty()) {
+            throw new NoSuchElementException("Responsible HR user not found.");
         }
 
-        var status = String.valueOf(employees.getFirst().get("status")).toLowerCase();
-        if (!ACTIVE_EMPLOYEE_STATUSES.contains(status)) {
-            throw new IllegalArgumentException("Responsible employee must be active.");
+        var status = String.valueOf(hrUsers.getFirst().get("status")).toLowerCase();
+        if (!ACTIVE_HR_USER_STATUSES.contains(status)) {
+            throw new IllegalArgumentException("Responsible HR user must be active.");
         }
 
-        return employeeId;
+        return userCompanyId;
     }
 
-    private Long findEmployeeByLabel(long companyId, String label) {
+    private Long resolveUserId(long companyId, Long userCompanyId) {
+        if (userCompanyId == null || userCompanyId <= 0) {
+            return null;
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT user_id
+                FROM user_companies
+                WHERE company_id = ?
+                  AND id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("user_id"),
+            companyId,
+            userCompanyId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Responsible user not found.");
+        }
+        return rows.getFirst();
+    }
+
+    private Long findHrUserByLabel(long companyId, String label) {
         var normalizedLabel = label.trim().toLowerCase();
         var rows = jdbcTemplate.query(
             """
                 SELECT id, status
-                FROM hr_employees
+                FROM hr_users
                 WHERE company_id = ?
                   AND (
                     LOWER(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')))) = ?
@@ -989,15 +1015,15 @@ public class HrAssetService {
         );
 
         if (rows.isEmpty()) {
-            throw new NoSuchElementException("Responsible employee not found.");
+            throw new NoSuchElementException("Responsible HR user not found.");
         }
         if (rows.size() > 1) {
-            throw new IllegalArgumentException("Responsible employee name is ambiguous. Use responsible_employee_id.");
+            throw new IllegalArgumentException("Responsible HR user name is ambiguous. Use responsible_user_company_id.");
         }
 
         var status = String.valueOf(rows.getFirst().get("status")).toLowerCase();
-        if (!ACTIVE_EMPLOYEE_STATUSES.contains(status)) {
-            throw new IllegalArgumentException("Responsible employee must be active.");
+        if (!ACTIVE_HR_USER_STATUSES.contains(status)) {
+            throw new IllegalArgumentException("Responsible HR user must be active.");
         }
         return ((Number) rows.getFirst().get("id")).longValue();
     }
@@ -1106,10 +1132,10 @@ public class HrAssetService {
             params.add(unitId);
         }
 
-        var responsibleEmployeeId = parseLong(filters, "responsible_employee_id", "responsibleEmployeeId");
-        if (responsibleEmployeeId != null && responsibleEmployeeId > 0) {
-            conditions.add("a.responsible_employee_id = ?");
-            params.add(responsibleEmployeeId);
+        var responsibleUserCompanyId = parseLong(filters, "responsible_user_company_id", "responsibleUserCompanyId");
+        if (responsibleUserCompanyId != null && responsibleUserCompanyId > 0) {
+            conditions.add("a.responsible_user_company_id = ?");
+            params.add(responsibleUserCompanyId);
         }
 
         return new AssetQuery(" WHERE " + String.join(" AND ", conditions) + " ", params);
@@ -1151,7 +1177,7 @@ public class HrAssetService {
         String name,
         String model,
         String serialNumber,
-        Long responsibleEmployeeId,
+        Long responsibleUserCompanyId,
         String responsibleName,
         String responsibleEmail,
         Long unitId,
@@ -1174,7 +1200,7 @@ public class HrAssetService {
         asset.put("name", safe(name));
         asset.put("model", safe(model));
         asset.put("serial_number", safe(serialNumber));
-        asset.put("responsible_employee_id", responsibleEmployeeId);
+        asset.put("responsible_user_company_id", responsibleUserCompanyId);
         asset.put("responsible_name", safe(responsibleName));
         asset.put("responsible_email", safe(responsibleEmail));
         asset.put("unit_id", unitId);
@@ -1201,9 +1227,9 @@ public class HrAssetService {
             "assignedAt",
             "assigned_date",
             "assignedDate",
-            "responsible_employee_id",
-            "responsibleEmployeeId",
-            "employee_id",
+            "responsible_user_company_id",
+            "responsibleUserCompanyId",
+            "user_company_id",
             "responsible",
             "responsible_name"
         )) {
@@ -1518,7 +1544,7 @@ public class HrAssetService {
         String name,
         String model,
         String serialNumber,
-        Long responsibleEmployeeId,
+        Long responsibleUserCompanyId,
         Long unitId,
         String status,
         LocalDateTime assignedAt,
@@ -1533,7 +1559,7 @@ public class HrAssetService {
         String name,
         String model,
         String serialNumber,
-        Long responsibleEmployeeId,
+        Long responsibleUserCompanyId,
         Long unitId,
         String status,
         LocalDateTime assignedAt,
@@ -1544,7 +1570,7 @@ public class HrAssetService {
     }
 
     private record AssignmentCommand(
-        Long responsibleEmployeeId,
+        Long responsibleUserCompanyId,
         Long unitId,
         String status,
         LocalDateTime assignedAt,

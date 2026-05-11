@@ -11,7 +11,7 @@ export interface TaskRecord {
   folio: string;
   title: string;
   description: string | null;
-  assignedEmployeeId: number | null;
+  assignedUserCompanyId: number | null;
   assignedUserId: number | null;
   assignedName: string | null;
   status: TaskStatus;
@@ -20,7 +20,7 @@ export interface TaskRecord {
   startedAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
-  completedByEmployeeId: number | null;
+  completedByUserCompanyId: number | null;
   completedByUserId: number | null;
   completionNotes: string | null;
   businessId: number | null;
@@ -35,8 +35,7 @@ export interface TaskPayload {
   description: string | null;
   processId: number | null;
   projectId: number | null;
-  assignedEmployeeId: number | null;
-  assignedUserId: number | null;
+  assignedUserCompanyId: number | null;
   assignedName: string | null;
   status: TaskStatus;
   priority: TaskPriority;
@@ -59,7 +58,7 @@ function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     folio: record.folio ?? '',
     title: record.title ?? '',
     description: record.description ?? null,
-    assignedEmployeeId: record.assignedEmployeeId ?? null,
+    assignedUserCompanyId: record.assignedUserCompanyId ?? null,
     assignedUserId: record.assignedUserId ?? null,
     assignedName: record.assignedName ?? null,
     status: (record.status as TaskStatus | undefined) ?? 'pending',
@@ -68,7 +67,7 @@ function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     startedAt: record.startedAt ?? null,
     completedAt: record.completedAt ?? null,
     cancelledAt: record.cancelledAt ?? null,
-    completedByEmployeeId: record.completedByEmployeeId ?? null,
+    completedByUserCompanyId: record.completedByUserCompanyId ?? null,
     completedByUserId: record.completedByUserId ?? null,
     completionNotes: record.completionNotes ?? null,
     businessId: record.businessId ?? null,

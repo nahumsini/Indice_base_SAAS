@@ -1,4 +1,4 @@
-package com.indice.erp.projects;
+package com.indice.erp.processTasks.tasks;
 
 import com.indice.erp.auth.SessionAuthService;
 import jakarta.servlet.http.HttpSession;
@@ -16,15 +16,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/projects")
-public class ProjectsApiController {
+@RequestMapping("/api/v1/process-tasks")
+public class ProcessTasksApiController {
 
     private final SessionAuthService sessionAuthService;
-    private final ProjectsService projectsService;
+    private final ProcessTasksService processTasksService;
 
-    public ProjectsApiController(SessionAuthService sessionAuthService, ProjectsService projectsService) {
+    public ProcessTasksApiController(
+            SessionAuthService sessionAuthService,
+            ProcessTasksService processTasksService) {
         this.sessionAuthService = sessionAuthService;
-        this.projectsService = projectsService;
+        this.processTasksService = processTasksService;
     }
 
     @GetMapping
@@ -34,7 +36,7 @@ public class ProjectsApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        return ResponseEntity.ok(projectsService.listProjects(user.get().companyId()));
+        return ResponseEntity.ok(processTasksService.listTasks(user.get().companyId()));
     }
 
     @PostMapping
@@ -47,7 +49,7 @@ public class ProjectsApiController {
         try {
             return ResponseEntity
                     .status(HttpStatus.CREATED)
-                    .body(projectsService.createProject(user.get().companyId(), user.get().userId(), payload));
+                    .body(processTasksService.createTask(user.get().companyId(), user.get().userId(), payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -55,10 +57,10 @@ public class ProjectsApiController {
         }
     }
 
-    @PutMapping("/{projectId}")
+    @PutMapping("/{taskId}")
     public ResponseEntity<?> update(
             HttpSession session,
-            @PathVariable long projectId,
+            @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
@@ -66,7 +68,8 @@ public class ProjectsApiController {
         }
 
         try {
-            return ResponseEntity.ok(projectsService.updateProject(user.get().companyId(), projectId, payload));
+            return ResponseEntity.ok(
+                    processTasksService.updateTask(user.get().companyId(), user.get().userId(), taskId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -74,58 +77,53 @@ public class ProjectsApiController {
         }
     }
 
-    @DeleteMapping("/{projectId}")
-    public ResponseEntity<?> delete(HttpSession session, @PathVariable long projectId) {
+    @DeleteMapping("/{taskId}")
+    public ResponseEntity<?> delete(HttpSession session, @PathVariable long taskId) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            projectsService.deleteProject(user.get().companyId(), projectId);
+            processTasksService.deleteTask(user.get().companyId(), taskId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
     }
 
-    @PostMapping("/{projectId}/complete")
-    public ResponseEntity<?> complete(HttpSession session, @PathVariable long projectId) {
+    @PostMapping("/{taskId}/complete")
+    public ResponseEntity<?> complete(
+            HttpSession session,
+            @PathVariable long taskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            return ResponseEntity.ok(projectsService.completeProject(user.get().companyId(), projectId));
+            return ResponseEntity.ok(processTasksService.completeTask(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    taskId,
+                    payload == null ? Map.of() : payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 
-    @PostMapping("/{projectId}/cancel")
-    public ResponseEntity<?> cancel(HttpSession session, @PathVariable long projectId) {
+    @PostMapping("/{taskId}/cancel")
+    public ResponseEntity<?> cancel(HttpSession session, @PathVariable long taskId) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            return ResponseEntity.ok(projectsService.cancelProject(user.get().companyId(), projectId));
-        } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-        }
-    }
-
-    @GetMapping("/{projectId}/tasks")
-    public ResponseEntity<?> tasks(HttpSession session, @PathVariable long projectId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
-        }
-
-        try {
-            return ResponseEntity.ok(projectsService.listProjectTasks(user.get().companyId(), projectId));
+            return ResponseEntity.ok(processTasksService.cancelTask(user.get().companyId(), taskId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }

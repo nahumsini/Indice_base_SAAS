@@ -64,8 +64,7 @@ function createDefaultProjectForm(): ProjectFormValues {
     description: '',
     status: 'active',
     priority: 'none',
-    ownerUserId: '',
-    ownerEmployeeId: '',
+    ownerUserCompanyId: '',
     ownerName: '',
     businessId: '',
     unitId: '',
@@ -80,8 +79,7 @@ function toProjectFormValues(project: ProjectRecord): ProjectFormValues {
     description: project.description ?? '',
     status: project.status,
     priority: project.priority ?? 'none',
-    ownerUserId: project.ownerUserId?.toString() ?? '',
-    ownerEmployeeId: project.ownerEmployeeId?.toString() ?? '',
+    ownerUserCompanyId: project.ownerUserCompanyId?.toString() ?? '',
     ownerName: project.ownerName ?? '',
     businessId: project.businessId?.toString() ?? '',
     unitId: project.unitId?.toString() ?? '',
@@ -109,20 +107,14 @@ function parseOptionalNumber(value: string, fieldLabel: string) {
 }
 
 function buildProjectPayload(form: ProjectFormValues): ProjectPayload {
-  const ownerUserId = parseOptionalNumber(form.ownerUserId, 'Owner user ID');
-  const ownerEmployeeId = parseOptionalNumber(form.ownerEmployeeId, 'Owner employee ID');
-
-  if (ownerUserId !== null && ownerEmployeeId !== null) {
-    throw new Error('A project can have an owner employee or owner user, but not both.');
-  }
+  const ownerUserCompanyId = parseOptionalNumber(form.ownerUserCompanyId, 'Owner HR user ID');
 
   return {
     name: form.name.trim(),
     description: form.description.trim() ? form.description.trim() : null,
     status: form.status,
     priority: form.priority === 'none' ? null : form.priority,
-    ownerUserId,
-    ownerEmployeeId,
+    ownerUserCompanyId,
     ownerName: form.ownerName.trim() ? form.ownerName.trim() : null,
     businessId: parseOptionalNumber(form.businessId, 'Business ID'),
     unitId: parseOptionalNumber(form.unitId, 'Unit ID'),
@@ -492,8 +484,7 @@ export default function Projects() {
                 <TableCell className="px-5 py-5">
                   <div className="min-w-[180px] space-y-1 text-sm text-slate-700 dark:text-slate-200">
                     <p className="font-medium text-slate-900 dark:text-white">{project.ownerName ?? 'Unassigned'}</p>
-                    {project.ownerEmployeeId ? <p>Employee #{project.ownerEmployeeId}</p> : null}
-                    {project.ownerUserId ? <p>User #{project.ownerUserId}</p> : null}
+                    {project.ownerUserCompanyId ? <p>HR user #{project.ownerUserCompanyId}</p> : null}
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5">

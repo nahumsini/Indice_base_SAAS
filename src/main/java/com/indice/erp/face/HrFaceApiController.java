@@ -97,15 +97,15 @@ public class HrFaceApiController {
         }
     }
 
-    @GetMapping("/enrollments/{employeeId}")
-    public ResponseEntity<?> getEnrollment(HttpSession session, @PathVariable long employeeId) {
+    @GetMapping("/enrollments/{userCompanyId}")
+    public ResponseEntity<?> getEnrollment(HttpSession session, @PathVariable long userCompanyId) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            return ResponseEntity.ok(hrFaceService.getEnrollment(user.get().companyId(), employeeId));
+            return ResponseEntity.ok(hrFaceService.getEnrollment(user.get().companyId(), userCompanyId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -113,15 +113,15 @@ public class HrFaceApiController {
         }
     }
 
-    @DeleteMapping("/enrollments/{employeeId}")
-    public ResponseEntity<?> deleteEnrollment(HttpSession session, @PathVariable long employeeId) {
+    @DeleteMapping("/enrollments/{userCompanyId}")
+    public ResponseEntity<?> deleteEnrollment(HttpSession session, @PathVariable long userCompanyId) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
         try {
-            return ResponseEntity.ok(hrFaceService.deleteEnrollment(user.get().companyId(), employeeId));
+            return ResponseEntity.ok(hrFaceService.deleteEnrollment(user.get().companyId(), userCompanyId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

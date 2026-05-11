@@ -92,7 +92,7 @@ const parseLocalDate = (value: string) => {
 };
 
 const isActiveEmployee = (assignment: AttendanceControlAssignment) =>
-  (assignment.employee_status || 'active').toLowerCase() === 'active';
+  (assignment.user_status || 'active').toLowerCase() === 'active';
 
 const hasWorkingRule = (assignment: AttendanceControlAssignment) =>
   Boolean(assignment.schedule_template_id && assignment.today_rule && !assignment.today_rule.is_rest_day);
@@ -164,7 +164,7 @@ const scheduleRuleTimeLabel = (rule?: AttendanceControlRule | null) => {
 
 const scheduleWindow = (assignment: AttendanceControlAssignment) => {
   if (!assignment.schedule_template_id) {
-    return 'No schedule assigned for this day. Employee will not generate attendance records.';
+    return 'No schedule assigned for this day. HR user will not generate attendance records.';
   }
 
   const rule = assignment.today_rule;
@@ -418,7 +418,7 @@ export function TimeTableModal({
           contractSite: assignmentContractSiteName(assignment),
         };
       })
-      .sort((left, right) => left.assignment.employee_name.localeCompare(right.assignment.employee_name)),
+      .sort((left, right) => left.assignment.user_name.localeCompare(right.assignment.user_name)),
     [filteredAssignments],
   );
 
@@ -532,7 +532,7 @@ export function TimeTableModal({
     const rowsHtml = employeeRows.length > 0
       ? employeeRows.map((row) => `
         <tr>
-          <td><strong>${escapePrintHtml(row.assignment.employee_name)}</strong><br><span class="muted">${escapePrintHtml(row.assignment.employee_number || `EMP-${row.assignment.employee_id}`)}</span></td>
+          <td><strong>${escapePrintHtml(row.assignment.user_name)}</strong><br><span class="muted">${escapePrintHtml(row.assignment.user_code || `EMP-${row.assignment.user_company_id}`)}</span></td>
           <td>${escapePrintHtml(assignmentUnitName(row.assignment))}</td>
           <td>${escapePrintHtml(assignmentBusinessName(row.assignment))}</td>
           <td>${escapePrintHtml(row.businessLocation)}</td>
@@ -543,7 +543,7 @@ export function TimeTableModal({
           <td>${escapePrintHtml(row.attendance)}</td>
         </tr>
       `).join('')
-      : '<tr><td colspan="9" class="muted">No employees found for this selection.</td></tr>';
+      : '<tr><td colspan="9" class="muted">No HR users found for this selection.</td></tr>';
 
     printHtmlDocument({
       title,
@@ -841,7 +841,7 @@ function OrganizationSummary({
         <div>
           <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Organization summary</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {totalEmployees} active employee{totalEmployees === 1 ? '' : 's'} · {unitFilter ? selectedUnitLabel : 'All units'} · {businessFilter ? selectedBusinessLabel : 'All businesses'}
+            {totalEmployees} active HR user{totalEmployees === 1 ? '' : 's'} · {unitFilter ? selectedUnitLabel : 'All units'} · {businessFilter ? selectedBusinessLabel : 'All businesses'}
           </p>
         </div>
         <span className="inline-flex w-fit rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff]">
@@ -933,7 +933,7 @@ function EmployeeTable({
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Employee list</h3>
+          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">HR User list</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {selectionLabel} · {dateLabel}
           </p>
@@ -944,7 +944,7 @@ function EmployeeTable({
         <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800">
           <thead className="bg-slate-50 dark:bg-slate-950/60">
             <tr>
-              <TableHead>Employee</TableHead>
+              <TableHead>HR User</TableHead>
               <TableHead>Unit</TableHead>
               <TableHead>Business</TableHead>
               <TableHead>Business location</TableHead>
@@ -966,12 +966,12 @@ function EmployeeTable({
                   : 'bg-white dark:bg-slate-900';
 
               return (
-                <tr key={row.assignment.employee_id} className={`${rowClassName} transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60`}>
+                <tr key={row.assignment.user_company_id} className={`${rowClassName} transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60`}>
                   <TableCell>
                     <div>
-                      <p className="font-semibold text-slate-950 dark:text-white">{row.assignment.employee_name}</p>
+                      <p className="font-semibold text-slate-950 dark:text-white">{row.assignment.user_name}</p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {row.assignment.employee_number || `EMP-${row.assignment.employee_id}`}
+                        {row.assignment.user_code || `EMP-${row.assignment.user_company_id}`}
                       </p>
                     </div>
                   </TableCell>
@@ -1037,7 +1037,7 @@ function EmployeeTable({
                 <TableCell colSpan={8}>
                   <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
                     <Building2 className="mx-auto h-8 w-8 text-slate-400" />
-                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">No active employees found.</p>
+                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">No active HR users found.</p>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                       Try another unit or business to review daily attendance.
                     </p>
@@ -1051,7 +1051,7 @@ function EmployeeTable({
 
       <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
         <span>
-          Showing {startRow}-{endRow} of {employeeRows.length} employees
+          Showing {startRow}-{endRow} of {employeeRows.length} HR users
         </span>
         <div className="flex items-center gap-2">
           <Button

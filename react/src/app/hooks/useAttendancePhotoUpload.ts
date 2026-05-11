@@ -76,7 +76,7 @@ export function useAttendancePhotoUpload() {
     }
   };
 
-  const ensureUploadedForCurrentUser = async (request: Omit<AttendanceMediaPresignRequest, 'employee_id'>) => {
+  const ensureUploadedForCurrentUser = async (request: Omit<AttendanceMediaPresignRequest, 'user_company_id'>) => {
     if (uploadState === 'uploaded' && uploadedObjectKey) {
       return uploadedObjectKey;
     }

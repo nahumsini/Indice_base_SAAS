@@ -165,8 +165,8 @@ const toDraftLocation = (location: AttendanceControlLocation): DraftLocation => 
     requiredStartTime,
     requiredEndTime,
     status: location.status === 'inactive' ? 'inactive' : 'active',
-    assignedEmployeeCount: location.assigned_employee_count ?? 0,
-    assignedEmployeeNames: location.assigned_employee_names ?? undefined,
+    assignedEmployeeCount: location.assigned_user_count ?? 0,
+    assignedEmployeeNames: location.assigned_user_names ?? undefined,
   };
 };
 
@@ -327,7 +327,7 @@ export function ContractSiteRegistrationModal({
 	      return {
 	        ...draft,
 	        assignedEmployeeCount: assignedEmployees.length,
-	        assignedEmployeeNames: assignedEmployees.map((assignment) => assignment.employee_name).join(', ') || undefined,
+	        assignedEmployeeNames: assignedEmployees.map((assignment) => assignment.user_name).join(', ') || undefined,
 	      };
 	    })
 	  ), [assignedEmployeeDetailsByContractSite, locations]);
@@ -475,7 +475,7 @@ export function ContractSiteRegistrationModal({
 	        checkedInAtSite: assignment.first_location?.id === selectedContractSitePersistedId,
 	        checkedOutAtSite: assignment.last_location?.id === selectedContractSitePersistedId,
 	      }))
-	      .sort((left, right) => left.assignment.employee_name.localeCompare(right.assignment.employee_name));
+	      .sort((left, right) => left.assignment.user_name.localeCompare(right.assignment.user_name));
 	  }, [assignments, selectedContractSitePersistedId]);
 
 	  const persistedLocationSnapshot = useMemo(
@@ -1848,11 +1848,11 @@ export function ContractSiteRegistrationModal({
 	                      </thead>
 	                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-950">
 	                        {selectedContractSiteActivity.map(({ assignment, assignedToSite, checkedInAtSite, checkedOutAtSite }) => (
-	                          <tr key={assignment.employee_id}>
+	                          <tr key={assignment.user_company_id}>
 	                            <td className="px-4 py-3">
-	                              <p className="text-sm font-medium text-gray-900 dark:text-white">{assignment.employee_name}</p>
+	                              <p className="text-sm font-medium text-gray-900 dark:text-white">{assignment.user_name}</p>
 	                              <p className="text-xs text-gray-500 dark:text-gray-400">
-	                                {assignment.employee_number || 'Sin número de colaborador'}
+	                                {assignment.user_code || 'Sin número de colaborador'}
 	                                {assignment.position_title ? ` · ${assignment.position_title}` : ''}
 	                              </p>
 	                            </td>

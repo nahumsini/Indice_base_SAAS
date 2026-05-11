@@ -4,7 +4,7 @@ import type { PayrollTranslations } from './types';
 export const koCA = {
   ...enCA,
   title: '급여',
-  subtitle: '직원 및 근태 데이터를 기반으로 급여 실행을 검토, 승인, 지급, 내보냅니다.',
+  subtitle: '사용자 및 근태 데이터를 기반으로 급여 실행을 검토, 승인, 지급, 내보냅니다.',
   refresh: '새로고침',
   loading: '급여 로딩 중',
   header: {
@@ -16,8 +16,8 @@ export const koCA = {
   labels: {
     ...enCA.labels,
     preferences: '급여 설정',
-    employees: '직원',
-    employee: '직원',
+    employees: '사용자',
+    employee: '사용자',
     payrollType: '급여 유형',
     exportCsv: 'CSV 내보내기',
     exportPdf: 'PDF 내보내기',

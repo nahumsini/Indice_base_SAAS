@@ -21,24 +21,24 @@ class HrAssetServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void createAssetRejectsResponsibleEmployeeWhenStatusIsAvailable() {
+    void createAssetRejectsResponsibleHrUserWhenStatusIsAvailable() {
         var service = new HrAssetService(jdbcTemplate);
         var payload = new HashMap<String, Object>();
         payload.put("asset_code", "LT-1001");
         payload.put("asset_type", "laptop");
         payload.put("name", "Primary Laptop");
         payload.put("status", "available");
-        payload.put("responsible_employee_id", 7L);
+        payload.put("responsible_user_company_id", 7L);
 
         when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<org.springframework.jdbc.core.RowMapper<Map<String, Object>>>any(), eq(1L), eq(7L)))
             .thenReturn(java.util.List.of(Map.of("id", 7L, "status", "active")));
 
         var error = assertThrows(IllegalArgumentException.class, () -> service.createAsset(1L, 3L, payload));
-        assertEquals("responsible_employee_id can only be set when the asset status is assigned or custody.", error.getMessage());
+        assertEquals("responsible_user_company_id can only be set when the asset status is assigned or custody.", error.getMessage());
     }
 
     @Test
-    void createAssetRequiresResponsibleEmployeeForAssignedStatus() {
+    void createAssetRequiresResponsibleHrUserForAssignedStatus() {
         var service = new HrAssetService(jdbcTemplate);
         var payload = new HashMap<String, Object>();
         payload.put("asset_code", "LT-1001");
@@ -47,7 +47,7 @@ class HrAssetServiceTest {
         payload.put("status", "assigned");
 
         var error = assertThrows(IllegalArgumentException.class, () -> service.createAsset(1L, 3L, payload));
-        assertEquals("responsible_employee_id is required for assigned or custody assets.", error.getMessage());
+        assertEquals("responsible_user_company_id is required for assigned or custody assets.", error.getMessage());
     }
 
     @Test
@@ -65,7 +65,7 @@ class HrAssetServiceTest {
         var service = new HrAssetService(jdbcTemplate);
         var payload = new HashMap<String, Object>();
         payload.put("status", "maintenance");
-        payload.put("responsible_employee_id", 2L);
+        payload.put("responsible_user_company_id", 2L);
 
         var error = assertThrows(IllegalArgumentException.class, () -> service.reassignAsset(1L, 1L, 9L, payload));
         assertEquals("Reassign endpoint only supports assigned or custody status.", error.getMessage());

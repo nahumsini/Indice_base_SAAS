@@ -52,7 +52,7 @@ export function PayrollRunActionsMenu({
   const canCancel = run.status !== 'paid' && run.status !== 'cancelled';
   const canEdit = run.status === 'draft';
   const isPaid = run.status === 'paid';
-  const isBlocked = run.employees_count === 0 && run.status !== 'paid' && run.status !== 'cancelled';
+  const isBlocked = run.users_count === 0 && run.status !== 'paid' && run.status !== 'cancelled';
   const reviewTone = isBlocked
     ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300'
     : run.status === 'draft'

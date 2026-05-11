@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.indice.erp.storage.DisabledObjectStorageService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
-import com.indice.erp.hr.employees.HrEmployeeService;
+import com.indice.erp.hr.users.HrUserService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
@@ -31,7 +31,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 @ExtendWith(MockitoExtension.class)
-class HrEmployeeServiceTest {
+class HrUserServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
@@ -40,14 +40,14 @@ class HrEmployeeServiceTest {
     private HrAttendanceService hrAttendanceService;
 
     @Test
-    void listEmployeesAllowsNullOptionalColumns() throws Exception {
+    void listUsersAllowsNullOptionalColumns() throws Exception {
         var service = createService();
 
         when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(), eq(1L)))
             .thenAnswer(invocation -> {
                 @SuppressWarnings("unchecked")
                 var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
-                ResultSet rs = employeeResultSet();
+                ResultSet rs = hrUserResultSet();
                 return List.of(rowMapper.mapRow(rs, 0));
             });
 
@@ -64,74 +64,74 @@ class HrEmployeeServiceTest {
                 return rowMapper.mapRow(rs, 0);
             });
 
-        var result = service.listEmployees(1L);
+        var result = service.listUsers(1L);
 
         @SuppressWarnings("unchecked")
         var rows = (List<Map<String, Object>>) result.get("rows");
         assertEquals(1, rows.size());
         assertEquals("Second Empleado", rows.getFirst().get("full_name"));
-        assertEquals("", rows.getFirst().get("employee_number"));
+        assertEquals("", rows.getFirst().get("user_code"));
         assertEquals("", rows.getFirst().get("phone"));
         assertNull(rows.getFirst().get("hire_date"));
         assertEquals(new BigDecimal("6500.00"), rows.getFirst().get("salary"));
     }
 
     @Test
-    void updateEmployeeThrowsWhenEmployeeDoesNotExist() {
+    void updateUserThrowsWhenHrUserDoesNotExist() {
         var service = createService();
         var payload = new HashMap<String, Object>();
         payload.put("id", 999L);
         payload.put("first_name", "Missing");
-        payload.put("last_name", "Employee");
+        payload.put("last_name", "user");
         payload.put("email", "missing@example.com");
 
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(1L), eq(999L)))
             .thenReturn(0);
 
-        assertThrows(NoSuchElementException.class, () -> service.updateEmployee(1L, payload));
+        assertThrows(NoSuchElementException.class, () -> service.updateUser(1L, payload));
     }
 
     @Test
-    void updateEmployeeRejectsInvalidHireDate() {
+    void updateUserRejectsInvalidHireDate() {
         var service = createService();
         var payload = new HashMap<String, Object>();
         payload.put("id", 2L);
         payload.put("first_name", "Test");
-        payload.put("last_name", "Employee");
+        payload.put("last_name", "user");
         payload.put("email", "test@example.com");
         payload.put("hire_date", "03/31/2026");
 
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(1L), eq(2L)))
             .thenReturn(1);
 
-        var error = assertThrows(IllegalArgumentException.class, () -> service.updateEmployee(1L, payload));
+        var error = assertThrows(IllegalArgumentException.class, () -> service.updateUser(1L, payload));
         assertEquals("hire_date must use YYYY-MM-DD format.", error.getMessage());
     }
 
     @Test
-    void updateEmployeeRejectsMissingAssignmentFields() {
+    void updateUserRejectsMissingAssignmentFields() {
         var service = createService();
         var payload = new HashMap<String, Object>();
         payload.put("id", 2L);
         payload.put("first_name", "Test");
-        payload.put("last_name", "Employee");
+        payload.put("last_name", "user");
         payload.put("email", "test@example.com");
         payload.put("salary", "5200");
 
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(1L), eq(2L)))
             .thenReturn(1);
 
-        var error = assertThrows(IllegalArgumentException.class, () -> service.updateEmployee(1L, payload));
+        var error = assertThrows(IllegalArgumentException.class, () -> service.updateUser(1L, payload));
         assertEquals("position is required.", error.getMessage());
     }
 
     @Test
-    void updateEmployeeRejectsMissingDailySalary() {
+    void updateUserRejectsMissingDailySalary() {
         var service = createService();
         var payload = new HashMap<String, Object>();
         payload.put("id", 2L);
         payload.put("first_name", "Test");
-        payload.put("last_name", "Employee");
+        payload.put("last_name", "user");
         payload.put("email", "test@example.com");
         payload.put("position", "HR Analyst");
         payload.put("department", "People Ops");
@@ -155,8 +155,8 @@ class HrEmployeeServiceTest {
                 return List.of(rowMapper.mapRow(rs, 0));
             });
 
-        var error = assertThrows(IllegalArgumentException.class, () -> service.updateEmployee(1L, payload));
-        assertEquals("salary is required for daily employees.", error.getMessage());
+        var error = assertThrows(IllegalArgumentException.class, () -> service.updateUser(1L, payload));
+        assertEquals("salary is required for daily users.", error.getMessage());
     }
 
     @Test
@@ -168,7 +168,7 @@ class HrEmployeeServiceTest {
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("document_type", "resume");
-        payload.put("file_name", "employee-resume.pdf");
+        payload.put("file_name", "hr-user-resume.pdf");
         payload.put("content_type", "application/pdf");
         payload.put("size_bytes", 1024);
 
@@ -181,7 +181,7 @@ class HrEmployeeServiceTest {
         when(objectStorageService.isEnabled()).thenReturn(true);
         when(objectStorageService.presignUpload(anyString(), anyString(), anyString(), eq(900)))
             .thenReturn(new PresignedUpload(
-                "hr/employees/1/2/documents/resume/example-upload.pdf",
+                "hr/users/1/2/documents/resume/example-upload.pdf",
                 "https://minio.example.test/upload",
                 Instant.parse("2026-04-13T12:00:00Z"),
                 Map.of("Content-Type", "application/pdf")
@@ -194,26 +194,26 @@ class HrEmployeeServiceTest {
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("document_type", "resume");
-        payload.put("file_name", "Employee Resume.pdf");
+        payload.put("file_name", "HR user Resume.pdf");
         payload.put("content_type", "application/pdf");
         payload.put("size_bytes", 2048);
 
         var result = service.createDocumentUpload(1L, 2L, payload);
 
         assertEquals("resume", result.get("document_type"));
-        assertEquals("hr/employees/1/2/documents/resume/example-upload.pdf", result.get("object_key"));
+        assertEquals("hr/users/1/2/documents/resume/example-upload.pdf", result.get("object_key"));
         assertEquals("https://minio.example.test/upload", result.get("upload_url"));
     }
 
-    private HrEmployeeService createService() {
+    private HrUserService createService() {
         return createService(new DisabledObjectStorageService(), createStorageProperties());
     }
 
-    private HrEmployeeService createService(
+    private HrUserService createService(
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties
     ) {
-        return new HrEmployeeService(jdbcTemplate, hrAttendanceService, objectStorageService, objectStorageProperties);
+        return new HrUserService(jdbcTemplate, hrAttendanceService, objectStorageService, objectStorageProperties);
     }
 
     private ObjectStorageProperties createStorageProperties() {
@@ -224,13 +224,13 @@ class HrEmployeeServiceTest {
         return properties;
     }
 
-    private ResultSet employeeResultSet() throws SQLException {
+    private ResultSet hrUserResultSet() throws SQLException {
         ResultSet rs = mock(ResultSet.class);
         when(rs.getLong("id")).thenReturn(2L);
         when(rs.getString("first_name")).thenReturn("Second");
         when(rs.getString("last_name")).thenReturn("Empleado");
-        when(rs.getString("email")).thenReturn("second.employee.spring@example.com");
-        when(rs.getString("employee_number")).thenReturn(null);
+        when(rs.getString("email")).thenReturn("second.hr-user.spring@example.com");
+        when(rs.getString("user_code")).thenReturn(null);
         when(rs.getString("status")).thenReturn("active");
         when(rs.getString("position")).thenReturn("Senior Analyst");
         when(rs.getString("department")).thenReturn("Finance");
@@ -243,6 +243,9 @@ class HrEmployeeServiceTest {
         when(rs.getString("termination_reason_type")).thenReturn(null);
         when(rs.getString("termination_reason_code")).thenReturn(null);
         when(rs.getString("termination_summary")).thenReturn(null);
+        when(rs.getLong("user_id")).thenReturn(22L);
+        when(rs.getLong("user_company_id")).thenReturn(33L);
+        when(rs.getLong("work_profile_id")).thenReturn(44L);
         when(rs.getObject("hire_date")).thenReturn(null);
         when(rs.getObject("contract_start_date")).thenReturn(null);
         when(rs.getObject("contract_end_date")).thenReturn(null);

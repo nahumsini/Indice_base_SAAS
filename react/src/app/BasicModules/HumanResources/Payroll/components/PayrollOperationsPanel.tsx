@@ -56,7 +56,7 @@ const statusStyleConfig = {
 } as const;
 
 const isBlockedRun = (run: PayrollRunSummary) => (
-  run.employees_count === 0 && run.status !== 'paid' && run.status !== 'cancelled'
+  run.users_count === 0 && run.status !== 'paid' && run.status !== 'cancelled'
 );
 
 const getSegmentWidth = (count: number, total: number) => {

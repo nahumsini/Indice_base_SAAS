@@ -44,7 +44,7 @@ The reset script:
 - creates `indice-mysql-fresh` on port `3307` if it does not exist
 - starts the container if it is stopped
 - drops and recreates `indice_db`
-- leaves Flyway to rebuild the schema on the next backend startup from `B1`, `V2`, `V3`, and `V4`
+- leaves Flyway to rebuild the schema on the next backend startup from the latest baseline migration, currently `B40`
 
 ## Frontend setup
 
@@ -95,11 +95,11 @@ All frontend-facing routes are under:
 
 ### Human Resources
 
-- `GET /api/v1/hr/employees`
-- `POST /api/v1/hr/employees`
-- `PUT /api/v1/hr/employees/{id}`
-- `POST /api/v1/hr/employees/{id}/terminate`
-- `DELETE /api/v1/hr/employees/{id}`
+- `GET /api/v1/hr/users`
+- `POST /api/v1/hr/users`
+- `PUT /api/v1/hr/users/{id}`
+- `POST /api/v1/hr/users/{id}/terminate`
+- `DELETE /api/v1/hr/users/{id}`
 
 ## Database
 
@@ -116,7 +116,7 @@ Flyway is now enabled in transitional baseline mode for the existing shared sche
 
 - first startup against a non-empty legacy schema creates `flyway_schema_history`
 - the current schema is tagged at baseline version `0`
-- `B1`, `V2`, `V3`, and `V4` now cover the current Spring-owned subset of the schema
+- `B40` now covers the current Spring-owned subset of the schema through the HR user rewiring
 
 ## Docs
 

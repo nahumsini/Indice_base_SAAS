@@ -303,9 +303,9 @@ export interface EmployeesTranslations {
     selectAllVisible: string;
     selectEmployee: (name: string) => string;
     deleteConfirm: string;
-    editEmployeeLabel: string;
-    terminateEmployeeLabel: string;
-    deleteEmployeeLabel: string;
+    editHrUserLabel: string;
+    terminateHrUserLabel: string;
+    deleteHrUserLabel: string;
   };
   columnDescriptions: Record<Exclude<EmployeeColumnTranslationKey, 'selection' | 'actions'>, string>;
   payPeriodLabels: Record<EmployeePayPeriodTranslationKey, string>;
