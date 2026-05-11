@@ -5,7 +5,7 @@ import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useKpisTranslations } from '../../hooks/useKpisTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 
-const KPIs = lazy(() => import('./KPIs'));
+const KPIs = lazy(() => import('./KPIs/KPIs'));
 const InformesContables = lazy(() => import('./InformesContables'));
 const InformesAutomatizados = lazy(() => import('./InformesAutomatizados'));
 

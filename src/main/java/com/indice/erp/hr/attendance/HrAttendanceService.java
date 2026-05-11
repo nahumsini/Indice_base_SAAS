@@ -2097,7 +2097,6 @@ public class HrAttendanceService {
         result.put("subject_type", "user");
         result.put("user_id", user.userId());
         result.put("user_company_id", user.userCompanyId());
-        result.put("user_company_id", user.userId());
         result.put("event_kind", eventKind);
         result.put("auth_method", "session");
         result.put("result_status", "success");
@@ -2333,7 +2332,7 @@ public class HrAttendanceService {
         var body = new LinkedHashMap<String, Object>();
         body.put("subject_type", "user");
         body.put("user_id", user.userId());
-        body.put("user_company_id", user.userId());
+        body.put("user_company_id", user.userCompanyId());
         body.put("date", date.toString());
         body.put("attendance_editable", true);
         body.put("edit_lock_reason", null);
@@ -2918,7 +2917,7 @@ public class HrAttendanceService {
         var rows = jdbcTemplate.query(
             """
                 SELECT r.id,
-                       r.user_id AS user_company_id,
+                       r.user_company_id,
                        r.attendance_date,
                        r.system_status,
                        r.corrected_status,
