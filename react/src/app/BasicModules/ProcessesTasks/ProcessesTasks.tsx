@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { BarChart3, Building2, CalendarDays, FolderOpen, Home, ListChecks, Settings2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -44,12 +45,12 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
   );
 
   const tabs = [
-    { id: 'calendar', label: t.tabs.agenda, emoji: 'CAL', component: Agenda },
-    { id: 'tasks', label: t.tabs.tasks, emoji: 'TSK', component: Tasks },
-    { id: 'projects', label: t.tabs.projects, emoji: 'PRJ', component: Projects },
-    { id: 'processes', label: t.tabs.processes, emoji: 'PRC', component: Processes },
-    { id: 'kpis', label: t.tabs.kpis, emoji: 'KPI', component: KPIs },
-    { id: 'org-chart', label: t.tabs.orgChart, emoji: 'ORG', component: OrgChart },
+    { id: 'calendar', label: t.tabs.agenda, icon: CalendarDays, component: Agenda },
+    { id: 'tasks', label: t.tabs.tasks, icon: ListChecks, component: Tasks },
+    { id: 'projects', label: t.tabs.projects, icon: FolderOpen, component: Projects },
+    { id: 'processes', label: t.tabs.processes, icon: Settings2, component: Processes },
+    { id: 'kpis', label: t.tabs.kpis, icon: BarChart3, component: KPIs },
+    { id: 'org-chart', label: t.tabs.orgChart, icon: Building2, component: OrgChart },
   ];
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || Agenda;
@@ -78,25 +79,30 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
               <p className="text-gray-600 dark:text-gray-400">{t.subtitle}</p>
             </div>
             <Button variant="outline" onClick={() => onNavigate()} className="gap-2 text-sm">
-              <span className="text-lg">HOME</span> {t.back}
+              <Home className="h-4 w-4" aria-hidden="true" />
+              {t.back}
             </Button>
           </div>
 
           <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as ProcessTaskTabId)}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
-                }`}
-              >
-                <span>{tab.emoji}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as ProcessTaskTabId)}
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? 'bg-[rgb(235,165,52)] text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

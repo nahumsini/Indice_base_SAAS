@@ -377,7 +377,7 @@ export default function Tasks() {
       <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-white">Tasks</h2>
+            <h2 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-white">Execution queue</h2>
             <p className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
               Tasks are the main executable work unit. They can stand alone or reference a process or project later.
             </p>

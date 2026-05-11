@@ -366,7 +366,7 @@ export default function Projects() {
       <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-white">Projects</h2>
+            <h2 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-white">Project portfolio</h2>
             <p className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
               Projects are company-scoped containers for organizing tasks without adding project management overhead.
             </p>
