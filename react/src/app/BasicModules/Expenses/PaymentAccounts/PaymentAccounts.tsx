@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Search, Plus, X, Trash2, Edit2, CreditCard, Banknote, Building2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Search, Plus, X, Trash2, Edit2, CreditCard, Banknote, Building2, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, ShieldCheck } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { usePettyCash } from '../../PettyCash/context/PettyCashContext';
 
 type PaymentAccount = {
   id: string;
@@ -12,6 +13,10 @@ type PaymentAccount = {
   balance: number;
   isActive: boolean;
   lastTransaction?: string;
+  source?: 'expenses' | 'petty_cash';
+  linkedFundId?: string;
+  custodian?: string;
+  pendingReceipts?: number;
 };
 
 type SortField = keyof PaymentAccount;
@@ -106,13 +111,43 @@ const mockPaymentAccounts: PaymentAccount[] = [
   }
 ];
 
-export default function PaymentAccounts() {
+interface PaymentAccountsProps {
+  onNavigate?: (page?: string) => void;
+}
+
+export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {}) {
+  const { cashFunds } = usePettyCash();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const paymentAccounts = useMemo<PaymentAccount[]>(() => {
+    const pettyCashAccounts: PaymentAccount[] = cashFunds.map((fund) => ({
+      id: `petty-cash-${fund.id}`,
+      name: fund.name,
+      type: 'cash',
+      accountNumber: 'Managed internally',
+      bank: 'Petty Cash',
+      currency: fund.currency,
+      balance: fund.currentBalance,
+      isActive: fund.status !== 'closed',
+      lastTransaction: fund.lastReconciliation.toISOString().slice(0, 10),
+      source: 'petty_cash',
+      linkedFundId: fund.id,
+      custodian: fund.custodian,
+      pendingReceipts: fund.pendingReceipts,
+    }));
+
+    return [
+      ...mockPaymentAccounts
+        .filter(account => account.id !== '3')
+        .map(account => ({ ...account, source: 'expenses' as const })),
+      ...pettyCashAccounts,
+    ];
+  }, [cashFunds]);
 
   // Sorting handler
   const handleSort = (field: SortField) => {
@@ -141,12 +176,13 @@ export default function PaymentAccounts() {
   };
 
   // Filter and sort accounts
-  const filteredAccounts = mockPaymentAccounts
+  const filteredAccounts = paymentAccounts
     .filter(account => {
       const matchesSearch = 
         account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         account.accountNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        account.bank?.toLowerCase().includes(searchTerm.toLowerCase());
+        account.bank?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        account.custodian?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesType = typeFilter === 'all' || account.type === typeFilter;
       const matchesStatus = statusFilter === 'all' || 
@@ -317,6 +353,15 @@ export default function PaymentAccounts() {
         </div>
       </div>
 
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20">
+        <div className="flex gap-3">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-300" />
+          <p className="text-sm text-blue-900 dark:text-blue-100">
+            Petty cash boxes are visible here as payment accounts for expense visibility. Reconciliation, receipts, and audit are managed inside Petty Cash.
+          </p>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
@@ -350,14 +395,9 @@ export default function PaymentAccounts() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Saldo MXN</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Cajas internas</p>
               <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                {formatCurrency(
-                  filteredAccounts
-                    .filter(a => a.currency === 'MXN')
-                    .reduce((sum, a) => sum + a.balance, 0),
-                  'MXN'
-                )}
+                {filteredAccounts.filter(account => account.source === 'petty_cash').length}
               </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
@@ -369,13 +409,13 @@ export default function PaymentAccounts() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Saldo USD</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Recibos pendientes</p>
               <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
                 {formatCurrency(
                   filteredAccounts
-                    .filter(a => a.currency === 'USD')
-                    .reduce((sum, a) => sum + a.balance, 0),
-                  'USD'
+                    .filter(account => account.source === 'petty_cash')
+                    .reduce((sum, account) => sum + (account.pendingReceipts ?? 0), 0),
+                  'CAD'
                 )}
               </p>
             </div>
@@ -454,9 +494,16 @@ export default function PaymentAccounts() {
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(account.type)}
-                        {account.name}
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5">{getTypeIcon(account.type)}</span>
+                        <div>
+                          <p>{account.name}</p>
+                          {account.source === 'petty_cash' && (
+                            <p className="mt-1 text-xs font-normal text-green-700 dark:text-green-300">
+                              Managed in Petty Cash / Custodian: {account.custodian}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -465,7 +512,7 @@ export default function PaymentAccounts() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                      {account.bank || '-'}
+                      {account.source === 'petty_cash' ? account.custodian : account.bank || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">
                       {account.accountNumber || '-'}
@@ -487,18 +534,31 @@ export default function PaymentAccounts() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          className="p-1.5 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {account.source === 'petty_cash' ? (
+                          <button
+                            onClick={() => onNavigate?.('petty-cash')}
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#147514] transition-colors hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-900/20"
+                            title="Open Petty Cash"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Open
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              className="p-1.5 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                              title="Editar"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

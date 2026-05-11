@@ -1,0 +1,92 @@
+import { Archive, Eye, Maximize2, RotateCcw } from 'lucide-react';
+
+const quantityOptions = [1, 2, 3, 5, 10];
+
+export function TouchKeypad({
+  selectedQuantity,
+  suspendedCount,
+  canSuspendSale,
+  onQuantityChange,
+  onOpenSalePanel,
+  onOpenReturn,
+  onSuspendSale,
+  onFullscreen,
+}: {
+  selectedQuantity: number;
+  suspendedCount: number;
+  canSuspendSale: boolean;
+  onQuantityChange: (quantity: number) => void;
+  onOpenSalePanel: () => void;
+  onOpenReturn: () => void;
+  onSuspendSale: () => void;
+  onFullscreen: () => void;
+}) {
+  return (
+    <section className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Touch controls</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Fast actions for the selling surface</p>
+        </div>
+        {suspendedCount > 0 && (
+          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+            {suspendedCount} held
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-5 gap-2">
+        {quantityOptions.map((quantity) => (
+          <button
+            key={quantity}
+            type="button"
+            onClick={() => onQuantityChange(quantity)}
+            className={`h-12 rounded-lg text-sm font-bold transition active:scale-95 ${
+              selectedQuantity === quantity
+                ? 'bg-orange-500 text-white shadow-md'
+                : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-orange-50 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700'
+            }`}
+          >
+            x{quantity}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onSuspendSale}
+          disabled={!canSuspendSale}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-700 ring-1 ring-gray-200 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+        >
+          <Archive className="h-4 w-4" />
+          Hold
+        </button>
+        <button
+          type="button"
+          onClick={onOpenSalePanel}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-700 ring-1 ring-gray-200 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+        >
+          <Eye className="h-4 w-4" />
+          Ticket
+        </button>
+        <button
+          type="button"
+          onClick={onOpenReturn}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-700 ring-1 ring-gray-200 transition hover:bg-red-50 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Return
+        </button>
+        <button
+          type="button"
+          onClick={onFullscreen}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-700 ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+        >
+          <Maximize2 className="h-4 w-4" />
+          Fullscreen
+        </button>
+      </div>
+    </section>
+  );
+}

@@ -4,6 +4,7 @@ import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useCajaChicaTranslations } from '../../hooks/useCajaChicaTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { usePettyCash } from './context/PettyCashContext';
 
 const Caja = lazy(() => import('./Caja'));
 const Control = lazy(() => import('./Control'));
@@ -27,6 +28,12 @@ const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
 
 export default function CajaChica({ onNavigate }: CajaChicaProps) {
   const t = useCajaChicaTranslations();
+  const {
+    pettyCashExpenses,
+    cashFunds,
+    setPettyCashExpenses,
+    setCashFunds,
+  } = usePettyCash();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PettyCashTabId>(
     'cash',
     pettyCashTabIds,
@@ -34,13 +41,40 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
   );
 
   const tabs = [
-    { id: 'cash', label: t.tabs.caja, emoji: '💵', component: Caja },
-    { id: 'control', label: t.tabs.control, emoji: '📝', component: Control },
-    { id: 'kpis', label: t.tabs.kpis, emoji: '📊', component: KPIs },
+    { id: 'cash', label: t.tabs.caja, emoji: '💵' },
+    { id: 'control', label: t.tabs.control, emoji: '📝' },
+    { id: 'kpis', label: t.tabs.kpis, emoji: '📊' },
   ];
 
-  // Get the active component
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Caja;
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'control':
+        return (
+          <Control
+            expenses={pettyCashExpenses}
+            funds={cashFunds}
+            onFundsChange={setCashFunds}
+          />
+        );
+      case 'kpis':
+        return (
+          <KPIs
+            expenses={pettyCashExpenses}
+            funds={cashFunds}
+          />
+        );
+      case 'cash':
+      default:
+        return (
+          <Caja
+            expenses={pettyCashExpenses}
+            funds={cashFunds}
+            onExpensesChange={setPettyCashExpenses}
+            onFundsChange={setCashFunds}
+          />
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -111,7 +145,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
             />
           )}
         >
-          <ActiveComponent />
+          {renderActiveTab()}
         </Suspense>
       </div>
     </div>
