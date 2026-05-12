@@ -2,6 +2,9 @@ package com.indice.erp.hr.attendance.support;
 
 import java.math.BigDecimal;
 
+import static com.indice.erp.hr.attendance.support.AttendanceGeo.distanceMeters;
+
+
 public final class AttendanceGeo {
 
     private static final double EARTH_RADIUS_METERS = 6_371_000d;
