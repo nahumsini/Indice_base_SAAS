@@ -1,6 +1,4 @@
-package com.indice.erp.hr.attendance;
-
-import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+package com.indice.erp.hr.attendance.kiosk;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -8,6 +6,10 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
+import static com.indice.erp.hr.shared.HrPayloadUtils.isBlank;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+
 
 @Repository
 public class AttendanceKioskDeviceRepository {

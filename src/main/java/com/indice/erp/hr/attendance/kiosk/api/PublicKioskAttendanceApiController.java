@@ -1,8 +1,8 @@
-package com.indice.erp.hr.attendance.api;
+package com.indice.erp.hr.attendance.kiosk.api;
 
 import com.indice.erp.face.FaceVerificationIntegrationException;
 import com.indice.erp.hr.attendance.HrAttendanceService;
-import com.indice.erp.hr.attendance.KioskPinThrottleException;
+import com.indice.erp.hr.attendance.kiosk.KioskPinThrottleException;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 
 @RestController
 @RequestMapping("/api/v1/hr/attendance/public-kiosk/{deviceToken}")

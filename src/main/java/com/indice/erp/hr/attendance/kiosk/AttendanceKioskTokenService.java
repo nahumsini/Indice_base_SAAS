@@ -1,8 +1,4 @@
-package com.indice.erp.hr.attendance;
-
-import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+package com.indice.erp.hr.attendance.kiosk;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +12,12 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import static com.indice.erp.hr.shared.HrPayloadUtils.isBlank;
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+
 
 @Service
 public class AttendanceKioskTokenService {
