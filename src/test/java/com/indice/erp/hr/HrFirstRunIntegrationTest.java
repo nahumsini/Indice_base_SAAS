@@ -1,13 +1,5 @@
 package com.indice.erp.hr;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.auth.SessionAuthService;
@@ -29,7 +21,17 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.test.web.servlet.MockMvc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -131,6 +133,113 @@ class HrFirstRunIntegrationTest {
     }
 
     @Test
+    void acceptedHomePanelInvitationAppearsInHrUsers() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var token = "home-panel-hr-" + uniqueSuffix;
+        var email = "home.panel.hr." + uniqueSuffix + "@example.com";
+        var fullName = "Home Panel HR " + uniqueSuffix;
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_invitations
+                    (company_id, email, full_name, role, module_slugs_json, token, status, invited_by, expires_at)
+                VALUES (1, ?, ?, 'user', '["human_resources"]', ?, 'pending', 1, DATE_ADD(NOW(), INTERVAL 7 DAY))
+                """,
+            email,
+            fullName,
+            token
+        );
+
+        try {
+            var acceptResponse = mockMvc.perform(
+                post("/api/v1/invitations/{token}/accept", token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(Map.of(
+                        "password", "homePanel123",
+                        "confirm_password", "homePanel123"
+                    )))
+            )
+                .andExpect(status().isOk())
+                .andReturn();
+
+            var accepted = readMap(acceptResponse.getResponse().getContentAsString());
+            var userId = ((Number) accepted.get("user_id")).longValue();
+            createdUserIds.add(userId);
+
+            var userCompanyId = jdbcTemplate.queryForObject(
+                "SELECT id FROM user_companies WHERE user_id = ? AND company_id = 1",
+                Long.class,
+                userId
+            );
+            assertThat(userCompanyId).isNotNull();
+
+            var workProfileCount = jdbcTemplate.queryForObject(
+                """
+                    SELECT COUNT(*)
+                    FROM user_work_profiles
+                    WHERE company_id = 1
+                      AND user_company_id = ?
+                    """,
+                Integer.class,
+                userCompanyId
+            );
+            assertThat(workProfileCount).isEqualTo(1);
+
+            var listResponse = mockMvc.perform(
+                get("/api/v1/hr/users").session(session)
+            )
+                .andExpect(status().isOk())
+                .andReturn();
+
+            var body = readMap(listResponse.getResponse().getContentAsString());
+            @SuppressWarnings("unchecked")
+            var rows = (List<Map<String, Object>>) body.get("items");
+            assertThat(rows).anySatisfy(row -> {
+                assertThat(row.get("email")).isEqualTo(email);
+                assertThat(row.get("full_name")).isEqualTo(fullName);
+                assertThat(row.get("user_code")).asString().matches("^USR-\\d{4,}$");
+            });
+        } finally {
+            jdbcTemplate.update("DELETE FROM user_invitations WHERE token = ?", token);
+        }
+    }
+
+    @Test
+    void homePanelDeleteArchivesAccessAndKeepsHrHistory() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var userCompanyId = createHrUserForTests(session, uniqueSuffix);
+        var locationId = createBusinessLocationForHrUser(userCompanyId, uniqueSuffix, "Home Delete");
+        var attendanceDate = LocalDate.now().minusDays(1);
+        seedAttendanceCheckIn(userCompanyId, locationId, attendanceDate, attendanceDate.atTime(9, 0));
+
+        var userId = jdbcTemplate.queryForObject(
+            "SELECT user_id FROM user_companies WHERE id = ?",
+            Long.class,
+            userCompanyId
+        );
+        assertThat(userId).isNotNull();
+
+        mockMvc.perform(delete("/api/v1/config-center/users/{userId}", userId).session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.archived").value(true));
+
+        assertThat(loadScalar(
+            "SELECT status FROM user_companies WHERE id = ?",
+            String.class,
+            userCompanyId
+        )).isEqualTo("inactive");
+        assertThat(loadScalar(
+            "SELECT status FROM user_work_profiles WHERE user_company_id = ?",
+            String.class,
+            userCompanyId
+        )).isEqualTo("inactive");
+        assertThat(countRows("user_attendance_events", userCompanyId)).isEqualTo(1);
+    }
+
+    @Test
     void hrUserCrudAndTerminationFlowWorks() throws Exception {
         var session = authenticatedSession();
         var uniqueSuffix = System.currentTimeMillis();
@@ -212,7 +321,56 @@ class HrFirstRunIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
 
-        createdUserCompanyIds.remove(userCompanyId);
+        assertThat(loadScalar(
+            "SELECT status FROM user_work_profiles WHERE user_company_id = ?",
+            String.class,
+            userCompanyId
+        )).isEqualTo("terminated");
+    }
+
+    @Test
+    void hrDeleteArchivesEmployeeAndKeepsDocumentsAndAttendanceHistory() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var userCompanyId = createHrUserForTests(session, uniqueSuffix);
+        var locationId = createBusinessLocationForHrUser(userCompanyId, uniqueSuffix, "HR Delete");
+        var attendanceDate = LocalDate.now().minusDays(2);
+        seedAttendanceCheckIn(userCompanyId, locationId, attendanceDate, attendanceDate.atTime(8, 30));
+
+        var userId = jdbcTemplate.queryForObject(
+            "SELECT user_id FROM user_companies WHERE id = ?",
+            Long.class,
+            userCompanyId
+        );
+        assertThat(userId).isNotNull();
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_documents
+                    (company_id, user_company_id, user_id, document_type, original_filename,
+                     mime_type, size_bytes, object_key, status, uploaded_by_user_id)
+                VALUES (1, ?, ?, 'contract', 'contract.pdf', 'application/pdf', 10, ?, 'active', 1)
+                """,
+            userCompanyId,
+            userId,
+            "test/hr-delete/" + uniqueSuffix + "/contract.pdf"
+        );
+
+        mockMvc.perform(delete("/api/v1/hr/users/{userCompanyId}", userCompanyId).session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        assertThat(loadScalar(
+            "SELECT status FROM user_companies WHERE id = ?",
+            String.class,
+            userCompanyId
+        )).isEqualTo("inactive");
+        assertThat(loadScalar(
+            "SELECT status FROM user_work_profiles WHERE user_company_id = ?",
+            String.class,
+            userCompanyId
+        )).isEqualTo("inactive");
+        assertThat(countRows("user_attendance_events", userCompanyId)).isEqualTo(1);
+        assertThat(countRows("user_documents", userCompanyId)).isEqualTo(1);
     }
 
     @Test
@@ -2389,9 +2547,9 @@ class HrFirstRunIntegrationTest {
             assignSchedule(session, userCompanyId, templateId, effectiveStartDate, effectiveStartDate);
         }
 
-        private void assignSchedule(
-            HttpSession session,
-            long userCompanyId,
+	        private void assignSchedule(
+	            HttpSession session,
+	            long userCompanyId,
             long templateId,
             String effectiveStartDate,
             String effectiveEndDate
@@ -2409,10 +2567,27 @@ class HrFirstRunIntegrationTest {
                     .session((MockHttpSession) session)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(payload))
-            )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.assigned_count").value(1));
-        }
+	            )
+	                .andExpect(status().isOk())
+	                .andExpect(jsonPath("$.assigned_count").value(1));
+	        }
+
+    private <T> T loadScalar(String sql, Class<T> type, Object... args) {
+        return jdbcTemplate.queryForObject(sql, type, args);
+    }
+
+    private int countRows(String tableName, long userCompanyId) {
+        var safeTableName = switch (tableName) {
+            case "user_attendance_events", "user_documents" -> tableName;
+            default -> throw new IllegalArgumentException("Unsupported test table: " + tableName);
+        };
+        var count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM " + safeTableName + " WHERE user_company_id = ?",
+            Integer.class,
+            userCompanyId
+        );
+        return count == null ? 0 : count;
+    }
 
     private MockHttpSession authenticatedSession() {
         var session = new MockHttpSession();

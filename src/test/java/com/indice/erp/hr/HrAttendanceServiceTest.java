@@ -1,20 +1,26 @@
 package com.indice.erp.hr;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
-import com.indice.erp.hr.attendance.AttendanceAssignmentService;
-import com.indice.erp.hr.attendance.AttendanceKioskDeviceRepository;
-import com.indice.erp.hr.attendance.AttendanceKioskPinThrottleService;
-import com.indice.erp.hr.attendance.AttendanceKioskTokenService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
+import com.indice.erp.hr.attendance.access.AttendanceAccessService;
 import com.indice.erp.hr.attendance.application.AttendancePhotoService;
+import com.indice.erp.hr.attendance.assignment.AttendanceAssignmentService;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskDeviceMapper;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskDeviceRepository;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskDeviceService;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskPinThrottleService;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskTokenService;
+import com.indice.erp.hr.attendance.locations.AttendanceAllowedLocationRepository;
+import com.indice.erp.hr.attendance.locations.AttendanceLocationRepository;
+import com.indice.erp.hr.attendance.locations.AttendanceWorkSiteAssignmentRepository;
+import com.indice.erp.hr.attendance.records.AttendanceDailyRecordRepository;
+import com.indice.erp.hr.attendance.schedule.AttendanceScheduleCandidateMapper;
+import com.indice.erp.hr.attendance.schedule.AttendanceScheduleCandidateRepository;
+import com.indice.erp.hr.attendance.schedule.AttendanceScheduleCandidateService;
+import com.indice.erp.hr.attendance.schedule.AttendanceScheduleStateRepository;
+import com.indice.erp.hr.attendance.schedule.AttendanceScheduleWorkSiteRepository;
+import com.indice.erp.hr.attendance.users.AttendanceUserLookupService;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.DisabledObjectStorageService;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -29,7 +35,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 
 @ExtendWith(MockitoExtension.class)
 class HrAttendanceServiceTest {
@@ -58,15 +71,37 @@ class HrAttendanceServiceTest {
 
     private HrAttendanceService createService() {
         var objectMapper = new ObjectMapper();
+        var attendancePhotoService = new AttendancePhotoService(new DisabledObjectStorageService(), new ObjectStorageProperties());
+        var attendanceAssignmentService = new AttendanceAssignmentService(jdbcTemplate);
+        var attendanceUserLookupService = new AttendanceUserLookupService(jdbcTemplate, attendancePhotoService);
+        var attendanceDailyRecordRepository = new AttendanceDailyRecordRepository(jdbcTemplate);
+        var attendanceKioskDeviceRepository = new AttendanceKioskDeviceRepository(jdbcTemplate);
+        var attendanceKioskPinThrottleService = new AttendanceKioskPinThrottleService(jdbcTemplate, objectMapper);
+        var attendanceScheduleCandidateService = new AttendanceScheduleCandidateService(
+            attendanceAssignmentService,
+            attendanceDailyRecordRepository,
+            new AttendanceScheduleCandidateRepository(jdbcTemplate, attendanceUserLookupService),
+            new AttendanceScheduleStateRepository(jdbcTemplate),
+            new AttendanceScheduleWorkSiteRepository(jdbcTemplate),
+            new AttendanceScheduleCandidateMapper()
+        );
         return new HrAttendanceService(
             jdbcTemplate,
-            new AttendanceAssignmentService(jdbcTemplate),
+            attendanceAssignmentService,
             new AttendanceKioskTokenService(objectMapper, "test-kiosk-secret", 120),
-            new AttendanceKioskPinThrottleService(jdbcTemplate, objectMapper),
-            new AttendanceKioskDeviceRepository(jdbcTemplate),
-            new AttendancePhotoService(new DisabledObjectStorageService(), new ObjectStorageProperties()),
+            attendanceKioskPinThrottleService,
+            attendanceKioskDeviceRepository,
+            mock(AttendanceKioskDeviceService.class),
+            mock(AttendanceKioskDeviceMapper.class),
+            mock(AttendanceLocationRepository.class),
+            mock(AttendanceAllowedLocationRepository.class),
+            mock(AttendanceWorkSiteAssignmentRepository.class),
+            mock(AttendanceAccessService.class),
+            attendanceUserLookupService,
+            attendanceDailyRecordRepository,
+            attendanceScheduleCandidateService,
+            attendancePhotoService,
             objectMapper,
-            new BCryptPasswordEncoder(),
             mock(HrFaceService.class),
             mock(GoogleMapsCoordinateExtractor.class),
             false,
