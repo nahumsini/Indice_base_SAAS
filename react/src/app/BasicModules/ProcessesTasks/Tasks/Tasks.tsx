@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { CheckCircle2, CircleSlash, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CheckCircle2, CircleSlash, ClipboardCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -19,8 +20,18 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
+import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
+import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { accentButtonClass, priorityClasses, priorityLabels } from '../Processes/processesData';
+import { listProcesses } from '../Processes/processesApi';
+import type {
+  ProcessBusinessOption,
+  ProcessCollaboratorOption,
+  ProcessRecord,
+  ProcessUnitOption,
+} from '../Processes/types';
 import { listProjects, type ProjectRecord } from '../Projects/projectsApi';
+import { TaskCompletionDialog } from './components/TaskCompletionDialog';
 import { TaskFormDialog, type TaskFormValues } from './components/TaskFormDialog';
 import {
   cancelProcessTask,
@@ -36,6 +47,7 @@ import {
 } from './tasksApi';
 
 type StatusFilter = 'all' | TaskStatus;
+type ConfirmationState = { type: 'cancel' | 'delete'; task: TaskRecord } | null;
 
 const statusLabels: Record<TaskStatus, string> = {
   pending: 'Pending',
@@ -58,6 +70,12 @@ const statusClasses: Record<TaskStatus, string> = {
     'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300',
 };
 
+const taskTypeLabels = {
+  task: 'Task',
+  'project-task': 'Project task',
+  process: 'Process task',
+} as const;
+
 const actionButtonBaseClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors';
 
@@ -71,7 +89,13 @@ function createDefaultTaskForm(): TaskFormValues {
     assignedName: '',
     status: 'pending',
     priority: 'medium',
+    startDate: '',
     dueDate: '',
+    notes: '',
+    completionPercent: '',
+    weighting: '',
+    audited: false,
+    auditNotes: '',
     businessId: '',
     unitId: '',
   };
@@ -87,7 +111,13 @@ function toTaskFormValues(task: TaskRecord): TaskFormValues {
     assignedName: task.assignedName ?? '',
     status: task.status,
     priority: task.priority,
+    startDate: task.startDate ?? '',
     dueDate: task.dueDate ?? '',
+    notes: task.notes ?? '',
+    completionPercent: task.completionPercent ? task.completionPercent.toString() : '',
+    weighting: task.weighting == null ? '' : String(Math.max(0, Math.min(5, task.weighting))),
+    audited: task.audited,
+    auditNotes: task.auditNotes ?? '',
     businessId: task.businessId?.toString() ?? '',
     unitId: task.unitId?.toString() ?? '',
   };
@@ -111,6 +141,57 @@ function parseOptionalNumber(value: string, fieldLabel: string) {
   return parsed;
 }
 
+function parseOptionalNumberInRange(value: string, fieldLabel: string, min: number, max: number) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw new Error(`${fieldLabel} must be between ${min} and ${max}.`);
+  }
+
+  return parsed;
+}
+
+function compactText(value?: string | null) {
+  return value?.trim() ?? '';
+}
+
+function normalizeUnitOption(unit: BackendUnit): ProcessUnitOption {
+  return {
+    id: unit.id,
+    name: compactText(unit.name),
+  };
+}
+
+function normalizeBusinessOption(business: BackendBusiness): ProcessBusinessOption {
+  return {
+    id: business.id,
+    name: compactText(business.name),
+    unitId: business.unitId ?? business.unit_id ?? null,
+  };
+}
+
+function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOption | null {
+  const userCompanyId = user.user_company_id ?? user.legacy_user_company_id ?? null;
+  const name = compactText(user.full_name) || compactText(`${user.first_name ?? ''} ${user.last_name ?? ''}`);
+
+  if (!userCompanyId || !name || user.status !== 'active') {
+    return null;
+  }
+
+  return {
+    userCompanyId,
+    userId: user.user_id ?? null,
+    name,
+    email: user.email,
+    unitId: user.unit_id ?? null,
+    businessId: user.business_id ?? null,
+  };
+}
+
 function buildTaskPayload(form: TaskFormValues): TaskPayload {
   const assignedUserCompanyId = parseOptionalNumber(form.assignedUserCompanyId, 'Assigned HR user ID');
 
@@ -123,7 +204,13 @@ function buildTaskPayload(form: TaskFormValues): TaskPayload {
     assignedName: form.assignedName.trim() ? form.assignedName.trim() : null,
     status: form.status,
     priority: form.priority,
+    startDate: form.startDate || null,
     dueDate: form.dueDate || null,
+    notes: form.notes.trim() ? form.notes.trim() : null,
+    completionPercent: parseOptionalNumberInRange(form.completionPercent, 'Completion %', 0, 100),
+    weighting: parseOptionalNumberInRange(form.weighting, 'Weighting', 0, 5),
+    audited: form.audited,
+    auditNotes: form.audited && form.auditNotes.trim() ? form.auditNotes.trim() : null,
     businessId: parseOptionalNumber(form.businessId, 'Business ID'),
     unitId: parseOptionalNumber(form.unitId, 'Unit ID'),
   };
@@ -147,6 +234,20 @@ function formatDate(value: string | null, includeTime = false) {
         }
       : {}),
   }).format(date);
+}
+
+function isTaskOverdue(task: TaskRecord) {
+  if (!task.dueDate || ['completed', 'cancelled'].includes(task.status)) {
+    return false;
+  }
+
+  const today = new Date();
+  const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return new Date(`${task.dueDate}T00:00:00`) < todayAtMidnight;
+}
+
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, value));
 }
 
 function TaskActionButton({
@@ -180,7 +281,11 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [tasksError, setTasksError] = useState<string | null>(null);
+  const [processes, setProcesses] = useState<ProcessRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [catalogUnits, setCatalogUnits] = useState<ProcessUnitOption[]>([]);
+  const [catalogBusinesses, setCatalogBusinesses] = useState<ProcessBusinessOption[]>([]);
+  const [catalogCollaborators, setCatalogCollaborators] = useState<ProcessCollaboratorOption[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -189,6 +294,10 @@ export default function Tasks() {
   const [form, setForm] = useState<TaskFormValues>(() => createDefaultTaskForm());
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [pendingTaskIds, setPendingTaskIds] = useState<number[]>([]);
+  const [completionTask, setCompletionTask] = useState<TaskRecord | null>(null);
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [completionPercent, setCompletionPercent] = useState('100');
+  const [confirmation, setConfirmation] = useState<ConfirmationState>(null);
 
   const loadTasks = async () => {
     setIsLoadingTasks(true);
@@ -210,16 +319,44 @@ export default function Tasks() {
   }, []);
 
   useEffect(() => {
-    const loadProjectsForTaskForm = async () => {
-      try {
-        const items = await listProjects();
-        setProjects(items);
-      } catch {
-        setProjects([]);
-      }
+    const loadRelationsForTaskForm = async () => {
+      const [projectResult, processResult, unitResult, businessResult, hrUserResult] = await Promise.allSettled([
+        listProjects(),
+        listProcesses(),
+        dashboardApi.listUnits(),
+        dashboardApi.listBusinesses(),
+        humanResourcesApi.listHrUsers(),
+      ]);
+
+      setProjects(projectResult.status === 'fulfilled' ? projectResult.value : []);
+      setProcesses(processResult.status === 'fulfilled' ? processResult.value : []);
+      setCatalogUnits(
+        unitResult.status === 'fulfilled'
+          ? unitResult.value
+              .map(normalizeUnitOption)
+              .filter((option) => option.name.length > 0)
+              .sort((left, right) => left.name.localeCompare(right.name))
+          : [],
+      );
+      setCatalogBusinesses(
+        businessResult.status === 'fulfilled'
+          ? businessResult.value
+              .map(normalizeBusinessOption)
+              .filter((option) => option.name.length > 0)
+              .sort((left, right) => left.name.localeCompare(right.name))
+          : [],
+      );
+      setCatalogCollaborators(
+        hrUserResult.status === 'fulfilled'
+          ? hrUserResult.value.items
+              .map(normalizeCollaboratorOption)
+              .filter((option): option is ProcessCollaboratorOption => option !== null)
+              .sort((left, right) => left.name.localeCompare(right.name))
+          : [],
+      );
     };
 
-    void loadProjectsForTaskForm();
+    void loadRelationsForTaskForm();
   }, []);
 
   const filteredTasks = useMemo(() => {
@@ -231,7 +368,11 @@ export default function Tasks() {
         task.folio.toLowerCase().includes(normalizedSearch) ||
         task.title.toLowerCase().includes(normalizedSearch) ||
         (task.description ?? '').toLowerCase().includes(normalizedSearch) ||
-        (task.assignedName ?? '').toLowerCase().includes(normalizedSearch);
+        (task.assignedName ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.notes ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.businessName ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.unitName ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.createdByName ?? '').toLowerCase().includes(normalizedSearch);
 
       const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
 
@@ -242,6 +383,12 @@ export default function Tasks() {
   const totalCount = tasks.length;
   const openCount = tasks.filter((task) => ['pending', 'in_progress', 'paused'].includes(task.status)).length;
   const completedCount = tasks.filter((task) => task.status === 'completed').length;
+  const auditedCount = tasks.filter((task) => task.audited).length;
+  const overdueCount = tasks.filter(isTaskOverdue).length;
+  const averageCompletion =
+    totalCount > 0
+      ? Math.round(tasks.reduce((sum, task) => sum + clampPercent(task.completionPercent), 0) / totalCount)
+      : 0;
 
   const setTaskPendingState = (taskId: number, isPending: boolean) => {
     setPendingTaskIds((currentIds) =>
@@ -310,65 +457,79 @@ export default function Tasks() {
   };
 
   const handleComplete = async (task: TaskRecord) => {
-    const completionNotes = window.prompt(
-      'Completion notes (optional). Leave empty to complete without notes.',
-      task.completionNotes ?? '',
-    );
+    setCompletionTask(task);
+    setCompletionNotes(task.completionNotes ?? '');
+    setCompletionPercent(String(task.completionPercent > 0 ? task.completionPercent : 100));
+  };
 
-    if (completionNotes === null) {
+  const handleCompletionDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      setCompletionTask(null);
+      setCompletionNotes('');
+      setCompletionPercent('100');
+    }
+  };
+
+  const handleConfirmComplete = async () => {
+    if (!completionTask) {
       return;
     }
 
+    const parsedCompletion = Number(completionPercent || 100);
+    if (!Number.isInteger(parsedCompletion) || parsedCompletion < 0 || parsedCompletion > 100) {
+      setTasksError('Completion % must be between 0 and 100.');
+      return;
+    }
+
+    setTaskPendingState(completionTask.id, true);
+    setTasksError(null);
+
+    try {
+      const updatedTask = await completeProcessTask(completionTask.id, completionNotes, parsedCompletion);
+      setTasks((currentTasks) =>
+        currentTasks.map((currentTask) => (currentTask.id === completionTask.id ? updatedTask : currentTask)),
+      );
+      handleCompletionDialogOpenChange(false);
+    } catch (error) {
+      setTasksError(getErrorMessage(error, 'Unable to complete task.'));
+    } finally {
+      setTaskPendingState(completionTask.id, false);
+    }
+  };
+
+  const handleCancel = (task: TaskRecord) => {
+    setConfirmation({ type: 'cancel', task });
+  };
+
+  const handleDelete = (task: TaskRecord) => {
+    setConfirmation({ type: 'delete', task });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmation) {
+      return;
+    }
+
+    const { task, type } = confirmation;
     setTaskPendingState(task.id, true);
     setTasksError(null);
 
     try {
-      const updatedTask = await completeProcessTask(task.id, completionNotes);
-      setTasks((currentTasks) =>
-        currentTasks.map((currentTask) => (currentTask.id === task.id ? updatedTask : currentTask)),
-      );
+      if (type === 'cancel') {
+        const updatedTask = await cancelProcessTask(task.id);
+        setTasks((currentTasks) =>
+          currentTasks.map((currentTask) => (currentTask.id === task.id ? updatedTask : currentTask)),
+        );
+      } else {
+        await deleteProcessTask(task.id);
+        setTasks((currentTasks) => currentTasks.filter((currentTask) => currentTask.id !== task.id));
+      }
+
+      setConfirmation(null);
     } catch (error) {
-      setTasksError(getErrorMessage(error, 'Unable to complete task.'));
+      setTasksError(getErrorMessage(error, type === 'cancel' ? 'Unable to cancel task.' : 'Unable to delete task.'));
     } finally {
       setTaskPendingState(task.id, false);
-    }
-  };
-
-  const handleCancel = async (taskId: number) => {
-    if (!window.confirm('Cancel this task?')) {
-      return;
-    }
-
-    setTaskPendingState(taskId, true);
-    setTasksError(null);
-
-    try {
-      const updatedTask = await cancelProcessTask(taskId);
-      setTasks((currentTasks) =>
-        currentTasks.map((task) => (task.id === taskId ? updatedTask : task)),
-      );
-    } catch (error) {
-      setTasksError(getErrorMessage(error, 'Unable to cancel task.'));
-    } finally {
-      setTaskPendingState(taskId, false);
-    }
-  };
-
-  const handleDelete = async (taskId: number) => {
-    if (!window.confirm('Delete this task? This performs a soft delete.')) {
-      return;
-    }
-
-    setTaskPendingState(taskId, true);
-    setTasksError(null);
-
-    try {
-      await deleteProcessTask(taskId);
-      setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
-    } catch (error) {
-      setTasksError(getErrorMessage(error, 'Unable to delete task.'));
-    } finally {
-      setTaskPendingState(taskId, false);
     }
   };
 
@@ -417,7 +578,7 @@ export default function Tasks() {
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Folio, title, description, or assignee"
+                placeholder="Folio, title, notes, assignee, unit, or business"
                 className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
@@ -455,42 +616,69 @@ export default function Tasks() {
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
+          <span className="font-medium text-[rgb(235,165,52)]">{averageCompletion}%</span> avg completion
+        </span>
+        <span className="text-slate-300 dark:text-slate-600">|</span>
+        <span>
+          <span className="font-medium text-violet-600">{auditedCount}</span> audited
+        </span>
+        <span className="text-slate-300 dark:text-slate-600">|</span>
+        <span>
+          <span className="font-medium text-red-600">{overdueCount}</span> overdue
+        </span>
+        <span className="text-slate-300 dark:text-slate-600">|</span>
+        <span>
           <span className="font-medium text-[rgb(235,165,52)]">{filteredTasks.length}</span> visible
         </span>
       </div>
 
       <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <Table className="min-w-[1280px]">
-          <TableHeader>
-            <TableRow className="border-slate-200 dark:border-slate-700">
-              <TableHead className="px-5 py-6">Folio</TableHead>
-              <TableHead className="px-5 py-6">Task</TableHead>
-              <TableHead className="px-5 py-6">Assigned</TableHead>
-              <TableHead className="px-5 py-6">Status</TableHead>
-              <TableHead className="px-5 py-6">Priority</TableHead>
-              <TableHead className="px-5 py-6">Due date</TableHead>
-              <TableHead className="px-5 py-6">Updated</TableHead>
-              <TableHead className="px-5 py-6">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTasks.map((task) => (
-              <TableRow key={task.id} className="border-slate-200 dark:border-slate-700">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[1540px]">
+            <TableHeader>
+              <TableRow className="border-slate-200 dark:border-slate-700">
+                <TableHead className="px-5 py-6">Folio</TableHead>
+                <TableHead className="px-5 py-6">Type</TableHead>
+                <TableHead className="px-5 py-6">Task</TableHead>
+                <TableHead className="px-5 py-6">Assigned</TableHead>
+                <TableHead className="px-5 py-6">Status</TableHead>
+                <TableHead className="px-5 py-6">Priority</TableHead>
+                <TableHead className="px-5 py-6">Progress</TableHead>
+                <TableHead className="px-5 py-6">Schedule</TableHead>
+                <TableHead className="px-5 py-6">Context</TableHead>
+                <TableHead className="px-5 py-6">Updated</TableHead>
+                <TableHead className="px-5 py-6">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTasks.map((task) => (
+                <TableRow key={task.id} className="border-slate-200 dark:border-slate-700">
                 <TableCell className="px-5 py-5 text-sm font-semibold text-slate-900 dark:text-white">
                   {task.folio}
                 </TableCell>
                 <TableCell className="px-5 py-5">
+                  <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                    {taskTypeLabels[task.taskType]}
+                  </Badge>
+                </TableCell>
+                <TableCell className="px-5 py-5">
                   <div className="min-w-[300px] space-y-1">
-                    <p className="font-semibold text-slate-900 dark:text-white">{task.title}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900 dark:text-white">{task.title}</p>
+                      {isTaskOverdue(task) ? (
+                        <Badge variant="outline" className="rounded-full border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                          Overdue
+                        </Badge>
+                      ) : null}
+                    </div>
                     {task.description ? (
                       <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{task.description}</p>
                     ) : (
                       <p className="text-sm text-slate-400 dark:text-slate-500">No description</p>
                     )}
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <span>Process: {task.processId ?? 'None'}</span>
-                      <span>Project: {task.projectId ?? 'None'}</span>
-                    </div>
+                    {task.notes ? (
+                      <p className="line-clamp-1 text-xs text-slate-500 dark:text-slate-400">Notes: {task.notes}</p>
+                    ) : null}
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5">
@@ -512,8 +700,45 @@ export default function Tasks() {
                     {priorityLabels[task.priority as TaskPriority]}
                   </Badge>
                 </TableCell>
+                <TableCell className="px-5 py-5">
+                  <div className="min-w-[160px] space-y-2">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {clampPercent(task.completionPercent)}%
+                      </span>
+                      {task.audited ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[rgb(235,165,52)]">
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+                          Audited
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                      <div
+                        className="h-full rounded-full bg-[rgb(235,165,52)]"
+                        style={{ width: `${clampPercent(task.completionPercent)}%` }}
+                      />
+                    </div>
+                    {task.weighting !== null ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Weighting: {Math.max(0, Math.min(5, task.weighting))}/5
+                      </p>
+                    ) : null}
+                  </div>
+                </TableCell>
                 <TableCell className="px-5 py-5 text-sm text-slate-700 dark:text-slate-200">
-                  {task.dueDate ? formatDate(task.dueDate) : 'No due date'}
+                  <div className="min-w-[150px] space-y-1">
+                    <p>Start: {task.startDate ? formatDate(task.startDate) : 'No date'}</p>
+                    <p>Due: {task.dueDate ? formatDate(task.dueDate) : 'No date'}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="px-5 py-5">
+                  <div className="min-w-[180px] space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                    <p>Project: {task.projectId ?? 'None'}</p>
+                    <p>Process: {task.processId ?? 'None'}</p>
+                    <p>Unit: {task.unitName ?? task.unitId ?? 'None'}</p>
+                    <p>Business: {task.businessName ?? task.businessId ?? 'None'}</p>
+                  </div>
                 </TableCell>
                 <TableCell className="px-5 py-5 text-sm text-slate-700 dark:text-slate-200">
                   {formatDate(task.updatedAt, true)}
@@ -539,7 +764,7 @@ export default function Tasks() {
                     <TaskActionButton
                       label="Cancel task"
                       onClick={() => {
-                        void handleCancel(task.id);
+                        handleCancel(task);
                       }}
                       disabled={isTaskPending(task.id) || task.status === 'cancelled'}
                       className="border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
@@ -548,7 +773,7 @@ export default function Tasks() {
                     <TaskActionButton
                       label="Delete task"
                       onClick={() => {
-                        void handleDelete(task.id);
+                        handleDelete(task);
                       }}
                       disabled={isTaskPending(task.id)}
                       className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60"
@@ -556,26 +781,27 @@ export default function Tasks() {
                     />
                   </div>
                 </TableCell>
-              </TableRow>
-            ))}
+                </TableRow>
+              ))}
 
-            {isLoadingTasks ? (
-              <TableRow>
-                <TableCell colSpan={8} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                  Loading tasks...
-                </TableCell>
-              </TableRow>
-            ) : null}
+              {isLoadingTasks ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+                    Loading tasks...
+                  </TableCell>
+                </TableRow>
+              ) : null}
 
-            {!isLoadingTasks && filteredTasks.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                  No tasks match the current filters.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+              {!isLoadingTasks && filteredTasks.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+                    No tasks match the current filters.
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       </section>
 
       <TaskFormDialog
@@ -585,8 +811,43 @@ export default function Tasks() {
         onSubmit={handleSubmit}
         form={form}
         isSubmitting={isSubmittingTask}
+        processes={processes}
         projects={projects}
+        unitOptions={catalogUnits}
+        businessOptions={catalogBusinesses}
+        collaboratorOptions={catalogCollaborators}
         setForm={setForm}
+      />
+
+      <TaskCompletionDialog
+        open={Boolean(completionTask)}
+        onOpenChange={handleCompletionDialogOpenChange}
+        task={completionTask}
+        completionNotes={completionNotes}
+        completionPercent={completionPercent}
+        onCompletionNotesChange={setCompletionNotes}
+        onCompletionPercentChange={setCompletionPercent}
+        onConfirm={() => {
+          void handleConfirmComplete();
+        }}
+        isSubmitting={completionTask ? isTaskPending(completionTask.id) : false}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(confirmation)}
+        title={confirmation?.type === 'cancel' ? 'Cancel task' : 'Delete task'}
+        itemName={confirmation?.task.title}
+        description={
+          confirmation?.type === 'cancel'
+            ? 'This will move the task to cancelled and keep it available for audit history.'
+            : 'This performs a soft delete and removes the task from the active queue.'
+        }
+        confirmLabel={confirmation?.type === 'cancel' ? 'Cancel task' : 'Delete task'}
+        confirmDisabled={confirmation ? isTaskPending(confirmation.task.id) : false}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={() => {
+          void handleConfirmAction();
+        }}
       />
     </>
   );

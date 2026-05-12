@@ -93,4 +93,20 @@ public class ProcessesApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
     }
+
+    @PostMapping("/{processId}/materialize")
+    public ResponseEntity<?> materialize(HttpSession session, @PathVariable long processId) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(processesService.materializeProcess(user.get().companyId(), processId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
 }

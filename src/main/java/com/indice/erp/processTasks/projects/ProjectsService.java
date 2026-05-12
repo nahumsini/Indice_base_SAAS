@@ -39,16 +39,49 @@ public class ProjectsService {
                         SELECT project.id, project.company_id, project.folio, project.name, project.description,
                                project.status, project.priority, project.owner_user_company_id,
                                owner_user_company.user_id AS owner_user_id,
-                               project.owner_name, project.business_id, project.unit_id, project.start_date, project.due_date,
-                               project.completed_at, project.cancelled_at, project.created_by, project.created_at, project.updated_at
+                               project.owner_name, project.business_id, business.name AS business_name,
+                               project.unit_id, unit.name AS unit_name, project.start_date, project.due_date,
+                               project.completed_at, project.cancelled_at, project.created_by, project.created_at, project.updated_at,
+                               COALESCE(task_summary.task_count, 0) AS task_count,
+                               COALESCE(task_summary.open_task_count, 0) AS open_task_count,
+                               COALESCE(task_summary.completed_task_count, 0) AS completed_task_count,
+                               COALESCE(task_summary.overdue_task_count, 0) AS overdue_task_count,
+                               COALESCE(task_summary.audited_task_count, 0) AS audited_task_count,
+                               COALESCE(task_summary.completion_percent,
+                                   CASE WHEN project.status = 'completed' THEN 100 ELSE 0 END
+                               ) AS completion_percent
                         FROM projects project
                         LEFT JOIN user_companies owner_user_company ON owner_user_company.id = project.owner_user_company_id
                             AND owner_user_company.company_id = project.company_id
+                        LEFT JOIN businesses business ON business.id = project.business_id
+                            AND (business.company_id = project.company_id OR business.company_id IS NULL)
+                        LEFT JOIN units unit ON unit.id = project.unit_id
+                            AND (unit.company_id = project.company_id OR unit.company_id IS NULL)
+                        LEFT JOIN (
+                            SELECT project_id,
+                                   COUNT(*) AS task_count,
+                                   SUM(CASE WHEN status NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END) AS open_task_count,
+                                   SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                                   SUM(CASE
+                                       WHEN due_date IS NOT NULL
+                                            AND due_date < CURRENT_DATE
+                                            AND status NOT IN ('completed', 'cancelled')
+                                       THEN 1 ELSE 0
+                                   END) AS overdue_task_count,
+                                   SUM(CASE WHEN audited = 1 THEN 1 ELSE 0 END) AS audited_task_count,
+                                   ROUND(AVG(COALESCE(completion_percent, CASE WHEN status = 'completed' THEN 100 ELSE 0 END))) AS completion_percent
+                            FROM process_tasks
+                            WHERE company_id = ?
+                              AND deleted_at IS NULL
+                              AND project_id IS NOT NULL
+                            GROUP BY project_id
+                        ) task_summary ON task_summary.project_id = project.id
                         WHERE project.company_id = ?
                           AND project.deleted_at IS NULL
                         ORDER BY project.id DESC
                         """,
                 (rs, rowNum) -> mapProjectRow(rs),
+                companyId,
                 companyId);
 
         var body = new LinkedHashMap<String, Object>();
@@ -214,16 +247,49 @@ public class ProjectsService {
                         SELECT project.id, project.company_id, project.folio, project.name, project.description,
                                project.status, project.priority, project.owner_user_company_id,
                                owner_user_company.user_id AS owner_user_id,
-                               project.owner_name, project.business_id, project.unit_id, project.start_date, project.due_date,
-                               project.completed_at, project.cancelled_at, project.created_by, project.created_at, project.updated_at
+                               project.owner_name, project.business_id, business.name AS business_name,
+                               project.unit_id, unit.name AS unit_name, project.start_date, project.due_date,
+                               project.completed_at, project.cancelled_at, project.created_by, project.created_at, project.updated_at,
+                               COALESCE(task_summary.task_count, 0) AS task_count,
+                               COALESCE(task_summary.open_task_count, 0) AS open_task_count,
+                               COALESCE(task_summary.completed_task_count, 0) AS completed_task_count,
+                               COALESCE(task_summary.overdue_task_count, 0) AS overdue_task_count,
+                               COALESCE(task_summary.audited_task_count, 0) AS audited_task_count,
+                               COALESCE(task_summary.completion_percent,
+                                   CASE WHEN project.status = 'completed' THEN 100 ELSE 0 END
+                               ) AS completion_percent
                         FROM projects project
                         LEFT JOIN user_companies owner_user_company ON owner_user_company.id = project.owner_user_company_id
                             AND owner_user_company.company_id = project.company_id
+                        LEFT JOIN businesses business ON business.id = project.business_id
+                            AND (business.company_id = project.company_id OR business.company_id IS NULL)
+                        LEFT JOIN units unit ON unit.id = project.unit_id
+                            AND (unit.company_id = project.company_id OR unit.company_id IS NULL)
+                        LEFT JOIN (
+                            SELECT project_id,
+                                   COUNT(*) AS task_count,
+                                   SUM(CASE WHEN status NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END) AS open_task_count,
+                                   SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                                   SUM(CASE
+                                       WHEN due_date IS NOT NULL
+                                            AND due_date < CURRENT_DATE
+                                            AND status NOT IN ('completed', 'cancelled')
+                                       THEN 1 ELSE 0
+                                   END) AS overdue_task_count,
+                                   SUM(CASE WHEN audited = 1 THEN 1 ELSE 0 END) AS audited_task_count,
+                                   ROUND(AVG(COALESCE(completion_percent, CASE WHEN status = 'completed' THEN 100 ELSE 0 END))) AS completion_percent
+                            FROM process_tasks
+                            WHERE company_id = ?
+                              AND deleted_at IS NULL
+                              AND project_id IS NOT NULL
+                            GROUP BY project_id
+                        ) task_summary ON task_summary.project_id = project.id
                         WHERE project.company_id = ?
                           AND project.id = ?
                           AND project.deleted_at IS NULL
                         """,
                 (rs, rowNum) -> mapProjectRow(rs),
+                companyId,
                 companyId,
                 projectId);
 
@@ -303,7 +369,11 @@ public class ProjectsService {
         row.put("ownerUserId", rs.getObject("owner_user_id", Long.class));
         row.put("ownerName", rs.getString("owner_name"));
         row.put("businessId", rs.getObject("business_id", Long.class));
+        row.put("businessName", rs.getString("business_name"));
+        row.put("business", rs.getString("business_name"));
         row.put("unitId", rs.getObject("unit_id", Long.class));
+        row.put("unitName", rs.getString("unit_name"));
+        row.put("unit", rs.getString("unit_name"));
         row.put("startDate", toDateString(rs.getDate("start_date")));
         row.put("dueDate", toDateString(rs.getDate("due_date")));
         row.put("completedAt", toDateTimeString(rs.getTimestamp("completed_at")));
@@ -311,6 +381,19 @@ public class ProjectsService {
         row.put("createdBy", rs.getObject("created_by", Long.class));
         row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
         row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
+        var completionPercent = rs.getInt("completion_percent");
+        row.put("taskCount", rs.getInt("task_count"));
+        row.put("tasks", rs.getInt("task_count"));
+        row.put("openTaskCount", rs.getInt("open_task_count"));
+        row.put("openTasks", rs.getInt("open_task_count"));
+        row.put("completedTaskCount", rs.getInt("completed_task_count"));
+        row.put("completedTasks", rs.getInt("completed_task_count"));
+        row.put("overdueTaskCount", rs.getInt("overdue_task_count"));
+        row.put("overdueTasks", rs.getInt("overdue_task_count"));
+        row.put("auditedTaskCount", rs.getInt("audited_task_count"));
+        row.put("auditedTasks", rs.getInt("audited_task_count"));
+        row.put("completionPercent", completionPercent);
+        row.put("progress", completionPercent);
         return row;
     }
 

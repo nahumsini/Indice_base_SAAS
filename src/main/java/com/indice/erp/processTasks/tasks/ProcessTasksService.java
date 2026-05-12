@@ -1,9 +1,11 @@
 package com.indice.erp.processTasks.tasks;
 
+import static com.indice.erp.processTasks.tasks.support.ProcessTaskInput.optionalInteger;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskInput.optionalString;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskInput.parseTaskCommand;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableDate;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableDateTime;
+import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableInteger;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableLong;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableString;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toDateString;
@@ -15,15 +17,22 @@ import com.indice.erp.processTasks.tasks.domain.TaskCommand;
 import com.indice.erp.processTasks.tasks.domain.TaskLifecycle;
 import com.indice.erp.processTasks.tasks.domain.TaskMutationRecord;
 import com.indice.erp.processTasks.tasks.domain.UserCompanyReference;
+import com.indice.erp.storage.ObjectStorageDisabledException;
+import com.indice.erp.storage.ObjectStorageProperties;
+import com.indice.erp.storage.ObjectStorageService;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -40,8 +49,11 @@ public class ProcessTasksService {
             "cancelled",
             "paused");
     private static final Set<String> ALLOWED_PRIORITIES = Set.of("low", "medium", "high");
+    private static final long MAX_ATTACHMENT_SIZE_BYTES = 10L * 1024L * 1024L;
 
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectStorageService objectStorageService;
+    private final ObjectStorageProperties objectStorageProperties;
     private static final String TASK_SELECT_COLUMNS = """
             SELECT pt.id,
                    pt.company_id,
@@ -60,28 +72,76 @@ public class ProcessTasksService {
                    ) AS resolved_assigned_name,
                    pt.status,
                    pt.priority,
+                   pt.start_date,
                    pt.due_date,
                    pt.started_at,
                    pt.completed_at,
                    pt.cancelled_at,
                    pt.completed_by_user_company_id,
-                   completed_user_company.user_id AS completed_by_user_id,
+                   COALESCE(completed_user_company.user_id, pt.completed_by_user_id) AS completed_by_user_id,
+                   COALESCE(
+                       NULLIF(TRIM(completed_user.full_name), ''),
+                       NULLIF(TRIM(completed_user.email), ''),
+                       NULL
+                   ) AS resolved_completed_by_name,
                    pt.completion_notes,
+                   pt.notes,
+                   pt.completion_percent,
+                   pt.weighting,
+                   pt.audited,
+                   pt.audit_notes,
+                   pt.audited_at,
+                   pt.audited_by_user_company_id,
+                   audited_user_company.user_id AS audited_by_user_id,
+                   COALESCE(
+                       NULLIF(TRIM(audited_user.full_name), ''),
+                       NULLIF(TRIM(audited_user.email), ''),
+                       NULL
+                   ) AS resolved_audited_by_name,
                    pt.business_id,
+                   business.name AS business_name,
                    pt.unit_id,
+                   unit.name AS unit_name,
                    pt.created_by,
+                   COALESCE(
+                       NULLIF(TRIM(created_user.full_name), ''),
+                       NULLIF(TRIM(created_user.email), ''),
+                       NULL
+                   ) AS resolved_created_by_name,
                    pt.created_at,
-                   pt.updated_at
+                   pt.updated_at,
+                   (
+                       SELECT COUNT(*)
+                       FROM process_task_attachments attachment
+                       WHERE attachment.company_id = pt.company_id
+                         AND attachment.task_id = pt.id
+                         AND attachment.deleted_at IS NULL
+                   ) AS attachments
             FROM process_tasks pt
             LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = pt.assigned_user_company_id
                 AND assigned_user_company.company_id = pt.company_id
             LEFT JOIN users assigned_user ON assigned_user.id = assigned_user_company.user_id
             LEFT JOIN user_companies completed_user_company ON completed_user_company.id = pt.completed_by_user_company_id
                 AND completed_user_company.company_id = pt.company_id
+            LEFT JOIN users completed_user ON completed_user.id = COALESCE(completed_user_company.user_id, pt.completed_by_user_id)
+            LEFT JOIN user_companies audited_user_company ON audited_user_company.id = pt.audited_by_user_company_id
+                AND audited_user_company.company_id = pt.company_id
+            LEFT JOIN users audited_user ON audited_user.id = audited_user_company.user_id
+            LEFT JOIN users created_user ON created_user.id = pt.created_by
+            LEFT JOIN businesses business ON business.id = pt.business_id
+                AND (business.company_id = pt.company_id OR business.company_id IS NULL)
+            LEFT JOIN units unit ON unit.id = pt.unit_id
+                AND (unit.company_id = pt.company_id OR unit.company_id IS NULL)
             """;
 
-    public ProcessTasksService(JdbcTemplate jdbcTemplate) {
+    public ProcessTasksService(
+        JdbcTemplate jdbcTemplate,
+        ObjectStorageService objectStorageService,
+        ObjectStorageProperties objectStorageProperties
+    ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.objectStorageService = objectStorageService;
+        this.objectStorageProperties = objectStorageProperties;
     }
 
     public Map<String, Object> listTasks(long companyId) {
@@ -129,7 +189,12 @@ public class ProcessTasksService {
                 command.assignedUserCompanyId(),
                 "Assigned user not found.");
 
-        var lifecycle = lifecycleForCreate(command.status(), userId, currentUserCompanyId(companyId, userId));
+        var currentUserCompanyId = currentUserCompanyId(companyId, userId);
+        var lifecycle = lifecycleForCreate(command.status(), userId, currentUserCompanyId);
+        var audited = Boolean.TRUE.equals(command.audited());
+        var auditedAt = audited ? LocalDateTime.now() : null;
+        var auditedByUserCompanyId = audited ? currentUserCompanyId : null;
+        var completionPercent = completionPercentForCreate(command);
         var folio = nextTaskFolio(companyId);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -139,9 +204,10 @@ public class ProcessTasksService {
                     """
                             INSERT INTO process_tasks
                             (company_id, process_id, project_id, folio, title, description, assigned_user_id, assigned_user_company_id,
-                             assigned_name, status, priority, due_date, started_at, completed_at, cancelled_at,
-                             completed_by_user_id, completed_by_user_company_id, completion_notes, business_id, unit_id, created_by)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             assigned_name, status, priority, start_date, due_date, started_at, completed_at, cancelled_at,
+                             completed_by_user_id, completed_by_user_company_id, completion_notes, notes, completion_percent, weighting,
+                             audited, audit_notes, audited_at, audited_by_user_company_id, business_id, unit_id, created_by)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                     new String[] { "id" });
 
@@ -156,16 +222,24 @@ public class ProcessTasksService {
             setNullableString(statement, 9, command.assignedName());
             statement.setString(10, command.status());
             statement.setString(11, command.priority());
-            setNullableDate(statement, 12, command.dueDate());
-            setNullableDateTime(statement, 13, lifecycle.startedAt());
-            setNullableDateTime(statement, 14, lifecycle.completedAt());
-            setNullableDateTime(statement, 15, lifecycle.cancelledAt());
-            setNullableLong(statement, 16, lifecycle.completedByUserId());
-            setNullableLong(statement, 17, lifecycle.completedByUserCompanyId());
-            setNullableString(statement, 18, lifecycle.completionNotes());
-            setNullableLong(statement, 19, command.businessId());
-            setNullableLong(statement, 20, command.unitId());
-            statement.setLong(21, userId);
+            setNullableDate(statement, 12, command.startDate());
+            setNullableDate(statement, 13, command.dueDate());
+            setNullableDateTime(statement, 14, lifecycle.startedAt());
+            setNullableDateTime(statement, 15, lifecycle.completedAt());
+            setNullableDateTime(statement, 16, lifecycle.cancelledAt());
+            setNullableLong(statement, 17, lifecycle.completedByUserId());
+            setNullableLong(statement, 18, lifecycle.completedByUserCompanyId());
+            setNullableString(statement, 19, lifecycle.completionNotes());
+            setNullableString(statement, 20, command.notes());
+            statement.setInt(21, completionPercent);
+            setNullableInteger(statement, 22, command.weighting());
+            statement.setBoolean(23, audited);
+            setNullableString(statement, 24, audited ? command.auditNotes() : null);
+            setNullableDateTime(statement, 25, auditedAt);
+            setNullableLong(statement, 26, auditedByUserCompanyId);
+            setNullableLong(statement, 27, command.businessId());
+            setNullableLong(statement, 28, command.unitId());
+            statement.setLong(29, userId);
             return statement;
         }, keyHolder);
 
@@ -182,7 +256,20 @@ public class ProcessTasksService {
                 companyId,
                 command.assignedUserCompanyId(),
                 "Assigned user not found.");
-        var lifecycle = lifecycleForStatus(existingTask, command.status(), userId, currentUserCompanyId(companyId, userId));
+        var currentUserCompanyId = currentUserCompanyId(companyId, userId);
+        var lifecycle = lifecycleForStatus(existingTask, command.status(), userId, currentUserCompanyId);
+        var startDate = payload.containsKey("startDate") ? command.startDate() : existingTask.startDate();
+        var notes = payload.containsKey("notes") ? command.notes() : existingTask.notes();
+        var completionPercent = completionPercentForUpdate(existingTask, command, payload);
+        var weighting = payload.containsKey("weighting") ? command.weighting() : existingTask.weighting();
+        var audited = auditedForUpdate(existingTask, command, payload);
+        var auditNotes = auditNotesForUpdate(existingTask, command, payload, audited);
+        var auditedAt = auditedAtForUpdate(existingTask, audited, payload);
+        var auditedByUserCompanyId = auditedByUserCompanyIdForUpdate(
+                existingTask,
+                audited,
+                currentUserCompanyId,
+                payload);
 
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
@@ -197,6 +284,7 @@ public class ProcessTasksService {
                                 assigned_name = ?,
                                 status = ?,
                                 priority = ?,
+                                start_date = ?,
                                 due_date = ?,
                                 started_at = ?,
                                 completed_at = ?,
@@ -204,6 +292,13 @@ public class ProcessTasksService {
                                 completed_by_user_id = ?,
                                 completed_by_user_company_id = ?,
                                 completion_notes = ?,
+                                notes = ?,
+                                completion_percent = ?,
+                                weighting = ?,
+                                audited = ?,
+                                audit_notes = ?,
+                                audited_at = ?,
+                                audited_by_user_company_id = ?,
                                 business_id = ?,
                                 unit_id = ?
                             WHERE company_id = ?
@@ -220,17 +315,25 @@ public class ProcessTasksService {
             setNullableString(statement, 7, command.assignedName());
             statement.setString(8, command.status());
             statement.setString(9, command.priority());
-            setNullableDate(statement, 10, command.dueDate());
-            setNullableDateTime(statement, 11, lifecycle.startedAt());
-            setNullableDateTime(statement, 12, lifecycle.completedAt());
-            setNullableDateTime(statement, 13, lifecycle.cancelledAt());
-            setNullableLong(statement, 14, lifecycle.completedByUserId());
-            setNullableLong(statement, 15, lifecycle.completedByUserCompanyId());
-            setNullableString(statement, 16, lifecycle.completionNotes());
-            setNullableLong(statement, 17, command.businessId());
-            setNullableLong(statement, 18, command.unitId());
-            statement.setLong(19, companyId);
-            statement.setLong(20, taskId);
+            setNullableDate(statement, 10, startDate);
+            setNullableDate(statement, 11, command.dueDate());
+            setNullableDateTime(statement, 12, lifecycle.startedAt());
+            setNullableDateTime(statement, 13, lifecycle.completedAt());
+            setNullableDateTime(statement, 14, lifecycle.cancelledAt());
+            setNullableLong(statement, 15, lifecycle.completedByUserId());
+            setNullableLong(statement, 16, lifecycle.completedByUserCompanyId());
+            setNullableString(statement, 17, lifecycle.completionNotes());
+            setNullableString(statement, 18, notes);
+            statement.setInt(19, completionPercent);
+            setNullableInteger(statement, 20, weighting);
+            statement.setBoolean(21, audited);
+            setNullableString(statement, 22, auditNotes);
+            setNullableDateTime(statement, 23, auditedAt);
+            setNullableLong(statement, 24, auditedByUserCompanyId);
+            setNullableLong(statement, 25, command.businessId());
+            setNullableLong(statement, 26, command.unitId());
+            statement.setLong(27, companyId);
+            statement.setLong(28, taskId);
             return statement;
         });
 
@@ -257,6 +360,7 @@ public class ProcessTasksService {
     public Map<String, Object> completeTask(long companyId, long userId, long taskId, Map<String, Object> payload) {
         requireTask(companyId, taskId);
         var completionNotes = optionalString(payload, "completionNotes");
+        var completionPercent = optionalInteger(payload, "completionPercent", "completion");
         var userCompanyId = currentUserCompanyId(companyId, userId);
 
         jdbcTemplate.update(connection -> {
@@ -269,7 +373,8 @@ public class ProcessTasksService {
                                 cancelled_at = NULL,
                                 completed_by_user_id = ?,
                                 completed_by_user_company_id = ?,
-                                completion_notes = ?
+                                completion_notes = ?,
+                                completion_percent = ?
                             WHERE company_id = ?
                               AND id = ?
                               AND deleted_at IS NULL
@@ -278,6 +383,50 @@ public class ProcessTasksService {
             statement.setLong(1, userId);
             setNullableLong(statement, 2, userCompanyId);
             setNullableString(statement, 3, completionNotes);
+            statement.setInt(4, completionPercent != null ? completionPercent : 100);
+            statement.setLong(5, companyId);
+            statement.setLong(6, taskId);
+            return statement;
+        });
+
+        return getTask(companyId, taskId);
+    }
+
+    @Transactional
+    public Map<String, Object> auditTask(long companyId, long userId, long taskId, Map<String, Object> payload) {
+        var existingTask = requireTaskForMutation(companyId, taskId);
+        if (!"completed".equals(existingTask.status())) {
+            throw new IllegalArgumentException("Task must be completed before audit.");
+        }
+
+        var weighting = optionalInteger(payload, "weighting");
+        if (weighting == null) {
+            throw new IllegalArgumentException("weighting is required for audit.");
+        }
+        if (weighting < 0 || weighting > 5) {
+            throw new IllegalArgumentException("weighting must be between 0 and 5.");
+        }
+
+        var auditNotes = optionalString(payload, "auditNotes");
+        var userCompanyId = currentUserCompanyId(companyId, userId);
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(
+                    """
+                            UPDATE process_tasks
+                            SET audited = TRUE,
+                                audit_notes = ?,
+                                audited_at = CURRENT_TIMESTAMP,
+                                audited_by_user_company_id = ?,
+                                weighting = ?
+                            WHERE company_id = ?
+                              AND id = ?
+                              AND deleted_at IS NULL
+                            """);
+
+            setNullableString(statement, 1, auditNotes);
+            setNullableLong(statement, 2, userCompanyId);
+            statement.setInt(3, weighting);
             statement.setLong(4, companyId);
             statement.setLong(5, taskId);
             return statement;
@@ -309,6 +458,137 @@ public class ProcessTasksService {
         return getTask(companyId, taskId);
     }
 
+    public Map<String, Object> listAttachments(long companyId, long taskId) {
+        requireTask(companyId, taskId);
+
+        var rows = loadAttachments(companyId, taskId);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", rows);
+        body.put("count", rows.size());
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> createAttachmentUpload(long companyId, long taskId, Map<String, Object> payload) {
+        requireTask(companyId, taskId);
+        if (!objectStorageService.isEnabled()) {
+            throw new ObjectStorageDisabledException("Object storage is not enabled.");
+        }
+
+        var fileName = normalizeOriginalFileName(stringValue(payload, "file_name", "fileName"));
+        var contentType = normalizeAttachmentContentType(
+                stringValue(payload, "content_type", "contentType", "mime_type", "mimeType"));
+        var sizeBytes = parseLong(payload, "size_bytes", "sizeBytes");
+        validateAttachmentSize(sizeBytes);
+
+        var objectKey = buildAttachmentObjectKey(companyId, taskId, fileName, contentType);
+        var upload = objectStorageService.presignUpload(
+                documentsBucket(),
+                objectKey,
+                contentType,
+                objectStorageProperties.getMinio().getPresignExpirySeconds());
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("object_key", upload.objectKey());
+        body.put("upload_url", upload.uploadUrl());
+        body.put("expires_at", upload.expiresAt());
+        body.put("upload_headers", upload.uploadHeaders());
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> registerAttachment(
+            long companyId,
+            long actorUserId,
+            long taskId,
+            Map<String, Object> payload) {
+        requireTask(companyId, taskId);
+        if (!objectStorageService.isEnabled()) {
+            throw new ObjectStorageDisabledException("Object storage is not enabled.");
+        }
+
+        var objectKey = normalizeAttachmentObjectKey(companyId, taskId, stringValue(payload, "object_key", "objectKey"));
+        var fileName = normalizeOriginalFileName(
+                stringValue(payload, "original_filename", "originalFileName", "file_name", "fileName"));
+        var mimeType = normalizeAttachmentContentType(
+                stringValue(payload, "mime_type", "mimeType", "content_type", "contentType"));
+        var sizeBytes = parseLong(payload, "size_bytes", "sizeBytes");
+        validateAttachmentSize(sizeBytes);
+
+        if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
+            throw new IllegalArgumentException("object_key does not reference an existing uploaded attachment.");
+        }
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                    """
+                            INSERT INTO process_task_attachments
+                            (company_id, task_id, original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                    new String[] { "id" });
+            statement.setLong(1, companyId);
+            statement.setLong(2, taskId);
+            statement.setString(3, fileName);
+            statement.setString(4, mimeType);
+            statement.setLong(5, sizeBytes);
+            statement.setString(6, objectKey);
+            statement.setLong(7, actorUserId);
+            return statement;
+        }, keyHolder);
+
+        var attachmentId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+        if (attachmentId <= 0) {
+            throw new IllegalArgumentException("Unable to register attachment.");
+        }
+
+        return loadAttachment(companyId, taskId, attachmentId);
+    }
+
+    @Transactional
+    public void deleteAttachment(long companyId, long taskId, long attachmentId) {
+        requireTask(companyId, taskId);
+
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT id,
+                               object_key,
+                               original_filename
+                        FROM process_task_attachments
+                        WHERE company_id = ?
+                          AND task_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                (rs, rowNum) -> new AttachmentRef(
+                        rs.getLong("id"),
+                        safe(rs.getString("object_key")),
+                        safe(rs.getString("original_filename"))),
+                companyId,
+                taskId,
+                attachmentId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Attachment not found.");
+        }
+
+        jdbcTemplate.update(
+                """
+                        UPDATE process_task_attachments
+                        SET deleted_at = CURRENT_TIMESTAMP
+                        WHERE company_id = ?
+                          AND task_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                companyId,
+                taskId,
+                attachmentId);
+
+        deleteAttachmentObjectQuietly(rows.getFirst().objectKey());
+    }
+
     public Map<String, Object> getTask(long companyId, long taskId) {
         var rows = jdbcTemplate.query(
                 TASK_SELECT_COLUMNS +
@@ -338,7 +618,15 @@ public class ProcessTasksService {
                                cancelled_at,
                                completed_by_user_id,
                                completed_by_user_company_id,
-                               completion_notes
+                               completion_notes,
+                               start_date,
+                               notes,
+                               completion_percent,
+                               weighting,
+                               audited,
+                               audit_notes,
+                               audited_at,
+                               audited_by_user_company_id
                         FROM process_tasks
                         WHERE company_id = ?
                           AND id = ?
@@ -352,7 +640,15 @@ public class ProcessTasksService {
                         toLocalDateTime(rs.getTimestamp("cancelled_at")),
                         rs.getObject("completed_by_user_id", Long.class),
                         rs.getObject("completed_by_user_company_id", Long.class),
-                        rs.getString("completion_notes")),
+                        rs.getString("completion_notes"),
+                        rs.getDate("start_date") != null ? rs.getDate("start_date").toLocalDate() : null,
+                        rs.getString("notes"),
+                        rs.getObject("completion_percent", Integer.class),
+                        rs.getObject("weighting", Integer.class),
+                        rs.getBoolean("audited"),
+                        rs.getString("audit_notes"),
+                        toLocalDateTime(rs.getTimestamp("audited_at")),
+                        rs.getObject("audited_by_user_company_id", Long.class)),
                 companyId,
                 taskId);
 
@@ -452,6 +748,98 @@ public class ProcessTasksService {
         }
     }
 
+    private int completionPercentForCreate(TaskCommand command) {
+        if (command.completionPercent() != null) {
+            return command.completionPercent();
+        }
+
+        return "completed".equals(command.status()) ? 100 : 0;
+    }
+
+    private int completionPercentForUpdate(
+            TaskMutationRecord existingTask,
+            TaskCommand command,
+            Map<String, Object> payload) {
+        if (hasAnyNonNullKey(payload, "completionPercent", "completion")) {
+            return command.completionPercent() != null ? command.completionPercent() : 0;
+        }
+
+        if ("completed".equals(command.status()) && !"completed".equals(existingTask.status())) {
+            return 100;
+        }
+
+        return existingTask.completionPercent() != null ? existingTask.completionPercent() : 0;
+    }
+
+    private boolean auditedForUpdate(TaskMutationRecord existingTask, TaskCommand command, Map<String, Object> payload) {
+        if (auditRequested(payload)) {
+            return Boolean.TRUE.equals(command.audited());
+        }
+
+        return existingTask.audited();
+    }
+
+    private String auditNotesForUpdate(
+            TaskMutationRecord existingTask,
+            TaskCommand command,
+            Map<String, Object> payload,
+            boolean audited) {
+        if (!audited) {
+            return null;
+        }
+
+        return payload.containsKey("auditNotes") ? command.auditNotes() : existingTask.auditNotes();
+    }
+
+    private LocalDateTime auditedAtForUpdate(TaskMutationRecord existingTask, boolean audited, Map<String, Object> payload) {
+        if (!audited) {
+            return null;
+        }
+
+        if (!auditRequested(payload) && existingTask.auditedAt() != null) {
+            return existingTask.auditedAt();
+        }
+
+        return existingTask.auditedAt() != null ? existingTask.auditedAt() : LocalDateTime.now();
+    }
+
+    private Long auditedByUserCompanyIdForUpdate(
+            TaskMutationRecord existingTask,
+            boolean audited,
+            Long currentUserCompanyId,
+            Map<String, Object> payload) {
+        if (!audited) {
+            return null;
+        }
+
+        if (!auditRequested(payload) && existingTask.auditedByUserCompanyId() != null) {
+            return existingTask.auditedByUserCompanyId();
+        }
+
+        return existingTask.auditedByUserCompanyId() != null
+                ? existingTask.auditedByUserCompanyId()
+                : currentUserCompanyId;
+    }
+
+    private boolean auditRequested(Map<String, Object> payload) {
+        return payload.containsKey("audited") || requestedStatus(payload, "audited");
+    }
+
+    private boolean requestedStatus(Map<String, Object> payload, String status) {
+        var rawStatus = payload.get("status");
+        return rawStatus != null && rawStatus.toString().trim().toLowerCase().replace('-', '_').equals(status);
+    }
+
+    private boolean hasAnyNonNullKey(Map<String, Object> payload, String... keys) {
+        for (String key : keys) {
+            if (payload.containsKey(key) && payload.get(key) != null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private TaskLifecycle lifecycleForCreate(String status, long userId, Long userCompanyId) {
         var now = LocalDateTime.now();
 
@@ -544,33 +932,347 @@ public class ProcessTasksService {
         return "T-" + currentYear + "-" + String.format("%03d", value);
     }
 
+    private java.util.List<Map<String, Object>> loadAttachments(long companyId, long taskId) {
+        return jdbcTemplate.query(
+                """
+                        SELECT attachment.id,
+                               attachment.original_filename,
+                               attachment.mime_type,
+                               attachment.size_bytes,
+                               attachment.object_key,
+                               attachment.uploaded_by_user_id,
+                               COALESCE(
+                                   NULLIF(TRIM(uploaded_user.full_name), ''),
+                                   NULLIF(TRIM(uploaded_user.email), ''),
+                                   NULL
+                               ) AS resolved_uploaded_by_name,
+                               attachment.created_at
+                        FROM process_task_attachments attachment
+                        LEFT JOIN users uploaded_user ON uploaded_user.id = attachment.uploaded_by_user_id
+                        WHERE attachment.company_id = ?
+                          AND attachment.task_id = ?
+                          AND attachment.deleted_at IS NULL
+                        ORDER BY attachment.id ASC
+                        """,
+                (rs, rowNum) -> mapAttachmentRow(rs),
+                companyId,
+                taskId);
+    }
+
+    private Map<String, Object> loadAttachment(long companyId, long taskId, long attachmentId) {
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT attachment.id,
+                               attachment.original_filename,
+                               attachment.mime_type,
+                               attachment.size_bytes,
+                               attachment.object_key,
+                               attachment.uploaded_by_user_id,
+                               COALESCE(
+                                   NULLIF(TRIM(uploaded_user.full_name), ''),
+                                   NULLIF(TRIM(uploaded_user.email), ''),
+                                   NULL
+                               ) AS resolved_uploaded_by_name,
+                               attachment.created_at
+                        FROM process_task_attachments attachment
+                        LEFT JOIN users uploaded_user ON uploaded_user.id = attachment.uploaded_by_user_id
+                        WHERE attachment.company_id = ?
+                          AND attachment.task_id = ?
+                          AND attachment.id = ?
+                          AND attachment.deleted_at IS NULL
+                        """,
+                (rs, rowNum) -> mapAttachmentRow(rs),
+                companyId,
+                taskId,
+                attachmentId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Attachment not found.");
+        }
+
+        return rows.getFirst();
+    }
+
+    private Map<String, Object> mapAttachmentRow(ResultSet rs) throws SQLException {
+        var attachment = new LinkedHashMap<String, Object>();
+        var objectKey = safe(rs.getString("object_key"));
+        attachment.put("id", rs.getLong("id"));
+        attachment.put("original_filename", safe(rs.getString("original_filename")));
+        attachment.put("mime_type", safe(rs.getString("mime_type")));
+        attachment.put("size_bytes", rs.getLong("size_bytes"));
+        attachment.put("object_key", objectKey);
+        attachment.put("uploaded_by_user_id", rs.getObject("uploaded_by_user_id", Long.class));
+        attachment.put("uploaded_by_name", rs.getString("resolved_uploaded_by_name"));
+        attachment.put("download_url", signedAttachmentUrl(objectKey));
+        attachment.put("created_at", toDateTimeString(rs.getTimestamp("created_at")));
+        return attachment;
+    }
+
+    private void validateAttachmentSize(Long sizeBytes) {
+        if (sizeBytes == null || sizeBytes <= 0) {
+            throw new IllegalArgumentException("size_bytes is required.");
+        }
+
+        if (sizeBytes > MAX_ATTACHMENT_SIZE_BYTES) {
+            throw new IllegalArgumentException("Attachments must be 10MB or smaller.");
+        }
+    }
+
+    private String normalizeAttachmentContentType(String value) {
+        var normalized = safe(value).trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "application/pdf" -> "application/pdf";
+            case "image/png" -> "image/png";
+            case "image/jpeg", "image/jpg" -> "image/jpeg";
+            case "image/gif" -> "image/gif";
+            case "image/webp" -> "image/webp";
+            case "image/heic" -> "image/heic";
+            case "image/heif" -> "image/heif";
+            case "application/msword" -> "application/msword";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ->
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "application/vnd.ms-excel" -> "application/vnd.ms-excel";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ->
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case "text/csv" -> "text/csv";
+            case "text/plain" -> "text/plain";
+            default -> throw new IllegalArgumentException("Unsupported attachment type.");
+        };
+    }
+
+    private String normalizeOriginalFileName(String value) {
+        var normalized = value == null ? "" : value.trim();
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException("file_name is required.");
+        }
+
+        return normalized.length() > 255 ? normalized.substring(0, 255) : normalized;
+    }
+
+    private String buildAttachmentObjectKey(long companyId, long taskId, String originalFileName, String contentType) {
+        return "process-tasks/"
+                + companyId
+                + "/"
+                + taskId
+                + "/attachments/"
+                + UUID.randomUUID().toString().replace("-", "")
+                + "-"
+                + sanitizeFileNameStem(originalFileName)
+                + extensionForAttachmentContentType(contentType);
+    }
+
+    private String normalizeAttachmentObjectKey(long companyId, long taskId, String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            throw new IllegalArgumentException("object_key is required.");
+        }
+
+        var normalized = objectKey.trim();
+        var expectedPrefix = "process-tasks/" + companyId + "/" + taskId + "/attachments/";
+        if (!normalized.startsWith(expectedPrefix)) {
+            throw new IllegalArgumentException("object_key must match the expected task attachment upload prefix.");
+        }
+
+        return normalized;
+    }
+
+    private String extensionForAttachmentContentType(String contentType) {
+        return switch (contentType) {
+            case "application/pdf" -> ".pdf";
+            case "image/png" -> ".png";
+            case "image/jpeg" -> ".jpg";
+            case "image/gif" -> ".gif";
+            case "image/webp" -> ".webp";
+            case "image/heic" -> ".heic";
+            case "image/heif" -> ".heif";
+            case "application/msword" -> ".doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> ".docx";
+            case "application/vnd.ms-excel" -> ".xls";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> ".xlsx";
+            case "text/csv" -> ".csv";
+            case "text/plain" -> ".txt";
+            default -> ".bin";
+        };
+    }
+
+    private String sanitizeFileNameStem(String originalFileName) {
+        var dotIndex = originalFileName.lastIndexOf('.');
+        var stem = dotIndex > 0 ? originalFileName.substring(0, dotIndex) : originalFileName;
+        var normalized = Normalizer.normalize(stem, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^A-Za-z0-9_-]+", "-")
+                .replaceAll("-{2,}", "-")
+                .replaceAll("^-|-$", "")
+                .toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return "attachment";
+        }
+
+        var bytes = normalized.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length <= 60) {
+            return normalized;
+        }
+
+        return new String(bytes, 0, 60, StandardCharsets.UTF_8).replaceAll("-+$", "");
+    }
+
+    private String signedAttachmentUrl(String objectKey) {
+        if (objectKey == null || objectKey.isBlank() || !objectStorageService.isEnabled()) {
+            return null;
+        }
+
+        return objectStorageService.presignDownload(
+                documentsBucket(),
+                objectKey,
+                objectStorageProperties.getMinio().getPresignExpirySeconds());
+    }
+
+    private void deleteAttachmentObjectQuietly(String objectKey) {
+        if (objectKey == null || objectKey.isBlank() || !objectStorageService.isEnabled()) {
+            return;
+        }
+
+        try {
+            objectStorageService.deleteObject(documentsBucket(), objectKey);
+        } catch (RuntimeException ignored) {
+            // Attachment metadata deletion should not fail because the object is already missing.
+        }
+    }
+
+    private String documentsBucket() {
+        return objectStorageProperties.getMinio().getBucketDocuments();
+    }
+
+    private String stringValue(Map<String, Object> payload, String key, String... aliases) {
+        Object value = payload.get(key);
+
+        if (value == null && !payload.containsKey(key)) {
+            for (String alias : aliases) {
+                if (payload.containsKey(alias)) {
+                    value = payload.get(alias);
+                    break;
+                }
+            }
+        }
+
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private Long parseLong(Map<String, Object> payload, String key, String... aliases) {
+        Object value = payload.get(key);
+        String effectiveKey = key;
+
+        if (value == null && !payload.containsKey(key)) {
+            for (String alias : aliases) {
+                if (payload.containsKey(alias)) {
+                    value = payload.get(alias);
+                    effectiveKey = alias;
+                    break;
+                }
+            }
+        }
+
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof Number numberValue) {
+            return numberValue.longValue();
+        }
+
+        var normalized = String.valueOf(value).trim();
+        if (normalized.isBlank()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(normalized);
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(effectiveKey + " must be a valid integer.");
+        }
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
     private Map<String, Object> mapTaskRow(ResultSet rs) throws SQLException {
+        Long processId = rs.getObject("process_id", Long.class);
+        Long projectId = rs.getObject("project_id", Long.class);
+        int completionPercent = rs.getInt("completion_percent");
         var row = new LinkedHashMap<String, Object>();
         row.put("id", rs.getLong("id"));
         row.put("companyId", rs.getLong("company_id"));
-        row.put("processId", rs.getObject("process_id", Long.class));
-        row.put("projectId", rs.getObject("project_id", Long.class));
+        row.put("processId", processId);
+        row.put("projectId", projectId);
+        row.put("taskType", taskType(projectId, processId));
+        row.put("type", taskType(projectId, processId));
         row.put("folio", rs.getString("folio"));
         row.put("title", rs.getString("title"));
         row.put("description", rs.getString("description"));
         row.put("assignedUserCompanyId", rs.getObject("assigned_user_company_id", Long.class));
         row.put("assignedUserId", rs.getObject("assigned_user_id", Long.class));
         row.put("assignedName", rs.getString("resolved_assigned_name"));
+        row.put("responsible", rs.getString("resolved_assigned_name"));
         row.put("status", rs.getString("status"));
         row.put("priority", fallback(rs.getString("priority"), "medium"));
+        row.put("startDate", toDateString(rs.getDate("start_date")));
         row.put("dueDate", toDateString(rs.getDate("due_date")));
         row.put("startedAt", toDateTimeString(rs.getTimestamp("started_at")));
         row.put("completedAt", toDateTimeString(rs.getTimestamp("completed_at")));
         row.put("cancelledAt", toDateTimeString(rs.getTimestamp("cancelled_at")));
         row.put("completedByUserCompanyId", rs.getObject("completed_by_user_company_id", Long.class));
         row.put("completedByUserId", rs.getObject("completed_by_user_id", Long.class));
+        row.put("completedByName", rs.getString("resolved_completed_by_name"));
+        row.put("closedByName", rs.getString("resolved_completed_by_name"));
         row.put("completionNotes", rs.getString("completion_notes"));
+        row.put("notes", rs.getString("notes"));
+        row.put("completionPercent", completionPercent);
+        row.put("completion", completionPercent);
+        row.put("weighting", rs.getObject("weighting", Integer.class));
+        row.put("audited", rs.getBoolean("audited"));
+        row.put("auditNotes", rs.getString("audit_notes"));
+        row.put("auditedAt", toDateTimeString(rs.getTimestamp("audited_at")));
+        row.put("auditedByUserCompanyId", rs.getObject("audited_by_user_company_id", Long.class));
+        row.put("auditedByUserId", rs.getObject("audited_by_user_id", Long.class));
+        row.put("auditedByName", rs.getString("resolved_audited_by_name"));
+        row.put("auditStatus", auditStatus(rs.getString("status"), rs.getBoolean("audited")));
         row.put("businessId", rs.getObject("business_id", Long.class));
+        row.put("businessName", rs.getString("business_name"));
+        row.put("business", rs.getString("business_name"));
         row.put("unitId", rs.getObject("unit_id", Long.class));
+        row.put("unitName", rs.getString("unit_name"));
+        row.put("unit", rs.getString("unit_name"));
         row.put("createdBy", rs.getObject("created_by", Long.class));
+        row.put("createdByName", rs.getString("resolved_created_by_name"));
+        row.put("creator", rs.getString("resolved_created_by_name"));
         row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
         row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
+        row.put("attachments", rs.getInt("attachments"));
         return row;
+    }
+
+    private String taskType(Long projectId, Long processId) {
+        if (projectId != null) {
+            return "project-task";
+        }
+
+        if (processId != null) {
+            return "process";
+        }
+
+        return "task";
+    }
+
+    private String auditStatus(String status, boolean audited) {
+        if (audited) {
+            return "audited";
+        }
+
+        if ("completed".equals(status)) {
+            return "pending";
+        }
+
+        return "not_ready";
     }
 
     private UserCompanyReference requireActiveUserCompany(long companyId, Long userCompanyId, String message) {
@@ -619,5 +1321,8 @@ public class ProcessTasksService {
         }
 
         return rows.getFirst();
+    }
+
+    private record AttachmentRef(long id, String objectKey, String fileName) {
     }
 }

@@ -1,0 +1,194 @@
+import { enCA } from './en-CA';
+import type { KpisTranslations } from './types';
+
+export const koCA: KpisTranslations = {
+  ...enCA,
+  locale: 'ko-CA',
+  common: {
+    ...enCA.common,
+    all: '전체',
+    allFemale: '전체',
+    retry: '다시 시도',
+    noDate: '날짜 없음',
+    noUnit: '부서 없음',
+    noBusiness: '사업 없음',
+    noFolio: '번호 없음',
+    notApplicable: '해당 없음',
+    unassigned: '미배정',
+    pending: '대기',
+    overdue: '기한 초과',
+    collaborators: (count: number) => `${count}명`,
+  },
+  header: {
+    emoji: '📊',
+    title: '운영 KPI',
+    subtitle: '생산성, 준수, 감사, 프로세스, 프로젝트, 담당자 성과를 보는 실시간 대시보드입니다.',
+  },
+  filters: {
+    ...enCA.filters,
+    title: '필터',
+    period: '기간',
+    unit: '부서',
+    business: '사업',
+    collaborator: '담당자',
+    search: '성과 검색',
+    searchPlaceholder: '담당자, 부서 또는 사업',
+    from: '시작',
+    to: '종료',
+  },
+  periods: {
+    day: '오늘 일정',
+    week: '이번 주',
+    month: '이번 달',
+    overdue: '기한 초과',
+    custom: '사용자 지정 날짜',
+  },
+  statuses: {
+    healthy: '건강',
+    watch: '관찰',
+    critical: '심각',
+    active: '활성',
+    paused: '일시 중지',
+  },
+  summary: {
+    labels: {
+      visible: '표시',
+      open: '열림',
+      closed: '닫힘',
+      overdue: '기한 초과',
+      pendingAudit: '감사 대기',
+      withEvidence: '증빙 있음',
+      productivity: (score: number) => `${score}% 생산성`,
+      weighting: (value: string) => `가중치 ${value}`,
+    },
+    segments: {
+      inProgress: '진행 중',
+      closed: '닫힘',
+      audited: '감사 완료',
+      overdue: '기한 초과',
+      cancelled: '취소됨',
+    },
+    insights: {
+      empty: '현재 필터에 작업이 없습니다. 기간, 부서, 사업 또는 담당자를 조정해 생산성을 평가하세요.',
+      overdue: (overdue: number, average: number, pendingAudit: number) =>
+        `${overdue}개의 기한 초과 작업이 생산성에 부담을 주고 있습니다. 평균 진행률은 ${average}%이며 ${pendingAudit}개의 마감이 감사 대기 중입니다.`,
+      pendingAudit: (pendingAudit: number) =>
+        `이 필터에는 기한 초과 작업이 없지만 전체 사이클을 닫으려면 ${pendingAudit}개의 감사가 남아 있습니다.`,
+      healthy: (score: number) =>
+        `필터 상태가 건강합니다. 감사와 품질이 통제된 상태에서 예상 생산성은 ${score}%입니다.`,
+      default: (score: number) =>
+        `예상 생산성은 ${score}%입니다. 성과를 높이려면 진행률, 마감, 증빙을 검토하세요.`,
+    },
+  },
+  cards: {
+    productivity: {
+      title: '운영 생산성',
+      target: '목표 85%',
+      description: '진행률, 마감, 적시성, 감사, 품질, 증빙을 합산한 점수입니다.',
+    },
+    compliance: {
+      title: '일정 준수',
+      target: (closed: number) => `${closed} 닫힘`,
+      description: '실행 가능한 작업과 닫힌 작업의 관계입니다.',
+    },
+    timeliness: {
+      title: '적시성',
+      target: (overdue: number) => `${overdue} 기한 초과`,
+      description: '마감일 기준의 전달 규율입니다.',
+    },
+    audit: {
+      title: '완료 감사',
+      target: (pendingAudit: number) => `${pendingAudit} 감사 대기`,
+      description: '관리자 또는 담당 감사자가 검토한 마감입니다.',
+    },
+    quality: {
+      title: '감사 품질',
+      target: '최대 가중치 5',
+      description: '감사 완료 작업의 평균 가중치입니다.',
+    },
+    collaborators: {
+      title: '측정된 담당자',
+      target: (projects: number, processes: number) => `${projects}개 프로젝트 / ${processes}개 프로세스`,
+      description: '선택된 필터 안에서 작업을 가진 사람입니다.',
+    },
+  },
+  chart: {
+    title: '날짜별 활동',
+    subtitle: '필터 안의 예정, 닫힘, 기한 초과, 감사 완료 작업입니다.',
+    empty: '현재 필터에 차트로 표시할 활동이 없습니다.',
+    series: {
+      scheduled: '예정',
+      closed: '닫힘',
+      overdue: '기한 초과',
+      audited: '감사 완료',
+    },
+  },
+  snapshots: {
+    collaborators: '담당자',
+    processTasks: '프로세스 작업',
+    projectTasks: '프로젝트 작업',
+    quality: '품질',
+  },
+  collaboratorsTable: {
+    title: '담당자 성과',
+    subtitle: '배정 작업, 마감, 적시성, 감사, 가중치, 증빙 기준의 실제 순위입니다.',
+    empty: '현재 필터 안에 작업이 있는 담당자가 없습니다.',
+    headers: {
+      rank: '순위',
+      collaborator: '담당자',
+      context: '부서 / 사업',
+      score: '점수',
+      tasks: '작업',
+      closure: '마감률',
+      timeliness: '적시성',
+      audit: '감사',
+      quality: '품질',
+      evidence: '증빙',
+      status: '상태',
+    },
+    details: {
+      openOverdue: (open: number, overdue: number) => `${open} 열림 · ${overdue} 기한 초과`,
+      audit: (rate: number, pending: number) => `${rate}% · ${pending} 감사 대기`,
+    },
+  },
+  processesTable: {
+    title: '반복 프로세스',
+    subtitle: '프로세스 엔진이 생성한 작업의 실제 준수율입니다.',
+    empty: '현재 필터에 작업이 있는 프로세스가 없습니다.',
+    headers: {
+      process: '프로세스',
+      score: '점수',
+      tasks: '작업',
+      audit: '감사',
+      next: '다음',
+      engine: '엔진',
+    },
+    details: {
+      tasks: (closed: number, total: number, overdue: number) => `${closed}/${total} · ${overdue} 기한 초과`,
+      audit: (rate: number, weighting: string) => `${rate}% · ${weighting}`,
+    },
+  },
+  projectsTable: {
+    title: '프로젝트',
+    subtitle: '열림, 닫힘, 기한 초과, 감사 완료 작업 기준의 포트폴리오 건강도입니다.',
+    empty: '현재 필터에 작업이 있는 프로젝트가 없습니다.',
+    headers: {
+      project: '프로젝트',
+      health: '건강도',
+      progress: '진행률',
+      tasks: '작업',
+      audit: '감사',
+      dueDate: '마감',
+    },
+    details: {
+      tasks: (closed: number, total: number, overdue: number) => `${closed}/${total} · ${overdue} 기한 초과`,
+      audit: (rate: number, pending: number) => `${rate}% · ${pending} 감사 대기`,
+    },
+  },
+  messages: {
+    loadCatalogs: '카탈로그를 불러올 수 없습니다.',
+    loadKpis: 'KPI를 불러올 수 없습니다.',
+    empty: '표시할 KPI 정보가 없습니다.',
+    noInsight: '현재 필터에 사용할 수 있는 운영 해석이 없습니다.',
+  },
+};
