@@ -1,7 +1,6 @@
 package com.indice.erp.configcenter;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -122,19 +121,26 @@ public class InvitationEmailService {
             from.put("name", fromName);
         }
 
+        var recipient = new LinkedHashMap<String, Object>();
+        recipient.put("email", email);
+
+        var personalization = new LinkedHashMap<String, Object>();
+        personalization.put("to", java.util.Collections.singletonList(recipient));
+        personalization.put("subject", INVITATION_SUBJECT);
+
         var payload = new LinkedHashMap<String, Object>();
-        payload.put("personalizations", List.of(Map.of(
-            "to", List.of(Map.of("email", email)),
-            "subject", INVITATION_SUBJECT
-        )));
+        payload.put("personalizations", java.util.Collections.singletonList(personalization));
         payload.put("from", from);
         if (!replyToAddress.isBlank()) {
-            payload.put("reply_to", Map.of("email", replyToAddress));
+            var replyTo = new LinkedHashMap<String, Object>();
+            replyTo.put("email", replyToAddress);
+            payload.put("reply_to", replyTo);
         }
-        payload.put("content", List.of(Map.of(
-            "type", "text/plain",
-            "value", buildInvitationText(fullName, inviteLink)
-        )));
+
+        var content = new LinkedHashMap<String, Object>();
+        content.put("type", "text/plain");
+        content.put("value", buildInvitationText(fullName, inviteLink));
+        payload.put("content", java.util.Collections.singletonList(content));
         return payload;
     }
 

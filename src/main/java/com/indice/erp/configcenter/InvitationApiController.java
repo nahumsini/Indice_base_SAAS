@@ -1,5 +1,6 @@
 package com.indice.erp.configcenter;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,7 @@ public class InvitationApiController {
         try {
             return ResponseEntity.ok(configCenterService.getInvitation(token));
         } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         }
     }
 
@@ -38,9 +39,15 @@ public class InvitationApiController {
         try {
             return ResponseEntity.ok(configCenterService.acceptInvitation(token, payload));
         } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
+    }
+
+    private Map<String, Object> messageBody(String message) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("message", message);
+        return body;
     }
 }
