@@ -291,19 +291,6 @@ export default function Users() {
               ? 'Eliminando...'
               : 'Deleting...';
 
-  const selfDeleteLabel =
-    currentLanguage.code === 'fr-CA'
-      ? 'Vous ne pouvez pas supprimer votre propre utilisateur.'
-      : currentLanguage.code === 'pt-BR'
-        ? 'Voce nao pode excluir seu proprio usuario.'
-        : currentLanguage.code === 'ko-CA'
-          ? '자신의 사용자는 삭제할 수 없습니다.'
-          : currentLanguage.code === 'zh-CA'
-            ? '您不能删除自己的用户。'
-            : currentLanguage.code === 'es-MX'
-              ? 'No puedes eliminar tu propio usuario.'
-              : 'You cannot delete your own user.';
-
   const currentUserBadgeLabel =
     currentLanguage.code === 'fr-CA'
       ? 'Vous'
@@ -331,7 +318,8 @@ export default function Users() {
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
-  const userPendingDelete = users.find((user) => user.id === selectedUserForDelete) ?? null;
+  const invitationPendingDelete =
+    users.find((user) => user.id === selectedUserForDelete && user.source === 'invitation') ?? null;
   const categoryTitleMap: Record<AvailableModule['category'], string> = {
     basic: t.sections.basicModules,
     complementary: t.sections.complementaryModules,
@@ -677,37 +665,25 @@ export default function Users() {
   };
 
   const handleDeleteUser = async () => {
-    if (!userPendingDelete || isDeletingUser) {
-      return;
-    }
-
-    if (userPendingDelete.source === 'user' && userPendingDelete.backendId === currentUserId) {
-      setSelectedUserForDelete(null);
-      setLoadError(selfDeleteLabel);
+    if (!invitationPendingDelete || isDeletingUser) {
       return;
     }
 
     try {
-      const pendingDelete = userPendingDelete;
+      const pendingDelete = invitationPendingDelete;
       setIsDeletingUser(true);
       setLoadError('');
       setSelectedUserForDelete(null);
       await runUserFeedbackTask({
-        title: pendingDelete.source === 'invitation' ? 'Deleting invitation...' : 'Deleting user...',
-        description: pendingDelete.source === 'invitation'
-          ? 'Cancelling the pending invite link and refreshing the users list.'
-          : 'Removing company access and refreshing the users list.',
+        title: 'Deleting invitation...',
+        description: 'Cancelling the pending invite link and refreshing the users list.',
         task: async () => {
-          if (pendingDelete.source === 'invitation') {
-            await configCenterApi.deleteInvitation(pendingDelete.backendId);
-          } else {
-            await configCenterApi.deleteUser(pendingDelete.backendId);
-          }
+          await configCenterApi.deleteInvitation(pendingDelete.backendId);
           await refreshUsers();
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to delete user.');
+      setLoadError(error instanceof Error ? error.message : 'Unable to delete invitation.');
     } finally {
       setIsDeletingUser(false);
     }
@@ -1118,7 +1094,6 @@ export default function Users() {
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => {
                   const isCurrentUser = user.source === 'user' && user.backendId === currentUserId;
-                  const isDeleteDisabled = user.isProtected || isCurrentUser;
                   const initials = user.name
                     .split(' ')
                     .filter(Boolean)
@@ -1254,15 +1229,16 @@ export default function Users() {
                             <Mail className="h-5 w-5" />
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => setSelectedUserForDelete(user.id)}
-                            disabled={isDeleteDisabled}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-200 bg-red-50 text-red-600 transition-all duration-150 ease-in-out hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
-                            title={isCurrentUser ? selfDeleteLabel : deleteLabel}
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
+                          {user.source === 'invitation' ? (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedUserForDelete(user.id)}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-200 bg-red-50 text-red-600 transition-all duration-150 ease-in-out hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+                              title={deleteLabel}
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -1716,14 +1692,10 @@ export default function Users() {
       />
 
       <ConfirmDeleteDialog
-        isVisible={Boolean(userPendingDelete)}
-        title={userPendingDelete?.source === 'invitation' ? 'Delete invitation?' : 'Delete user?'}
-        itemName={userPendingDelete ? `${userPendingDelete.name} <${userPendingDelete.email}>` : undefined}
-        description={
-          userPendingDelete?.source === 'invitation'
-            ? 'This cancels the pending invite link and removes it from the users list.'
-            : 'This removes the user access from this company and removes them from the users list.'
-        }
+        isVisible={Boolean(invitationPendingDelete)}
+        title="Delete invitation?"
+        itemName={invitationPendingDelete ? `${invitationPendingDelete.name} <${invitationPendingDelete.email}>` : undefined}
+        description="This cancels the pending invite link and removes it from the users list."
         confirmLabel={isDeletingUser ? deletingLabel : deleteLabel}
         cancelLabel={t.panelInicial.users.modal.cancel}
         confirmDisabled={isDeletingUser || loadingOverlay.isVisible}
