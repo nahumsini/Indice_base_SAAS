@@ -13,7 +13,9 @@ fi
 
 while IFS='=' read -r key value; do
   [[ -z "${key}" || "${key}" =~ ^[[:space:]]*# ]] && continue
-  export "${key}=${value}"
+  if [[ -z "${!key+x}" ]]; then
+    export "${key}=${value}"
+  fi
 done <"${ENV_FILE}"
 
 WEB_PUBLIC_URL="${WEB_PUBLIC_URL:-http://localhost:${WEB_HOST_PORT:-8080}}"

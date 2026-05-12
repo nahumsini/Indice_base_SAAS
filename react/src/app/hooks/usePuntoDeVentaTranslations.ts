@@ -9,6 +9,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Sistema de facturación y gestión de ventas',
       back: 'Volver',
       tabs: {
+        cortes: 'Cortes',
         facturacion: 'Facturación',
         inventario: 'Inventario',
         historial: 'Historial',
@@ -17,7 +18,7 @@ export const usePuntoDeVentaTranslations = () => {
         turnos: 'Turnos',
         clientes: 'Clientes',
         productos: 'Productos',
-        ordenesCompra: 'Ordenes de compra',
+        ordenesCompra: 'Órdenes de Compra',
         descuentos: 'Descuentos',
         kpis: 'KPIs',
       },
@@ -27,6 +28,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Billing system and sales management',
       back: 'Back',
       tabs: {
+        cortes: 'Cash Cuts',
         facturacion: 'Billing',
         inventario: 'Inventory',
         historial: 'History',
@@ -45,6 +47,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Sistema de faturação e gestão de vendas',
       back: 'Voltar',
       tabs: {
+        cortes: 'Cortes',
         facturacion: 'Faturação',
         inventario: 'Inventário',
         historial: 'Histórico',
@@ -63,6 +66,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Système de facturation et gestion des ventes',
       back: 'Retour',
       tabs: {
+        cortes: 'Coupes de caisse',
         facturacion: 'Facturation',
         inventario: 'Inventaire',
         historial: 'Historique',
@@ -81,6 +85,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Abrechnungssystem und Verkaufsverwaltung',
       back: 'Zurück',
       tabs: {
+        cortes: 'Kassenabschlüsse',
         facturacion: 'Abrechnung',
         inventario: 'Inventar',
         historial: 'Verlauf',
@@ -99,6 +104,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Sistema di fatturazione e gestione vendite',
       back: 'Indietro',
       tabs: {
+        cortes: 'Chiusure di Cassa',
         facturacion: 'Fatturazione',
         inventario: 'Inventario',
         historial: 'Cronologia',

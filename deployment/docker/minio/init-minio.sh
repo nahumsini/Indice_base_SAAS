@@ -20,7 +20,7 @@ mc anonymous set none "${MINIO_ALIAS}/${MINIO_BUCKET_BIOMETRIC}"
 mc mb --ignore-existing "${MINIO_ALIAS}/${MINIO_BUCKET_DOCUMENTS}"
 mc anonymous set none "${MINIO_ALIAS}/${MINIO_BUCKET_DOCUMENTS}"
 if [ -f "${MINIO_CORS_FILE}" ]; then
-  mc cors set "${MINIO_ALIAS}/${MINIO_BUCKET_ATTENDANCE}" "${MINIO_CORS_FILE}"
-  mc cors set "${MINIO_ALIAS}/${MINIO_BUCKET_BIOMETRIC}" "${MINIO_CORS_FILE}"
-  mc cors set "${MINIO_ALIAS}/${MINIO_BUCKET_DOCUMENTS}" "${MINIO_CORS_FILE}"
+  mc cors set "${MINIO_ALIAS}/${MINIO_BUCKET_ATTENDANCE}" "${MINIO_CORS_FILE}" || echo "Warning: unable to set CORS on ${MINIO_BUCKET_ATTENDANCE}; continuing."
+  mc cors set "${MINIO_ALIAS}/${MINIO_BUCKET_BIOMETRIC}" "${MINIO_CORS_FILE}" || echo "Warning: unable to set CORS on ${MINIO_BUCKET_BIOMETRIC}; continuing."
+  mc cors set "${MINIO_ALIAS}/${MINIO_BUCKET_DOCUMENTS}" "${MINIO_CORS_FILE}" || echo "Warning: unable to set CORS on ${MINIO_BUCKET_DOCUMENTS}; continuing."
 fi
