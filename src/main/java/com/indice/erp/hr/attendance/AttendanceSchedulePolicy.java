@@ -1,11 +1,23 @@
 package com.indice.erp.hr.attendance;
 
-import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
-
+import com.indice.erp.hr.attendance.models.DailyRecordRow;
+import com.indice.erp.hr.attendance.models.ScheduleRule;
 import com.indice.erp.hr.attendance.policy.AttendanceStatusPolicy;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.calculateMinutesLate;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.calculateSystemStatus;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.inferSystemStatus;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.isOpenSchedule;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.isOvernightSchedule;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.resolveEffectiveStatus;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.resolveSystemStatus;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.scheduledEndDateTime;
+import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.validateScheduleRegistrationPolicy;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+
 
 public final class AttendanceSchedulePolicy {
 
