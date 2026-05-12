@@ -1,5 +1,5 @@
 import { apiClient } from '../../../lib/apiClient';
-import type { TaskRecord } from '../Tasks/tasksApi';
+import { normalizeTaskRecord, type TaskRecord } from '../Tasks/tasksApi';
 
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'cancelled';
 export type ProjectPriority = 'low' | 'medium' | 'high';
@@ -16,7 +16,11 @@ export interface ProjectRecord {
   ownerUserId: number | null;
   ownerName: string | null;
   businessId: number | null;
+  businessName: string | null;
+  business: string | null;
   unitId: number | null;
+  unitName: string | null;
+  unit: string | null;
   startDate: string | null;
   dueDate: string | null;
   completedAt: string | null;
@@ -24,6 +28,18 @@ export interface ProjectRecord {
   createdBy: number | null;
   createdAt: string | null;
   updatedAt: string | null;
+  taskCount: number;
+  tasks: number;
+  openTaskCount: number;
+  openTasks: number;
+  completedTaskCount: number;
+  completedTasks: number;
+  overdueTaskCount: number;
+  overdueTasks: number;
+  auditedTaskCount: number;
+  auditedTasks: number;
+  completionPercent: number;
+  progress: number;
 }
 
 export interface ProjectPayload {
@@ -50,6 +66,15 @@ type TaskListResponse = {
 };
 
 function normalizeProject(record: Partial<ProjectRecord>): ProjectRecord {
+  const taskCount = Number(record.taskCount ?? record.tasks ?? 0);
+  const openTaskCount = Number(record.openTaskCount ?? record.openTasks ?? 0);
+  const completedTaskCount = Number(record.completedTaskCount ?? record.completedTasks ?? 0);
+  const overdueTaskCount = Number(record.overdueTaskCount ?? record.overdueTasks ?? 0);
+  const auditedTaskCount = Number(record.auditedTaskCount ?? record.auditedTasks ?? 0);
+  const completionPercent = Number(
+    record.completionPercent ?? record.progress ?? (record.status === 'completed' ? 100 : 0),
+  );
+
   return {
     id: Number(record.id ?? 0),
     companyId: Number(record.companyId ?? 0),
@@ -62,7 +87,11 @@ function normalizeProject(record: Partial<ProjectRecord>): ProjectRecord {
     ownerUserId: record.ownerUserId ?? null,
     ownerName: record.ownerName ?? null,
     businessId: record.businessId ?? null,
+    businessName: record.businessName ?? record.business ?? null,
+    business: record.business ?? record.businessName ?? null,
     unitId: record.unitId ?? null,
+    unitName: record.unitName ?? record.unit ?? null,
+    unit: record.unit ?? record.unitName ?? null,
     startDate: record.startDate ?? null,
     dueDate: record.dueDate ?? null,
     completedAt: record.completedAt ?? null,
@@ -70,35 +99,18 @@ function normalizeProject(record: Partial<ProjectRecord>): ProjectRecord {
     createdBy: record.createdBy ?? null,
     createdAt: record.createdAt ?? null,
     updatedAt: record.updatedAt ?? null,
-  };
-}
-
-function normalizeTask(record: Partial<TaskRecord>): TaskRecord {
-  return {
-    id: Number(record.id ?? 0),
-    companyId: Number(record.companyId ?? 0),
-    processId: record.processId ?? null,
-    projectId: record.projectId ?? null,
-    folio: record.folio ?? '',
-    title: record.title ?? '',
-    description: record.description ?? null,
-    assignedUserCompanyId: record.assignedUserCompanyId ?? null,
-    assignedUserId: record.assignedUserId ?? null,
-    assignedName: record.assignedName ?? null,
-    status: record.status ?? 'pending',
-    priority: record.priority ?? 'medium',
-    dueDate: record.dueDate ?? null,
-    startedAt: record.startedAt ?? null,
-    completedAt: record.completedAt ?? null,
-    cancelledAt: record.cancelledAt ?? null,
-    completedByUserCompanyId: record.completedByUserCompanyId ?? null,
-    completedByUserId: record.completedByUserId ?? null,
-    completionNotes: record.completionNotes ?? null,
-    businessId: record.businessId ?? null,
-    unitId: record.unitId ?? null,
-    createdBy: record.createdBy ?? null,
-    createdAt: record.createdAt ?? null,
-    updatedAt: record.updatedAt ?? null,
+    taskCount,
+    tasks: taskCount,
+    openTaskCount,
+    openTasks: openTaskCount,
+    completedTaskCount,
+    completedTasks: completedTaskCount,
+    overdueTaskCount,
+    overdueTasks: overdueTaskCount,
+    auditedTaskCount,
+    auditedTasks: auditedTaskCount,
+    completionPercent,
+    progress: completionPercent,
   };
 }
 
@@ -149,5 +161,5 @@ export async function cancelProject(projectId: number) {
 
 export async function listProjectTasks(projectId: number) {
   const response = await apiClient<TaskListResponse>(`/api/v1/projects/${projectId}/tasks`);
-  return response.items.map(normalizeTask);
+  return response.items.map(normalizeTaskRecord);
 }

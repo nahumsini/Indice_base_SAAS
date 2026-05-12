@@ -1,0 +1,191 @@
+import type { KpisTranslations } from './types';
+
+export const esMX: KpisTranslations = {
+  locale: 'es-MX',
+  common: {
+    all: 'Todos',
+    allFemale: 'Todas',
+    retry: 'Reintentar',
+    noDate: 'Sin fecha',
+    noUnit: 'Sin unidad',
+    noBusiness: 'Sin negocio',
+    noFolio: 'Sin folio',
+    notApplicable: 'No aplica',
+    unassigned: 'Sin responsable',
+    pending: 'pendientes',
+    overdue: 'vencidas',
+    collaborators: (count: number) => `${count} colaboradores`,
+  },
+  header: {
+    emoji: '📊',
+    title: 'KPIs operativos',
+    subtitle:
+      'Tablero real de productividad, cumplimiento, auditoria, procesos, proyectos y rendimiento por colaborador.',
+  },
+  filters: {
+    title: 'Filtros',
+    period: 'Periodo',
+    unit: 'Unidad',
+    business: 'Negocio',
+    collaborator: 'Colaborador',
+    search: 'Buscar rendimiento',
+    searchPlaceholder: 'Colaborador, unidad o negocio',
+    from: 'Desde',
+    to: 'Hasta',
+  },
+  periods: {
+    day: 'Agenda del dia',
+    week: 'Esta semana',
+    month: 'Este mes',
+    overdue: 'Vencidas',
+    custom: 'Fecha personalizada',
+  },
+  statuses: {
+    healthy: 'Sano',
+    watch: 'En observacion',
+    critical: 'Critico',
+    active: 'Activo',
+    paused: 'Pausado',
+  },
+  summary: {
+    labels: {
+      visible: 'visibles',
+      open: 'abiertas',
+      closed: 'cerradas',
+      overdue: 'vencidas',
+      pendingAudit: 'por auditar',
+      withEvidence: 'con evidencia',
+      productivity: (score: number) => `${score}% productividad`,
+      weighting: (value: string) => `Ponderacion ${value}`,
+    },
+    segments: {
+      inProgress: 'En curso',
+      closed: 'Cerradas',
+      audited: 'Auditadas',
+      overdue: 'Vencidas',
+      cancelled: 'Canceladas',
+    },
+    insights: {
+      empty: 'No hay tareas en el filtro actual. Ajusta periodo, unidad, negocio o colaborador para evaluar productividad.',
+      overdue: (overdue: number, average: number, pendingAudit: number) =>
+        `${overdue} tareas vencidas estan presionando la productividad; el avance promedio es ${average}% y quedan ${pendingAudit} cierres por auditar.`,
+      pendingAudit: (pendingAudit: number) =>
+        `La operacion no tiene vencidas en el filtro, pero faltan ${pendingAudit} auditorias para cerrar el ciclo completo.`,
+      healthy: (score: number) =>
+        `El filtro se ve sano: productividad estimada de ${score}% con auditoria y calidad controladas.`,
+      default: (score: number) =>
+        `La productividad estimada es ${score}%. Conviene revisar avance, cierres y evidencia para subir el desempeno.`,
+    },
+  },
+  cards: {
+    productivity: {
+      title: 'Productividad operativa',
+      target: 'Meta 85%',
+      description: 'Score combinado de avance, cierre, puntualidad, auditoria, calidad y evidencia.',
+    },
+    compliance: {
+      title: 'Cumplimiento de agenda',
+      target: (closed: number) => `${closed} cerradas`,
+      description: 'Relacion entre tareas accionables y tareas cerradas.',
+    },
+    timeliness: {
+      title: 'Puntualidad',
+      target: (overdue: number) => `${overdue} vencidas`,
+      description: 'Disciplina de entrega contra la fecha de vencimiento.',
+    },
+    audit: {
+      title: 'Auditoria completa',
+      target: (pendingAudit: number) => `${pendingAudit} por auditar`,
+      description: 'Cierres revisados por jefatura o auditor responsable.',
+    },
+    quality: {
+      title: 'Calidad auditada',
+      target: 'Ponderacion maxima 5',
+      description: 'Promedio de ponderacion sobre tareas auditadas.',
+    },
+    collaborators: {
+      title: 'Colaboradores medidos',
+      target: (projects: number, processes: number) => `${projects} proyectos / ${processes} procesos`,
+      description: 'Personas con tareas dentro del filtro seleccionado.',
+    },
+  },
+  chart: {
+    title: 'Actividad por fecha',
+    subtitle: 'Tareas programadas, cerradas, vencidas y auditadas dentro del filtro.',
+    empty: 'No hay actividad graficable en el filtro actual.',
+    series: {
+      scheduled: 'Programadas',
+      closed: 'Cerradas',
+      overdue: 'Vencidas',
+      audited: 'Auditadas',
+    },
+  },
+  snapshots: {
+    collaborators: 'Colaboradores',
+    processTasks: 'Tareas de procesos',
+    projectTasks: 'Tareas de proyectos',
+    quality: 'Calidad',
+  },
+  collaboratorsTable: {
+    title: 'Rendimiento de colaboradores',
+    subtitle: 'Ranking real por tareas asignadas, cierre, puntualidad, auditoria, ponderacion y evidencia.',
+    empty: 'No hay colaboradores con tareas dentro del filtro actual.',
+    headers: {
+      rank: 'Rank',
+      collaborator: 'Colaborador',
+      context: 'Unidad / Negocio',
+      score: 'Score',
+      tasks: 'Tareas',
+      closure: 'Cierre',
+      timeliness: 'Puntualidad',
+      audit: 'Auditoria',
+      quality: 'Calidad',
+      evidence: 'Evidencia',
+      status: 'Estado',
+    },
+    details: {
+      openOverdue: (open: number, overdue: number) => `${open} abiertas · ${overdue} vencidas`,
+      audit: (rate: number, pending: number) => `${rate}% · ${pending} pendientes`,
+    },
+  },
+  processesTable: {
+    title: 'Procesos recurrentes',
+    subtitle: 'Cumplimiento real de las tareas generadas por el motor de procesos.',
+    empty: 'No hay procesos con tareas en el filtro actual.',
+    headers: {
+      process: 'Proceso',
+      score: 'Score',
+      tasks: 'Tareas',
+      audit: 'Auditoria',
+      next: 'Proxima',
+      engine: 'Motor',
+    },
+    details: {
+      tasks: (closed: number, total: number, overdue: number) => `${closed}/${total} · ${overdue} vencidas`,
+      audit: (rate: number, weighting: string) => `${rate}% · ${weighting}`,
+    },
+  },
+  projectsTable: {
+    title: 'Proyectos',
+    subtitle: 'Salud del portafolio segun tareas abiertas, cerradas, vencidas y auditadas.',
+    empty: 'No hay proyectos con tareas en el filtro actual.',
+    headers: {
+      project: 'Proyecto',
+      health: 'Salud',
+      progress: 'Avance',
+      tasks: 'Tareas',
+      audit: 'Auditoria',
+      dueDate: 'Vence',
+    },
+    details: {
+      tasks: (closed: number, total: number, overdue: number) => `${closed}/${total} · ${overdue} vencidas`,
+      audit: (rate: number, pending: number) => `${rate}% · ${pending} pendientes`,
+    },
+  },
+  messages: {
+    loadCatalogs: 'No se pudieron cargar los catalogos.',
+    loadKpis: 'No se pudieron cargar los KPIs.',
+    empty: 'No hay informacion de KPIs para mostrar.',
+    noInsight: 'No hay lectura operativa disponible para el filtro actual.',
+  },
+};

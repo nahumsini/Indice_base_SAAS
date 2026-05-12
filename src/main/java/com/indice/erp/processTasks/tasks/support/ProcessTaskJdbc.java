@@ -21,6 +21,15 @@ public final class ProcessTaskJdbc {
         statement.setLong(index, value);
     }
 
+    public static void setNullableInteger(PreparedStatement statement, int index, Integer value) throws SQLException {
+        if (value == null) {
+            statement.setNull(index, Types.INTEGER);
+            return;
+        }
+
+        statement.setInt(index, value);
+    }
+
     public static void setNullableString(PreparedStatement statement, int index, String value) throws SQLException {
         if (value == null || value.isBlank()) {
             statement.setNull(index, Types.VARCHAR);

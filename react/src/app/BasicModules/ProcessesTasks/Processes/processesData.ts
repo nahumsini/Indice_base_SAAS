@@ -12,9 +12,9 @@ import type {
 export const accentButtonClass = 'bg-[rgb(235,165,52)] text-white hover:bg-[rgb(214,144,35)]';
 
 export const priorityLabels: Record<ProcessPriority, string> = {
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
+  high: 'Alta',
+  medium: 'Media',
+  low: 'Baja',
 };
 
 export const priorityClasses: Record<ProcessPriority, string> = {
@@ -24,11 +24,11 @@ export const priorityClasses: Record<ProcessPriority, string> = {
 };
 
 export const frequencyLabels: Record<ProcessFrequency, string> = {
-  daily: 'Daily',
-  weekly: 'Weekly',
-  'bi-weekly': 'Bi-weekly',
-  monthly: 'Monthly',
-  'specific-dates': 'Specific dates',
+  daily: 'Diaria',
+  weekly: 'Semanal',
+  'bi-weekly': 'Quincenal',
+  monthly: 'Mensual',
+  'specific-dates': 'Fechas especificas',
 };
 
 export const frequencyOptions: Option<ProcessFrequency>[] = [
@@ -40,13 +40,13 @@ export const frequencyOptions: Option<ProcessFrequency>[] = [
 ];
 
 export const weekdayLabels: Record<Weekday, string> = {
-  monday: 'Monday',
-  tuesday: 'Tuesday',
-  wednesday: 'Wednesday',
-  thursday: 'Thursday',
-  friday: 'Friday',
-  saturday: 'Saturday',
-  sunday: 'Sunday',
+  monday: 'Lunes',
+  tuesday: 'Martes',
+  wednesday: 'Miercoles',
+  thursday: 'Jueves',
+  friday: 'Viernes',
+  saturday: 'Sabado',
+  sunday: 'Domingo',
 };
 
 export const weekdayOptions: Option<Weekday>[] = [
@@ -68,16 +68,21 @@ export const priorityOptions: Option<ProcessPriority>[] = [
 ];
 
 export const defaultColumns: ProcessColumnConfig[] = [
-  { id: 'folio', label: 'Folio', visible: true, locked: true },
-  { id: 'unit', label: 'Unit', visible: true },
-  { id: 'business', label: 'Business', visible: true },
-  { id: 'title', label: 'Title', visible: true },
-  { id: 'description', label: 'Description', visible: true },
-  { id: 'createdAt', label: 'Creation Date', visible: true },
-  { id: 'frequency', label: 'Frequency', visible: true },
-  { id: 'creator', label: 'Creator', visible: true },
-  { id: 'responsible', label: 'Responsible', visible: true },
-  { id: 'priority', label: 'Priority', visible: true },
+  { id: 'folio', label: 'Folio', visible: true, locked: true, description: 'Identificador operativo del proceso.' },
+  { id: 'unit', label: 'Unidad', visible: true, description: 'Unidad relacionada con el proceso.' },
+  { id: 'business', label: 'Negocio', visible: true, description: 'Negocio relacionado con el proceso.' },
+  { id: 'title', label: 'Proceso', visible: true, description: 'Nombre editable del proceso recurrente.' },
+  { id: 'description', label: 'Descripcion', visible: true, description: 'Detalle operativo y alcance del proceso.' },
+  { id: 'template', label: 'Plantilla', visible: true, description: 'Datos que se copian a cada tarea generada.' },
+  { id: 'createdAt', label: 'Fecha de creacion', visible: true, description: 'Fecha en que se registro el proceso.' },
+  { id: 'frequency', label: 'Frecuencia', visible: true, description: 'Periodicidad de generacion de tareas.' },
+  { id: 'nextOccurrence', label: 'Proxima generacion', visible: true, description: 'Siguiente ocurrencia programada por el motor.' },
+  { id: 'generatedUntil', label: 'Generado hasta', visible: false, description: 'Limite futuro materializado por el motor.' },
+  { id: 'progress', label: 'Avance', visible: true, description: 'Avance calculado con las tareas generadas.' },
+  { id: 'tasks', label: 'Tareas', visible: true, description: 'Tareas generadas, abiertas, cerradas y vencidas.' },
+  { id: 'creator', label: 'Creador', visible: true, description: 'Usuario que creo el proceso.' },
+  { id: 'responsible', label: 'Responsable', visible: true, description: 'Usuario responsable de ejecutar el proceso.' },
+  { id: 'priority', label: 'Prioridad', visible: true, description: 'Nivel de prioridad asignado.' },
 ];
 
 export const processRecordsSeed: ProcessRecord[] = [
@@ -101,6 +106,19 @@ export const processRecordsSeed: ProcessRecord[] = [
       specificDates: [],
     },
     isActive: true,
+    companyId: 1,
+    taskCount: 0,
+    tasks: 0,
+    openTaskCount: 0,
+    openTasks: 0,
+    completedTaskCount: 0,
+    completedTasks: 0,
+    overdueTaskCount: 0,
+    overdueTasks: 0,
+    auditedTaskCount: 0,
+    auditedTasks: 0,
+    completionPercent: 0,
+    progress: 0,
   },
   {
     id: 2,
@@ -122,6 +140,19 @@ export const processRecordsSeed: ProcessRecord[] = [
       specificDates: [],
     },
     isActive: true,
+    companyId: 1,
+    taskCount: 0,
+    tasks: 0,
+    openTaskCount: 0,
+    openTasks: 0,
+    completedTaskCount: 0,
+    completedTasks: 0,
+    overdueTaskCount: 0,
+    overdueTasks: 0,
+    auditedTaskCount: 0,
+    auditedTasks: 0,
+    completionPercent: 0,
+    progress: 0,
   },
   {
     id: 3,
@@ -143,6 +174,19 @@ export const processRecordsSeed: ProcessRecord[] = [
       specificDates: [],
     },
     isActive: true,
+    companyId: 1,
+    taskCount: 0,
+    tasks: 0,
+    openTaskCount: 0,
+    openTasks: 0,
+    completedTaskCount: 0,
+    completedTasks: 0,
+    overdueTaskCount: 0,
+    overdueTasks: 0,
+    auditedTaskCount: 0,
+    auditedTasks: 0,
+    completionPercent: 0,
+    progress: 0,
   },
   {
     id: 4,
@@ -164,6 +208,19 @@ export const processRecordsSeed: ProcessRecord[] = [
       specificDates: [],
     },
     isActive: false,
+    companyId: 1,
+    taskCount: 0,
+    tasks: 0,
+    openTaskCount: 0,
+    openTasks: 0,
+    completedTaskCount: 0,
+    completedTasks: 0,
+    overdueTaskCount: 0,
+    overdueTasks: 0,
+    auditedTaskCount: 0,
+    auditedTasks: 0,
+    completionPercent: 0,
+    progress: 0,
   },
   {
     id: 5,
@@ -185,6 +242,19 @@ export const processRecordsSeed: ProcessRecord[] = [
       specificDates: ['2026-05-12', '2026-06-09', '2026-07-14'],
     },
     isActive: true,
+    companyId: 1,
+    taskCount: 0,
+    tasks: 0,
+    openTaskCount: 0,
+    openTasks: 0,
+    completedTaskCount: 0,
+    completedTasks: 0,
+    overdueTaskCount: 0,
+    overdueTasks: 0,
+    auditedTaskCount: 0,
+    auditedTasks: 0,
+    completionPercent: 0,
+    progress: 0,
   },
 ];
 
@@ -288,19 +358,19 @@ export function describeProcessFrequency(
 ) {
   switch (frequency) {
     case 'daily':
-      return 'Every day';
+      return 'Todos los dias';
     case 'weekly':
-      return `Every ${weekdayLabels[recurrence.weeklyDay]}`;
+      return `Cada ${weekdayLabels[recurrence.weeklyDay]}`;
     case 'bi-weekly': {
       const labels = recurrence.biWeeklyDays.map((day) => weekdayLabels[day]).join(', ');
-      return `Every 2 weeks on ${labels}`;
+      return `Cada 2 semanas: ${labels}`;
     }
     case 'monthly':
-      return `Days ${recurrence.monthlyDays.join(', ')}`;
+      return `Dias ${recurrence.monthlyDays.join(', ')}`;
     case 'specific-dates':
       return recurrence.specificDates.length === 1
-        ? '1 configured date'
-        : `${recurrence.specificDates.length} configured dates`;
+        ? '1 fecha configurada'
+        : `${recurrence.specificDates.length} fechas configuradas`;
     default:
       return frequencyLabels[frequency];
   }
@@ -312,13 +382,24 @@ export function createDefaultProcessForm(
   collaboratorOptions: string[],
 ): ProcessFormState {
   return {
+    unitId: null,
     unit: unitOptions[0] ?? '',
+    businessId: null,
     business: businessOptions[0] ?? '',
     title: '',
     description: '',
+    taskTitleTemplate: '',
+    taskDescriptionTemplate: '',
+    taskNotesTemplate: '',
     frequency: 'weekly',
+    responsibleUserCompanyId: null,
     responsible: collaboratorOptions[0] ?? '',
     priority: 'medium',
     recurrence: createDefaultRecurrenceConfig(),
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: '',
+    graceDays: '0',
+    generationWindowDays: '45',
+    evidenceRequired: false,
   };
 }

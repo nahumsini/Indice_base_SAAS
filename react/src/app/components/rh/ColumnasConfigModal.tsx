@@ -124,8 +124,9 @@ export function ColumnasConfigModal({
 }: ColumnasConfigModalProps) {
   const { currentLanguage } = useLanguage();
   const [localColumns, setLocalColumns] = useState<ColumnConfig[]>(columns);
-  const copy = currentLanguage.code.startsWith('es')
-    ? {
+  const copy = (() => {
+    if (currentLanguage.code.startsWith('es')) {
+      return {
         title: 'Configurar columnas',
         description:
           'Selecciona y ordena las columnas que deseas visualizar en la tabla. Arrastra para reordenar.',
@@ -137,20 +138,87 @@ export function ColumnasConfigModal({
         deselectAll: 'Deseleccionar todas',
         cancel: 'Cancelar',
         apply: 'Aplicar cambios',
-      }
-    : {
-        title: 'Configure columns',
-        description:
-          'Choose and reorder the columns you want to display in the table. Drag to rearrange them.',
-        close: 'Close',
-        fixed: 'Fixed',
-        visibleCount: (visible: number, total: number) =>
-          `${visible} of ${total} visible columns`,
-        selectAll: 'Select all',
-        deselectAll: 'Deselect all',
-        cancel: 'Cancel',
-        apply: 'Apply changes',
       };
+    }
+
+    if (currentLanguage.code.startsWith('fr')) {
+      return {
+        title: 'Configurer les colonnes',
+        description:
+          'Selectionnez et ordonnez les colonnes a afficher dans le tableau. Faites glisser pour reordonner.',
+        close: 'Fermer',
+        fixed: 'Fixe',
+        visibleCount: (visible: number, total: number) =>
+          `${visible} sur ${total} colonnes visibles`,
+        selectAll: 'Tout selectionner',
+        deselectAll: 'Tout deselectionner',
+        cancel: 'Annuler',
+        apply: 'Appliquer les changements',
+      };
+    }
+
+    if (currentLanguage.code.startsWith('pt')) {
+      return {
+        title: 'Configurar colunas',
+        description:
+          'Selecione e ordene as colunas que deseja visualizar na tabela. Arraste para reordenar.',
+        close: 'Fechar',
+        fixed: 'Fixa',
+        visibleCount: (visible: number, total: number) =>
+          `${visible} de ${total} colunas visíveis`,
+        selectAll: 'Selecionar todas',
+        deselectAll: 'Desmarcar todas',
+        cancel: 'Cancelar',
+        apply: 'Aplicar alterações',
+      };
+    }
+
+    if (currentLanguage.code.startsWith('ko')) {
+      return {
+        title: '열 설정',
+        description:
+          '테이블에 표시할 열을 선택하고 순서를 조정하세요. 드래그하여 재정렬할 수 있습니다.',
+        close: '닫기',
+        fixed: '고정',
+        visibleCount: (visible: number, total: number) =>
+          `${total}개 중 ${visible}개 열 표시`,
+        selectAll: '전체 선택',
+        deselectAll: '전체 해제',
+        cancel: '취소',
+        apply: '변경 적용',
+      };
+    }
+
+    if (currentLanguage.code.startsWith('zh')) {
+      return {
+        title: '配置列',
+        description:
+          '选择并排序要在表格中显示的列。拖动即可重新排序。',
+        close: '关闭',
+        fixed: '固定',
+        visibleCount: (visible: number, total: number) =>
+          `${total} 列中显示 ${visible} 列`,
+        selectAll: '全选',
+        deselectAll: '取消全选',
+        cancel: '取消',
+        apply: '应用更改',
+      };
+    }
+
+    return {
+      title: 'Configure columns',
+      description:
+        'Choose and reorder the columns you want to display in the table. Drag to rearrange them.',
+      close: 'Close',
+      fixed: 'Fixed',
+      visibleCount: (visible: number, total: number) =>
+        `${visible} of ${total} visible columns`,
+      selectAll: 'Select all',
+      deselectAll: 'Deselect all',
+      cancel: 'Cancel',
+      apply: 'Apply changes',
+    };
+  })();
 
   useEffect(() => {
     if (isOpen) {

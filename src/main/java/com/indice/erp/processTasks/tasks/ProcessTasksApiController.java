@@ -1,6 +1,7 @@
 package com.indice.erp.processTasks.tasks;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -115,6 +116,29 @@ public class ProcessTasksApiController {
         }
     }
 
+    @PostMapping("/{taskId}/audit")
+    public ResponseEntity<?> audit(
+            HttpSession session,
+            @PathVariable long taskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(processTasksService.auditTask(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    taskId,
+                    payload == null ? Map.of() : payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{taskId}/cancel")
     public ResponseEntity<?> cancel(HttpSession session, @PathVariable long taskId) {
         var user = sessionAuthService.currentUser(session);
@@ -124,6 +148,85 @@ public class ProcessTasksApiController {
 
         try {
             return ResponseEntity.ok(processTasksService.cancelTask(user.get().companyId(), taskId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/{taskId}/attachments")
+    public ResponseEntity<?> listAttachments(HttpSession session, @PathVariable long taskId) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(processTasksService.listAttachments(user.get().companyId(), taskId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{taskId}/attachments/presign-upload")
+    public ResponseEntity<?> createAttachmentUpload(
+            HttpSession session,
+            @PathVariable long taskId,
+            @RequestBody Map<String, Object> payload) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.ok(processTasksService.createAttachmentUpload(user.get().companyId(), taskId, payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{taskId}/attachments")
+    public ResponseEntity<?> registerAttachment(
+            HttpSession session,
+            @PathVariable long taskId,
+            @RequestBody Map<String, Object> payload) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    processTasksService.registerAttachment(
+                            user.get().companyId(),
+                            user.get().userId(),
+                            taskId,
+                            payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{taskId}/attachments/{attachmentId}")
+    public ResponseEntity<?> deleteAttachment(
+            HttpSession session,
+            @PathVariable long taskId,
+            @PathVariable long attachmentId) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+
+        try {
+            processTasksService.deleteAttachment(user.get().companyId(), taskId, attachmentId);
+            return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
