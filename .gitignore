@@ -4,6 +4,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### OS metadata ###
+.DS_Store
+
 ### Python ###
 __pycache__/
 *.py[cod]
