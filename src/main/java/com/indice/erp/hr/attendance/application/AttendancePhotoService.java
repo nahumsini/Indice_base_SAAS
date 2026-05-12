@@ -1,7 +1,5 @@
 package com.indice.erp.hr.attendance.application;
 
-import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeEventType;
-
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
@@ -11,6 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+
+import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeEventType;
 
 @Service
 public class AttendancePhotoService {

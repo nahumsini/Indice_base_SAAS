@@ -1,7 +1,5 @@
 package com.indice.erp.hr.attendance.support;
 
-import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalTime;
@@ -9,6 +7,19 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeAttendanceStatus;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeEventType;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeImageContentType;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeNullableAttendanceStatus;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeRequiredHoursPerDay;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.parseBoolean;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.parseDecimalRequired;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.parseTime;
+import static com.indice.erp.hr.attendance.support.AttendanceInput.validatePreferredTimeRange;
+import static com.indice.erp.hr.shared.HrPayloadUtils.isBlank;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
+
 
 public final class AttendanceInput {
 

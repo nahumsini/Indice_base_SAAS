@@ -4,6 +4,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Locale;
 
+import static com.indice.erp.hr.attendance.support.AttendancePresentation.dateString;
+import static com.indice.erp.hr.attendance.support.AttendancePresentation.displayUserRole;
+import static com.indice.erp.hr.attendance.support.AttendancePresentation.firstNonBlank;
+import static com.indice.erp.hr.attendance.support.AttendancePresentation.toIsoString;
+import static com.indice.erp.hr.shared.HrPayloadUtils.isBlank;
+
+
 public final class AttendancePresentation {
 
     private AttendancePresentation() {

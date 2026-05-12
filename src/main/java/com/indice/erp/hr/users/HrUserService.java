@@ -1,12 +1,5 @@
 package com.indice.erp.hr.users;
 
-import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
-import static com.indice.erp.hr.shared.HrPayloadUtils.parseBigDecimal;
-import static com.indice.erp.hr.shared.HrPayloadUtils.parseDate;
-import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
-import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
-import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
-
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -30,6 +23,13 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseBigDecimal;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseDate;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
+import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
+import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 @Service
 public class HrUserService {
@@ -182,25 +182,17 @@ public class HrUserService {
     public void deleteUser(long companyId, long userCompanyId) {
         requireHrUser(companyId, userCompanyId);
 
-        var documentObjectKeys = jdbcTemplate.query(
-            """
-                SELECT object_key
-                FROM user_documents
-                WHERE company_id = ? AND user_company_id = ?
-                """,
-            (rs, rowNum) -> safe(rs.getString("object_key")),
-            companyId,
-            userCompanyId
-        );
-
-        jdbcTemplate.update(
-            "DELETE FROM user_documents WHERE user_company_id = ? AND company_id = ?",
-            userCompanyId,
-            companyId
-        );
-
         var rowsUpdated = jdbcTemplate.update(
-            "DELETE FROM user_work_profiles WHERE user_company_id = ? AND company_id = ?",
+            """
+                UPDATE user_work_profiles
+                SET status = CASE
+                        WHEN LOWER(COALESCE(status, 'active')) = 'terminated' THEN status
+                        ELSE 'inactive'
+                    END,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_company_id = ?
+                  AND company_id = ?
+                """,
             userCompanyId,
             companyId
         );
@@ -208,11 +200,11 @@ public class HrUserService {
             throw new NoSuchElementException("HR user not found.");
         }
 
-        if (objectStorageService.isEnabled()) {
-            documentObjectKeys.stream()
-                .filter(key -> key != null && !key.isBlank())
-                .forEach(this::deleteUserDocumentObjectQuietly);
-        }
+        jdbcTemplate.update(
+            "UPDATE user_companies SET status = 'inactive' WHERE id = ? AND company_id = ?",
+            userCompanyId,
+            companyId
+        );
     }
 
     @Transactional

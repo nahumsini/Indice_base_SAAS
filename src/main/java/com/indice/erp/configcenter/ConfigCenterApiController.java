@@ -50,7 +50,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> getCurrentUser(HttpSession session) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         return ResponseEntity.ok(configCenterService.getCurrentUser(current.get().userId(), current.get().role()));
@@ -60,7 +60,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> saveCurrentUser(HttpSession session, @RequestBody Map<String, Object> payload) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
@@ -76,7 +76,7 @@ public class ConfigCenterApiController {
             }
             return ResponseEntity.ok(savedUser);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -84,7 +84,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> createCurrentUserAvatarUpload(HttpSession session, @RequestBody Map<String, Object> payload) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
@@ -94,9 +94,9 @@ public class ConfigCenterApiController {
                 payload
             ));
         } catch (ObjectStorageDisabledException ex) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -104,7 +104,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> getUsers(HttpSession session) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         return ResponseEntity.ok(configCenterService.getUsers(current.get().companyId()));
@@ -118,15 +118,15 @@ public class ConfigCenterApiController {
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
             return ResponseEntity.ok(configCenterService.updateUser(current.get().companyId(), userId, payload));
         } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -134,7 +134,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> deleteUser(HttpSession session, @PathVariable long userId) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
@@ -144,9 +144,9 @@ public class ConfigCenterApiController {
                 userId
             ));
         } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -158,7 +158,7 @@ public class ConfigCenterApiController {
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
@@ -171,7 +171,7 @@ public class ConfigCenterApiController {
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(invitationResponse(result, inviteLink, emailResult));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -179,15 +179,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> deleteInvitation(HttpSession session, @PathVariable long invitationId) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
             return ResponseEntity.ok(configCenterService.deleteInvitation(current.get().companyId(), invitationId));
         } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -200,11 +200,11 @@ public class ConfigCenterApiController {
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
-            var requestPayload = payload == null ? Map.<String, Object>of() : payload;
+            var requestPayload = payload == null ? java.util.Collections.<String, Object>emptyMap() : payload;
             var result = configCenterService.resendInvitation(current.get().companyId(), invitationId, requestPayload);
             var inviteLink = buildInviteLink(request, String.valueOf(result.get("token")));
             var emailResult = invitationEmailService.sendInvitation(
@@ -214,9 +214,9 @@ public class ConfigCenterApiController {
             );
             return ResponseEntity.ok(invitationResponse(result, inviteLink, emailResult));
         } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -224,7 +224,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> getEmpresa(HttpSession session) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         return ResponseEntity.ok(configCenterService.getEmpresa(current.get().companyId()));
@@ -234,7 +234,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> getConfig(HttpSession session) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         return ResponseEntity.ok(configCenterService.getConfig(current.get().companyId()));
@@ -244,13 +244,13 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> saveConfig(HttpSession session, @RequestBody Map<String, Object> payload) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
             return ResponseEntity.ok(configCenterService.saveStructure(current.get().companyId(), current.get().userId(), payload));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -258,13 +258,13 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> extractCoordinates(HttpSession session, @RequestBody Map<String, Object> payload) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
             return ResponseEntity.ok(googleMapsCoordinateExtractor.extractCoordinatesFromMapLink(payload));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -272,7 +272,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> saveEmpresa(HttpSession session, @RequestBody Map<String, Object> payload) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
 
         try {
@@ -282,7 +282,7 @@ public class ConfigCenterApiController {
             result.put("message", "Company data saved");
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
@@ -367,6 +367,12 @@ public class ConfigCenterApiController {
         response.put("email_status", emailResult.status());
         response.put("email_message", emailResult.message());
         return response;
+    }
+
+    private Map<String, Object> messageBody(String message) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("message", message);
+        return body;
     }
 
     private String displayName(Map<String, Object> user) {
