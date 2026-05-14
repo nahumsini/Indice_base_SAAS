@@ -1,0 +1,110 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6" pages="2">
+  <diagram id="payroll-global-architecture" name="Payroll Global Architecture">
+    <mxGraphModel dx="2593" dy="1533" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" value="HR Users / User Work Profiles&#xa;registration_country&#xa;state_province&#xa;salary / hourly_rate" vertex="1">
+          <mxGeometry height="100" width="220" x="40" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;" value="Attendance Inputs&#xa;daily records&#xa;schedules&#xa;leave / absence" vertex="1">
+          <mxGeometry height="100" width="220" x="40" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" value="Config Center / Business Structure&#xa;company&#xa;units&#xa;businesses" vertex="1">
+          <mxGeometry height="100" width="220" x="40" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" value="Payroll Worker Profile&#xa;country&#xa;subdivision&#xa;tax ids&#xa;compensation mode" vertex="1">
+          <mxGeometry height="110" width="220" x="360" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" value="Payroll Legal Entity Profile&#xa;tax registrations&#xa;currency&#xa;calendar&#xa;reporting scope" vertex="1">
+          <mxGeometry height="110" width="220" x="360" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;" value="Payroll Country Catalog&#xa;AR BR CA CL CO ES MX PE US&#xa;subdivisions&#xa;currencies" vertex="1">
+          <mxGeometry height="110" width="220" x="360" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;" value="Rule Versions / Country Packs&#xa;effective dated&#xa;backend only statutory logic" vertex="1">
+          <mxGeometry height="110" width="230" x="690" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" value="Payroll Input Aggregator&#xa;attendance + worker + recurring items" vertex="1">
+          <mxGeometry height="90" width="230" x="690" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;fontStyle=1;" value="Payroll Preview Engine&#xa;gross / deductions / employer cost / net&#xa;validation messages" vertex="1">
+          <mxGeometry height="100" width="240" x="1020" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;fontStyle=1;" value="Payroll Run Orchestrator&#xa;draft&#xa;calculate&#xa;approve&#xa;mark paid" vertex="1">
+          <mxGeometry height="100" width="240" x="1020" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="12" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" value="Snapshot Storage&#xa;payroll_runs&#xa;run_lines&#xa;components&#xa;rule snapshots&#xa;input snapshots" vertex="1">
+          <mxGeometry height="150" width="180" x="1360" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;" value="Exports / Payslips / Audit&#xa;CSV&#xa;PDF&#xa;journals&#xa;event stream" vertex="1">
+          <mxGeometry height="110" width="180" x="1360" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" value="React Payroll UI&#xa;read-only breakdown rendering&#xa;workflow only&#xa;no statutory math" vertex="1">
+          <mxGeometry height="90" width="240" x="1020" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="Run scope key: legal_entity + country + subdivision + currency + pay_period + period range" vertex="1">
+          <mxGeometry height="60" width="560" x="700" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="16" edge="1" parent="1" source="2" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="17" edge="1" parent="1" source="3" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="18" edge="1" parent="1" source="4" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="19" edge="1" parent="1" source="5" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="20" edge="1" parent="1" source="6" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="10" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="360" />
+              <mxPoint x="880" y="360" />
+              <mxPoint x="970" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="21" edge="1" parent="1" source="7" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="22" edge="1" parent="1" source="8" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="10" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="970" y="555" />
+              <mxPoint x="970" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="23" edge="1" parent="1" source="9" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="24" edge="1" parent="1" source="10" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="25" edge="1" parent="1" source="11" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="26" edge="1" parent="1" source="12" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="13" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="27" edge="1" parent="1" source="14" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="28" edge="1" parent="1" source="14" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" target="11" value="preview / approve / export">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="7ZgKyEjWajWzH4AVK0ie" name="Page-2">
+    <mxGraphModel dx="1426" dy="843" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

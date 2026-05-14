@@ -1,0 +1,638 @@
+openapi: 3.1.0
+info:
+  title: Indice ERP Payroll Globalization API
+  version: 0.1.0-draft
+  description: >
+    Proposed vNext payroll contract for global payroll support across the
+    countries currently supported by HR user profiles. This contract is intended
+    to replace frontend-only statutory math with backend-driven country packs,
+    effective-dated rule versions, preview-first calculation, and immutable run snapshots.
+servers:
+  - url: /
+    description: Current server
+tags:
+  - name: Payroll Catalog
+  - name: Payroll Legal Entities
+  - name: Payroll Workers
+  - name: Payroll Runs
+paths:
+  /api/v1/hr/payroll/catalog/countries:
+    get:
+      tags: [Payroll Catalog]
+      summary: List supported payroll countries and subdivisions
+      operationId: listPayrollCountries
+      responses:
+        '200':
+          description: Supported payroll countries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PayrollCountryDescriptor'
+                required: [items]
+  /api/v1/hr/payroll/legal-entities/{legalEntityId}/profile:
+    get:
+      tags: [Payroll Legal Entities]
+      summary: Get a legal entity payroll profile
+      operationId: getLegalEntityPayrollProfile
+      parameters:
+        - $ref: '#/components/parameters/LegalEntityId'
+      responses:
+        '200':
+          description: Legal entity payroll profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalEntityPayrollProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Payroll Legal Entities]
+      summary: Upsert a legal entity payroll profile
+      operationId: upsertLegalEntityPayrollProfile
+      parameters:
+        - $ref: '#/components/parameters/LegalEntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegalEntityPayrollProfileInput'
+      responses:
+        '200':
+          description: Updated legal entity payroll profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalEntityPayrollProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/v1/hr/payroll/workers/{userCompanyId}/profile:
+    get:
+      tags: [Payroll Workers]
+      summary: Get a worker payroll profile
+      operationId: getWorkerPayrollProfile
+      parameters:
+        - $ref: '#/components/parameters/UserCompanyId'
+      responses:
+        '200':
+          description: Worker payroll profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerPayrollProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Payroll Workers]
+      summary: Upsert a worker payroll profile
+      operationId: upsertWorkerPayrollProfile
+      parameters:
+        - $ref: '#/components/parameters/UserCompanyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerPayrollProfileInput'
+      responses:
+        '200':
+          description: Updated worker payroll profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerPayrollProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/v1/hr/payroll/runs/preview:
+    post:
+      tags: [Payroll Runs]
+      summary: Preview a payroll run without creating it
+      operationId: previewPayrollRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayrollRunPreviewRequest'
+      responses:
+        '200':
+          description: Payroll preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRunPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/v1/hr/payroll/runs:
+    get:
+      tags: [Payroll Runs]
+      summary: List payroll runs
+      operationId: listPayrollRuns
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/PayrollRunStatus'
+        - in: query
+          name: legal_entity_id
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: country_code
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+        - in: query
+          name: subdivision_code
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payroll run list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PayrollRun'
+                required: [items]
+    post:
+      tags: [Payroll Runs]
+      summary: Create a payroll draft run from validated scope
+      operationId: createPayrollRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayrollRunCreateRequest'
+      responses:
+        '201':
+          description: Draft payroll run created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRunDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/v1/hr/payroll/runs/{runId}:
+    get:
+      tags: [Payroll Runs]
+      summary: Get payroll run detail
+      operationId: getPayrollRun
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Payroll run detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRunDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/hr/payroll/runs/{runId}/calculate:
+    post:
+      tags: [Payroll Runs]
+      summary: Recalculate a draft payroll run
+      operationId: calculatePayrollRun
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Recalculated payroll run detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRunDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/hr/payroll/runs/{runId}/approve:
+    post:
+      tags: [Payroll Runs]
+      summary: Approve a payroll run
+      operationId: approvePayrollRun
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Approved payroll run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRunDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/hr/payroll/runs/{runId}/mark-paid:
+    post:
+      tags: [Payroll Runs]
+      summary: Mark an approved payroll run as paid
+      operationId: markPayrollRunPaid
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Paid payroll run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRunDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    RunId:
+      in: path
+      name: runId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    UserCompanyId:
+      in: path
+      name: userCompanyId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    LegalEntityId:
+      in: path
+      name: legalEntityId
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    PayrollCountryDescriptor:
+      type: object
+      properties:
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+        country_name:
+          type: string
+        default_currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        supported_subdivisions:
+          type: array
+          items:
+            type: string
+        available_packs:
+          type: array
+          items:
+            type: string
+      required:
+        - country_code
+        - country_name
+        - default_currency
+        - supported_subdivisions
+        - available_packs
+    LegalEntityPayrollProfile:
+      allOf:
+        - $ref: '#/components/schemas/LegalEntityPayrollProfileInput'
+        - type: object
+          properties:
+            legal_entity_id:
+              type: integer
+              format: int64
+            company_id:
+              type: integer
+              format: int64
+          required:
+            - legal_entity_id
+            - company_id
+    LegalEntityPayrollProfileInput:
+      type: object
+      properties:
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+        subdivision_code:
+          type: string
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        employer_tax_id:
+          type: string
+        social_security_registration:
+          type: string
+        pay_calendar_code:
+          type: string
+      required:
+        - country_code
+        - currency
+        - pay_calendar_code
+    WorkerPayrollProfile:
+      allOf:
+        - $ref: '#/components/schemas/WorkerPayrollProfileInput'
+        - type: object
+          properties:
+            user_company_id:
+              type: integer
+              format: int64
+          required:
+            - user_company_id
+    WorkerPayrollProfileInput:
+      type: object
+      properties:
+        legal_entity_id:
+          type: integer
+          format: int64
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+        subdivision_code:
+          type: string
+        compensation_type:
+          type: string
+          enum: [salary, hourly, mixed]
+        base_salary_amount:
+          type: number
+          format: double
+        hourly_rate_amount:
+          type: number
+          format: double
+        tax_identifiers:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - legal_entity_id
+        - country_code
+        - compensation_type
+    PayrollRunStatus:
+      type: string
+      enum: [draft, calculated, approved, paid, cancelled]
+    PayrollRunPreviewRequest:
+      type: object
+      properties:
+        legal_entity_id:
+          type: integer
+          format: int64
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+        subdivision_code:
+          type: string
+        pay_period:
+          type: string
+          enum: [weekly, biweekly, monthly]
+        period_start_date:
+          type: string
+          format: date
+        period_end_date:
+          type: string
+          format: date
+        worker_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+        - legal_entity_id
+        - country_code
+        - pay_period
+        - period_start_date
+        - period_end_date
+    PayrollRunCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/PayrollRunPreviewRequest'
+        - type: object
+          properties:
+            preview_token:
+              type: string
+          required:
+            - preview_token
+    PayrollRunPreviewResponse:
+      type: object
+      properties:
+        scope:
+          $ref: '#/components/schemas/PayrollRunScope'
+        rule_version:
+          type: string
+        currency:
+          type: string
+        workers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollWorkerResult'
+        totals:
+          $ref: '#/components/schemas/PayrollTotals'
+        validation_messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationMessage'
+      required:
+        - scope
+        - rule_version
+        - currency
+        - workers
+        - totals
+        - validation_messages
+    PayrollRun:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/PayrollRunStatus'
+        scope:
+          $ref: '#/components/schemas/PayrollRunScope'
+        currency:
+          type: string
+        users_count:
+          type: integer
+        gross_amount:
+          type: number
+          format: double
+        deductions_amount:
+          type: number
+          format: double
+        employer_contributions_amount:
+          type: number
+          format: double
+        net_amount:
+          type: number
+          format: double
+      required:
+        - id
+        - status
+        - scope
+        - currency
+        - users_count
+        - gross_amount
+        - deductions_amount
+        - employer_contributions_amount
+        - net_amount
+    PayrollRunDetailResponse:
+      type: object
+      properties:
+        run:
+          $ref: '#/components/schemas/PayrollRun'
+        workers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollWorkerResult'
+      required:
+        - run
+        - workers
+    PayrollRunScope:
+      type: object
+      properties:
+        legal_entity_id:
+          type: integer
+          format: int64
+        country_code:
+          type: string
+        subdivision_code:
+          type: string
+        pay_period:
+          type: string
+        period_start_date:
+          type: string
+          format: date
+        period_end_date:
+          type: string
+          format: date
+      required:
+        - legal_entity_id
+        - country_code
+        - pay_period
+        - period_start_date
+        - period_end_date
+    PayrollWorkerResult:
+      type: object
+      properties:
+        user_company_id:
+          type: integer
+          format: int64
+        country_code:
+          type: string
+        subdivision_code:
+          type: string
+        rule_version:
+          type: string
+        gross_amount:
+          type: number
+          format: double
+        deductions_amount:
+          type: number
+          format: double
+        employer_contributions_amount:
+          type: number
+          format: double
+        net_amount:
+          type: number
+          format: double
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollComponent'
+      required:
+        - user_company_id
+        - country_code
+        - rule_version
+        - gross_amount
+        - deductions_amount
+        - employer_contributions_amount
+        - net_amount
+        - components
+    PayrollComponent:
+      type: object
+      properties:
+        code:
+          type: string
+        category:
+          type: string
+          enum: [earning, deduction, employer_contribution]
+        label:
+          type: string
+        amount:
+          type: number
+          format: double
+        source_type:
+          type: string
+          enum: [statutory, attendance, recurring, manual]
+      required:
+        - code
+        - category
+        - label
+        - amount
+        - source_type
+    PayrollTotals:
+      type: object
+      properties:
+        gross_amount:
+          type: number
+          format: double
+        deductions_amount:
+          type: number
+          format: double
+        employer_contributions_amount:
+          type: number
+          format: double
+        net_amount:
+          type: number
+          format: double
+      required:
+        - gross_amount
+        - deductions_amount
+        - employer_contributions_amount
+        - net_amount
+    ValidationMessage:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [info, warning, error]
+        code:
+          type: string
+        message:
+          type: string
+      required:
+        - level
+        - code
+        - message
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
