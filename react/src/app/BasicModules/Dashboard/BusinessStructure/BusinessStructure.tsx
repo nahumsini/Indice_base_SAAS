@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Country } from 'country-state-city';
 import { CheckCircle2, X } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
-import { SaveChangesBar } from '../../../components/SaveChangesBar';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLanguage } from '../../../shared/context';
 import { configCenterApi, type ConfigCenterEmpresaMapUnit } from '../../../api/configCenter';
@@ -120,6 +119,7 @@ const LEGACY_HEADQUARTERS_LOCATION_NAME = 'Headquarters';
 const CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME = 'Corporate office';
 const MODAL_PRIORITY_COUNTRY_CODES = ['CA', 'US', 'MX', 'CO', 'BR'] as const;
 const MODAL_STATE_DROPDOWN_COUNTRY_CODES = ['MX', 'US', 'CA', 'CO', 'BR'] as const;
+const BUSINESS_STRUCTURE_AUTO_SAVE_DEBOUNCE_MS = 900;
 
 const modalCountryOptionsSource = Country.getAllCountries().map((country) => ({
   code: country.isoCode,
@@ -353,16 +353,6 @@ const buildManualLocationSaveValues = <T extends {
       cp: postalValidation.normalized,
     },
   };
-};
-
-const validateRequiredGoogleMapsLink = (
-  values: LocationCoordinateFormValues,
-  label: string,
-) => {
-  if (values.googleMapsUrl.trim().length === 0) {
-    return `${label} Google Maps link is required.`;
-  }
-  return '';
 };
 
 const buildConfigCoordinateFields = (source: LocationCoordinateData) => ({
@@ -731,6 +721,8 @@ export default function BusinessStructure() {
     title: '',
   });
   const [successToastMessage, setSuccessToastMessage] = useState('');
+  const currentSnapshotRef = useRef<BusinessStructureSnapshot | null>(null);
+  const failedAutoSaveKeyRef = useRef('');
 
   const hideLoadingOverlay = () => {
     setLoadingOverlay({
@@ -757,6 +749,10 @@ export default function BusinessStructure() {
     }),
     [companyAddress, companyLocation, companyLogo, companyName, description, estructuraType, industry, unidades],
   );
+
+  useEffect(() => {
+    currentSnapshotRef.current = currentSnapshot;
+  }, [currentSnapshot]);
 
   const hasUnsavedChanges = useMemo(
     () => baselineSnapshot !== null
@@ -1088,12 +1084,6 @@ export default function BusinessStructure() {
       return;
     }
 
-    const googleMapsValidation = validateRequiredGoogleMapsLink(unidadFormValues, 'Unit');
-    if (googleMapsValidation) {
-      setLoadError(googleMapsValidation);
-      return;
-    }
-
     const coordinateValidation = buildCoordinateSaveValues(unidadFormValues);
     if (coordinateValidation.ok === false) {
       setLoadError(coordinateValidation.message);
@@ -1157,12 +1147,6 @@ export default function BusinessStructure() {
     const emailValidation = validateOptionalEmail(negocioFormValues.email);
     if (!emailValidation.ok) {
       setLoadError(t.loginPage.emailError);
-      return;
-    }
-
-    const googleMapsValidation = validateRequiredGoogleMapsLink(negocioFormValues, 'Business');
-    if (googleMapsValidation) {
-      setLoadError(googleMapsValidation);
       return;
     }
 
@@ -1291,88 +1275,134 @@ export default function BusinessStructure() {
     });
   };
 
-  const handlePersistBusinessStructure = async () => {
+  const handlePersistBusinessStructure = async ({ silent = false }: { silent?: boolean } = {}) => {
     setIsSaving(true);
     setLoadError('');
 
+    const snapshotToPersist = cloneSnapshot(currentSnapshot);
     const companyCoordinateValidation = buildCoordinateSaveValues(companyLocation);
     if (companyCoordinateValidation.ok === false) {
       setLoadError(companyCoordinateValidation.message);
       setIsSaving(false);
       return;
     }
-    if (
-      companyCoordinateValidation.ok
-      && (companyCoordinateValidation.values.latitude == null || companyCoordinateValidation.values.longitude == null)
-    ) {
-      setLoadError('Corporate office coordinates are required before saving.');
-      setIsSaving(false);
-      return;
-    }
 
     try {
-      await runStructureFeedbackTask({
-        title: structure.messages.saveOverlay,
-        description: structure.messages.saveOverlayDescription,
-        successMessage: structure.messages.saveSuccess,
-        minimumDurationMs: 2500,
-        task: async () => {
-          const nextUnidades = companyCoordinateValidation.ok
-            ? buildUnidadesWithCorporateOffice({
-                existingUnidades: unidades,
-                companyName,
-                companyLogo,
-                industry,
-                coordinates: companyCoordinateValidation.values,
-                includeOtherUnits: estructuraType === 'multi',
-              })
-            : unidades;
+      const task = async () => {
+        const nextUnidades = buildUnidadesWithCorporateOffice({
+          existingUnidades: unidades,
+          companyName,
+          companyLogo,
+          industry,
+          coordinates: companyCoordinateValidation.values,
+          includeOtherUnits: estructuraType === 'multi',
+        });
 
-          const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
-          const savedUnidades = mapConfigUnitsToState(response.map);
-          const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
+        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
+        const savedUnidades = mapConfigUnitsToState(response.map);
+        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
 
-          await configCenterApi.saveEmpresa({
-            nombre_empresa: companyName,
-            logo_url: companyLogo || null,
-            industria: industry,
-            descripcion: description,
-            address: companyAddress,
-            ...(companyCoordinateValidation.ok
-              ? {
-                  latitude: companyCoordinateValidation.values.latitude ?? null,
-                  longitude: companyCoordinateValidation.values.longitude ?? null,
-                  radius_meters: companyCoordinateValidation.values.radiusMeters ?? null,
-                  coordinate_source: companyCoordinateValidation.values.coordinateSource ?? null,
-                  google_maps_url: companyCoordinateValidation.values.googleMapsUrl ?? null,
-                  sync_company_location: false,
-                }
-              : {}),
-          });
+        await configCenterApi.saveEmpresa({
+          nombre_empresa: companyName,
+          logo_url: companyLogo || null,
+          industria: industry,
+          descripcion: description,
+          address: companyAddress,
+          latitude: companyCoordinateValidation.values.latitude ?? null,
+          longitude: companyCoordinateValidation.values.longitude ?? null,
+          radius_meters: companyCoordinateValidation.values.radiusMeters ?? null,
+          coordinate_source: companyCoordinateValidation.values.coordinateSource ?? null,
+          google_maps_url: companyCoordinateValidation.values.googleMapsUrl ?? null,
+          sync_company_location: false,
+        });
 
+        const savedSnapshot = cloneSnapshot(
+          createBusinessStructureSnapshot({
+            estructuraType,
+            unidades: committedUnidades,
+            companyName,
+            companyLogo,
+            industry,
+            description,
+            companyAddress,
+            companyLocation,
+          }),
+        );
+
+        const latestSnapshot = currentSnapshotRef.current;
+        const canApplyCommittedUnits = latestSnapshot
+          ? JSON.stringify(latestSnapshot.unidades) === JSON.stringify(snapshotToPersist.unidades)
+          : true;
+
+        if (canApplyCommittedUnits) {
           setUnidades(committedUnidades);
-          setBaselineSnapshot(
-            cloneSnapshot(
-              createBusinessStructureSnapshot({
-                estructuraType,
-                unidades: committedUnidades,
-                companyName,
-                companyLogo,
-                industry,
-                description,
-                companyAddress,
-                companyLocation,
-              }),
-            ),
-          );
-        },
-      });
+        }
+        setBaselineSnapshot(savedSnapshot);
+        failedAutoSaveKeyRef.current = '';
+      };
+
+      if (silent) {
+        await task();
+      } else {
+        await runStructureFeedbackTask({
+          title: structure.messages.saveOverlay,
+          description: structure.messages.saveOverlayDescription,
+          successMessage: structure.messages.saveSuccess,
+          minimumDurationMs: 2500,
+          task,
+        });
+      }
     } catch (error) {
+      failedAutoSaveKeyRef.current = JSON.stringify(snapshotToPersist);
       setLoadError(error instanceof Error ? error.message : structure.messages.saveError);
     } finally {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (
+      isLoading
+      || isSaving
+      || loadingOverlay.isVisible
+      || showUnidadModal
+      || showNegocioModal
+      || pendingDeleteTarget !== null
+      || !baselineSnapshot
+      || !hasUnsavedChanges
+    ) {
+      return undefined;
+    }
+
+    const coordinateValidation = buildCoordinateSaveValues(companyLocation);
+    if (coordinateValidation.ok === false) {
+      return undefined;
+    }
+
+    const autoSaveKey = JSON.stringify(currentSnapshot);
+    if (failedAutoSaveKeyRef.current === autoSaveKey) {
+      return undefined;
+    }
+
+    const saveTimer = window.setTimeout(() => {
+      void handlePersistBusinessStructure({ silent: true });
+    }, BUSINESS_STRUCTURE_AUTO_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(saveTimer);
+    };
+  }, [
+    baselineSnapshot,
+    companyLocation,
+    currentSnapshot,
+    hasUnsavedChanges,
+    isLoading,
+    isSaving,
+    loadingOverlay.isVisible,
+    pendingDeleteTarget,
+    showNegocioModal,
+    showUnidadModal,
+  ]);
 
   const handleDiscardChanges = () => {
     if (!baselineSnapshot || isSaving) {
@@ -1393,7 +1423,7 @@ export default function BusinessStructure() {
   };
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6">
       <div className="bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200 p-4 dark:border-purple-700/30 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1656,7 +1686,6 @@ export default function BusinessStructure() {
                             ...updates,
                           }))}
                           disabled={loadingOverlay.isVisible}
-                          requireGoogleMapsLink
                         />
                       </div>
                     </div>
@@ -1914,7 +1943,6 @@ export default function BusinessStructure() {
                             ...updates,
                           }))}
                           disabled={loadingOverlay.isVisible}
-                          requireGoogleMapsLink
                         />
                       </div>
                     </div>
@@ -2074,15 +2102,6 @@ export default function BusinessStructure() {
         ) : null}
       </ConfirmDeleteDialog>
 
-      <SaveChangesBar
-        isVisible={!isLoading && hasUnsavedChanges}
-        isSaving={isSaving}
-        onSave={handlePersistBusinessStructure}
-        onDiscard={handleDiscardChanges}
-        saveLabel={structure.actions.save}
-        savingLabel={structure.actions.saving}
-        discardLabel={t.panelInicial.profile.actions.discard}
-      />
     </div>
   );
 }
