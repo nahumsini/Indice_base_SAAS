@@ -45,11 +45,11 @@ Feature: Self attendance
     And the records should come from the self attendance calendar endpoint
 
   @implemented
-  Scenario: Self attendance can work without an HR employee record
-    Given a platform user has no linked HR employee profile
+  Scenario: Self attendance uses the logged-in user
+    Given a normal user is authenticated
     When the user opens self attendance and records an event
-    Then the backend should store the event against the platform user
-    And no HR employee should be automatically provisioned
+    Then the backend should store the event against the logged-in user
+    And no duplicate user profile should be automatically provisioned
 
   @implemented
   Scenario: User corrects their own daily record
@@ -61,6 +61,6 @@ Feature: Self attendance
   @planned @access-control
   Scenario: Normal user cannot request another user's attendance
     Given a normal user is authenticated
-    When the user tries to request another employee or user's attendance calendar
+    When the user tries to request another user's attendance calendar
     Then the backend should reject the request
     And the response should not include another person's attendance data

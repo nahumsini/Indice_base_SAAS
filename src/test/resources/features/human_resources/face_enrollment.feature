@@ -4,7 +4,7 @@ Feature: Face enrollment
 
   @implemented
   Scenario: HR user starts a face enrollment session
-    Given an authenticated company user opens an employee access profile
+    Given an authenticated hr user opens a user's attendance settings
     When the user starts a face enrollment session
     Then the backend should create an enrollment session
 
@@ -22,8 +22,8 @@ Feature: Face enrollment
 
   @implemented
   Scenario: HR user views and deletes face enrollment
-    Given an employee has a face enrollment
-    When the user requests the employee enrollment
+    Given a user has a face enrollment
+    When the user requests the user's enrollment
     Then the backend should return the enrollment
     When the user deletes the enrollment
     Then the backend should remove or deactivate it

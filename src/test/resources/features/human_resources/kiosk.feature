@@ -1,10 +1,10 @@
 @human-resources @kiosk
 Feature: Attendance kiosk
-  Kiosk devices allow employees to identify and record attendance events from configured locations.
+  Kiosk devices allow users to identify and record attendance events from configured locations.
 
   @implemented
   Scenario: HR user manages kiosk devices
-    Given an authenticated company user opens Attendance Control
+    Given an authenticated hr user opens Attendance Control
     When the user creates, updates, deletes, or rotates a kiosk device public token
     Then the backend should persist the kiosk device change
 
@@ -15,31 +15,31 @@ Feature: Attendance kiosk
     Then the backend should return kiosk bootstrap data without requiring a session
 
   @implemented
-  Scenario: Employee identifies with PIN on public kiosk
+  Scenario: User identifies with PIN on public kiosk
     Given an active kiosk device exists
-    And an employee has active PIN access
-    When the employee submits the PIN on the public kiosk
-    Then the backend should identify the employee for the kiosk session
+    And a user has active PIN access
+    When the user submits the PIN on the public kiosk
+    Then the backend should identify the user for the kiosk session
 
   @implemented
   Scenario: Public kiosk records a punch event
-    Given an employee has identified successfully on the public kiosk
-    When the employee submits a check-in, break, or check-out event
+    Given a user has identified successfully on the public kiosk
+    When the user submits a check-in, break, or check-out event
     Then the backend should record the attendance event
     And the response should include the updated attendance state
 
   @implemented
   Scenario: Kiosk rejects invalid checkout but records the auth attempt
-    Given an employee has no active check-in
-    When the employee attempts to check out from the kiosk
+    Given a user has no active check-in
+    When the user attempts to check out from the kiosk
     Then the backend should reject the checkout
     And the failed authorization attempt should be recorded
 
   @implemented
   Scenario: Kiosk rejects checkout while break is open
-    Given an employee has checked in
-    And the employee has started a break without ending it
-    When the employee attempts to check out
+    Given a user has checked in
+    And the user has started a break without ending it
+    When the user attempts to check out
     Then the backend should reject the checkout
 
   @planned @access-control
