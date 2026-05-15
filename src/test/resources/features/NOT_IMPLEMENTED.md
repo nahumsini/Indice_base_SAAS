@@ -43,8 +43,8 @@ This file lists flows that are documented in Gherkin but are not fully implement
 
 ## Human Resources
 
-- HR workspace visibility still needs role-based tab filtering.
-  - HR users should see HR management tabs.
+- HR workspace visibility still needs user-type-based tab filtering.
+  - Users with the hr user type should see HR management tabs.
   - Normal users should see only personal HR areas.
   - Related scenarios: `HR user sees HR management tabs`, `Normal user sees only personal HR access`
 
@@ -55,12 +55,12 @@ This file lists flows that are documented in Gherkin but are not fully implement
 - Normal users should not be able to call HR administration endpoints directly.
   - Related scenario: `Normal user cannot call HR administration endpoints directly`
 
-- Employee directory access still needs normal-user restriction.
-  - Normal users should not see all employees.
-  - Related scenario: `Normal user cannot see all employees`
+- User directory access still needs normal-user restriction.
+  - Normal users should not see all users or user profiles.
+  - Related scenario: `Normal user cannot see all users`
 
 - Attendance control still needs normal-user restriction.
-  - Normal users should not manage schedules, locations, assignments, or corrections for other employees.
+  - Normal users should not manage schedules, locations, assignments, or corrections for other users.
   - Related scenario: `Normal user cannot manage attendance control`
 
 - Self-service attendance still needs explicit direct-access protection for other users' data.
@@ -89,7 +89,7 @@ This file lists flows that are documented in Gherkin but are not fully implement
 - Permissions and absence requests are frontend-only right now and still need backend persistence.
   - Requests should survive page refresh.
   - Normal users should see only their own requests.
-  - Manager approval actions should be role-restricted.
+  - Manager approval actions should be user-type-restricted.
   - Related scenarios: `Permission requests persist in the backend`, `Normal user sees only their own permission requests`
 
 - Incentives are frontend-only right now and still need backend persistence.
@@ -99,7 +99,7 @@ This file lists flows that are documented in Gherkin but are not fully implement
   - Related scenarios: `Incentives persist in the backend`, `Normal user cannot manage incentives`
 
 - HR KPIs are frontend-only/static right now and still need backend-calculated values.
-  - KPI values should come from employee, attendance, payroll, permission, asset, and record data.
+  - KPI values should come from user, user profile, attendance, payroll, permission, asset, and record data.
   - KPI values should respect the user's allowed data scope.
   - Related scenarios: `HR KPIs are calculated from backend data`, `HR KPIs respect user data scope`
 

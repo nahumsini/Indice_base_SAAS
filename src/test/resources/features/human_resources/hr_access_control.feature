@@ -1,6 +1,6 @@
 @human-resources @access-control
 Feature: Human Resources access control
-  HR module visibility should match the user's role and data ownership.
+  HR module visibility should match the user's type and data ownership.
 
   @implemented
   Scenario: HR shell contains all HR workspaces
@@ -16,7 +16,7 @@ Feature: Human Resources access control
 
   @planned @access-control
   Scenario: HR user sees HR management tabs
-    Given an HR user is authenticated
+    Given an hr user is authenticated
     When the user opens Human Resources
     Then the Collaborators tab should be visible
     And the Attendance tab should be visible
@@ -45,4 +45,4 @@ Feature: Human Resources access control
     Given a normal user is authenticated
     When the user calls an HR administration endpoint directly
     Then the backend should reject the request
-    And the response should not include company-wide employee data
+    And the response should not include company-wide user or user-profile data
