@@ -51,7 +51,7 @@ Feature: Tasks, projects, and agenda
 
   @planned
   Scenario: User creates a task linked to a process or project
-    Given an authenticated company user opens Tasks or Agenda
+    Given an authenticated user opens Tasks or Agenda
     When the user creates a task
     Then the backend should persist the task in process task storage
     And the task should appear in Agenda and Projects where relevant
@@ -71,7 +71,7 @@ Feature: Tasks, projects, and agenda
 
   @planned
   Scenario: User persists org chart changes
-    Given an authenticated company user opens Org Chart
+    Given an authenticated user opens Org Chart
     When the user changes reporting assignments
     Then the backend should persist the org chart state
     And the structure should not depend only on browser local storage

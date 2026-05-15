@@ -4,13 +4,13 @@ Feature: Recurring processes
 
   @implemented
   Scenario: User lists recurring processes
-    Given an authenticated company user opens the Processes tab
+    Given an authenticated user opens the Processes tab
     When the frontend requests recurring processes
     Then the backend should return the company's non-deleted process records
 
   @implemented
   Scenario: User creates a recurring process
-    Given an authenticated company user opens the Processes tab
+    Given an authenticated user opens the Processes tab
     When the user submits a valid process definition
     Then the backend should create the process
     And the process should receive the next yearly process folio
