@@ -4,21 +4,21 @@ Feature: Company settings
 
   @implemented
   Scenario: User loads company settings
-    Given an authenticated company user opens company settings
+    Given an authenticated admin user opens company settings
     When the frontend requests the company profile
     Then the backend should return the company settings envelope
     And the response should include saved configuration values when they exist
 
   @implemented
   Scenario: User saves company settings
-    Given an authenticated company user edits company settings
+    Given an authenticated admin user edits company settings
     When the user saves the company profile
     Then the backend should persist the settings JSON
     And existing template fields should be preserved
 
   @implemented
   Scenario: User saves headquarters location
-    Given an authenticated company user enters headquarters location and address values
+    Given an authenticated admin user enters headquarters location and address values
     When the user saves company settings
     Then the backend should persist the headquarters location and address
 
