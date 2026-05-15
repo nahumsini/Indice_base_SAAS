@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 
 import {
@@ -10,18 +10,18 @@ import {
   type SavePersonalPerformancePayload,
 } from '../../../api/HomePanel/PersonalPerformance/personalPerformance';
 import {
-  LoadingBarOverlay,
   runWithMinimumDuration,
 } from '../../../components/LoadingBarOverlay';
-import { SaveChangesBar } from '../../../components/SaveChangesBar';
-import { SuccessToast } from '../../../components/SuccessToast';
 import { Button } from '../../../components/ui/button';
-import { useLanguage } from '../../../shared/context';
 import {
   PersonalPerformancePrintPortal,
   type PersonalPerformancePdfDocumentProps,
 } from './PersonalPerformancePdf';
-import { buildPersonalPerformanceScoreReport } from './personalPerformanceScoring';
+import {
+  usePersonalPerformanceResolvedLocale,
+  usePersonalPerformanceTranslations,
+} from './hooks/usePersonalPerformanceTranslations';
+import { buildPersonalPerformanceEngineReport } from './personalPerformanceEngine';
 import {
   buildReportFileName,
   getReportUserDisplayName,
@@ -63,7 +63,7 @@ const ANSWER_KEY_PREFIXES: Record<SectionId, string> = {
 };
 
 const DEFAULT_QUESTION_COUNT = 10;
-const PERSONAL_PERFORMANCE_SAVE_MINIMUM_LOADING_MS = 2500;
+const PERSONAL_PERFORMANCE_AUTO_SAVE_DEBOUNCE_MS = 700;
 const PERSONAL_PERFORMANCE_REPORT_ID_PREFIX = 'IDX-PPI';
 
 const SECTION_METADATA: Array<{
@@ -282,9 +282,9 @@ const formatPersonalPerformanceProgressText = (template: string, answered: numbe
 );
 
 export default function PersonalPerformance() {
-  const { currentLanguage, t } = useLanguage();
-  const diagnosisUi = t.panelInicial.diagnosis;
-  const performanceUi = t.panelInicial.personalPerformance;
+  const performanceUi = usePersonalPerformanceTranslations();
+  const resolvedLocale = usePersonalPerformanceResolvedLocale();
+  const actionsUi = performanceUi.actions;
   const [activeSection, setActiveSection] = useState<SectionId | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [sectionState, setSectionState] = useState<PersonalPerformanceState>(createEmptyPersonalPerformanceState);
@@ -292,9 +292,10 @@ export default function PersonalPerformance() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [saveMessage, setSaveMessage] = useState('');
   const [reportUserName, setReportUserName] = useState('');
   const [printJob, setPrintJob] = useState<PersonalPerformancePdfDocumentProps | null>(null);
+  const sectionStateRef = useRef(sectionState);
+  const failedAutoSaveKeyRef = useRef('');
 
   const questions = useMemo<PersonalPerformanceQuestions>(() => performanceUi.questions, [performanceUi.questions]);
   const sections = useMemo(() => SECTION_METADATA.map((section) => ({
@@ -311,11 +312,13 @@ export default function PersonalPerformance() {
     stress_clarity: performanceUi.sections.stress_clarity.title,
     balance_sustainability: performanceUi.sections.balance_sustainability.title,
   }), [performanceUi.sections]);
-  const scoreReport = useMemo(() => buildPersonalPerformanceScoreReport({
+  const engineReport = useMemo(() => buildPersonalPerformanceEngineReport({
     questions,
     sections: sectionState,
     sectionTitles,
-  }), [questions, sectionState, sectionTitles]);
+    locale: resolvedLocale,
+  }), [questions, resolvedLocale, sectionState, sectionTitles]);
+  const scoreReport = engineReport.scoreReport;
   const reportId = useMemo(() => {
     const now = new Date();
     const stamp = [
@@ -328,6 +331,10 @@ export default function PersonalPerformance() {
 
     return `${PERSONAL_PERFORMANCE_REPORT_ID_PREFIX}-${stamp}`;
   }, []);
+
+  useEffect(() => {
+    sectionStateRef.current = sectionState;
+  }, [sectionState]);
 
   useEffect(() => {
     let active = true;
@@ -483,14 +490,14 @@ export default function PersonalPerformance() {
     const totalSectionQuestions = questions[sectionId].length;
 
     if (answeredCount <= 0) {
-      return diagnosisUi.start;
+      return actionsUi.start;
     }
 
     if (answeredCount >= totalSectionQuestions) {
-      return isSectionDirty(sectionId) ? diagnosisUi.reviewAnswers : diagnosisUi.doAgain;
+      return isSectionDirty(sectionId) ? actionsUi.reviewAnswers : actionsUi.doAgain;
     }
 
-    return diagnosisUi.continue;
+    return actionsUi.continue;
   };
   const getProgressEncouragement = (answeredCount: number, questionCount: number) => {
     if (questionCount <= 0 || answeredCount >= questionCount) {
@@ -524,9 +531,6 @@ export default function PersonalPerformance() {
       setErrorMessage('');
     }
 
-    if (saveMessage) {
-      setSaveMessage('');
-    }
   };
 
   const handleRestartSection = (sectionId: SectionId) => {
@@ -544,9 +548,6 @@ export default function PersonalPerformance() {
       setErrorMessage('');
     }
 
-    if (saveMessage) {
-      setSaveMessage('');
-    }
   };
 
   const handleNextQuestion = () => {
@@ -575,65 +576,68 @@ export default function PersonalPerformance() {
     setCurrentQuestion(getSectionEntryQuestionIndex(sectionState[sectionId], questions[sectionId]));
   };
 
-  const handleDiscardChanges = () => {
-    if (!baselineSectionState || isSaving) {
-      return;
-    }
-
-    setSectionState(baselineSectionState);
-    setErrorMessage('');
-    setSaveMessage('');
-
-    if (activeSection) {
-      setCurrentQuestion(getNextQuestionIndex(baselineSectionState[activeSection], questions[activeSection]));
-    }
-  };
-
-  const handleSave = async () => {
-    if (!baselineSectionState || !hasUnsavedChanges) {
+  const handleSave = async (
+    stateToSave = sectionState,
+    baselineToSave = baselineSectionState,
+  ) => {
+    if (!baselineToSave || areStatesEqual(stateToSave, baselineToSave)) {
       return;
     }
 
     setIsSaving(true);
     setErrorMessage('');
-    setSaveMessage('');
 
     try {
-      const response = await runWithMinimumDuration(
-        personalPerformanceApi.savePersonalPerformance(
-          buildSavePayload(sectionState, baselineSectionState),
-        ),
-        PERSONAL_PERFORMANCE_SAVE_MINIMUM_LOADING_MS,
+      const response = await personalPerformanceApi.savePersonalPerformance(
+        buildSavePayload(stateToSave, baselineToSave),
       );
 
       const nextState = createStateFromResponse(response, questions);
 
-      setSectionState(nextState);
       setBaselineSectionState(nextState);
-      setSaveMessage(performanceUi.messages.saveSuccess);
-
-      if (activeSection) {
-        setActiveSection(null);
-        setCurrentQuestion(0);
+      if (areStatesEqual(sectionStateRef.current, stateToSave)) {
+        setSectionState(nextState);
       }
+      failedAutoSaveKeyRef.current = '';
     } catch (error) {
+      failedAutoSaveKeyRef.current = JSON.stringify(stateToSave);
       setErrorMessage(error instanceof Error ? error.message : performanceUi.messages.saveError);
     } finally {
       setIsSaving(false);
     }
   };
 
+  useEffect(() => {
+    if (isLoading || isSaving || !baselineSectionState || !hasUnsavedChanges) {
+      return undefined;
+    }
+
+    const autoSaveKey = JSON.stringify(sectionState);
+    if (failedAutoSaveKeyRef.current === autoSaveKey) {
+      return undefined;
+    }
+
+    const saveTimer = window.setTimeout(() => {
+      void handleSave(sectionState, baselineSectionState);
+    }, PERSONAL_PERFORMANCE_AUTO_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(saveTimer);
+    };
+  }, [baselineSectionState, hasUnsavedChanges, isLoading, isSaving, sectionState]);
+
   const handlePrint = () => {
     setErrorMessage('');
     setPrintJob({
       report: scoreReport,
+      engineReport,
       title: performanceUi.title,
       subtitle: performanceUi.description,
       generatedAt: new Date(),
       reportId,
       copy: performanceUi.pdf,
       fileName: buildReportFileName(performanceUi.pdf.fileName, reportUserName),
-      locale: currentLanguage.code,
+      locale: resolvedLocale,
       userLabel: reportUserName,
     });
   };
@@ -671,7 +675,7 @@ export default function PersonalPerformance() {
 
   return (
     <>
-      <div className={`space-y-6 ${hasUnsavedChanges ? 'pb-24 sm:pb-20' : ''}`}>
+      <div className="space-y-6">
         <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-700/30 dark:bg-purple-900/10 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -824,7 +828,7 @@ export default function PersonalPerformance() {
                         onClick={() => setActiveSection(null)}
                         className="w-full sm:w-auto"
                       >
-                        {diagnosisUi.close}
+                        {actionsUi.close}
                       </Button>
                     </div>
                     <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
@@ -834,7 +838,7 @@ export default function PersonalPerformance() {
                     <div className="mb-8">
                       <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {diagnosisUi.question} {activeQuestionIndex + 1} {diagnosisUi.of} {totalSectionQuestions}
+                          {actionsUi.question} {activeQuestionIndex + 1} {actionsUi.of} {totalSectionQuestions}
                         </span>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           {formatPersonalPerformanceProgressText(
@@ -902,7 +906,7 @@ export default function PersonalPerformance() {
                         className="w-full gap-2 sm:w-auto"
                       >
                         <ChevronLeft className="h-4 w-4" />
-                        {diagnosisUi.previous}
+                        {actionsUi.previous}
                       </Button>
 
                       {activeQuestionIndex < totalSectionQuestions - 1 ? (
@@ -911,7 +915,7 @@ export default function PersonalPerformance() {
                           onClick={handleNextQuestion}
                           className="w-full gap-2 bg-purple-600 hover:bg-purple-700 sm:w-auto"
                         >
-                          {diagnosisUi.next}
+                          {actionsUi.next}
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       ) : null}
@@ -939,28 +943,6 @@ export default function PersonalPerformance() {
           })}
         </div>
       </div>
-
-      <SaveChangesBar
-        isVisible={hasUnsavedChanges}
-        isSaving={isSaving}
-        onSave={handleSave}
-        onDiscard={handleDiscardChanges}
-        saveLabel={diagnosisUi.actions.save}
-        savingLabel={diagnosisUi.actions.saving}
-        discardLabel={diagnosisUi.actions.discard}
-        message={performanceUi.messages.unsavedChanges}
-      />
-
-      <LoadingBarOverlay
-        isVisible={isSaving}
-        title={diagnosisUi.actions.saving}
-      />
-
-      <SuccessToast
-        isVisible={Boolean(saveMessage)}
-        message={saveMessage}
-        onClose={() => setSaveMessage('')}
-      />
 
       <PersonalPerformancePrintPortal
         job={printJob}

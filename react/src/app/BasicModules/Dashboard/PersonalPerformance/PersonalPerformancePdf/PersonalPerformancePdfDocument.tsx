@@ -1,23 +1,21 @@
-import {
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-} from 'recharts';
-
 import type { PersonalPerformanceSectionKey } from '../../../../api/HomePanel/PersonalPerformance/personalPerformance';
-import type { PersonalPerformancePdfCopy } from '../../../../context/LanguageContext';
 import type {
-  PerformanceQuestionScore,
   PerformanceSectionScore,
   PersonalPerformanceScoreReport,
 } from '../personalPerformanceScoring';
+import type {
+  AggregatedHumanTag,
+  HumanInsightType,
+  HumanPerformanceInsight,
+  PersonalPerformanceEngineReport,
+} from '../personalPerformanceEngine';
+import type { PersonalPerformancePdfCopy } from '../translations';
 
 import '../../BusinessProfile/BusinessDiagnosisPdf/businessDiagnosisPdf.css';
 
 export type PersonalPerformancePdfDocumentProps = {
   report: PersonalPerformanceScoreReport;
+  engineReport?: PersonalPerformanceEngineReport;
   title: string;
   subtitle: string;
   generatedAt: Date;
@@ -28,22 +26,6 @@ export type PersonalPerformancePdfDocumentProps = {
   userLabel?: string | null;
   logoUrl?: string | null;
 };
-
-const SECTION_COLOR_CLASS: Record<PersonalPerformanceSectionKey, string> = {
-  sleep_recovery: 'people',
-  nutrition_energy: 'finance',
-  stress_clarity: 'products',
-  balance_sustainability: 'processes',
-};
-
-const RADAR_COLORS = {
-  people: { stroke: '#2563eb', fill: '#dbeafe' },
-  processes: { stroke: '#d97706', fill: '#fef3c7' },
-  products: { stroke: '#ea580c', fill: '#ffedd5' },
-  finance: { stroke: '#059669', fill: '#dcfce7' },
-};
-
-const RADAR_KEYS = ['people', 'processes', 'products', 'finance'] as const;
 
 const formatReportDate = (value: Date, locale: string) => new Intl.DateTimeFormat(locale, {
   year: 'numeric',
@@ -65,17 +47,6 @@ const sortSectionsByScore = (report: PersonalPerformanceScoreReport) => (
   })
 );
 
-const getLowestQuestion = (section: PerformanceSectionScore): PerformanceQuestionScore | null => {
-  const answeredQuestions = section.questions.filter((question) => question.selectedOptionValue !== null);
-  if (answeredQuestions.length === 0) {
-    return null;
-  }
-
-  return answeredQuestions.reduce((lowestQuestion, question) => (
-    question.points < lowestQuestion.points ? question : lowestQuestion
-  ));
-};
-
 const getScoreBand = (score: number) => {
   if (score <= 40) {
     return 'critical';
@@ -91,17 +62,6 @@ const getScoreBand = (score: number) => {
   }
 
   return 'optimized';
-};
-
-const getScoreTone = (score: number) => {
-  if (score >= 76) {
-    return 'high';
-  }
-  if (score >= 60) {
-    return 'medium';
-  }
-
-  return 'low';
 };
 
 const getProgressStepIndex = (score: number) => {
@@ -129,347 +89,463 @@ const applyTemplate = (template: string, values: Record<string, string | number>
   ), template)
 );
 
-const getExecutiveSummary = (
+const getSectionInterpretation = (section: PerformanceSectionScore, copy: PersonalPerformancePdfCopy) => (
+  applyTemplate(copy.sectionInterpretations[getScoreBand(section.averageScore)], {
+    section: copy.focusLabels[section.key] ?? section.title,
+  })
+);
+
+const getDisplaySectionTitle = (
+  section: PerformanceSectionScore,
+  copy: PersonalPerformancePdfCopy,
+) => copy.focusLabels[section.key] ?? section.title;
+
+const getFallbackExecutiveSummary = (
   report: PersonalPerformanceScoreReport,
   strongestSection: PerformanceSectionScore,
   weakestSection: PerformanceSectionScore,
   copy: PersonalPerformancePdfCopy,
 ) => applyTemplate(copy.summaryTemplate, {
   score: report.overall.averageScore,
-  strongest: strongestSection.title,
-  weakest: weakestSection.title,
+  strongest: getDisplaySectionTitle(strongestSection, copy),
+  weakest: getDisplaySectionTitle(weakestSection, copy),
 });
 
-const getSectionInterpretation = (section: PerformanceSectionScore, copy: PersonalPerformancePdfCopy) => (
-  applyTemplate(copy.sectionInterpretations[getScoreBand(section.averageScore)], {
-    section: section.title,
-  })
-);
-
-const getOpportunityNarrative = (section: PerformanceSectionScore, copy: PersonalPerformancePdfCopy) => {
-  const lowestQuestion = getLowestQuestion(section);
-
-  if (!lowestQuestion) {
-    return copy.incompleteOpportunity;
+const getInsightLabel = (
+  type: HumanInsightType,
+  labels: PersonalPerformanceEngineReport['labels'] | undefined,
+  editorial: PersonalPerformancePdfCopy['editorial'],
+) => {
+  if (!labels) {
+    return editorial.insightLabel;
   }
 
-  return applyTemplate(copy.opportunityTemplate, {
-    question: lowestQuestion.question,
-    answer: lowestQuestion.selectedOptionLabel ?? copy.pending,
-  });
+  const labelMap: Record<HumanInsightType, string> = {
+    main_personal_operational_risk: labels.mainRisk,
+    dominant_pattern: labels.pattern,
+    wear_source: labels.wearSource,
+    detected_dependency: labels.dependency,
+    sustainability_risk: labels.sustainability,
+    burnout_risk: labels.burnoutRisk,
+    highest_roi_habit: labels.habitRoi,
+    first_boundary: labels.firstBoundary,
+    immediate_action: labels.action,
+  };
+
+  return labelMap[type];
 };
 
-const getPrioritySections = (report: PersonalPerformanceScoreReport) => (
-  [...report.sections]
-    .sort((left, right) => left.averageScore - right.averageScore)
-    .slice(0, 3)
+const getInsight = (
+  engineReport: PersonalPerformanceEngineReport | undefined,
+  type: HumanInsightType,
+) => engineReport?.insights.find((insight) => insight.type === type);
+
+const getTagForSection = (
+  engineReport: PersonalPerformanceEngineReport | undefined,
+  sectionKey: PersonalPerformanceSectionKey,
+): AggregatedHumanTag | undefined => (
+  engineReport?.tags.find((tag) => tag.sections.includes(sectionKey) && tag.category !== 'capacity')
+  ?? engineReport?.tags.find((tag) => tag.sections.includes(sectionKey))
 );
+
+const getProfileFallback = (
+  engineReport: PersonalPerformanceEngineReport | undefined,
+  fallback: string,
+) => engineReport?.profile.title ?? fallback;
 
 export function PersonalPerformancePdfDocument({
   report,
-  title,
+  engineReport,
   subtitle,
   generatedAt,
   reportId,
-  copy,
+  copy: sourceCopy,
   locale,
   userLabel,
-  logoUrl,
 }: PersonalPerformancePdfDocumentProps) {
-  const sortedSections = sortSectionsByScore(report);
+  const copy = sourceCopy;
+  const editorial = copy.editorial;
+  const effectiveReport = engineReport?.scoreReport ?? report;
+  const sortedSections = sortSectionsByScore(effectiveReport);
   const strongestSection = sortedSections[0];
   const weakestSection = sortedSections[sortedSections.length - 1];
-  const overallScoreTone = getScoreTone(report.overall.averageScore);
-  const currentProgressStep = getProgressStepIndex(report.overall.averageScore);
+  const hasAnyAnswers = effectiveReport.overall.answeredCount > 0;
+  const formattedDate = formatReportDate(generatedAt, locale);
+  const reportUserName = getEntityLabel(userLabel, copy.userFallback);
+  const confidenceValue = engineReport?.confidenceScore ?? effectiveReport.overall.completionPercent;
+  const overallLevel = getLevelLabel(effectiveReport.overall.level.level, copy);
+  const currentProgressStep = getProgressStepIndex(effectiveReport.overall.averageScore);
   const maturityProgressPercent = copy.progressLevels.length > 1
     ? (currentProgressStep / (copy.progressLevels.length - 1)) * 100
     : 0;
-  const radarData = report.sections.map((section) => ({
-    label: section.title,
-    people: SECTION_COLOR_CLASS[section.key] === 'people' ? section.averageScore : 0,
-    processes: SECTION_COLOR_CLASS[section.key] === 'processes' ? section.averageScore : 0,
-    products: SECTION_COLOR_CLASS[section.key] === 'products' ? section.averageScore : 0,
-    finance: SECTION_COLOR_CLASS[section.key] === 'finance' ? section.averageScore : 0,
-  }));
-  const overallLevel = getLevelLabel(report.overall.level.level, copy);
-  const overallInterpretation = copy.overallInterpretations[getScoreBand(report.overall.averageScore)];
+  const fallbackSummary = hasAnyAnswers
+    ? getFallbackExecutiveSummary(effectiveReport, strongestSection, weakestSection, copy)
+    : copy.incompleteOpportunity;
+  const executiveSummary = engineReport?.executiveSummary ?? fallbackSummary;
+  const crossRead = engineReport?.crossRead ?? copy.overallInterpretations[getScoreBand(effectiveReport.overall.averageScore)];
+  const completenessNote = engineReport?.completenessNote ?? fallbackSummary;
+  const mainRisk = getInsight(engineReport, 'main_personal_operational_risk');
+  const dominantPattern = getInsight(engineReport, 'dominant_pattern');
+  const wearSource = getInsight(engineReport, 'wear_source');
+  const dependency = getInsight(engineReport, 'detected_dependency');
+  const sustainability = getInsight(engineReport, 'sustainability_risk');
+  const burnout = getInsight(engineReport, 'burnout_risk');
+  const highestRoiHabit = getInsight(engineReport, 'highest_roi_habit');
+  const firstBoundary = getInsight(engineReport, 'first_boundary');
+  const immediateAction = getInsight(engineReport, 'immediate_action') ?? highestRoiHabit ?? firstBoundary ?? mainRisk;
+  const executiveFindings = ([
+    mainRisk,
+    dominantPattern,
+    immediateAction,
+  ].filter(Boolean) as HumanPerformanceInsight[]).slice(0, 3);
+  const decisionItems = ([
+    dependency,
+    sustainability,
+    burnout,
+    firstBoundary,
+  ].filter((insight) => (
+    insight
+    && (
+      insight.evidence.length > 0
+      || engineReport?.patterns.some((pattern) => pattern.type === insight.type)
+    )
+  )) as HumanPerformanceInsight[]).slice(0, 3);
+  const effectiveDecisionItems = decisionItems.length > 0
+    ? decisionItems
+    : ([mainRisk, immediateAction, sustainability].filter(Boolean) as HumanPerformanceInsight[]).slice(0, 3);
+  const fallbackRoadmapCopy = copy.fallbackRoadmap;
+  const roadmap = engineReport?.roadmap ?? [
+    {
+      label: fallbackRoadmapCopy[0].label,
+      title: immediateAction?.title ?? copy.recommendationLabel,
+      body: immediateAction?.recommendedAction ?? fallbackSummary,
+      expectedResult: fallbackRoadmapCopy[0].expectedResult,
+    },
+    {
+      label: fallbackRoadmapCopy[1].label,
+      title: firstBoundary?.title ?? copy.weakestArea,
+      body: firstBoundary?.recommendedAction ?? fallbackSummary,
+      expectedResult: fallbackRoadmapCopy[1].expectedResult,
+    },
+    {
+      label: fallbackRoadmapCopy[2].label,
+      title: sustainability?.title ?? copy.performanceLevel,
+      body: sustainability?.recommendedAction ?? fallbackSummary,
+      expectedResult: fallbackRoadmapCopy[2].expectedResult,
+    },
+  ];
 
   return (
-    <div className="bdpdf-report-shell bdpdf-report-shell--executive">
-      <section className="bdpdf-report-page">
+    <div className="bdpdf-report-shell bdpdf-report-shell--executive bdpdf-report-shell--editorial">
+      <section className="bdpdf-report-page bdpdf-report-page--cover-editorial">
         <div className="bdpdf-page-card bdpdf-page-card--cover">
-          <div className="bdpdf-cover">
-            <div className="bdpdf-cover-topline">
-              <div className="bdpdf-brand-badge">{copy.brandBadge}</div>
-              <div className="bdpdf-report-id">{reportId}</div>
-            </div>
-
-            <div className="bdpdf-cover-main">
+          <div className="bdpdf-editorial-cover">
+            <header className="bdpdf-cover-document-header">
               <div>
-                <h1 className="bdpdf-cover-title">{title}</h1>
-                <p className="bdpdf-cover-subtitle">{subtitle}</p>
+                <strong>{editorial.indice}</strong>
+                <span>{editorial.humanCapacity}</span>
               </div>
-              {logoUrl ? (
-                <img className="bdpdf-cover-logo" src={logoUrl} alt="" />
-              ) : (
-                <div className="bdpdf-cover-logo bdpdf-cover-logo--empty" aria-hidden="true" />
-              )}
+              <p>{reportId}</p>
+            </header>
+
+            <div className="bdpdf-cover-title-block">
+              <p className="bdpdf-editorial-kicker">{editorial.profile}</p>
+              <h1>{editorial.reportTitle}</h1>
+              <span>{subtitle}</span>
             </div>
 
-            <div className="bdpdf-hero-meta">
-              <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">{copy.userLabel}</p>
-                <p className="bdpdf-meta-value">{getEntityLabel(userLabel, copy.userFallback)}</p>
+            <div className="bdpdf-cover-meta">
+              <div>
+                <span>{editorial.preparedFor}</span>
+                <strong>{reportUserName}</strong>
               </div>
-              <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">{copy.generatedLabel}</p>
-                <p className="bdpdf-meta-value">{formatReportDate(generatedAt, locale)}</p>
-              </div>
-              <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">{copy.answeredLabel}</p>
-                <p className="bdpdf-meta-value">
-                  {report.overall.answeredCount}/{report.overall.totalQuestions} {copy.questionsLabel}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bdpdf-page-content">
-            <div className="bdpdf-section bdpdf-executive-summary">
-              <div className="bdpdf-section-heading">
-                <div>
-                  <h2 className="bdpdf-section-title">{copy.executiveSummaryTitle}</h2>
-                  <p className="bdpdf-section-caption">{copy.executiveSummaryCaption}</p>
-                </div>
-              </div>
-
-              <div className="bdpdf-executive-grid">
-                <div className={`bdpdf-score-hero-card score-${overallScoreTone}`}>
-                  <p className="bdpdf-highlight-label">{copy.totalScore}</p>
-                  <p className={`bdpdf-score-hero-value score-${overallScoreTone}`}>{report.overall.averageScore}</p>
-                  <p className="bdpdf-highlight-text">{copy.outOf100}</p>
-                </div>
-                <div className="bdpdf-summary-card">
-                  <p className="bdpdf-lead">{getExecutiveSummary(report, strongestSection, weakestSection, copy)}</p>
-                  <p className="bdpdf-lead bdpdf-lead--secondary">{overallInterpretation}</p>
-                </div>
-              </div>
-
-              <div className="bdpdf-highlight-grid">
-                <div className={`bdpdf-highlight-card bdpdf-highlight-card--score score-${overallScoreTone}`}>
-                  <p className="bdpdf-highlight-label">{copy.totalScore}</p>
-                  <p className="bdpdf-highlight-value">{report.overall.averageScore}</p>
-                  <p className="bdpdf-highlight-text">{copy.outOf100}</p>
-                </div>
-                <div className="bdpdf-highlight-card bdpdf-highlight-card--level">
-                  <p className="bdpdf-highlight-label">{copy.performanceLevel}</p>
-                  <p className="bdpdf-highlight-value">{overallLevel}</p>
-                  <p className="bdpdf-highlight-text">{report.overall.level.level}/5</p>
-                </div>
-                <div className={`bdpdf-highlight-card color-${SECTION_COLOR_CLASS[strongestSection.key]}`}>
-                  <p className="bdpdf-highlight-label">{copy.strongestArea}</p>
-                  <p className="bdpdf-highlight-value">{strongestSection.averageScore}</p>
-                  <p className="bdpdf-highlight-text">{strongestSection.title}</p>
-                </div>
-                <div className={`bdpdf-highlight-card color-${SECTION_COLOR_CLASS[weakestSection.key]}`}>
-                  <p className="bdpdf-highlight-label">{copy.weakestArea}</p>
-                  <p className="bdpdf-highlight-value">{weakestSection.averageScore}</p>
-                  <p className="bdpdf-highlight-text">{weakestSection.title}</p>
-                </div>
+              <div>
+                <span>{editorial.date}</span>
+                <strong>{formattedDate}</strong>
               </div>
             </div>
 
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <div>
-                  <h2 className="bdpdf-section-title">{copy.dashboardTitle}</h2>
-                  <p className="bdpdf-section-caption">{copy.dashboardCaption}</p>
-                </div>
-              </div>
+            <section className="bdpdf-cover-insight">
+              <p>{editorial.insightLabel}</p>
+              <h2>{executiveSummary}</h2>
+              <span>{crossRead}</span>
+            </section>
 
-              <div className="bdpdf-dashboard-grid">
-                <div className="bdpdf-chart-card">
-                  <h3 className="bdpdf-chart-title">{copy.radarTitle}</h3>
-                  <RadarChart width={310} height={245} data={radarData} outerRadius={86}>
-                    <PolarGrid stroke="#d8e2f0" />
-                    <PolarAngleAxis dataKey="label" tick={{ fill: '#475569', fontSize: 11 }} />
-                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                    {RADAR_KEYS.map((key) => (
-                      <Radar
-                        key={key}
-                        dataKey={key}
-                        stroke={RADAR_COLORS[key].stroke}
-                        fill={RADAR_COLORS[key].fill}
-                        fillOpacity={0.7}
-                        strokeWidth={2}
-                        isAnimationActive={false}
-                      />
-                    ))}
-                  </RadarChart>
-                  <div className="bdpdf-radar-legend">
-                    {report.sections.map((section) => (
-                      <span className="bdpdf-radar-legend-item" key={section.key}>
-                        <span className={`bdpdf-radar-dot ${SECTION_COLOR_CLASS[section.key]}`} />
-                        {section.title}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bdpdf-progress-card">
-                  <h3 className="bdpdf-chart-title">{copy.progressTitle}</h3>
-                  <div className="bdpdf-maturity-track">
-                    <div
-                      className="bdpdf-maturity-fill"
-                      style={{ width: `${maturityProgressPercent}%` }}
-                    />
-                  </div>
-                  <div className="bdpdf-maturity-rail">
-                    {copy.progressLevels.map((level, index) => (
-                      <div
-                        key={level}
-                        className={`bdpdf-maturity-step ${index <= currentProgressStep ? 'is-active' : ''}`}
-                      >
-                        <span className="bdpdf-maturity-dot" />
-                        <span className="bdpdf-maturity-label">{level}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            <section className="bdpdf-cover-score-strip" aria-label={editorial.scoreSummary}>
+              <div>
+                <span>IRP / PPI</span>
+                <strong>{effectiveReport.overall.averageScore}/100</strong>
               </div>
-            </div>
+              <div>
+                <span>{engineReport?.labels.confidence ?? copy.progressTitle}</span>
+                <strong>{confidenceValue}%</strong>
+              </div>
+              <div>
+                <span>{editorial.profile}</span>
+                <strong>{getProfileFallback(engineReport, overallLevel)}</strong>
+              </div>
+            </section>
+
+            <section className="bdpdf-cover-next-move">
+              <p>{editorial.nextMove}</p>
+              <h2>{immediateAction?.title ?? copy.recommendationLabel}</h2>
+              <span>{immediateAction?.recommendedAction ?? completenessNote}</span>
+            </section>
+
+            <footer className="bdpdf-cover-footer">
+              <span>{editorial.generatedFrom}</span>
+              <span>{effectiveReport.overall.answeredCount}/{effectiveReport.overall.totalQuestions} {editorial.answered}</span>
+            </footer>
           </div>
         </div>
       </section>
 
       <section className="bdpdf-report-page">
         <div className="bdpdf-page-card">
-          <div className="bdpdf-page-content">
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <div>
-                  <h2 className="bdpdf-section-title">{copy.sectionBreakdownTitle}</h2>
-                  <p className="bdpdf-section-caption">{copy.sectionBreakdownCaption}</p>
-                </div>
-              </div>
+          <div className="bdpdf-editorial-page">
+            <header className="bdpdf-editorial-page-header">
+              <span>{editorial.indice}</span>
+              <span>{editorial.humanCapacity}</span>
+            </header>
 
-              <div className="bdpdf-pillars-grid">
-                {report.sections.map((section) => (
-                  <article
-                    className={`bdpdf-pillar-card bdpdf-pillar-card--executive color-${SECTION_COLOR_CLASS[section.key]}`}
-                    key={section.key}
-                  >
-                    <div className="bdpdf-pillar-header">
-                      <div>
-                        <h3 className="bdpdf-pillar-title">{section.title}</h3>
-                        <p className="bdpdf-pillar-subtitle">
-                          {section.answeredCount}/{section.totalQuestions} {copy.questionsLabel}
-                        </p>
-                      </div>
-                      <span className={`bdpdf-score-chip level-${section.level.level}`}>
-                        {getLevelLabel(section.level.level, copy)}
-                      </span>
-                    </div>
-
-                    <div className="bdpdf-pillar-score-row">
-                      <p className="bdpdf-pillar-score">
-                        {section.averageScore}
-                        <span>/100</span>
-                      </p>
-                      <p className="bdpdf-section-caption">{copy.focusLabels[section.key]}</p>
-                    </div>
-
-                    <div className="bdpdf-progress-bar">
-                      <div
-                        className={`bdpdf-progress-value ${SECTION_COLOR_CLASS[section.key]}`}
-                        style={{ width: `${section.averageScore}%` }}
-                      />
-                    </div>
-
-                    <div className="bdpdf-insight-box">
-                      <p>{getSectionInterpretation(section, copy)}</p>
-                      <p>{getOpportunityNarrative(section, copy)}</p>
-                    </div>
-
-                    <div className="bdpdf-recommendation-strip">
-                      <p className="bdpdf-recommendation-rank">{copy.recommendationLabel}</p>
-                      <p>{copy.priorityActions[section.key][0]}</p>
-                      <p className="bdpdf-recommendation-module">
-                        {copy.suggestedFocusLabel}: <strong>{copy.focusLabels[section.key]}</strong>
-                      </p>
-                    </div>
-                  </article>
-                ))}
+            <div className="bdpdf-editorial-section-heading">
+              <p>02</p>
+              <div>
+                <h2>{editorial.executiveFindings}</h2>
+                <span>{editorial.executiveFindingsCaption}</span>
               </div>
             </div>
 
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <div>
-                  <h2 className="bdpdf-section-title">{copy.weakestArea}</h2>
-                  <p className="bdpdf-section-caption">{copy.dashboardCaption}</p>
-                </div>
-              </div>
-
-              <div className="bdpdf-recommendation-grid">
-                {getPrioritySections(report).map((section, index) => (
-                  <article className={`bdpdf-recommendation-card color-${SECTION_COLOR_CLASS[section.key]}`} key={section.key}>
-                    <div className="bdpdf-recommendation-rank">{copy.priorityLabel} {index + 1}</div>
-                    <h3 className="bdpdf-recommendation-title">{section.title}</h3>
-                    <p className="bdpdf-recommendation-body">{copy.priorityActions[section.key][0]}</p>
-                    <p className="bdpdf-recommendation-module">
-                      {copy.suggestedFocusLabel}: <strong>{copy.focusLabels[section.key]}</strong>
-                    </p>
-                  </article>
-                ))}
-              </div>
-
-              <div className="bdpdf-footer-note">
-                <span>{copy.footerLeft}</span>
-                <span>{copy.footerRight}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bdpdf-report-page">
-        <div className="bdpdf-page-card">
-          <div className="bdpdf-page-content">
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <div>
-                  <h2 className="bdpdf-section-title">{copy.detailedAnswersTitle}</h2>
-                  <p className="bdpdf-section-caption">{copy.detailedAnswersCaption}</p>
-                </div>
-              </div>
-
-              {report.sections.map((section) => (
-                <article className={`bdpdf-table-card bdpdf-section color-${SECTION_COLOR_CLASS[section.key]}`} key={section.key}>
-                  <h3 className="bdpdf-table-title">{section.title}</h3>
-                  <table className="bdpdf-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '7%' }}>#</th>
-                        <th style={{ width: '43%' }}>{copy.questionColumn}</th>
-                        <th style={{ width: '34%' }}>{copy.selectedAnswerColumn}</th>
-                        <th style={{ width: '16%' }}>{copy.scoreColumn}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {section.questions.map((question) => (
-                        <tr key={`${section.key}-${question.index}`}>
-                          <td className="bdpdf-question-number">{question.index}</td>
-                          <td>{question.question}</td>
-                          <td>{question.selectedOptionLabel ?? <span className="bdpdf-muted">{copy.pending}</span>}</td>
-                          <td>{question.points}/100</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="bdpdf-finding-list">
+              {executiveFindings.map((insight, index) => (
+                <article className="bdpdf-finding-row" key={`${insight.type}-${insight.title}`}>
+                  <div className="bdpdf-finding-number">{`0${index + 1}`}</div>
+                  <div className="bdpdf-finding-body">
+                    <p>{getInsightLabel(insight.type, engineReport?.labels, editorial)}</p>
+                    <h3>{insight.title}</h3>
+                    <span>{insight.message}</span>
+                    <strong>{editorial.action}: {insight.recommendedAction}</strong>
+                  </div>
                 </article>
               ))}
             </div>
+
+            <footer className="bdpdf-editorial-page-footer">
+              <span>{reportUserName}</span>
+              <span>{editorial.footer}</span>
+            </footer>
+          </div>
+        </div>
+      </section>
+
+      <section className="bdpdf-report-page">
+        <div className="bdpdf-page-card">
+          <div className="bdpdf-editorial-page">
+            <header className="bdpdf-editorial-page-header">
+              <span>{editorial.indice}</span>
+              <span>{formattedDate}</span>
+            </header>
+
+            <div className="bdpdf-editorial-section-heading">
+              <p>03</p>
+              <div>
+                <h2>{editorial.capacityView}</h2>
+                <span>{editorial.capacityViewCaption}</span>
+              </div>
+            </div>
+
+            <div className="bdpdf-maturity-editorial-grid">
+              <section className="bdpdf-capability-bars">
+                {effectiveReport.sections.map((section) => (
+                  <div className="bdpdf-capability-row" key={section.key}>
+                    <div className="bdpdf-capability-label">
+                      <strong>{getDisplaySectionTitle(section, copy)}</strong>
+                      <span>{getLevelLabel(section.level.level, copy)}</span>
+                    </div>
+                    <div className="bdpdf-capability-bar" aria-hidden="true">
+                      <span style={{ width: `${section.averageScore}%` }} />
+                    </div>
+                    <p>{section.averageScore}/100</p>
+                  </div>
+                ))}
+              </section>
+
+              <aside className="bdpdf-maturity-summary">
+                <p>{editorial.scoreSummary}</p>
+                <strong>{effectiveReport.overall.averageScore}/100</strong>
+                <span>{overallLevel}</span>
+                <small>{completenessNote}</small>
+              </aside>
+            </div>
+
+            <section className="bdpdf-editorial-progression">
+              <div className="bdpdf-editorial-track">
+                <span style={{ width: `${maturityProgressPercent}%` }} />
+              </div>
+              <div className="bdpdf-editorial-steps">
+                {copy.progressLevels.map((level, index) => (
+                  <div className={index <= currentProgressStep ? 'is-active' : ''} key={level}>
+                    <span />
+                    <p>{level}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <footer className="bdpdf-editorial-page-footer">
+              <span>{reportUserName}</span>
+              <span>{editorial.footer}</span>
+            </footer>
+          </div>
+        </div>
+      </section>
+
+      <section className="bdpdf-report-page">
+        <div className="bdpdf-page-card">
+          <div className="bdpdf-editorial-page">
+            <header className="bdpdf-editorial-page-header">
+              <span>{editorial.indice}</span>
+              <span>{editorial.humanCapacity}</span>
+            </header>
+
+            <div className="bdpdf-editorial-section-heading">
+              <p>04</p>
+              <div>
+                <h2>{editorial.operatingBreakdown}</h2>
+                <span>{editorial.operatingBreakdownCaption}</span>
+              </div>
+            </div>
+
+            <div className="bdpdf-pillar-editorial-table">
+              <div className="bdpdf-pillar-editorial-head">
+                <span>{editorial.section}</span>
+                <span>IRP</span>
+                <span>{editorial.risk}</span>
+                <span>{editorial.action}</span>
+              </div>
+              {effectiveReport.sections.map((section) => {
+                const sectionTag = getTagForSection(engineReport, section.key);
+
+                return (
+                  <article className="bdpdf-pillar-editorial-row" key={section.key}>
+                    <div>
+                      <h3>{getDisplaySectionTitle(section, copy)}</h3>
+                      <p>{getSectionInterpretation(section, copy)}</p>
+                      <small>{section.answeredCount}/{section.totalQuestions} {copy.questionsLabel}</small>
+                    </div>
+                    <div>
+                      <strong>{section.averageScore}</strong>
+                      <span>/100</span>
+                    </div>
+                    <p>{sectionTag?.operationalRisk ?? copy.overallInterpretations[getScoreBand(section.averageScore)]}</p>
+                    <div>
+                      <p>{sectionTag?.recommendedAction ?? copy.priorityActions[section.key][0]}</p>
+                      <small>{sectionTag?.label ?? copy.focusLabels[section.key]}</small>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <footer className="bdpdf-editorial-page-footer">
+              <span>{reportUserName}</span>
+              <span>{editorial.footer}</span>
+            </footer>
+          </div>
+        </div>
+      </section>
+
+      <section className="bdpdf-report-page">
+        <div className="bdpdf-page-card">
+          <div className="bdpdf-editorial-page">
+            <header className="bdpdf-editorial-page-header">
+              <span>{editorial.indice}</span>
+              <span>{formattedDate}</span>
+            </header>
+
+            <div className="bdpdf-editorial-section-heading">
+              <p>05</p>
+              <div>
+                <h2>{editorial.decisions}</h2>
+                <span>{editorial.decisionsCaption}</span>
+              </div>
+            </div>
+
+            <div className="bdpdf-decision-list">
+              {effectiveDecisionItems.map((insight, index) => (
+                <article className="bdpdf-decision-row" key={`${insight.type}-${insight.title}`}>
+                  <div className="bdpdf-decision-index">{`0${index + 1}`}</div>
+                  <div>
+                    <h3>{insight.title}</h3>
+                    <dl>
+                      <div>
+                        <dt>{editorial.impact}</dt>
+                        <dd>{insight.operationalImpact}</dd>
+                      </div>
+                      <div>
+                        <dt>{editorial.evidence}</dt>
+                        <dd>{insight.evidence[0] ?? insight.message}</dd>
+                      </div>
+                      <div>
+                        <dt>{editorial.decision}</dt>
+                        <dd>{insight.recommendedAction}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <footer className="bdpdf-editorial-page-footer">
+              <span>{reportUserName}</span>
+              <span>{editorial.footer}</span>
+            </footer>
+          </div>
+        </div>
+      </section>
+
+      <section className="bdpdf-report-page">
+        <div className="bdpdf-page-card">
+          <div className="bdpdf-editorial-page">
+            <header className="bdpdf-editorial-page-header">
+              <span>{editorial.indice}</span>
+              <span>{reportId}</span>
+            </header>
+
+            <div className="bdpdf-editorial-section-heading">
+              <p>06</p>
+              <div>
+                <h2>{editorial.roadmap}</h2>
+                <span>{editorial.roadmapCaption}</span>
+              </div>
+            </div>
+
+            <div className="bdpdf-roadmap-editorial">
+              {roadmap.map((item) => (
+                <article className="bdpdf-roadmap-editorial-step" key={`${item.label}-${item.title}`}>
+                  <div className="bdpdf-roadmap-editorial-time">{item.label}</div>
+                  <div className="bdpdf-roadmap-editorial-body">
+                    <div>
+                      <span>{editorial.focus}</span>
+                      <h3>{item.title}</h3>
+                    </div>
+                    <div>
+                      <span>{editorial.action}</span>
+                      <p>{item.body}</p>
+                    </div>
+                    <div>
+                      <span>{editorial.expectedResult}</span>
+                      <p>{item.expectedResult}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <footer className="bdpdf-editorial-page-footer">
+              <span>{reportUserName}</span>
+              <span>{editorial.footer}</span>
+            </footer>
           </div>
         </div>
       </section>

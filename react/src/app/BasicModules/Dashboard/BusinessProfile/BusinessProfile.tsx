@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import {
   businessProfileApi,
@@ -9,18 +9,20 @@ import {
   type SaveBusinessProfilePayload,
 } from '../../../api/HomePanel/BusinessProfile/businessProfile';
 import {
-  LoadingBarOverlay,
+  configCenterApi,
+  type ConfigCenterEmpresa,
+} from '../../../api/configCenter';
+import {
   runWithMinimumDuration,
 } from '../../../components/LoadingBarOverlay';
-import { SaveChangesBar } from '../../../components/SaveChangesBar';
-import { SuccessToast } from '../../../components/SuccessToast';
 import { Button } from '../../../components/ui/button';
 import { useLanguage } from '../../../shared/context';
 import {
   BusinessDiagnosisPrintPortal,
   type BusinessDiagnosisPdfDocumentProps,
+  useBusinessDiagnosisPdfTranslations,
 } from './BusinessDiagnosisPdf';
-import { buildBusinessDiagnosisScoreReport } from './businessDiagnosisScoring';
+import { buildBusinessDiagnosisEngineReport } from './diagnosisEngine';
 import {
   buildReportFileName,
   getReportUserDisplayName,
@@ -62,8 +64,13 @@ const ANSWER_KEY_PREFIXES: Record<PillarId, string> = {
 };
 
 const DEFAULT_QUESTION_COUNT = 10;
-const BUSINESS_PROFILE_SAVE_MINIMUM_LOADING_MS = 2500;
+const BUSINESS_PROFILE_AUTO_SAVE_DEBOUNCE_MS = 700;
 const BUSINESS_PROFILE_REPORT_ID_PREFIX = 'IDX-BD';
+
+type ReportCompanyIdentity = {
+  logoUrl: string;
+  name: string;
+};
 
 const PILLAR_METADATA: Array<{
   id: PillarId;
@@ -92,6 +99,23 @@ const createEmptyDiagnosticoState = (): DiagnosticoState => ({
   products: createEmptySectionState('products'),
   finance: createEmptySectionState('finance'),
 });
+
+const getReportCompanyIdentity = (empresa: ConfigCenterEmpresa | null | undefined): ReportCompanyIdentity => {
+  const corporateOffice = empresa?.map?.find((unit) => unit.is_corporate_office || unit.isCorporateOffice)
+    ?? empresa?.map?.[0];
+  const corporateBusiness = corporateOffice?.businesses?.[0];
+
+  return {
+    logoUrl: empresa?.logo_url?.trim()
+      || corporateOffice?.logo?.trim()
+      || corporateBusiness?.logo?.trim()
+      || '',
+    name: empresa?.nombre_empresa?.trim()
+      || corporateOffice?.name?.trim()
+      || corporateBusiness?.name?.trim()
+      || '',
+  };
+};
 
 const extractQuestionIndex = (questionKey: string) => {
   const match = questionKey.match(/(\d+)/);
@@ -287,6 +311,7 @@ const formatDiagnosisProgressText = (template: string, answered: number, total: 
 export default function BusinessProfile() {
   const { currentLanguage, t } = useLanguage();
   const diagnosisCopy = t.panelInicial.diagnosis;
+  const diagnosisPdfCopy = useBusinessDiagnosisPdfTranslations();
   const [activePillar, setActivePillar] = useState<PillarId | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [sectionState, setSectionState] = useState<DiagnosticoState>(createEmptyDiagnosticoState);
@@ -296,7 +321,13 @@ export default function BusinessProfile() {
   const [errorMessage, setErrorMessage] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [reportUserName, setReportUserName] = useState('');
+  const [reportCompanyIdentity, setReportCompanyIdentity] = useState<ReportCompanyIdentity>({
+    logoUrl: '',
+    name: '',
+  });
   const [printJob, setPrintJob] = useState<BusinessDiagnosisPdfDocumentProps | null>(null);
+  const sectionStateRef = useRef(sectionState);
+  const failedAutoSaveKeyRef = useRef('');
 
   const diagnosticoQuestions = useMemo<DiagnosticoQuestions>(() => ({
     people: diagnosisCopy.questions.people,
@@ -319,11 +350,12 @@ export default function BusinessProfile() {
     products: diagnosisCopy.pillars.products.title,
     finance: diagnosisCopy.pillars.finance.title,
   }), [diagnosisCopy.pillars.finance.title, diagnosisCopy.pillars.people.title, diagnosisCopy.pillars.processes.title, diagnosisCopy.pillars.products.title]);
-  const diagnosisScoreReport = useMemo(() => buildBusinessDiagnosisScoreReport({
+  const diagnosisEngineReport = useMemo(() => buildBusinessDiagnosisEngineReport({
     questions: diagnosticoQuestions,
     sections: sectionState,
     pillarTitles,
-  }), [diagnosticoQuestions, pillarTitles, sectionState]);
+    locale: currentLanguage.code,
+  }), [currentLanguage.code, diagnosticoQuestions, pillarTitles, sectionState]);
   const reportId = useMemo(() => {
     const now = new Date();
     const stamp = [
@@ -335,6 +367,30 @@ export default function BusinessProfile() {
     ].join('');
 
     return `${BUSINESS_PROFILE_REPORT_ID_PREFIX}-${stamp}`;
+  }, []);
+
+  useEffect(() => {
+    sectionStateRef.current = sectionState;
+  }, [sectionState]);
+
+  useEffect(() => {
+    let active = true;
+
+    configCenterApi.getEmpresa()
+      .then((empresa) => {
+        if (active) {
+          setReportCompanyIdentity(getReportCompanyIdentity(empresa));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setReportCompanyIdentity({ logoUrl: '', name: '' });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -596,8 +652,11 @@ export default function BusinessProfile() {
     }
   };
 
-  const handleSaveDiagnosis = async () => {
-    if (!baselineSectionState || !hasUnsavedChanges) {
+  const handleSaveDiagnosis = async (
+    stateToSave = sectionState,
+    baselineToSave = baselineSectionState,
+  ) => {
+    if (!baselineToSave || areDiagnosticoStatesEqual(stateToSave, baselineToSave)) {
       return;
     }
 
@@ -606,41 +665,57 @@ export default function BusinessProfile() {
     setSaveMessage('');
 
     try {
-      const response = await runWithMinimumDuration(
-        businessProfileApi.saveBusinessProfile(
-          buildSavePayload(sectionState, baselineSectionState),
-        ),
-        BUSINESS_PROFILE_SAVE_MINIMUM_LOADING_MS,
+      const response = await businessProfileApi.saveBusinessProfile(
+        buildSavePayload(stateToSave, baselineToSave),
       );
 
       const nextSectionState = createDiagnosticoStateFromResponse(response, diagnosticoQuestions);
 
-      setSectionState(nextSectionState);
       setBaselineSectionState(nextSectionState);
-      setSaveMessage(diagnosisCopy.messages.saveSuccess);
-
-      if (activePillar) {
-        setActivePillar(null);
-        setCurrentQuestion(0);
+      if (areDiagnosticoStatesEqual(sectionStateRef.current, stateToSave)) {
+        setSectionState(nextSectionState);
       }
+      failedAutoSaveKeyRef.current = '';
     } catch (error) {
+      failedAutoSaveKeyRef.current = JSON.stringify(stateToSave);
       setErrorMessage(error instanceof Error ? error.message : diagnosisCopy.messages.saveError);
     } finally {
       setIsSaving(false);
     }
   };
 
+  useEffect(() => {
+    if (isLoading || isSaving || !baselineSectionState || !hasUnsavedChanges) {
+      return undefined;
+    }
+
+    const autoSaveKey = JSON.stringify(sectionState);
+    if (failedAutoSaveKeyRef.current === autoSaveKey) {
+      return undefined;
+    }
+
+    const saveTimer = window.setTimeout(() => {
+      void handleSaveDiagnosis(sectionState, baselineSectionState);
+    }, BUSINESS_PROFILE_AUTO_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(saveTimer);
+    };
+  }, [baselineSectionState, hasUnsavedChanges, isLoading, isSaving, sectionState]);
+
   const handlePrintDiagnosis = () => {
     setErrorMessage('');
     setPrintJob({
-      report: diagnosisScoreReport,
+      report: diagnosisEngineReport.scoreReport,
+      engineReport: diagnosisEngineReport,
       title: diagnosisCopy.title,
       subtitle: diagnosisCopy.description,
       generatedAt: new Date(),
       reportId,
-      copy: diagnosisCopy.pdf,
-      fileName: buildReportFileName(diagnosisCopy.pdf.fileName, reportUserName),
+      fileName: buildReportFileName(diagnosisPdfCopy.fileName, reportUserName),
       locale: currentLanguage.code,
+      companyName: reportCompanyIdentity.name,
+      logoUrl: reportCompanyIdentity.logoUrl,
     });
   };
 
@@ -677,7 +752,7 @@ export default function BusinessProfile() {
 
   return (
     <>
-      <div className={`space-y-6 ${hasUnsavedChanges ? 'pb-24 sm:pb-20' : ''}`}>
+      <div className="space-y-6">
         <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-700/30 dark:bg-purple-900/10 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -941,28 +1016,6 @@ export default function BusinessProfile() {
           })}
         </div>
       </div>
-
-      <SaveChangesBar
-        isVisible={hasUnsavedChanges}
-        isSaving={isSaving}
-        onSave={handleSaveDiagnosis}
-        onDiscard={handleDiscardChanges}
-        saveLabel={diagnosisCopy.actions.save}
-        savingLabel={diagnosisCopy.actions.saving}
-        discardLabel={diagnosisCopy.actions.discard}
-        message={diagnosisCopy.messages.unsavedChanges}
-      />
-
-      <LoadingBarOverlay
-        isVisible={isSaving}
-        title={diagnosisCopy.actions.saving}
-      />
-
-      <SuccessToast
-        isVisible={Boolean(saveMessage)}
-        message={saveMessage}
-        onClose={() => setSaveMessage('')}
-      />
 
       <BusinessDiagnosisPrintPortal
         job={printJob}

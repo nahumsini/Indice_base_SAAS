@@ -1,11 +1,681 @@
 .bdpdf-print-host {
-  height: 0;
   left: -10000px;
-  overflow: hidden;
+  overflow: visible;
+  pointer-events: none;
   position: fixed;
   top: 0;
-  width: 0;
+  width: 794px;
   z-index: -1;
+}
+
+/* Executive editorial redesign: sober consulting-style PDF. */
+.bdpdf-report-shell--editorial {
+  color: #111827;
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+.bdpdf-report-shell--editorial .bdpdf-report-page {
+  background: #ffffff !important;
+  color: #111827;
+  min-height: 1123px;
+  padding: 0 !important;
+}
+
+.bdpdf-report-shell--editorial .bdpdf-page-card {
+  background: #ffffff !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 1123px;
+  overflow: hidden;
+}
+
+.bdpdf-editorial-cover,
+.bdpdf-editorial-page {
+  background: #ffffff;
+  box-sizing: border-box;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  min-height: 1123px;
+  padding: 58px 64px 46px;
+}
+
+.bdpdf-cover-document-header,
+.bdpdf-editorial-page-header,
+.bdpdf-cover-footer,
+.bdpdf-editorial-page-footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.bdpdf-cover-document-header,
+.bdpdf-editorial-page-header {
+  border-bottom: 1px solid #d1d5db;
+  color: #4b5563;
+  padding-bottom: 14px;
+}
+
+.bdpdf-cover-document-header div {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+}
+
+.bdpdf-cover-document-header strong,
+.bdpdf-editorial-page-header span:first-child {
+  color: #111827;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.bdpdf-cover-document-header span,
+.bdpdf-cover-document-header p,
+.bdpdf-editorial-page-header span {
+  color: #4b5563;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.bdpdf-cover-title-block {
+  margin-top: 80px;
+  max-width: 610px;
+}
+
+.bdpdf-editorial-kicker {
+  color: #1f3a5f;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+}
+
+.bdpdf-cover-title-block h1 {
+  color: #111827;
+  font-size: 52px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.02;
+  margin: 0;
+}
+
+.bdpdf-cover-title-block span {
+  color: #4b5563;
+  display: block;
+  font-size: 14px;
+  line-height: 1.65;
+  margin-top: 16px;
+  max-width: 540px;
+}
+
+.bdpdf-cover-meta {
+  border-bottom: 1px solid #d1d5db;
+  border-top: 1px solid #d1d5db;
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1.3fr 0.8fr;
+  margin-top: 44px;
+  padding: 18px 0;
+}
+
+.bdpdf-cover-meta span,
+.bdpdf-cover-score-strip span,
+.bdpdf-cover-next-move p,
+.bdpdf-cover-insight p,
+.bdpdf-maturity-summary p,
+.bdpdf-roadmap-editorial-body span,
+.bdpdf-secondary-module,
+.bdpdf-pillar-editorial-row small,
+.bdpdf-roadmap-editorial-body small {
+  color: #6b7280;
+  display: block;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.bdpdf-cover-meta strong {
+  color: #111827;
+  display: block;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-top: 8px;
+}
+
+.bdpdf-cover-insight {
+  border-left: 4px solid #1f3a5f;
+  margin-top: 60px;
+  max-width: 650px;
+  padding-left: 24px;
+}
+
+.bdpdf-cover-insight h2 {
+  color: #1f3a5f;
+  font-size: 33px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 12px 0 14px;
+}
+
+.bdpdf-cover-insight span {
+  color: #4b5563;
+  display: block;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.bdpdf-cover-score-strip {
+  border-bottom: 1px solid #d1d5db;
+  border-top: 1px solid #d1d5db;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 46px;
+  padding: 18px 0;
+}
+
+.bdpdf-cover-score-strip strong {
+  color: #111827;
+  display: block;
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.2;
+  margin-top: 8px;
+}
+
+.bdpdf-cover-next-move {
+  background: #f3f4f6;
+  border-left: 4px solid #1f3a5f;
+  margin-top: 42px;
+  padding: 20px 22px;
+}
+
+.bdpdf-cover-next-move h2 {
+  color: #111827;
+  font-size: 21px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 8px 0 10px;
+}
+
+.bdpdf-cover-next-move span {
+  color: #374151;
+  display: block;
+  font-size: 13px;
+  line-height: 1.68;
+}
+
+.bdpdf-cover-footer,
+.bdpdf-editorial-page-footer {
+  border-top: 1px solid #d1d5db;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  margin-top: auto;
+  padding-top: 14px;
+  text-transform: uppercase;
+}
+
+.bdpdf-editorial-section-heading {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  margin-top: 54px;
+}
+
+.bdpdf-editorial-section-heading > p {
+  color: #1f3a5f;
+  font-size: 28px;
+  font-weight: 850;
+  line-height: 1;
+  margin: 4px 0 0;
+}
+
+.bdpdf-editorial-section-heading h2 {
+  color: #111827;
+  font-size: 36px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.08;
+  margin: 0;
+}
+
+.bdpdf-editorial-section-heading span {
+  color: #4b5563;
+  display: block;
+  font-size: 13px;
+  line-height: 1.65;
+  margin-top: 12px;
+  max-width: 620px;
+}
+
+.bdpdf-finding-list {
+  border-top: 1px solid #d1d5db;
+  margin-top: 46px;
+}
+
+.bdpdf-finding-row {
+  border-bottom: 1px solid #d1d5db;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  padding: 28px 0;
+}
+
+.bdpdf-finding-number,
+.bdpdf-decision-index {
+  color: #1f3a5f;
+  font-size: 21px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.bdpdf-finding-body p {
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.bdpdf-finding-body h3 {
+  color: #111827;
+  font-size: 23px;
+  font-weight: 850;
+  line-height: 1.22;
+  margin: 0 0 10px;
+}
+
+.bdpdf-finding-body span,
+.bdpdf-finding-body strong {
+  color: #374151;
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+.bdpdf-finding-body strong {
+  border-left: 2px solid #1f3a5f;
+  color: #111827;
+  font-weight: 750;
+  margin-top: 14px;
+  padding-left: 12px;
+}
+
+.bdpdf-maturity-editorial-grid {
+  display: grid;
+  gap: 36px;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  margin-top: 56px;
+}
+
+.bdpdf-capability-bars {
+  display: grid;
+  gap: 28px;
+}
+
+.bdpdf-capability-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 178px minmax(0, 1fr) 68px;
+  align-items: center;
+}
+
+.bdpdf-capability-label strong {
+  color: #111827;
+  display: block;
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.bdpdf-capability-label span {
+  color: #6b7280;
+  display: block;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+  margin-top: 4px;
+}
+
+.bdpdf-capability-bar {
+  background: #f3f4f6;
+  height: 10px;
+  overflow: hidden;
+}
+
+.bdpdf-capability-bar span {
+  background: #1f3a5f;
+  display: block;
+  height: 100%;
+}
+
+.bdpdf-capability-row > p {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 850;
+  margin: 0;
+  text-align: right;
+}
+
+.bdpdf-maturity-summary {
+  border-left: 1px solid #d1d5db;
+  padding-left: 24px;
+}
+
+.bdpdf-maturity-summary strong {
+  color: #111827;
+  display: block;
+  font-size: 38px;
+  font-weight: 850;
+  line-height: 1;
+  margin-top: 12px;
+}
+
+.bdpdf-maturity-summary span {
+  color: #1f3a5f;
+  display: block;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.3;
+  margin-top: 10px;
+}
+
+.bdpdf-maturity-summary small {
+  color: #4b5563;
+  display: block;
+  font-size: 11px;
+  line-height: 1.58;
+  margin-top: 18px;
+}
+
+.bdpdf-editorial-progression {
+  margin-top: 70px;
+}
+
+.bdpdf-editorial-track {
+  background: #f3f4f6;
+  height: 8px;
+  overflow: hidden;
+}
+
+.bdpdf-editorial-track span {
+  background: #1f3a5f;
+  display: block;
+  height: 100%;
+}
+
+.bdpdf-editorial-steps {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.bdpdf-editorial-steps div {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.bdpdf-editorial-steps span {
+  background: #d1d5db;
+  display: block;
+  height: 6px;
+  margin-bottom: 8px;
+  width: 6px;
+}
+
+.bdpdf-editorial-steps .is-active {
+  color: #111827;
+}
+
+.bdpdf-editorial-steps .is-active span {
+  background: #1f3a5f;
+}
+
+.bdpdf-editorial-steps p {
+  line-height: 1.35;
+  margin: 0;
+}
+
+.bdpdf-pillar-editorial-table {
+  border-top: 1px solid #111827;
+  margin-top: 42px;
+}
+
+.bdpdf-pillar-editorial-head,
+.bdpdf-pillar-editorial-row {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1.15fr 0.36fr 1fr 1.15fr;
+}
+
+.bdpdf-pillar-editorial-head {
+  border-bottom: 1px solid #d1d5db;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  padding: 12px 0;
+  text-transform: uppercase;
+}
+
+.bdpdf-pillar-editorial-row {
+  border-bottom: 1px solid #d1d5db;
+  padding: 18px 0;
+}
+
+.bdpdf-pillar-editorial-row h3 {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+
+.bdpdf-pillar-editorial-row p,
+.bdpdf-pillar-editorial-row div:nth-child(4) p {
+  color: #374151;
+  font-size: 11.5px;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.bdpdf-pillar-editorial-row small {
+  color: #6b7280;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  margin-top: 10px;
+}
+
+.bdpdf-pillar-editorial-row div:nth-child(2) strong {
+  color: #1f3a5f;
+  display: block;
+  font-size: 27px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.bdpdf-pillar-editorial-row div:nth-child(2) span {
+  color: #6b7280;
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.bdpdf-decision-list {
+  border-top: 1px solid #111827;
+  margin-top: 42px;
+}
+
+.bdpdf-decision-row {
+  border-bottom: 1px solid #d1d5db;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  padding: 24px 0;
+}
+
+.bdpdf-decision-row h3 {
+  color: #111827;
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+
+.bdpdf-decision-row dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.bdpdf-decision-row dl div {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 100px minmax(0, 1fr);
+}
+
+.bdpdf-decision-row dt {
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bdpdf-decision-row dd {
+  color: #374151;
+  font-size: 12px;
+  line-height: 1.62;
+  margin: 0;
+}
+
+.bdpdf-secondary-module {
+  color: #6b7280;
+  margin: 16px 0 0;
+}
+
+.bdpdf-roadmap-editorial {
+  margin-top: 42px;
+}
+
+.bdpdf-roadmap-editorial-step {
+  border-top: 1px solid #d1d5db;
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 94px minmax(0, 1fr);
+  padding: 28px 0;
+}
+
+.bdpdf-roadmap-editorial-step:last-child {
+  border-bottom: 1px solid #d1d5db;
+}
+
+.bdpdf-roadmap-editorial-time {
+  color: #1f3a5f;
+  font-size: 24px;
+  font-weight: 850;
+  line-height: 1.05;
+}
+
+.bdpdf-roadmap-editorial-body {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1fr 1.35fr 1.05fr;
+}
+
+.bdpdf-roadmap-editorial-body h3 {
+  color: #111827;
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 8px 0 0;
+}
+
+.bdpdf-roadmap-editorial-body p {
+  color: #374151;
+  font-size: 12px;
+  line-height: 1.62;
+  margin: 8px 0 0;
+}
+
+.bdpdf-roadmap-editorial-body small {
+  align-self: end;
+  border-top: 1px solid #d1d5db;
+  grid-column: 1 / -1;
+  padding-top: 12px;
+}
+
+@media print {
+  .bdpdf-report-shell--editorial .bdpdf-report-page {
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+
+  .bdpdf-report-shell--editorial .bdpdf-page-card {
+    background: #ffffff !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .bdpdf-editorial-cover,
+  .bdpdf-editorial-page {
+    min-height: 252mm !important;
+    padding: 15mm 17mm 12mm !important;
+  }
+
+  .bdpdf-cover-document-header,
+  .bdpdf-editorial-page-header,
+  .bdpdf-cover-footer,
+  .bdpdf-editorial-page-footer,
+  .bdpdf-cover-meta,
+  .bdpdf-cover-score-strip,
+  .bdpdf-finding-list,
+  .bdpdf-finding-row,
+  .bdpdf-pillar-editorial-table,
+  .bdpdf-pillar-editorial-head,
+  .bdpdf-pillar-editorial-row,
+  .bdpdf-decision-list,
+  .bdpdf-decision-row,
+  .bdpdf-roadmap-editorial-step,
+  .bdpdf-roadmap-editorial-step:last-child {
+    border-color: #d1d5db !important;
+  }
+
+  .bdpdf-cover-insight,
+  .bdpdf-cover-next-move {
+    border-left-color: #1f3a5f !important;
+  }
+
+  .bdpdf-cover-next-move,
+  .bdpdf-capability-bar,
+  .bdpdf-editorial-track {
+    background: #f3f4f6 !important;
+  }
+
+  .bdpdf-capability-bar span,
+  .bdpdf-editorial-track span {
+    background: #1f3a5f !important;
+  }
 }
 
 .bdpdf-print-root {
@@ -762,6 +1432,315 @@
   color: #172033;
 }
 
+.bdpdf-page-content--executive {
+  padding: 20px 24px 24px;
+}
+
+.bdpdf-executive-brief {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 184px;
+}
+
+.bdpdf-diagnosis-statement {
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(5, 150, 105, 0.06) 100%),
+    #ffffff;
+  border: 1px solid #cbd8ea;
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+
+.bdpdf-diagnosis-statement h2 {
+  color: #10233f;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 8px 0 10px;
+}
+
+.bdpdf-diagnosis-statement p {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.bdpdf-executive-scorecard {
+  background: linear-gradient(180deg, #ffffff 0%, #eef4fb 100%);
+  border: 1px solid #d7dfeb;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.bdpdf-executive-scorecard.score-high {
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac;
+}
+
+.bdpdf-executive-scorecard.score-medium {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a;
+}
+
+.bdpdf-executive-scorecard.score-low {
+  background: linear-gradient(180deg, #fff1f2 0%, #fee2e2 100%);
+  border-color: #fecaca;
+}
+
+.bdpdf-executive-score-value {
+  color: #0f2a4f;
+  font-size: 50px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 0.95;
+  margin: 0 0 8px;
+}
+
+.bdpdf-executive-score-value.score-high {
+  color: #047857;
+}
+
+.bdpdf-executive-score-value.score-medium {
+  color: #b45309;
+}
+
+.bdpdf-executive-score-value.score-low {
+  color: #b91c1c;
+}
+
+.bdpdf-executive-metrics {
+  border-top: 1px solid rgba(100, 116, 139, 0.22);
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+.bdpdf-executive-metrics div {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.bdpdf-executive-metrics span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.bdpdf-executive-metrics strong {
+  color: #13294b;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: right;
+}
+
+.bdpdf-executive-kpis {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.bdpdf-mini-kpi {
+  background: #ffffff;
+  border: 1px solid #d7dfeb;
+  border-left: 5px solid #94a3b8;
+  border-radius: 14px;
+  min-height: 86px;
+  padding: 12px 14px;
+}
+
+.bdpdf-mini-kpi.color-people {
+  border-left-color: #2563eb;
+}
+
+.bdpdf-mini-kpi.color-processes {
+  border-left-color: #d97706;
+}
+
+.bdpdf-mini-kpi.color-products {
+  border-left-color: #ea580c;
+}
+
+.bdpdf-mini-kpi.color-finance {
+  border-left-color: #059669;
+}
+
+.bdpdf-mini-kpi p {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.bdpdf-mini-kpi strong {
+  color: #13294b;
+  display: block;
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin-bottom: 4px;
+}
+
+.bdpdf-mini-kpi span {
+  color: #475569;
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.bdpdf-section--compact {
+  margin-top: 14px;
+}
+
+.bdpdf-insight-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bdpdf-executive-insight {
+  background: #ffffff;
+  border: 1px solid #d7dfeb;
+  border-radius: 16px;
+  min-height: 156px;
+  padding: 13px;
+}
+
+.bdpdf-executive-insight.tone-risk {
+  background: linear-gradient(180deg, #fff7ed 0%, #fffaf5 100%);
+  border-color: #fed7aa;
+}
+
+.bdpdf-executive-insight.tone-focus {
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
+  border-color: #bfdbfe;
+}
+
+.bdpdf-executive-insight.tone-win {
+  background: linear-gradient(180deg, #f0fdf4 0%, #f7fff9 100%);
+  border-color: #bbf7d0;
+}
+
+.bdpdf-executive-insight h3 {
+  color: #10233f;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 8px 0;
+}
+
+.bdpdf-executive-insight p,
+.bdpdf-executive-insight strong {
+  color: #334155;
+  display: block;
+  font-size: 11px;
+  line-height: 1.48;
+  margin: 0;
+}
+
+.bdpdf-executive-insight strong {
+  color: #13294b;
+  font-weight: 800;
+  margin-top: 8px;
+}
+
+.bdpdf-priority-panel {
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.03) 0%, rgba(37, 99, 235, 0.08) 100%),
+    #ffffff;
+  border: 1px solid #cbd8ea;
+  border-radius: 18px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  margin-top: 14px;
+  padding: 15px 16px;
+}
+
+.bdpdf-priority-panel h2 {
+  color: #10233f;
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 8px 0 8px;
+}
+
+.bdpdf-priority-panel p {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.bdpdf-module-chip {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  color: #047857;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.2;
+  margin-top: 10px;
+  padding: 7px 10px;
+}
+
+.bdpdf-evidence-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.bdpdf-evidence-box p {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 850;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.bdpdf-evidence-box ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.bdpdf-evidence-box li,
+.bdpdf-evidence-box span {
+  color: #334155;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.bdpdf-dashboard-grid--executive {
+  margin-top: 14px;
+}
+
+.bdpdf-chart-card--compact,
+.bdpdf-progress-card--compact {
+  min-height: 238px;
+  padding: 14px;
+}
+
+.bdpdf-progress-card--compact .bdpdf-maturity-track {
+  margin-top: 12px;
+}
+
+.bdpdf-maturity-rail--compact {
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.bdpdf-maturity-rail--compact .bdpdf-maturity-step {
+  padding: 7px 10px;
+}
+
 .bdpdf-executive-grid {
   display: grid;
   gap: 12px;
@@ -815,6 +1794,44 @@
   color: #475569;
   font-size: 13px;
   margin-top: 10px;
+}
+
+.bdpdf-narrative-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.bdpdf-narrative-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #d7dfeb;
+  border-radius: 14px;
+  min-height: 126px;
+  padding: 12px;
+}
+
+.bdpdf-narrative-card p {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.bdpdf-narrative-card .bdpdf-recommendation-rank {
+  margin-bottom: 8px;
+}
+
+.bdpdf-note-line {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 12px 0 0;
+  padding: 8px 12px;
 }
 
 .bdpdf-dashboard-grid {
@@ -1022,6 +2039,634 @@
   margin-top: 0;
 }
 
+.bdpdf-action-plan-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bdpdf-action-plan-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #d7dfeb;
+  border-radius: 18px;
+  min-height: 166px;
+  padding: 16px;
+}
+
+.bdpdf-roadmap-timeline {
+  background: #ffffff;
+  border: 1px solid #d7dfeb;
+  border-radius: 18px;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+}
+
+.bdpdf-roadmap-step {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  min-height: 118px;
+  padding: 16px 18px;
+  position: relative;
+}
+
+.bdpdf-roadmap-step + .bdpdf-roadmap-step {
+  border-top: 1px solid #e2e8f0;
+}
+
+.bdpdf-roadmap-step::before {
+  background: #dbeafe;
+  bottom: -18px;
+  content: "";
+  left: 41px;
+  position: absolute;
+  top: 48px;
+  width: 2px;
+}
+
+.bdpdf-roadmap-step:last-child::before {
+  display: none;
+}
+
+.bdpdf-roadmap-marker {
+  align-items: center;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.bdpdf-roadmap-marker span {
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.bdpdf-roadmap-label {
+  color: #7c3aed;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.bdpdf-roadmap-body h3 {
+  color: #10233f;
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 0 0 6px;
+}
+
+.bdpdf-roadmap-body p {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Clean reading mode for exported reports. */
+.bdpdf-report-page,
+.bdpdf-page-card,
+.bdpdf-hero,
+.bdpdf-cover,
+.bdpdf-page-content,
+.bdpdf-summary-card,
+.bdpdf-panel-card,
+.bdpdf-highlight-card,
+.bdpdf-pillar-card,
+.bdpdf-analysis-card,
+.bdpdf-analysis-card-head,
+.bdpdf-recommendation-card,
+.bdpdf-plan-card,
+.bdpdf-table-card,
+.bdpdf-table-title,
+.bdpdf-meta-card,
+.bdpdf-cover-logo,
+.bdpdf-cover-logo--empty,
+.bdpdf-diagnosis-statement,
+.bdpdf-executive-scorecard,
+.bdpdf-score-hero-card,
+.bdpdf-mini-kpi,
+.bdpdf-executive-insight,
+.bdpdf-priority-panel,
+.bdpdf-evidence-box,
+.bdpdf-narrative-card,
+.bdpdf-note-line,
+.bdpdf-chart-card,
+.bdpdf-progress-card,
+.bdpdf-insight-box,
+.bdpdf-recommendation-strip,
+.bdpdf-action-plan-card,
+.bdpdf-roadmap-timeline,
+.bdpdf-roadmap-step {
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.bdpdf-report-page {
+  background: #ffffff !important;
+  color: #111827;
+  padding: 14px;
+}
+
+.bdpdf-page-card {
+  border: 1px solid #d9e2ef;
+  border-radius: 10px;
+}
+
+.bdpdf-cover {
+  border-bottom: 1px solid #d9e2ef;
+  padding: 24px 28px 22px;
+}
+
+.bdpdf-page-content {
+  padding: 24px 28px 28px;
+}
+
+.bdpdf-cover-title,
+.bdpdf-hero-title {
+  color: #111827;
+  letter-spacing: 0;
+}
+
+.bdpdf-cover-subtitle,
+.bdpdf-hero-subtitle,
+.bdpdf-report-id,
+.bdpdf-cover .bdpdf-report-id {
+  color: #4b5563;
+}
+
+.bdpdf-brand-badge,
+.bdpdf-cover .bdpdf-brand-badge,
+.bdpdf-recommendation-rank,
+.bdpdf-module-chip,
+.bdpdf-score-chip,
+.bdpdf-roadmap-marker {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+}
+
+.bdpdf-cover-logo {
+  border-color: #cbd5e1;
+  border-radius: 8px;
+}
+
+.bdpdf-meta-card,
+.bdpdf-cover .bdpdf-meta-card,
+.bdpdf-summary-card,
+.bdpdf-panel-card,
+.bdpdf-highlight-card,
+.bdpdf-pillar-card,
+.bdpdf-analysis-card,
+.bdpdf-recommendation-card,
+.bdpdf-plan-card,
+.bdpdf-table-card,
+.bdpdf-diagnosis-statement,
+.bdpdf-executive-scorecard,
+.bdpdf-score-hero-card,
+.bdpdf-mini-kpi,
+.bdpdf-executive-insight,
+.bdpdf-priority-panel,
+.bdpdf-evidence-box,
+.bdpdf-narrative-card,
+.bdpdf-note-line,
+.bdpdf-chart-card,
+.bdpdf-progress-card,
+.bdpdf-insight-box,
+.bdpdf-recommendation-strip,
+.bdpdf-action-plan-card,
+.bdpdf-roadmap-timeline {
+  border-color: #d9e2ef !important;
+  border-radius: 8px !important;
+}
+
+.bdpdf-highlight-card--accent,
+.bdpdf-highlight-card--level,
+.bdpdf-highlight-card.color-people,
+.bdpdf-highlight-card.color-processes,
+.bdpdf-highlight-card.color-products,
+.bdpdf-highlight-card.color-finance,
+.bdpdf-highlight-card--score.score-high,
+.bdpdf-highlight-card--score.score-medium,
+.bdpdf-highlight-card--score.score-low,
+.bdpdf-executive-scorecard.score-high,
+.bdpdf-executive-scorecard.score-medium,
+.bdpdf-executive-scorecard.score-low,
+.bdpdf-score-hero-card.score-high,
+.bdpdf-score-hero-card.score-medium,
+.bdpdf-score-hero-card.score-low,
+.bdpdf-executive-insight.tone-risk,
+.bdpdf-executive-insight.tone-focus,
+.bdpdf-executive-insight.tone-win,
+.bdpdf-pillar-card--executive.color-people,
+.bdpdf-pillar-card--executive.color-processes,
+.bdpdf-pillar-card--executive.color-products,
+.bdpdf-pillar-card--executive.color-finance,
+.bdpdf-table-card.color-people,
+.bdpdf-table-card.color-processes,
+.bdpdf-table-card.color-products,
+.bdpdf-table-card.color-finance,
+.bdpdf-recommendation-card.color-people,
+.bdpdf-recommendation-card.color-processes,
+.bdpdf-recommendation-card.color-products,
+.bdpdf-recommendation-card.color-finance {
+  background: #ffffff !important;
+}
+
+.bdpdf-pillar-card--executive.color-people,
+.bdpdf-table-card.color-people,
+.bdpdf-recommendation-card.color-people,
+.bdpdf-mini-kpi.color-people {
+  border-left-color: #2563eb !important;
+}
+
+.bdpdf-pillar-card--executive.color-processes,
+.bdpdf-table-card.color-processes,
+.bdpdf-recommendation-card.color-processes,
+.bdpdf-mini-kpi.color-processes {
+  border-left-color: #d97706 !important;
+}
+
+.bdpdf-pillar-card--executive.color-products,
+.bdpdf-table-card.color-products,
+.bdpdf-recommendation-card.color-products,
+.bdpdf-mini-kpi.color-products {
+  border-left-color: #ea580c !important;
+}
+
+.bdpdf-pillar-card--executive.color-finance,
+.bdpdf-table-card.color-finance,
+.bdpdf-recommendation-card.color-finance,
+.bdpdf-mini-kpi.color-finance {
+  border-left-color: #059669 !important;
+}
+
+.bdpdf-diagnosis-statement h2,
+.bdpdf-priority-panel h2,
+.bdpdf-section-title,
+.bdpdf-chart-title,
+.bdpdf-pillar-title,
+.bdpdf-recommendation-title,
+.bdpdf-roadmap-body h3,
+.bdpdf-executive-insight h3 {
+  color: #111827;
+  letter-spacing: 0;
+}
+
+.bdpdf-diagnosis-statement p,
+.bdpdf-priority-panel p,
+.bdpdf-executive-insight p,
+.bdpdf-executive-insight strong,
+.bdpdf-highlight-text,
+.bdpdf-lead,
+.bdpdf-analysis-copy,
+.bdpdf-recommendation-body,
+.bdpdf-recommendation-module,
+.bdpdf-roadmap-body p,
+.bdpdf-insight-box p,
+.bdpdf-recommendation-strip p,
+.bdpdf-plan-card li,
+.bdpdf-action-plan-card,
+.bdpdf-table td {
+  color: #1f2937;
+  line-height: 1.62;
+}
+
+.bdpdf-meta-label,
+.bdpdf-highlight-label,
+.bdpdf-section-caption,
+.bdpdf-pillar-subtitle,
+.bdpdf-table th,
+.bdpdf-muted,
+.bdpdf-roadmap-label {
+  color: #64748b;
+}
+
+.bdpdf-table tbody tr:nth-child(even),
+.bdpdf-table-card.color-people .bdpdf-table-title,
+.bdpdf-table-card.color-processes .bdpdf-table-title,
+.bdpdf-table-card.color-products .bdpdf-table-title,
+.bdpdf-table-card.color-finance .bdpdf-table-title {
+  background: #ffffff !important;
+}
+
+.bdpdf-table th,
+.bdpdf-table td {
+  border-bottom-color: #e5eaf2;
+}
+
+.bdpdf-progress-bar,
+.bdpdf-maturity-track {
+  background: #eef2f7;
+}
+
+.bdpdf-progress-value,
+.bdpdf-maturity-fill {
+  background: #334155 !important;
+}
+
+.bdpdf-maturity-step,
+.bdpdf-maturity-step.is-active {
+  background: #ffffff !important;
+  border-color: #d9e2ef;
+  color: #334155;
+}
+
+.bdpdf-maturity-step.is-active .bdpdf-maturity-dot {
+  background: #334155;
+  box-shadow: none;
+}
+
+.bdpdf-roadmap-marker span {
+  color: #334155;
+}
+
+.bdpdf-roadmap-step::before {
+  background: #d9e2ef;
+}
+
+.bdpdf-page-card--cover .bdpdf-cover {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb;
+  color: #303541;
+  overflow: hidden;
+  padding: 26px 32px 24px;
+  position: relative;
+}
+
+.bdpdf-page-card--cover .bdpdf-cover::before {
+  display: none;
+}
+
+.bdpdf-page-card--cover .bdpdf-cover-topline {
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.bdpdf-page-card--cover .bdpdf-cover-title,
+.bdpdf-page-card--cover .bdpdf-meta-value {
+  color: #303541;
+}
+
+.bdpdf-page-card--cover .bdpdf-cover-title {
+  font-size: 34px;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin: 0;
+  max-width: 590px;
+}
+
+.bdpdf-page-card--cover .bdpdf-cover-subtitle {
+  color: #566070;
+  font-size: 14px;
+  line-height: 1.58;
+  max-width: 590px;
+}
+
+.bdpdf-cover-kicker {
+  color: #147514;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.bdpdf-cover-company-panel {
+  border-bottom: 1px solid #d9e2ef;
+  border-top: 1px solid #d9e2ef;
+  margin-top: 28px;
+  padding: 18px 0;
+}
+
+.bdpdf-cover-company-panel p {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.bdpdf-cover-company-panel h2 {
+  color: #303541;
+  font-size: 27px;
+  font-weight: 850;
+  line-height: 1.15;
+  margin: 0 0 8px;
+}
+
+.bdpdf-cover-company-panel span {
+  color: #4b5563;
+  display: block;
+  font-size: 12px;
+  line-height: 1.58;
+  max-width: 620px;
+}
+
+.bdpdf-page-card--cover .bdpdf-meta-card {
+  background: #ffffff !important;
+  border-color: #d9e2ef !important;
+  border-top: 4px solid #5bc4b1 !important;
+  color: #303541 !important;
+}
+
+.bdpdf-page-card--cover .bdpdf-page-content .bdpdf-recommendation-rank {
+  background: #fff7d6 !important;
+  border-color: #ffd34c !important;
+  color: #303541 !important;
+}
+
+.bdpdf-page-card--cover .bdpdf-priority-panel--cover .bdpdf-recommendation-rank {
+  background: #e4f8f4 !important;
+  border-color: #5bc4b1 !important;
+  color: #147514 !important;
+}
+
+.bdpdf-page-card--cover .bdpdf-module-chip {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #303541 !important;
+}
+
+.bdpdf-page-card--cover .bdpdf-meta-label {
+  color: #6b7280;
+}
+
+.bdpdf-cover-website {
+  background: #9333ea;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding: 11px 14px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bdpdf-priority-panel--cover {
+  margin-top: 14px;
+}
+
+.bdpdf-analysis-narrative {
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 0;
+}
+
+.bdpdf-analysis-block {
+  border-bottom: 1px solid #e2e8f0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  padding: 18px 0;
+}
+
+.bdpdf-analysis-block-index {
+  color: #94a3b8;
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1;
+  padding-top: 4px;
+}
+
+.bdpdf-analysis-block h3 {
+  color: #111827;
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 1.28;
+  margin: 9px 0 8px;
+}
+
+.bdpdf-analysis-block p {
+  color: #1f2937;
+  font-size: 12.5px;
+  line-height: 1.68;
+  margin: 0;
+}
+
+.bdpdf-analysis-action {
+  margin-top: 10px !important;
+}
+
+.bdpdf-analysis-action strong {
+  color: #111827;
+}
+
+.bdpdf-dashboard-stack {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+
+.bdpdf-chart-card--wide {
+  min-height: 370px;
+}
+
+.bdpdf-radar-chart-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.bdpdf-progress-card--narrative {
+  min-height: 150px;
+}
+
+.bdpdf-pillars-grid {
+  grid-template-columns: 1fr;
+}
+
+.bdpdf-pillar-card--executive {
+  min-height: auto;
+}
+
+.bdpdf-pillar-card--executive .bdpdf-insight-box,
+.bdpdf-pillar-card--executive .bdpdf-recommendation-strip {
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0 !important;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.bdpdf-recommendation-grid {
+  grid-template-columns: 1fr;
+}
+
+.bdpdf-recommendation-card {
+  min-height: auto;
+}
+
+.bdpdf-roadmap-step {
+  grid-template-columns: 82px minmax(0, 1fr);
+  min-height: 132px;
+}
+
+.bdpdf-roadmap-step::before {
+  left: 58px;
+  top: 62px;
+}
+
+.bdpdf-roadmap-visual {
+  align-content: start;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  position: relative;
+}
+
+.bdpdf-roadmap-marker {
+  background: linear-gradient(135deg, #2563eb 0%, #0f766e 100%) !important;
+  border: 0 !important;
+  height: 46px;
+  width: 46px;
+}
+
+.bdpdf-roadmap-marker span {
+  color: #ffffff;
+}
+
+.bdpdf-roadmap-signal {
+  align-items: end;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, 8px);
+  height: 30px;
+}
+
+.bdpdf-roadmap-signal span {
+  background: #cbd5e1;
+  border-radius: 999px;
+  display: block;
+  width: 8px;
+}
+
+.bdpdf-roadmap-signal span:nth-child(1) {
+  height: 12px;
+}
+
+.bdpdf-roadmap-signal span:nth-child(2) {
+  background: #93c5fd;
+  height: 22px;
+}
+
+.bdpdf-roadmap-signal span:nth-child(3) {
+  background: #5eead4;
+  height: 30px;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -1068,11 +2713,11 @@
   }
 
   .bdpdf-report-page {
-    background: #eef2f7 !important;
+    background: #ffffff !important;
     break-after: page;
     min-height: 0 !important;
     page-break-after: always;
-    padding: 4mm 0 0 !important;
+    padding: 0 !important;
     width: 100% !important;
   }
 
@@ -1087,30 +2732,114 @@
 
   .bdpdf-page-card {
     border: 1px solid #d7dfeb !important;
-    border-radius: 20px !important;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
     overflow: hidden !important;
   }
 
   .bdpdf-page-content {
+    background: #ffffff !important;
     padding: 24px 28px 28px !important;
   }
 
+  .bdpdf-cover,
+  .bdpdf-summary-card,
+  .bdpdf-panel-card,
+  .bdpdf-highlight-card,
+  .bdpdf-diagnosis-statement,
+  .bdpdf-executive-scorecard,
+  .bdpdf-mini-kpi,
+  .bdpdf-executive-insight,
+  .bdpdf-priority-panel,
+  .bdpdf-evidence-box,
+  .bdpdf-narrative-card,
+  .bdpdf-note-line,
+  .bdpdf-pillar-card,
+  .bdpdf-analysis-card,
+  .bdpdf-chart-card,
+  .bdpdf-progress-card,
+  .bdpdf-recommendation-card,
+  .bdpdf-recommendation-strip,
+  .bdpdf-action-plan-card,
+  .bdpdf-roadmap-timeline,
+  .bdpdf-roadmap-step,
+  .bdpdf-plan-card,
+  .bdpdf-table-card,
+  .bdpdf-table-title,
+  .bdpdf-table tbody tr {
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .bdpdf-page-card--cover .bdpdf-cover {
+    background: #ffffff !important;
+    color: #303541 !important;
+  }
+
+  .bdpdf-page-card--cover .bdpdf-cover-title,
+  .bdpdf-page-card--cover .bdpdf-meta-value,
+  .bdpdf-cover-company-panel h2 {
+    color: #303541 !important;
+  }
+
+  .bdpdf-page-card--cover .bdpdf-cover-subtitle,
+  .bdpdf-cover-company-panel span {
+    color: #566070 !important;
+  }
+
+  .bdpdf-page-card--cover .bdpdf-meta-card {
+    background: #ffffff !important;
+    border-color: #d9e2ef !important;
+    color: #303541 !important;
+  }
+
+  .bdpdf-page-card--cover .bdpdf-page-content .bdpdf-recommendation-rank {
+    background: #fff7d6 !important;
+    border-color: #ffd34c !important;
+    color: #303541 !important;
+  }
+
+  .bdpdf-page-card--cover .bdpdf-priority-panel--cover .bdpdf-recommendation-rank {
+    background: #e4f8f4 !important;
+    border-color: #5bc4b1 !important;
+    color: #147514 !important;
+  }
+
+  .bdpdf-page-card--cover .bdpdf-module-chip {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #303541 !important;
+  }
+
   .bdpdf-pillars-grid {
-    display: block !important;
-    font-size: 0;
+    display: grid !important;
+    font-size: inherit;
+    grid-template-columns: 1fr !important;
   }
 
   .bdpdf-pillar-card {
-    display: inline-block !important;
+    display: block !important;
     font-size: 16px;
-    margin: 0 12px 12px 0;
+    margin: 0 0 12px;
     vertical-align: top;
-    width: calc(50% - 6px);
+    width: auto;
   }
 
   .bdpdf-pillar-card:nth-child(2n) {
     margin-right: 0;
+  }
+
+  .bdpdf-recommendation-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .bdpdf-roadmap-marker {
+    background: linear-gradient(135deg, #2563eb 0%, #0f766e 100%) !important;
+    border: 0 !important;
+  }
+
+  .bdpdf-roadmap-marker span {
+    color: #ffffff !important;
   }
 
   .bdpdf-section {
@@ -1126,12 +2855,22 @@
   .bdpdf-summary-card,
   .bdpdf-panel-card,
   .bdpdf-highlight-card,
+  .bdpdf-diagnosis-statement,
+  .bdpdf-executive-scorecard,
+  .bdpdf-mini-kpi,
+  .bdpdf-executive-insight,
+  .bdpdf-priority-panel,
+  .bdpdf-evidence-box,
+  .bdpdf-narrative-card,
+  .bdpdf-note-line,
   .bdpdf-pillar-card,
   .bdpdf-analysis-card,
   .bdpdf-chart-card,
   .bdpdf-progress-card,
   .bdpdf-recommendation-card,
   .bdpdf-recommendation-strip,
+  .bdpdf-action-plan-card,
+  .bdpdf-roadmap-step,
   .bdpdf-plan-card,
   .bdpdf-table-card,
   .bdpdf-table tbody tr {

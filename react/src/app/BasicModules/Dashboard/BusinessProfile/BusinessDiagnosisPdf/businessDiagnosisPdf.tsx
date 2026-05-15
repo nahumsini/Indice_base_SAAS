@@ -20,6 +20,11 @@ export function BusinessDiagnosisPrintPortal({
 }: BusinessDiagnosisPrintPortalProps) {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const hasTriggeredRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (!job) {
@@ -50,26 +55,73 @@ export function BusinessDiagnosisPrintPortal({
 
     hasTriggeredRef.current = true;
     const previousTitle = document.title;
-    document.title = job.fileName;
+    let hasCompleted = false;
+    let focusFallbackId: number | undefined;
+    let safetyFallbackId: number | undefined;
 
-    const handleAfterPrint = () => {
+    const completePrintJob = () => {
+      if (hasCompleted) {
+        return;
+      }
+
+      hasCompleted = true;
       document.title = previousTitle;
       hasTriggeredRef.current = false;
-      onComplete();
+      window.removeEventListener('afterprint', completePrintJob);
+      window.removeEventListener('focus', scheduleFocusFallback);
+
+      if (focusFallbackId) {
+        window.clearTimeout(focusFallbackId);
+      }
+
+      if (safetyFallbackId) {
+        window.clearTimeout(safetyFallbackId);
+      }
+
+      onCompleteRef.current();
     };
 
-    window.addEventListener('afterprint', handleAfterPrint, { once: true });
+    function scheduleFocusFallback() {
+      if (focusFallbackId) {
+        window.clearTimeout(focusFallbackId);
+      }
+
+      focusFallbackId = window.setTimeout(completePrintJob, 350);
+    }
+
+    window.addEventListener('afterprint', completePrintJob);
+    window.addEventListener('focus', scheduleFocusFallback);
 
     const triggerId = window.setTimeout(() => {
-      window.print();
-    }, 80);
+      try {
+        document.title = job.fileName;
+        window.print();
+        safetyFallbackId = window.setTimeout(completePrintJob, 60000);
+      } catch (error) {
+        console.error('Unable to print business diagnosis report.', error);
+        completePrintJob();
+      }
+    }, 120);
 
     return () => {
+      if (!hasCompleted) {
+        hasTriggeredRef.current = false;
+        document.title = previousTitle;
+      }
+
       window.clearTimeout(triggerId);
-      window.removeEventListener('afterprint', handleAfterPrint);
-      document.title = previousTitle;
+      window.removeEventListener('afterprint', completePrintJob);
+      window.removeEventListener('focus', scheduleFocusFallback);
+
+      if (focusFallbackId) {
+        window.clearTimeout(focusFallbackId);
+      }
+
+      if (safetyFallbackId) {
+        window.clearTimeout(safetyFallbackId);
+      }
     };
-  }, [host, job, onComplete]);
+  }, [host, job]);
 
   if (!job || !host) {
     return null;

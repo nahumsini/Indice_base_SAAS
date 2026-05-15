@@ -1,12 +1,7 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, CheckCircle2, CircleAlert, Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../../../api/configCenter';
-import {
-  LoadingBarOverlay,
-  runWithMinimumDuration,
-} from '../../../components/LoadingBarOverlay';
-import { SaveChangesBar } from '../../../components/SaveChangesBar';
-import { SuccessToast } from '../../../components/SuccessToast';
+import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { languages, useLanguage } from '../../../shared/context';
 import {
   DEFAULT_PROFILE_COUNTRY,
@@ -44,7 +39,7 @@ const DEFAULT_PROFILE_FORM_VALUES = {
   confirmNewPassword: '',
 } as const;
 
-const PROFILE_SAVE_MINIMUM_LOADING_MS = 2500;
+const PROFILE_AUTO_SAVE_DEBOUNCE_MS = 800;
 const PROFILE_AVATAR_MAX_SOURCE_SIZE_BYTES = 25 * 1024 * 1024;
 const PROFILE_AVATAR_MAX_UPLOAD_SIZE_BYTES = 1024 * 1024;
 const PROFILE_AVATAR_MAX_DIMENSION_PIXELS = 768;
@@ -286,6 +281,8 @@ export default function Profile() {
   const [saveMessage, setSaveMessage] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const formValuesRef = useRef(formValues);
+  const failedAutoSaveKeyRef = useRef('');
 
   const replaceAvatarPreview = (nextPreviewUrl: string) => {
     if (avatarPreviewRef.current) {
@@ -328,6 +325,10 @@ export default function Profile() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    formValuesRef.current = formValues;
+  }, [formValues]);
 
   useEffect(() => {
     return () => {
@@ -378,6 +379,7 @@ export default function Profile() {
     && trimmedNewPassword === trimmedPasswordConfirmation
   );
   const isSaveDisabled = isUploadingAvatar
+    || hasPasswordMinLengthError
     || (
       hasPasswordChangeInProgress
       && (
@@ -502,20 +504,30 @@ export default function Profile() {
     setSaveMessage('');
   };
 
-  const handleSaveProfile = async () => {
-    if (!user || !hasUnsavedChanges || isUploadingAvatar) {
+  const handleSaveProfile = async (
+    valuesToSave = formValues,
+    baselineToSave = baselineValues,
+  ) => {
+    if (
+      !user
+      || !baselineToSave
+      || isUploadingAvatar
+      || areProfileFormValuesEqual(valuesToSave, baselineToSave)
+    ) {
       return;
     }
 
-    const hasPasswordChange = trimmedNewPassword.length > 0 || trimmedPasswordConfirmation.length > 0;
+    const nextPassword = valuesToSave.newPassword.trim();
+    const nextPasswordConfirmation = valuesToSave.confirmNewPassword.trim();
+    const hasPasswordChange = nextPassword.length > 0 || nextPasswordConfirmation.length > 0;
 
-    if (hasPasswordChange && trimmedNewPassword !== trimmedPasswordConfirmation) {
+    if (hasPasswordChange && nextPassword !== nextPasswordConfirmation) {
       setErrorMessage(profileCopy.messages.passwordMismatch);
       setSaveMessage('');
       return;
     }
 
-    if (trimmedNewPassword.length > 0 && trimmedNewPassword.length < 8) {
+    if (nextPassword.length > 0 && nextPassword.length < 8) {
       setErrorMessage(profileCopy.messages.passwordMinLength);
       setSaveMessage('');
       return;
@@ -526,17 +538,16 @@ export default function Profile() {
     setSaveMessage('');
 
     try {
-      const trimmedPhoneNumber = formValues.phoneNumber.trim();
+      const trimmedPhoneNumber = valuesToSave.phoneNumber.trim();
       let formattedPhone = '';
-      const isPhoneSelectionUnchanged = baselineValues !== null
-        && formValues.phoneNumber === baselineValues.phoneNumber
-        && formValues.country === baselineValues.country;
+      const isPhoneSelectionUnchanged = valuesToSave.phoneNumber === baselineToSave.phoneNumber
+        && valuesToSave.country === baselineToSave.country;
 
       if (trimmedPhoneNumber) {
         if (isPhoneSelectionUnchanged && user.telefono?.trim()) {
           formattedPhone = user.telefono.trim();
         } else {
-          const validation = validatePhoneForProfileCountry(trimmedPhoneNumber, formValues.country);
+          const validation = validatePhoneForProfileCountry(trimmedPhoneNumber, valuesToSave.country);
 
           if (!validation.ok) {
             setErrorMessage(profileCopy.messages.invalidPhone);
@@ -548,47 +559,95 @@ export default function Profile() {
         }
       }
 
-      const response = await runWithMinimumDuration(
-        configCenterApi.saveCurrentUser({
-          primer_nombre: formValues.firstName,
-          apellido_paterno: formValues.lastName,
-          telefono: formattedPhone,
-          country: formValues.country,
-          preferred_language: formValues.preferredLanguage,
-          ...(baselineValues && formValues.avatarObjectKey !== baselineValues.avatarObjectKey
-            ? {
-                avatar_object_key: formValues.avatarObjectKey,
-                avatar_content_type: formValues.avatarContentType,
-              }
-            : {}),
-          ...(trimmedNewPassword
-            ? {
-                new_password: trimmedNewPassword,
-                confirm_new_password: trimmedPasswordConfirmation,
-              }
-            : {}),
-        }),
-        PROFILE_SAVE_MINIMUM_LOADING_MS,
-      );
+      const response = await configCenterApi.saveCurrentUser({
+        primer_nombre: valuesToSave.firstName,
+        apellido_paterno: valuesToSave.lastName,
+        telefono: formattedPhone,
+        country: valuesToSave.country,
+        preferred_language: valuesToSave.preferredLanguage,
+        ...(valuesToSave.avatarObjectKey !== baselineToSave.avatarObjectKey
+          ? {
+              avatar_object_key: valuesToSave.avatarObjectKey,
+              avatar_content_type: valuesToSave.avatarContentType,
+            }
+          : {}),
+        ...(nextPassword
+          ? {
+              new_password: nextPassword,
+              confirm_new_password: nextPasswordConfirmation,
+            }
+          : {}),
+      });
 
       const nextValues = createProfileFormValues(response);
 
       setUser(response);
       setBaselineValues(nextValues);
-      setFormValues(nextValues);
-      replaceAvatarPreview('');
-      setSaveMessage(profileCopy.messages.saveSuccess);
+      if (areProfileFormValuesEqual(formValuesRef.current, valuesToSave)) {
+        setFormValues(nextValues);
+        replaceAvatarPreview('');
+      }
+      failedAutoSaveKeyRef.current = '';
       window.dispatchEvent(new CustomEvent(USER_PROFILE_UPDATED_EVENT, { detail: { user: response } }));
     } catch (error) {
+      failedAutoSaveKeyRef.current = JSON.stringify(valuesToSave);
       setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.saveError);
     } finally {
       setIsSaving(false);
     }
   };
 
+  useEffect(() => {
+    if (
+      isLoading
+      || isSaving
+      || isUploadingAvatar
+      || isSaveDisabled
+      || !baselineValues
+      || !hasUnsavedChanges
+    ) {
+      return undefined;
+    }
+
+    const autoSaveKey = JSON.stringify(formValues);
+    if (failedAutoSaveKeyRef.current === autoSaveKey) {
+      return undefined;
+    }
+
+    const trimmedAutoSavePhoneNumber = formValues.phoneNumber.trim();
+    const isPhoneSelectionUnchanged = baselineValues !== null
+      && formValues.phoneNumber === baselineValues.phoneNumber
+      && formValues.country === baselineValues.country;
+
+    if (
+      trimmedAutoSavePhoneNumber
+      && !(isPhoneSelectionUnchanged && user?.telefono?.trim())
+      && !validatePhoneForProfileCountry(trimmedAutoSavePhoneNumber, formValues.country).ok
+    ) {
+      return undefined;
+    }
+
+    const saveTimer = window.setTimeout(() => {
+      void handleSaveProfile(formValues, baselineValues);
+    }, PROFILE_AUTO_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(saveTimer);
+    };
+  }, [
+    baselineValues,
+    formValues,
+    hasUnsavedChanges,
+    isLoading,
+    isSaveDisabled,
+    isSaving,
+    isUploadingAvatar,
+    user,
+  ]);
+
   return (
     <>
-      <div className={hasUnsavedChanges ? 'pb-24 sm:pb-20' : ''}>
+      <div>
         <div className="bg-purple-50 dark:bg-purple-900/10 mb-6 rounded-lg border border-purple-200 p-4 dark:border-purple-700/30 sm:p-6">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
@@ -974,28 +1033,6 @@ export default function Profile() {
         </div>
       </div>
 
-      <SaveChangesBar
-        isVisible={hasUnsavedChanges}
-        isSaving={isSaving}
-        isSaveDisabled={isSaveDisabled}
-        onDiscard={handleDiscardChanges}
-        onSave={handleSaveProfile}
-        saveLabel={profileCopy.actions.save}
-        savingLabel={profileCopy.actions.saving}
-        discardLabel={profileCopy.actions.discard}
-        message={profileCopy.messages.unsavedChanges}
-      />
-
-      <LoadingBarOverlay
-        isVisible={isSaving}
-        title={profileCopy.messages.savingOverlay}
-      />
-
-      <SuccessToast
-        isVisible={Boolean(saveMessage)}
-        message={saveMessage}
-        onClose={() => setSaveMessage('')}
-      />
     </>
   );
 }
