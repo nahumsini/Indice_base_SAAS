@@ -1,6 +1,6 @@
 @human-resources @records
 Feature: HR records
-  HR users manage employee records, witnesses, activity, and attachments.
+  HR users manage user records, witnesses, activity, and attachments.
 
   @implemented
   Scenario: Records list requires authentication
@@ -10,7 +10,7 @@ Feature: HR records
 
   @implemented
   Scenario: HR user creates, updates, views, and deletes a record
-    Given an authenticated company user opens Records
+    Given an authenticated hr user opens Records
     When the user creates a record
     Then the backend should persist the record
     When the user views, updates, or deletes the record

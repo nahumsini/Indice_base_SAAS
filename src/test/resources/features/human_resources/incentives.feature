@@ -1,6 +1,6 @@
 @human-resources @incentives
 Feature: HR incentives
-  HR users configure manual and automated incentives for collaborators.
+  HR users configure manual and automated incentives for users.
 
   @implemented @frontend-only
   Scenario: User opens the Incentives tab
@@ -12,7 +12,7 @@ Feature: HR incentives
   @implemented @frontend-only
   Scenario: User creates a manual incentive
     Given an authenticated user is viewing the Incentives tab
-    When the user creates a manual incentive for selected collaborators
+    When the user creates a manual incentive for selected users
     Then the frontend should add the incentive to the current list
     And the incentive should show manual type, amount, application date, and status
 
@@ -25,7 +25,7 @@ Feature: HR incentives
 
   @planned
   Scenario: Incentives persist in the backend
-    Given an HR user creates or edits an incentive
+    Given an hr user creates or edits an incentive
     When the frontend sends the incentive to the backend
     Then the backend should persist the incentive rule
     And payroll should be able to consume approved incentive data
@@ -35,4 +35,3 @@ Feature: HR incentives
     Given a normal user is authenticated
     When the user tries to open Incentives or call incentive management APIs
     Then the app should deny incentive management
-

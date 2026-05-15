@@ -1,6 +1,6 @@
 @human-resources @kpis
 Feature: HR KPIs
-  HR users review workforce, attendance, payroll, assets, records, and team health metrics.
+  HR users review user, attendance, payroll, assets, records, and team health metrics.
 
   @implemented @frontend-only
   Scenario: User opens the HR KPIs tab
@@ -19,7 +19,7 @@ Feature: HR KPIs
 
   @planned
   Scenario: HR KPIs are calculated from backend data
-    Given HR data exists for employees, attendance, payroll, permissions, assets, and records
+    Given HR data exists for users, attendance, payroll, permissions, assets, and records
     When the user opens HR KPIs
     Then the backend should calculate the KPI values for the selected period and scope
     And the frontend should render backend values instead of static demo values
@@ -29,4 +29,3 @@ Feature: HR KPIs
     Given a user has limited HR data access
     When the user opens HR KPIs
     Then the KPI values should include only data the user is allowed to see
-
