@@ -4,10 +4,10 @@ Feature: Login
 
   @implemented
   Scenario: User logs in with valid credentials
-    Given an active company user exists
+    Given an active user exists
     When the user logs in with valid credentials
     Then the backend should create an authenticated session
-    And the session response should include the user id, user name, role, and company id
+    And the session response should include the user id, user name, user type, and company id
     And the frontend should navigate the user to the dashboard
 
   @implemented
@@ -19,11 +19,11 @@ Feature: Login
     And no authenticated session should be created
 
   @implemented
-  Scenario: User without an active company cannot log in
-    Given a registered user has no active company access
+  Scenario: User without an active user type for the company cannot log in
+    Given a registered user has no active user type assignment for the company
     When the user logs in with valid account credentials
     Then the backend should reject the login request
-    And the response should explain that no active company is assigned
+    And the response should explain that no active user type is assigned for the company
 
   @implemented
   Scenario: User logs out

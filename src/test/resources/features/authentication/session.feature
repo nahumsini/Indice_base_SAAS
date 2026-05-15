@@ -6,7 +6,7 @@ Feature: Session state
   Scenario: Authenticated user loads current session
     Given a user has an active session
     When the frontend requests the current session
-    Then the backend should return the current user id, name, role, and company id
+    Then the backend should return the current user id, name, user type, and company id
 
   @implemented
   Scenario: Anonymous user requests current session
@@ -15,7 +15,7 @@ Feature: Session state
     Then the backend should return unauthorized
 
   @planned @access-control
-  Scenario: Role is reused by module access rules
+  Scenario: User type is reused by module access rules
     Given a user has an active session
     When the frontend renders module tabs
-    Then the visible tabs should be based on the user's role and module access
+    Then the visible tabs should be based on the user's type and module access

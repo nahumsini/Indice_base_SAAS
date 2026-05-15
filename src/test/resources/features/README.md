@@ -20,7 +20,7 @@ Suggested file naming:
 - Tag scenarios with `@frontend-only` when the screen behavior exists but is not backed by persisted APIs yet.
 - Tag permission and visibility rules with `@access-control`.
 
-Common roles:
+Common user types:
 
 - `owner user`: full company setup and administration access.
 - `admin user`: operational administrator access.
