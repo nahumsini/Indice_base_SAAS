@@ -1,10 +1,10 @@
 @human-resources @announcements
 Feature: HR announcements
-  HR users publish announcements to selected employee audiences.
+  HR users publish announcements to selected user audiences.
 
   @implemented
   Scenario: HR user creates and lists announcements
-    Given an authenticated company user opens Announcements
+    Given an authenticated hr user opens Announcements
     When the user creates an announcement
     Then the backend should persist the announcement
     When the user lists announcements

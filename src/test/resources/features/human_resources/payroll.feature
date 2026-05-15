@@ -10,19 +10,19 @@ Feature: Payroll
 
   @implemented
   Scenario: Payroll user updates preferences
-    Given an authenticated company user opens Payroll
+    Given an authenticated payroll user opens Payroll
     When the user updates payroll preferences with valid data
     Then the backend should persist the preferences
 
   @implemented
   Scenario: Payroll user generates a payroll run
-    Given matching employees exist for a payroll frequency
+    Given matching users exist for a payroll frequency
     When the user creates a payroll run
     Then the backend should create a draft payroll run with lines
 
   @implemented
-  Scenario: Payroll generation rejects empty employee selection
-    Given no employees match the selected payroll frequency
+  Scenario: Payroll generation rejects empty user selection
+    Given no users match the selected payroll frequency
     When the user creates a payroll run
     Then the backend should reject the request
 

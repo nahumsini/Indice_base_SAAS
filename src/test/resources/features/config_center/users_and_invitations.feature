@@ -1,22 +1,25 @@
 @config-center @users
 Feature: Users and invitations
-  Administrators manage company users, roles, module access, and invitations.
+  Administrators manage users, user types, module roles, and invitations.
+  Accepted users should receive the invited user type and module roles when they accept an invitation.
 
   @implemented
   Scenario: Authenticated user loads the users catalog
-    Given an authenticated company user opens the Users tab
+    Given an authenticated admin user opens the Users tab
     When the frontend requests the users list
-    Then the backend should return users, invitations, and module catalog data
+    Then the backend should return users, pending invitations, module catalog data, and available user type options
+    And each active user should include its user identity and assigned user type
 
   @implemented
-  Scenario: User updates another user's role, status, and module access
-    Given an authenticated company user opens the Users tab
-    When the user updates a target user's role, status, or module access
-    Then the backend should persist the company access changes
+  Scenario: User updates another user's type, status, and module access
+    Given an authenticated admin user opens the Users tab
+    When the user updates a target user's type, status, or module access
+    Then the backend should persist the user's type and module access changes
+    And the backend should keep the user's profile aligned with the selected user type
 
   @implemented
-  Scenario: User invites a new company user
-    Given an authenticated company user opens the Users tab
+  Scenario: User invites a new user
+    Given an authenticated admin user opens the Users tab
     When the user submits a new invitation
     Then the backend should create a pending invitation
     And the response should include the invite link and email delivery status
@@ -37,19 +40,34 @@ Feature: Users and invitations
   Scenario: Public invitation details can be viewed
     Given a valid invitation token exists
     When the invitee opens the invitation link
-    Then the backend should return company, email, role, and invitation status details
+    Then the backend should return company, email, user type, and invitation status details
 
   @implemented
   Scenario: Invitee accepts a valid invitation
     Given a valid pending invitation exists
     When the invitee submits a valid password and confirmation
-    Then the backend should create or activate the user access
+    Then the backend should create the user identity, user profile, and invited user type
+    And the backend should assign the invitation's module roles to the user
     And the invitation should be marked accepted
 
   @implemented
-  Scenario: Current session user cannot delete their own company access
+  Scenario: Current session user cannot remove their own user assignment
     Given an authenticated user is viewing the Users tab
-    When the user tries to remove their own company access
+    When the user tries to remove their own user assignment
+    Then the backend should reject the request
+
+  @implemented
+  Scenario: User removes another user
+    Given an authenticated admin user is viewing the Users tab
+    And a removable user exists
+    When the administrator removes the target user
+    Then the backend should deactivate the target user's assignment instead of deleting the global user identity
+    And the user's profile should be marked inactive unless it is already terminated
+
+  @implemented
+  Scenario: Protected or last active admin user cannot be removed
+    Given an authenticated admin user is viewing the Users tab
+    When the administrator tries to remove a protected user or the last active admin user
     Then the backend should reject the request
 
   @planned @access-control

@@ -7,7 +7,7 @@ Feature: Home Panel personal profile
     Given a user is authenticated
     When the user opens the Home Panel profile tab
     Then the backend should return only the current user's profile data
-    And the profile form should display the user's name, phone, country, language, role, and avatar when available
+    And the profile form should display the user's name, phone, country, language, user type, and avatar when available
 
   @implemented
   Scenario: User saves their personal profile

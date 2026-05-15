@@ -12,7 +12,7 @@ Feature: HR permissions and absences
   @implemented @frontend-only
   Scenario: User filters permission requests
     Given an authenticated user is viewing the Permissions tab
-    When the user filters by search text, status, type, or employee
+    When the user filters by search text, status, type, or user
     Then the frontend should show only matching permission requests
 
   @implemented @frontend-only
@@ -42,4 +42,3 @@ Feature: HR permissions and absences
     When the user opens Permissions
     Then the user should see only their own requests
     And manager approval actions should not be visible
-

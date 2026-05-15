@@ -1,6 +1,6 @@
 @human-resources @assets
 Feature: HR assets
-  HR users manage company assets and employee assignments.
+  HR users manage company assets and user assignments.
 
   @implemented
   Scenario: Assets list requires authentication
@@ -10,7 +10,7 @@ Feature: HR assets
 
   @implemented
   Scenario: HR user creates and updates an asset
-    Given an authenticated company user opens Assets
+    Given an authenticated hr user opens Assets
     When the user creates an asset with valid lifecycle data
     Then the backend should return the created asset
     When the user updates editable asset fields
@@ -19,7 +19,7 @@ Feature: HR assets
   @implemented
   Scenario: HR user reassigns an asset
     Given an assigned asset exists
-    When the user reassigns the asset to another employee
+    When the user reassigns the asset to another user
     Then the backend should record the assignment change
 
   @implemented
