@@ -58,12 +58,12 @@ const valueFromMetadata = (metadata: Record<string, unknown> | undefined, keys: 
 const kioskTypeLabel = (device: AttendanceKioskDevice) => {
   const kioskType = kioskTypeFromMetadata(device.metadata);
   if (kioskType === 'contract_site') {
-    return 'Temporary location kiosk';
+    return 'Temporary work site';
   }
   if (kioskType === 'head_office') {
-    return 'Head office kiosk';
+    return 'Main office';
   }
-  return 'Business or unit kiosk';
+  return 'Business or unit';
 };
 
 const scopeDescriptionForDevice = (device: AttendanceKioskDevice) => {
@@ -72,22 +72,22 @@ const scopeDescriptionForDevice = (device: AttendanceKioskDevice) => {
   const businessName = device.business_name || 'all businesses';
 
   if (kioskType === 'contract_site') {
-    return `Applies to temporary work site scope: ${unitName} / ${businessName}`;
+    return `Available for ${unitName} / ${businessName}`;
   }
 
   if (kioskType === 'head_office') {
-    return `Applies to head office registrations for ${unitName}`;
+    return `Available for main office registration in ${unitName}`;
   }
 
   if (device.business_id) {
-    return `Applies to ${businessName} in ${unitName}`;
+    return `Available for ${businessName} in ${unitName}`;
   }
 
   if (device.unit_id) {
-    return `Applies to ${unitName} and all businesses`;
+    return `Available for ${unitName} and all businesses`;
   }
 
-  return 'Applies to all units and all businesses';
+  return 'Available for all units and all businesses';
 };
 
 const locationNameForDevice = (
@@ -107,22 +107,22 @@ const locationRuleForDevice = (
   const locationName = locationNameForDevice(device, locations);
 
   if (kioskType === 'business_unit' && !device.location_id) {
-    return 'Uses each HR user business location at check-in.';
+    return "Uses each employee's assigned business location.";
   }
 
   if (!locationName) {
-    return 'No check-in location linked yet.';
+    return 'No check-in rule linked yet.';
   }
 
   if (kioskType === 'contract_site') {
-    return `HR users must register from ${locationName}.`;
+    return `Employees register from ${locationName}.`;
   }
 
   if (kioskType === 'head_office') {
-    return `HR users register from ${locationName}.`;
+    return `Employees register from ${locationName}.`;
   }
 
-  return `Check-ins are validated against ${locationName}.`;
+  return `Check-ins use ${locationName}.`;
 };
 
 const usageLabelForDevice = (device: AttendanceKioskDevice) => {
@@ -138,10 +138,10 @@ const usageLabelForDevice = (device: AttendanceKioskDevice) => {
   ]);
 
   if (!usageCount) {
-    return 'No activity today';
+    return 'No check-ins today';
   }
 
-  return `Used by ${usageCount} HR user${usageCount === 1 ? '' : 's'} today`;
+  return `${usageCount} check-in${usageCount === 1 ? '' : 's'} today`;
 };
 
 export interface KioskManagementModalProps {
@@ -199,16 +199,16 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
                 <MonitorSmartphone className="h-5 w-5" />
               </span>
               <DialogHeader className="gap-1 text-left">
-                <DialogTitle className="text-xl font-semibold text-white">Kiosk Devices</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-white">Attendance Points</DialogTitle>
                 <DialogDescription className="text-sm text-white/80">
-                  Manage where HR users can register attendance.
+                  Manage where employees can clock in and out.
                 </DialogDescription>
               </DialogHeader>
             </div>
             <button
               type="button"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/70"
-              aria-label="Close kiosk devices"
+              aria-label="Close attendance points"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -219,9 +219,9 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">Device control center</p>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">Attendance point control center</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Review availability, scope, links, and location rules for each attendance device.
+                Review availability, access screens, and location rules for each point.
               </p>
             </div>
             <Button
@@ -230,22 +230,27 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               onClick={onNew}
             >
               <Plus className="h-4 w-4" />
-              New kiosk
+              New attendance point
             </Button>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3 border-y border-slate-200 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
-            <span className="font-semibold text-slate-950 dark:text-white">{kioskDevices.length}</span>
-            <span>devices</span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-300">{activeDevices}</span>
-            <span>active</span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="font-semibold text-slate-600 dark:text-slate-300">{inactiveDevices}</span>
-            <span>inactive</span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="font-semibold text-[#143675] dark:text-[#8bb3ff]">{publicLinkDevices}</span>
-            <span>public links ready</span>
+          <div className="mt-5 grid gap-3 border-y border-slate-200 py-4 text-sm dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-2xl font-semibold text-slate-950 dark:text-white">{kioskDevices.length}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total points</p>
+            </div>
+            <div>
+              <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-300">{activeDevices}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Active today</p>
+            </div>
+            <div>
+              <p className="text-2xl font-semibold text-amber-600 dark:text-amber-300">{inactiveDevices}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Needs review</p>
+            </div>
+            <div>
+              <p className="text-2xl font-semibold text-[#143675] dark:text-[#8bb3ff]">{publicLinkDevices}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Access screens ready</p>
+            </div>
           </div>
 
           {kioskDevices.length > 0 ? (
@@ -260,7 +265,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
                     isSaving={isSaving}
                     kioskTypeLabel={kioskTypeLabel(device)}
                     locationRuleDescription={locationRuleForDevice(device, locations)}
-                    publicLinkLabel={hasPublicLink ? 'Available' : 'Not available yet'}
+                    publicLinkLabel={hasPublicLink ? 'Ready' : 'Not ready yet'}
                     scopeDescription={scopeDescriptionForDevice(device)}
                     statusClassName={statusClasses[device.status]}
                     statusLabel={device.status === 'active' ? 'Active' : 'Inactive'}
@@ -280,9 +285,9 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-[#143675]/10 text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
                 <MonitorSmartphone className="h-6 w-6" />
               </div>
-              <p className="mt-4 text-base font-semibold text-slate-950 dark:text-white">No kiosk devices yet</p>
+              <p className="mt-4 text-base font-semibold text-slate-950 dark:text-white">No attendance points yet</p>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-                Create a kiosk device to let HR users register attendance from a controlled public link.
+                Create an attendance point so employees can register from a clear access screen or QR.
               </p>
               <Button
                 type="button"
@@ -290,7 +295,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
                 onClick={onNew}
               >
                 <Plus className="h-4 w-4" />
-                New kiosk
+                New attendance point
               </Button>
             </div>
           )}

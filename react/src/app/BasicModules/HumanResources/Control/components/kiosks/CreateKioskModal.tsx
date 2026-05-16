@@ -42,7 +42,7 @@ export interface CreateKioskModalProps {
   onUnitChange: (unitId: number | null) => void;
 }
 
-const emptyLocationMessage = 'No active locations available for this kiosk type. Create a location first.';
+const emptyLocationMessage = 'No active locations available for this attendance point type. Create a location first.';
 
 const selectClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition focus:border-[#143675] focus:outline-none focus:ring-2 focus:ring-[#143675]/15 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900';
 const inputClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-[#143675] focus:outline-none focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
@@ -53,7 +53,7 @@ const referenceFromTitle = (value: string) => {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
-  return slug ? `${slug}-kiosk` : '';
+  return slug ? `${slug}-point` : '';
 };
 
 export function CreateKioskModal({
@@ -79,10 +79,10 @@ export function CreateKioskModal({
   onUnitChange,
 }: CreateKioskModalProps) {
   const notesValue = typeof form.metadata?.notes === 'string' ? form.metadata.notes : '';
-  const modalTitle = isEditing ? title : 'New kiosk';
+  const modalTitle = isEditing ? title : 'New attendance point';
   const modalDescription = isEditing
-    ? 'Update how this kiosk is presented and where attendance can be registered.'
-    : 'Create a clear attendance kiosk for a business, temporary location, or main office.';
+    ? 'Update where this attendance point is available and how employees recognize it.'
+    : 'Create a place where employees can register attendance.';
 
   return (
     <Dialog
@@ -106,7 +106,7 @@ export function CreateKioskModal({
             <button
               type="button"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/70"
-              aria-label="Close kiosk form"
+              aria-label="Close attendance point form"
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -117,25 +117,25 @@ export function CreateKioskModal({
         <div className="min-h-0 overflow-y-auto bg-slate-50 px-6 py-5 dark:bg-slate-950">
           <div className="grid gap-4">
             <KioskFormSection
-              title="Kiosk type"
-              description="Choose the real-world context where this kiosk will be used."
+              title="Where will this point be used?"
+              description="Choose the real-world context for this attendance point."
             >
               <KioskTypeSelector value={kioskType} onChange={onKioskTypeChange} />
             </KioskFormSection>
 
             <KioskFormSection
-              title="Kiosk information"
-              description="Use human-readable details so the team understands this device later."
+              title="Point information"
+              description="Use human-readable details so supervisors recognize this point later."
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Title <span className="text-red-500">*</span>
+                    Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={form.name}
-                    placeholder="Front desk kiosk"
+                    placeholder="Front Desk - Cancun"
                     onChange={(event) => {
                       const nextTitle = event.target.value;
                       const currentGeneratedReference = referenceFromTitle(form.name);
@@ -149,23 +149,23 @@ export function CreateKioskModal({
                     className={inputClassName}
                   />
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    This is the visible name for HR and supervisors.
+                    This is the name supervisors will recognize.
                   </p>
                 </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Reference <span className="text-red-500">*</span>
+                    Internal reference <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={form.code}
-                    placeholder="front-desk-kiosk"
+                    placeholder="front-desk-cancun"
                     onChange={(event) => onChange({ ...form, code: event.target.value })}
                     className={inputClassName}
                   />
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Auto-filled when possible. Use a short internal reference.
+                    Used internally to identify this attendance point.
                   </p>
                 </div>
               </div>
@@ -175,7 +175,7 @@ export function CreateKioskModal({
                 <textarea
                   value={notesValue}
                   rows={3}
-                  placeholder="Optional context for this kiosk"
+                  placeholder="Example: Used for morning attendance near the warehouse entrance."
                   onChange={(event) => onChange({
                     ...form,
                     metadata: {
@@ -189,8 +189,8 @@ export function CreateKioskModal({
             </KioskFormSection>
 
             <KioskFormSection
-              title="Scope / Location"
-              description="Define who can use this kiosk and where attendance will be registered."
+              title="Who can use this point?"
+              description="Define who can access this attendance point and where attendance is registered."
             >
               {isBusinessUnitKiosk ? (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -229,14 +229,14 @@ export function CreateKioskModal({
                     </p>
                   ) : (
                     <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">
-                      Leave both fields as all to make this kiosk available for the full company scope.
+                      Leave both fields as all to make this attendance point available for the full company.
                     </p>
                   )}
                 </div>
               ) : (
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {kioskType === 'head_office' ? 'Main office' : 'Temporary location'}
+                    {kioskType === 'head_office' ? 'Main office' : 'Temporary work site'}
                   </label>
                   <select
                     value={form.location_id ?? ''}
@@ -254,19 +254,20 @@ export function CreateKioskModal({
                     </p>
                   ) : (
                     <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                      HR users will register attendance from the selected location.
+                      Employees will register attendance from the selected location.
                     </p>
                   )}
                 </div>
               )}
 
-              <div className="mt-4 rounded-lg bg-[#143675]/5 px-3 py-2 text-xs font-medium text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
-                Current scope: {selectedScopeLabel}
+              <div className="mt-4 rounded-lg bg-[#143675]/5 px-3 py-3 text-sm font-medium text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em]">This attendance point will be available for</p>
+                <p className="mt-1">{selectedScopeLabel}</p>
               </div>
             </KioskFormSection>
 
             {isEditing ? (
-              <KioskFormSection title="Status" description="Deactivate a kiosk without deleting its history.">
+              <KioskFormSection title="Status" description="Deactivate an attendance point without deleting its history.">
                 <select
                   value={form.status}
                   onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
@@ -296,7 +297,7 @@ export function CreateKioskModal({
             onClick={onSave}
           >
             <Save className="h-4 w-4" />
-            {isSaving ? 'Saving...' : isEditing ? 'Save changes' : 'Create kiosk'}
+            {isSaving ? 'Saving...' : isEditing ? 'Save attendance point' : 'Create attendance point'}
           </Button>
         </DialogFooter>
       </DialogContent>
