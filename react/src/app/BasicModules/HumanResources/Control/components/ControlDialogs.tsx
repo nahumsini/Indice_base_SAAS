@@ -130,11 +130,11 @@ const defaultKioskCode = (location: AttendanceControlLocation, kioskType: KioskT
       ? 'hq'
       : 'business';
   const slug = slugifyKioskPart(location.name) || `${prefix}-${location.id}`;
-  return `${slug}-kiosk`;
+  return `${slug}-point`;
 };
 
 const defaultKioskScopeCode = (label: string, fallback: string) =>
-  `${slugifyKioskPart(label) || fallback}-kiosk`;
+  `${slugifyKioskPart(label) || fallback}-point`;
 
 export function ControlContractSiteDialog({
   copy,
@@ -890,7 +890,7 @@ export function ControlKioskDialog({
       unit_id: unitId,
       business_id: shouldKeepBusiness ? form.business_id ?? null : null,
       location_id: null,
-      name: form.name || `${label} Kiosk`,
+      name: form.name || `${label} Attendance Point`,
       code: form.code || defaultKioskScopeCode(label, unitId ? `unit-${unitId}` : 'all-business'),
     });
   };
@@ -901,7 +901,7 @@ export function ControlKioskDialog({
       unit_id: nextBusiness?.unitId ?? form.unit_id ?? null,
       business_id: businessId,
       location_id: null,
-      name: form.name || `${nextBusiness?.name || copy.labels.allBusinesses} Kiosk`,
+      name: form.name || `${nextBusiness?.name || copy.labels.allBusinesses} Attendance Point`,
       code: form.code || defaultKioskScopeCode(nextBusiness?.name || copy.labels.allBusinesses, businessId ? `business-${businessId}` : 'all-business'),
     });
   };
@@ -912,7 +912,7 @@ export function ControlKioskDialog({
       unit_id: nextLocation?.unit_id ?? null,
       business_id: nextLocation?.business_id ?? null,
       location_id: nextLocation?.id ?? null,
-      name: form.name || (nextLocation ? `${nextLocation.name} Kiosk` : form.name),
+      name: form.name || (nextLocation ? `${nextLocation.name} Attendance Point` : form.name),
       code: form.code || (nextLocation ? defaultKioskCode(nextLocation, kioskType) : form.code),
     });
   };

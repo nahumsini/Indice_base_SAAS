@@ -1,48 +1,25 @@
-import { type MouseEvent, type UIEvent, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  CalendarDays,
-  MapPin,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  Table2,
-} from 'lucide-react';
+import { type MouseEvent, type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { Button } from '../../../components/ui/button';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { Skeleton } from '../../../components/ui/skeleton';
-import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
-import { ContractSiteRegistrationModal } from './components/ContractSiteRegistrationModal';
-import { ScheduleModal } from './components/ScheduleModal';
-import { TimeTableModal } from './components/TimeTableModal';
-import { EmployeeActionBar } from './components/EmployeeActionBar';
-import { EmployeeHeaderCard } from './components/EmployeeHeaderCard';
+import { AttendanceControlDialogs } from './components/AttendanceControlDialogs';
+import { AttendanceDailyBoard } from './components/AttendanceDailyBoard';
+import { AttendanceQuickActions } from './components/AttendanceQuickActions';
+import { AttendanceSettingsActions } from './components/AttendanceSettingsActions';
+import { EmployeeAttendanceDetailPanel } from './components/EmployeeAttendanceDetailPanel';
+import { EmployeeCalendarPanel } from './components/EmployeeCalendarPanel';
 import {
   type AttendanceControlCopy,
-  ControlAttendanceRow,
-  ControlCalendarDayCell,
-  LegendOutline,
-  LegendPill,
   applyCalendarDayUpdate,
   getAssignmentBusyReason,
-  weekdayLabel,
 } from './components/ControlAttendanceWidgets';
-import {
-  ControlCalendarDayDialog,
-  ControlKioskQrDialog,
-} from './components/ControlCalendarDialogs';
 import {
   ControlKpiStrip,
   type ControlKpiStripLabels,
 } from './components/ControlKpiStrip';
 import {
-  ControlAssignmentDialog,
-  ControlKioskDialog,
-  ControlKioskManagerDialog,
-  ControlContractSiteDialog,
-  ControlTemplateDialog,
-  ControlWorkSiteDialog,
   type ControlWorkSiteForm,
 } from './components/ControlDialogs';
 import { SuccessToast } from '../../../components/SuccessToast';
@@ -74,6 +51,15 @@ const todayIsoDate = () => localDateString(new Date());
 const hrAttendanceSelectedEmployeeStorageKey = 'indice.hr.attendance.selectedEmployeeId';
 const allFilterValue = 'all';
 const emptyFilterValue = '__empty__';
+const attendanceStatusFilterValues = [
+  'on_time',
+  'late',
+  'absence',
+  'leave',
+  'rest',
+  'pending',
+  'not_scheduled',
+] as const;
 const toMonthValue = (value: string | Date) => {
   const date = typeof value === 'string' ? new Date(`${value}T00:00:00`) : value;
   return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`;
@@ -264,6 +250,7 @@ export default function Control() {
   const [searchQuery, setSearchQuery] = useState('');
   const [unitFilter, setUnitFilter] = useState(allFilterValue);
   const [businessFilter, setBusinessFilter] = useState(allFilterValue);
+  const [statusFilter, setStatusFilter] = useState(allFilterValue);
   const [overview, setOverview] = useState<AttendanceControlOverviewResponse | null>(null);
   const [attendanceCalendarDays, setAttendanceCalendarDays] = useState<AttendanceCalendarDay[]>([]);
   const [locations, setLocations] = useState<AttendanceControlLocation[]>([]);
@@ -295,6 +282,8 @@ export default function Control() {
   const [kioskQrDataUrl, setKioskQrDataUrl] = useState('');
   const isCalendarDateSelectionActive = useRef(false);
   const didDragCalendarDateSelection = useRef(false);
+  const calendarDateSelectionLastDate = useRef<string | null>(null);
+  const calendarDateSelectionLastDay = useRef<AttendanceCalendarDay | null>(null);
   const suppressCalendarDateClick = useRef(false);
   const selectedCalendarDatesRef = useRef<string[]>([]);
 
@@ -478,14 +467,28 @@ export default function Control() {
     }
   }, [attendanceCalendarDays, selectedCalendarDay]);
 
+  const attendanceCalendarMap = useMemo(
+    () => new Map(attendanceCalendarDays.map((day) => [day.day, day])),
+    [attendanceCalendarDays],
+  );
+
+  const selectedCalendarDetailDay = useMemo(
+    () => (
+      selectedCalendarDay?.date === controlDate
+        ? selectedCalendarDay
+        : attendanceCalendarDays.find((day) => day.date === controlDate) ?? null
+    ),
+    [attendanceCalendarDays, controlDate, selectedCalendarDay],
+  );
+
   useEffect(() => {
-    if (!selectedCalendarDay) {
+    if (!selectedCalendarDetailDay) {
       setPendingCalendarStatus('');
       return;
     }
 
-    setPendingCalendarStatus(selectedCalendarDay.corrected_status ?? '');
-  }, [selectedCalendarDay]);
+    setPendingCalendarStatus(selectedCalendarDetailDay.corrected_status ?? '');
+  }, [selectedCalendarDetailDay]);
 
   useEffect(() => {
     selectedCalendarDatesRef.current = selectedCalendarDates;
@@ -563,13 +566,55 @@ export default function Control() {
     });
   }, [businessFilter, overview, searchQuery, unitFilter]);
 
+  const statusFilterOptions = useMemo(() => {
+    const statusCounts = filteredAssignments.reduce(
+      (counts, assignment) => {
+        const status = assignment.corrected_status ?? assignment.today_status;
+        counts.set(status, (counts.get(status) ?? 0) + 1);
+        return counts;
+      },
+      new Map<string, number>(),
+    );
+
+    return [
+      {
+        value: allFilterValue,
+        label: copy.filters.all,
+        count: filteredAssignments.length,
+      },
+      ...attendanceStatusFilterValues.map((status) => ({
+        value: status,
+        label: copy.statuses[status],
+        count: statusCounts.get(status) ?? 0,
+      })),
+    ];
+  }, [copy.filters.all, copy.statuses, filteredAssignments]);
+
+  const statusFilteredAssignments = useMemo(
+    () => (
+      statusFilter === allFilterValue
+        ? filteredAssignments
+        : filteredAssignments.filter((assignment) => (assignment.corrected_status ?? assignment.today_status) === statusFilter)
+    ),
+    [filteredAssignments, statusFilter],
+  );
+
+  useEffect(() => {
+    if (
+      statusFilter !== allFilterValue &&
+      !statusFilterOptions.some((option) => option.value === statusFilter)
+    ) {
+      setStatusFilter(allFilterValue);
+    }
+  }, [statusFilter, statusFilterOptions]);
+
   useEffect(() => {
     setVisibleAttendanceCount(attendanceListBatchSize);
-  }, [businessFilter, controlDate, overview?.date, searchQuery, unitFilter]);
+  }, [businessFilter, controlDate, overview?.date, searchQuery, statusFilter, unitFilter]);
 
   const visibleAttendanceAssignments = useMemo(
-    () => filteredAssignments.slice(0, visibleAttendanceCount),
-    [filteredAssignments, visibleAttendanceCount],
+    () => statusFilteredAssignments.slice(0, visibleAttendanceCount),
+    [statusFilteredAssignments, visibleAttendanceCount],
   );
 
   const handleAttendanceListScroll = (event: UIEvent<HTMLDivElement>) => {
@@ -579,7 +624,7 @@ export default function Control() {
       return;
     }
 
-    setVisibleAttendanceCount((current) => Math.min(current + attendanceListBatchSize, filteredAssignments.length));
+    setVisibleAttendanceCount((current) => Math.min(current + attendanceListBatchSize, statusFilteredAssignments.length));
   };
 
   const selectedEmployee = useMemo(
@@ -661,13 +706,15 @@ export default function Control() {
   }, [isKioskQrDialogOpen, selectedKioskDeviceLink]);
 
   const selectedAccessProfile = useMemo(
-    () => accessProfiles.find((profile) => profile.user_company_id === selectedEmployeeId) ?? null,
-    [accessProfiles, selectedEmployeeId],
+    () =>
+      accessProfiles.find((profile) => profile.user_company_id === selectedEmployeeId)
+      ?? selectedEmployee?.access_profile
+      ?? null,
+    [accessProfiles, selectedEmployee, selectedEmployeeId],
   );
-
-  const attendanceCalendarMap = useMemo(
-    () => new Map(attendanceCalendarDays.map((day) => [day.day, day])),
-    [attendanceCalendarDays],
+  const selectedFaceEnrollment = useMemo(
+    () => faceEnrollment ?? selectedAccessProfile?.face_enrollment ?? selectedEmployee?.access_profile?.face_enrollment ?? null,
+    [faceEnrollment, selectedAccessProfile, selectedEmployee?.access_profile],
   );
 
   const calendarCells = useMemo(() => {
@@ -808,6 +855,7 @@ export default function Control() {
   const startCalendarDateSelection = (
     date: string,
     event: MouseEvent<HTMLButtonElement>,
+    day: AttendanceCalendarDay | null,
   ) => {
     if (event.button !== 0) {
       return;
@@ -816,32 +864,50 @@ export default function Control() {
     event.preventDefault();
     isCalendarDateSelectionActive.current = true;
     didDragCalendarDateSelection.current = false;
+    calendarDateSelectionLastDate.current = date;
+    calendarDateSelectionLastDay.current = day;
     setSelectedCalendarDay(null);
     setControlDate(date);
+    selectedCalendarDatesRef.current = [date];
     setSelectedCalendarDates([date]);
   };
 
-  const extendCalendarDateSelection = (date: string) => {
+  const extendCalendarDateSelection = (date: string, day: AttendanceCalendarDay | null) => {
     if (!isCalendarDateSelectionActive.current) {
       return;
     }
 
-    didDragCalendarDateSelection.current = true;
-    setSelectedCalendarDates((current) => (current.includes(date) ? current : [...current, date]));
+    calendarDateSelectionLastDate.current = date;
+    calendarDateSelectionLastDay.current = day;
+    setSelectedCalendarDates((current) => {
+      if (current.includes(date)) {
+        selectedCalendarDatesRef.current = current;
+        return current;
+      }
+
+      const nextDates = [...current, date];
+      selectedCalendarDatesRef.current = nextDates;
+      didDragCalendarDateSelection.current = true;
+      return nextDates;
+    });
   };
 
-  const finishCalendarDateSelection = (
-    date: string,
-    day: AttendanceCalendarDay | null,
-  ) => {
+  const finishCalendarDateSelection = useCallback(() => {
     if (!isCalendarDateSelectionActive.current) {
       return;
     }
 
+    const date = calendarDateSelectionLastDate.current;
+    const day = calendarDateSelectionLastDay.current;
     const shouldKeepMultiSelection = didDragCalendarDateSelection.current || selectedCalendarDatesRef.current.length > 1;
     isCalendarDateSelectionActive.current = false;
     didDragCalendarDateSelection.current = false;
-    setControlDate(date);
+    calendarDateSelectionLastDate.current = null;
+    calendarDateSelectionLastDay.current = null;
+
+    if (date) {
+      setControlDate(date);
+    }
 
     if (shouldKeepMultiSelection) {
       suppressCalendarDateClick.current = true;
@@ -849,15 +915,27 @@ export default function Control() {
       return;
     }
 
+    selectedCalendarDatesRef.current = [];
     setSelectedCalendarDates([]);
     if (day) {
       setSelectedCalendarDay(day);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('mouseup', finishCalendarDateSelection);
+
+    return () => {
+      window.removeEventListener('mouseup', finishCalendarDateSelection);
+    };
+  }, [finishCalendarDateSelection]);
 
   const clearCalendarDateSelection = () => {
     isCalendarDateSelectionActive.current = false;
     didDragCalendarDateSelection.current = false;
+    calendarDateSelectionLastDate.current = null;
+    calendarDateSelectionLastDay.current = null;
+    selectedCalendarDatesRef.current = [];
     setSelectedCalendarDates([]);
   };
 
@@ -1527,7 +1605,7 @@ export default function Control() {
         }
 
         setIsKioskDialogOpen(false);
-        showSuccessToast(copy.labels.kioskSaved);
+        showSuccessToast('Attendance point saved successfully.');
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1545,7 +1623,7 @@ export default function Control() {
   const handleOpenKiosk = (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      showFailureToast(copy.labels.kioskTokenUnavailable);
+      showFailureToast('This attendance point does not have an access link yet.');
       return;
     }
 
@@ -1562,13 +1640,13 @@ export default function Control() {
   const handleCopyKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      showFailureToast(copy.labels.kioskTokenUnavailable);
+      showFailureToast('This attendance point does not have an access link yet.');
       return;
     }
 
     try {
       await navigator.clipboard.writeText(kioskLink);
-      showSuccessToast(copy.labels.kioskLinkCopied);
+      showSuccessToast('Access link copied.');
     } catch {
       showFailureToast(copy.saveError);
     }
@@ -1577,7 +1655,7 @@ export default function Control() {
   const handleRotateKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const targetDevice = device ?? selectedKioskDevice;
     if (!targetDevice) {
-      showFailureToast(copy.labels.kioskTokenUnavailable);
+      showFailureToast('This attendance point does not have an access link yet.');
       return;
     }
 
@@ -1592,7 +1670,7 @@ export default function Control() {
           device.id === response.kiosk_device.id ? response.kiosk_device : device
         )));
         setSelectedKioskDeviceId(response.kiosk_device.id);
-        showSuccessToast(copy.labels.kioskLinkRotated);
+        showSuccessToast('Access link reset successfully.');
         setIsKioskQrDialogOpen(false);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1616,7 +1694,7 @@ export default function Control() {
         await humanResourcesApi.deleteAttendanceKioskDevice(kioskDeviceToDelete.id);
         setIsKioskQrDialogOpen(false);
         setKioskDeviceToDelete(null);
-        showSuccessToast(copy.labels.kioskDeleted);
+        showSuccessToast('Attendance point deleted successfully.');
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1681,51 +1759,15 @@ export default function Control() {
         onClose={() => setFailureToastMessage('')}
       />
 
-      <div className="mb-5 rounded-lg border border-[#143675]/30 bg-[#143675]/10 p-6 shadow-sm dark:border-[#143675]/40 dark:bg-[#143675]/15">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
-              <span className="text-2xl">📅</span>
-              {copy.title}
-            </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400">{copy.subtitle}</p>
-          </div>
-
-          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center lg:justify-end">
-            <Button
-              variant="outline"
-              className={headerActionButtonClassName}
-              onClick={() => setIsContractSiteRegistrationModalOpen(true)}
-            >
-              <MapPin className="h-4 w-4" />
-              Ubicaciones temporales
-            </Button>
-            <Button
-              variant="outline"
-              className={headerActionButtonClassName}
-              onClick={() => setIsTimeTableModalOpen(true)}
-            >
-              <Table2 className="h-4 w-4" />
-              Historial
-            </Button>
-            <Button
-              variant="outline"
-              className={headerActionButtonClassName}
-              onClick={() => setIsSchedulesModalOpen(true)}
-            >
-              <CalendarDays className="h-4 w-4" />
-              Horarios
-            </Button>
-            <Button
-              className={headerPrimaryActionButtonClassName}
-              onClick={() => setIsKioskManagerOpen(true)}
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Kioscos
-            </Button>
-          </div>
-        </div>
-      </div>
+      <AttendanceSettingsActions
+        copy={copy}
+        actionButtonClassName={headerActionButtonClassName}
+        primaryActionButtonClassName={headerPrimaryActionButtonClassName}
+        onOpenContractSites={() => setIsContractSiteRegistrationModalOpen(true)}
+        onOpenTimeTable={() => setIsTimeTableModalOpen(true)}
+        onOpenSchedules={() => setIsSchedulesModalOpen(true)}
+        onOpenKiosks={() => setIsKioskManagerOpen(true)}
+      />
 
       {isLoading || overview ? (
         <ControlKpiStrip
@@ -1744,284 +1786,114 @@ export default function Control() {
       ) : null}
 
       {isLoading ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.8fr]">
+        <div className="rounded-[28px] bg-[#f6f8fc] p-3 dark:bg-gray-950/30 sm:p-4">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.8fr]">
             <Skeleton className="h-[900px] rounded-2xl" />
             <Skeleton className="h-[900px] rounded-2xl" />
           </div>
         </div>
       ) : overview ? (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.92fr_1.78fr]">
-          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div className="border-b border-gray-200 px-6 py-6 dark:border-gray-700">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.labels.dailyAttendance}</h3>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{controlDateLabel}</p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {Math.min(visibleAttendanceAssignments.length, filteredAssignments.length)} / {filteredAssignments.length}
-                  </p>
-                </div>
-                <div className="w-full max-w-[180px]">
-                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    {copy.labels.controlDate}
-                  </label>
-                  <input
-                    type="date"
-                    value={controlDate}
-                    onChange={(event) => setControlDate(event.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
+        <div className="rounded-[28px] bg-[#f6f8fc] p-3 dark:bg-gray-950/30 sm:p-4">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.92fr_1.78fr]">
+            <AttendanceDailyBoard
+              copy={copy}
+              locale={currentLanguage.code}
+              controlDate={controlDate}
+              controlDateLabel={controlDateLabel}
+              visibleCount={Math.min(visibleAttendanceAssignments.length, statusFilteredAssignments.length)}
+              filteredCount={statusFilteredAssignments.length}
+              assignments={visibleAttendanceAssignments}
+              selectedEmployeeId={selectedEmployeeId}
+              searchQuery={searchQuery}
+              unitFilter={unitFilter}
+              businessFilter={businessFilter}
+              statusFilter={statusFilter}
+              unitFilterOptions={unitFilterOptions}
+              businessFilterOptions={businessFilterOptions}
+              statusFilterOptions={statusFilterOptions}
+              allFilterValue={allFilterValue}
+              onDateChange={setControlDate}
+              onSearchChange={setSearchQuery}
+              onUnitFilterChange={(value) => {
+                setUnitFilter(value);
+                setBusinessFilter(allFilterValue);
+              }}
+              onBusinessFilterChange={setBusinessFilter}
+              onStatusFilterChange={setStatusFilter}
+              onSelectAssignment={(assignment) => {
+                setSelectedEmployeeId(assignment.user_company_id);
+                if (assignment.schedule_template_id) {
+                  setSelectedTemplateId(assignment.schedule_template_id);
+                }
+              }}
+              onScroll={handleAttendanceListScroll}
+            />
 
-            <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/40">
-              <div className="grid gap-3 lg:grid-cols-2">
-                <label className="block lg:col-span-2">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    Search employee
-                  </span>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="search"
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder={copy.searchPlaceholder}
-                      className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    />
-                  </div>
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    Unit
-                  </span>
-                  <select
-                    value={unitFilter}
-                    onChange={(event) => {
-                      setUnitFilter(event.target.value);
-                      setBusinessFilter(allFilterValue);
-                    }}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value={allFilterValue}>All units</option>
-                    {unitFilterOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    Business
-                  </span>
-                  <select
-                    value={businessFilter}
-                    onChange={(event) => setBusinessFilter(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value={allFilterValue}>All businesses</option>
-                    {businessFilterOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-
-            <div className="max-h-[860px] overflow-y-auto" onScroll={handleAttendanceListScroll}>
-              {filteredAssignments.length > 0 ? (
-                visibleAttendanceAssignments.map((assignment) => (
-                  <ControlAttendanceRow
-                    key={assignment.user_company_id}
-                    assignment={assignment}
-                    copy={copy}
-                    locale={currentLanguage.code}
-                    selected={selectedEmployeeId === assignment.user_company_id}
-                    onSelect={() => {
-                      setSelectedEmployeeId(assignment.user_company_id);
-                      if (assignment.schedule_template_id) {
-                        setSelectedTemplateId(assignment.schedule_template_id);
-                      }
-                    }}
-                  />
-                ))
-              ) : (
-                <div className="px-6 py-10 text-sm text-gray-500 dark:text-gray-400">
-                  {copy.labels.noEmployees}
-                </div>
+            <EmployeeAttendanceDetailPanel
+              copy={copy}
+              selectedEmployee={selectedEmployee}
+              selectedCalendarDay={selectedCalendarDetailDay}
+              selectedAccessProfile={selectedAccessProfile}
+              faceEnrollment={selectedFaceEnrollment}
+              templates={templates}
+              assignments={overview?.assignments ?? []}
+              selectedEmployeeBusyReason={selectedEmployeeBusyReason}
+              onAssignLocation={openWorkSiteDialog}
+              onFaceEnrollmentChange={setFaceEnrollment}
+              onReload={() => loadControl(controlDate)}
+              onSuccess={showSuccessToast}
+              onError={showFailureToast}
+              quickActions={(
+                <AttendanceQuickActions
+                  copy={copy}
+                  day={selectedCalendarDetailDay}
+                  employeeName={selectedEmployee?.user_name || '—'}
+                  locale={currentLanguage.code}
+                  pendingStatus={pendingCalendarStatus}
+                  isSaving={isUpdatingCalendarDay}
+                  onPendingStatusChange={setPendingCalendarStatus}
+                  onSave={handleCalendarStatusUpdate}
+                  onClearDaySchedule={handleClearCalendarDaySchedule}
+                  onManualPunch={handleManualCalendarPunch}
+                />
               )}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex flex-col gap-4">
-              <div>
-                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{copy.labels.attendanceCalendar}</h3>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  {selectedEmployee ? copy.labels.employeeMonthlyAttendanceDetail : copy.labels.selectEmployeeCalendar}
-                </p>
-              </div>
-
-              {selectedEmployee ? (
-                <>
-                  <EmployeeHeaderCard
-                    selectedEmployee={selectedEmployee}
-                    faceEnrollment={faceEnrollment}
-                  />
-                  <EmployeeActionBar
-                    selectedEmployee={selectedEmployee}
-                    selectedAccessProfile={selectedAccessProfile}
-                    faceEnrollment={faceEnrollment}
-                    assignments={overview?.assignments ?? []}
-                    assignLocationDisabled={Boolean(selectedEmployeeBusyReason)}
-                    assignLocationTitle={selectedEmployeeBusyReason ? `${selectedEmployeeBusyReason}. Remove the existing shift first.` : undefined}
-                    onAssignLocation={openWorkSiteDialog}
-                    onFaceEnrollmentChange={setFaceEnrollment}
-                    onReload={() => loadControl(controlDate)}
-                    onSuccess={showSuccessToast}
-                    onError={showFailureToast}
-                  />
-                </>
-              ) : null}
-            </div>
-
-            {selectedEmployee ? (
-              <>
-                <div className="mt-8 flex items-center justify-between gap-4">
-                  <Button variant="outline" size="icon" onClick={() => shiftCalendarMonth(-1)}>
-                    <span aria-hidden="true">‹</span>
-                  </Button>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{calendarMonthLabel}</p>
-                  <Button variant="outline" size="icon" onClick={() => shiftCalendarMonth(1)}>
-                    <span aria-hidden="true">›</span>
-                  </Button>
-                </div>
-
-                {selectedCalendarDates.length > 1 ? (
-                  <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#143675]/20 bg-[#143675]/5 p-4 dark:border-[#8bb3ff]/30 dark:bg-[#143675]/20 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {selectedCalendarDates.length} days selected
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Apply the same attendance status to the selected days.
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <select
-                        value={bulkCalendarStatus}
-                        disabled={isUpdatingCalendarDay}
-                        onChange={(event) => setBulkCalendarStatus(event.target.value as AttendanceCorrectionStatus | '')}
-                        className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                      >
-                        <option value="on_time">{copy.labels.markAsAttendance}</option>
-                        <option value="absence">{copy.labels.markAsAbsent}</option>
-                        <option value="late">{copy.labels.markAsDelay}</option>
-                        <option value="rest">{copy.labels.markAsRest}</option>
-                        <option value="">{copy.labels.clearManualCorrection}</option>
-                      </select>
-                      <Button
-                        type="button"
-                        className="h-10 bg-[#143675] text-white hover:bg-[#0f2855]"
-                        disabled={isUpdatingCalendarDay}
-                        onClick={() => void handleBulkCalendarStatusUpdate()}
-                      >
-                        Apply change
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10"
-                        disabled={isUpdatingCalendarDay}
-                        onClick={clearCalendarDateSelection}
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="mt-8 grid grid-cols-7 gap-3">
-                  {weekdayLabels.map((label) => (
-                    <div key={label} className="px-2 text-center text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                      {label}
-                    </div>
-                  ))}
-                </div>
-
-                {isLoadingCalendar ? (
-                  <div className="mt-4 grid grid-cols-7 gap-3">
-                    {Array.from({ length: 35 }).map((_, index) => (
-                      <Skeleton key={index} className="h-[92px] rounded-2xl" />
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    className="mt-4 grid select-none grid-cols-7 gap-3"
-                    onMouseLeave={() => {
-                      isCalendarDateSelectionActive.current = false;
-                      didDragCalendarDateSelection.current = false;
-                    }}
-                  >
-                    {calendarCells.map((dayNumber, index) => {
-                      if (dayNumber === null) {
-                        return <div key={`empty-${index}`} className="h-[92px]" />;
-                      }
-
-                      const day = attendanceCalendarMap.get(dayNumber) ?? null;
-                      const dateKey = `${calendarMonth}-${`${dayNumber}`.padStart(2, '0')}`;
-
-                      return (
-                        <ControlCalendarDayCell
-                          key={dateKey}
-                          copy={copy}
-                          day={day}
-                          dayNumber={dayNumber}
-                          isMultiSelected={selectedCalendarDateSet.has(dateKey)}
-                          isSelected={controlDate === dateKey}
-                          locale={currentLanguage.code}
-                          onMouseDown={(event) => startCalendarDateSelection(dateKey, event)}
-                          onMouseEnter={() => extendCalendarDateSelection(dateKey)}
-                          onMouseUp={() => finishCalendarDateSelection(dateKey, day)}
-                          onSelect={() => {
-                            if (suppressCalendarDateClick.current) {
-                              suppressCalendarDateClick.current = false;
-                              return;
-                            }
-                            if (!selectedCalendarDatesRef.current.includes(dateKey)) {
-                              setControlDate(dateKey);
-                            }
-                            if (day && selectedCalendarDatesRef.current.length <= 1) {
-                              setSelectedCalendarDay(day);
-                            }
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <div className="flex flex-wrap gap-5 text-xs text-gray-600 dark:text-gray-300">
-                    <LegendPill color="bg-emerald-500" label={copy.labels.checkIn} />
-                    <LegendPill color="bg-sky-500" label={copy.labels.checkOut} />
-                    <LegendOutline label={copy.labels.currentDay} />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-                {copy.labels.selectEmployeeCalendar}
-              </div>
-            )}
-          </section>
+              calendar={(
+                <EmployeeCalendarPanel
+                  copy={copy}
+                  locale={currentLanguage.code}
+                  calendarMonthLabel={calendarMonthLabel}
+                  selectedCalendarDates={selectedCalendarDates}
+                  selectedCalendarDateSet={selectedCalendarDateSet}
+                  bulkCalendarStatus={bulkCalendarStatus}
+                  isUpdatingCalendarDay={isUpdatingCalendarDay}
+                  isLoadingCalendar={isLoadingCalendar}
+                  weekdayLabels={weekdayLabels}
+                  calendarCells={calendarCells}
+                  attendanceCalendarMap={attendanceCalendarMap}
+                  controlDate={controlDate}
+                calendarMonth={calendarMonth}
+                onShiftMonth={shiftCalendarMonth}
+                onBulkStatusChange={setBulkCalendarStatus}
+                onBulkApply={() => void handleBulkCalendarStatusUpdate()}
+                onClearSelection={clearCalendarDateSelection}
+                onDayMouseDown={startCalendarDateSelection}
+                onDayMouseEnter={extendCalendarDateSelection}
+                onDaySelect={(dateKey, day) => {
+                  if (suppressCalendarDateClick.current) {
+                    suppressCalendarDateClick.current = false;
+                      return;
+                    }
+                    if (!selectedCalendarDatesRef.current.includes(dateKey)) {
+                      setControlDate(dateKey);
+                    }
+                    if (day && selectedCalendarDatesRef.current.length <= 1) {
+                      setSelectedCalendarDay(day);
+                    }
+                  }}
+                />
+              )}
+            />
+          </div>
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
@@ -2029,135 +1901,71 @@ export default function Control() {
         </div>
       )}
 
-      <ControlCalendarDayDialog
+      <AttendanceControlDialogs
         copy={copy}
-        day={selectedCalendarDay}
-        employeeName={selectedEmployee?.user_name || '—'}
         locale={currentLanguage.code}
-        pendingStatus={pendingCalendarStatus}
-        isSaving={isUpdatingCalendarDay}
-        onPendingStatusChange={setPendingCalendarStatus}
-        onClose={() => setSelectedCalendarDay(null)}
-        onSave={handleCalendarStatusUpdate}
-        onClearDaySchedule={handleClearCalendarDaySchedule}
-        onManualPunch={handleManualCalendarPunch}
-      />
-
-      <ControlKioskQrDialog
-        copy={copy}
-        isOpen={isKioskQrDialogOpen}
-        kioskLink={selectedKioskDeviceLink}
-        qrDataUrl={kioskQrDataUrl}
-        onOpenChange={setIsKioskQrDialogOpen}
-        onCopy={() => void handleCopyKioskLink(selectedKioskDevice)}
-      />
-
-      <ControlKioskManagerDialog
-        copy={copy}
-        isOpen={isKioskManagerOpen}
-        isSaving={isSaving}
-        kioskDevices={kioskDevices}
-        locations={locations}
-        onClose={() => setIsKioskManagerOpen(false)}
-        onNew={openNewKioskDialog}
-        onEdit={openEditKioskDialog}
-        onOpen={(device) => handleOpenKiosk(device)}
-        onCopy={(device) => void handleCopyKioskLink(device)}
-        onQr={handleShowKioskQr}
-        onRotate={(device) => void handleRotateKioskLink(device)}
-        onDelete={setKioskDeviceToDelete}
-      />
-
-      <ControlContractSiteDialog
-        copy={copy}
-        isOpen={isLocationDialogOpen}
-        isSaving={isSaving}
-        form={locationForm}
-        onClose={() => setIsLocationDialogOpen(false)}
-        onChange={setLocationForm}
-        onSave={() => void handleSaveLocation()}
-        title={editingLocation ? `${copy.labels.addLocation}: ${editingLocation.name}` : copy.labels.addLocation}
-      />
-
-      <ControlTemplateDialog
-        copy={copy}
-        isOpen={isTemplateDialogOpen}
-        isSaving={isSaving}
-        form={templateForm}
-        onClose={() => setIsTemplateDialogOpen(false)}
-        onChange={setTemplateForm}
-        onSave={() => void handleSaveTemplate()}
-        title={editingTemplate ? `${copy.labels.addTemplate}: ${editingTemplate.name}` : copy.labels.addTemplate}
-        locale={currentLanguage.code}
-      />
-
-      <ControlAssignmentDialog
-        copy={copy}
-        isOpen={isAssignmentDialogOpen}
-        isSaving={isSaving}
-        assignments={overview?.assignments ?? []}
-        templates={templates}
-        form={assignmentForm}
-        onClose={() => setIsAssignmentDialogOpen(false)}
-        onChange={setAssignmentForm}
-        onSave={() => void handleBulkAssign()}
-      />
-
-      <ControlWorkSiteDialog
-        copy={copy}
-        isOpen={isWorkSiteDialogOpen}
-        isSaving={isSaving}
-        employeeName={selectedEmployee?.user_name ?? '—'}
-        locations={availableContractSiteLocations}
-        form={workSiteForm}
-        onClose={() => setIsWorkSiteDialogOpen(false)}
-        onChange={setWorkSiteForm}
-        onSave={() => void handleSaveWorkSite()}
-      />
-
-      <ControlKioskDialog
-        copy={copy}
-        isOpen={isKioskDialogOpen}
-        isSaving={isSaving}
-        form={kioskForm}
-        assignments={overview?.assignments ?? []}
-        locations={locations}
-        onClose={() => setIsKioskDialogOpen(false)}
-        onChange={setKioskForm}
-        onSave={() => void handleSaveKiosk()}
-        title={editingKiosk ? `${copy.labels.editKiosk}: ${editingKiosk.name}` : copy.labels.newKiosk}
-        isEditing={Boolean(editingKiosk)}
-      />
-
-      <ContractSiteRegistrationModal
-        isOpen={isContractSiteRegistrationModalOpen}
-        onClose={() => setIsContractSiteRegistrationModalOpen(false)}
-        locations={locations}
-        assignments={overview?.assignments ?? []}
         controlDate={controlDate}
-        onReload={() => loadControl(controlDate)}
-        onSaved={() => showSuccessToast(copy.locationSaved)}
-      />
-
-      <TimeTableModal
-        isOpen={isTimeTableModalOpen}
-        onClose={() => setIsTimeTableModalOpen(false)}
-        assignments={overview?.assignments ?? []}
-        date={controlDate}
-        locale={currentLanguage.code}
         isSaving={isSaving}
+        assignments={overview?.assignments ?? []}
+        availableContractSiteLocations={availableContractSiteLocations}
+        locations={locations}
+        templates={templates}
+        kioskDevices={kioskDevices}
+        selectedEmployeeName={selectedEmployee?.user_name ?? '—'}
+        selectedTemplateId={selectedTemplateId}
+        selectedKioskDeviceLink={selectedKioskDeviceLink}
+        kioskQrDataUrl={kioskQrDataUrl}
+        isKioskQrDialogOpen={isKioskQrDialogOpen}
+        onKioskQrDialogOpenChange={setIsKioskQrDialogOpen}
+        onCopySelectedKioskLink={() => void handleCopyKioskLink(selectedKioskDevice)}
+        isKioskManagerOpen={isKioskManagerOpen}
+        onCloseKioskManager={() => setIsKioskManagerOpen(false)}
+        onNewKiosk={openNewKioskDialog}
+        onEditKiosk={openEditKioskDialog}
+        onOpenKiosk={handleOpenKiosk}
+        onCopyKioskLink={(device) => void handleCopyKioskLink(device)}
+        onShowKioskQr={handleShowKioskQr}
+        onRotateKioskLink={(device) => void handleRotateKioskLink(device)}
+        onRequestDeleteKiosk={setKioskDeviceToDelete}
+        isLocationDialogOpen={isLocationDialogOpen}
+        editingLocationName={editingLocation?.name ?? null}
+        locationForm={locationForm}
+        onCloseLocationDialog={() => setIsLocationDialogOpen(false)}
+        onLocationFormChange={setLocationForm}
+        onSaveLocation={() => void handleSaveLocation()}
+        isTemplateDialogOpen={isTemplateDialogOpen}
+        editingTemplateName={editingTemplate?.name ?? null}
+        templateForm={templateForm}
+        onCloseTemplateDialog={() => setIsTemplateDialogOpen(false)}
+        onTemplateFormChange={setTemplateForm}
+        onSaveTemplate={() => void handleSaveTemplate()}
+        isAssignmentDialogOpen={isAssignmentDialogOpen}
+        assignmentForm={assignmentForm}
+        onCloseAssignmentDialog={() => setIsAssignmentDialogOpen(false)}
+        onAssignmentFormChange={setAssignmentForm}
+        onSaveAssignment={() => void handleBulkAssign()}
+        isWorkSiteDialogOpen={isWorkSiteDialogOpen}
+        workSiteForm={workSiteForm}
+        onCloseWorkSiteDialog={() => setIsWorkSiteDialogOpen(false)}
+        onWorkSiteFormChange={setWorkSiteForm}
+        onSaveWorkSite={() => void handleSaveWorkSite()}
+        isKioskDialogOpen={isKioskDialogOpen}
+        editingKioskName={editingKiosk?.name ?? null}
+        kioskForm={kioskForm}
+        onCloseKioskDialog={() => setIsKioskDialogOpen(false)}
+        onKioskFormChange={setKioskForm}
+        onSaveKiosk={() => void handleSaveKiosk()}
+        isContractSiteRegistrationModalOpen={isContractSiteRegistrationModalOpen}
+        onCloseContractSiteRegistration={() => setIsContractSiteRegistrationModalOpen(false)}
+        onReloadContractSites={() => loadControl(controlDate)}
+        onContractSiteSaved={() => showSuccessToast(copy.locationSaved)}
+        isTimeTableModalOpen={isTimeTableModalOpen}
+        onCloseTimeTable={() => setIsTimeTableModalOpen(false)}
         onDateChange={setControlDate}
         onRemoveShift={(assignment, targetDate) => handleRequestClearEmployeeShift(assignment, targetDate)}
-      />
-
-      <ScheduleModal
-        isOpen={isSchedulesModalOpen}
-        onClose={() => setIsSchedulesModalOpen(false)}
-        templates={templates}
-        locations={locations.filter((location) => location.status !== 'inactive')}
-        selectedTemplateId={selectedTemplateId}
-        effectiveStartDate={controlDate}
-        onApplied={async (result) => {
+        isSchedulesModalOpen={isSchedulesModalOpen}
+        onCloseSchedules={() => setIsSchedulesModalOpen(false)}
+        onScheduleApplied={async (result) => {
           setSelectedEmployeeId((current) => (
             current && result.employeeIds.includes(current)
               ? current
@@ -2167,43 +1975,15 @@ export default function Control() {
           await loadControl(controlDate);
           showSuccessToast(copy.bulkAssignSuccess);
         }}
-      />
-
-      <ConfirmDeleteDialog
-        isVisible={pendingTimeTableRemoval !== null}
-        title={copy.labels.removeTimeTableDayTitle}
-        description={copy.labels.removeTimeTableDayDescription}
-        itemName={pendingTimeTableRemoval
-          ? `${pendingTimeTableRemoval.assignment.user_name} - ${pendingTimeTableRemoval.targetDate}`
-          : undefined}
-        confirmLabel={copy.labels.removeTimeTableDayConfirm}
-        cancelLabel={copy.labels.cancel}
-        onConfirm={() => void handleConfirmClearEmployeeShift()}
-        onCancel={() => setPendingTimeTableRemoval(null)}
-      />
-
-      <ConfirmDeleteDialog
-        isVisible={pendingCalendarScheduleClear !== null}
-        title={copy.labels.clearDayScheduleTitle}
-        description={copy.labels.clearDayScheduleDescription}
-        itemName={pendingCalendarScheduleClear
-          ? `${pendingCalendarScheduleClear.employeeName} - ${pendingCalendarScheduleClear.targetDate}`
-          : undefined}
-        confirmLabel={copy.labels.clearDayScheduleConfirm}
-        cancelLabel={copy.labels.cancel}
-        onConfirm={() => void handleConfirmClearCalendarDaySchedule()}
-        onCancel={() => setPendingCalendarScheduleClear(null)}
-      />
-
-      <ConfirmDeleteDialog
-        isVisible={kioskDeviceToDelete !== null}
-        title={copy.labels.deleteKioskTitle}
-        description={copy.labels.deleteKioskDescription}
-        itemName={kioskDeviceToDelete?.name}
-        confirmLabel={copy.labels.deleteKiosk}
-        cancelLabel={copy.labels.cancel}
-        onConfirm={() => void handleDeleteKiosk()}
-        onCancel={() => setKioskDeviceToDelete(null)}
+        pendingTimeTableRemoval={pendingTimeTableRemoval}
+        onConfirmTimeTableRemoval={() => void handleConfirmClearEmployeeShift()}
+        onCancelTimeTableRemoval={() => setPendingTimeTableRemoval(null)}
+        pendingCalendarScheduleClear={pendingCalendarScheduleClear}
+        onConfirmCalendarScheduleClear={() => void handleConfirmClearCalendarDaySchedule()}
+        onCancelCalendarScheduleClear={() => setPendingCalendarScheduleClear(null)}
+        kioskDeviceToDelete={kioskDeviceToDelete}
+        onConfirmDeleteKiosk={() => void handleDeleteKiosk()}
+        onCancelDeleteKiosk={() => setKioskDeviceToDelete(null)}
       />
     </>
   );

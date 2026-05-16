@@ -4,11 +4,14 @@ import {
   type AttendanceControlAssignment,
 } from '../../../../api/humanResources';
 import { Button } from '../../../../components/ui/button';
+import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 import { EmployeeAccessActions } from './EmployeeAccessActions';
 
 type FaceEnrollmentSummary = { id: number; status: string; enrolled_at?: string | null } | null;
 
 export function EmployeeActionBar({
+  copy,
+  embedded = false,
   selectedEmployee,
   selectedAccessProfile,
   faceEnrollment,
@@ -21,6 +24,8 @@ export function EmployeeActionBar({
   onSuccess,
   onError,
 }: {
+  copy: AttendanceControlCopy;
+  embedded?: boolean;
   selectedEmployee: AttendanceControlAssignment;
   selectedAccessProfile: AttendanceAccessProfile | null;
   faceEnrollment: FaceEnrollmentSummary;
@@ -34,11 +39,11 @@ export function EmployeeActionBar({
   onError: (message: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+    <div className={embedded ? 'border-t border-[#143675]/10 pt-4 dark:border-gray-700' : 'rounded-2xl border border-[#143675]/10 bg-[#f7faff] p-3 dark:border-gray-800 dark:bg-gray-900/30'}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-gray-900 dark:text-white">Action bar</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Manage the selected HR user attendance setup.</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.sections.access}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{copy.labels.metadataHint}</p>
         </div>
       </div>
 
@@ -46,13 +51,13 @@ export function EmployeeActionBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-10 justify-center gap-2 rounded-xl border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white"
+          className="h-9 justify-center gap-2 rounded-xl border-[#143675]/25 bg-[#143675]/10 text-xs font-semibold text-[#143675] shadow-[0_1px_2px_rgba(20,54,117,0.08)] hover:border-[#143675]/45 hover:bg-[#143675]/15 hover:text-[#143675] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8bb3ff]/25 dark:bg-[#143675]/30 dark:text-[#8bb3ff] dark:hover:bg-[#143675]/40"
           disabled={assignLocationDisabled}
           title={assignLocationTitle}
           onClick={onAssignLocation}
         >
           <MapPin className="h-4 w-4" />
-          Assign location
+          {copy.labels.contractSiteLabel}
         </Button>
 
         <EmployeeAccessActions

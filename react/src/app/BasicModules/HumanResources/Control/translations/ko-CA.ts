@@ -35,6 +35,10 @@ export const koCA = {
   },
   labels: {
     ...enCA.labels,
+    calendarKpiAttendances: '출석',
+    calendarKpiAbsences: '결근',
+    calendarKpiLate: '지각',
+    calendarKpiRest: '휴무',
     timeTable: '시간표',
     removeTimeTableDay: '근무 제거',
     removeTimeTableDayTitle: '시간표에서 근무를 제거할까요?',

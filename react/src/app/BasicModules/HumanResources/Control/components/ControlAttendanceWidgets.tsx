@@ -9,15 +9,15 @@ import type { ControlTranslations } from '../translations';
 export type AttendanceControlCopy = ControlTranslations;
 
 export const statusClasses: Record<string, string> = {
-  on_time: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-  late: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  leave: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
-  rest: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  absence: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300',
-  pending: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  not_scheduled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-  inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+  on_time: 'border border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300',
+  late: 'border border-amber-100 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300',
+  leave: 'border border-sky-100 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300',
+  rest: 'border border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  absence: 'border border-rose-100 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300',
+  pending: 'border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300',
+  not_scheduled: 'border border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  active: 'border border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300',
+  inactive: 'border border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
 };
 
 type ControlAssignment = AttendanceControlOverviewResponse['assignments'][number];
@@ -93,44 +93,48 @@ export function ControlAttendanceRow({
 }) {
   const displayStatus = assignment.corrected_status ?? assignment.today_status;
   const rowBorderClassName = attendanceRowBorderClass(assignment);
+  const checkInTime = formatTimeOnly(assignment.first_check_in_at, locale, copy.labels.noRegistration);
+  const checkOutTime = formatTimeOnly(assignment.last_check_out_at, locale, copy.labels.noRegistration);
+  const role = assignment.position_title || assignment.department || copy.labels.noDepartment;
+  const workLocation = assignment.active_work_site?.location_name ?? assignment.business_name ?? assignment.unit_name ?? '';
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full border-b border-l-4 border-b-gray-200 px-4 py-4 text-left transition-colors dark:border-b-gray-700 ${rowBorderClassName} ${
+      className={`w-full rounded-xl border border-l-4 px-4 py-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all ${rowBorderClassName} ${
         selected
-          ? 'bg-[#1463ff]/5 shadow-[inset_0_0_0_1px_rgba(20,99,255,0.12)]'
-          : 'hover:bg-gray-50 dark:hover:bg-gray-900/40'
+          ? 'border-[#143675]/30 bg-white shadow-[0_1px_2px_rgba(20,54,117,0.10),0_0_0_3px_rgba(20,54,117,0.06)] dark:border-[#8bb3ff]/35 dark:bg-gray-900'
+          : 'border-gray-100 bg-white/85 hover:border-[#143675]/20 hover:bg-white hover:shadow-[0_2px_6px_rgba(15,23,42,0.06)] dark:border-gray-800 dark:bg-gray-900/70 dark:hover:border-[#8bb3ff]/30 dark:hover:bg-gray-900'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-lg font-semibold text-gray-900 dark:text-white">{assignment.user_name}</p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {assignment.position_title || assignment.department || copy.labels.noDepartment}
-          </p>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-[#143675] dark:text-[#8bb3ff]">
-            <MapPin className="h-3.5 w-3.5" />
-            <span className="truncate">{copy.labels.contractSiteLabel}: {assignment.active_work_site?.location_name ?? copy.labels.none}</span>
-          </div>
+          <p className="truncate text-base font-semibold text-gray-900 dark:text-white">{assignment.user_name}</p>
+          <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">{role}</p>
+          {workLocation ? (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <MapPin className="h-3.5 w-3.5" />
+              <span className="truncate">{workLocation}</span>
+            </div>
+          ) : null}
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses[displayStatus]}`}>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[displayStatus]}`}>
           {copy.statuses[displayStatus]}
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <AttendanceMomentPanel
           label={copy.labels.checkIn}
-          time={formatTimeOnly(assignment.first_check_in_at, locale, copy.labels.noRegistration)}
-          location={assignment.latest_event?.location_name ?? null}
+          time={checkInTime}
+          location={assignment.first_location?.name ?? assignment.latest_event?.location_name ?? null}
           copy={copy}
         />
         <AttendanceMomentPanel
           label={copy.labels.checkOut}
-          time={formatTimeOnly(assignment.last_check_out_at, locale, copy.labels.noRegistration)}
-          location={assignment.latest_event?.location_name ?? null}
+          time={checkOutTime}
+          location={assignment.last_location?.name ?? assignment.latest_event?.location_name ?? null}
           copy={copy}
         />
       </div>
@@ -152,10 +156,10 @@ export function AttendanceMomentPanel({
   const isEmpty = time === copy.labels.noRegistration;
 
   return (
-    <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-900/40">
-      <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className={`mt-2 text-lg font-semibold ${isEmpty ? 'text-gray-500 dark:text-gray-400' : 'text-[#1f9d55] dark:text-emerald-300'}`}>{time}</p>
-      <div className="mt-3 flex items-center gap-1.5 text-xs text-[#1463ff] dark:text-[#8bb3ff]">
+    <div className="min-w-0 rounded-xl border border-[#143675]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
+      <p className={`mt-1 truncate text-sm font-semibold ${isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{time}</p>
+      <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
         <MapPin className="h-3.5 w-3.5" />
         <span className="truncate">{location || copy.labels.openLocation}</span>
       </div>
@@ -186,7 +190,6 @@ export function ControlCalendarDayCell({
   locale,
   onMouseDown,
   onMouseEnter,
-  onMouseUp,
   onSelect,
 }: {
   copy: AttendanceControlCopy;
@@ -197,16 +200,22 @@ export function ControlCalendarDayCell({
   locale: string;
   onMouseDown?: (event: MouseEvent<HTMLButtonElement>) => void;
   onMouseEnter?: () => void;
-  onMouseUp?: () => void;
   onSelect: () => void;
 }) {
   const statusTone = day ? dayTone(day) : null;
+  const heatmapTone = day ? dayHeatmapTone(day) : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/40';
   const isLocked = day?.attendance_editable === false;
+  const hasCorrection = Boolean(day?.corrected_status);
   const attendanceTooltip = day
     ? [
+        `${copy.labels.effectiveStatus}: ${copy.statuses[resolvedDayStatus(day)]}`,
         `${copy.labels.checkIn}: ${formatTimeOnly(day.first_check_in_at, locale, copy.labels.noRegistration)}`,
         `${copy.labels.checkOut}: ${formatTimeOnly(day.last_check_out_at, locale, copy.labels.noRegistration)}`,
-      ].join('\n')
+        day.corrected_status ? `${copy.labels.correction}: ${copy.statuses[day.corrected_status]}` : '',
+        day.first_location?.name || day.last_location?.name
+          ? `${copy.labels.attendanceLocation}: ${day.first_location?.name ?? day.last_location?.name}`
+          : copy.labels.noLocationHistory,
+      ].filter(Boolean).join('\n')
     : undefined;
 
   return (
@@ -215,28 +224,37 @@ export function ControlCalendarDayCell({
       onClick={onSelect}
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
-      onMouseUp={onMouseUp}
       title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : attendanceTooltip}
-      className={`min-h-[92px] select-none rounded-2xl border p-3 text-left transition-colors ${
+      className={`group relative min-h-[104px] select-none overflow-hidden rounded-2xl border p-3 text-left transition-all ${
         isSelected
-          ? 'border-[#1463ff] bg-[#1463ff]/10 shadow-[0_0_0_3px_rgba(20,99,255,0.14),inset_0_0_0_1px_rgba(20,99,255,0.18)]'
+          ? 'border-[#143675]/45 bg-white shadow-[0_1px_2px_rgba(20,54,117,0.10),0_0_0_4px_rgba(20,54,117,0.06)] dark:border-[#8bb3ff]/45 dark:bg-gray-900'
           : isMultiSelected
-          ? 'border-[#143675] bg-[#143675]/10 shadow-[inset_0_0_0_1px_rgba(20,54,117,0.18)]'
-          : 'border-gray-200 bg-white hover:border-[#1463ff]/35 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#8bb3ff]/40'
+          ? 'border-[#143675]/35 bg-[#f8fbff] shadow-[inset_0_0_0_1px_rgba(20,54,117,0.12)]'
+          : `${heatmapTone} hover:-translate-y-0.5 hover:border-[#143675]/35 hover:shadow-sm dark:hover:border-[#8bb3ff]/40`
       }`}
     >
-      <div className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</div>
+      {day ? <span className={`absolute inset-x-0 top-0 h-1 ${dayHeatmapStripe(day)}`} /> : null}
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</span>
+        {hasCorrection ? (
+          <span className="rounded-full bg-[#143675] px-1.5 py-0.5 text-[10px] font-semibold text-white">M</span>
+        ) : null}
+      </div>
       {day ? (
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-1.5">
-            {day.entry_registered ? <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> : null}
-            {day.exit_registered ? <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> : null}
-          </div>
+        <div className="mt-5 space-y-2">
           {statusTone ? (
             <div className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold ${statusTone}`}>
               {dayBadge(copy, day)}
             </div>
           ) : null}
+          <div className="flex items-center gap-1.5">
+            {day.entry_registered ? <span className="h-2 w-2 rounded-full bg-emerald-500" title={copy.labels.checkIn} /> : null}
+            {day.exit_registered ? <span className="h-2 w-2 rounded-full bg-sky-500" title={copy.labels.checkOut} /> : null}
+            {!day.entry_registered && !day.exit_registered ? <span className="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600" /> : null}
+          </div>
+          <p className="truncate text-[11px] font-medium text-gray-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-300">
+            {formatTimeOnly(day.first_check_in_at, locale, copy.labels.noRegistration)}
+          </p>
         </div>
       ) : null}
     </button>
@@ -263,9 +281,9 @@ export function LegendOutline({ label }: { label: string }) {
 
 export function DayInfoStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-h-[84px] rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-3 text-base font-semibold text-gray-900 dark:text-white">{value}</p>
+    <div className="rounded-xl border border-[#143675]/10 bg-[#f8fbff] px-3 py-2.5 dark:border-gray-800 dark:bg-gray-900/40">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1.5 text-base font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -285,8 +303,8 @@ export function DayEvidenceCard({
 }) {
   if (compact) {
     return (
-      <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
+      <div className="min-w-0 rounded-xl border border-[#143675]/10 bg-[#f8fbff] p-3 dark:border-gray-800 dark:bg-gray-900/40">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
         <div className="mt-2 flex items-center gap-2">
           {photoUrl ? (
             <img
@@ -314,7 +332,7 @@ export function DayEvidenceCard({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-xl border border-[#143675]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
       {photoUrl ? (
         <img
@@ -430,6 +448,44 @@ export function dayTone(day: AttendanceCalendarDay) {
       return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
     default:
       return null;
+  }
+}
+
+function dayHeatmapTone(day: AttendanceCalendarDay) {
+  switch (resolvedDayStatus(day)) {
+    case 'on_time':
+      return 'border-emerald-100 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20';
+    case 'late':
+      return 'border-amber-100 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/25';
+    case 'absence':
+      return 'border-rose-100 bg-rose-50/80 dark:border-rose-900/40 dark:bg-rose-950/25';
+    case 'pending':
+      return 'border-blue-100 bg-blue-50/70 dark:border-blue-900/40 dark:bg-blue-950/20';
+    case 'rest':
+      return 'border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/50';
+    case 'leave':
+      return 'border-sky-100 bg-sky-50/80 dark:border-sky-900/40 dark:bg-sky-950/25';
+    default:
+      return 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/40';
+  }
+}
+
+function dayHeatmapStripe(day: AttendanceCalendarDay) {
+  switch (resolvedDayStatus(day)) {
+    case 'on_time':
+      return 'bg-emerald-500';
+    case 'late':
+      return 'bg-amber-500';
+    case 'absence':
+      return 'bg-rose-500';
+    case 'pending':
+      return 'bg-blue-500';
+    case 'rest':
+      return 'bg-gray-300 dark:bg-gray-600';
+    case 'leave':
+      return 'bg-sky-500';
+    default:
+      return 'bg-gray-200 dark:bg-gray-700';
   }
 }
 

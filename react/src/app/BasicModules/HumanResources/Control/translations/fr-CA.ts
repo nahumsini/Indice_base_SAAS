@@ -35,6 +35,10 @@ export const frCA = {
   },
   labels: {
     ...enCA.labels,
+    calendarKpiAttendances: 'Présences',
+    calendarKpiAbsences: 'Absences',
+    calendarKpiLate: 'Retards',
+    calendarKpiRest: 'Repos',
     timeTable: 'Horaire',
     removeTimeTableDay: 'Supprimer le quart',
     removeTimeTableDayTitle: 'Supprimer le quart de l’horaire ?',
