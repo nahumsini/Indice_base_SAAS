@@ -38,8 +38,6 @@ final class AttendanceScheduleCandidateSql {
         params.add(companyId);
         params.add(rangeEnd);
         params.add(startDate);
-        params.add(rangeEnd);
-        params.add(startDate);
         params.add(startDate);
         params.add(rangeEnd);
         params.add(startDate);
@@ -80,16 +78,6 @@ final class AttendanceScheduleCandidateSql {
         return """
             e.company_id = ?
               AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
-              AND NOT EXISTS (
-                  SELECT 1 FROM user_schedule_assignments schedule_assignment
-                  JOIN attendance_schedule_templates schedule_template ON schedule_template.id = schedule_assignment.template_id
-                  WHERE schedule_assignment.company_id = e.company_id
-                    AND schedule_assignment.user_company_id = e.id
-                    AND LOWER(COALESCE(schedule_assignment.status, 'active')) = 'active'
-                    AND LOWER(COALESCE(schedule_template.status, 'active')) = 'active'
-                    AND schedule_assignment.effective_start_date <= ?
-                    AND (schedule_assignment.effective_end_date IS NULL OR schedule_assignment.effective_end_date >= ?)
-              )
               AND NOT EXISTS (
                   SELECT 1 FROM user_work_site_assignments work_site_assignment
                   JOIN attendance_locations work_site_location ON work_site_location.id = work_site_assignment.location_id

@@ -9,6 +9,7 @@ import {
   MapPin,
   Save,
   Search,
+  Trash2,
   UserCheck,
   X,
 } from 'lucide-react';
@@ -43,6 +44,15 @@ interface HorarioDiaDraft {
 }
 
 type ScheduleLocationRule = 'business' | 'temporary' | 'open';
+type ScheduleBuilderStep = 'setup' | 'workdays' | 'rules' | 'review';
+
+interface OperationalScheduleSummary {
+  compact: string;
+  reviewItems: Array<{
+    label: string;
+    value: string;
+  }>;
+}
 
 interface ScheduleModalProps {
   isOpen: boolean;
@@ -111,6 +121,11 @@ const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
 const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
   const modoHorario: 'Horario estricto' | 'Horario abierto' =
     template?.schedule_mode === 'open' ? 'Horario abierto' : 'Horario estricto';
+  const locationRule: ScheduleLocationRule = template?.enforce_location
+    ? 'temporary'
+    : template?.schedule_mode === 'open'
+      ? 'open'
+      : 'business';
   const toleranciaIngreso = template?.days.find((day) => !day.is_rest_day)?.late_after_minutes ?? 10;
   const horarios = weekdayConfig.map((config) => {
     const day = template?.days.find((item) => item.day_of_week === config.dayOfWeek);
@@ -127,6 +142,7 @@ const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
 
   return {
     modoHorario,
+    locationRule,
     toleranciaIngreso,
     noPermitirFueraUbicacion: Boolean(template?.enforce_location),
     ubicacionSeleccionada: template?.location_id ? String(template.location_id) : '',
@@ -195,6 +211,128 @@ const formatLocationOption = (location: AttendanceControlLocation) => {
   return scope ? `${location.name} - ${scope}` : location.name;
 };
 
+const getScheduleBlockReason = (assignment: AttendanceControlAssignment) => assignment.schedule_busy_reason?.trim() ?? '';
+
+const blocksScheduleSave = (assignment: AttendanceControlAssignment) => {
+  if (assignment.can_assign_schedule !== false) {
+    return false;
+  }
+  const reason = getScheduleBlockReason(assignment).toLowerCase();
+  if (!reason) {
+    return true;
+  }
+  return !reason.includes('schedule already assigned');
+};
+
+const isScheduleAssignable = (assignment: AttendanceControlAssignment) => !blocksScheduleSave(assignment);
+
+const scheduleBuilderSteps: Array<{
+  id: ScheduleBuilderStep;
+  label: string;
+  description: string;
+}> = [
+  { id: 'setup', label: 'Rule type', description: 'Template and schedule mode' },
+  { id: 'workdays', label: 'Workdays', description: 'Days and hours' },
+  { id: 'rules', label: 'Rules', description: 'Attendance and location' },
+  { id: 'review', label: 'Review', description: 'What will happen' },
+];
+
+const fullDayNameByShortName: Record<string, string> = {
+  Mon: 'Monday',
+  Tue: 'Tuesday',
+  Wed: 'Wednesday',
+  Thu: 'Thursday',
+  Fri: 'Friday',
+  Sat: 'Saturday',
+  Sun: 'Sunday',
+};
+
+const dayName = (shortName: string) => fullDayNameByShortName[shortName] ?? shortName;
+
+const workingDays = (horarios: HorarioDiaDraft[]) => horarios.filter((horario) => !horario.isRestDay);
+
+const formatWorkingDaysSummary = (horarios: HorarioDiaDraft[]) => {
+  const days = workingDays(horarios);
+  if (days.length === 0) {
+    return 'No working days selected';
+  }
+
+  const isConsecutive = days.every((day, index) => index === 0 || day.dayOfWeek === days[index - 1].dayOfWeek + 1);
+  if (days.length > 1 && isConsecutive) {
+    return `${days[0].dia}-${days[days.length - 1].dia}`;
+  }
+
+  return days.map((day) => day.dia).join(', ');
+};
+
+const formatTimeSummary = (horarios: HorarioDiaDraft[], isOpenSchedule: boolean) => {
+  const days = workingDays(horarios);
+  if (days.length === 0) {
+    return 'No active hours';
+  }
+  if (isOpenSchedule) {
+    return 'Open workdays';
+  }
+
+  const ranges = Array.from(new Set(days.map((day) => `${day.entrada || '--:--'}-${day.salida || '--:--'}`)));
+  return ranges.length === 1 ? ranges[0] : `${ranges.length} time ranges`;
+};
+
+const firstSharedMinutes = (horarios: HorarioDiaDraft[], field: 'comida' | 'descanso') =>
+  workingDays(horarios).find((day) => day[field] > 0)?.[field] ?? 0;
+
+const locationRuleSummary = (locationRule: ScheduleLocationRule) => {
+  if (locationRule === 'temporary') {
+    return 'Temporary location';
+  }
+  if (locationRule === 'open') {
+    return 'No location restriction';
+  }
+  return 'Business location rule';
+};
+
+const buildOperationalScheduleSummary = ({
+  effectiveStartDate,
+  horarios,
+  isOpenSchedule,
+  locationRule,
+  selectedEmployeeCount,
+  selectedTemplateName,
+  toleranciaIngreso,
+}: {
+  effectiveStartDate: string;
+  horarios: HorarioDiaDraft[];
+  isOpenSchedule: boolean;
+  locationRule: ScheduleLocationRule;
+  selectedEmployeeCount: number;
+  selectedTemplateName: string;
+  toleranciaIngreso: number;
+}): OperationalScheduleSummary => {
+  const employeeLabel = `${selectedEmployeeCount} collaborator${selectedEmployeeCount === 1 ? '' : 's'}`;
+  const scheduleType = isOpenSchedule ? 'Open schedule' : 'Strict schedule';
+  const daysLabel = formatWorkingDaysSummary(horarios);
+  const timeLabel = formatTimeSummary(horarios, isOpenSchedule);
+  const locationLabel = locationRuleSummary(locationRule);
+  const toleranceLabel = isOpenSchedule ? 'No late tolerance' : `${toleranciaIngreso} min tolerance`;
+  const templateLabel = selectedTemplateName && selectedTemplateName !== defaultScheduleTemplateName
+    ? selectedTemplateName
+    : 'Custom schedule';
+
+  return {
+    compact: `${employeeLabel} | ${scheduleType} | ${daysLabel} | ${timeLabel}`,
+    reviewItems: [
+      { label: 'Collaborators', value: employeeLabel },
+      { label: 'Rule type', value: scheduleType },
+      { label: 'Template', value: templateLabel },
+      { label: 'Workdays', value: daysLabel },
+      { label: 'Hours', value: timeLabel },
+      { label: 'Attendance rule', value: toleranceLabel },
+      { label: 'Location rule', value: locationLabel },
+      { label: 'Effective from', value: formatEffectiveDate(effectiveStartDate) },
+    ],
+  };
+};
+
 const formatEffectiveDate = (value: string) => {
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) {
@@ -245,12 +383,15 @@ export function ScheduleModal({
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [templateNameError, setTemplateNameError] = useState('');
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
+  const [deletedTemplateIds, setDeletedTemplateIds] = useState<number[]>([]);
   const [modoHorario, setModoHorario] = useState<'Horario estricto' | 'Horario abierto'>('Horario estricto');
   const [toleranciaIngreso, setToleranciaIngreso] = useState(10);
   const [locationRule, setLocationRule] = useState<ScheduleLocationRule>('business');
   const [noPermitirFueraUbicacion, setNoPermitirFueraUbicacion] = useState(false);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState('');
   const [horarios, setHorarios] = useState<HorarioDiaDraft[]>(emptyScheduleDays());
+  const [builderStep, setBuilderStep] = useState<ScheduleBuilderStep>('setup');
   const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -259,11 +400,20 @@ export function ScheduleModal({
   const rightPanelScrollRef = useRef<HTMLDivElement>(null);
 
   const availableTemplates = useMemo(() => {
+    const deletedTemplateIdSet = new Set(deletedTemplateIds);
     const templateMap = new Map<number, AttendanceControlTemplate>();
-    templates.forEach((template) => templateMap.set(template.id, template));
-    createdTemplates.forEach((template) => templateMap.set(template.id, template));
+    templates.forEach((template) => {
+      if (!deletedTemplateIdSet.has(template.id)) {
+        templateMap.set(template.id, template);
+      }
+    });
+    createdTemplates.forEach((template) => {
+      if (!deletedTemplateIdSet.has(template.id)) {
+        templateMap.set(template.id, template);
+      }
+    });
     return Array.from(templateMap.values());
-  }, [createdTemplates, templates]);
+  }, [createdTemplates, deletedTemplateIds, templates]);
 
   const selectedTemplate = useMemo(
     () => availableTemplates.find((template) => template.id === selectedScheduleTemplateId) ?? null,
@@ -304,14 +454,16 @@ export function ScheduleModal({
     setSelectedScheduleTemplateId(initialTemplate?.id ?? null);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
-    setLocationRule(templateDraft.noPermitirFueraUbicacion ? 'temporary' : 'business');
+    setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
     setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
     setHorarios(templateDraft.horarios);
+    setBuilderStep('setup');
     setIsSaveTemplateModalOpen(false);
     setTemplateNameDraft('');
     setTemplateNameError('');
     setIsSavingTemplate(false);
+    setIsDeletingTemplate(false);
     setErrorMessage('');
     setFailureToastMessage('');
   }, [defaultAvailabilityDate, isOpen, selectedTemplateId, templates]);
@@ -457,6 +609,10 @@ export function ScheduleModal({
       .map((employeeId) => selectedEmployeeAssignments[employeeId] ?? assignmentByEmployeeId.get(employeeId))
       .filter((assignment): assignment is AttendanceControlAssignment => Boolean(assignment)),
     [assignmentByEmployeeId, selectedEmployeeAssignments, selectedEmployeeIds],
+  );
+  const selectedLockedAssignments = useMemo(
+    () => selectedAssignments.filter((assignment) => !isScheduleAssignable(assignment)),
+    [selectedAssignments],
   );
 
   useEffect(() => {
@@ -682,6 +838,23 @@ export function ScheduleModal({
   const exactLocationWarning = selectedBusinessIds.length > 1
     ? 'One exact location will apply to every selected HR user, even when they belong to different businesses.'
     : '';
+  const operationalSummary = useMemo(() => buildOperationalScheduleSummary({
+    effectiveStartDate: assignmentEffectiveStartDate,
+    horarios,
+    isOpenSchedule: modoHorario === 'Horario abierto',
+    locationRule,
+    selectedEmployeeCount: selectedEmployeeIds.length,
+    selectedTemplateName,
+    toleranciaIngreso,
+  }), [
+    assignmentEffectiveStartDate,
+    horarios,
+    locationRule,
+    modoHorario,
+    selectedEmployeeIds.length,
+    selectedTemplateName,
+    toleranciaIngreso,
+  ]);
 
   useEffect(() => {
     if (!noPermitirFueraUbicacion || !ubicacionSeleccionada) {
@@ -778,7 +951,9 @@ export function ScheduleModal({
       setSelectedEmployeeIds((current) => current.filter((id) => !visibleAssignableEmployeeIds.includes(id)));
       return;
     }
-    rememberSelectedAssignments(paginatedAssignments.filter((assignment) => visibleAssignableEmployeeIds.includes(assignment.user_company_id)));
+    rememberSelectedAssignments(
+      paginatedAssignments.filter((assignment) => visibleAssignableEmployeeIds.includes(assignment.user_company_id)),
+    );
     setSelectedEmployeeIds((current) => Array.from(new Set([...current, ...visibleAssignableEmployeeIds])));
   };
 
@@ -789,7 +964,28 @@ export function ScheduleModal({
     const useExactLocation = nextRule === 'temporary';
     setLocationRule(nextRule);
     setNoPermitirFueraUbicacion(useExactLocation);
+    if (nextRule === 'open') {
+      setModoHorario('Horario abierto');
+    } else if (modoHorario === 'Horario abierto') {
+      setModoHorario('Horario estricto');
+    }
     if (!useExactLocation) {
+      setUbicacionSeleccionada('');
+    }
+  };
+
+  const handleScheduleModeChange = (value: 'Horario estricto' | 'Horario abierto') => {
+    setModoHorario(value);
+    if (value === 'Horario abierto') {
+      setLocationRule('open');
+      setNoPermitirFueraUbicacion(false);
+      setUbicacionSeleccionada('');
+      return;
+    }
+
+    if (locationRule === 'open') {
+      setLocationRule('business');
+      setNoPermitirFueraUbicacion(false);
       setUbicacionSeleccionada('');
     }
   };
@@ -909,7 +1105,7 @@ export function ScheduleModal({
     setSelectedScheduleTemplateId(null);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
-    setLocationRule(templateDraft.noPermitirFueraUbicacion ? 'temporary' : 'business');
+    setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
     setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
     setHorarios(templateDraft.horarios);
@@ -931,7 +1127,7 @@ export function ScheduleModal({
     setSelectedTemplateName(template?.name ?? defaultScheduleTemplateName);
     setModoHorario(templateDraft.modoHorario);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
-    setLocationRule(templateDraft.noPermitirFueraUbicacion ? 'temporary' : 'business');
+    setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
     setUbicacionSeleccionada(templateDraft.ubicacionSeleccionada);
     setHorarios(templateDraft.horarios);
@@ -942,7 +1138,10 @@ export function ScheduleModal({
   };
 
   const buildTemplatePayload = (templateName = selectedTemplateName.trim() || defaultScheduleTemplateName): AttendanceControlTemplatePayload | null => {
-    if (noPermitirFueraUbicacion && !ubicacionSeleccionada) {
+    const usesExactLocation = locationRule === 'temporary';
+    const usesOpenRegistration = locationRule === 'open' || isHorarioAbierto;
+
+    if (usesExactLocation && !ubicacionSeleccionada) {
       const message = 'Select the allowed location for this schedule.';
       setErrorMessage(message);
       showFailureToast(message);
@@ -953,7 +1152,7 @@ export function ScheduleModal({
       const startTime = horario.entrada ? `${horario.entrada}:00` : null;
       const endTime = horario.salida ? `${horario.salida}:00` : null;
 
-      if (!isHorarioAbierto && !horario.isRestDay) {
+      if (!usesOpenRegistration && !horario.isRestDay) {
         if (!startTime || !endTime) {
           throw new Error(`Provide entry and exit times for ${horario.dia}.`);
         }
@@ -964,11 +1163,11 @@ export function ScheduleModal({
 
       return {
         day_of_week: horario.dayOfWeek,
-        start_time: isHorarioAbierto || horario.isRestDay ? null : startTime,
-        end_time: isHorarioAbierto || horario.isRestDay ? null : endTime,
+        start_time: usesOpenRegistration || horario.isRestDay ? null : startTime,
+        end_time: usesOpenRegistration || horario.isRestDay ? null : endTime,
         meal_minutes: horario.comida,
         rest_minutes: horario.descanso,
-        late_after_minutes: isHorarioAbierto ? 0 : toleranciaIngreso,
+        late_after_minutes: usesOpenRegistration ? 0 : toleranciaIngreso,
         is_rest_day: horario.isRestDay,
       };
     });
@@ -976,10 +1175,10 @@ export function ScheduleModal({
     return {
       name: templateName,
       status: 'active',
-      schedule_mode: isHorarioAbierto ? 'open' : 'strict',
+      schedule_mode: usesOpenRegistration ? 'open' : 'strict',
       block_after_grace_period: false,
-      enforce_location: noPermitirFueraUbicacion,
-      location_id: noPermitirFueraUbicacion && ubicacionSeleccionada ? Number(ubicacionSeleccionada) : null,
+      enforce_location: usesExactLocation,
+      location_id: usesExactLocation && ubicacionSeleccionada ? Number(ubicacionSeleccionada) : null,
       days,
     };
   };
@@ -994,6 +1193,17 @@ export function ScheduleModal({
       const appliedResult = await runWithMinimumDuration((async () => {
         if (selectedEmployeeIds.length === 0) {
           const message = 'Select at least one HR user.';
+          setErrorMessage(message);
+          showFailureToast(message);
+          return null;
+        }
+
+        if (selectedLockedAssignments.length > 0) {
+          const lockedNames = formatPreviewList(
+            selectedLockedAssignments.map((assignment) => assignment.user_name),
+            'selected HR users',
+          );
+          const message = `${lockedNames} have recorded attendance or an active contract site in this date range. Choose another date or clear the blocking assignment first.`;
           setErrorMessage(message);
           showFailureToast(message);
           return null;
@@ -1122,6 +1332,41 @@ export function ScheduleModal({
     }
   };
 
+  const deleteSelectedScheduleTemplate = async () => {
+    const template = selectedTemplate;
+    if (!template) {
+      const message = 'Select a saved template before removing it.';
+      setErrorMessage(message);
+      showFailureToast(message);
+      return;
+    }
+
+    const confirmed = window.confirm(`Remove "${template.name}" from saved templates? Existing schedule assignments will keep their historical reference.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingTemplate(true);
+    setErrorMessage('');
+    setFailureToastMessage('');
+
+    try {
+      await humanResourcesApi.updateAttendanceControlTemplate(template.id, {
+        ...payloadFromTemplate(template),
+        status: 'inactive',
+      });
+      setDeletedTemplateIds((current) => Array.from(new Set([...current, template.id])));
+      setCreatedTemplates((current) => current.filter((item) => item.id !== template.id));
+      limpiarHorarios();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The template could not be removed.';
+      setErrorMessage(message);
+      showFailureToast(message);
+    } finally {
+      setIsDeletingTemplate(false);
+    }
+  };
+
   return (
     <>
       <LoadingBarOverlay
@@ -1211,7 +1456,6 @@ export function ScheduleModal({
                     onApplySearchFilters={applySearchFilters}
                     onAvailabilityDateChange={handleAvailabilityDateChange}
                     onBusinessFilterChange={handleBusinessFilterChange}
-                    onOpenSaveTemplateModal={openSaveTemplateModal}
                     onUnitFilterChange={handleUnitFilterChange}
                   />
                 </div>
@@ -1220,35 +1464,38 @@ export function ScheduleModal({
               <section className="order-1 flex min-h-0 flex-col bg-white dark:bg-slate-950 lg:order-2">
                 <div ref={rightPanelScrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 pb-28">
                   <ScheduleBuilder
+                    activeStep={builderStep}
                     employeeBusinessLocationSummary={employeeBusinessLocationSummary}
                     exactLocationOptions={exactLocationOptions}
                     exactLocationWarning={exactLocationWarning}
+                    effectiveStartDate={assignmentEffectiveStartDate}
                     horarios={horarios}
+                    isDeletingTemplate={isDeletingTemplate}
                     isHorarioAbierto={isHorarioAbierto}
                     isSubmitting={isSubmitting}
                     locationRule={locationRule}
                     locationScopeFallbackMessage={locationScopeFallbackMessage}
                     locationScopeSummary={locationScopeSummary}
+                    operationalSummary={operationalSummary}
                     selectedEmployeeBusinessWarning={selectedEmployeeBusinessWarning}
+                    selectedEmployeeCount={selectedEmployeeIds.length}
                     selectedScheduleTemplateId={selectedScheduleTemplateId}
                     selectedTemplateName={selectedTemplateName}
                     templates={availableTemplates}
                     toleranciaIngreso={toleranciaIngreso}
                     ubicacionSeleccionada={ubicacionSeleccionada}
                     onCopyMondayToAllDays={copyMondayToAllDays}
+                    onDeleteSelectedTemplate={deleteSelectedScheduleTemplate}
                     onHorarioChange={updateHorario}
                     onLocationRuleChange={handleLocationRuleChange}
-                    onModeChange={setModoHorario}
+                    onModeChange={handleScheduleModeChange}
+                    onStepChange={setBuilderStep}
+                    onOpenSaveTemplateModal={openSaveTemplateModal}
                     onResetSchedule={limpiarHorarios}
                     onScheduleTemplateChange={handleScheduleTemplateChange}
                     onToleranciaIngresoChange={setToleranciaIngreso}
                     onUbicacionSeleccionadaChange={setUbicacionSeleccionada}
                     onWorkingDayChange={updateWorkingDay}
-                  />
-                  <ScheduleImpactSummary
-                    assignmentDateError={assignmentDateError}
-                    effectiveStartDate={assignmentEffectiveStartDate}
-                    selectedEmployeeCount={selectedEmployeeIds.length}
                   />
                 </div>
               </section>
@@ -1259,6 +1506,7 @@ export function ScheduleModal({
             <ScheduleImpactSummary
               assignmentDateError={assignmentDateError}
               effectiveStartDate={assignmentEffectiveStartDate}
+              operationalSummary={operationalSummary}
               selectedEmployeeCount={selectedEmployeeIds.length}
               compact
             />
@@ -1420,7 +1668,6 @@ function EmployeeSelectionTable({
   onApplySearchFilters,
   onAvailabilityDateChange,
   onBusinessFilterChange,
-  onOpenSaveTemplateModal,
   onUnitFilterChange,
 }: {
   allVisibleSelected: boolean;
@@ -1451,109 +1698,38 @@ function EmployeeSelectionTable({
   onApplySearchFilters: () => void;
   onAvailabilityDateChange: (value: string) => void;
   onBusinessFilterChange: (value: string) => void;
-  onOpenSaveTemplateModal: () => void;
   onUnitFilterChange: (value: string) => void;
 }) {
   return (
     <>
-      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 6</p>
-            <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">HR User selection</h3>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Apply schedule</p>
+            <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Effective date</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Assign the configured schedule to the HR users who need it.
+              Existing schedules will be replaced from this date. Recorded attendance stays protected.
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff]">
+          <span className="inline-flex shrink-0 items-center gap-1 self-start rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff] sm:self-auto">
             <UserCheck className="h-3.5 w-3.5" />
-            Permanent schedule
+            {selectedEmployeeIds.length} selected
           </span>
         </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="md:col-span-2">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Search HR user</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Name or code"
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            />
-          </label>
-
-          <div>
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Effective from</span>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={availabilityDate}
-                min={todayDate}
-                onChange={(event) => onAvailabilityDateChange(event.target.value)}
-                className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onOpenSaveTemplateModal}
-                className="h-10 shrink-0 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#143675] shadow-sm hover:bg-blue-50 hover:text-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8bb3ff] dark:hover:bg-blue-950/20"
-              >
-                <Save className="h-4 w-4" />
-                <span className="hidden xl:inline">Save as template</span>
-              </Button>
-            </div>
-          </div>
-
-          <label>
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Unit</span>
-            <select
-              value={unidadFilter}
-              onChange={(event) => onUnitFilterChange(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            >
-              <option value="">All</option>
-              {unitOptions.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Business</span>
-            <select
-              value={negocioFilter}
-              onChange={(event) => onBusinessFilterChange(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            >
-              <option value="">All</option>
-              {businessOptions.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            This schedule will stay active until a new one is saved for the HR user.
-          </p>
-          <Button
-            className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]"
-            type="button"
-            onClick={onApplySearchFilters}
-          >
-            <Search className="h-4 w-4" />
-            Search
-          </Button>
-        </div>
+        <input
+          type="date"
+          value={availabilityDate}
+          min={todayDate}
+          onChange={(event) => onAvailabilityDateChange(event.target.value)}
+          className="mt-4 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-56"
+        />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 id="available-hr-users-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
-              HR Users
+              Select HR users
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               New schedule starts on {assignmentEffectiveStartDate}.
@@ -1567,6 +1743,59 @@ function EmployeeSelectionTable({
               {selectedEmployeeIds.length} selected
             </span>
           </div>
+        </div>
+
+        <div className="grid gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  onApplySearchFilters();
+                }
+              }}
+              placeholder="Filter by name or code"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </div>
+
+          <select
+            aria-label="Filter by unit"
+            value={unidadFilter}
+            onChange={(event) => onUnitFilterChange(event.target.value)}
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          >
+            <option value="">All units</option>
+            {unitOptions.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by business"
+            value={negocioFilter}
+            onChange={(event) => onBusinessFilterChange(event.target.value)}
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          >
+            <option value="">All businesses</option>
+            {businessOptions.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onApplySearchFilters}
+            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#143675] shadow-sm hover:bg-blue-50 hover:text-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8bb3ff] dark:hover:bg-blue-950/20"
+          >
+            <Search className="h-4 w-4" />
+            Filter
+          </Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -1602,15 +1831,15 @@ function EmployeeSelectionTable({
               ) : (
                 paginatedAssignments.map((assignment) => {
                   const isSelected = selectedEmployeeIds.includes(assignment.user_company_id);
-                  const hasScheduleNotice = assignment.can_assign_schedule === false;
-                  const lockedReason = assignment.schedule_busy_reason || 'Existing schedule or attendance detected';
+                  const hasScheduleNotice = !isScheduleAssignable(assignment);
+                  const lockedReason = getScheduleBlockReason(assignment) || 'Existing attendance or contract site detected';
                   const isAttendanceLocked = lockedReason.toLowerCase().includes('attendance');
                   const currentScheduleName = assignment.schedule_template_name || 'No schedule saved';
                   const statusTooltip = hasScheduleNotice
-                    ? isAttendanceLocked
-                      ? 'Attendance already exists for the effective date. The new permanent schedule will still be saved from the selected date if the backend accepts the update.'
-                      : lockedReason
-                    : 'This HR user can receive a new active schedule.';
+                    ? `${lockedReason}. Choose another effective date or clear the blocking assignment first.`
+                    : assignment.schedule_template_name
+                      ? 'Existing schedule will be replaced from the selected effective date.'
+                      : 'This HR user can receive a new active schedule.';
 
                   return (
                     <tr
@@ -1668,7 +1897,7 @@ function EmployeeSelectionTable({
               </p>
               {candidateBusyCount > 0 ? (
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {candidateBusyCount} HR users have existing schedule or attendance context on this date. You can still select them for a new active schedule.
+                  {candidateBusyCount} HR users have attendance or contract-site context on this date. Existing schedules can be replaced from the selected effective date.
                 </p>
               ) : null}
             </div>
@@ -1729,50 +1958,66 @@ function EmployeeSelectionTable({
 }
 
 function ScheduleBuilder({
+  activeStep,
   employeeBusinessLocationSummary,
   exactLocationOptions,
   exactLocationWarning,
+  effectiveStartDate,
   horarios,
+  isDeletingTemplate,
   isHorarioAbierto,
   isSubmitting,
   locationRule,
   locationScopeFallbackMessage,
   locationScopeSummary,
+  operationalSummary,
   selectedEmployeeBusinessWarning,
+  selectedEmployeeCount,
   selectedScheduleTemplateId,
   selectedTemplateName,
   templates,
   toleranciaIngreso,
   ubicacionSeleccionada,
   onCopyMondayToAllDays,
+  onDeleteSelectedTemplate,
   onHorarioChange,
   onLocationRuleChange,
   onModeChange,
+  onOpenSaveTemplateModal,
+  onStepChange,
   onResetSchedule,
   onScheduleTemplateChange,
   onToleranciaIngresoChange,
   onUbicacionSeleccionadaChange,
   onWorkingDayChange,
 }: {
+  activeStep: ScheduleBuilderStep;
   employeeBusinessLocationSummary: string;
   exactLocationOptions: AttendanceControlLocation[];
   exactLocationWarning: string;
+  effectiveStartDate: string;
   horarios: HorarioDiaDraft[];
+  isDeletingTemplate: boolean;
   isHorarioAbierto: boolean;
   isSubmitting: boolean;
   locationRule: ScheduleLocationRule;
   locationScopeFallbackMessage: string;
   locationScopeSummary: string;
+  operationalSummary: OperationalScheduleSummary;
   selectedEmployeeBusinessWarning: string;
+  selectedEmployeeCount: number;
   selectedScheduleTemplateId: number | null;
   selectedTemplateName: string;
   templates: AttendanceControlTemplate[];
   toleranciaIngreso: number;
   ubicacionSeleccionada: string;
   onCopyMondayToAllDays: () => void;
+  onDeleteSelectedTemplate: () => void;
   onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
   onLocationRuleChange: (value: string) => void;
   onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  onOpenSaveTemplateModal: () => void;
+  onStepChange: (step: ScheduleBuilderStep) => void;
   onResetSchedule: () => void;
   onScheduleTemplateChange: (value: string) => void;
   onToleranciaIngresoChange: (value: number) => void;
@@ -1780,77 +2025,238 @@ function ScheduleBuilder({
   onWorkingDayChange: (index: number, isWorkingDay: boolean) => void;
 }) {
   const activeTemplates = templates.filter((template) => template.status !== 'inactive');
+  const currentStepIndex = scheduleBuilderSteps.findIndex((step) => step.id === activeStep);
+  const canGoBack = currentStepIndex > 0;
+  const canGoNext = currentStepIndex >= 0 && currentStepIndex < scheduleBuilderSteps.length - 1;
+  const goBack = () => {
+    if (!canGoBack) {
+      return;
+    }
+    onStepChange(scheduleBuilderSteps[currentStepIndex - 1].id);
+  };
+  const goNext = () => {
+    if (!canGoNext) {
+      return;
+    }
+    onStepChange(scheduleBuilderSteps[currentStepIndex + 1].id);
+  };
 
   return (
-    <section aria-labelledby="schedule-details-heading" className="space-y-5">
+    <section aria-labelledby="schedule-details-heading" className="flex min-h-full flex-col gap-5">
       <div className="rounded-2xl border border-[#143675]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8bb3ff]/30 dark:bg-blue-950/20">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <h3 id="schedule-details-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
-              Schedule configuration
+              Operational rule builder
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Configure the schedule first, then select the HR users who will receive it.
+              Build the workforce rule in steps, then review exactly what will be applied.
             </p>
           </div>
           <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#143675] shadow-sm dark:bg-slate-950 dark:text-[#8bb3ff]">
-            Step 1
+            {currentStepIndex + 1}/{scheduleBuilderSteps.length}
           </span>
         </div>
 
-        <ScheduleTypeSelector
-          isHorarioAbierto={isHorarioAbierto}
-          onModeChange={onModeChange}
-        />
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onResetSchedule} disabled={isSubmitting}>
-            Reset schedule
-          </Button>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Strict stores start/end times. Open stores workdays without fixed punch times.
-          </span>
-        </div>
+        <ScheduleWorkflowTabs activeStep={activeStep} onStepChange={onStepChange} />
       </div>
 
-      {!isHorarioAbierto ? (
-        <ScheduleTemplateSelector
+      {activeStep === 'setup' ? (
+        <ScheduleSetupStep
           activeTemplates={activeTemplates}
+          isDeletingTemplate={isDeletingTemplate}
+          isHorarioAbierto={isHorarioAbierto}
+          isSubmitting={isSubmitting}
           selectedScheduleTemplateId={selectedScheduleTemplateId}
           selectedTemplateName={selectedTemplateName}
+          onDeleteSelectedTemplate={onDeleteSelectedTemplate}
+          onModeChange={onModeChange}
+          onOpenSaveTemplateModal={onOpenSaveTemplateModal}
+          onResetSchedule={onResetSchedule}
           onScheduleTemplateChange={onScheduleTemplateChange}
         />
       ) : null}
 
-      <WorkingGrid
-        horarios={horarios}
-        isHorarioAbierto={isHorarioAbierto}
-        onCopyMondayToAllDays={onCopyMondayToAllDays}
-        onHorarioChange={onHorarioChange}
-        onWorkingDayChange={onWorkingDayChange}
-      />
+      {activeStep === 'workdays' ? (
+        <section className="space-y-4">
+          <WorkingGrid
+            horarios={horarios}
+            isHorarioAbierto={isHorarioAbierto}
+            onCopyMondayToAllDays={onCopyMondayToAllDays}
+            onHorarioChange={onHorarioChange}
+            onWorkingDayChange={onWorkingDayChange}
+          />
+          <BreakConfigurationCard
+            horarios={horarios}
+            onHorarioChange={onHorarioChange}
+          />
+        </section>
+      ) : null}
 
-      {!isHorarioAbierto ? (
-        <ScheduleRulesSection
+      {activeStep === 'rules' ? (
+        <section className="space-y-4">
+          {!isHorarioAbierto ? (
+            <AttendanceRulesCard
+              toleranciaIngreso={toleranciaIngreso}
+              onToleranciaIngresoChange={onToleranciaIngresoChange}
+            />
+          ) : (
+            <OpenScheduleRulesCard />
+          )}
+          <LocationRuleSelector
+            employeeBusinessLocationSummary={employeeBusinessLocationSummary}
+            exactLocationOptions={exactLocationOptions}
+            exactLocationWarning={exactLocationWarning}
+            locationRule={locationRule}
+            locationScopeFallbackMessage={locationScopeFallbackMessage}
+            locationScopeSummary={locationScopeSummary}
+            selectedEmployeeBusinessWarning={selectedEmployeeBusinessWarning}
+            ubicacionSeleccionada={ubicacionSeleccionada}
+            onLocationRuleChange={onLocationRuleChange}
+            onUbicacionSeleccionadaChange={onUbicacionSeleccionadaChange}
+          />
+        </section>
+      ) : null}
+
+      {activeStep === 'review' ? (
+        <ScheduleReviewStep
+          effectiveStartDate={effectiveStartDate}
           horarios={horarios}
+          isHorarioAbierto={isHorarioAbierto}
+          locationRule={locationRule}
+          operationalSummary={operationalSummary}
+          selectedEmployeeCount={selectedEmployeeCount}
+          selectedTemplateName={selectedTemplateName}
           toleranciaIngreso={toleranciaIngreso}
-          onHorarioChange={onHorarioChange}
-          onToleranciaIngresoChange={onToleranciaIngresoChange}
         />
       ) : null}
 
-      <LocationRuleSelector
-        employeeBusinessLocationSummary={employeeBusinessLocationSummary}
-        exactLocationOptions={exactLocationOptions}
-        exactLocationWarning={exactLocationWarning}
-        locationRule={locationRule}
-        locationScopeFallbackMessage={locationScopeFallbackMessage}
-        locationScopeSummary={locationScopeSummary}
-        selectedEmployeeBusinessWarning={selectedEmployeeBusinessWarning}
-        ubicacionSeleccionada={ubicacionSeleccionada}
-        onLocationRuleChange={onLocationRuleChange}
-        onUbicacionSeleccionadaChange={onUbicacionSeleccionadaChange}
-      />
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={goBack}
+          disabled={!canGoBack}
+          className="rounded-xl"
+        >
+          Back
+        </Button>
+        <div className="min-w-0 text-center text-xs text-slate-500 dark:text-slate-400">
+          {operationalSummary.compact}
+        </div>
+        <Button
+          type="button"
+          onClick={goNext}
+          disabled={!canGoNext}
+          className="rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+        >
+          {canGoNext ? 'Continue' : 'Ready to save'}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function ScheduleWorkflowTabs({
+  activeStep,
+  onStepChange,
+}: {
+  activeStep: ScheduleBuilderStep;
+  onStepChange: (step: ScheduleBuilderStep) => void;
+}) {
+  return (
+    <div className="mt-4 grid gap-2 sm:grid-cols-4">
+      {scheduleBuilderSteps.map((step, index) => {
+        const isActive = activeStep === step.id;
+        return (
+          <button
+            key={step.id}
+            type="button"
+            onClick={() => onStepChange(step.id)}
+            className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+              isActive
+                ? 'border-[#143675] bg-white text-[#143675] shadow-sm dark:border-[#8bb3ff] dark:bg-slate-950 dark:text-[#8bb3ff]'
+                : 'border-transparent bg-white/50 text-slate-600 hover:bg-white dark:bg-slate-900/30 dark:text-slate-300 dark:hover:bg-slate-900'
+            }`}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">{`Step ${index + 1}`}</span>
+            <span className="mt-1 block text-sm font-semibold">{step.label}</span>
+            <span className="mt-0.5 block text-xs opacity-75">{step.description}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScheduleSetupStep({
+  activeTemplates,
+  isDeletingTemplate,
+  isHorarioAbierto,
+  isSubmitting,
+  selectedScheduleTemplateId,
+  selectedTemplateName,
+  onDeleteSelectedTemplate,
+  onModeChange,
+  onOpenSaveTemplateModal,
+  onResetSchedule,
+  onScheduleTemplateChange,
+}: {
+  activeTemplates: AttendanceControlTemplate[];
+  isDeletingTemplate: boolean;
+  isHorarioAbierto: boolean;
+  isSubmitting: boolean;
+  selectedScheduleTemplateId: number | null;
+  selectedTemplateName: string;
+  onDeleteSelectedTemplate: () => void;
+  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  onOpenSaveTemplateModal: () => void;
+  onResetSchedule: () => void;
+  onScheduleTemplateChange: (value: string) => void;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Start here</p>
+          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">What rule are you applying?</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Use a saved template for recurring workforce rules, or build a new schedule for this group.
+          </p>
+        </div>
+        <ScheduleTemplateSelector
+          activeTemplates={activeTemplates}
+          isDeletingTemplate={isDeletingTemplate}
+          isSubmitting={isSubmitting}
+          selectedScheduleTemplateId={selectedScheduleTemplateId}
+          selectedTemplateName={selectedTemplateName}
+          onDeleteSelectedTemplate={onDeleteSelectedTemplate}
+          onScheduleTemplateChange={onScheduleTemplateChange}
+        />
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onResetSchedule} disabled={isSubmitting}>
+            Create new schedule
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onOpenSaveTemplateModal}
+            disabled={isSubmitting}
+            className="gap-2 text-[#143675] hover:text-[#143675] dark:text-[#8bb3ff]"
+          >
+            <Save className="h-4 w-4" />
+            Save as template
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <ScheduleTypeSelector
+          isHorarioAbierto={isHorarioAbierto}
+          onModeChange={onModeChange}
+        />
+      </div>
     </section>
   );
 }
@@ -1921,30 +2327,38 @@ function ScheduleTypeSelector({
 
 function ScheduleTemplateSelector({
   activeTemplates,
+  isDeletingTemplate,
+  isSubmitting,
   selectedScheduleTemplateId,
   selectedTemplateName,
+  onDeleteSelectedTemplate,
   onScheduleTemplateChange,
 }: {
   activeTemplates: AttendanceControlTemplate[];
+  isDeletingTemplate: boolean;
+  isSubmitting: boolean;
   selectedScheduleTemplateId: number | null;
   selectedTemplateName: string;
+  onDeleteSelectedTemplate: () => void;
   onScheduleTemplateChange: (value: string) => void;
 }) {
+  const canDeleteSelectedTemplate = Boolean(selectedScheduleTemplateId) && !isDeletingTemplate && !isSubmitting;
+
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 2</p>
-          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Template</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use a saved strict template or continue with the current setup.</p>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Reusable template</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use a saved workforce rule or continue with a custom setup.</p>
         </div>
-        <span className="inline-flex shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-blue-950/40 dark:text-[#8bb3ff]">
+        <span className="inline-flex max-w-[14rem] shrink-0 truncate rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-blue-950/40 dark:text-[#8bb3ff]">
           {selectedTemplateName}
         </span>
       </div>
       <select
         value={selectedScheduleTemplateId ? String(selectedScheduleTemplateId) : ''}
         onChange={(event) => onScheduleTemplateChange(event.target.value)}
+        disabled={isDeletingTemplate || isSubmitting}
         className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       >
         <option value="">Default schedule</option>
@@ -1952,7 +2366,25 @@ function ScheduleTemplateSelector({
           <option key={template.id} value={template.id}>{template.name}</option>
         ))}
       </select>
-    </section>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+          {selectedScheduleTemplateId
+            ? 'Remove unused templates from the active list without changing historical assignments.'
+            : 'Select a saved template to remove it from active options.'}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onDeleteSelectedTemplate}
+          disabled={!canDeleteSelectedTemplate}
+          className="shrink-0 gap-2 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 disabled:text-slate-400 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/20"
+        >
+          <Trash2 className="h-4 w-4" />
+          {isDeletingTemplate ? 'Removing...' : 'Remove template'}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -1970,177 +2402,298 @@ function WorkingGrid({
   onWorkingDayChange: (index: number, isWorkingDay: boolean) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 3</p>
-          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Working grid</h3>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Work rhythm</p>
+          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Working days and hours</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Turn each day on or off and set the expected access window.
+          </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onCopyMondayToAllDays}>
           Copy Monday to all days
         </Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px]">
-          <thead className="bg-white dark:bg-slate-950">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Day</th>
-              {!isHorarioAbierto ? (
-                <>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Start</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">End</th>
-                </>
-              ) : null}
-              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {horarios.map((horario, index) => {
-              const isWorkingDay = !horario.isRestDay;
-              const isOvernightShift = !horario.isRestDay
-                && Boolean(horario.entrada)
-                && Boolean(horario.salida)
-                && horario.salida < horario.entrada;
 
-              return (
-                <tr key={horario.dayOfWeek}>
-                  <td className="px-3 py-3 text-sm font-medium text-slate-950 dark:text-white">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={isWorkingDay}
-                        onCheckedChange={(checked) => onWorkingDayChange(index, checked === true)}
-                      />
-                      {horario.dia}
-                    </div>
-                  </td>
-                  {!isHorarioAbierto ? (
-                    <>
-                      <td className="px-3 py-3">
-                        <input
-                          type="time"
-                          value={horario.entrada}
-                          onChange={(event) => onHorarioChange(index, 'entrada', event.target.value)}
-                          disabled={horario.isRestDay}
-                          className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        <input
-                          type="time"
-                          value={horario.salida}
-                          onChange={(event) => onHorarioChange(index, 'salida', event.target.value)}
-                          disabled={horario.isRestDay}
-                          className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                        />
-                        {isOvernightShift ? (
-                          <p className="mt-1 text-[11px] font-medium text-blue-600 dark:text-blue-300">Ends next day</p>
-                        ) : null}
-                      </td>
-                    </>
-                  ) : null}
-                  <td className="px-3 py-3">
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+      <div className="grid gap-2">
+        {horarios.map((horario, index) => {
+          const isWorkingDay = !horario.isRestDay;
+          const isOvernightShift = !horario.isRestDay
+            && Boolean(horario.entrada)
+            && Boolean(horario.salida)
+            && horario.salida < horario.entrada;
+
+          return (
+            <div
+              key={horario.dayOfWeek}
+              className={`rounded-2xl border p-3 transition-colors ${
+                isWorkingDay
+                  ? 'border-emerald-100 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20'
+                  : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50'
+              }`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex min-w-0 items-center gap-3">
+                  <Checkbox
+                    checked={isWorkingDay}
+                    onCheckedChange={(checked) => onWorkingDayChange(index, checked === true)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-950 dark:text-white">{dayName(horario.dia)}</span>
+                    <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                       isWorkingDay
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200'
-                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+                        : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                     }`}
                     >
-                      {isWorkingDay ? 'Working' : 'No shift'}
+                      {isWorkingDay ? 'Working day' : 'Off day'}
                     </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </span>
+                </label>
+
+                {!isHorarioAbierto && isWorkingDay ? (
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:w-64">
+                    <label>
+                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Start</span>
+                      <input
+                        type="time"
+                        value={horario.entrada}
+                        onChange={(event) => onHorarioChange(index, 'entrada', event.target.value)}
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      />
+                    </label>
+                    <span className="mt-6 text-sm font-semibold text-slate-400">to</span>
+                    <label>
+                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">End</span>
+                      <input
+                        type="time"
+                        value={horario.salida}
+                        onChange={(event) => onHorarioChange(index, 'salida', event.target.value)}
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      />
+                    </label>
+                  </div>
+                ) : null}
+
+                {isHorarioAbierto && isWorkingDay ? (
+                  <p className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-slate-950 dark:text-emerald-200">
+                    Open access day
+                  </p>
+                ) : null}
+              </div>
+              {isOvernightShift ? (
+                <p className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-300">This shift ends the next day.</p>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
 }
 
-function ScheduleRulesSection({
+function BreakConfigurationCard({
   horarios,
-  toleranciaIngreso,
   onHorarioChange,
-  onToleranciaIngresoChange,
 }: {
   horarios: HorarioDiaDraft[];
-  toleranciaIngreso: number;
   onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
+}) {
+  const mealMinutes = firstSharedMinutes(horarios, 'comida');
+  const breakMinutes = firstSharedMinutes(horarios, 'descanso');
+  const hasMealBreak = mealMinutes > 0;
+  const hasShortBreak = breakMinutes > 0;
+
+  const updateAllWorkingDays = (field: 'comida' | 'descanso', value: number) => {
+    horarios.forEach((horario, index) => {
+      onHorarioChange(index, field, horario.isRestDay ? 0 : value);
+    });
+  };
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Breaks</p>
+        <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Rest time</h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Keep breaks simple. Minutes are applied to active workdays.
+        </p>
+      </div>
+
+      <div className="grid gap-3">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+          <label className="flex items-center justify-between gap-3">
+            <span>
+              <span className="block text-sm font-semibold text-slate-950 dark:text-white">Includes meal break</span>
+              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">Useful for standard lunch or meal time.</span>
+            </span>
+            <Checkbox
+              checked={hasMealBreak}
+              onCheckedChange={(checked) => updateAllWorkingDays('comida', checked === true ? mealMinutes || 60 : 0)}
+            />
+          </label>
+          {hasMealBreak ? (
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                value={mealMinutes}
+                onChange={(event) => updateAllWorkingDays('comida', Number(event.target.value) || 0)}
+                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+              <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+          <label className="flex items-center justify-between gap-3">
+            <span>
+              <span className="block text-sm font-semibold text-slate-950 dark:text-white">Includes short break</span>
+              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">Optional additional rest time.</span>
+            </span>
+            <Checkbox
+              checked={hasShortBreak}
+              onCheckedChange={(checked) => updateAllWorkingDays('descanso', checked === true ? breakMinutes || 15 : 0)}
+            />
+          </label>
+          {hasShortBreak ? (
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                value={breakMinutes}
+                onChange={(event) => updateAllWorkingDays('descanso', Number(event.target.value) || 0)}
+                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+              <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AttendanceRulesCard({
+  toleranciaIngreso,
+  onToleranciaIngresoChange,
+}: {
+  toleranciaIngreso: number;
   onToleranciaIngresoChange: (value: number) => void;
 }) {
   return (
-    <section className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 4</p>
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Attendance rules</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Rules that apply only to strict schedules.
-          </p>
-        </div>
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Attendance</p>
+        <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Late tolerance</h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Define when the system should mark a collaborator as late.
+        </p>
+      </div>
 
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/60 dark:bg-orange-950/30">
-          <label className="mb-2 block text-sm font-semibold text-slate-900 dark:text-white">Mark late after</label>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min="0"
-              max="60"
-              value={toleranciaIngreso}
-              onChange={(event) => onToleranciaIngresoChange(Number(event.target.value) || 0)}
-              className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            />
-            <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+      <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/60 dark:bg-orange-950/30">
+        <label className="mb-2 block text-sm font-semibold text-slate-900 dark:text-white">Mark late after</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min="0"
+            max="60"
+            value={toleranciaIngreso}
+            onChange={(event) => onToleranciaIngresoChange(Number(event.target.value) || 0)}
+            className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          />
+          <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+        </div>
+        <p className="mt-2 text-xs text-orange-700 dark:text-orange-300">
+          Collaborators can still clock in after this time. The attendance record will be marked late.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function OpenScheduleRulesCard() {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
+        <p className="font-semibold">Open schedule selected</p>
+        <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">
+          Workdays are active, but fixed entry and exit times are not stored. Late tolerance does not apply.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function ScheduleReviewStep({
+  effectiveStartDate,
+  horarios,
+  isHorarioAbierto,
+  locationRule,
+  operationalSummary,
+  selectedEmployeeCount,
+  selectedTemplateName,
+  toleranciaIngreso,
+}: {
+  effectiveStartDate: string;
+  horarios: HorarioDiaDraft[];
+  isHorarioAbierto: boolean;
+  locationRule: ScheduleLocationRule;
+  operationalSummary: OperationalScheduleSummary;
+  selectedEmployeeCount: number;
+  selectedTemplateName: string;
+  toleranciaIngreso: number;
+}) {
+  const mealMinutes = firstSharedMinutes(horarios, 'comida');
+  const breakMinutes = firstSharedMinutes(horarios, 'descanso');
+  const hasNoEmployees = selectedEmployeeCount === 0;
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Operational review</p>
+        <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">What will happen after saving?</h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Review the rule before applying it to the selected collaborators.
+        </p>
+      </div>
+
+      {hasNoEmployees ? (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+          Select at least one collaborator on the left before saving this schedule.
+        </div>
+      ) : null}
+
+      <div className="rounded-2xl border border-[#143675]/20 bg-blue-50 p-4 text-[#143675] dark:border-[#8bb3ff]/30 dark:bg-blue-950/20 dark:text-blue-100">
+        <p className="text-sm font-semibold">Schedule will apply</p>
+        <p className="mt-2 text-lg font-semibold leading-7">{operationalSummary.compact}</p>
+      </div>
+
+      <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+        {operationalSummary.reviewItems.map((item) => (
+          <div key={item.label} className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{item.label}</span>
+            <span className="text-sm font-medium text-slate-950 dark:text-white">{item.value}</span>
           </div>
-          <p className="mt-2 text-xs text-orange-700 dark:text-orange-300">
-            HR users can still clock in after this time. The attendance record will be marked late.
-          </p>
+        ))}
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Breaks</span>
+          <span className="text-sm font-medium text-slate-950 dark:text-white">
+            {mealMinutes > 0 || breakMinutes > 0
+              ? `${mealMinutes > 0 ? `${mealMinutes} min meal` : 'No meal break'}; ${breakMinutes > 0 ? `${breakMinutes} min short break` : 'no short break'}`
+              : 'No breaks configured'}
+          </span>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-sm font-semibold text-slate-950 dark:text-white">Meal and break minutes</p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Optional minutes stored per workday.</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px]">
-            <thead>
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Day</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Meal</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Break</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {horarios.map((horario, index) => (
-                <tr key={horario.dayOfWeek}>
-                  <td className="px-3 py-3 text-sm font-medium text-slate-900 dark:text-white">{horario.dia}</td>
-                  <td className="px-3 py-3">
-                    <input
-                      type="number"
-                      min="0"
-                      value={horario.comida}
-                      onChange={(event) => onHorarioChange(index, 'comida', Number(event.target.value) || 0)}
-                      className="h-9 w-20 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    />
-                  </td>
-                  <td className="px-3 py-3">
-                    <input
-                      type="number"
-                      min="0"
-                      value={horario.descanso}
-                      onChange={(event) => onHorarioChange(index, 'descanso', Number(event.target.value) || 0)}
-                      className="h-9 w-20 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+        Existing schedules are replaced from {formatEffectiveDate(effectiveStartDate)}. Recorded attendance remains protected.
+        {isHorarioAbierto ? ' Open schedules store active workdays without fixed entry or exit times.' : ` Strict schedules use ${toleranciaIngreso} minutes of late tolerance.`}
+        {selectedTemplateName && selectedTemplateName !== defaultScheduleTemplateName ? ` Template: ${selectedTemplateName}.` : ''}
+        {locationRule === 'open' ? ' No exact location will be enforced.' : ''}
+      </p>
     </section>
   );
 }
@@ -2193,10 +2746,10 @@ function LocationRuleSelector({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Step 5</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Location</p>
         <h3 className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-white">
           <MapPin className="h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
-          Location rule
+          Check-in location rule
         </h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Choose how location validation should behave for this schedule.
@@ -2285,24 +2838,26 @@ function ScheduleImpactSummary({
   assignmentDateError,
   compact = false,
   effectiveStartDate,
+  operationalSummary,
   selectedEmployeeCount,
 }: {
   assignmentDateError: string;
   compact?: boolean;
   effectiveStartDate: string;
+  operationalSummary: OperationalScheduleSummary;
   selectedEmployeeCount: number;
 }) {
   const formattedStartDate = formatEffectiveDate(effectiveStartDate);
   const hasSelectedEmployees = selectedEmployeeCount > 0;
   const startMessage = `Schedule will be applied starting ${formattedStartDate}.`;
   const overrideMessage = hasSelectedEmployees
-    ? 'Existing schedules will be overridden.'
+    ? 'Existing schedules will be replaced from that date; recorded attendance remains protected.'
     : 'Select HR users after reviewing the schedule.';
 
   if (compact) {
     return (
       <div className="min-w-0 text-sm">
-        <p className="font-semibold text-white">{selectedEmployeeCount} HR user{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
+        <p className="font-semibold text-white">{operationalSummary.compact}</p>
         <p className="mt-0.5 max-w-2xl truncate text-white/75">{assignmentDateError || `${startMessage} ${overrideMessage}`}</p>
       </div>
     );

@@ -51,7 +51,15 @@ public abstract class HrAttendanceScheduleAssignmentUseCases extends HrAttendanc
                 throw new IllegalArgumentException("Terminated users cannot receive schedule assignments.");
             }
 
-            attendanceAssignmentService.validateUserIsFreeForAssignment(companyId, userCompanyId, effectiveStartDate, effectiveEndDate);
+            if (attendanceAssignmentService.hasAttendanceActivityInRange(companyId, userCompanyId, effectiveStartDate, effectiveEndDate)) {
+                throw new IllegalArgumentException("HR user already has attendance activity in this date range. Choose a date without recorded attendance.");
+            }
+            if (attendanceAssignmentService.hasActiveWorkSiteAssignmentOverlap(companyId, userCompanyId, effectiveStartDate, effectiveEndDate)) {
+                throw new IllegalArgumentException("HR user already has an active contract site assignment in this date range. Remove the contract site before changing the schedule.");
+            }
+
+            var assignmentUserId = attendanceUserLookupService.loadUserIdForCompanyUser(companyId, userCompanyId);
+            attendanceAssignmentService.closeOverlappingScheduleAssignments(companyId, userId, userCompanyId, effectiveStartDate, effectiveEndDate);
             jdbcTemplate.update(
                 """
                     INSERT INTO user_schedule_assignments
@@ -60,7 +68,7 @@ public abstract class HrAttendanceScheduleAssignmentUseCases extends HrAttendanc
                     """,
                 companyId,
                 userCompanyId,
-                attendanceUserLookupService.loadUserIdForCompanyUser(companyId, userCompanyId),
+                assignmentUserId,
                 templateId,
                 effectiveStartDate,
                 effectiveEndDate,
