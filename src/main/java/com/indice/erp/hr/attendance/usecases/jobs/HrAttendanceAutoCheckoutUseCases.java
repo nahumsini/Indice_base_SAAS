@@ -62,7 +62,7 @@ public abstract class HrAttendanceAutoCheckoutUseCases extends HrAttendanceSelfK
                 )),
                 "Auto checkout at scheduled end time.",
                 null,
-                0L
+                null
             );
             rebuildDailyRecordProjection(candidate.companyId(), candidate.userCompanyId(), candidate.attendanceDate());
         }

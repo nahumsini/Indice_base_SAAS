@@ -30,8 +30,7 @@ public class AttendanceScheduleCandidateMapper {
         DailyRecordRow dailyRecord,
         ScheduleCandidateWorkSiteAssignment activeWorkSite,
         boolean hasRangeAttendanceActivity,
-        boolean hasActiveWorkSiteOverlap,
-        boolean hasActiveScheduleOverlap
+        boolean hasActiveWorkSiteOverlap
     ) {
         var item = baseCandidateMap(user);
         var effectiveStatus = resolveEffectiveStatus(dailyRecord, scheduleRule, date);
@@ -42,8 +41,7 @@ public class AttendanceScheduleCandidateMapper {
             dailyRecord,
             activeWorkSite,
             hasRangeAttendanceActivity,
-            hasActiveWorkSiteOverlap,
-            hasActiveScheduleOverlap
+            hasActiveWorkSiteOverlap
         );
 
         if (assignment != null) {
@@ -118,13 +116,9 @@ public class AttendanceScheduleCandidateMapper {
         DailyRecordRow dailyRecord,
         ScheduleCandidateWorkSiteAssignment activeWorkSite,
         boolean hasRangeAttendanceActivity,
-        boolean hasActiveWorkSiteOverlap,
-        boolean hasActiveScheduleOverlap
+        boolean hasActiveWorkSiteOverlap
     ) {
         var busyReason = "";
-        if (assignment != null) {
-            busyReason = "Schedule already assigned";
-        }
         if (activeWorkSite != null) {
             busyReason = "Contract site assigned";
         }
@@ -133,9 +127,6 @@ public class AttendanceScheduleCandidateMapper {
         }
         if (hasActiveWorkSiteOverlap) {
             return "Contract site assigned";
-        }
-        if (hasActiveScheduleOverlap) {
-            return "Schedule already assigned";
         }
         return busyReason;
     }

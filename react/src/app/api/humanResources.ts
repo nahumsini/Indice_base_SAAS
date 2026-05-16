@@ -919,8 +919,10 @@ export interface PublicKioskPunchResponse {
   status: AttendanceStatus;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
-  location: AttendanceLocation;
+  location: AttendanceLocation | null;
+  location_restricted?: boolean;
   photo_object_key?: string | null;
+  photo_storage?: 'object_storage' | 'unavailable' | 'none';
   identity_evidence?: 'face_verified' | 'photo_fallback';
   today_activity?: PublicKioskDayActivity;
 }

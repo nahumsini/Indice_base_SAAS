@@ -96,7 +96,7 @@ public abstract class HrAttendancePublicKioskIdentityUseCases extends HrAttendan
             authAttemptMetadata,
             null,
             null,
-            0L
+            null
         );
 
         var expiresAtEpochSeconds = attendanceKioskTokenService.nextIdentificationExpiryEpochSeconds();
@@ -104,7 +104,7 @@ public abstract class HrAttendancePublicKioskIdentityUseCases extends HrAttendan
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), user.id(), activityDate);
         var dailyRecord = attendanceDailyRecordRepository.loadDailyRecord(kioskDevice.companyId(), user.id(), activityDate);
         var openDailyRecord = attendanceDailyRecordRepository.loadOpenDailyRecord(kioskDevice.companyId(), user.id(), eventTimestamp.toLocalDate());
-        if (openDailyRecord != null) {
+        if (openDailyRecord != null && openDailyRecord.attendanceDate().equals(activityDate)) {
             activityDate = openDailyRecord.attendanceDate();
             scheduleRule = loadScheduleRule(kioskDevice.companyId(), user.id(), activityDate);
             dailyRecord = openDailyRecord;

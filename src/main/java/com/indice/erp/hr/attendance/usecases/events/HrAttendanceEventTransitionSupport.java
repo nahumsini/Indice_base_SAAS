@@ -36,7 +36,7 @@ public abstract class HrAttendanceEventTransitionSupport extends HrAttendanceEve
         switch (eventKind) {
             case "check_in" -> {
                 var openDailyRecord = attendanceDailyRecordRepository.loadOpenDailyRecord(companyId, userCompanyId, attendanceDate);
-                if (openDailyRecord != null) {
+                if (openDailyRecord != null && openDailyRecord.attendanceDate().equals(attendanceDate)) {
                     var locationName = openDailyRecord.firstLocation() == null ? "" : " at " + openDailyRecord.firstLocation().name();
                     throw new IllegalArgumentException(
                         "HR user is already checked in"

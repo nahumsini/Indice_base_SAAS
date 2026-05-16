@@ -35,6 +35,10 @@ export const zhCA = {
   },
   labels: {
     ...enCA.labels,
+    calendarKpiAttendances: '出勤',
+    calendarKpiAbsences: '缺勤',
+    calendarKpiLate: '迟到',
+    calendarKpiRest: '休息',
     timeTable: '时间表',
     removeTimeTableDay: '移除班次',
     removeTimeTableDayTitle: '从时间表中移除此班次？',

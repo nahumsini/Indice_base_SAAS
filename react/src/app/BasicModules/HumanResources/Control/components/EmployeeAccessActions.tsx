@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, ScanFace, X } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, RotateCcw, ScanFace, X } from 'lucide-react';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../../components/LoadingBarOverlay';
 import { Button } from '../../../../components/ui/button';
 import {
@@ -96,10 +96,16 @@ export function EmployeeAccessActions({
     ? 'contents'
     : 'grid w-full grid-cols-2 gap-2 sm:w-auto sm:auto-cols-max sm:grid-flow-col sm:grid-cols-none xl:justify-end';
   const actionButtonClassName = actionBarLayout
-    ? 'h-10 justify-center gap-2 rounded-xl border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white'
+    ? 'h-9 justify-center gap-2 rounded-xl border-[#143675]/25 bg-[#143675]/10 text-xs font-semibold text-[#143675] shadow-[0_1px_2px_rgba(20,54,117,0.08)] hover:border-[#143675]/45 hover:bg-[#143675]/15 hover:text-[#143675] dark:border-[#8bb3ff]/25 dark:bg-[#143675]/30 dark:text-[#8bb3ff] dark:hover:bg-[#143675]/40'
     : inlineLayout
     ? 'h-9 min-w-[8.75rem] shrink-0 justify-center whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white'
     : 'whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white';
+  const pinActionButtonClassName = actionBarLayout
+    ? 'h-9 justify-center gap-2 rounded-xl border-[#143675]/30 bg-[#143675]/10 text-xs font-semibold text-[#143675] shadow-[0_1px_2px_rgba(20,54,117,0.10)] hover:border-[#143675]/50 hover:bg-[#143675]/20 hover:text-[#143675] dark:border-[#8bb3ff]/30 dark:bg-[#143675]/30 dark:text-[#8bb3ff] dark:hover:bg-[#143675]/45'
+    : actionButtonClassName;
+  const faceActionButtonClassName = actionBarLayout
+    ? 'h-9 justify-center gap-2 rounded-xl border-[#143675] bg-[#143675] text-xs font-semibold text-white shadow-[0_1px_2px_rgba(20,54,117,0.22)] hover:border-[#0f2855] hover:bg-[#0f2855] hover:text-white dark:border-[#8bb3ff]/60 dark:bg-[#8bb3ff] dark:text-[#081a38] dark:hover:bg-[#b4ccff]'
+    : actionButtonClassName;
   const effectiveAccessProfile = selectedAccessProfile ?? selectedEmployee.access_profile ?? null;
   const selectedPinMethod = effectiveAccessProfile?.methods.find((method) => method.method_type === 'pin') ?? null;
 
@@ -207,7 +213,7 @@ export function EmployeeAccessActions({
           <Button
             variant="outline"
             size="sm"
-            className={actionButtonClassName}
+            className={pinActionButtonClassName}
             disabled={isSaving}
             title={selectedPinMethod ? copy.labels.pinConfiguredHint : undefined}
             onClick={effectiveAccessProfile ? () => openEditAccessProfileDialog(effectiveAccessProfile) : openCreateAccessProfileDialog}
@@ -235,7 +241,7 @@ export function EmployeeAccessActions({
         <Button
           variant="outline"
           size="sm"
-          className={actionButtonClassName}
+          className={faceActionButtonClassName}
           disabled={isSaving}
           onClick={() => setIsFaceEnrollmentModalOpen(true)}
         >
@@ -261,6 +267,7 @@ export function EmployeeAccessActions({
         isSaving={isSaving}
         assignments={assignments}
         form={accessProfileForm}
+        accessProfileId={editingAccessProfile?.id ?? null}
         currentPin={editingAccessProfile?.methods.find((method) => method.method_type === 'pin')?.pin_code ?? null}
         hasExistingPin={Boolean(editingAccessProfile?.methods.some((method) => method.method_type === 'pin'))}
         shouldRegeneratePin={shouldRegeneratePin}
@@ -271,6 +278,7 @@ export function EmployeeAccessActions({
         onChange={setAccessProfileForm}
         onRegeneratePin={() => setShouldRegeneratePin(true)}
         onCancelRegeneratePin={() => setShouldRegeneratePin(false)}
+        onPinRefreshed={onReload}
         onSave={() => void handleSaveAccessProfile()}
         title={actionBarLayout ? copy.labels.setPin : editingAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
       />
@@ -310,6 +318,7 @@ function AccessProfileDialog({
   isSaving,
   assignments,
   form,
+  accessProfileId,
   currentPin,
   hasExistingPin,
   shouldRegeneratePin,
@@ -318,6 +327,7 @@ function AccessProfileDialog({
   onChange,
   onRegeneratePin,
   onCancelRegeneratePin,
+  onPinRefreshed,
   onSave,
 }: {
   copy: AttendanceControlCopy;
@@ -325,6 +335,7 @@ function AccessProfileDialog({
   isSaving: boolean;
   assignments: AttendanceControlAssignment[];
   form: AttendanceAccessProfilePayload;
+  accessProfileId?: number | null;
   currentPin?: string | null;
   hasExistingPin: boolean;
   shouldRegeneratePin: boolean;
@@ -333,22 +344,134 @@ function AccessProfileDialog({
   onChange: (value: AttendanceAccessProfilePayload) => void;
   onRegeneratePin: () => void;
   onCancelRegeneratePin: () => void;
+  onPinRefreshed?: () => Promise<void> | void;
   onSave: () => void;
 }) {
   const [isPinVisible, setIsPinVisible] = useState(false);
-  const canRevealPin = Boolean(currentPin);
+  const [revealedPin, setRevealedPin] = useState<string | null>(null);
+  const [isLoadingPin, setIsLoadingPin] = useState(false);
+  const [isResetPinDialogOpen, setIsResetPinDialogOpen] = useState(false);
+  const [isResettingPin, setIsResettingPin] = useState(false);
+  const [pinRevealMessage, setPinRevealMessage] = useState('');
+  const visiblePin = revealedPin ?? currentPin ?? null;
+  const canRevealPin = Boolean(visiblePin);
+  const canAttemptPinReveal = Boolean(form.user_company_id);
+  const canOpenResetPin = Boolean(form.user_company_id);
+  const canResetPin = Boolean(accessProfileId && form.user_company_id);
 
   useEffect(() => {
     setIsPinVisible(false);
+    setRevealedPin(null);
+    setPinRevealMessage('');
+    setIsResetPinDialogOpen(false);
   }, [currentPin, isOpen]);
 
+  const loadVisiblePin = async (forceReset: boolean) => {
+    const response = await humanResourcesApi.listAttendanceAccessMethods();
+    const pinMethod = response.items.find((method) => (
+      method.user_company_id === form.user_company_id && method.method_type === 'pin'
+    ));
+
+    let visiblePinCode = forceReset ? null : pinMethod?.pin_code ?? null;
+    if (!visiblePinCode) {
+      const generatedResponse = pinMethod
+        ? await humanResourcesApi.updateAttendanceAccessMethod(pinMethod.id, {
+            access_profile_id: pinMethod.access_profile_id,
+            method_type: 'pin',
+            regenerate_pin: true,
+            status: 'active',
+            priority: pinMethod.priority ?? 10,
+            metadata: pinMethod.metadata ?? {},
+          })
+        : accessProfileId
+          ? await humanResourcesApi.createAttendanceAccessMethod({
+              access_profile_id: accessProfileId,
+              method_type: 'pin',
+              auto_generate_pin: true,
+              status: 'active',
+              priority: 10,
+              metadata: {},
+            })
+          : null;
+      visiblePinCode = generatedResponse?.access_method.pin_code ?? null;
+    }
+
+    if (visiblePinCode) {
+      setRevealedPin(visiblePinCode);
+      setIsPinVisible(true);
+      void Promise.resolve(onPinRefreshed?.()).catch(() => undefined);
+    }
+
+    return visiblePinCode;
+  };
+
+  const handlePinRevealToggle = async () => {
+    if (isPinVisible) {
+      setIsPinVisible(false);
+      return;
+    }
+
+    setPinRevealMessage('');
+
+    if (visiblePin) {
+      setIsPinVisible(true);
+      return;
+    }
+
+    if (!hasExistingPin && !accessProfileId) {
+      onRegeneratePin();
+      setPinRevealMessage(copy.labels.pinRevealUnavailable);
+      return;
+    }
+
+    setIsLoadingPin(true);
+    try {
+      const visiblePinCode = await loadVisiblePin(false);
+      if (!visiblePinCode) {
+        setPinRevealMessage(copy.labels.pinRevealUnavailable);
+      }
+    } catch {
+      setPinRevealMessage(copy.labels.pinRevealUnavailable);
+    } finally {
+      setIsLoadingPin(false);
+    }
+  };
+
+  const handleResetPinConfirm = async () => {
+    if (!canResetPin) {
+      setIsResetPinDialogOpen(false);
+      onRegeneratePin();
+      setPinRevealMessage(copy.labels.pinResetPending);
+      return;
+    }
+
+    setIsResettingPin(true);
+    setPinRevealMessage('');
+    try {
+      const visiblePinCode = await loadVisiblePin(true);
+      if (visiblePinCode) {
+        setIsResetPinDialogOpen(false);
+        setPinRevealMessage(copy.labels.pinResetSuccess);
+      } else {
+        setPinRevealMessage(copy.labels.pinRevealUnavailable);
+      }
+    } catch {
+      setPinRevealMessage(copy.labels.pinRevealUnavailable);
+    } finally {
+      setIsResettingPin(false);
+    }
+  };
+
   const pinStatusDescription = !hasExistingPin
-    ? 'A unique 5-digit PIN will be generated automatically when you save.'
+    ? accessProfileId
+      ? 'No PIN exists yet. View PIN will create a visible 5-digit PIN immediately.'
+      : 'A unique 5-digit PIN will be generated automatically when you save.'
     : canRevealPin
       ? 'A unique 5-digit PIN is saved for this HR user. Reveal it when HR needs to share it.'
-      : 'This HR user has an older PIN. Regenerate it to create a shareable 5-digit PIN.';
+      : 'This HR user has an older PIN. View PIN will create a visible 5-digit PIN immediately.';
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         hideCloseButton
@@ -423,36 +546,40 @@ function AccessProfileDialog({
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">PIN status</p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{pinStatusDescription}</p>
               </div>
-              {hasExistingPin ? (
+              {canOpenResetPin ? (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="rounded-xl border-gray-300 bg-white text-[#143675] hover:bg-[#143675] hover:text-white dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                  onClick={onRegeneratePin}
-                  disabled={isSaving || shouldRegeneratePin}
+                  onClick={() => setIsResetPinDialogOpen(true)}
+                  disabled={isSaving || isLoadingPin || isResettingPin || shouldRegeneratePin || !canOpenResetPin}
                 >
-                  Regenerate PIN
+                  <RotateCcw className="h-4 w-4" />
+                  {copy.labels.resetPin}
                 </Button>
               ) : null}
             </div>
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-lg font-semibold text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
-                {canRevealPin && isPinVisible ? currentPin : '*****'}
+                {canRevealPin && isPinVisible ? visiblePin : '*****'}
               </div>
-              {hasExistingPin ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsPinVisible((value) => !value)}
-                  disabled={isSaving || !canRevealPin}
-                >
-                  {isPinVisible ? copy.labels.hidePin : copy.labels.revealPin}
-                </Button>
-              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handlePinRevealToggle()}
+                disabled={isSaving || isLoadingPin || !canAttemptPinReveal}
+                className="rounded-xl border-[#143675]/25 bg-white text-[#143675] hover:border-[#143675]/45 hover:bg-[#143675]/10 hover:text-[#143675] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8bb3ff]/25 dark:bg-gray-950 dark:text-[#8bb3ff] dark:hover:bg-[#143675]/30"
+              >
+                {isPinVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {isPinVisible ? copy.labels.hidePin : isLoadingPin ? copy.loading : copy.labels.revealPin}
+              </Button>
             </div>
+            {pinRevealMessage ? (
+              <p className={`mt-2 text-xs font-medium ${pinRevealMessage === copy.labels.pinResetSuccess ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>{pinRevealMessage}</p>
+            ) : null}
 
             {shouldRegeneratePin ? (
               <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
@@ -484,5 +611,61 @@ function AccessProfileDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={isResetPinDialogOpen} onOpenChange={setIsResetPinDialogOpen}>
+      <DialogContent
+        hideCloseButton
+        className="gap-0 overflow-hidden rounded-2xl border border-[#143675]/20 bg-white p-0 text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[480px]"
+        overlayClassName="bg-black/55"
+      >
+        <DialogHeader className="flex-row items-start justify-between gap-4 bg-[#143675] px-6 py-5 text-left">
+          <div className="min-w-0">
+            <DialogTitle className="text-lg font-semibold leading-7 text-white">{copy.labels.resetPinTitle}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm leading-5 text-blue-100">
+              {copy.labels.resetPinSubtitle}
+            </DialogDescription>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsResetPinDialogOpen(false)}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
+            aria-label={copy.labels.closeModal}
+            disabled={isResettingPin}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </DialogHeader>
+
+        <div className="px-6 py-5">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
+            <p className="font-semibold">{copy.labels.resetPinWarningTitle}</p>
+            <p className="mt-1 leading-5">{copy.labels.resetPinWarningDescription}</p>
+          </div>
+          <p className="mt-4 text-sm leading-6 text-gray-600 dark:text-gray-300">
+            {copy.labels.resetPinDescription}
+          </p>
+        </div>
+
+        <DialogFooter className="border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+          <Button
+            variant="outline"
+            className="rounded-xl border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+            onClick={() => setIsResetPinDialogOpen(false)}
+            disabled={isResettingPin}
+          >
+            {copy.labels.cancel}
+          </Button>
+          <Button
+            className="rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+            onClick={() => void handleResetPinConfirm()}
+            disabled={isResettingPin || !canOpenResetPin}
+          >
+            <RotateCcw className="h-4 w-4" />
+            {isResettingPin ? copy.loading : copy.labels.resetPinConfirm}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

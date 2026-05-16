@@ -1181,16 +1181,16 @@ class HrFirstRunIntegrationTest {
             .andExpect(jsonPath("$.assignments[?(@.user_company_id==" + userCompanyId + ")].schedule_template_name").value("Late Shift " + uniqueSuffix));
     }
 
-        @Test
-        void clearingWorkAssignmentsMakesHrUserAvailableForThatDate() throws Exception {
-            var session = authenticatedSession();
-            var uniqueSuffix = System.currentTimeMillis();
-            var userCompanyId = createHrUserForTests(session, uniqueSuffix);
-            var targetDate = TEST_ATTENDANCE_DAY;
-            var nextDate = TEST_ATTENDANCE_DATE.plusDays(1).toString();
+    @Test
+    void scheduleAssignmentReplacesExistingScheduleFromEffectiveDate() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var userCompanyId = createHrUserForTests(session, uniqueSuffix);
+        var targetDate = TEST_ATTENDANCE_DAY;
+        var nextDate = TEST_ATTENDANCE_DATE.plusDays(1).toString();
         var templateId = createScheduleTemplate(
             session,
-            "Clear Candidate Shift " + uniqueSuffix,
+            "Current Candidate Shift " + uniqueSuffix,
             "strict",
             null,
             List.of(
@@ -1205,13 +1205,13 @@ class HrFirstRunIntegrationTest {
         );
         assignSchedule(session, userCompanyId, templateId, targetDate, nextDate);
 
-	        var beforeResponse = mockMvc.perform(
-	            get("/api/v1/hr/attendance/schedule-candidates")
-	                .session(session)
-	                .param("date", targetDate)
-	                .param("effective_end_date", targetDate)
-	                .param("search", String.valueOf(uniqueSuffix))
-	        )
+        var beforeResponse = mockMvc.perform(
+            get("/api/v1/hr/attendance/schedule-candidates")
+                .session(session)
+                .param("date", targetDate)
+                .param("effective_end_date", targetDate)
+                .param("search", String.valueOf(uniqueSuffix))
+        )
             .andExpect(status().isOk())
             .andReturn();
 
@@ -1221,32 +1221,68 @@ class HrFirstRunIntegrationTest {
         assertThat(beforeItems)
             .anySatisfy((item) -> {
                 assertThat(((Number) item.get("user_company_id")).longValue()).isEqualTo(userCompanyId);
-                assertThat(item.get("can_assign_schedule")).isEqualTo(false);
-                assertThat(item.get("schedule_busy_reason")).isEqualTo("Schedule already assigned");
+                assertThat(item.get("can_assign_schedule")).isEqualTo(true);
+                assertThat(item.get("schedule_busy_reason")).isNull();
+                assertThat(item.get("schedule_template_name")).isEqualTo("Current Candidate Shift " + uniqueSuffix);
             });
 
-        var clearResponse = mockMvc.perform(
-            post("/api/v1/hr/attendance/work-assignments/clear")
+        var replacementTemplateId = createScheduleTemplate(
+            session,
+            "Replacement Candidate Shift " + uniqueSuffix,
+            "open",
+            null,
+            List.of(
+                Map.of("day_of_week", 1, "late_after_minutes", 0, "is_rest_day", false),
+                Map.of("day_of_week", 2, "late_after_minutes", 0, "is_rest_day", false),
+                Map.of("day_of_week", 3, "late_after_minutes", 0, "is_rest_day", false),
+                Map.of("day_of_week", 4, "late_after_minutes", 0, "is_rest_day", false),
+                Map.of("day_of_week", 5, "late_after_minutes", 0, "is_rest_day", false),
+                Map.of("day_of_week", 6, "late_after_minutes", 0, "is_rest_day", true),
+                Map.of("day_of_week", 7, "late_after_minutes", 0, "is_rest_day", true)
+            )
+        );
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/schedule-assignments/bulk")
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "user_company_id", userCompanyId,
-                    "date", targetDate
+                    "user_company_ids", List.of(userCompanyId),
+                    "template_id", replacementTemplateId,
+                    "effective_start_date", targetDate,
+                    "effective_end_date", nextDate
                 )))
         )
             .andExpect(status().isOk())
-            .andReturn();
+            .andExpect(jsonPath("$.assigned_count").value(1))
+            .andExpect(jsonPath("$.template_name").value("Replacement Candidate Shift " + uniqueSuffix));
 
-        var clearBody = readMap(clearResponse.getResponse().getContentAsString());
-        assertThat(((Number) clearBody.get("schedule_assignments_cleared")).intValue()).isGreaterThan(0);
+        var oldScheduleActiveOnTargetDate = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM user_schedule_assignments
+                WHERE company_id = 1
+                  AND user_company_id = ?
+                  AND template_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                  AND effective_start_date <= ?
+                  AND (effective_end_date IS NULL OR effective_end_date >= ?)
+                """,
+            Integer.class,
+            userCompanyId,
+            templateId,
+            targetDate,
+            targetDate
+        );
+        assertThat(oldScheduleActiveOnTargetDate).isZero();
 
-	        var availableResponse = mockMvc.perform(
-	            get("/api/v1/hr/attendance/schedule-candidates")
-	                .session(session)
-	                .param("date", targetDate)
-	                .param("effective_end_date", targetDate)
-	                .param("search", String.valueOf(uniqueSuffix))
-	                .param("available_only", "true")
+        var availableResponse = mockMvc.perform(
+            get("/api/v1/hr/attendance/schedule-candidates")
+                .session(session)
+                .param("date", targetDate)
+                .param("effective_end_date", targetDate)
+                .param("search", String.valueOf(uniqueSuffix))
+                .param("available_only", "true")
         )
             .andExpect(status().isOk())
             .andReturn();
@@ -1260,21 +1296,13 @@ class HrFirstRunIntegrationTest {
                 assertThat(item.get("can_assign_schedule")).isEqualTo(true);
             });
 
-        var futureAvailableResponse = mockMvc.perform(
-            get("/api/v1/hr/attendance/schedule-candidates")
+        mockMvc.perform(
+            get("/api/v1/hr/attendance/control-overview")
                 .session(session)
-                .param("date", nextDate)
-                .param("search", String.valueOf(uniqueSuffix))
-                .param("available_only", "true")
+                .param("date", targetDate)
         )
             .andExpect(status().isOk())
-            .andReturn();
-
-        var futureAvailableBody = readMap(futureAvailableResponse.getResponse().getContentAsString());
-        @SuppressWarnings("unchecked")
-        var futureAvailableItems = (List<Map<String, Object>>) futureAvailableBody.get("items");
-        assertThat(futureAvailableItems)
-            .noneSatisfy((item) -> assertThat(((Number) item.get("user_company_id")).longValue()).isEqualTo(userCompanyId));
+            .andExpect(jsonPath("$.assignments[?(@.user_company_id==" + userCompanyId + ")].schedule_template_name").value("Replacement Candidate Shift " + uniqueSuffix));
     }
 
     @Test

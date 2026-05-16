@@ -35,6 +35,10 @@ export const ptBR = {
   },
   labels: {
     ...enCA.labels,
+    calendarKpiAttendances: 'Presenças',
+    calendarKpiAbsences: 'Faltas',
+    calendarKpiLate: 'Atrasos',
+    calendarKpiRest: 'Descansos',
     timeTable: 'Tabela de horários',
     removeTimeTableDay: 'Remover turno',
     removeTimeTableDayTitle: 'Remover turno da tabela de horários?',

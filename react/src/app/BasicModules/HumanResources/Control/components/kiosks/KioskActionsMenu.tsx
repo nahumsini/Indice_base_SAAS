@@ -35,8 +35,8 @@ export function KioskActionsMenu({
           variant="outline"
           size="icon"
           className="h-10 w-10 rounded-lg border-slate-200 text-slate-600 hover:border-[#143675]/30 hover:bg-[#143675]/5 hover:text-[#143675] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-[#8bb3ff]/10 dark:hover:text-[#8bb3ff]"
-          aria-label="Open kiosk actions"
-          title="Open kiosk actions"
+          aria-label="Open attendance point actions"
+          title="Open attendance point actions"
         >
           <MoreHorizontal className="h-4 w-4" />
         </Button>
@@ -52,7 +52,7 @@ export function KioskActionsMenu({
           }}
         >
           <Copy className="h-4 w-4" />
-          Copy public link
+          Copy access link
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={!hasPublicLink}
@@ -64,7 +64,7 @@ export function KioskActionsMenu({
           }}
         >
           <QrCode className="h-4 w-4" />
-          Show QR code
+          Show attendance QR
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={isSaving}
@@ -76,7 +76,7 @@ export function KioskActionsMenu({
           }}
         >
           <RotateCw className="h-4 w-4" />
-          Regenerate QR
+          Reset access link
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -86,7 +86,7 @@ export function KioskActionsMenu({
           }}
         >
           <Pencil className="h-4 w-4" />
-          Edit kiosk
+          Edit attendance point
         </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
@@ -99,7 +99,7 @@ export function KioskActionsMenu({
           }}
         >
           <Trash2 className="h-4 w-4" />
-          Delete kiosk
+          Delete attendance point
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

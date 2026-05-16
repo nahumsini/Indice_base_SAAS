@@ -15,19 +15,19 @@ const kioskTypeOptions: Array<{
 }> = [
   {
     value: 'business_unit',
-    label: 'Business / Unit',
-    description: 'For a regular unit or business scope.',
+    label: 'Business or unit',
+    description: 'For fixed attendance at a store, branch, warehouse, restaurant, or operational unit.',
     Icon: Building2,
   },
   {
     value: 'contract_site',
-    label: 'Temporary Location',
-    description: 'For short-term or external work sites.',
+    label: 'Temporary work site',
+    description: 'For construction, events, external work, or short-term teams.',
     Icon: MapPin,
   },
   {
     value: 'head_office',
-    label: 'Main Office',
+    label: 'Main office',
     description: 'For central office attendance registration.',
     Icon: Warehouse,
   },

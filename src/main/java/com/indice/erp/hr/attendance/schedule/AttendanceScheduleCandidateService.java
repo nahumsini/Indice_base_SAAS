@@ -93,9 +93,6 @@ public class AttendanceScheduleCandidateService {
             var hasActivity = hasRangeActivity || candidateMapper.hasAttendanceActivity(dailyRecord);
             var hasWorkSiteOverlap = !hasActivity
                 && attendanceAssignmentService.hasActiveWorkSiteAssignmentOverlap(companyId, user.id(), startDate, endDate);
-            var hasScheduleOverlap = !hasActivity
-                && !hasWorkSiteOverlap
-                && attendanceAssignmentService.hasActiveScheduleAssignmentOverlap(companyId, user.id(), startDate, endDate);
             items.add(candidateMapper.toScheduleCandidateMap(
                 user,
                 startDate,
@@ -104,8 +101,7 @@ public class AttendanceScheduleCandidateService {
                 dailyRecord,
                 activeWorkSitesByUser.get(user.id()),
                 hasRangeActivity,
-                hasWorkSiteOverlap,
-                hasScheduleOverlap
+                hasWorkSiteOverlap
             ));
         }
 
