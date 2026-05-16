@@ -47,13 +47,16 @@ public abstract class HrAttendanceLocationResolverSupport extends HrAttendanceLo
         }
 
         if (isOpenSchedule(scheduleRule)) {
+            if (!(scheduleRule.enforceLocation() && scheduleRule.locationId() != null)) {
+                return null;
+            }
             return resolveAllowedAttendanceLocation(
-                loadCompanyBusinessStructureAttendanceLocations(companyId),
+                List.of(loadLocation(companyId, scheduleRule.locationId())),
                 requestedLocationId,
                 latitude,
                 longitude,
-                "Business Structure locations are not configured for this company.",
-                "Open schedule attendance is restricted to active Business Structure locations."
+                "Schedule location is not configured.",
+                "Attendance registration is restricted to the configured schedule location."
             );
         }
 

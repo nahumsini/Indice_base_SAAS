@@ -39,6 +39,14 @@ type PublicKioskMethod = NonNullable<PublicKioskBootstrapResponse['auth_methods'
 type KioskLocationState = { latitude: number; longitude: number };
 type FaceStatus = 'idle' | 'verified' | 'failed';
 type EvidenceMode = 'face' | 'photo';
+type FallbackPhotoUploadResult = {
+  objectKey?: string;
+  stored: boolean;
+  storageUnavailable: boolean;
+};
+
+const isObjectStorageDisabledError = (error: unknown) =>
+  error instanceof Error && /object storage is not enabled/i.test(error.message);
 
 export default function Kiosk() {
   const { deviceToken } = useParams();
@@ -53,7 +61,7 @@ export default function Kiosk() {
   const [identificationToken, setIdentificationToken] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [locationState, setLocationState] = useState<KioskLocationState | null>(null);
-  const [evidenceMode, setEvidenceMode] = useState<EvidenceMode>('face');
+  const [evidenceMode, setEvidenceMode] = useState<EvidenceMode>('photo');
   const [faceVerificationSessionId, setFaceVerificationSessionId] = useState<number | null>(null);
   const [faceStatus, setFaceStatus] = useState<FaceStatus>('idle');
   const [faceErrorMessage, setFaceErrorMessage] = useState('');
@@ -74,7 +82,7 @@ export default function Kiosk() {
     setIdentificationToken('');
     setExpiresAt('');
     setLocationState(null);
-    setEvidenceMode('face');
+    setEvidenceMode('photo');
     setFaceVerificationSessionId(null);
     setFaceStatus('idle');
     setFaceErrorMessage('');
@@ -391,24 +399,41 @@ export default function Kiosk() {
     }
   };
 
-  const uploadFallbackPhoto = async (eventType: 'check_in' | 'check_out', eventTimestamp: string) => {
+  const uploadFallbackPhoto = async (
+    eventType: 'check_in' | 'check_out',
+    eventTimestamp: string,
+  ): Promise<FallbackPhotoUploadResult | null> => {
     if (!deviceToken || !identificationToken || !fallbackPhotoUpload.photo) {
-      return undefined;
+      return null;
     }
 
-    const presigned = await humanResourcesApi.presignPublicKioskAttendancePhotoUpload(deviceToken, {
-      identification_token: identificationToken,
-      event_type: eventType,
-      event_timestamp: eventTimestamp,
-      content_type: fallbackPhotoUpload.photo.contentType,
-    });
-    await humanResourcesApi.uploadAttendancePhoto(
-      presigned.upload_url,
-      fallbackPhotoUpload.photo.file,
-      fallbackPhotoUpload.photo.contentType,
-      presigned.upload_headers ?? {},
-    );
-    return presigned.object_key;
+    try {
+      const presigned = await humanResourcesApi.presignPublicKioskAttendancePhotoUpload(deviceToken, {
+        identification_token: identificationToken,
+        event_type: eventType,
+        event_timestamp: eventTimestamp,
+        content_type: fallbackPhotoUpload.photo.contentType,
+      });
+      await humanResourcesApi.uploadAttendancePhoto(
+        presigned.upload_url,
+        fallbackPhotoUpload.photo.file,
+        fallbackPhotoUpload.photo.contentType,
+        presigned.upload_headers ?? {},
+      );
+      return {
+        objectKey: presigned.object_key,
+        stored: true,
+        storageUnavailable: false,
+      };
+    } catch (error) {
+      if (isObjectStorageDisabledError(error)) {
+        return {
+          stored: false,
+          storageUnavailable: true,
+        };
+      }
+      throw error;
+    }
   };
 
   const handleIdentify = async () => {
@@ -440,7 +465,7 @@ export default function Kiosk() {
       setExpiresAt(response.expires_at);
       setCredentialValue('');
       setLocationState(null);
-      setEvidenceMode('face');
+      setEvidenceMode('photo');
       setFaceVerificationSessionId(null);
       setFaceStatus('idle');
       setFaceErrorMessage('');
@@ -469,9 +494,9 @@ export default function Kiosk() {
       const response = await runWithMinimumDuration(
         (async () => {
           const eventTimestamp = localDateTimeString(new Date());
-          const fallbackPhotoObjectKey = evidenceMode === 'photo'
+          const fallbackPhotoResult = evidenceMode === 'photo'
             ? await uploadFallbackPhoto(eventType, eventTimestamp)
-            : undefined;
+            : null;
 
           return humanResourcesApi.punchPublicKiosk(deviceToken, {
             identification_token: identificationToken,
@@ -480,11 +505,17 @@ export default function Kiosk() {
             latitude: locationState.latitude,
             longitude: locationState.longitude,
             face_verification_session_id: evidenceMode === 'face' ? faceVerificationSessionId ?? undefined : undefined,
-            photo_url: fallbackPhotoObjectKey,
+            photo_url: fallbackPhotoResult?.objectKey,
             metadata: {
               identity_evidence: evidenceMode === 'face' ? 'face_verified' : 'photo_fallback',
               evidence_mode: evidenceMode,
               face_verification_failed: evidenceMode === 'photo',
+              photo_capture_confirmed: evidenceMode === 'photo',
+              photo_storage: evidenceMode === 'photo'
+                ? fallbackPhotoResult?.stored
+                  ? 'object_storage'
+                  : 'unavailable'
+                : undefined,
             },
           });
         })(),
@@ -848,6 +879,7 @@ export default function Kiosk() {
                           cancelLabel={copy.cancelCamera}
                           helperText={copy.photoHint}
                           photo={fallbackPhotoUpload.photo}
+                          showGalleryUpload={false}
                           onPhotoChange={fallbackPhotoUpload.setCapturedPhoto}
                           onError={showFailureToast}
                           errors={{

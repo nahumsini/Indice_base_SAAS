@@ -440,7 +440,15 @@ export default function Attendance() {
       return;
     }
 
-    if (!hasSelectedAttendanceLocation) {
+    const latestAttendanceLocations = latestDashboard?.locations ?? attendanceLocations;
+    const canResolveOpenScheduleLocation = Boolean(
+      latestSelectedItem?.schedule_rule?.schedule_mode === 'open'
+      && !latestSelectedItem?.schedule_rule?.enforce_location
+      && !latestSelectedItem?.active_work_site
+      && latestAttendanceLocations.length > 0,
+    );
+
+    if (!hasSelectedAttendanceLocation && !canResolveOpenScheduleLocation) {
       setErrorMessage(copy.recorder.locationRequiredError);
       return;
     }

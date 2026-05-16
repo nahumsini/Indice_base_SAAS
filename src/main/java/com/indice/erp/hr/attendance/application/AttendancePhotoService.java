@@ -90,6 +90,10 @@ public class AttendancePhotoService {
         }
     }
 
+    public boolean isStorageEnabled() {
+        return objectStorageService.isEnabled();
+    }
+
     public String normalizeAttendancePhotoObjectKey(long companyId, long userCompanyId, String objectKey) {
         if (objectKey == null || objectKey.isBlank()) {
             return null;

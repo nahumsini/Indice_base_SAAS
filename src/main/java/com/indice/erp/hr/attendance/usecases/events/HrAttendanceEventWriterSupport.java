@@ -37,7 +37,7 @@ public abstract class HrAttendanceEventWriterSupport extends HrAttendanceEventRe
         String metadataJson,
         String notes,
         Long supersedesEventId,
-        long createdBy
+        Long createdBy
     ) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -76,7 +76,7 @@ public abstract class HrAttendanceEventWriterSupport extends HrAttendanceEventRe
             statement.setString(16, nullable(notes));
             statement.setString(17, metadataJson);
             setNullableLong(statement, 18, supersedesEventId);
-            statement.setLong(19, createdBy);
+            setNullableLong(statement, 19, createdBy);
             return statement;
         }, keyHolder);
 

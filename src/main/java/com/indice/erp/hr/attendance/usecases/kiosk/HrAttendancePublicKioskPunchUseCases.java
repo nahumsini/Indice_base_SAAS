@@ -52,7 +52,12 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         var faceVerificationSessionId = normalizeOptionalForeignKey(parseLong(payload, "face_verification_session_id"));
         var photoObjectKey = attendancePhotoService.normalizeAttendancePhotoObjectKey(kioskDevice.companyId(), user.id(), stringValue(payload, "photo_url"));
         var hasFaceVerification = faceVerificationSessionId != null;
-        var hasFallbackPhoto = photoObjectKey != null && !photoObjectKey.isBlank();
+        var hasStoredFallbackPhoto = !isBlank(photoObjectKey);
+        var hasUnstoredFallbackPhoto = !hasStoredFallbackPhoto
+            && !hasFaceVerification
+            && !attendancePhotoService.isStorageEnabled()
+            && hasCapturedFallbackPhotoEvidence(payload);
+        var hasFallbackPhoto = hasStoredFallbackPhoto || hasUnstoredFallbackPhoto;
 
         if (!hasFaceVerification && !hasFallbackPhoto) {
             throw new IllegalArgumentException("Face verification or fallback photo is required.");
@@ -77,15 +82,18 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, attendanceDate);
         validateOperationalEventTransition(kioskDevice.companyId(), user.id(), attendanceDate, eventTimestamp, eventType);
 
+        var systemMetadata = new LinkedHashMap<String, Object>();
+        systemMetadata.put("public_kiosk", true);
+        systemMetadata.put("identified_user_company_id", user.id());
+        systemMetadata.put("pin_verified", true);
+        systemMetadata.put("identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback");
+        systemMetadata.put("location_restricted", location != null);
+        systemMetadata.put("requires_review", !hasFaceVerification);
+        systemMetadata.put("photo_storage", hasStoredFallbackPhoto ? "object_storage" : hasUnstoredFallbackPhoto ? "unavailable" : "none");
+
         var metadataJson = mergeMetadataJson(
             toJson(payload.get("metadata")),
-            Map.of(
-                "public_kiosk", true,
-                "identified_user_company_id", user.id(),
-                "pin_verified", true,
-                "identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback",
-                "requires_review", !hasFaceVerification
-            )
+            systemMetadata
         );
         var operationalEventId = appendAttendanceEvent(
             kioskDevice.companyId(),
@@ -93,7 +101,7 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
             eventType,
             eventTimestamp,
             attendanceDate,
-            location.id(),
+            location == null ? null : location.id(),
             kioskDevice.id(),
             latitude,
             longitude,
@@ -105,7 +113,7 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
             metadataJson,
             null,
             null,
-            0L
+            null
         );
 
         var dailyRecord = rebuildDailyRecordProjection(kioskDevice.companyId(), user.id(), attendanceDate);
@@ -119,11 +127,30 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         result.put("first_check_in_at", toIsoString(dailyRecord.firstCheckInAt()));
         result.put("last_check_out_at", toIsoString(dailyRecord.lastCheckOutAt()));
         result.put("location", toLocationMap(location));
+        result.put("location_restricted", location != null);
         result.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
         result.put("photo_object_key", photoObjectKey);
+        result.put("photo_storage", hasStoredFallbackPhoto ? "object_storage" : hasUnstoredFallbackPhoto ? "unavailable" : "none");
         result.put("identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback");
         result.put("today_activity", toPublicKioskDayActivity(attendanceDate, dailyRecord, scheduleRule));
         return result;
+    }
+
+    private boolean hasCapturedFallbackPhotoEvidence(Map<String, Object> payload) {
+        if (!(payload.get("metadata") instanceof Map<?, ?> metadata)) {
+            return false;
+        }
+
+        return metadataBoolean(metadata, "photo_capture_confirmed")
+            || metadataBoolean(metadata, "fallback_photo_captured");
+    }
+
+    private boolean metadataBoolean(Map<?, ?> metadata, String key) {
+        var value = metadata.get(key);
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        return value != null && "true".equalsIgnoreCase(String.valueOf(value));
     }
 
     public Map<String, Object> createPublicKioskPhotoUpload(String deviceToken, Map<String, Object> payload) {

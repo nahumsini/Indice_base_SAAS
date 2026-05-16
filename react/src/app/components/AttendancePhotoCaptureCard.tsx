@@ -19,6 +19,7 @@ interface AttendancePhotoCaptureCardProps {
   helperText: string;
   photo: AttendancePhotoSelection | null;
   disabled?: boolean;
+  showGalleryUpload?: boolean;
   onPhotoChange: (photo: AttendancePhotoSelection | null) => void;
   onError: (message: string) => void;
   errors: {
@@ -39,6 +40,7 @@ export function AttendancePhotoCaptureCard({
   helperText,
   photo,
   disabled = false,
+  showGalleryUpload = true,
   onPhotoChange,
   onError,
   errors,
@@ -200,13 +202,15 @@ export function AttendancePhotoCaptureCard({
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileSelection}
-      />
+      {showGalleryUpload ? (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileSelection}
+        />
+      ) : null}
 
       {isCameraOpen ? (
         <>
@@ -224,7 +228,7 @@ export function AttendancePhotoCaptureCard({
         </>
       ) : (
         <>
-          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className={`mb-4 grid grid-cols-1 gap-3 ${showGalleryUpload ? 'sm:grid-cols-2' : ''}`}>
             <Button
               type="button"
               variant="outline"
@@ -237,16 +241,18 @@ export function AttendancePhotoCaptureCard({
               <Camera className="h-4 w-4" />
               {photo ? retakePhotoLabel : takePhotoLabel}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2"
-              disabled={disabled}
-              onClick={chooseFromGallery}
-            >
-              <ImagePlus className="h-4 w-4" />
-              {chooseFromGalleryLabel}
-            </Button>
+            {showGalleryUpload ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                disabled={disabled}
+                onClick={chooseFromGallery}
+              >
+                <ImagePlus className="h-4 w-4" />
+                {chooseFromGalleryLabel}
+              </Button>
+            ) : null}
           </div>
 
           {photo ? (
