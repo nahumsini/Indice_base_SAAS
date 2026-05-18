@@ -502,6 +502,12 @@ export interface AttendanceControlAssignment {
   last_check_out_at?: string | null;
   first_location?: AttendanceControlLocation | null;
   last_location?: AttendanceControlLocation | null;
+  first_photo_url?: string | null;
+  last_photo_url?: string | null;
+  first_latitude?: number | null;
+  first_longitude?: number | null;
+  last_latitude?: number | null;
+  last_longitude?: number | null;
   minutes_late: number;
   allowed_locations?: AttendanceControlLocation[];
   business_locations?: AttendanceControlLocation[];

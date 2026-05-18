@@ -125,6 +125,12 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
             item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
             item.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
             item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
+            item.put("first_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
+            item.put("last_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
+            item.put("first_latitude", dailyRecord != null ? dailyRecord.firstLatitude() : null);
+            item.put("first_longitude", dailyRecord != null ? dailyRecord.firstLongitude() : null);
+            item.put("last_latitude", dailyRecord != null ? dailyRecord.lastLatitude() : null);
+            item.put("last_longitude", dailyRecord != null ? dailyRecord.lastLongitude() : null);
             item.put("minutes_late", dailyRecord != null ? dailyRecord.minutesLate() : calculateMinutesLate(scheduleRule, null));
             item.put(
                 "allowed_locations",

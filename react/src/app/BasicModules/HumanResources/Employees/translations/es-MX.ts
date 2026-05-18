@@ -1,3 +1,5 @@
+import { getDepartmentOptionLabels } from '../data/departmentOptions';
+import { getAllPositionLabels } from '../data/positionOptions';
 import type { EmployeesSummaryInsightArgs, EmployeesTranslations } from './types';
 
 export const esMX = {
@@ -282,8 +284,8 @@ export const esMX = {
       emergencyContactPhone: 'Teléfono de emergencia',
       department: 'Departamento',
       position: 'Puesto',
-      businessUnitId: 'Unidad de negocio',
-      businessId: 'Negocio',
+      businessUnitId: 'Unidad / sede',
+      businessId: 'Negocio / oficina',
       hireDate: 'Fecha de ingreso',
       scheduleOnHire: 'Agregar colaborador a horario',
       scheduleStartDate: 'Fecha de inicio del horario',
@@ -344,8 +346,8 @@ export const esMX = {
       fileUploaded: 'Subido',
     },
     options: {
-      departments: ['Operaciones', 'Administración', 'Ventas', 'Recursos Humanos'],
-      positions: ['Camarista', 'Coordinador', 'Mantenimiento', 'Lavandería'],
+      departments: getDepartmentOptionLabels('es-MX'),
+      positions: getAllPositionLabels('es-MX'),
       salaryTypes: [
         { value: 'daily', label: 'Salario por día' },
         { value: 'hourly', label: 'Salario por hora' },

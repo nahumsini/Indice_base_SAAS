@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.models;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -17,6 +18,10 @@ public record DailyRecordRow(
     String firstPhotoObjectKey,
     String lastPhotoObjectKey,
     LocationRow firstLocation,
-    LocationRow lastLocation
+    LocationRow lastLocation,
+    BigDecimal firstLatitude,
+    BigDecimal firstLongitude,
+    BigDecimal lastLatitude,
+    BigDecimal lastLongitude
 ) {
 }

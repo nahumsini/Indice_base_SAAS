@@ -117,6 +117,7 @@ const CORPORATE_OFFICE_UNIT_NAME = 'Corporate office';
 const LEGACY_HEADQUARTERS_UNIT_NAME = 'Headquarter';
 const LEGACY_HEADQUARTERS_LOCATION_NAME = 'Headquarters';
 const CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME = 'Corporate office';
+const UNIT_HEADQUARTERS_SUFFIX = 'headquarters';
 const MODAL_PRIORITY_COUNTRY_CODES = ['CA', 'US', 'MX', 'CO', 'BR'] as const;
 const MODAL_STATE_DROPDOWN_COUNTRY_CODES = ['MX', 'US', 'CA', 'CO', 'BR'] as const;
 const BUSINESS_STRUCTURE_AUTO_SAVE_DEBOUNCE_MS = 900;
@@ -403,6 +404,35 @@ const isHeadquartersName = (value?: string | null) => (
   )
 );
 
+const isLegacyHeadquartersName = (value?: string | null) => (
+  [LEGACY_HEADQUARTERS_UNIT_NAME, LEGACY_HEADQUARTERS_LOCATION_NAME].some(
+    (name) => (value ?? '').trim().toLowerCase() === name.toLowerCase(),
+  )
+);
+
+const namesMatch = (first?: string | null, second?: string | null) => {
+  const normalizedFirst = (first ?? '').trim().toLowerCase();
+  const normalizedSecond = (second ?? '').trim().toLowerCase();
+  return normalizedFirst !== '' && normalizedSecond !== '' && normalizedFirst === normalizedSecond;
+};
+
+const isCorporateOfficeBusiness = (negocio: Negocio, companyName: string, index = -1) => (
+  negocio.id === 'headquarters-default-business'
+  || negocio.id === 'holding-default-business'
+  || isHeadquartersName(negocio.name)
+  || (index === 0 && namesMatch(negocio.name, companyName))
+);
+
+const getUnitHeadquartersBusinessName = (unitName?: string | null) => (
+  `${(unitName ?? '').trim() || 'Unit'} ${UNIT_HEADQUARTERS_SUFFIX}`
+);
+
+const isUnitHeadquartersBusiness = (negocio: Negocio, unitName: string, index = -1) => (
+  namesMatch(negocio.name, getUnitHeadquartersBusinessName(unitName))
+  || namesMatch(negocio.name, `${unitName.trim() || 'Unit'} headquarter`)
+  || (index === 0 && isLegacyHeadquartersName(negocio.name))
+);
+
 const normalizeCorporateOfficeUnits = (unidades: Unidad[], fallbackToFirst = true): Unidad[] => {
   if (unidades.length === 0) {
     return [];
@@ -556,7 +586,10 @@ const buildCorporateOfficeUnidad = ({
   };
   additionalNegocios?: Negocio[];
 }): Unidad => {
-  const businessName = companyName.trim() || existingNegocio?.name.trim() || CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME;
+  const existingUnitName = existingUnidad?.name.trim() ?? '';
+  const unitName = existingUnitName && !isHeadquartersName(existingUnitName)
+    ? existingUnitName
+    : CORPORATE_OFFICE_UNIT_NAME;
   const coordinateFields: LocationCoordinateData = {
     latitude: coordinates.latitude ?? undefined,
     longitude: coordinates.longitude ?? undefined,
@@ -569,7 +602,7 @@ const buildCorporateOfficeUnidad = ({
     id: existingUnidad?.id || 'headquarters-default-unit',
     legacyUnitId: existingUnidad?.legacyUnitId,
     isCorporateOffice: true,
-    name: CORPORATE_OFFICE_UNIT_NAME,
+    name: unitName,
     logo: companyLogo,
     industria: industry,
     direccion: existingUnidad?.direccion ?? '',
@@ -584,7 +617,7 @@ const buildCorporateOfficeUnidad = ({
       {
         id: existingNegocio?.id || 'headquarters-default-business',
         legacyBusinessId: existingNegocio?.legacyBusinessId,
-        name: businessName,
+        name: CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME,
         logo: companyLogo,
         industria: industry,
         direccion: existingNegocio?.direccion ?? existingUnidad?.direccion ?? '',
@@ -599,6 +632,97 @@ const buildCorporateOfficeUnidad = ({
         ...coordinateFields,
       },
       ...additionalNegocios,
+    ],
+  };
+};
+
+const buildUnitHeadquartersNegocio = ({
+  unidad,
+  existingNegocio,
+}: {
+  unidad: Unidad;
+  existingNegocio?: Negocio;
+}): Negocio => {
+  const coordinateFields: LocationCoordinateData = {
+    latitude: existingNegocio?.latitude ?? unidad.latitude,
+    longitude: existingNegocio?.longitude ?? unidad.longitude,
+    radiusMeters: existingNegocio?.radiusMeters ?? unidad.radiusMeters,
+    coordinateSource: existingNegocio?.coordinateSource ?? unidad.coordinateSource,
+    googleMapsUrl: existingNegocio?.googleMapsUrl ?? unidad.googleMapsUrl,
+  };
+
+  return {
+    id: existingNegocio?.id || `unit-headquarters-${unidad.id}`,
+    legacyBusinessId: existingNegocio?.legacyBusinessId,
+    name: getUnitHeadquartersBusinessName(unidad.name),
+    logo: existingNegocio?.logo ?? unidad.logo,
+    industria: existingNegocio?.industria ?? unidad.industria,
+    direccion: existingNegocio?.direccion ?? unidad.direccion ?? '',
+    ciudad: existingNegocio?.ciudad ?? unidad.ciudad ?? '',
+    estado: existingNegocio?.estado ?? unidad.estado ?? '',
+    pais: existingNegocio?.pais ?? unidad.pais ?? '',
+    cp: existingNegocio?.cp ?? unidad.cp ?? '',
+    telefono: existingNegocio?.telefono ?? unidad.telefono ?? '',
+    email: existingNegocio?.email ?? unidad.email ?? '',
+    gerente: existingNegocio?.gerente ?? '',
+    horario: existingNegocio?.horario ?? '',
+    ...coordinateFields,
+  };
+};
+
+const ensureCorporateOfficeBusiness = ({
+  unidad,
+  companyName,
+  companyLogo,
+  industry,
+  coordinates,
+}: {
+  unidad: Unidad;
+  companyName: string;
+  companyLogo: string;
+  industry: string;
+  coordinates: {
+    latitude?: number | null;
+    longitude?: number | null;
+    radiusMeters?: number | null;
+    coordinateSource?: CoordinateSource | null;
+    googleMapsUrl?: string | null;
+  };
+}): Unidad => {
+  if (!unidad.isCorporateOffice) {
+    return unidad;
+  }
+
+  const corporateOfficeNegocio = unidad.negocios.find((negocio, index) => isCorporateOfficeBusiness(negocio, companyName, index));
+  const additionalNegocios = unidad.negocios.filter((negocio, index) => !isCorporateOfficeBusiness(negocio, companyName, index));
+
+  return buildCorporateOfficeUnidad({
+    existingUnidad: unidad,
+    existingNegocio: corporateOfficeNegocio,
+    companyName,
+    companyLogo,
+    industry,
+    coordinates,
+    additionalNegocios,
+  });
+};
+
+const ensureUnitHeadquartersBusiness = (unidad: Unidad): Unidad => {
+  const unitHeadquartersNegocio = unidad.negocios.find((negocio, index) => (
+    isUnitHeadquartersBusiness(negocio, unidad.name, index)
+  ));
+  const operationalNegocios = unidad.negocios.filter((negocio, index) => (
+    !isUnitHeadquartersBusiness(negocio, unidad.name, index)
+  ));
+
+  return {
+    ...unidad,
+    negocios: [
+      buildUnitHeadquartersNegocio({
+        unidad,
+        existingNegocio: unitHeadquartersNegocio,
+      }),
+      ...operationalNegocios,
     ],
   };
 };
@@ -625,19 +749,24 @@ const buildUnidadesWithCorporateOffice = ({
   includeOtherUnits: boolean;
 }): Unidad[] => {
   if (includeOtherUnits) {
-    return normalizeCorporateOfficeUnits(existingUnidades);
+    return normalizeCorporateOfficeUnits(existingUnidades)
+      .map((unidad) => ensureCorporateOfficeBusiness({
+        unidad,
+        companyName,
+        companyLogo,
+        industry,
+        coordinates,
+      }))
+      .map(ensureUnitHeadquartersBusiness);
   }
 
   const corporateOfficeUnidad = existingUnidades.find((unidad) => unidad.isCorporateOffice) ?? existingUnidades[0];
-  const corporateOfficeNegocio = corporateOfficeUnidad?.negocios.find((negocio) => (
-    negocio.id === 'headquarters-default-business'
-    || negocio.id === 'holding-default-business'
-    || isHeadquartersName(negocio.name)
-  )) ?? corporateOfficeUnidad?.negocios[0];
+  const corporateOfficeNegocio = corporateOfficeUnidad?.negocios.find((negocio, index) => (
+    isCorporateOfficeBusiness(negocio, companyName, index)
+  ));
   const additionalCorporateOfficeNegocios = corporateOfficeUnidad
-    ? corporateOfficeUnidad.negocios.filter((negocio) => (
-        negocio.id !== corporateOfficeNegocio?.id
-        && !isHeadquartersName(negocio.name)
+    ? corporateOfficeUnidad.negocios.filter((negocio, index) => (
+        !isCorporateOfficeBusiness(negocio, companyName, index)
       ))
     : [];
   const corporateOffice = buildCorporateOfficeUnidad({

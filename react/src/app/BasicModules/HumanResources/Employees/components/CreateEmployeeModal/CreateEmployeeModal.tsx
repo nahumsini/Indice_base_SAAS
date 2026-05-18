@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import {
   Briefcase,
+  Check,
+  ChevronDown,
   FileText,
   Phone,
+  Plus,
   Trash2,
   Upload,
   User,
@@ -27,6 +31,9 @@ import {
   validatePostalCodeForCountry,
 } from '../../../../../components/ManualLocationFields';
 import type { AttendanceControlLocation } from '../../../../../api/humanResources';
+import { getDepartmentOptionLabels } from '../../data/departmentOptions';
+import { getSuggestedPositionsByDepartment } from '../../data/departmentPositionMap';
+import { getAllPositionLabels } from '../../data/positionOptions';
 import { useEmployeesTranslations } from '../../hooks/useEmployeesTranslations';
 import { HelperText } from './components/HelperText';
 import { StepProgress, type WizardStep } from './components/StepProgress';
@@ -159,11 +166,33 @@ const SUPPORTED_DOCUMENT_TYPES = new Set([
 ]);
 const MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024;
 const modalStepIcons = [User, Phone, Briefcase, FileText] as const;
+const customJobOptionsStorageKey = 'rh-employee-custom-job-options-v1';
+
+type CustomJobOptionKind = 'departments' | 'positions';
+
+type CustomJobOptions = Record<CustomJobOptionKind, string[]>;
+
+type OrganizationOptionTone = 'default' | 'corporate' | 'unit' | 'business';
+
+type OrganizationOption = {
+  value: string;
+  label: string;
+  description?: string;
+  badge?: string;
+  tone?: OrganizationOptionTone;
+  unitId?: string;
+  unit_id?: string;
+};
 
 const createDocumentSlot = (documentType: EmployeeDocumentType): EmployeeDocumentSlot => ({
   documentType,
   file: null,
   removeExisting: false,
+});
+
+const createEmptyCustomJobOptions = (): CustomJobOptions => ({
+  departments: [],
+  positions: [],
 });
 
 export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
@@ -229,6 +258,135 @@ const modalPrimaryButtonClassName =
 const formatAttendanceLocationOption = (location: AttendanceControlLocation) => {
   const scope = location.business_name || location.unit_name || '';
   return scope ? `${location.name} - ${scope}` : location.name;
+};
+
+const normalizeOptionLabel = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+const mergeTextOptions = (...optionGroups: ReadonlyArray<ReadonlyArray<string>>) => {
+  const optionMap = new Map<string, string>();
+
+  optionGroups.flat().forEach((option) => {
+    const normalized = normalizeOptionLabel(option);
+    if (!normalized) {
+      return;
+    }
+
+    const key = normalized.toLocaleLowerCase();
+    if (!optionMap.has(key)) {
+      optionMap.set(key, normalized);
+    }
+  });
+
+  return Array.from(optionMap.values());
+};
+
+const normalizeOrganizationLabel = (value?: string | null) => normalizeOptionLabel(value ?? '').toLocaleLowerCase();
+
+const isCorporateHeadquartersLabel = (label?: string | null) => {
+  const normalized = normalizeOrganizationLabel(label);
+  return normalized === 'corporate office'
+    || normalized === 'headquarter'
+    || normalized === 'headquarters'
+    || normalized === 'oficina corporativa'
+    || normalized === 'sede corporativa';
+};
+
+const isCorporateOfficeUnitLabel = (label?: string | null) => (
+  isCorporateHeadquartersLabel(label)
+);
+
+const getUnitHeadquartersLabel = (unitLabel?: string | null) => (
+  `${normalizeOptionLabel(unitLabel ?? '') || 'Unit'} headquarters`
+);
+
+const isUnitHeadquartersLabel = (businessLabel?: string | null, unitLabel?: string | null) => {
+  const normalizedBusiness = normalizeOrganizationLabel(businessLabel);
+  const normalizedUnit = normalizeOptionLabel(unitLabel ?? '');
+  if (!normalizedBusiness || !normalizedUnit) {
+    return false;
+  }
+
+  return normalizedBusiness === normalizeOrganizationLabel(getUnitHeadquartersLabel(normalizedUnit))
+    || normalizedBusiness === normalizeOrganizationLabel(`${normalizedUnit} headquarter`)
+    || normalizedBusiness === normalizeOrganizationLabel(`${normalizedUnit} sede`)
+    || normalizedBusiness === normalizeOrganizationLabel(`sede ${normalizedUnit}`);
+};
+
+const getBelongingCopy = (locale: string) => {
+  if (locale.toLocaleLowerCase().startsWith('es')) {
+    return {
+      businessUnitHelper: 'Elige la unidad física o corporativa a la que pertenece el colaborador.',
+      businessHelper: 'Selecciona una oficina corporativa, headquarters de unidad o negocio operativo con ID real.',
+      selectUnitFirst: 'Selecciona primero una unidad para ver las opciones de pertenencia.',
+      noHeadquartersOption: 'Esta unidad todavía no muestra una opción de headquarters. Guarda Estructura empresarial para crearla.',
+      corporateUnitBadge: 'Corporativo',
+      businessUnitBadge: 'Unidad',
+      corporateBusinessBadge: 'Oficina corporativa',
+      unitHeadquartersBadge: 'Headquarters de unidad',
+      operatingBusinessBadge: 'Negocio operativo',
+      autoAssignedBadge: 'Asignado automáticamente',
+      corporateUnitDescription: 'Base física del equipo corporativo.',
+      businessUnitDescription: 'Unidad física donde operan negocios y oficinas de unidad.',
+      corporateBusinessDescription: 'Para CEO, dirección general o equipo corporativo.',
+      unitHeadquartersDescription: (unit: string) => `Para dirección o administración de ${unit}.`,
+      operatingBusinessDescription: 'Para gerentes y colaboradores asignados al negocio.',
+      belongingSummary: (unit: string, business: string, kind: string) => `Pertenencia: ${unit} / ${business} · ${kind}.`,
+      corporateAutoSummary: 'La oficina corporativa se asigna desde la unidad seleccionada.',
+    };
+  }
+
+  return {
+    businessUnitHelper: 'Choose the physical or corporate unit where this HR user belongs.',
+    businessHelper: 'Select a corporate office, unit headquarters, or operating business with a real ID.',
+    selectUnitFirst: 'Select a unit first to see belonging options.',
+    noHeadquartersOption: 'This unit does not show a headquarters option yet. Save Business Structure to create it.',
+    corporateUnitBadge: 'Corporate',
+    businessUnitBadge: 'Unit',
+    corporateBusinessBadge: 'Corporate office',
+    unitHeadquartersBadge: 'Unit headquarters',
+    operatingBusinessBadge: 'Operating business',
+    autoAssignedBadge: 'Auto-assigned',
+    corporateUnitDescription: 'Physical base for the corporate team.',
+    businessUnitDescription: 'Physical unit where businesses and unit offices operate.',
+    corporateBusinessDescription: 'For CEO, general management, or corporate staff.',
+    unitHeadquartersDescription: (unit: string) => `For directors or admin staff assigned to ${unit}.`,
+    operatingBusinessDescription: 'For managers and collaborators assigned to the business.',
+    belongingSummary: (unit: string, business: string, kind: string) => `Belonging: ${unit} / ${business} · ${kind}.`,
+    corporateAutoSummary: 'The corporate office is assigned from the selected unit.',
+  };
+};
+
+const loadCustomJobOptions = (): CustomJobOptions => {
+  if (typeof window === 'undefined') {
+    return createEmptyCustomJobOptions();
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(customJobOptionsStorageKey);
+    if (!rawValue) {
+      return createEmptyCustomJobOptions();
+    }
+
+    const parsedValue = JSON.parse(rawValue) as Partial<CustomJobOptions>;
+    return {
+      departments: Array.isArray(parsedValue.departments)
+        ? mergeTextOptions(parsedValue.departments)
+        : [],
+      positions: Array.isArray(parsedValue.positions)
+        ? mergeTextOptions(parsedValue.positions)
+        : [],
+    };
+  } catch {
+    return createEmptyCustomJobOptions();
+  }
+};
+
+const saveCustomJobOptions = (options: CustomJobOptions) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(customJobOptionsStorageKey, JSON.stringify(options));
 };
 
 function TextField({
@@ -336,6 +494,533 @@ function SelectField({
   );
 }
 
+const organizationToneOrder: Record<OrganizationOptionTone, number> = {
+  corporate: 0,
+  unit: 1,
+  business: 2,
+  default: 3,
+};
+
+const getOrganizationToneClassNames = (tone: OrganizationOptionTone = 'default', isSelected = false) => {
+  if (tone === 'corporate') {
+    return {
+      option: isSelected
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100'
+        : 'border-transparent text-slate-700 hover:bg-emerald-50 dark:text-slate-200 dark:hover:bg-emerald-500/10',
+      badge: 'bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+    };
+  }
+
+  if (tone === 'unit') {
+    return {
+      option: isSelected
+        ? 'border-[#143675]/20 bg-[#143675]/10 text-[#143675] dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-100'
+        : 'border-transparent text-slate-700 hover:bg-[#143675]/5 dark:text-slate-200 dark:hover:bg-blue-400/10',
+      badge: 'bg-[#143675]/10 text-[#143675] ring-[#143675]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20',
+    };
+  }
+
+  if (tone === 'business') {
+    return {
+      option: isSelected
+        ? 'border-slate-200 bg-slate-50 text-slate-950 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'
+        : 'border-transparent text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800',
+      badge: 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
+    };
+  }
+
+  return {
+    option: isSelected
+      ? 'border-slate-200 bg-slate-50 text-slate-950 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'
+      : 'border-transparent text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800',
+    badge: 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
+  };
+};
+
+function OrganizationSelectField({
+  name,
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  required = false,
+  error,
+  helperText,
+  helperTone = 'default',
+  disabled = false,
+}: {
+  name?: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: ReadonlyArray<OrganizationOption>;
+  placeholder?: string;
+  required?: boolean;
+  error?: string;
+  helperText?: string;
+  helperTone?: 'default' | 'warning';
+  disabled?: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const selectedOption = options.find((option) => option.value === value);
+  const canOpen = !disabled && options.length > 0;
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [isOpen]);
+
+  useEffect(() => {
+    const selectedIndex = options.findIndex((option) => option.value === value);
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [isOpen, options, value]);
+
+  const selectOption = (option: OrganizationOption) => {
+    onChange(option.value);
+    setIsOpen(false);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'Escape') {
+      setIsOpen(false);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!canOpen) {
+        return;
+      }
+      setIsOpen(true);
+      setActiveIndex((current) => (current + 1) % options.length);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!canOpen) {
+        return;
+      }
+      setIsOpen(true);
+      setActiveIndex((current) => (current - 1 + options.length) % options.length);
+      return;
+    }
+
+    if ((event.key === 'Enter' || event.key === ' ') && isOpen && canOpen) {
+      event.preventDefault();
+      selectOption(options[activeIndex] ?? options[0]);
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label className={modalLabelClassName}>
+        {label} {required ? <span className="text-red-500">*</span> : null}
+      </label>
+      <input type="hidden" name={name} value={value} />
+      <button
+        type="button"
+        onClick={() => {
+          if (canOpen) {
+            setIsOpen((current) => !current);
+          }
+        }}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        aria-expanded={isOpen}
+        aria-invalid={Boolean(error)}
+        className={cn(
+          modalControlClassName,
+          'flex h-auto min-h-11 items-center justify-between gap-3 text-left',
+          !selectedOption && 'text-slate-400',
+          disabled && 'cursor-not-allowed bg-slate-50 text-slate-400 dark:bg-slate-800 dark:text-slate-500',
+          error && 'border-red-400 focus:border-red-500 focus:ring-red-500/15 dark:border-red-500',
+        )}
+      >
+        <span className="min-w-0">
+          <span className="block truncate">
+            {selectedOption?.label || placeholder}
+          </span>
+          {selectedOption?.description ? (
+            <span className="mt-0.5 block truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+              {selectedOption.description}
+            </span>
+          ) : null}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {selectedOption?.badge ? (
+            <span className={cn(
+              'hidden rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] ring-1 sm:inline-flex',
+              getOrganizationToneClassNames(selectedOption.tone).badge,
+            )}>
+              {selectedOption.badge}
+            </span>
+          ) : null}
+          <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
+        </span>
+      </button>
+
+      {isOpen && canOpen ? (
+        <div className="absolute left-0 right-0 z-[70] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900">
+          <div className="max-h-72 overflow-y-auto">
+            {placeholder ? (
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange('');
+                  setIsOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+              >
+                <span>{placeholder}</span>
+                {!value ? <Check className="h-4 w-4 shrink-0" /> : null}
+              </button>
+            ) : null}
+
+            {options.map((option, index) => {
+              const isSelected = option.value === value;
+              const isActive = activeIndex === index;
+              const toneClassNames = getOrganizationToneClassNames(option.tone, isSelected);
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => selectOption(option)}
+                  className={cn(
+                    'mt-1 flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors first:mt-0',
+                    toneClassNames.option,
+                    isActive && !isSelected && 'bg-slate-50 dark:bg-slate-800',
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{option.label}</span>
+                    {option.description ? (
+                      <span className="mt-0.5 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">
+                        {option.description}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {option.badge ? (
+                      <span className={cn(
+                        'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ring-1',
+                        toneClassNames.badge,
+                      )}>
+                        {option.badge}
+                      </span>
+                    ) : null}
+                    {isSelected ? <Check className="h-4 w-4 shrink-0" /> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <HelperText tone="error">{error}</HelperText>
+      ) : helperText ? (
+        <HelperText tone={helperTone}>{helperText}</HelperText>
+      ) : null}
+    </div>
+  );
+}
+
+function AutoAssignedOrganizationField({
+  name,
+  label,
+  value,
+  displayValue,
+  badge,
+  helperText,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  displayValue: string;
+  badge: string;
+  helperText: string;
+}) {
+  return (
+    <div>
+      <label className={modalLabelClassName}>{label}</label>
+      <input type="hidden" name={name} value={value} />
+      <div
+        className={cn(
+          modalControlClassName,
+          'flex h-auto min-h-11 items-center justify-between gap-3 bg-[#143675]/5 text-left text-[#143675] dark:bg-blue-400/10 dark:text-blue-100',
+        )}
+      >
+        <span className="min-w-0">
+          <span className="block truncate">{displayValue}</span>
+          <span className="mt-0.5 block truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+            {helperText}
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-[#143675]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#143675] ring-1 ring-[#143675]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20">
+          {badge}
+        </span>
+      </div>
+      <HelperText>{helperText}</HelperText>
+    </div>
+  );
+}
+
+function getCreatableOptionCopy(locale: string) {
+  if (locale.toLowerCase().startsWith('es')) {
+    return {
+      add: 'Agregar opción',
+      helper: 'Puedes seleccionar una opción o escribir una nueva. Las opciones personalizadas se guardan en este navegador.',
+      saved: 'Opción personalizada guardada para futuros colaboradores.',
+      suggestedForDepartment: (department: string) =>
+        `Puestos sugeridos para ${department}. También puedes escribir uno propio.`,
+    };
+  }
+
+  return {
+    add: 'Add option',
+    helper: 'Choose an option or type a new one. Custom options are saved in this browser.',
+    saved: 'Custom option saved for future HR users.',
+    suggestedForDepartment: (department: string) =>
+      `Suggested roles for ${department}. You can still type a custom role.`,
+  };
+}
+
+function CreatableOptionField({
+  name,
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  required = false,
+  error,
+  helperText,
+  onAddOption,
+  locale,
+}: {
+  name?: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: ReadonlyArray<string>;
+  placeholder?: string;
+  required?: boolean;
+  error?: string;
+  helperText?: string;
+  onAddOption: (value: string) => boolean;
+  locale: string;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const copy = getCreatableOptionCopy(locale);
+  const normalizedValue = normalizeOptionLabel(value);
+  const hasMatchingOption = options.some(
+    (option) => option.toLocaleLowerCase() === normalizedValue.toLocaleLowerCase(),
+  );
+  const canAddCurrentValue = Boolean(normalizedValue) && !hasMatchingOption;
+  const filteredOptions = useMemo(() => {
+    const searchValue = normalizedValue.toLocaleLowerCase();
+    if (!searchValue) {
+      return options;
+    }
+
+    return options.filter((option) => option.toLocaleLowerCase().includes(searchValue));
+  }, [normalizedValue, options]);
+  const visibleOptions = filteredOptions.slice(0, 8);
+  const actionCount = visibleOptions.length + (canAddCurrentValue ? 1 : 0);
+
+  useEffect(() => {
+    if (!feedback) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setFeedback(''), 2200);
+    return () => window.clearTimeout(timeoutId);
+  }, [feedback]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [isOpen]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [normalizedValue, isOpen]);
+
+  const commitCustomOption = () => {
+    if (!canAddCurrentValue) {
+      return;
+    }
+
+    if (onAddOption(normalizedValue)) {
+      setFeedback(copy.saved);
+    }
+    onChange(normalizedValue);
+    setIsOpen(false);
+  };
+
+  const selectOption = (option: string) => {
+    onChange(option);
+    setIsOpen(false);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setIsOpen(false);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex((current) => (actionCount > 0 ? (current + 1) % actionCount : 0));
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex((current) => (actionCount > 0 ? (current - 1 + actionCount) % actionCount : 0));
+      return;
+    }
+
+    if (event.key === 'Enter' && isOpen && actionCount > 0) {
+      event.preventDefault();
+      if (activeIndex < visibleOptions.length) {
+        selectOption(visibleOptions[activeIndex]);
+        return;
+      }
+      commitCustomOption();
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label className={modalLabelClassName}>
+        {label} {required ? <span className="text-red-500">*</span> : null}
+      </label>
+      <div className="relative">
+        <input
+          name={name}
+          value={value}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          onBlur={commitCustomOption}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          aria-expanded={isOpen}
+          aria-invalid={Boolean(error)}
+          autoComplete="off"
+          className={cn(
+            modalControlClassName,
+            'pr-11',
+            error && 'border-red-400 focus:border-red-500 focus:ring-red-500/15 dark:border-red-500',
+          )}
+        />
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setIsOpen((current) => !current)}
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-[#143675]/10 hover:text-[#143675] dark:text-slate-300 dark:hover:bg-blue-400/10 dark:hover:text-blue-200"
+          aria-label={label}
+        >
+          <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
+        </button>
+      </div>
+
+      {isOpen && actionCount > 0 ? (
+        <div className="absolute left-0 right-0 z-[70] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900">
+          <div className="max-h-64 overflow-y-auto">
+            {visibleOptions.map((option, index) => {
+              const isSelected = option.toLocaleLowerCase() === normalizedValue.toLocaleLowerCase();
+              const isActive = activeIndex === index;
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectOption(option)}
+                  className={cn(
+                    'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors',
+                    isActive
+                      ? 'bg-[#143675]/10 text-[#143675] dark:bg-blue-400/10 dark:text-blue-200'
+                      : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800',
+                  )}
+                >
+                  <span>{option}</span>
+                  {isSelected ? <Check className="h-4 w-4 shrink-0" /> : null}
+                </button>
+              );
+            })}
+
+            {canAddCurrentValue ? (
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={commitCustomOption}
+                className={cn(
+                  'mt-1 flex w-full items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-left text-sm font-semibold transition-colors',
+                  activeIndex === visibleOptions.length
+                    ? 'border-[#143675]/40 bg-[#143675]/10 text-[#143675] dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-200'
+                    : 'border-[#143675]/20 bg-[#143675]/5 text-[#143675] hover:bg-[#143675]/10 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200',
+                )}
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                <span>{copy.add} "{normalizedValue}"</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <HelperText tone="error">{error}</HelperText>
+      ) : feedback ? (
+        <HelperText tone="success">{feedback}</HelperText>
+      ) : helperText ? (
+        <HelperText>{helperText}</HelperText>
+      ) : (
+        <HelperText>{copy.helper}</HelperText>
+      )}
+    </div>
+  );
+}
+
 function toggleDocumentSlotRemoval(slot: EmployeeDocumentSlot): EmployeeDocumentSlot {
   if (!slot.existingId) {
     return slot;
@@ -368,6 +1053,7 @@ export function CreateEmployeeModal({
   const [touchedFields, setTouchedFields] = useState<Partial<Record<EmployeeFieldKey, boolean>>>({});
   const [documentErrors, setDocumentErrors] = useState<Partial<Record<EmployeeDocumentType, string>>>({});
   const [statusFeedback, setStatusFeedback] = useState('');
+  const [customJobOptions, setCustomJobOptions] = useState<CustomJobOptions>(() => loadCustomJobOptions());
   const modalSteps = useMemo<readonly WizardStep[]>(
     () => copy.steps.map((step, index) => ({
       ...step,
@@ -403,13 +1089,29 @@ export function CreateEmployeeModal({
     return () => window.clearTimeout(timeoutId);
   }, [statusFeedback]);
 
+  const jobOptionCopy = useMemo(
+    () => getCreatableOptionCopy(currentLanguage.code),
+    [currentLanguage.code],
+  );
   const departmentOptions = useMemo(
-    () => copy.options.departments.map((label) => ({ value: label, label })),
-    [copy.options.departments],
+    () => mergeTextOptions(getDepartmentOptionLabels(currentLanguage.code), customJobOptions.departments),
+    [currentLanguage.code, customJobOptions.departments],
+  );
+  const allPositionOptions = useMemo(
+    () => getAllPositionLabels(currentLanguage.code),
+    [currentLanguage.code],
+  );
+  const suggestedPositionOptions = useMemo(
+    () => getSuggestedPositionsByDepartment(formData.department, currentLanguage.code),
+    [currentLanguage.code, formData.department],
   );
   const positionOptions = useMemo(
-    () => copy.options.positions.map((label) => ({ value: label, label })),
-    [copy.options.positions],
+    () => mergeTextOptions(
+      suggestedPositionOptions,
+      customJobOptions.positions,
+      formData.position ? [formData.position] : [],
+    ),
+    [customJobOptions.positions, formData.position, suggestedPositionOptions],
   );
   const modalUnitOptions = useMemo(
     () => (unitOptions ?? []).filter((option) => option.value !== 'all' && option.value !== 'all-units'),
@@ -419,16 +1121,122 @@ export function CreateEmployeeModal({
     () => (businessOptions ?? []).filter((option) => option.value !== 'all' && option.value !== 'all-businesses'),
     [businessOptions],
   );
-  const filteredBusinessOptions = useMemo(() => {
+  const belongingCopy = useMemo(
+    () => getBelongingCopy(currentLanguage.code),
+    [currentLanguage.code],
+  );
+  const selectedUnitOption = useMemo(
+    () => modalUnitOptions.find((option) => option.value === formData.businessUnitId) ?? null,
+    [formData.businessUnitId, modalUnitOptions],
+  );
+  const selectedUnitIsCorporateOffice = Boolean(selectedUnitOption && isCorporateOfficeUnitLabel(selectedUnitOption.label));
+  const unitOptionsWithBelonging = useMemo<OrganizationOption[]>(() => (
+    modalUnitOptions.map((option) => {
+      const isCorporateUnit = isCorporateOfficeUnitLabel(option.label);
+
+      return {
+        ...option,
+        label: isCorporateUnit ? belongingCopy.corporateBusinessBadge : option.label,
+        badge: isCorporateUnit ? belongingCopy.corporateUnitBadge : belongingCopy.businessUnitBadge,
+        description: isCorporateUnit
+          ? belongingCopy.corporateUnitDescription
+          : belongingCopy.businessUnitDescription,
+        tone: isCorporateUnit ? 'corporate' : 'unit',
+      };
+    })
+  ), [belongingCopy, modalUnitOptions]);
+  const filteredBusinessOptions = useMemo<OrganizationOption[]>(() => {
     if (!formData.businessUnitId) {
       return [];
     }
 
-    return modalBusinessOptions.filter((option) => (
-      option.unitId === formData.businessUnitId
-      || option.unit_id === formData.businessUnitId
-    ));
-  }, [formData.businessUnitId, modalBusinessOptions]);
+    const selectedUnitLabel = selectedUnitOption?.label ?? '';
+
+    return modalBusinessOptions
+      .filter((option) => (
+        (option.unitId === formData.businessUnitId || option.unit_id === formData.businessUnitId)
+        && (selectedUnitIsCorporateOffice || !isCorporateHeadquartersLabel(option.label))
+      ))
+      .map((option) => {
+        const isCorporateBusiness = isCorporateHeadquartersLabel(option.label);
+        const isHeadquartersBusiness = !isCorporateBusiness
+          && isUnitHeadquartersLabel(option.label, selectedUnitLabel);
+        const tone: OrganizationOptionTone = isCorporateBusiness
+          ? 'corporate'
+          : isHeadquartersBusiness
+            ? 'unit'
+            : 'business';
+
+        return {
+          ...option,
+          badge: isCorporateBusiness
+            ? belongingCopy.corporateBusinessBadge
+            : isHeadquartersBusiness
+              ? belongingCopy.unitHeadquartersBadge
+              : belongingCopy.operatingBusinessBadge,
+          description: isCorporateBusiness
+            ? belongingCopy.corporateBusinessDescription
+            : isHeadquartersBusiness
+              ? belongingCopy.unitHeadquartersDescription(selectedUnitLabel || option.label)
+              : belongingCopy.operatingBusinessDescription,
+          tone,
+        };
+      })
+      .sort((first, second) => {
+        const firstOrder = organizationToneOrder[first.tone ?? 'default'];
+        const secondOrder = organizationToneOrder[second.tone ?? 'default'];
+        if (firstOrder !== secondOrder) {
+          return firstOrder - secondOrder;
+        }
+        return first.label.localeCompare(second.label, currentLanguage.code);
+      });
+  }, [
+    belongingCopy,
+    currentLanguage.code,
+    formData.businessUnitId,
+    modalBusinessOptions,
+    selectedUnitIsCorporateOffice,
+    selectedUnitOption,
+  ]);
+  const selectedBusinessOption = useMemo(
+    () => filteredBusinessOptions.find((option) => option.value === formData.businessId) ?? null,
+    [filteredBusinessOptions, formData.businessId],
+  );
+  const hasHeadquartersBusinessOption = useMemo(
+    () => filteredBusinessOptions.some((option) => option.tone === 'corporate' || option.tone === 'unit'),
+    [filteredBusinessOptions],
+  );
+  const businessBelongingHelper = useMemo(() => {
+    if (!formData.businessUnitId) {
+      return belongingCopy.selectUnitFirst;
+    }
+
+    if (selectedUnitIsCorporateOffice) {
+      return belongingCopy.corporateAutoSummary;
+    }
+
+    if (selectedUnitOption && selectedBusinessOption) {
+      return belongingCopy.belongingSummary(
+        selectedUnitOption.label,
+        selectedBusinessOption.label,
+        selectedBusinessOption.badge ?? '',
+      );
+    }
+
+    return hasHeadquartersBusinessOption
+      ? belongingCopy.businessHelper
+      : belongingCopy.noHeadquartersOption;
+  }, [
+    belongingCopy,
+    formData.businessUnitId,
+    hasHeadquartersBusinessOption,
+    selectedUnitIsCorporateOffice,
+    selectedBusinessOption,
+    selectedUnitOption,
+  ]);
+  const businessBelongingHelperTone: 'default' | 'warning' = formData.businessUnitId && !hasHeadquartersBusinessOption
+    ? 'warning'
+    : 'default';
   const activeAttendanceLocations = useMemo(
     () => attendanceLocations.filter((location) => location.status !== 'inactive'),
     [attendanceLocations],
@@ -459,6 +1267,42 @@ export function CreateEmployeeModal({
 
   const resolvedCountry = resolveProfileCountry(formData.registrationCountry);
   const isCreateMode = mode === 'create';
+
+  const addCustomJobOption = (kind: CustomJobOptionKind, value: string) => {
+    const normalizedValue = normalizeOptionLabel(value);
+    if (!normalizedValue) {
+      return false;
+    }
+
+    const baseOptions = kind === 'departments' ? departmentOptions : allPositionOptions;
+    const existingOptions = mergeTextOptions(baseOptions, customJobOptions[kind]);
+    const optionAlreadyExists = existingOptions.some(
+      (option) => option.toLocaleLowerCase() === normalizedValue.toLocaleLowerCase(),
+    );
+
+    if (optionAlreadyExists) {
+      return false;
+    }
+
+    let didAddOption = false;
+    setCustomJobOptions((current) => {
+      const nextOptions = mergeTextOptions(current[kind], [normalizedValue]);
+      didAddOption = nextOptions.length !== current[kind].length;
+      const next = {
+        ...current,
+        [kind]: nextOptions,
+      };
+      saveCustomJobOptions(next);
+      return next;
+    });
+
+    return didAddOption;
+  };
+
+  const persistCurrentJobOptions = (data: EmployeeFormData) => {
+    addCustomJobOption('departments', data.department);
+    addCustomJobOption('positions', data.position);
+  };
 
   const readDomValue = (nativeFormData: FormData, field: keyof EmployeeFormData) => {
     const value = nativeFormData.get(String(field));
@@ -583,14 +1427,24 @@ export function CreateEmployeeModal({
 
       if (field === 'businessUnitId') {
         const nextUnitId = String(value ?? '').trim();
+        const nextUnit = modalUnitOptions.find((option) => option.value === nextUnitId);
+        const corporateOfficeBusiness = modalBusinessOptions.find((option) => (
+          (option.unitId === nextUnitId || option.unit_id === nextUnitId)
+          && isCorporateHeadquartersLabel(option.label)
+        ));
         const currentBusinessMatchesUnit = modalBusinessOptions.some(
           (option) => (
             option.value === current.businessId
             && (option.unitId === nextUnitId || option.unit_id === nextUnitId)
+            && !isCorporateHeadquartersLabel(option.label)
           ),
         );
 
-        next.businessId = currentBusinessMatchesUnit ? current.businessId : '';
+        next.businessId = nextUnit && isCorporateOfficeUnitLabel(nextUnit.label)
+          ? corporateOfficeBusiness?.value ?? ''
+          : currentBusinessMatchesUnit
+            ? current.businessId
+            : '';
         next.scheduleLocationId = '';
       }
 
@@ -639,6 +1493,17 @@ export function CreateEmployeeModal({
       }));
     }
   };
+
+  useEffect(() => {
+    if (!selectedUnitIsCorporateOffice || formData.businessId) {
+      return;
+    }
+
+    const corporateOfficeBusiness = filteredBusinessOptions.find((option) => option.tone === 'corporate');
+    if (corporateOfficeBusiness) {
+      updateField('businessId', corporateOfficeBusiness.value);
+    }
+  }, [filteredBusinessOptions, formData.businessId, selectedUnitIsCorporateOffice]);
 
   const updateDocumentSlot = (documentType: EmployeeDocumentType, updater: (slot: EmployeeDocumentSlot) => EmployeeDocumentSlot) => {
     setFormData((current) => ({
@@ -996,6 +1861,8 @@ export function CreateEmployeeModal({
       return;
     }
 
+    persistCurrentJobOptions(nextFormData);
+
     if (currentStep < modalSteps.length) {
       if (currentStep === 1 && isCreateMode) {
         localDraftDataRef.current = nextFormData;
@@ -1317,7 +2184,7 @@ export function CreateEmployeeModal({
               }}
               fields={{
                 department: (
-                  <SelectField
+                  <CreatableOptionField
                     name="department"
                     label={copy.labels.department}
                     value={formData.department}
@@ -1326,10 +2193,12 @@ export function CreateEmployeeModal({
                     placeholder={copy.placeholders.select}
                     required
                     error={touchedFields.department ? validationErrors.department : undefined}
+                    onAddOption={(value) => addCustomJobOption('departments', value)}
+                    locale={currentLanguage.code}
                   />
                 ),
                 position: (
-                  <SelectField
+                  <CreatableOptionField
                     name="position"
                     label={copy.labels.position}
                     value={formData.position}
@@ -1338,31 +2207,53 @@ export function CreateEmployeeModal({
                     placeholder={copy.placeholders.select}
                     required
                     error={touchedFields.position ? validationErrors.position : undefined}
+                    helperText={
+                      formData.department.trim()
+                        ? jobOptionCopy.suggestedForDepartment(formData.department)
+                        : undefined
+                    }
+                    onAddOption={(value) => addCustomJobOption('positions', value)}
+                    locale={currentLanguage.code}
                   />
                 ),
                 businessUnit: (
-                  <SelectField
+                  <OrganizationSelectField
                     name="businessUnitId"
                     label={copy.labels.businessUnitId}
                     value={formData.businessUnitId}
                     onChange={(value) => updateField('businessUnitId', value)}
-                    options={modalUnitOptions}
+                    options={unitOptionsWithBelonging}
                     placeholder={copy.placeholders.select}
                     required
                     error={touchedFields.businessUnitId ? validationErrors.businessUnitId : undefined}
+                    helperText={belongingCopy.businessUnitHelper}
                   />
                 ),
                 business: (
-                  <SelectField
-                    name="businessId"
-                    label={copy.labels.businessId}
-                    value={formData.businessId}
-                    onChange={(value) => updateField('businessId', value)}
-                    options={filteredBusinessOptions}
-                    placeholder={copy.placeholders.select}
-                    required
-                    error={touchedFields.businessId ? validationErrors.businessId : undefined}
-                  />
+                  selectedUnitIsCorporateOffice ? (
+                    <AutoAssignedOrganizationField
+                      name="businessId"
+                      label={copy.labels.businessId}
+                      value={formData.businessId}
+                      displayValue={selectedBusinessOption?.label ?? belongingCopy.corporateBusinessBadge}
+                      badge={belongingCopy.autoAssignedBadge}
+                      helperText={businessBelongingHelper}
+                    />
+                  ) : (
+                    <OrganizationSelectField
+                      name="businessId"
+                      label={copy.labels.businessId}
+                      value={formData.businessId}
+                      onChange={(value) => updateField('businessId', value)}
+                      options={filteredBusinessOptions}
+                      placeholder={copy.placeholders.select}
+                      required
+                      error={touchedFields.businessId ? validationErrors.businessId : undefined}
+                      helperText={businessBelongingHelper}
+                      helperTone={businessBelongingHelperTone}
+                      disabled={!formData.businessUnitId}
+                    />
+                  )
                 ),
                 hireDate: (
                   <>

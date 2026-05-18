@@ -1,3 +1,5 @@
+import { getDepartmentOptionLabels } from '../data/departmentOptions';
+import { getAllPositionLabels } from '../data/positionOptions';
 import type { EmployeesSummaryInsightArgs, EmployeesTranslations } from './types';
 
 export const enCA = {
@@ -282,8 +284,8 @@ export const enCA = {
       emergencyContactPhone: 'Emergency contact phone',
       department: 'Department',
       position: 'Position',
-      businessUnitId: 'Business unit',
-      businessId: 'Business',
+      businessUnitId: 'Unit / headquarters',
+      businessId: 'Business / office',
       hireDate: 'Hire date',
       scheduleOnHire: 'Add HR user to schedule',
       scheduleStartDate: 'Schedule start date',
@@ -344,8 +346,8 @@ export const enCA = {
       fileUploaded: 'Uploaded',
     },
     options: {
-      departments: ['Operations', 'Administration', 'Sales', 'Human Resources'],
-      positions: ['Room attendant', 'Coordinator', 'Maintenance', 'Laundry'],
+      departments: getDepartmentOptionLabels('en-CA'),
+      positions: getAllPositionLabels('en-CA'),
       salaryTypes: [
         { value: 'daily', label: 'Daily salary' },
         { value: 'hourly', label: 'Hourly salary' },

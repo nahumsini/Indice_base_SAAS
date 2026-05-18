@@ -22,6 +22,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenterCompanyUseCases {
+    private static final String UNIT_HEADQUARTERS_SUFFIX = " headquarters";
 
     protected ConfigCenterBusinessStructureUseCases(
         JdbcTemplate jdbcTemplate,
@@ -79,66 +80,89 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
             var unit = desiredUnits.get(index);
             var isCorporateOffice = index == selectedCorporateIndex;
             var normalizedBusinesses = new ArrayList<>(unit.businesses());
+            var normalizedUnit = unitWithNormalizedName(unit, isCorporateOffice);
+            var normalizedUnitIsCorporateOffice = isHeadquartersName(normalizedUnit.name());
 
-            if (isCorporateOffice) {
-                var firstBusiness = normalizedBusinesses.isEmpty() ? null : normalizedBusinesses.get(0);
-                var normalizedFirstBusiness = normalizeCorporateOfficeBusiness(companyId, unit, firstBusiness);
+            if (normalizedUnitIsCorporateOffice) {
+                var companyName = loadCompanyName(companyId);
+                var corporateBusinessIndex = findCorporateOfficeBusinessIndex(normalizedBusinesses, companyName);
+                var existingCorporateBusiness = corporateBusinessIndex >= 0
+                    ? normalizedBusinesses.remove(corporateBusinessIndex)
+                    : null;
 
-                if (normalizedBusinesses.isEmpty()) {
-                    normalizedBusinesses.add(normalizedFirstBusiness);
-                } else {
-                    normalizedBusinesses.set(0, normalizedFirstBusiness);
-                }
+                normalizedBusinesses.add(
+                    0,
+                    normalizeHeadquartersBusiness(
+                        normalizedUnit,
+                        existingCorporateBusiness,
+                        CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME
+                    )
+                );
+            }
+
+            if (!normalizedUnitIsCorporateOffice) {
+                var unitHeadquartersBusinessName = unitHeadquartersBusinessName(normalizedUnit.name());
+                var unitHeadquartersBusinessIndex = findUnitHeadquartersBusinessIndex(
+                    normalizedBusinesses,
+                    normalizedUnit.name(),
+                    unitHeadquartersBusinessName
+                );
+                var existingUnitHeadquartersBusiness = unitHeadquartersBusinessIndex >= 0
+                    ? normalizedBusinesses.remove(unitHeadquartersBusinessIndex)
+                    : null;
+
+                normalizedBusinesses.add(
+                    0,
+                    normalizeHeadquartersBusiness(
+                        normalizedUnit,
+                        existingUnitHeadquartersBusiness,
+                        unitHeadquartersBusinessName
+                    )
+                );
             }
 
             normalizedUnits.set(index, new UnitInput(
-                normalizeCorporateOfficeUnitName(unit.name(), isCorporateOffice),
-                unit.legacyUnitId(),
-                isCorporateOffice,
-                unit.logo(),
-                unit.industria(),
-                unit.direccion(),
-                unit.ciudad(),
-                unit.estado(),
-                unit.pais(),
-                unit.cp(),
-                unit.telefono(),
-                unit.email(),
-                unit.coordinates(),
+                normalizedUnit.name(),
+                normalizedUnit.legacyUnitId(),
+                normalizedUnit.corporateOffice(),
+                normalizedUnit.logo(),
+                normalizedUnit.industria(),
+                normalizedUnit.direccion(),
+                normalizedUnit.ciudad(),
+                normalizedUnit.estado(),
+                normalizedUnit.pais(),
+                normalizedUnit.cp(),
+                normalizedUnit.telefono(),
+                normalizedUnit.email(),
+                normalizedUnit.coordinates(),
                 normalizedBusinesses
             ));
         }
         return normalizedUnits;
     }
 
-    protected BusinessInput normalizeCorporateOfficeBusiness(
-        long companyId,
-        UnitInput corporateUnit,
-        BusinessInput firstBusiness
+    protected BusinessInput normalizeHeadquartersBusiness(
+        UnitInput unit,
+        BusinessInput existingBusiness,
+        String headquartersBusinessName
     ) {
-        var configuredBusinessName = firstBusiness == null ? "" : firstBusiness.name();
-        var companyName = "";
-        var businessName = configuredBusinessName;
-        if (configuredBusinessName.isBlank() || isHeadquartersName(configuredBusinessName)) {
-            companyName = loadCompanyName(companyId);
-            businessName = firstNonBlank(companyName, configuredBusinessName, CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME);
-        }
-
         return new BusinessInput(
-            businessName,
-            firstBusiness == null ? null : firstBusiness.legacyBusinessId(),
-            firstBusiness == null ? corporateUnit.logo() : firstBusiness.logo(),
-            firstBusiness == null ? corporateUnit.industria() : firstBusiness.industria(),
-            firstBusiness == null ? corporateUnit.direccion() : firstBusiness.direccion(),
-            firstBusiness == null ? corporateUnit.ciudad() : firstBusiness.ciudad(),
-            firstBusiness == null ? corporateUnit.estado() : firstBusiness.estado(),
-            firstBusiness == null ? corporateUnit.pais() : firstBusiness.pais(),
-            firstBusiness == null ? corporateUnit.cp() : firstBusiness.cp(),
-            firstBusiness == null ? corporateUnit.telefono() : firstBusiness.telefono(),
-            firstBusiness == null ? corporateUnit.email() : firstBusiness.email(),
-            firstBusiness == null ? "" : firstBusiness.gerente(),
-            firstBusiness == null ? "" : firstBusiness.horario(),
-            firstBusiness == null ? corporateUnit.coordinates() : firstBusiness.coordinates()
+            headquartersBusinessName,
+            existingBusiness == null ? null : existingBusiness.legacyBusinessId(),
+            existingBusiness == null ? unit.logo() : firstNonBlank(existingBusiness.logo(), unit.logo()),
+            existingBusiness == null ? unit.industria() : firstNonBlank(existingBusiness.industria(), unit.industria()),
+            existingBusiness == null ? unit.direccion() : firstNonBlank(existingBusiness.direccion(), unit.direccion()),
+            existingBusiness == null ? unit.ciudad() : firstNonBlank(existingBusiness.ciudad(), unit.ciudad()),
+            existingBusiness == null ? unit.estado() : firstNonBlank(existingBusiness.estado(), unit.estado()),
+            existingBusiness == null ? unit.pais() : firstNonBlank(existingBusiness.pais(), unit.pais()),
+            existingBusiness == null ? unit.cp() : firstNonBlank(existingBusiness.cp(), unit.cp()),
+            existingBusiness == null ? unit.telefono() : firstNonBlank(existingBusiness.telefono(), unit.telefono()),
+            existingBusiness == null ? unit.email() : firstNonBlank(existingBusiness.email(), unit.email()),
+            existingBusiness == null ? "" : existingBusiness.gerente(),
+            existingBusiness == null ? "" : existingBusiness.horario(),
+            existingBusiness == null || existingBusiness.coordinates() == null
+                ? unit.coordinates()
+                : existingBusiness.coordinates()
         );
     }
 
@@ -147,6 +171,69 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
             return CORPORATE_OFFICE_UNIT_NAME;
         }
         return unitName;
+    }
+
+    private UnitInput unitWithNormalizedName(UnitInput unit, boolean isCorporateOffice) {
+        return new UnitInput(
+            normalizeCorporateOfficeUnitName(unit.name(), isCorporateOffice),
+            unit.legacyUnitId(),
+            isCorporateOffice,
+            unit.logo(),
+            unit.industria(),
+            unit.direccion(),
+            unit.ciudad(),
+            unit.estado(),
+            unit.pais(),
+            unit.cp(),
+            unit.telefono(),
+            unit.email(),
+            unit.coordinates(),
+            unit.businesses()
+        );
+    }
+
+    private String unitHeadquartersBusinessName(String unitName) {
+        return firstNonBlank(unitName, "Unit") + UNIT_HEADQUARTERS_SUFFIX;
+    }
+
+    private int findCorporateOfficeBusinessIndex(List<BusinessInput> businesses, String companyName) {
+        for (var index = 0; index < businesses.size(); index++) {
+            var businessName = businesses.get(index).name();
+            if (isHeadquartersName(businessName) || (index == 0 && namesMatch(businessName, companyName))) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private int findUnitHeadquartersBusinessIndex(
+        List<BusinessInput> businesses,
+        String unitName,
+        String unitHeadquartersBusinessName
+    ) {
+        for (var index = 0; index < businesses.size(); index++) {
+            var businessName = businesses.get(index).name();
+            if (
+                namesMatch(businessName, unitHeadquartersBusinessName)
+                || namesMatch(businessName, firstNonBlank(unitName, "Unit") + " headquarter")
+                || (index == 0 && isLegacyHeadquartersName(businessName))
+            ) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private boolean isLegacyHeadquartersName(String value) {
+        var normalized = normalizeKey(value);
+        return normalized.equals(normalizeKey(HEADQUARTERS_UNIT_NAME))
+            || normalized.equals(normalizeKey(LEGACY_HEADQUARTERS_UNIT_NAME));
+    }
+
+    private boolean namesMatch(String first, String second) {
+        return !firstNonBlank(first).isBlank()
+            && !firstNonBlank(second).isBlank()
+            && normalizeKey(first).equals(normalizeKey(second));
     }
 
     protected void persistStructure(long companyId, long userId, List<UnitInput> desiredUnits) {
@@ -244,7 +331,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                 }
 
                 keptBusinessIds.add(businessId);
-                var attendanceLocationName = desiredUnit.corporateOffice() && businessIndex == 0
+                var attendanceLocationName = namesMatch(desiredBusiness.name(), CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME)
                     ? CORPORATE_OFFICE_UNIT_NAME
                     : desiredBusiness.name();
                 syncBusinessStructureAttendanceLocation(
@@ -261,6 +348,9 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
 
         for (var business : existingBusinesses) {
             if (!keptBusinessIds.contains(business.id())) {
+                if (namesMatch(business.name(), CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME)) {
+                    continue;
+                }
                 deactivateBusinessStructureAttendanceLocation(companyId, business.id());
                 jdbcTemplate.update("DELETE FROM businesses WHERE id = ? AND company_id = ?", business.id(), companyId);
             }
@@ -268,6 +358,9 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
 
         for (var unit : existingUnits) {
             if (!keptUnitIds.contains(unit.id())) {
+                if (isHeadquartersName(unit.name())) {
+                    continue;
+                }
                 jdbcTemplate.update("DELETE FROM units WHERE id = ? AND company_id = ?", unit.id(), companyId);
             }
         }
