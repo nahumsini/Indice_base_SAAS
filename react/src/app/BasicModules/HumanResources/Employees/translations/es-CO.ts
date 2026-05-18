@@ -148,7 +148,6 @@ export const esCO = {
     },
     options: {
       ...esMX.modal.options,
-      positions: ['Auxiliar operativo', 'Coordinador', 'Mantenimiento', 'Ventas'],
       scheduleLocationRules: [
         { value: 'business', label: 'Usar ubicación del negocio de la persona' },
         { value: 'exact', label: 'Forzar una ubicación exacta' },

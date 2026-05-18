@@ -32,7 +32,11 @@ class AttendanceDailyRecordMapper {
             safe(rs.getString("first_photo_object_key")),
             safe(rs.getString("last_photo_object_key")),
             mapLocation(rs, "first_location"),
-            mapLocation(rs, "last_location")
+            mapLocation(rs, "last_location"),
+            rs.getBigDecimal("first_event_latitude"),
+            rs.getBigDecimal("first_event_longitude"),
+            rs.getBigDecimal("last_event_latitude"),
+            rs.getBigDecimal("last_event_longitude")
         );
     }
 
@@ -72,6 +76,7 @@ class AttendanceDailyRecordMapper {
     }
 
     String commonDailyRecordSelect(String eventUserColumn) {
+        var recordUserColumn = "r." + eventUserColumn.substring(2);
         return """
             SELECT r.id,
                    r.user_company_id,
@@ -106,6 +111,54 @@ class AttendanceDailyRecordMapper {
                                 e.id DESC
                        LIMIT 1
                    ) AS last_photo_object_key,
+                   (
+                       SELECT e.latitude
+                       FROM user_attendance_events e
+                       WHERE e.company_id = r.company_id
+                         AND %s = %s
+                         AND e.attendance_date = r.attendance_date
+                         AND e.event_type = 'check_in'
+                       ORDER BY CASE WHEN e.latitude IS NULL OR e.longitude IS NULL THEN 1 ELSE 0 END ASC,
+                                e.event_timestamp ASC,
+                                e.id ASC
+                       LIMIT 1
+                   ) AS first_event_latitude,
+                   (
+                       SELECT e.longitude
+                       FROM user_attendance_events e
+                       WHERE e.company_id = r.company_id
+                         AND %s = %s
+                         AND e.attendance_date = r.attendance_date
+                         AND e.event_type = 'check_in'
+                       ORDER BY CASE WHEN e.latitude IS NULL OR e.longitude IS NULL THEN 1 ELSE 0 END ASC,
+                                e.event_timestamp ASC,
+                                e.id ASC
+                       LIMIT 1
+                   ) AS first_event_longitude,
+                   (
+                       SELECT e.latitude
+                       FROM user_attendance_events e
+                       WHERE e.company_id = r.company_id
+                         AND %s = %s
+                         AND e.attendance_date = r.attendance_date
+                         AND e.event_type = 'check_out'
+                       ORDER BY CASE WHEN e.latitude IS NULL OR e.longitude IS NULL THEN 1 ELSE 0 END ASC,
+                                e.event_timestamp DESC,
+                                e.id DESC
+                       LIMIT 1
+                   ) AS last_event_latitude,
+                   (
+                       SELECT e.longitude
+                       FROM user_attendance_events e
+                       WHERE e.company_id = r.company_id
+                         AND %s = %s
+                         AND e.attendance_date = r.attendance_date
+                         AND e.event_type = 'check_out'
+                       ORDER BY CASE WHEN e.latitude IS NULL OR e.longitude IS NULL THEN 1 ELSE 0 END ASC,
+                                e.event_timestamp DESC,
+                                e.id DESC
+                       LIMIT 1
+                   ) AS last_event_longitude,
                    fl.id AS first_location_id,
                    fl.name AS first_location_name,
                    fl.latitude AS first_location_latitude,
@@ -119,7 +172,20 @@ class AttendanceDailyRecordMapper {
             FROM user_attendance_daily_records r
             LEFT JOIN attendance_locations fl ON fl.id = r.first_location_id
             LEFT JOIN attendance_locations ll ON ll.id = r.last_location_id
-            """.formatted(eventUserColumn, "r." + eventUserColumn.substring(2), eventUserColumn, "r." + eventUserColumn.substring(2));
+            """.formatted(
+                eventUserColumn,
+                recordUserColumn,
+                eventUserColumn,
+                recordUserColumn,
+                eventUserColumn,
+                recordUserColumn,
+                eventUserColumn,
+                recordUserColumn,
+                eventUserColumn,
+                recordUserColumn,
+                eventUserColumn,
+                recordUserColumn
+            );
     }
 
     LocalDateTime toLocalDateTime(Timestamp timestamp) {
