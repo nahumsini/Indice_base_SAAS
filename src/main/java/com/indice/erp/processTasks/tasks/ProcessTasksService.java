@@ -184,12 +184,15 @@ public class ProcessTasksService {
     public Map<String, Object> createTask(long companyId, long userId, Map<String, Object> payload) {
         var command = parseTaskCommand(payload, ALLOWED_STATUSES, ALLOWED_PRIORITIES);
         validateReferences(companyId, command);
+        var currentUserCompanyId = currentUserCompanyId(companyId, userId);
+        var assignedUserCompanyId = command.assignedUserCompanyId() != null
+                ? command.assignedUserCompanyId()
+                : currentUserCompanyId;
         var assignedUserCompany = requireActiveUserCompany(
                 companyId,
-                command.assignedUserCompanyId(),
+                assignedUserCompanyId,
                 "Assigned user not found.");
 
-        var currentUserCompanyId = currentUserCompanyId(companyId, userId);
         var lifecycle = lifecycleForCreate(command.status(), userId, currentUserCompanyId);
         var audited = Boolean.TRUE.equals(command.audited());
         var auditedAt = audited ? LocalDateTime.now() : null;

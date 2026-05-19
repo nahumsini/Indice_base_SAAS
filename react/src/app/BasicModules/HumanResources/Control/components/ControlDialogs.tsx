@@ -38,7 +38,7 @@ export interface ControlWorkSiteForm {
   end_time: string;
 }
 
-type KioskType = 'business_unit' | 'contract_site' | 'head_office';
+type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
 
 const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
 const dateInputValue = (date = new Date()) => {
@@ -85,7 +85,7 @@ const withContractSiteTime = (
   };
 };
 
-const kioskTypeOptions: KioskType[] = ['business_unit', 'contract_site', 'head_office'];
+const kioskTypeOptions: KioskType[] = ['business_unit', 'contract_site', 'head_office', 'open_attendance'];
 
 const kioskTypeFromMetadata = (metadata?: Record<string, unknown>): KioskType => {
   const value = typeof metadata?.kiosk_type === 'string' ? metadata.kiosk_type : '';
@@ -103,14 +103,62 @@ const isContractSiteLocation = (location: AttendanceControlLocation) =>
 const isBusinessStructureLocation = (location: AttendanceControlLocation) =>
   (location.managed_source ?? '').toLowerCase() === 'business_structure';
 
+const normalizeLocationLabel = (value?: string | null) =>
+  (value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+
+const headOfficeExactKeys = new Set([
+  'corporateoffice',
+  'oficinacorporativa',
+  'sedecorporativa',
+  'headquarter',
+  'headquarters',
+  'headoffice',
+  'mainoffice',
+  'oficinacentral',
+]);
+
+const headOfficeContainsKeys = [
+  'corporateoffice',
+  'oficinacorporativa',
+  'sedecorporativa',
+  'headoffice',
+  'mainoffice',
+  'oficinacentral',
+];
+
+const isHeadOfficeLocation = (location: AttendanceControlLocation) => {
+  if (!isBusinessStructureLocation(location)) {
+    return false;
+  }
+  if (!location.business_id) {
+    return true;
+  }
+
+  const labels = [location.name, location.unit_name, location.business_name]
+    .map(normalizeLocationLabel)
+    .filter(Boolean);
+
+  return labels.some((label) =>
+    headOfficeExactKeys.has(label) || headOfficeContainsKeys.some((key) => label.includes(key))
+  );
+};
+
 const locationMatchesKioskType = (location: AttendanceControlLocation, kioskType: KioskType) => {
   if (kioskType === 'contract_site') {
     return isContractSiteLocation(location);
   }
-  if (kioskType === 'head_office') {
-    return isBusinessStructureLocation(location) && !location.business_id;
+  if (kioskType === 'open_attendance') {
+    return false;
   }
-  return isBusinessStructureLocation(location) && Boolean(location.business_id);
+  if (kioskType === 'head_office') {
+    return isHeadOfficeLocation(location);
+  }
+  return isBusinessStructureLocation(location) && Boolean(location.business_id) && !isHeadOfficeLocation(location);
 };
 
 const isActiveLocation = (location: AttendanceControlLocation) => (location.status ?? 'active') !== 'inactive';
@@ -809,9 +857,7 @@ export function ControlKioskDialog({
 }) {
   const kioskType = kioskTypeFromMetadata(form.metadata);
   const activeLocations = locations.filter(isActiveLocation);
-  const businessStructureLocations = activeLocations.filter((location) =>
-    isBusinessStructureLocation(location) && Boolean(location.business_id)
-  );
+  const businessStructureLocations = activeLocations.filter((location) => locationMatchesKioskType(location, 'business_unit'));
   const availableLocations = activeLocations.filter((location) => locationMatchesKioskType(location, kioskType));
   const selectedLocation = locations.find((location) => location.id === form.location_id) ?? null;
   const unitOptions = Array.from(
@@ -840,20 +886,45 @@ export function ControlKioskDialog({
     .sort((first, second) => first.name.localeCompare(second.name));
   const selectedUnit = unitOptions.find((unit) => unit.id === form.unit_id) ?? null;
   const selectedBusiness = businessOptions.find((business) => business.id === form.business_id) ?? null;
-  const selectedScopeLabel = kioskType === 'business_unit'
-    ? form.business_id
-      ? [selectedBusiness?.unitName || selectedUnit?.name || copy.labels.allUnits, selectedBusiness?.name || copy.labels.noBusiness].join(' / ')
-      : form.unit_id
-        ? [selectedUnit?.name || copy.labels.noUnit, copy.labels.allBusinesses].join(' / ')
-        : [copy.labels.allUnits, copy.labels.allBusinesses].join(' / ')
-    : selectedLocation
+  const selectedScopeLabel = (() => {
+    if (kioskType === 'open_attendance') {
+      return 'All employees / location not enforced';
+    }
+    if (kioskType === 'business_unit') {
+      if (form.business_id) {
+        return [
+          selectedBusiness?.unitName || selectedUnit?.name || copy.labels.allUnits,
+          selectedBusiness?.name || copy.labels.noBusiness,
+        ].join(' / ');
+      }
+      if (form.unit_id) {
+        return [selectedUnit?.name || copy.labels.noUnit, copy.labels.allBusinesses].join(' / ');
+      }
+      return [copy.labels.allUnits, copy.labels.allBusinesses].join(' / ');
+    }
+    return selectedLocation
       ? [selectedLocation.unit_name || copy.labels.noUnit, selectedLocation.business_name || copy.labels.noBusiness].join(' / ')
       : copy.labels.noLinkedLocation;
+  })();
   const isBusinessUnitKiosk = kioskType === 'business_unit';
-  const requiresLocation = kioskType !== 'business_unit';
+  const isOpenAttendanceKiosk = kioskType === 'open_attendance';
+  const requiresLocation = kioskType !== 'business_unit' && kioskType !== 'open_attendance';
   const canSave = !isSaving && form.code.trim().length > 0 && form.name.trim().length > 0 && (!requiresLocation || Boolean(form.location_id));
   const updateKioskType = (nextType: KioskType) => {
     const currentLocation = locations.find((location) => location.id === form.location_id);
+    if (nextType === 'open_attendance') {
+      onChange({
+        ...form,
+        unit_id: null,
+        business_id: null,
+        location_id: null,
+        name: form.name || 'Open Attendance Point',
+        code: form.code || defaultKioskScopeCode('Open Attendance', `open-attendance-${Date.now().toString(36).slice(-5)}`),
+        metadata: withKioskType(form.metadata, nextType),
+      });
+      return;
+    }
+
     if (nextType === 'business_unit') {
       const nextUnitId = currentLocation && isBusinessStructureLocation(currentLocation)
         ? currentLocation.unit_id ?? null
@@ -922,6 +993,7 @@ export function ControlKioskDialog({
       canSave={canSave}
       form={form}
       isBusinessUnitKiosk={isBusinessUnitKiosk}
+      isOpenAttendanceKiosk={isOpenAttendanceKiosk}
       isEditing={isEditing}
       isOpen={isOpen}
       isSaving={isSaving}

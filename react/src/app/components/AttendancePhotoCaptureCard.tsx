@@ -20,6 +20,14 @@ interface AttendancePhotoCaptureCardProps {
   photo: AttendancePhotoSelection | null;
   disabled?: boolean;
   showGalleryUpload?: boolean;
+  className?: string;
+  videoClassName?: string;
+  photoClassName?: string;
+  actionClassName?: string;
+  primaryButtonClassName?: string;
+  showEmptyPreview?: boolean;
+  emptyPreviewLabel?: string;
+  emptyPreviewClassName?: string;
   onPhotoChange: (photo: AttendancePhotoSelection | null) => void;
   onError: (message: string) => void;
   errors: {
@@ -41,6 +49,14 @@ export function AttendancePhotoCaptureCard({
   photo,
   disabled = false,
   showGalleryUpload = true,
+  className,
+  videoClassName,
+  photoClassName,
+  actionClassName,
+  primaryButtonClassName,
+  showEmptyPreview = false,
+  emptyPreviewLabel,
+  emptyPreviewClassName,
   onPhotoChange,
   onError,
   errors,
@@ -188,7 +204,7 @@ export function AttendancePhotoCaptureCard({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div className={className ?? 'rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800'}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-[#8bb3ff]">
@@ -215,10 +231,14 @@ export function AttendancePhotoCaptureCard({
       {isCameraOpen ? (
         <>
           <div className="mb-4 overflow-hidden rounded-lg border border-gray-200 bg-black dark:border-gray-700">
-            <video ref={videoRef} playsInline muted className="h-64 w-full object-cover" />
+            <video ref={videoRef} playsInline muted className={videoClassName ?? 'h-64 w-full object-cover'} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Button type="button" className="bg-[#143675] text-white hover:bg-[#0f2855]" onClick={capturePhoto}>
+            <Button
+              type="button"
+              className={primaryButtonClassName ?? 'bg-[#143675] text-white hover:bg-[#0f2855]'}
+              onClick={capturePhoto}
+            >
               {captureLabel}
             </Button>
             <Button type="button" variant="outline" onClick={stopCamera}>
@@ -228,7 +248,7 @@ export function AttendancePhotoCaptureCard({
         </>
       ) : (
         <>
-          <div className={`mb-4 grid grid-cols-1 gap-3 ${showGalleryUpload ? 'sm:grid-cols-2' : ''}`}>
+          <div className={actionClassName ?? `mb-4 grid grid-cols-1 gap-3 ${showGalleryUpload ? 'sm:grid-cols-2' : ''}`}>
             <Button
               type="button"
               variant="outline"
@@ -255,11 +275,18 @@ export function AttendancePhotoCaptureCard({
             ) : null}
           </div>
 
+          {!photo && showEmptyPreview ? (
+            <div className={emptyPreviewClassName ?? 'mb-4 flex h-40 w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 text-center text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'}>
+              <Camera className="h-8 w-8" />
+              <p className="mt-2 text-sm font-medium">{emptyPreviewLabel ?? helperText}</p>
+            </div>
+          ) : null}
+
           {photo ? (
             <img
               src={photo.previewUrl}
               alt={title}
-              className="mb-4 h-40 w-full rounded-lg object-cover"
+              className={photoClassName ?? 'mb-4 h-40 w-full rounded-lg object-cover'}
             />
           ) : null}
         </>

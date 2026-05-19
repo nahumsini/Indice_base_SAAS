@@ -104,6 +104,10 @@ public class AttendanceKioskDeviceService {
         Long businessId,
         Long locationId
     ) {
+        if (AttendanceKioskType.OPEN_ATTENDANCE.equals(kioskType)) {
+            return new KioskDeviceScope(null, null, null);
+        }
+
         if (AttendanceKioskType.BUSINESS_UNIT.equals(kioskType)) {
             if (kioskLocation != null) {
                 AttendanceKioskType.validateLocationPurpose(kioskType, kioskLocation);

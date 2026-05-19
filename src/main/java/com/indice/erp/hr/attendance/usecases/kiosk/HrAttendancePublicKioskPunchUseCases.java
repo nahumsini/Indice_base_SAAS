@@ -1,7 +1,10 @@
 package com.indice.erp.hr.attendance.usecases.kiosk;
 
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskType;
 import com.indice.erp.hr.attendance.usecases.photo.HrAttendancePhotoUseCases;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -38,6 +41,8 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         if ("terminated".equals(user.status())) {
             throw new IllegalArgumentException("This user is terminated and cannot record attendance.");
         }
+        var kioskType = kioskTypeFromDevice(kioskDevice);
+        var isOpenAttendanceKiosk = AttendanceKioskType.OPEN_ATTENDANCE.equals(kioskType);
         validatePublicKioskScope(kioskDevice, user);
 
         var eventType = normalizePublicKioskEventType(stringValue(payload, "event_type", "event_kind"));
@@ -47,8 +52,12 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         }
         validateOperationalEventDate(eventType, eventTimestamp);
 
-        var latitude = parseDecimalRequired(payload, "latitude");
-        var longitude = parseDecimalRequired(payload, "longitude");
+        var latitude = isOpenAttendanceKiosk
+            ? parseOptionalDecimalPairValue(payload, "latitude", "longitude")
+            : parseDecimalRequired(payload, "latitude");
+        var longitude = isOpenAttendanceKiosk
+            ? parseOptionalDecimalPairValue(payload, "longitude", "latitude")
+            : parseDecimalRequired(payload, "longitude");
         var faceVerificationSessionId = normalizeOptionalForeignKey(parseLong(payload, "face_verification_session_id"));
         var photoObjectKey = attendancePhotoService.normalizeAttendancePhotoObjectKey(kioskDevice.companyId(), user.id(), stringValue(payload, "photo_url"));
         var hasFaceVerification = faceVerificationSessionId != null;
@@ -69,16 +78,18 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         var attendanceDate = resolveOperationalAttendanceDate(kioskDevice.companyId(), user.id(), eventTimestamp, eventType);
         var scheduleRule = loadScheduleRule(kioskDevice.companyId(), user.id(), attendanceDate);
         var activeWorkSite = loadActiveWorkSiteAssignment(kioskDevice.companyId(), user.id(), attendanceDate);
-        var location = resolveScheduleRegistrationLocation(
-            kioskDevice.companyId(),
-            user,
-            scheduleRule,
-            eventType,
-            publicKioskRequestedLocationId(kioskDevice),
-            latitude,
-            longitude,
-            activeWorkSite
-        );
+        var location = isOpenAttendanceKiosk
+            ? null
+            : resolveScheduleRegistrationLocation(
+                kioskDevice.companyId(),
+                user,
+                scheduleRule,
+                eventType,
+                publicKioskRequestedLocationId(kioskDevice),
+                latitude,
+                longitude,
+                activeWorkSite
+            );
         validateScheduleRegistrationPolicy(scheduleRule, eventType, eventTimestamp, attendanceDate);
         validateOperationalEventTransition(kioskDevice.companyId(), user.id(), attendanceDate, eventTimestamp, eventType);
 
@@ -88,6 +99,8 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         systemMetadata.put("pin_verified", true);
         systemMetadata.put("identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback");
         systemMetadata.put("location_restricted", location != null);
+        systemMetadata.put("location_optional", isOpenAttendanceKiosk);
+        systemMetadata.put("gps_captured", latitude != null && longitude != null);
         systemMetadata.put("requires_review", !hasFaceVerification);
         systemMetadata.put("photo_storage", hasStoredFallbackPhoto ? "object_storage" : hasUnstoredFallbackPhoto ? "unavailable" : "none");
 
@@ -134,6 +147,25 @@ public abstract class HrAttendancePublicKioskPunchUseCases extends HrAttendanceP
         result.put("identity_evidence", hasFaceVerification ? "face_verified" : "photo_fallback");
         result.put("today_activity", toPublicKioskDayActivity(attendanceDate, dailyRecord, scheduleRule));
         return result;
+    }
+
+    private BigDecimal parseOptionalDecimalPairValue(Map<String, Object> payload, String key, String pairKey) {
+        var raw = stringValue(payload, key);
+        var pairRaw = stringValue(payload, pairKey);
+        if (raw.isBlank()) {
+            if (!pairRaw.isBlank()) {
+                throw new IllegalArgumentException(key + " is required when " + pairKey + " is provided.");
+            }
+            return null;
+        }
+        if (pairRaw.isBlank()) {
+            throw new IllegalArgumentException(pairKey + " is required when " + key + " is provided.");
+        }
+        try {
+            return new BigDecimal(raw).setScale(7, RoundingMode.HALF_UP);
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(key + " must be a valid decimal.");
+        }
     }
 
     private boolean hasCapturedFallbackPhotoEvidence(Map<String, Object> payload) {

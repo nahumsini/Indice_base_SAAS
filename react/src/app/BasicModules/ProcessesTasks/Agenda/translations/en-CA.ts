@@ -42,7 +42,8 @@ export const enCA = {
     status: 'Status',
   },
   periods: {
-    today: 'Daily agenda',
+    mine: 'My agenda',
+    team: 'Team agenda',
     week: 'This week',
     month: 'This month',
     overdue: 'Overdue',

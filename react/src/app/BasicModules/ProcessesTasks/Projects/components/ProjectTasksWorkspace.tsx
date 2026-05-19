@@ -54,6 +54,7 @@ import {
 } from '../../../../components/ui/table';
 import { Textarea } from '../../../../components/ui/textarea';
 import { cn } from '../../../../components/ui/utils';
+import { authApi } from '../../../../api/auth';
 import { accentButtonClass } from '../../Processes/processesData';
 import type {
   ProcessBusinessOption,
@@ -900,6 +901,7 @@ export function ProjectTasksWorkspace({
   const [tasks, setTasks] = useState<AgendaTaskItem[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [tasksError, setTasksError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [responsibleFilter, setResponsibleFilter] = useState<OptionFilter>('all');
@@ -936,6 +938,29 @@ export function ProjectTasksWorkspace({
       setIsLoadingTasks(false);
     }
   }, [copy.messages.loadTasks, project]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        const session = await authApi.getSessionOrNull();
+        if (isMounted) {
+          setCurrentUserId(session?.user.id ?? null);
+        }
+      } catch {
+        if (isMounted) {
+          setCurrentUserId(null);
+        }
+      }
+    };
+
+    void loadCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setTaskForm(createDefaultTaskForm(project));
@@ -987,6 +1012,56 @@ export function ProjectTasksWorkspace({
       ),
     [collaboratorOptions, headquarterUnitIds],
   );
+
+  const currentUserCollaborator = useMemo(
+    () =>
+      currentUserId == null
+        ? null
+        : collaboratorOptions.find((collaborator) => collaborator.userId === currentUserId) ?? null,
+    [collaboratorOptions, currentUserId],
+  );
+
+  const createDefaultTaskFormForCurrentUser = () => {
+    const defaultForm = {
+      ...createDefaultTaskForm(project),
+      assignedUserCompanyId: '',
+      assignedName: '',
+    };
+
+    if (!currentUserCollaborator) {
+      return defaultForm;
+    }
+
+    return {
+      ...defaultForm,
+      assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+      assignedName: currentUserCollaborator.name,
+    };
+  };
+
+  useEffect(() => {
+    if (!isTaskDialogOpen || taskDialogMode !== 'create' || !currentUserCollaborator) {
+      return;
+    }
+
+    setTaskForm((currentForm) => {
+      const projectOwnerUserCompanyId = project.ownerUserCompanyId?.toString() ?? '';
+      const projectOwnerName = project.ownerName ?? '';
+      const stillUsingProjectOwnerDefault =
+        currentForm.assignedUserCompanyId === projectOwnerUserCompanyId &&
+        currentForm.assignedName === projectOwnerName;
+
+      if (currentForm.assignedUserCompanyId && !stillUsingProjectOwnerDefault) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+        assignedName: currentUserCollaborator.name,
+      };
+    });
+  }, [currentUserCollaborator, isTaskDialogOpen, project.ownerName, project.ownerUserCompanyId, taskDialogMode]);
 
   const responsibleOptions = useMemo(
     () =>
@@ -1090,7 +1165,8 @@ export function ProjectTasksWorkspace({
 
   const handleCreateTaskClick = () => {
     setTaskDialogMode('create');
-    resetTaskForm();
+    setEditingTaskId(null);
+    setTaskForm(createDefaultTaskFormForCurrentUser());
     setIsTaskDialogOpen(true);
   };
 

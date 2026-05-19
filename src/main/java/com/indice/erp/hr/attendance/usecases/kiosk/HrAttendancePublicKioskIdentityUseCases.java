@@ -25,6 +25,7 @@ public abstract class HrAttendancePublicKioskIdentityUseCases extends HrAttendan
         var kioskDevice = attendanceKioskDeviceRepository.getByPublicAccessToken(deviceToken);
         var location = loadPublicKioskLocation(kioskDevice);
         var authMethods = attendanceAccessService.determinePublicKioskAuthMethods(kioskDevice.companyId());
+        var kioskType = kioskTypeFromDevice(kioskDevice);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("kiosk_device", Map.of(
@@ -32,6 +33,7 @@ public abstract class HrAttendancePublicKioskIdentityUseCases extends HrAttendan
             "code", kioskDevice.code(),
             "name", kioskDevice.name()
         ));
+        body.put("kiosk_type", kioskType);
         body.put("location", location == null ? null : toLocationMap(location));
         body.put("scope_label", describeKioskScope(kioskDevice, location));
         body.put("auth_methods", authMethods);

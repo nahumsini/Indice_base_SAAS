@@ -1,8 +1,10 @@
 package com.indice.erp.hr.attendance.kiosk;
 
 import com.indice.erp.hr.attendance.models.LocationRow;
+import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import static com.indice.erp.hr.shared.HrPayloadUtils.isBlank;
 import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
@@ -14,6 +16,25 @@ public final class AttendanceKioskType {
     public static final String BUSINESS_UNIT = "business_unit";
     public static final String CONTRACT_SITE = "contract_site";
     public static final String HEAD_OFFICE = "head_office";
+    public static final String OPEN_ATTENDANCE = "open_attendance";
+    private static final Set<String> HEAD_OFFICE_EXACT_KEYS = Set.of(
+        "corporateoffice",
+        "oficinacorporativa",
+        "sedecorporativa",
+        "headquarter",
+        "headquarters",
+        "headoffice",
+        "mainoffice",
+        "oficinacentral"
+    );
+    private static final Set<String> HEAD_OFFICE_CONTAINS_KEYS = Set.of(
+        "corporateoffice",
+        "oficinacorporativa",
+        "sedecorporativa",
+        "headoffice",
+        "mainoffice",
+        "oficinacentral"
+    );
 
     private AttendanceKioskType() {
     }
@@ -30,6 +51,7 @@ public final class AttendanceKioskType {
             case "business", "unit", "business_unit", "business_unit_kiosk" -> BUSINESS_UNIT;
             case "contract", "contract_site", "contract_site_kiosk", "site" -> CONTRACT_SITE;
             case "hq", "headquarters", "head_office", "head_office_kiosk", "holding", "holding_identity" -> HEAD_OFFICE;
+            case "open", "open_attendance", "open_attendance_kiosk", "open_kiosk", "unrestricted" -> OPEN_ATTENDANCE;
             default -> throw new IllegalArgumentException("Unsupported kiosk type.");
         };
     }
@@ -44,7 +66,7 @@ public final class AttendanceKioskType {
         if ("contract_site".equals(managedSource)) {
             return CONTRACT_SITE;
         }
-        if ("business_structure".equals(managedSource) && location != null && location.businessId() == null) {
+        if ("business_structure".equals(managedSource) && isHeadOfficeLocation(location)) {
             return HEAD_OFFICE;
         }
         return BUSINESS_UNIT;
@@ -66,7 +88,7 @@ public final class AttendanceKioskType {
             return;
         }
         if (HEAD_OFFICE.equals(kioskType)) {
-            if (!"business_structure".equals(managedSource) || location.businessId() != null) {
+            if (!"business_structure".equals(managedSource) || !isHeadOfficeLocation(location)) {
                 throw new IllegalArgumentException("Head office kiosks must use the company head office location.");
             }
             return;
@@ -74,5 +96,36 @@ public final class AttendanceKioskType {
         if (!"business_structure".equals(managedSource) || location.businessId() == null) {
             throw new IllegalArgumentException("Business / Unit kiosks must use a business attendance location.");
         }
+    }
+
+    private static boolean isHeadOfficeLocation(LocationRow location) {
+        if (location == null) {
+            return false;
+        }
+        if (location.businessId() == null) {
+            return true;
+        }
+
+        return hasHeadOfficeName(location.name())
+            || hasHeadOfficeName(location.unitName())
+            || hasHeadOfficeName(location.businessName());
+    }
+
+    private static boolean hasHeadOfficeName(String value) {
+        var normalized = normalizeNameKey(value);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        return HEAD_OFFICE_EXACT_KEYS.contains(normalized)
+            || HEAD_OFFICE_CONTAINS_KEYS.stream().anyMatch(normalized::contains);
+    }
+
+    private static String normalizeNameKey(String value) {
+        if (isBlank(value)) {
+            return "";
+        }
+        return Normalizer.normalize(value.trim().toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "")
+            .replaceAll("[^a-z0-9]+", "");
     }
 }

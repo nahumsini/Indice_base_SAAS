@@ -4,6 +4,7 @@ import com.indice.erp.hr.attendance.models.ControlActivityRow;
 import com.indice.erp.hr.attendance.usecases.events.HrAttendanceEventTransitionSupport;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
         body.put("auth_method", event.authMethod());
         body.put("result_status", event.resultStatus());
         body.put("event_timestamp", toIsoString(event.eventTimestamp()));
+        body.put("photo_url", attendancePhotoService.signedAttendancePhotoUrl(event.photoObjectKey()));
         body.put("notes", event.notes());
         body.put("metadata", parseJsonMap(event.metadataJson()));
         return body;
@@ -54,6 +56,7 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
                        COALESCE(e.auth_method, '') AS auth_method,
                        COALESCE(e.result_status, '') AS result_status,
                        e.event_timestamp,
+                       COALESCE(e.photo_url, '') AS photo_object_key,
                        COALESCE(e.notes, '') AS notes,
                        COALESCE(CAST(e.metadata_json AS CHAR), '') AS metadata_json
                 FROM user_attendance_events e
@@ -79,6 +82,7 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
                 safe(rs.getString("auth_method")),
                 safe(rs.getString("result_status")),
                 toLocalDateTime(rs.getTimestamp("event_timestamp")),
+                safe(rs.getString("photo_object_key")),
                 safe(rs.getString("notes")),
                 safe(rs.getString("metadata_json"))
             ),
@@ -86,5 +90,38 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
             date,
             limit
         );
+    }
+
+    protected Map<Long, Map<String, String>> loadControlPhotoObjectKeysByUser(long companyId, LocalDate date) {
+        var photosByUser = new HashMap<Long, Map<String, String>>();
+        jdbcTemplate.query(
+            """
+                SELECT e.user_company_id,
+                       COALESCE(e.event_type, '') AS event_type,
+                       COALESCE(e.photo_url, '') AS photo_object_key
+                FROM user_attendance_events e
+                WHERE e.company_id = ?
+                  AND e.attendance_date = ?
+                  AND e.event_type IN ('check_in', 'check_out')
+                  AND COALESCE(TRIM(e.photo_url), '') <> ''
+                  AND COALESCE(e.result_status, 'success') IN ('success', 'overridden')
+                ORDER BY e.event_timestamp ASC, e.id ASC
+                """,
+            rs -> {
+                var userCompanyId = rs.getLong("user_company_id");
+                var eventType = safe(rs.getString("event_type"));
+                var photoObjectKey = safe(rs.getString("photo_object_key"));
+                var userPhotos = photosByUser.computeIfAbsent(userCompanyId, ignored -> new HashMap<>());
+
+                if ("check_in".equals(eventType)) {
+                    userPhotos.putIfAbsent("first_check_in", photoObjectKey);
+                } else if ("check_out".equals(eventType)) {
+                    userPhotos.put("last_check_out", photoObjectKey);
+                }
+            },
+            companyId,
+            date
+        );
+        return photosByUser;
     }
 }

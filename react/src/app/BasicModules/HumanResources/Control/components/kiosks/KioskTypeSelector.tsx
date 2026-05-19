@@ -1,6 +1,6 @@
-import { Building2, MapPin, Warehouse } from 'lucide-react';
+import { Building2, Globe2, MapPin, Warehouse, type LucideIcon } from 'lucide-react';
 
-export type KioskType = 'business_unit' | 'contract_site' | 'head_office';
+export type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
 
 export interface KioskTypeSelectorProps {
   value: KioskType;
@@ -11,7 +11,7 @@ const kioskTypeOptions: Array<{
   value: KioskType;
   label: string;
   description: string;
-  Icon: typeof Building2;
+  Icon: LucideIcon;
 }> = [
   {
     value: 'business_unit',
@@ -31,11 +31,17 @@ const kioskTypeOptions: Array<{
     description: 'For central office attendance registration.',
     Icon: Warehouse,
   },
+  {
+    value: 'open_attendance',
+    label: 'Open attendance',
+    description: 'For teams that can clock in and out from any location.',
+    Icon: Globe2,
+  },
 ];
 
 export function KioskTypeSelector({ value, onChange }: KioskTypeSelectorProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {kioskTypeOptions.map(({ value: optionValue, label, description, Icon }) => {
         const isSelected = value === optionValue;
         return (

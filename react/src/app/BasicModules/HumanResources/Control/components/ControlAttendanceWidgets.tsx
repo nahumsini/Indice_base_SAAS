@@ -98,6 +98,8 @@ export function ControlAttendanceRow({
   const checkOutTime = formatTimeOnly(assignment.last_check_out_at, locale, copy.labels.noRegistration);
   const role = assignment.position_title || assignment.department || copy.labels.noDepartment;
   const workLocation = assignment.active_work_site?.location_name ?? assignment.business_name ?? assignment.unit_name ?? '';
+  const latestCheckInPhotoUrl = assignment.latest_event?.event_type === 'check_in' ? assignment.latest_event.photo_url ?? null : null;
+  const latestCheckOutPhotoUrl = assignment.latest_event?.event_type === 'check_out' ? assignment.latest_event.photo_url ?? null : null;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -140,7 +142,7 @@ export function ControlAttendanceRow({
             label={copy.labels.checkIn}
             time={checkInTime}
             location={assignment.first_location?.name ?? assignment.latest_event?.location_name ?? null}
-            photoUrl={assignment.first_photo_url ?? null}
+            photoUrl={assignment.first_photo_url ?? latestCheckInPhotoUrl}
             latitude={assignment.first_latitude ?? null}
             longitude={assignment.first_longitude ?? null}
             copy={copy}
@@ -150,7 +152,7 @@ export function ControlAttendanceRow({
             label={copy.labels.checkOut}
             time={checkOutTime}
             location={assignment.last_location?.name ?? assignment.latest_event?.location_name ?? null}
-            photoUrl={assignment.last_photo_url ?? null}
+            photoUrl={assignment.last_photo_url ?? latestCheckOutPhotoUrl}
             latitude={assignment.last_latitude ?? null}
             longitude={assignment.last_longitude ?? null}
             copy={copy}

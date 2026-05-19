@@ -42,7 +42,7 @@ public abstract class HrAttendanceKioskScopeSupport extends HrAttendanceLocation
 
     protected Long publicKioskRequestedLocationId(KioskDeviceRow kioskDevice) {
         var kioskType = kioskTypeFromDevice(kioskDevice);
-        if (AttendanceKioskType.BUSINESS_UNIT.equals(kioskType)) {
+        if (AttendanceKioskType.BUSINESS_UNIT.equals(kioskType) || AttendanceKioskType.OPEN_ATTENDANCE.equals(kioskType)) {
             return null;
         }
         return requirePublicKioskLocation(kioskDevice).id();
@@ -50,6 +50,9 @@ public abstract class HrAttendanceKioskScopeSupport extends HrAttendanceLocation
 
     protected String describeKioskScope(KioskDeviceRow kioskDevice, LocationRow location) {
         var kioskType = kioskTypeFromDevice(kioskDevice);
+        if (AttendanceKioskType.OPEN_ATTENDANCE.equals(kioskType)) {
+            return "All employees / location not enforced";
+        }
         if (!AttendanceKioskType.BUSINESS_UNIT.equals(kioskType)) {
             return location == null ? "Kiosk location" : location.name();
         }

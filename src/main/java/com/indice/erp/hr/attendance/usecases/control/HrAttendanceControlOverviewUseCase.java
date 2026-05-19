@@ -40,6 +40,7 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
         var accessProfilesByUser = attendanceAccessService.loadAccessProfilesByUser(companyId);
         var kioskDevices = attendanceKioskDeviceRepository.list(companyId);
         var recentEvents = loadRecentControlActivity(companyId, date, 25);
+        var photoObjectKeysByUser = loadControlPhotoObjectKeysByUser(companyId, date);
         var latestEventByUser = new HashMap<Long, ControlActivityRow>();
         int authSuccessCount = 0;
         int authFailureCount = 0;
@@ -97,6 +98,14 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
                 recordsTodayCount++;
             }
 
+            var photoObjectKeys = photoObjectKeysByUser.get(user.id());
+            var firstPhotoObjectKey = dailyRecord != null && !isBlank(dailyRecord.firstPhotoObjectKey())
+                ? dailyRecord.firstPhotoObjectKey()
+                : photoObjectKeys == null ? null : photoObjectKeys.get("first_check_in");
+            var lastPhotoObjectKey = dailyRecord != null && !isBlank(dailyRecord.lastPhotoObjectKey())
+                ? dailyRecord.lastPhotoObjectKey()
+                : photoObjectKeys == null ? null : photoObjectKeys.get("last_check_out");
+
             var item = new LinkedHashMap<String, Object>();
             item.put("user_company_id", user.id());
             item.put("user_code", user.userCode());
@@ -125,8 +134,8 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
             item.put("last_check_out_at", dailyRecord != null ? toIsoString(dailyRecord.lastCheckOutAt()) : null);
             item.put("first_location", dailyRecord != null ? toLocationMap(dailyRecord.firstLocation()) : null);
             item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
-            item.put("first_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
-            item.put("last_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
+            item.put("first_photo_url", attendancePhotoService.signedAttendancePhotoUrl(firstPhotoObjectKey));
+            item.put("last_photo_url", attendancePhotoService.signedAttendancePhotoUrl(lastPhotoObjectKey));
             item.put("first_latitude", dailyRecord != null ? dailyRecord.firstLatitude() : null);
             item.put("first_longitude", dailyRecord != null ? dailyRecord.firstLongitude() : null);
             item.put("last_latitude", dailyRecord != null ? dailyRecord.lastLatitude() : null);
