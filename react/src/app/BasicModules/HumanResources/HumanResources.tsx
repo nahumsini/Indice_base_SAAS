@@ -48,7 +48,7 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
 
 export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   const t = useHRLanguage();
-  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
+  const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
     'collaborators',
     humanResourcesTabIds,
     legacyHumanResourcesTabAliases,
@@ -80,12 +80,6 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <LoadingBarOverlay
-        isVisible={isTabLoading}
-        title="Loading HR tab"
-        description="Opening the selected human resources workspace."
-      />
-
       {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
