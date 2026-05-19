@@ -20,7 +20,7 @@ interface CreatePermissionModalProps {
   copy: PermissionsTranslations;
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: PermissionFormData) => void;
+  onSubmit: (data: PermissionFormData) => Promise<void>;
 }
 
 export interface PermissionFormData {
@@ -49,6 +49,20 @@ export function CreatePermissionModal({ copy, isOpen, onClose, onSubmit }: Creat
   });
   const [fileName, setFileName] = useState('');
   const [totalDays, setTotalDays] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  const resetForm = () => {
+    setFormData({
+      type: '',
+      startDate: '',
+      endDate: '',
+      halfDay: false,
+      reason: '',
+    });
+    setFileName('');
+    setSubmitError('');
+  };
 
   useEffect(() => {
     if (!formData.startDate || !formData.endDate) {
@@ -64,32 +78,39 @@ export function CreatePermissionModal({ copy, isOpen, onClose, onSubmit }: Creat
   }, [formData.endDate, formData.halfDay, formData.startDate]);
 
   const handleClose = () => {
-    setFormData({
-      type: '',
-      startDate: '',
-      endDate: '',
-      halfDay: false,
-      reason: '',
-    });
-    setFileName('');
+    if (isSubmitting) {
+      return;
+    }
+
+    resetForm();
     onClose();
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!formData.type) {
       return;
     }
 
-    onSubmit({
-      type: formData.type,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      halfDay: formData.halfDay,
-      reason: formData.reason.trim(),
-      attachment: formData.attachment,
-    });
-    handleClose();
+    setIsSubmitting(true);
+    setSubmitError('');
+
+    try {
+      await onSubmit({
+        type: formData.type,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        halfDay: formData.halfDay,
+        reason: formData.reason.trim(),
+        attachment: formData.attachment,
+      });
+      resetForm();
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : copy.errors.create);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -222,14 +243,20 @@ export function CreatePermissionModal({ copy, isOpen, onClose, onSubmit }: Creat
             </p>
           </div>
 
+          {submitError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+              {submitError}
+            </div>
+          ) : null}
+
           <div className="flex justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-            <Button type="button" variant="outline" onClick={handleClose}>{copy.modal.cancel}</Button>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>{copy.modal.cancel}</Button>
             <Button
               type="submit"
               className="bg-blue-600 text-white hover:bg-blue-700"
-              disabled={!formData.type || !formData.startDate || !formData.endDate || !formData.reason.trim()}
+              disabled={isSubmitting || !formData.type || !formData.startDate || !formData.endDate || !formData.reason.trim()}
             >
-              {copy.modal.submit}
+              {isSubmitting ? copy.modal.submitting : copy.modal.submit}
             </Button>
           </div>
         </form>

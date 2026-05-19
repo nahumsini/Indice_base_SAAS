@@ -1,4 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { authApi } from '../../../api/auth';
+import {
+  permissionsApi,
+  type PermissionDetailsResponse,
+  type PermissionsListResponse,
+} from '../../../api/HumanResources/permissions';
+import { setCachedAuthSession } from '../../../api/authSessionStore';
+import { FailureToast } from '../../../components/FailureToast';
+import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
+import { SuccessToast } from '../../../components/SuccessToast';
+import { ApiClientError } from '../../../lib/apiClient';
 import { CreatePermissionModal, type PermissionFormData } from './components/CreatePermissionModal';
 import { PermissionColumnsModal, type PermissionColumn } from './components/PermissionColumnsModal';
 import { PermissionDetailModal } from './components/PermissionDetailModal';
@@ -6,9 +17,16 @@ import { PermissionFilters } from './components/PermissionFilters';
 import { PermissionHeaderBar } from './components/PermissionHeaderBar';
 import { PermissionKpiStrip } from './components/PermissionKpiStrip';
 import { PermissionsTable, type PermissionColumnId } from './components/PermissionsTable';
-import { mockPermissions } from './data/permissions.mock';
 import { usePermissionsResolvedLocale, usePermissionsTranslations } from './hooks/usePermissionsTranslations';
+import { emptyPermissionSummary, formatPermissionError, isPermissionManagementRole, mapBackendPermission } from './support/permissionsSupport';
 import type { PermissionItem, PermissionFilterState } from './types/permissions.types';
+
+const defaultFilters: PermissionFilterState = {
+  search: '',
+  status: 'all',
+  type: 'all',
+  employee: 'all',
+};
 
 const defaultVisiblePermissionColumns: PermissionColumnId[] = [
   'folio',
@@ -21,16 +39,31 @@ const defaultVisiblePermissionColumns: PermissionColumnId[] = [
   'actions',
 ];
 
+type PermissionViewMode = 'management' | 'self';
+
+const inferAttachmentContentType = (attachment: File) => {
+  if (attachment.type) {
+    return attachment.type;
+  }
+
+  const extension = attachment.name.split('.').pop()?.toLowerCase();
+  return {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+  }[extension ?? ''] ?? 'application/octet-stream';
+};
+
 export default function Permissions() {
   const copy = usePermissionsTranslations();
   const locale = usePermissionsResolvedLocale();
-  const [permissions, setPermissions] = useState<PermissionItem[]>(mockPermissions);
-  const [filters, setFilters] = useState<PermissionFilterState>({
-    search: '',
-    status: 'all',
-    type: 'all',
-    employee: 'all',
-  });
+  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
+  const [summary, setSummary] = useState(emptyPermissionSummary);
+  const [viewMode, setViewMode] = useState<PermissionViewMode>('self');
+  const [filters, setFilters] = useState<PermissionFilterState>(defaultFilters);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
@@ -38,8 +71,16 @@ export default function Permissions() {
     defaultVisiblePermissionColumns,
   );
   const [selectedPermission, setSelectedPermission] = useState<PermissionItem | null>(null);
+  const [busyPermissionId, setBusyPermissionId] = useState<string | null>(null);
+  const [loadingState, setLoadingState] = useState({
+    isVisible: false,
+    title: copy.loading.title,
+    description: copy.loading.description,
+  });
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const isManager = true;
+  const isManager = viewMode === 'management';
 
   const permissionColumns = useMemo<PermissionColumn[]>(
     () => [
@@ -55,85 +96,256 @@ export default function Permissions() {
     [copy],
   );
 
-  const filteredPermissions = useMemo(() => {
-    return permissions.filter((permission) => {
-      const searchLower = filters.search.toLowerCase().trim();
-      if (searchLower) {
-        const matchesSearch = permission.employee.name.toLowerCase().includes(searchLower)
-          || permission.folio.toLowerCase().includes(searchLower);
-        if (!matchesSearch) {
-          return false;
+  const filteredPermissions = useMemo(() => permissions.filter((permission) => {
+    const searchLower = filters.search.toLowerCase().trim();
+    if (searchLower) {
+      const matchesSearch = permission.employee.name.toLowerCase().includes(searchLower)
+        || permission.folio.toLowerCase().includes(searchLower);
+      if (!matchesSearch) {
+        return false;
+      }
+    }
+
+    if (filters.status !== 'all' && permission.status !== filters.status) {
+      return false;
+    }
+
+    if (filters.type !== 'all' && permission.type !== filters.type) {
+      return false;
+    }
+
+    if (filters.employee !== 'all' && permission.employee.name !== filters.employee) {
+      return false;
+    }
+
+    return true;
+  }), [filters, permissions]);
+
+  const redirectToLogin = () => {
+    setCachedAuthSession(null);
+    window.location.assign('/login');
+  };
+
+  const resolveErrorMessage = (error: unknown, fallbackMessage: string) => {
+    if (error instanceof ApiClientError && error.status === 401) {
+      redirectToLogin();
+    }
+    return formatPermissionError(error, fallbackMessage);
+  };
+
+  const runWithOverlay = async <T,>(
+    title: string,
+    description: string,
+    task: () => Promise<T>,
+  ) => {
+    setLoadingState({ isVisible: true, title, description });
+
+    try {
+      return await runWithMinimumDuration(task());
+    } finally {
+      setLoadingState((current) => ({ ...current, isVisible: false }));
+    }
+  };
+
+  const applyPermissionsResponse = (
+    response: PermissionsListResponse,
+    nextViewMode: PermissionViewMode,
+  ) => {
+    setPermissions(response.items.map(mapBackendPermission));
+    setSummary(response.summary ?? emptyPermissionSummary);
+    setViewMode(nextViewMode);
+  };
+
+  const fetchPermissions = async () => {
+    const session = await authApi.getSessionOrNull();
+    if (!session) {
+      redirectToLogin();
+      throw new Error(copy.errors.load);
+    }
+
+    if (isPermissionManagementRole(session.user.role)) {
+      try {
+        const response = await permissionsApi.listPermissions();
+        applyPermissionsResponse(response, 'management');
+        return response;
+      } catch (error) {
+        if (!(error instanceof ApiClientError) || error.status !== 403) {
+          throw error;
         }
       }
+    }
 
-      if (filters.status !== 'all' && permission.status !== filters.status) {
-        return false;
-      }
-
-      if (filters.type !== 'all' && permission.type !== filters.type) {
-        return false;
-      }
-
-      if (filters.employee !== 'all' && permission.employee.name !== filters.employee) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [filters, permissions]);
-
-  const stats = useMemo(() => {
-    return {
-      total: permissions.length,
-      pending: permissions.filter((permission) => permission.status === 'pending').length,
-      approved: permissions.filter((permission) => permission.status === 'approved').length,
-      rejected: permissions.filter((permission) => permission.status === 'rejected').length,
-    };
-  }, [permissions]);
-
-  const handleCreatePermission = (data: PermissionFormData) => {
-    const nextId = `${permissions.length + 1}`;
-    const startDate = new Date(data.startDate);
-    const endDate = new Date(data.endDate);
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-    const newPermission: PermissionItem = {
-      id: nextId,
-      folio: `PER-2026-${String(permissions.length + 1).padStart(3, '0')}`,
-      employee: {
-        name: 'Current User',
-        avatar: '',
-        initials: 'CU',
-      },
-      type: data.type,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      days: data.halfDay ? totalDays - 0.5 : totalDays,
-      status: 'pending',
-      reason: data.reason,
-      attachmentName: data.attachment?.name,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setPermissions((current) => [newPermission, ...current]);
-    setIsCreateModalOpen(false);
+    const response = await permissionsApi.listMyPermissions();
+    applyPermissionsResponse(response, 'self');
+    return response;
   };
 
-  const handleApprove = (id: string) => {
-    setPermissions((current) => current.map((permission) => (
-      permission.id === id
-        ? { ...permission, status: 'approved', updatedAt: new Date().toISOString() }
-        : permission
-    )));
+  const loadPermissions = async () => {
+    try {
+      await runWithOverlay(copy.loading.title, copy.loading.description, fetchPermissions);
+    } catch (error) {
+      setErrorMessage(resolveErrorMessage(error, copy.errors.load));
+    }
   };
 
-  const handleReject = (id: string) => {
-    setPermissions((current) => current.map((permission) => (
-      permission.id === id
-        ? { ...permission, status: 'rejected', updatedAt: new Date().toISOString() }
-        : permission
-    )));
+  useEffect(() => {
+    void loadPermissions();
+  }, [copy.errors.load, copy.loading.description, copy.loading.title]);
+
+  const refreshPermissions = async () => {
+    try {
+      await fetchPermissions();
+    } catch (error) {
+      setErrorMessage(resolveErrorMessage(error, copy.errors.load));
+    }
+  };
+
+  const fetchPermissionDetails = async (permissionId: string) => {
+    const response = isManager
+      ? await permissionsApi.getPermission(permissionId)
+      : await permissionsApi.getMyPermission(permissionId);
+    return mapBackendPermission(response.permission);
+  };
+
+  const handleViewPermission = async (permission: PermissionItem) => {
+    setSelectedPermission(permission);
+    setIsDetailModalOpen(true);
+
+    try {
+      const detailedPermission = await runWithOverlay(
+        copy.loading.detailsTitle,
+        copy.loading.detailsDescription,
+        () => fetchPermissionDetails(permission.id),
+      );
+      setSelectedPermission(detailedPermission);
+    } catch (error) {
+      setErrorMessage(resolveErrorMessage(error, copy.errors.details));
+    }
+  };
+
+  const uploadAttachmentIfNeeded = async (
+    response: PermissionDetailsResponse,
+    attachment?: File,
+  ) => {
+    if (!attachment) {
+      return response;
+    }
+
+    try {
+      const contentType = inferAttachmentContentType(attachment);
+      const presign = await permissionsApi.presignMyPermissionAttachmentUpload(response.permissionId, {
+        fileName: attachment.name,
+        contentType,
+        sizeBytes: attachment.size,
+      });
+      await permissionsApi.uploadMyPermissionAttachment(
+        presign.upload_url,
+        attachment,
+        contentType,
+        presign.upload_headers,
+      );
+      return await permissionsApi.registerMyPermissionAttachment(response.permissionId, {
+        original_filename: attachment.name,
+        mime_type: contentType,
+        size_bytes: attachment.size,
+        object_key: presign.object_key,
+      });
+    } catch (error) {
+      setErrorMessage(resolveErrorMessage(error, copy.errors.attachment));
+      return response;
+    }
+  };
+
+  const handleCreatePermission = async (data: PermissionFormData) => {
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      const response = await runWithOverlay(
+        copy.loading.savingTitle,
+        copy.loading.savingDescription,
+        async () => {
+          const created = await permissionsApi.createMyPermission({
+            type: data.type,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            halfDay: data.halfDay,
+            reason: data.reason,
+          });
+          const detailed = await uploadAttachmentIfNeeded(created, data.attachment);
+          setSelectedPermission(mapBackendPermission(detailed.permission));
+          await refreshPermissions();
+          return detailed;
+        },
+      );
+
+      setSelectedPermission(mapBackendPermission(response.permission));
+      setSuccessMessage(copy.success.created);
+    } catch (error) {
+      const message = resolveErrorMessage(error, copy.errors.create);
+      setErrorMessage(message);
+      throw new Error(message);
+    }
+  };
+
+  const handleReviewAction = async (
+    permissionId: string,
+    action: 'approve' | 'reject',
+  ) => {
+    setBusyPermissionId(permissionId);
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      const response = await runWithOverlay(
+        copy.loading.reviewingTitle,
+        copy.loading.reviewingDescription,
+        () => (
+          action === 'approve'
+            ? permissionsApi.approvePermission(permissionId)
+            : permissionsApi.rejectPermission(permissionId)
+        ),
+      );
+      const updatedPermission = mapBackendPermission(response.permission);
+      setSelectedPermission((current) => (current?.id === permissionId ? updatedPermission : current));
+      await refreshPermissions();
+      setSuccessMessage(action === 'approve' ? copy.success.approved : copy.success.rejected);
+    } catch (error) {
+      const message = resolveErrorMessage(
+        error,
+        action === 'approve' ? copy.errors.approve : copy.errors.reject,
+      );
+      setErrorMessage(message);
+      throw new Error(message);
+    } finally {
+      setBusyPermissionId(null);
+    }
+  };
+
+  const handleApprove = (permissionId: string) => handleReviewAction(permissionId, 'approve');
+  const handleReject = (permissionId: string) => handleReviewAction(permissionId, 'reject');
+
+  const handleDelete = async (permissionId: string) => {
+    setBusyPermissionId(permissionId);
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      await runWithOverlay(
+        copy.loading.deletingTitle,
+        copy.loading.deletingDescription,
+        () => permissionsApi.deleteMyPermission(permissionId),
+      );
+      setSelectedPermission((current) => (current?.id === permissionId ? null : current));
+      await refreshPermissions();
+      setSuccessMessage(copy.success.deleted);
+    } catch (error) {
+      const message = resolveErrorMessage(error, copy.errors.delete);
+      setErrorMessage(message);
+      throw new Error(message);
+    } finally {
+      setBusyPermissionId(null);
+    }
   };
 
   const handleToggleColumn = (columnId: string) => {
@@ -142,11 +354,11 @@ export default function Permissions() {
       return;
     }
 
-    setVisiblePermissionColumns((current) =>
+    setVisiblePermissionColumns((current) => (
       current.includes(columnId as PermissionColumnId)
         ? current.filter((id) => id !== columnId)
-        : [...current, columnId as PermissionColumnId],
-    );
+        : [...current, columnId as PermissionColumnId]
+    ));
   };
 
   return (
@@ -157,14 +369,20 @@ export default function Permissions() {
         onCreate={() => setIsCreateModalOpen(true)}
       />
 
-      <PermissionFilters copy={copy} filters={filters} onFiltersChange={setFilters} isManager={isManager} permissions={permissions} />
+      <PermissionFilters
+        copy={copy}
+        filters={filters}
+        onFiltersChange={setFilters}
+        isManager={isManager}
+        permissions={permissions}
+      />
 
       <PermissionKpiStrip
         copy={copy}
-        approved={stats.approved}
-        pending={stats.pending}
-        rejected={stats.rejected}
-        total={stats.total}
+        approved={summary.approved}
+        pending={summary.pending}
+        rejected={summary.rejected}
+        total={summary.total}
         visible={filteredPermissions.length}
       />
 
@@ -172,13 +390,12 @@ export default function Permissions() {
         copy={copy}
         permissions={filteredPermissions}
         visibleColumns={visiblePermissionColumns}
-        onView={(permission) => {
-          setSelectedPermission(permission);
-          setIsDetailModalOpen(true);
-        }}
+        onView={(permission) => { void handleViewPermission(permission); }}
         onApprove={handleApprove}
         onReject={handleReject}
+        onDelete={handleDelete}
         isManager={isManager}
+        busyPermissionId={busyPermissionId}
       />
 
       <PermissionColumnsModal
@@ -205,7 +422,25 @@ export default function Permissions() {
         permission={selectedPermission}
         onApprove={handleApprove}
         onReject={handleReject}
+        onDelete={handleDelete}
         isManager={isManager}
+        isReviewing={busyPermissionId === selectedPermission?.id}
+      />
+
+      <LoadingBarOverlay
+        isVisible={loadingState.isVisible}
+        title={loadingState.title}
+        description={loadingState.description}
+      />
+      <SuccessToast
+        isVisible={Boolean(successMessage)}
+        message={successMessage}
+        onClose={() => setSuccessMessage('')}
+      />
+      <FailureToast
+        isVisible={Boolean(errorMessage)}
+        message={errorMessage}
+        onClose={() => setErrorMessage('')}
       />
     </div>
   );
