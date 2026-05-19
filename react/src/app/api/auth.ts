@@ -1,27 +1,19 @@
 import { ApiClientError, apiClient } from '../lib/apiClient';
+import { getCachedAuthSession, setCachedAuthSession } from './authSessionStore';
+import type { AuthSessionResponse } from './auth.types';
 import { endpoints } from './endpoints';
 
-export interface AuthSessionResponse {
-  user: {
-    id: number;
-    name: string;
-    role: string | null;
-  };
-  company: {
-    id: number;
-  };
-}
+export type { AuthSessionResponse } from './auth.types';
 
 export interface LoginCredentials {
   email: string;
   password: string;
 }
 
-let sessionCache: AuthSessionResponse | null | undefined;
 let sessionRequest: Promise<AuthSessionResponse | null> | null = null;
 
 const cacheSession = (session: AuthSessionResponse | null) => {
-  sessionCache = session;
+  setCachedAuthSession(session);
 };
 
 const clearPendingSessionRequest = () => {
@@ -46,13 +38,16 @@ const fetchSessionOrNull = async () => {
 };
 
 export const authApi = {
-  me() {
-    return apiClient<AuthSessionResponse>(endpoints.auth.me);
+  async me() {
+    const session = await apiClient<AuthSessionResponse>(endpoints.auth.me);
+    cacheSession(session);
+    return session;
   },
 
   getSessionOrNull() {
-    if (sessionCache !== undefined) {
-      return Promise.resolve(sessionCache);
+    const cachedSession = getCachedAuthSession();
+    if (cachedSession !== undefined) {
+      return Promise.resolve(cachedSession);
     }
 
     if (sessionRequest) {
@@ -64,7 +59,7 @@ export const authApi = {
   },
 
   async login({ email, password }: LoginCredentials) {
-    cacheSession(undefined);
+    setCachedAuthSession(undefined);
     clearPendingSessionRequest();
 
     try {
