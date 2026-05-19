@@ -1,3 +1,6 @@
+import { getCachedCsrfToken, setCachedAuthSession } from '../api/authSessionStore';
+import type { AuthSessionResponse } from '../api/auth.types';
+
 export class ApiClientError extends Error {
   status: number;
   code?: string;
@@ -17,6 +20,8 @@ const apiBaseUrl = (
   import.meta.env.VITE_BACKEND_URL ??
   ''
 ).replace(/\/+$/, '');
+const AUTH_ME_PATH = '/api/v1/auth/me';
+const mutationMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const buildApiUrl = (path: string) => {
   if (/^https?:\/\//.test(path)) {
@@ -26,7 +31,13 @@ export const buildApiUrl = (path: string) => {
   return `${apiBaseUrl}${path}`;
 };
 
-const buildHeaders = (initHeaders?: HeadersInit, body?: BodyInit | null) => {
+const normalizeMethod = (method?: string) => (method ?? 'GET').toUpperCase();
+
+const buildHeaders = (
+  method: string,
+  initHeaders?: HeadersInit,
+  body?: BodyInit | null,
+) => {
   const headers = new Headers(initHeaders);
 
   if (!headers.has('Accept')) {
@@ -42,37 +53,90 @@ const buildHeaders = (initHeaders?: HeadersInit, body?: BodyInit | null) => {
     headers.set('Content-Type', 'application/json');
   }
 
+  if (mutationMethods.has(method)) {
+    const csrfToken = getCachedCsrfToken();
+    if (csrfToken && !headers.has('X-CSRF-Token')) {
+      headers.set('X-CSRF-Token', csrfToken);
+    }
+  }
+
   return headers;
+};
+
+const parsePayload = async (response: Response) => {
+  const contentType = response.headers.get('content-type') ?? '';
+  return contentType.includes('application/json')
+    ? response.json().catch(() => null)
+    : response.text().catch(() => null);
+};
+
+const messageFromPayload = (payload: unknown) => (
+  typeof payload === 'object' && payload !== null
+    ? (
+      (payload as { error?: { message?: string }; message?: string }).error?.message
+      ?? (payload as { error?: { message?: string }; message?: string }).message
+      ?? ''
+    )
+    : ''
+);
+
+const codeFromPayload = (payload: unknown) => (
+  typeof payload === 'object' && payload !== null
+    ? (payload as { error?: { code?: string } }).error?.code
+    : undefined
+);
+
+const isInvalidCsrfError = (status: number, payload: unknown) => (
+  status === 403 && /csrf/i.test(messageFromPayload(payload))
+);
+
+const refreshAuthSession = async () => {
+  const response = await fetch(buildApiUrl(AUTH_ME_PATH), {
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  const payload = await parsePayload(response);
+
+  if (response.ok) {
+    setCachedAuthSession(payload as AuthSessionResponse);
+    return payload as AuthSessionResponse;
+  }
+
+  if (response.status === 401) {
+    setCachedAuthSession(null);
+  }
+
+  return null;
 };
 
 export async function apiClient<T = unknown>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(buildApiUrl(path), {
+  const method = normalizeMethod(init.method);
+  const execute = () => fetch(buildApiUrl(path), {
     credentials: 'include',
     ...init,
-    headers: buildHeaders(init.headers, init.body),
+    headers: buildHeaders(method, init.headers, init.body),
   });
+  let response = await execute();
+  let payload = await parsePayload(response);
 
-  const contentType = response.headers.get('content-type') ?? '';
-  const payload = contentType.includes('application/json')
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => null);
+  if (!response.ok && isInvalidCsrfError(response.status, payload) && mutationMethods.has(method)) {
+    const session = await refreshAuthSession();
+    if (session?.csrfToken) {
+      response = await execute();
+      payload = await parsePayload(response);
+    }
+  }
+
+  if (response.status === 401) {
+    setCachedAuthSession(null);
+  }
 
   if (!response.ok) {
-    const message =
-      typeof payload === 'object' && payload !== null
-        ? (
-          (payload as { error?: { message?: string }; message?: string }).error?.message
-          ?? (payload as { error?: { message?: string }; message?: string }).message
-          ?? response.statusText
-        )
-        : response.statusText;
-    const code =
-      typeof payload === 'object' && payload !== null
-        ? (payload as { error?: { code?: string } }).error?.code
-        : undefined;
+    const message = messageFromPayload(payload) || response.statusText;
+    const code = codeFromPayload(payload);
 
     throw new ApiClientError(message || 'Request failed', response.status, code, payload);
   }
@@ -81,15 +145,19 @@ export async function apiClient<T = unknown>(
 }
 
 export async function requestText(path: string, init: RequestInit = {}) {
+  const method = normalizeMethod(init.method);
   const response = await fetch(buildApiUrl(path), {
     credentials: 'include',
     ...init,
-    headers: buildHeaders(init.headers, init.body),
+    headers: buildHeaders(method, init.headers, init.body),
   });
 
   const text = await response.text();
 
   if (!response.ok) {
+    if (response.status === 401) {
+      setCachedAuthSession(null);
+    }
     throw new ApiClientError(response.statusText || 'Request failed', response.status, undefined, text);
   }
 

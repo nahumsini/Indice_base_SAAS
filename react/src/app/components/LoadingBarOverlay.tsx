@@ -26,7 +26,6 @@ let scrollLockSnapshot: {
   bodyTop: string;
   bodyWidth: string;
   htmlOverflow: string;
-  scrollY: number;
 } | null = null;
 
 const lockPageScroll = () => {
@@ -39,7 +38,6 @@ const lockPageScroll = () => {
   if (activeScrollLocks === 1) {
     const body = document.body;
     const html = document.documentElement;
-    const scrollY = window.scrollY;
     const scrollbarWidth = window.innerWidth - html.clientWidth;
     const currentBodyPaddingRight = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
 
@@ -50,14 +48,10 @@ const lockPageScroll = () => {
       bodyTop: body.style.top,
       bodyWidth: body.style.width,
       htmlOverflow: html.style.overflow,
-      scrollY,
     };
 
     html.style.overflow = 'hidden';
     body.style.overflow = 'hidden';
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.width = '100%';
 
     if (scrollbarWidth > 0) {
       body.style.paddingRight = `${currentBodyPaddingRight + scrollbarWidth}px`;
@@ -73,7 +67,6 @@ const lockPageScroll = () => {
 
     const body = document.body;
     const html = document.documentElement;
-    const { scrollY } = scrollLockSnapshot;
 
     body.style.overflow = scrollLockSnapshot.bodyOverflow;
     body.style.paddingRight = scrollLockSnapshot.bodyPaddingRight;
@@ -82,7 +75,6 @@ const lockPageScroll = () => {
     body.style.width = scrollLockSnapshot.bodyWidth;
     html.style.overflow = scrollLockSnapshot.htmlOverflow;
     scrollLockSnapshot = null;
-    window.scrollTo(0, scrollY);
   };
 };
 
@@ -144,10 +136,6 @@ export function LoadingBarOverlay({
         className="flex min-w-[240px] max-w-[340px] flex-col items-center gap-3 rounded-xl bg-white px-6 py-5 text-center text-slate-900 shadow-[0_18px_38px_rgba(0,0,0,0.18)]"
         style={{ fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif" }}
       >
-        <div
-          className="h-9 w-9 animate-spin rounded-full border-4 border-[#1f4d9f]/20 border-t-[#1f4d9f]/90"
-          aria-hidden="true"
-        />
         <div className="text-[15px] font-semibold">
           {title}
         </div>

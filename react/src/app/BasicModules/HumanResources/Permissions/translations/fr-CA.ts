@@ -6,6 +6,7 @@ export const frCA = {
   title: 'Permissions',
   subtitle: 'Gérez les demandes, absences, vacances et statuts d’approbation.',
   actions: {
+    ...enCA.actions,
     columns: 'Colonnes',
     addRequest: 'Ajouter une demande',
     close: 'Fermer',

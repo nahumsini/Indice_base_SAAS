@@ -431,6 +431,7 @@ export default function App() {
     moduleNavigationStartedAtRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
     moduleNavigationTargetPathRef.current = targetPath;
     setIsModuleNavigationLoading(true);
+    hideModuleNavigationLoadingAfterMinimum();
   };
 
   const navigateAfterLoadingPaint = (targetPath: string) => {
@@ -479,6 +480,14 @@ export default function App() {
 
     hideModuleNavigationLoadingAfterMinimum();
   }, [isModuleNavigationLoading, pathname]);
+
+  useEffect(() => {
+    if (!isModuleNavigationLoading || moduleNavigationTimeoutRef.current !== null) {
+      return;
+    }
+
+    hideModuleNavigationLoadingAfterMinimum();
+  }, [isModuleNavigationLoading]);
 
   useEffect(() => {
     if (!pageId) {
