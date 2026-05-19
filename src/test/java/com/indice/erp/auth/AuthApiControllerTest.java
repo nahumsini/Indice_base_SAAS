@@ -25,6 +25,9 @@ class AuthApiControllerTest {
     @MockBean
     private SessionAuthService sessionAuthService;
 
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
+
     @Test
     void meReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
         given(sessionAuthService.currentSession(any())).willReturn(Optional.empty());
@@ -44,6 +47,7 @@ class AuthApiControllerTest {
         given(sessionAuthService.loginJson(eq("demo@example.com"), eq("demo123"), any()))
             .willReturn(new LoginAttemptResult(true, ""));
         given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
+        given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(APPLICATION_JSON)
@@ -57,6 +61,7 @@ class AuthApiControllerTest {
             .andExpect(jsonPath("$.user.id").value(1))
             .andExpect(jsonPath("$.user.name").value("Usuario Demo"))
             .andExpect(jsonPath("$.user.role").value("admin"))
-            .andExpect(jsonPath("$.company.id").value(1));
+            .andExpect(jsonPath("$.company.id").value(1))
+            .andExpect(jsonPath("$.csrfToken").value("csrf-token"));
     }
 }

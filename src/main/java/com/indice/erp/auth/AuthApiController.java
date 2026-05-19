@@ -15,15 +15,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final SessionCsrfService sessionCsrfService;
 
-    public AuthApiController(SessionAuthService sessionAuthService) {
+    public AuthApiController(SessionAuthService sessionAuthService, SessionCsrfService sessionCsrfService) {
         this.sessionAuthService = sessionAuthService;
+        this.sessionCsrfService = sessionCsrfService;
     }
 
     @GetMapping("/me")
     public ResponseEntity<?> me(HttpSession session) {
         return sessionAuthService.currentSession(session)
-            .<ResponseEntity<?>>map(ResponseEntity::ok)
+            .<ResponseEntity<?>>map(body -> ResponseEntity.ok(sessionBody(body, session)))
             .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                 "message", "User is not authenticated"
             )));
@@ -39,7 +41,7 @@ public class AuthApiController {
         }
 
         return sessionAuthService.currentSession(session)
-            .<ResponseEntity<?>>map(ResponseEntity::ok)
+            .<ResponseEntity<?>>map(body -> ResponseEntity.ok(sessionBody(body, session)))
             .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "message", "Session was created but could not be loaded"
             )));
@@ -55,5 +57,13 @@ public class AuthApiController {
         String email,
         String password
     ) {
+    }
+
+    private Map<String, Object> sessionBody(AuthSessionResponse body, HttpSession session) {
+        return Map.of(
+            "user", body.user(),
+            "company", body.company(),
+            "csrfToken", sessionCsrfService.ensureCsrf(session)
+        );
     }
 }
