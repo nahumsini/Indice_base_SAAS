@@ -85,4 +85,33 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
     public static YearMonth parseMonth(String value) {
         return AttendanceDateParser.parseMonth(value);
     }
+
+    public void markPermissionLeaveDays(
+        long companyId,
+        long actorUserId,
+        long userCompanyId,
+        LocalDate startDate,
+        LocalDate endDate
+    ) {
+        attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
+        for (var date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            rebuildDailyRecordProjection(companyId, userCompanyId, date);
+            jdbcTemplate.update(
+                """
+                    UPDATE user_attendance_daily_records
+                    SET corrected_status = 'leave',
+                        corrected_by = ?,
+                        corrected_at = CURRENT_TIMESTAMP,
+                        notes = NULL
+                    WHERE company_id = ?
+                      AND user_company_id = ?
+                      AND attendance_date = ?
+                    """,
+                actorUserId,
+                companyId,
+                userCompanyId,
+                date
+            );
+        }
+    }
 }
