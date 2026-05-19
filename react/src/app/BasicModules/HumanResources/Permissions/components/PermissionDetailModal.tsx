@@ -1,4 +1,5 @@
-import { Calendar, CheckCircle, Clock, Download, FileText, User, X, XCircle } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Download, FileText, Trash2, User, X, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import type { PermissionItem } from '../types/permissions.types';
 import type { PermissionsTranslations } from '../translations';
@@ -9,9 +10,11 @@ interface PermissionDetailModalProps {
   locale: string;
   onClose: () => void;
   permission: PermissionItem | null;
-  onApprove?: (id: string) => void;
-  onReject?: (id: string) => void;
+  onApprove?: (id: string) => Promise<void>;
+  onReject?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
   isManager?: boolean;
+  isReviewing?: boolean;
 }
 
 const typeConfig: Record<PermissionItem['type'], { color: string; bgColor: string }> = {
@@ -37,6 +40,19 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
   day: 'numeric',
 }).format(new Date(value));
 
+const formatFileSize = (value?: number) => {
+  if (!value) {
+    return '';
+  }
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  if (value < 1024 * 1024) {
+    return `${Math.round(value / 1024)} KB`;
+  }
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 export function PermissionDetailModal({
   copy,
   isOpen,
@@ -45,14 +61,70 @@ export function PermissionDetailModal({
   permission,
   onApprove,
   onReject,
+  onDelete,
   isManager = false,
+  isReviewing = false,
 }: PermissionDetailModalProps) {
+  const [localActionError, setLocalActionError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) {
+      setLocalActionError('');
+    }
+  }, [isOpen, permission?.id]);
+
   if (!isOpen || !permission) {
     return null;
   }
 
   const typeInfo = typeConfig[permission.type];
   const statusInfo = statusConfig[permission.status];
+  const attachments = permission.attachments ?? [];
+
+  const handleApprove = async () => {
+    if (!onApprove || isReviewing) {
+      return;
+    }
+
+    setLocalActionError('');
+
+    try {
+      await onApprove(permission.id);
+      onClose();
+    } catch (error) {
+      setLocalActionError(error instanceof Error ? error.message : '');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!onReject || isReviewing) {
+      return;
+    }
+
+    setLocalActionError('');
+
+    try {
+      await onReject(permission.id);
+      onClose();
+    } catch (error) {
+      setLocalActionError(error instanceof Error ? error.message : '');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete || isReviewing) {
+      return;
+    }
+
+    setLocalActionError('');
+
+    try {
+      await onDelete(permission.id);
+      onClose();
+    } catch (error) {
+      setLocalActionError(error instanceof Error ? error.message : '');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -87,6 +159,12 @@ export function PermissionDetailModal({
               <div className="flex-1">
                 <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.employeeInformation}</h3>
                 <p className="text-lg font-semibold text-gray-900 dark:text-white">{permission.employee.name}</p>
+                {permission.employee.position ? (
+                  <p className="text-sm text-gray-600 dark:text-gray-300">{permission.employee.position}</p>
+                ) : null}
+                {permission.employee.department ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{permission.employee.department}</p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -141,20 +219,67 @@ export function PermissionDetailModal({
               <Download className="h-5 w-5" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.attachments}</h3>
             </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {permission.attachmentName || copy.detail.fallbackAttachment}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">245 KB</p>
-                </div>
-                <button className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30">
-                  <Download className="h-5 w-5" />
-                </button>
+            {attachments.length > 0 ? (
+              <div className="space-y-3">
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                          {attachment.fileName || permission.attachmentName || copy.detail.fallbackAttachment}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatFileSize(attachment.sizeBytes) || attachment.mimeType || copy.detail.fallbackAttachment}
+                        </p>
+                      </div>
+                      {attachment.downloadUrl ? (
+                        <a
+                          href={attachment.downloadUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                        >
+                          <Download className="h-5 w-5" />
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-700/30 dark:text-gray-400">
+                {copy.detail.noAttachments}
+              </div>
+            )}
           </div>
+
+          {permission.reviewNotes || permission.reviewedBy?.name || permission.reviewedAt ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <CheckCircle className="h-5 w-5" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.status[permission.status]}</h3>
+              </div>
+              {permission.reviewNotes ? (
+                <div className="mb-3">
+                  <p className="mb-1 text-sm font-semibold text-gray-600 dark:text-gray-300">{copy.detail.reviewNotes}</p>
+                  <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">{permission.reviewNotes}</p>
+                </div>
+              ) : null}
+              {permission.reviewedBy?.name ? (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <span className="font-semibold">{copy.detail.reviewedBy}:</span> {permission.reviewedBy.name}
+                </p>
+              ) : null}
+              {permission.reviewedAt ? (
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="font-semibold">{copy.detail.reviewedAt}:</span> {formatDate(permission.reviewedAt, locale)}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-4 border-t border-gray-200 pt-5 text-sm md:grid-cols-2 dark:border-gray-700">
             <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/30">
@@ -173,33 +298,42 @@ export function PermissionDetailModal({
         </div>
 
         <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
-          <div />
+          <div className="min-h-[20px] text-sm text-red-600 dark:text-red-300">
+            {localActionError}
+          </div>
           <div className="flex gap-3">
-            <Button onClick={onClose} variant="outline">{copy.actions.close}</Button>
+            <Button onClick={onClose} variant="outline" disabled={isReviewing}>{copy.actions.close}</Button>
             {isManager && permission.status === 'pending' && onApprove && onReject ? (
               <>
                 <Button
-                  onClick={() => {
-                    onReject(permission.id);
-                    onClose();
-                  }}
+                  onClick={() => { void handleReject(); }}
                   variant="outline"
                   className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+                  disabled={isReviewing}
                 >
                   <XCircle className="h-4 w-4" />
                   {copy.actions.reject}
                 </Button>
                 <Button
-                  onClick={() => {
-                    onApprove(permission.id);
-                    onClose();
-                  }}
+                  onClick={() => { void handleApprove(); }}
                   className="gap-2 bg-green-600 text-white hover:bg-green-700"
+                  disabled={isReviewing}
                 >
                   <CheckCircle className="h-4 w-4" />
-                  {copy.actions.approve}
+                  {isReviewing ? copy.actions.submitting : copy.actions.approve}
                 </Button>
               </>
+            ) : null}
+            {!isManager && permission.status === 'pending' && onDelete ? (
+              <Button
+                onClick={() => { void handleDelete(); }}
+                variant="outline"
+                className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                disabled={isReviewing}
+              >
+                <Trash2 className="h-4 w-4" />
+                {copy.actions.delete}
+              </Button>
             ) : null}
           </div>
         </div>

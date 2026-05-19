@@ -6,6 +6,7 @@ export const esMX = {
   title: 'Permisos',
   subtitle: 'Gestiona solicitudes, ausencias, vacaciones y estatus de aprobación.',
   actions: {
+    ...enCA.actions,
     columns: 'Columnas',
     addRequest: 'Agregar solicitud',
     close: 'Cerrar',
@@ -71,6 +72,7 @@ export const esMX = {
     rejected: 'Rechazada',
   },
   modal: {
+    ...enCA.modal,
     title: 'Solicitar permiso',
     subtitle: 'Completa el formulario para enviar una nueva solicitud de permiso.',
     permissionType: 'Tipo de permiso *',
@@ -89,6 +91,7 @@ export const esMX = {
     submit: 'Enviar solicitud',
   },
   detail: {
+    ...enCA.detail,
     title: 'Solicitud de permiso',
     folio: (folio: string) => `Folio: ${folio}`,
     employeeInformation: 'Información del colaborador',
