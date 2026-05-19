@@ -44,7 +44,8 @@ export const ptBR: AgendaTranslations = {
     status: 'Status',
   },
   periods: {
-    today: 'Agenda do dia',
+    mine: 'Minha agenda',
+    team: 'Agenda da equipe',
     week: 'Esta semana',
     month: 'Este mês',
     overdue: 'Vencidas',

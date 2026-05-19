@@ -44,7 +44,8 @@ export const frCA: AgendaTranslations = {
     status: "Etat",
   },
   periods: {
-    today: "Agenda du jour",
+    mine: "Mon agenda",
+    team: "Agenda d equipe",
     week: "Cette semaine",
     month: "Ce mois-ci",
     overdue: "En retard",

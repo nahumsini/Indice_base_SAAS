@@ -44,7 +44,8 @@ export const zhCA: AgendaTranslations = {
     status: '状态',
   },
   periods: {
-    today: '今日日程',
+    mine: '我的日程',
+    team: '团队日程',
     week: '本周',
     month: '本月',
     overdue: '逾期',

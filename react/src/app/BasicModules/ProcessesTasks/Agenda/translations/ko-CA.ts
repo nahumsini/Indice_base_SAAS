@@ -44,7 +44,8 @@ export const koCA: AgendaTranslations = {
     status: '상태',
   },
   periods: {
-    today: '오늘 일정',
+    mine: '내 일정',
+    team: '팀 일정',
     week: '이번 주',
     month: '이번 달',
     overdue: '기한 초과',

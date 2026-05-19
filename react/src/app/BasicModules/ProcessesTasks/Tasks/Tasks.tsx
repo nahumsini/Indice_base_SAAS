@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
+import { authApi } from '../../../api/auth';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { accentButtonClass, priorityClasses, priorityLabels } from '../Processes/processesData';
@@ -286,6 +287,7 @@ export default function Tasks() {
   const [catalogUnits, setCatalogUnits] = useState<ProcessUnitOption[]>([]);
   const [catalogBusinesses, setCatalogBusinesses] = useState<ProcessBusinessOption[]>([]);
   const [catalogCollaborators, setCatalogCollaborators] = useState<ProcessCollaboratorOption[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -316,6 +318,29 @@ export default function Tasks() {
 
   useEffect(() => {
     void loadTasks();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        const session = await authApi.getSessionOrNull();
+        if (isMounted) {
+          setCurrentUserId(session?.user.id ?? null);
+        }
+      } catch {
+        if (isMounted) {
+          setCurrentUserId(null);
+        }
+      }
+    };
+
+    void loadCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -358,6 +383,46 @@ export default function Tasks() {
 
     void loadRelationsForTaskForm();
   }, []);
+
+  const currentUserCollaborator = useMemo(
+    () =>
+      currentUserId == null
+        ? null
+        : catalogCollaborators.find((collaborator) => collaborator.userId === currentUserId) ?? null,
+    [catalogCollaborators, currentUserId],
+  );
+
+  const createDefaultTaskFormForCurrentUser = () => {
+    const defaultForm = createDefaultTaskForm();
+
+    if (!currentUserCollaborator) {
+      return defaultForm;
+    }
+
+    return {
+      ...defaultForm,
+      assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+      assignedName: currentUserCollaborator.name,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDialogOpen || dialogMode !== 'create' || !currentUserCollaborator) {
+      return;
+    }
+
+    setForm((currentForm) => {
+      if (currentForm.assignedUserCompanyId || currentForm.assignedName) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+        assignedName: currentUserCollaborator.name,
+      };
+    });
+  }, [currentUserCollaborator, dialogMode, isDialogOpen]);
 
   const filteredTasks = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -409,7 +474,8 @@ export default function Tasks() {
 
   const openCreateDialog = () => {
     setDialogMode('create');
-    resetForm();
+    setEditingTaskId(null);
+    setForm(createDefaultTaskFormForCurrentUser());
     setIsDialogOpen(true);
   };
 

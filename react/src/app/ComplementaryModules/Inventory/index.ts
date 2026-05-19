@@ -1,3 +1,2 @@
-// Inventory Module (Inventarios)
-export { default as Inventarios } from './Inventarios';
-export { default } from './Inventarios';
+// Multiinventarios Module
+export { default } from './Multiinventarios';

@@ -44,7 +44,8 @@ export const esMX: AgendaTranslations = {
     status: 'Estado',
   },
   periods: {
-    today: 'Agenda del dia',
+    mine: 'Mi agenda',
+    team: 'Agenda de equipo',
     week: 'Esta semana',
     month: 'Este mes',
     overdue: 'Vencidas',

@@ -23,6 +23,7 @@ export interface CreateKioskModalProps {
   canSave: boolean;
   form: AttendanceKioskDevicePayload;
   isBusinessUnitKiosk: boolean;
+  isOpenAttendanceKiosk: boolean;
   isEditing: boolean;
   isOpen: boolean;
   isSaving: boolean;
@@ -60,6 +61,7 @@ export function CreateKioskModal({
   canSave,
   form,
   isBusinessUnitKiosk,
+  isOpenAttendanceKiosk,
   isEditing,
   isOpen,
   isSaving,
@@ -232,6 +234,13 @@ export function CreateKioskModal({
                       Leave both fields as all to make this attendance point available for the full company.
                     </p>
                   )}
+                </div>
+              ) : isOpenAttendanceKiosk ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-100">
+                  <p className="font-semibold">Open attendance for all employees</p>
+                  <p className="mt-1 leading-6">
+                    This point will not enforce a physical location. Employees can check in and out from any place; GPS is captured when available.
+                  </p>
                 </div>
               ) : (
                 <div>

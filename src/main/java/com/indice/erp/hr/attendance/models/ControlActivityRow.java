@@ -17,6 +17,7 @@ public record ControlActivityRow(
     String authMethod,
     String resultStatus,
     LocalDateTime eventTimestamp,
+    String photoObjectKey,
     String notes,
     String metadataJson
 ) {

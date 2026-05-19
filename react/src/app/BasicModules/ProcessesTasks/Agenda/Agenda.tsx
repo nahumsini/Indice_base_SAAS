@@ -57,6 +57,7 @@ import {
 } from '../../../components/ui/table';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
+import { authApi } from '../../../api/auth';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { accentButtonClass } from '../Processes/processesData';
@@ -86,7 +87,7 @@ import { AgendaKpiStrip, type AgendaKpiMetrics } from './components/AgendaKpiStr
 import { TaskAttachmentsDialog } from './components/TaskAttachmentsDialog';
 import { useAgendaTranslations, type AgendaTranslations } from './translations';
 
-type PeriodFilter = 'today' | 'week' | 'month' | 'overdue' | 'custom';
+type PeriodFilter = 'mine' | 'team' | 'week' | 'month' | 'overdue' | 'custom';
 type DisplayTaskStatus = TaskStatus | 'overdue' | 'audited';
 type StatusFilter = 'all' | DisplayTaskStatus;
 type OptionFilter = 'all' | string;
@@ -127,6 +128,14 @@ type AgendaKanbanColumnId =
 interface AgendaSortState {
   columnId: AgendaColumnId;
   direction: AgendaSortDirection;
+}
+
+interface AgendaParticipantFilterOption {
+  value: string;
+  label: string;
+  userId: number | null;
+  userCompanyId: number | null;
+  normalizedName: string;
 }
 
 const auditStatusClasses: Record<AgendaTaskItem['auditStatus'], string> = {
@@ -470,11 +479,33 @@ function taskDueDateValue(task: AgendaTaskItem) {
   return task.dueDate || task.agendaDate || null;
 }
 
-function matchesAgendaPeriod(task: AgendaTaskItem, period: PeriodFilter, todayValue: string) {
+function isTaskInDailyAgenda(task: AgendaTaskItem, todayValue: string) {
+  return taskDueDateValue(task) === todayValue || isTaskOverdue(task);
+}
+
+function isTaskInMyAgenda(task: AgendaTaskItem, currentUserId: number | null) {
+  if (currentUserId == null) {
+    return false;
+  }
+
+  const assignedToCurrentUser = task.assignedUserId === currentUserId;
+  const createdByCurrentUser = task.createdBy === currentUserId;
+  const delegatedToAnotherUser = task.assignedUserCompanyId != null && task.assignedUserId !== currentUserId;
+
+  return assignedToCurrentUser || (createdByCurrentUser && !delegatedToAnotherUser);
+}
+
+function matchesAgendaPeriod(
+  task: AgendaTaskItem,
+  period: PeriodFilter,
+  todayValue: string,
+  currentUserId: number | null,
+) {
   switch (period) {
-    case 'today':
-      // Agenda del dia intentionally carries previous overdue open tasks into today's working list.
-      return taskDueDateValue(task) === todayValue || isTaskOverdue(task);
+    case 'mine':
+      return isTaskInDailyAgenda(task, todayValue) && isTaskInMyAgenda(task, currentUserId);
+    case 'team':
+      return isTaskInDailyAgenda(task, todayValue);
     case 'overdue':
       return isTaskOverdue(task);
     case 'week':
@@ -574,7 +605,8 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
   const today = new Date();
 
   switch (period) {
-    case 'today':
+    case 'mine':
+    case 'team':
       return {
         from: allPastStartDate,
         to: toDateInputValue(today),
@@ -745,8 +777,81 @@ function businessFilterValue(task: AgendaTaskItem, copy: AgendaTranslations) {
   return task.businessName ?? (task.businessId ? `${copy.form.labels.business} #${task.businessId}` : '');
 }
 
-function collaboratorFilterValue(task: AgendaTaskItem, copy: AgendaTranslations) {
-  return task.assignedName ?? (task.assignedUserCompanyId ? `${copy.filters.collaborator} #${task.assignedUserCompanyId}` : '');
+function participantFilterValue(userId: number | null, userCompanyId: number | null, name: string) {
+  if (userId != null) {
+    return `user:${userId}`;
+  }
+
+  if (userCompanyId != null) {
+    return `user-company:${userCompanyId}`;
+  }
+
+  return `name:${name.toLowerCase()}`;
+}
+
+function addParticipantFilterOption(
+  optionMap: Map<string, AgendaParticipantFilterOption>,
+  candidate: {
+    name?: string | null;
+    userId?: number | null;
+    userCompanyId?: number | null;
+  },
+) {
+  const label = compactText(candidate.name);
+  const userId = candidate.userId ?? null;
+  const userCompanyId = candidate.userCompanyId ?? null;
+
+  if (!label && userId == null && userCompanyId == null) {
+    return;
+  }
+
+  const value = participantFilterValue(userId, userCompanyId, label);
+  const existingOption = optionMap.get(value);
+
+  optionMap.set(value, {
+    value,
+    label: existingOption?.label ?? (label || `User #${userId ?? userCompanyId}`),
+    userId: existingOption?.userId ?? userId,
+    userCompanyId: existingOption?.userCompanyId ?? userCompanyId,
+    normalizedName: existingOption?.normalizedName ?? label.toLowerCase(),
+  });
+}
+
+function agendaParticipantOptions(tasks: AgendaTaskItem[]) {
+  const optionMap = new Map<string, AgendaParticipantFilterOption>();
+
+  tasks.forEach((task) => {
+    addParticipantFilterOption(optionMap, {
+      name: task.createdByName ?? task.creator,
+      userId: task.createdBy,
+    });
+    addParticipantFilterOption(optionMap, {
+      name: task.assignedName ?? task.responsible,
+      userId: task.assignedUserId,
+      userCompanyId: task.assignedUserCompanyId,
+    });
+  });
+
+  return Array.from(optionMap.values()).sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function taskMatchesParticipantFilter(task: AgendaTaskItem, option: AgendaParticipantFilterOption) {
+  if (option.userId != null) {
+    return task.createdBy === option.userId || task.assignedUserId === option.userId;
+  }
+
+  if (option.userCompanyId != null && task.assignedUserCompanyId === option.userCompanyId) {
+    return true;
+  }
+
+  if (option.normalizedName) {
+    const creatorName = compactText(task.createdByName ?? task.creator).toLowerCase();
+    const assignedName = compactText(task.assignedName ?? task.responsible).toLowerCase();
+
+    return creatorName === option.normalizedName || assignedName === option.normalizedName;
+  }
+
+  return false;
 }
 
 function uniqueSortedOptions(tasks: AgendaTaskItem[], getter: (task: AgendaTaskItem) => string) {
@@ -1210,12 +1315,14 @@ export default function Agenda() {
     [agendaCopy],
   );
   const agendaKanbanColumns = useMemo(() => createAgendaKanbanColumns(agendaCopy), [agendaCopy]);
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('today');
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('mine');
   const [viewMode, setViewMode] = useState<AgendaViewMode>('table');
   const [customDateFrom, setCustomDateFrom] = useState(() => toDateInputValue(new Date()));
   const [customDateTo, setCustomDateTo] = useState(() => toDateInputValue(new Date()));
   const [tasks, setTasks] = useState<AgendaTaskItem[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [agendaError, setAgendaError] = useState<string | null>(null);
   const [agendaColumns, setAgendaColumns] = useState<ColumnConfig[]>(() =>
     getInitialAgendaColumns(defaultAgendaColumns),
@@ -1261,6 +1368,35 @@ export default function Agenda() {
     () => periodRange(periodFilter, customDateFrom, customDateTo),
     [customDateFrom, customDateTo, periodFilter],
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCurrentUser = async () => {
+      setIsLoadingCurrentUser(true);
+
+      try {
+        const session = await authApi.getSessionOrNull();
+        if (isMounted) {
+          setCurrentUserId(session?.user.id ?? null);
+        }
+      } catch {
+        if (isMounted) {
+          setCurrentUserId(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingCurrentUser(false);
+        }
+      }
+    };
+
+    void loadCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const loadAgenda = useCallback(async () => {
     setIsLoadingTasks(true);
@@ -1370,9 +1506,10 @@ export default function Agenda() {
 
   const todayAgendaValue = useMemo(() => toDateInputValue(new Date()), []);
   const periodFilteredTasks = useMemo(
-    () => tasks.filter((task) => matchesAgendaPeriod(task, periodFilter, todayAgendaValue)),
-    [periodFilter, tasks, todayAgendaValue],
+    () => tasks.filter((task) => matchesAgendaPeriod(task, periodFilter, todayAgendaValue, currentUserId)),
+    [currentUserId, periodFilter, tasks, todayAgendaValue],
   );
+  const isAgendaViewLoading = isLoadingTasks || (periodFilter === 'mine' && isLoadingCurrentUser);
   const unitOptions = useMemo(
     () => uniqueSortedOptions(periodFilteredTasks, (task) => unitFilterValue(task, agendaCopy)),
     [agendaCopy, periodFilteredTasks],
@@ -1396,8 +1533,12 @@ export default function Agenda() {
     [agendaCopy, businessFilter, tasksMatchingSelectedUnit],
   );
   const collaboratorOptions = useMemo(
-    () => uniqueSortedOptions(tasksMatchingSelectedBusiness, (task) => collaboratorFilterValue(task, agendaCopy)),
-    [agendaCopy, tasksMatchingSelectedBusiness],
+    () => agendaParticipantOptions(tasksMatchingSelectedBusiness),
+    [tasksMatchingSelectedBusiness],
+  );
+  const collaboratorOptionMap = useMemo(
+    () => new Map(collaboratorOptions.map((option) => [option.value, option])),
+    [collaboratorOptions],
   );
   const headquarterUnitIds = useMemo(
     () =>
@@ -1422,6 +1563,46 @@ export default function Agenda() {
     [catalogCollaborators, headquarterUnitIds],
   );
 
+  const currentUserCollaborator = useMemo(
+    () =>
+      currentUserId == null
+        ? null
+        : catalogCollaborators.find((collaborator) => collaborator.userId === currentUserId) ?? null,
+    [catalogCollaborators, currentUserId],
+  );
+
+  const createDefaultTaskFormForCurrentUser = () => {
+    const defaultForm = createDefaultTaskForm();
+
+    if (!currentUserCollaborator) {
+      return defaultForm;
+    }
+
+    return {
+      ...defaultForm,
+      assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+      assignedName: currentUserCollaborator.name,
+    };
+  };
+
+  useEffect(() => {
+    if (!isTaskDialogOpen || taskDialogMode !== 'create' || !currentUserCollaborator) {
+      return;
+    }
+
+    setTaskForm((currentForm) => {
+      if (currentForm.assignedUserCompanyId || currentForm.assignedName) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+        assignedName: currentUserCollaborator.name,
+      };
+    });
+  }, [currentUserCollaborator, isTaskDialogOpen, taskDialogMode]);
+
   useEffect(() => {
     if (unitFilter !== 'all' && !unitOptions.includes(unitFilter)) {
       setUnitFilter('all');
@@ -1435,10 +1616,10 @@ export default function Agenda() {
   }, [businessFilter, businessOptions]);
 
   useEffect(() => {
-    if (collaboratorFilter !== 'all' && !collaboratorOptions.includes(collaboratorFilter)) {
+    if (collaboratorFilter !== 'all' && !collaboratorOptionMap.has(collaboratorFilter)) {
       setCollaboratorFilter('all');
     }
-  }, [collaboratorFilter, collaboratorOptions]);
+  }, [collaboratorFilter, collaboratorOptionMap]);
 
   const resetTaskForm = () => {
     setTaskForm(createDefaultTaskForm());
@@ -1447,7 +1628,8 @@ export default function Agenda() {
 
   const handleCreateTaskClick = () => {
     setTaskDialogMode('create');
-    resetTaskForm();
+    setEditingTaskId(null);
+    setTaskForm(createDefaultTaskFormForCurrentUser());
     setIsTaskDialogOpen(true);
   };
 
@@ -1861,16 +2043,19 @@ export default function Agenda() {
   };
 
   const filteredTasks = useMemo(() => {
+    const selectedCollaborator =
+      collaboratorFilter === 'all' ? null : collaboratorOptionMap.get(collaboratorFilter) ?? null;
+
     return periodFilteredTasks.filter((task) => {
       const matchesUnit = unitFilter === 'all' || unitFilterValue(task, agendaCopy) === unitFilter;
       const matchesBusiness = businessFilter === 'all' || businessFilterValue(task, agendaCopy) === businessFilter;
       const matchesCollaborator =
-        collaboratorFilter === 'all' || collaboratorFilterValue(task, agendaCopy) === collaboratorFilter;
+        selectedCollaborator == null || taskMatchesParticipantFilter(task, selectedCollaborator);
       const matchesStatus = statusFilter === 'all' || getTaskDisplayStatus(task) === statusFilter;
 
       return matchesUnit && matchesBusiness && matchesCollaborator && matchesStatus;
     });
-  }, [agendaCopy, businessFilter, collaboratorFilter, periodFilteredTasks, statusFilter, unitFilter]);
+  }, [agendaCopy, businessFilter, collaboratorFilter, collaboratorOptionMap, periodFilteredTasks, statusFilter, unitFilter]);
 
   const sortedTasks = useMemo(() => {
     return filteredTasks
@@ -2495,7 +2680,7 @@ export default function Agenda() {
         </div>
       </div>
 
-      {isLoadingTasks ? (
+      {isAgendaViewLoading ? (
         <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
           {agendaCopy.kanban.loading}
         </div>
@@ -2843,8 +3028,8 @@ export default function Agenda() {
               <SelectContent>
                 <SelectItem value="all">{agendaCopy.common.all}</SelectItem>
                 {collaboratorOptions.map((collaborator) => (
-                  <SelectItem key={collaborator} value={collaborator}>
-                    {collaborator}
+                  <SelectItem key={collaborator.value} value={collaborator.value}>
+                    {collaborator.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -2869,7 +3054,7 @@ export default function Agenda() {
         </div>
       </section>
 
-      <AgendaKpiStrip copy={agendaCopy.kpiStrip} isLoading={isLoadingTasks} metrics={agendaKpiMetrics} />
+      <AgendaKpiStrip copy={agendaCopy.kpiStrip} isLoading={isAgendaViewLoading} metrics={agendaKpiMetrics} />
 
       {viewMode === 'table' ? (
         <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -2944,7 +3129,7 @@ export default function Agenda() {
                 </TableRow>
               ))}
 
-              {isLoadingTasks ? (
+              {isAgendaViewLoading ? (
                 <TableRow>
                   <TableCell
                     colSpan={agendaTableColumnCount}
@@ -2955,7 +3140,7 @@ export default function Agenda() {
                 </TableRow>
               ) : null}
 
-              {!isLoadingTasks && filteredTasks.length === 0 ? (
+              {!isAgendaViewLoading && filteredTasks.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={agendaTableColumnCount}

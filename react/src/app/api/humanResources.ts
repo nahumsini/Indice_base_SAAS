@@ -532,6 +532,7 @@ export interface AttendanceControlRecentEvent {
   auth_method: AttendanceAccessMethod['method_type'] | '';
   result_status: 'success' | 'failure' | 'rejected' | 'overridden' | '';
   event_timestamp?: string | null;
+  photo_url?: string | null;
   notes?: string;
   metadata?: Record<string, unknown>;
 }
@@ -865,6 +866,7 @@ export interface PublicKioskBootstrapResponse {
     code: string;
     name: string;
   };
+  kiosk_type?: 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
   location?: AttendanceLocation | null;
   scope_label?: string | null;
   auth_methods: Array<'pin'>;
@@ -909,8 +911,8 @@ export interface PublicKioskPunchRequest {
   identification_token: string;
   event_type: 'check_in' | 'check_out';
   event_timestamp?: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   face_verification_session_id?: number;
   photo_url?: string;
   metadata?: Record<string, unknown>;

@@ -66,6 +66,8 @@ import {
   type BackendHrUserProfile,
   type HrUserDetailsResponse,
 } from '../../../api/humanResources';
+import { getDepartmentOptionLabels } from './data/departmentOptions';
+import { getSuggestedPositionsByDepartment } from './data/departmentPositionMap';
 import { useEmployeesTranslations } from './hooks/useEmployeesTranslations';
 import type { EmployeesTranslations } from './translations';
 
@@ -190,6 +192,28 @@ interface EmployeeSummary {
   total_payroll_amount_monthly: number;
 }
 
+type InlineEditableEmployeeField = 'department' | 'position' | 'unit' | 'business';
+
+interface InlineEmployeeUpdateOverrides {
+  department?: string;
+  position?: string;
+  unitId?: string;
+  businessId?: string;
+}
+
+type OrganizationOptionTone = 'corporate' | 'unit' | 'business' | 'default';
+
+interface OrganizationSelectOption {
+  value: string;
+  label: string;
+  unitId?: string;
+  unit_id?: string;
+  badge?: string;
+  description?: string;
+  tone?: OrganizationOptionTone;
+  disabled?: boolean;
+}
+
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -199,7 +223,95 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 
 const columnsStorageKey = 'rh-colaboradores-columns-v5';
 const allFilterValue = 'all';
+const inlineUnassignedValue = '__unassigned__';
 const employeesPerPage = 10;
+
+const normalizeOptionLabel = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+const mergeTextOptions = (...optionGroups: ReadonlyArray<ReadonlyArray<string>>) => {
+  const optionMap = new Map<string, string>();
+
+  optionGroups.flat().forEach((option) => {
+    const normalized = normalizeOptionLabel(option);
+    if (!normalized) {
+      return;
+    }
+
+    const key = normalized.toLocaleLowerCase();
+    if (!optionMap.has(key)) {
+      optionMap.set(key, normalized);
+    }
+  });
+
+  return Array.from(optionMap.values());
+};
+
+const normalizeOrganizationLabel = (value?: string | null) => normalizeOptionLabel(value ?? '').toLocaleLowerCase();
+
+const isCorporateHeadquartersLabel = (label?: string | null) => {
+  const normalized = normalizeOrganizationLabel(label);
+  return normalized === 'corporate office'
+    || normalized === 'headquarter'
+    || normalized === 'headquarters'
+    || normalized === 'oficina corporativa'
+    || normalized === 'sede corporativa';
+};
+
+const isCorporateOfficeUnitLabel = (label?: string | null) => isCorporateHeadquartersLabel(label);
+
+const getUnitHeadquartersLabel = (unitLabel?: string | null) => (
+  `${normalizeOptionLabel(unitLabel ?? '') || 'Unit'} headquarters`
+);
+
+const isUnitHeadquartersLabel = (businessLabel?: string | null, unitLabel?: string | null) => {
+  const normalizedBusiness = normalizeOrganizationLabel(businessLabel);
+  const normalizedUnit = normalizeOptionLabel(unitLabel ?? '');
+  if (!normalizedBusiness || !normalizedUnit) {
+    return false;
+  }
+
+  return normalizedBusiness === normalizeOrganizationLabel(getUnitHeadquartersLabel(normalizedUnit))
+    || normalizedBusiness === normalizeOrganizationLabel(`${normalizedUnit} headquarter`)
+    || normalizedBusiness === normalizeOrganizationLabel(`${normalizedUnit} sede`)
+    || normalizedBusiness === normalizeOrganizationLabel(`sede ${normalizedUnit}`);
+};
+
+const getInlineOrganizationCopy = (locale: string) => {
+  if (locale.toLocaleLowerCase().startsWith('es')) {
+    return {
+      corporateUnitBadge: 'Corporativo',
+      businessUnitBadge: 'Unidad',
+      corporateBusinessBadge: 'Oficina corporativa',
+      unitHeadquartersBadge: 'Headquarters',
+      operatingBusinessBadge: 'Negocio',
+      corporateUnitDescription: 'Base física del equipo corporativo.',
+      businessUnitDescription: 'Unidad física donde operan negocios y oficinas.',
+      corporateBusinessDescription: 'Para CEO, dirección general o equipo corporativo.',
+      unitHeadquartersDescription: (unit: string) => `Para dirección o administración de ${unit}.`,
+      operatingBusinessDescription: 'Para gerentes y colaboradores asignados al negocio.',
+    };
+  }
+
+  return {
+    corporateUnitBadge: 'Corporate',
+    businessUnitBadge: 'Unit',
+    corporateBusinessBadge: 'Corporate office',
+    unitHeadquartersBadge: 'Headquarters',
+    operatingBusinessBadge: 'Business',
+    corporateUnitDescription: 'Physical base for the corporate team.',
+    businessUnitDescription: 'Physical unit where businesses and unit offices operate.',
+    corporateBusinessDescription: 'For CEO, general management, or corporate staff.',
+    unitHeadquartersDescription: (unit: string) => `For directors or admin staff assigned to ${unit}.`,
+    operatingBusinessDescription: 'For managers and collaborators assigned to the business.',
+  };
+};
+
+const organizationToneOrder: Record<OrganizationOptionTone, number> = {
+  corporate: 1,
+  unit: 2,
+  business: 3,
+  default: 4,
+};
 
 const createDefaultColumns = (copy: EmployeesTranslations): ColumnConfig[] => [
   {
@@ -527,6 +639,60 @@ function FilterSelect<T extends string>({
   );
 }
 
+function InlineTableSelect({
+  disabled = false,
+  onChange,
+  options,
+  placeholder,
+  value,
+}: {
+  disabled?: boolean;
+  onChange: (value: string) => void;
+  options: OrganizationSelectOption[];
+  placeholder: string;
+  value: string;
+}) {
+  const selectedOption = options.find((option) => option.value === value);
+
+  return (
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger className="h-10 min-w-[190px] max-w-[320px] rounded-full border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-800 shadow-none transition hover:border-[#143675]/40 hover:bg-[#143675]/5 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-blue-300/50 dark:hover:bg-blue-950/30">
+        <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+          <span className="min-w-0 truncate">
+            {selectedOption?.label ?? placeholder}
+          </span>
+          {selectedOption?.badge ? (
+            <span className="shrink-0 rounded-full bg-[#143675]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#143675] dark:bg-blue-300/10 dark:text-blue-200">
+              {selectedOption.badge}
+            </span>
+          ) : null}
+        </span>
+      </SelectTrigger>
+      <SelectContent className="max-h-80 min-w-[260px]">
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+            <div className="flex min-w-0 flex-col gap-1 py-1">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-semibold">{option.label}</span>
+                {option.badge ? (
+                  <span className="shrink-0 rounded-full bg-[#143675]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#143675] dark:bg-blue-300/10 dark:text-blue-200">
+                    {option.badge}
+                  </span>
+                ) : null}
+              </div>
+              {option.description ? (
+                <span className="max-w-[240px] whitespace-normal text-xs leading-snug text-slate-500 dark:text-slate-400">
+                  {option.description}
+                </span>
+              ) : null}
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function EmployeeTableActionButton({
   icon,
   label,
@@ -811,6 +977,8 @@ export default function Employees() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPreparingModal, setIsPreparingModal] = useState(false);
+  const [inlineSavingKey, setInlineSavingKey] = useState<string | null>(null);
+  const [inlineDrafts, setInlineDrafts] = useState<Record<number, InlineEmployeeUpdateOverrides>>({});
   const [loadingOverlayTitle, setLoadingOverlayTitle] = useState<string>(copy.loadingTitle);
   const [loadingOverlayDescription, setLoadingOverlayDescription] = useState<string>(copy.loadingDescription);
   const [loadError, setLoadError] = useState('');
@@ -824,6 +992,46 @@ export default function Employees() {
         left.localeCompare(right),
       ),
     [employees],
+  );
+  const employeePositionOptions = useMemo(
+    () =>
+      Array.from(new Set(employees.map((employee) => employee.position).filter(Boolean))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    [employees],
+  );
+  const inlineDepartmentOptions = useMemo(
+    () => mergeTextOptions(getDepartmentOptionLabels(currentLanguage.code), departmentOptions),
+    [currentLanguage.code, departmentOptions],
+  );
+  const modalUnitOptions = useMemo(
+    () => unitOptions.filter((option) => option.value !== allFilterValue && option.value !== 'all-units'),
+    [unitOptions],
+  );
+  const modalBusinessOptions = useMemo(
+    () => businessOptions.filter((option) => option.value !== allFilterValue && option.value !== 'all-businesses'),
+    [businessOptions],
+  );
+  const inlineOrganizationCopy = useMemo(
+    () => getInlineOrganizationCopy(currentLanguage.code),
+    [currentLanguage.code],
+  );
+  const inlineUnitOptions = useMemo<OrganizationSelectOption[]>(
+    () =>
+      modalUnitOptions.map((option) => {
+        const isCorporateUnit = isCorporateOfficeUnitLabel(option.label);
+
+        return {
+          ...option,
+          label: isCorporateUnit ? inlineOrganizationCopy.corporateBusinessBadge : option.label,
+          badge: isCorporateUnit ? inlineOrganizationCopy.corporateUnitBadge : inlineOrganizationCopy.businessUnitBadge,
+          description: isCorporateUnit
+            ? inlineOrganizationCopy.corporateUnitDescription
+            : inlineOrganizationCopy.businessUnitDescription,
+          tone: isCorporateUnit ? 'corporate' : 'unit',
+        };
+      }),
+    [inlineOrganizationCopy, modalUnitOptions],
   );
   const departmentFilterOptions: Option<string>[] = [
     { value: allFilterValue, label: copy.filters.all },
@@ -935,6 +1143,17 @@ export default function Employees() {
     setSelectedEmployeeIds((currentIds) =>
       currentIds.filter((id) => employees.some((employee) => employee.id === id)),
     );
+  }, [employees]);
+
+  useEffect(() => {
+    setInlineDrafts((currentDrafts) => {
+      const employeeIds = new Set(employees.map((employee) => employee.id));
+      const nextDrafts = Object.fromEntries(
+        Object.entries(currentDrafts).filter(([employeeId]) => employeeIds.has(Number(employeeId))),
+      );
+
+      return Object.keys(nextDrafts).length === Object.keys(currentDrafts).length ? currentDrafts : nextDrafts;
+    });
   }, [employees]);
 
   const filteredEmployees = employees.filter((employee) => {
@@ -1190,6 +1409,226 @@ export default function Employees() {
   const parseForeignKeyValue = (value: string | undefined) => {
     const normalized = String(value ?? '').trim();
     return /^\d+$/.test(normalized) ? Number(normalized) : null;
+  };
+
+  const getInlineBusinessOptionsForUnit = (unitId: string): OrganizationSelectOption[] => {
+    if (!unitId || unitId === inlineUnassignedValue || unitId === allFilterValue) {
+      return [];
+    }
+
+    const selectedUnitOption = modalUnitOptions.find((option) => option.value === unitId) ?? null;
+    const selectedUnitLabel = selectedUnitOption?.label ?? '';
+    const selectedUnitIsCorporateOffice = Boolean(
+      selectedUnitOption && isCorporateOfficeUnitLabel(selectedUnitOption.label),
+    );
+
+    return modalBusinessOptions
+      .filter((option) => (
+        (option.unitId === unitId || option.unit_id === unitId)
+        && (selectedUnitIsCorporateOffice || !isCorporateHeadquartersLabel(option.label))
+      ))
+      .map((option) => {
+        const isCorporateBusiness = isCorporateHeadquartersLabel(option.label);
+        const isHeadquartersBusiness = !isCorporateBusiness && isUnitHeadquartersLabel(option.label, selectedUnitLabel);
+        const tone: OrganizationOptionTone = isCorporateBusiness
+          ? 'corporate'
+          : isHeadquartersBusiness
+            ? 'unit'
+            : 'business';
+
+        return {
+          ...option,
+          label: isCorporateBusiness ? inlineOrganizationCopy.corporateBusinessBadge : option.label,
+          badge: isCorporateBusiness
+            ? inlineOrganizationCopy.corporateBusinessBadge
+            : isHeadquartersBusiness
+              ? inlineOrganizationCopy.unitHeadquartersBadge
+              : inlineOrganizationCopy.operatingBusinessBadge,
+          description: isCorporateBusiness
+            ? inlineOrganizationCopy.corporateBusinessDescription
+            : isHeadquartersBusiness
+              ? inlineOrganizationCopy.unitHeadquartersDescription(selectedUnitLabel || option.label)
+              : inlineOrganizationCopy.operatingBusinessDescription,
+          tone,
+        };
+      })
+      .sort((first, second) => {
+        const firstOrder = organizationToneOrder[first.tone ?? 'default'];
+        const secondOrder = organizationToneOrder[second.tone ?? 'default'];
+        if (firstOrder !== secondOrder) {
+          return firstOrder - secondOrder;
+        }
+        return first.label.localeCompare(second.label, currentLanguage.code);
+      });
+  };
+
+  const resolveDefaultBusinessIdForUnit = (unitId: string, currentBusinessId: string) => {
+    const nextBusinessOptions = getInlineBusinessOptionsForUnit(unitId);
+    const currentBusinessOption = nextBusinessOptions.find((option) => option.value === currentBusinessId);
+    if (currentBusinessOption) {
+      return currentBusinessOption.value;
+    }
+
+    const headquartersOption = nextBusinessOptions.find(
+      (option) => option.tone === 'corporate' || option.tone === 'unit',
+    );
+
+    return headquartersOption?.value ?? nextBusinessOptions[0]?.value ?? '';
+  };
+
+  const buildInlineEmployeePayload = (
+    employee: EmployeeViewModel,
+    overrides: InlineEmployeeUpdateOverrides,
+  ) => {
+    const nextPosition = (overrides.position ?? employee.position).trim();
+    const nextDepartment = (overrides.department ?? employee.department).trim();
+    const nextUnitId = overrides.unitId ?? employee.unitId;
+    const nextBusinessId = overrides.businessId ?? employee.businessId;
+    const parsedUnitId = parseForeignKeyValue(nextUnitId);
+    const parsedBusinessId = parseForeignKeyValue(nextBusinessId);
+    const salary = String(employee.salary ?? 0);
+    const hourlyRate = String(employee.hourlyRate ?? 0);
+    const workdayHours = String(employee.workdayHours ?? 8);
+
+    if (!nextPosition || !nextDepartment || !parsedUnitId || !parsedBusinessId) {
+      return null;
+    }
+
+    return {
+      first_name: employee.firstName.trim(),
+      last_name: employee.lastName.trim(),
+      email: employee.email.trim(),
+      phone: employee.phone.trim(),
+      position: nextPosition,
+      department: nextDepartment,
+      unit_id: parsedUnitId,
+      business_id: parsedBusinessId,
+      hire_date: employee.joinDate,
+      salary,
+      pay_period: employee.payPeriod,
+      salary_type: employee.salaryType,
+      hourly_rate: hourlyRate,
+      contract_type: employee.contractType,
+      contract_start_date: employee.contractStartDate,
+      contract_end_date: employee.contractEndDate,
+      user_code: employee.code.trim(),
+      employee: {
+        user_code: employee.code.trim(),
+        first_name: employee.firstName.trim(),
+        last_name: employee.lastName.trim(),
+        email: employee.email.trim(),
+        phone: employee.phone.trim(),
+        position: nextPosition,
+        department: nextDepartment,
+        unit_id: parsedUnitId,
+        business_id: parsedBusinessId,
+        hire_date: employee.joinDate,
+        salary,
+        pay_period: employee.payPeriod,
+        salary_type: employee.salaryType,
+        hourly_rate: hourlyRate,
+        contract_type: employee.contractType,
+        contract_start_date: employee.contractStartDate,
+        contract_end_date: employee.contractEndDate,
+      },
+      date_of_birth: employee.dateOfBirth,
+      address: employee.address.trim(),
+      national_id: employee.nationalId.trim(),
+      tax_id: employee.taxId.trim(),
+      social_security_number: employee.socialSecurityNumber.trim(),
+      registration_country: employee.registrationCountry,
+      state_province: employee.stateProvince.trim(),
+      city: employee.city.trim(),
+      postal_code: employee.postalCode.trim(),
+      alternate_phone: employee.alternatePhone.trim(),
+      emergency_contact_name: employee.emergencyContactName.trim(),
+      emergency_contact_relationship: employee.emergencyContactRelationship.trim(),
+      emergency_contact_phone: employee.emergencyContactPhone.trim(),
+      workday_hours: workdayHours,
+      profile: {
+        date_of_birth: employee.dateOfBirth,
+        address: employee.address.trim(),
+        national_id: employee.nationalId.trim(),
+        tax_id: employee.taxId.trim(),
+        social_security_number: employee.socialSecurityNumber.trim(),
+        registration_country: employee.registrationCountry,
+        state_province: employee.stateProvince.trim(),
+        city: employee.city.trim(),
+        postal_code: employee.postalCode.trim(),
+        alternate_phone: employee.alternatePhone.trim(),
+        emergency_contact_name: employee.emergencyContactName.trim(),
+        emergency_contact_relationship: employee.emergencyContactRelationship.trim(),
+        emergency_contact_phone: employee.emergencyContactPhone.trim(),
+        workday_hours: workdayHours,
+      },
+      status: employee.status,
+    };
+  };
+
+  const handleInlineEmployeeUpdate = async (
+    employee: EmployeeViewModel,
+    field: InlineEditableEmployeeField,
+    overrides: InlineEmployeeUpdateOverrides,
+  ) => {
+    const nextDraft = {
+      ...(inlineDrafts[employee.id] ?? {}),
+      ...overrides,
+    };
+
+    setInlineDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [employee.id]: nextDraft,
+    }));
+    setFailureToastMessage('');
+
+    const payload = buildInlineEmployeePayload(employee, nextDraft);
+    if (!payload) {
+      return;
+    }
+
+    const nextUnitId = nextDraft.unitId ?? employee.unitId;
+    const nextBusinessId = nextDraft.businessId ?? employee.businessId;
+    const nextDepartment = nextDraft.department ?? employee.department;
+    const nextPosition = nextDraft.position ?? employee.position;
+    const hasChanged =
+      nextUnitId !== employee.unitId
+      || nextBusinessId !== employee.businessId
+      || nextDepartment !== employee.department
+      || nextPosition !== employee.position;
+
+    if (!hasChanged) {
+      return;
+    }
+
+    const savingKey = `${employee.id}:${field}`;
+    setInlineSavingKey(savingKey);
+    setFailureToastMessage('');
+
+    try {
+      const savedEmployee = await humanResourcesApi.updateHrUser(employee.id, payload);
+      const mappedEmployee = mapEmployee(savedEmployee, copy.unitFallback, copy.businessFallback);
+      setEmployees((currentEmployees) =>
+        currentEmployees.map((currentEmployee) =>
+          currentEmployee.id === employee.id
+            ? {
+                ...currentEmployee,
+                ...mappedEmployee,
+              }
+            : currentEmployee,
+        ),
+      );
+      setSuccessToastMessage(copy.successMessages.updated);
+      setInlineDrafts((currentDrafts) => {
+        const nextDrafts = { ...currentDrafts };
+        delete nextDrafts[employee.id];
+        return nextDrafts;
+      });
+      await refreshEmployees();
+    } catch (error) {
+      setFailureToastMessage(normalizeErrorMessage(error, copy.errorMessages.save));
+    } finally {
+      setInlineSavingKey(null);
+    }
   };
 
   const syncEmployeeDocuments = async (employeeId: number, data: EmployeeFormData) => {
@@ -1536,6 +1975,163 @@ export default function Employees() {
     );
   };
 
+  const toInlineSelectValue = (value: string | null | undefined) => {
+    const normalized = String(value ?? '').trim();
+    return normalized && normalized !== allFilterValue ? normalized : inlineUnassignedValue;
+  };
+
+  const withCurrentTextOption = (options: string[], currentValue: string) =>
+    mergeTextOptions(options, currentValue ? [currentValue] : []);
+
+  const ensureSelectedOrganizationOption = (
+    options: OrganizationSelectOption[],
+    value: string,
+    fallbackLabel: string,
+  ): OrganizationSelectOption[] => {
+    if (value !== inlineUnassignedValue && options.some((option) => option.value === value)) {
+      return options;
+    }
+
+    return [
+      {
+        value,
+        label: value === inlineUnassignedValue ? fallbackLabel : fallbackLabel,
+        description:
+          value === inlineUnassignedValue
+            ? (
+              currentLanguage.code.toLocaleLowerCase().startsWith('es')
+                ? 'Selecciona una opción para asignar este dato.'
+                : 'Select an option to assign this value.'
+            )
+            : undefined,
+        disabled: value === inlineUnassignedValue,
+      },
+      ...options,
+    ];
+  };
+
+  const renderInlineDepartmentSelect = (employee: EmployeeViewModel) => {
+    const draft = inlineDrafts[employee.id] ?? {};
+    const effectiveDepartment = draft.department ?? employee.department;
+    const value = toInlineSelectValue(effectiveDepartment);
+    const options = ensureSelectedOrganizationOption(
+      withCurrentTextOption(inlineDepartmentOptions, effectiveDepartment).map((department) => ({
+        value: department,
+        label: department,
+      })),
+      value,
+      copy.fieldFallback,
+    );
+
+    return (
+      <InlineTableSelect
+        value={value}
+        options={options}
+        placeholder={copy.fieldFallback}
+        disabled={inlineSavingKey === `${employee.id}:department`}
+        onChange={(nextDepartment) => {
+          if (nextDepartment === inlineUnassignedValue) {
+            return;
+          }
+          void handleInlineEmployeeUpdate(employee, 'department', { department: nextDepartment });
+        }}
+      />
+    );
+  };
+
+  const renderInlinePositionSelect = (employee: EmployeeViewModel) => {
+    const draft = inlineDrafts[employee.id] ?? {};
+    const effectiveDepartment = draft.department ?? employee.department;
+    const effectivePosition = draft.position ?? employee.position;
+    const value = toInlineSelectValue(effectivePosition);
+    const positionOptions = mergeTextOptions(
+      getSuggestedPositionsByDepartment(effectiveDepartment, currentLanguage.code),
+      employeePositionOptions,
+      effectivePosition ? [effectivePosition] : [],
+    );
+    const options = ensureSelectedOrganizationOption(
+      positionOptions.map((position) => ({
+        value: position,
+        label: position,
+      })),
+      value,
+      copy.fieldFallback,
+    );
+
+    return (
+      <InlineTableSelect
+        value={value}
+        options={options}
+        placeholder={copy.fieldFallback}
+        disabled={inlineSavingKey === `${employee.id}:position`}
+        onChange={(nextPosition) => {
+          if (nextPosition === inlineUnassignedValue) {
+            return;
+          }
+          void handleInlineEmployeeUpdate(employee, 'position', { position: nextPosition });
+        }}
+      />
+    );
+  };
+
+  const renderInlineUnitSelect = (employee: EmployeeViewModel) => {
+    const draft = inlineDrafts[employee.id] ?? {};
+    const effectiveUnitId = draft.unitId ?? employee.unitId;
+    const value = toInlineSelectValue(effectiveUnitId);
+    const options = ensureSelectedOrganizationOption(
+      inlineUnitOptions,
+      value,
+      employee.unitLabel || copy.unitFallback,
+    );
+
+    return (
+      <InlineTableSelect
+        value={value}
+        options={options}
+        placeholder={copy.unitFallback}
+        disabled={inlineSavingKey === `${employee.id}:unit`}
+        onChange={(nextUnitId) => {
+          if (nextUnitId === inlineUnassignedValue) {
+            return;
+          }
+
+          const nextBusinessId = resolveDefaultBusinessIdForUnit(nextUnitId, draft.businessId ?? employee.businessId);
+          void handleInlineEmployeeUpdate(employee, 'unit', {
+            unitId: nextUnitId,
+            businessId: nextBusinessId,
+          });
+        }}
+      />
+    );
+  };
+
+  const renderInlineBusinessSelect = (employee: EmployeeViewModel) => {
+    const draft = inlineDrafts[employee.id] ?? {};
+    const unitValue = toInlineSelectValue(draft.unitId ?? employee.unitId);
+    const value = toInlineSelectValue(draft.businessId ?? employee.businessId);
+    const businessOptionsForUnit = unitValue === inlineUnassignedValue ? [] : getInlineBusinessOptionsForUnit(unitValue);
+    const options = ensureSelectedOrganizationOption(
+      businessOptionsForUnit,
+      value,
+      employee.businessLabel || copy.businessFallback,
+    );
+
+    return (
+      <InlineTableSelect
+        value={value}
+        options={options}
+        placeholder={copy.businessFallback}
+        disabled={inlineSavingKey === `${employee.id}:business` || unitValue === inlineUnassignedValue}
+        onChange={(nextBusinessId) => {
+          if (nextBusinessId === inlineUnassignedValue) {
+            return;
+          }
+          void handleInlineEmployeeUpdate(employee, 'business', { businessId: nextBusinessId });
+        }}
+      />
+    );
+  };
+
   const renderColumnCell = (employee: EmployeeViewModel, columnId: string): ReactNode => {
     switch (columnId) {
       case 'employee':
@@ -1607,21 +2203,13 @@ export default function Employees() {
           </div>
         );
       case 'position':
-        return <span className="text-base text-slate-700 dark:text-slate-200">{employee.position || '-'}</span>;
+        return renderInlinePositionSelect(employee);
       case 'department':
-        return <span className="text-base text-slate-700 dark:text-slate-200">{employee.department || '-'}</span>;
+        return renderInlineDepartmentSelect(employee);
       case 'unit':
-        return (
-          <span className="inline-flex min-w-[160px] whitespace-normal text-base text-slate-700 dark:text-slate-200">
-            {employee.unitLabel || copy.unitFallback}
-          </span>
-        );
+        return renderInlineUnitSelect(employee);
       case 'business':
-        return (
-          <span className="inline-flex min-w-[160px] whitespace-normal text-base text-slate-700 dark:text-slate-200">
-            {employee.businessLabel || copy.businessFallback}
-          </span>
-        );
+        return renderInlineBusinessSelect(employee);
       case 'status':
         return (
           <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold', getStatusClasses(employee.status))}>

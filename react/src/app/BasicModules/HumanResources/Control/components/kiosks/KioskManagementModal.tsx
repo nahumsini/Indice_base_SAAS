@@ -15,9 +15,9 @@ import {
 import { type AttendanceControlCopy, statusClasses } from '../ControlAttendanceWidgets';
 import { KioskCard } from './KioskCard';
 
-type KioskType = 'business_unit' | 'contract_site' | 'head_office';
+type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
 
-const kioskTypeOptions: KioskType[] = ['business_unit', 'contract_site', 'head_office'];
+const kioskTypeOptions: KioskType[] = ['business_unit', 'contract_site', 'head_office', 'open_attendance'];
 
 const kioskTypeFromMetadata = (metadata?: Record<string, unknown>): KioskType => {
   const value = typeof metadata?.kiosk_type === 'string' ? metadata.kiosk_type : '';
@@ -63,6 +63,9 @@ const kioskTypeLabel = (device: AttendanceKioskDevice) => {
   if (kioskType === 'head_office') {
     return 'Main office';
   }
+  if (kioskType === 'open_attendance') {
+    return 'Open attendance';
+  }
   return 'Business or unit';
 };
 
@@ -77,6 +80,9 @@ const scopeDescriptionForDevice = (device: AttendanceKioskDevice) => {
 
   if (kioskType === 'head_office') {
     return `Available for main office registration in ${unitName}`;
+  }
+  if (kioskType === 'open_attendance') {
+    return 'Available for all employees';
   }
 
   if (device.business_id) {
@@ -108,6 +114,9 @@ const locationRuleForDevice = (
 
   if (kioskType === 'business_unit' && !device.location_id) {
     return "Uses each employee's assigned business location.";
+  }
+  if (kioskType === 'open_attendance') {
+    return 'Location is not enforced. GPS is captured when available.';
   }
 
   if (!locationName) {
