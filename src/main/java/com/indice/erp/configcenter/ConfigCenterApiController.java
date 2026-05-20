@@ -7,6 +7,7 @@ import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.net.URI;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -25,6 +26,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/v1/config-center")
 public class ConfigCenterApiController {
+
+    private static final Set<String> USER_MANAGEMENT_ROLES = Set.of("root", "superadmin", "admin");
 
     private final SessionAuthService sessionAuthService;
     private final ConfigCenterService configCenterService;
@@ -106,6 +109,9 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!canManageUsers(current.get().role())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
         return ResponseEntity.ok(configCenterService.getUsers(current.get().companyId()));
     }
@@ -119,6 +125,9 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!canManageUsers(current.get().role())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {
@@ -135,6 +144,9 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!canManageUsers(current.get().role())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {
@@ -160,6 +172,9 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!canManageUsers(current.get().role())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
         try {
             var result = configCenterService.inviteUser(current.get().companyId(), current.get().userId(), payload);
@@ -181,6 +196,9 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!canManageUsers(current.get().role())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
         try {
             return ResponseEntity.ok(configCenterService.deleteInvitation(current.get().companyId(), invitationId));
@@ -201,6 +219,9 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!canManageUsers(current.get().role())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {
@@ -373,6 +394,10 @@ public class ConfigCenterApiController {
         var body = new LinkedHashMap<String, Object>();
         body.put("message", message);
         return body;
+    }
+
+    private boolean canManageUsers(String role) {
+        return USER_MANAGEMENT_ROLES.contains(text(role).toLowerCase());
     }
 
     private String displayName(Map<String, Object> user) {

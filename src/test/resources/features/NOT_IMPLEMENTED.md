@@ -38,9 +38,6 @@ This file lists flows that are documented in Gherkin but are not fully implement
 - Company Settings management still needs normal-user blocking.
   - Related scenario: `Normal user cannot manage company settings`
 
-- Users and invitation management still need normal-user blocking.
-  - Related scenario: `Normal user cannot manage users or invitations`
-
 ## Human Resources
 
 - HR workspace visibility still needs user-type-based tab filtering.

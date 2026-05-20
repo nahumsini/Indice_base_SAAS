@@ -60,7 +60,11 @@ export interface ConfigCenterUser {
   department?: string | null;
   status: string;
   created_at?: string | null;
+  scope_type?: 'corporate_office' | 'unit_headquarters' | 'business_office';
+  unit_id?: number | null;
+  unit_name?: string | null;
   business_id?: number | null;
+  business_name?: string | null;
   module_slugs: string[];
   is_protected: boolean;
   source: string;
@@ -70,6 +74,8 @@ export interface UpdateConfigCenterUserPayload {
   role: string;
   status: string;
   module_slugs: string[];
+  unit_id?: number | null;
+  business_id?: number | null;
 }
 
 export interface InviteConfigCenterUserPayload {
@@ -77,6 +83,8 @@ export interface InviteConfigCenterUserPayload {
   email: string;
   role: string;
   module_slugs?: string[];
+  unit_id?: number | null;
+  business_id?: number | null;
 }
 
 export interface ConfigCenterInviteResponse {
@@ -118,8 +126,14 @@ export interface ConfigCenterCatalogModule {
   name: string;
 }
 
+export interface ConfigCenterCatalogUnit {
+  id: number;
+  name: string;
+}
+
 export interface ConfigCenterCatalogBusiness {
   id: number;
+  unit_id?: number | null;
   name: string;
 }
 
@@ -369,6 +383,7 @@ export const configCenterApi = {
     return apiClient<{
       users: ConfigCenterUser[];
       catalog: {
+        units: ConfigCenterCatalogUnit[];
         businesses: ConfigCenterCatalogBusiness[];
         modules: ConfigCenterCatalogModule[];
       };

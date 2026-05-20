@@ -1,9 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { authApi } from '../../api/auth';
 
 const Profile = lazy(() => import('./Profile'));
 const BusinessStructure = lazy(() => import('./BusinessStructure'));
@@ -34,6 +35,7 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
 
 export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
+  const [canManageUsers, setCanManageUsers] = useState(true);
   const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
     'profile',
     subTabIds,
@@ -46,10 +48,38 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
     { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, emoji: '📊', component: BusinessProfile },
     { id: 'personal-performance', label: t.panelInicial.tabs.personalPerformance, emoji: '📈', component: PersonalPerformance },
     { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
-  ];
+  ].filter((tab) => canManageUsers || tab.id !== 'users');
 
   // Get the active component
   const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
+
+  useEffect(() => {
+    let active = true;
+
+    authApi.getSessionOrNull()
+      .then((session) => {
+        if (!active) {
+          return;
+        }
+        const role = session?.user.role?.trim().toLowerCase();
+        setCanManageUsers(role === 'root' || role === 'superadmin' || role === 'admin');
+      })
+      .catch(() => {
+        if (active) {
+          setCanManageUsers(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!canManageUsers && activeSubTab === 'users') {
+      setActiveSubTab('profile');
+    }
+  }, [activeSubTab, canManageUsers, setActiveSubTab]);
 
   const handleTabClick = (tabId: PanelInicialTabId) => {
     if (tabId === activeSubTab) {

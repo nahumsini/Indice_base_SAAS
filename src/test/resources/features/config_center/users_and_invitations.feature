@@ -7,14 +7,14 @@ Feature: Users and invitations
   Scenario: Authenticated user loads the users catalog
     Given an authenticated admin user opens the Users tab
     When the frontend requests the users list
-    Then the backend should return users, pending invitations, module catalog data, and available user type options
-    And each active user should include its user identity and assigned user type
+    Then the backend should return users, pending invitations, units, businesses, and module catalog data
+    And each active user should include its user identity, assigned user type, and membership assignment
 
   @implemented
-  Scenario: User updates another user's type, status, and module access
+  Scenario: User updates another user's type, status, membership, and module access
     Given an authenticated admin user opens the Users tab
-    When the user updates a target user's type, status, or module access
-    Then the backend should persist the user's type and module access changes
+    When the user updates a target user's type, status, membership, or module access
+    Then the backend should persist the user's type, membership, and module access changes
     And the backend should keep the user's profile aligned with the selected user type
 
   @implemented
@@ -47,6 +47,7 @@ Feature: Users and invitations
     Given a valid pending invitation exists
     When the invitee submits a valid password and confirmation
     Then the backend should create the user identity, user profile, and invited user type
+    And the backend should assign the invitation's membership assignment to the user
     And the backend should assign the invitation's module roles to the user
     And the invitation should be marked accepted
 
@@ -70,7 +71,7 @@ Feature: Users and invitations
     When the administrator tries to remove a protected user or the last active admin user
     Then the backend should reject the request
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: Normal user cannot manage users or invitations
     Given a normal user is authenticated
     When the user tries to open the Users tab or call user management APIs

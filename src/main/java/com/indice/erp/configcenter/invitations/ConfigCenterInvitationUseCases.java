@@ -54,6 +54,7 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var email = normalizeEmail(value(payload, "email"));
         var role = normalizeRole(value(payload, "role"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
+        var membership = resolveInvitationMembership(companyId, payload);
         ensureModuleSlugsExist(moduleSlugs);
 
         if (fullName.isBlank() || email.isBlank()) {
@@ -68,14 +69,17 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
 
         jdbcTemplate.update(
             """
-                INSERT INTO user_invitations (company_id, email, full_name, role, module_slugs_json, token, status, invited_by, expires_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                INSERT INTO user_invitations
+                    (company_id, email, full_name, role, module_slugs_json, unit_id, business_id, token, status, invited_by, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
                 """,
             companyId,
             email,
             fullName,
             role,
             serializeModuleSlugs(moduleSlugs),
+            membership.unitId(),
+            membership.businessId(),
             token,
             invitedByUserId,
             expiresAt
@@ -154,7 +158,14 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         if (userCompanyId == null) {
             throw new IllegalStateException("Unable to create invited user company access.");
         }
-        ensureHrWorkProfileForCompanyAccess(invitation.companyId(), userCompanyId, userId, "active", null);
+        upsertUserMembership(
+            invitation.companyId(),
+            userCompanyId,
+            userId,
+            "active",
+            new UserMembership(invitation.unitId(), invitation.businessId()),
+            null
+        );
 
         for (var slug : existingModuleSlugs(invitation.moduleSlugs())) {
             jdbcTemplate.update(

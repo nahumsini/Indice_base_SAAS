@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
   CheckCircle2,
@@ -20,6 +20,7 @@ import {
   configCenterApi,
   type ConfigCenterCatalogBusiness,
   type ConfigCenterCatalogModule,
+  type ConfigCenterCatalogUnit,
   type ConfigCenterUser,
 } from '../../../api/configCenter';
 import {
@@ -41,10 +42,16 @@ interface User {
   avatarUrl?: string | null;
   role: 'Super Admin' | 'Admin' | 'User';
   status: 'active' | 'pending' | 'inactive';
+  scopeType: UserScopeType;
+  unitId: number | null;
+  unitName?: string | null;
   businessId: number | null;
+  businessName?: string | null;
   modules: string[];
   isProtected: boolean;
 }
+
+type UserScopeType = 'corporate_office' | 'unit_headquarters' | 'business_office';
 
 interface AvailableModule {
   id: string;
@@ -59,16 +66,20 @@ interface InviteFormState {
   name: string;
   email: string;
   role: User['role'];
+  scopeType: UserScopeType;
+  unitId: string;
+  businessId: string;
 }
 
-interface BusinessOption {
+interface UnitOption {
   id: string;
   name: string;
 }
 
-interface UserBusinessAssignment {
-  businessUnitId?: string;
-  businessId?: string;
+interface BusinessOption {
+  id: string;
+  unitId?: string;
+  name: string;
 }
 
 interface InviteEmailStatus {
@@ -77,12 +88,8 @@ interface InviteEmailStatus {
   message?: string;
 }
 
-type BusinessInlineField = 'businessUnit' | 'business';
-type EditableBusinessCell = {
-  userId: string;
-  field: BusinessInlineField;
-} | null;
-type SortColumn = 'name' | 'role' | 'businessUnit' | 'business' | 'modules' | 'status' | 'actions';
+type MembershipField = 'unitId' | 'businessId';
+type SortColumn = 'name' | 'role' | 'scope' | 'businessUnit' | 'business' | 'modules' | 'status' | 'actions';
 type SortDirection = 'asc' | 'desc';
 type SortState = {
   column: SortColumn;
@@ -102,18 +109,19 @@ const emptyInviteForm: InviteFormState = {
   name: '',
   email: '',
   role: 'User',
+  scopeType: 'corporate_office',
+  unitId: '',
+  businessId: '',
 };
 
 export default function Users() {
   const { currentLanguage, t } = useLanguage();
-  const businessCellRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>(() =>
     buildAvailableModules(t),
   );
+  const [availableUnits, setAvailableUnits] = useState<UnitOption[]>([]);
   const [availableBusinesses, setAvailableBusinesses] = useState<BusinessOption[]>([]);
-  const [businessAssignments, setBusinessAssignments] = useState<Record<string, UserBusinessAssignment>>({});
-  const [editingBusinessCell, setEditingBusinessCell] = useState<EditableBusinessCell>(null);
   const [sortState, setSortState] = useState<SortState>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -143,7 +151,6 @@ export default function Users() {
   });
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
   const usersBusinessCopy = t.panelInicial.users.businessStructure;
-  const businessUnitOptions = usersBusinessCopy.unitOptions;
 
   const statusLabelMap: Record<User['status'], string> = {
     active: t.panelInicial.users.status.active,
@@ -363,22 +370,6 @@ export default function Users() {
     }
   };
 
-  const syncBusinessAssignments = (mappedUsers: User[]) => {
-    setBusinessAssignments((currentAssignments) => {
-      const nextAssignments: Record<string, UserBusinessAssignment> = {};
-
-      for (const user of mappedUsers) {
-        const currentAssignment = currentAssignments[user.id] ?? {};
-        nextAssignments[user.id] = {
-          ...currentAssignment,
-          businessId: currentAssignment.businessId ?? (user.businessId ? String(user.businessId) : undefined),
-        };
-      }
-
-      return nextAssignments;
-    });
-  };
-
   const getRoleColorClasses = (role: User['role']) => {
     const styles: Record<User['role'], string> = {
       'Super Admin': 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
@@ -432,13 +423,16 @@ export default function Users() {
   const refreshUsers = async (fallbackModules: AvailableModule[] = buildAvailableModules(t)) => {
     const response = await configCenterApi.getUsers();
     const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+    const mappedUnits = response.catalog.units
+      .map(mapCatalogUnit)
+      .filter((unit) => !isCorporateOfficeUnitName(unit.name));
     const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
     const mappedModules = response.catalog.modules
       .map((module) => mapCatalogModule(module, t))
       .filter((module): module is AvailableModule => module !== null);
 
     setUsers(mappedUsers);
-    syncBusinessAssignments(mappedUsers);
+    setAvailableUnits(mappedUnits);
     setAvailableBusinesses(mappedBusinesses);
     if (mappedModules.length > 0) {
       setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
@@ -446,19 +440,6 @@ export default function Users() {
       setAvailableModules(fallbackModules);
     }
   };
-
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!businessCellRef.current?.contains(event.target as Node)) {
-        setEditingBusinessCell(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-    };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -479,13 +460,16 @@ export default function Users() {
 
         setCurrentUserId(currentUser.id);
         const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+        const mappedUnits = response.catalog.units
+          .map(mapCatalogUnit)
+          .filter((unit) => !isCorporateOfficeUnitName(unit.name));
         const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
         const mappedModules = response.catalog.modules
           .map((module) => mapCatalogModule(module, t))
           .filter((module): module is AvailableModule => module !== null);
 
         setUsers(mappedUsers);
-        syncBusinessAssignments(mappedUsers);
+        setAvailableUnits(mappedUnits);
         setAvailableBusinesses(mappedBusinesses);
         if (mappedModules.length > 0) {
           setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
@@ -543,13 +527,9 @@ export default function Users() {
 
     try {
       setLoadError('');
-      await configCenterApi.updateUser(user.backendId, {
-        role: toBackendRole(user.role),
+      await configCenterApi.updateUser(user.backendId, buildUserUpdatePayload(user, {
         status: nextStatus,
-        module_slugs: user.modules
-          .map((route) => backendSlugForRoute(route as any))
-          .filter((slug): slug is string => Boolean(slug)),
-      });
+      }));
       await refreshUsers();
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to update user status.');
@@ -563,13 +543,9 @@ export default function Users() {
 
     try {
       setLoadError('');
-      await configCenterApi.updateUser(user.backendId, {
-        role: toBackendRole(newRole),
-        status: user.status,
-        module_slugs: user.modules
-          .map((route) => backendSlugForRoute(route as any))
-          .filter((slug): slug is string => Boolean(slug)),
-      });
+      await configCenterApi.updateUser(user.backendId, buildUserUpdatePayload(user, {
+        role: newRole,
+      }));
       await refreshUsers();
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to update user role.');
@@ -591,6 +567,28 @@ export default function Users() {
       return;
     }
 
+    if (inviteForm.scopeType === 'unit_headquarters' && !inviteForm.unitId) {
+      setLoadError('Select a business unit for this invitation.');
+      return;
+    }
+
+    if (inviteForm.scopeType === 'business_office' && !inviteForm.businessId) {
+      setLoadError('Select a business for this invitation.');
+      return;
+    }
+
+    const selectedInviteBusiness = inviteForm.businessId
+      ? availableBusinesses.find((business) => business.id === inviteForm.businessId)
+      : null;
+    const inviteUnitId = inviteForm.scopeType === 'corporate_office'
+      ? null
+      : selectedInviteBusiness?.unitId
+        ? Number(selectedInviteBusiness.unitId)
+        : (inviteForm.unitId ? Number(inviteForm.unitId) : null);
+    const inviteBusinessId = inviteForm.scopeType === 'business_office' && inviteForm.businessId
+      ? Number(inviteForm.businessId)
+      : null;
+
     try {
       setLoadError('');
       await runUserFeedbackTask({
@@ -601,6 +599,8 @@ export default function Users() {
             name: trimmedName,
             email: emailValidation.normalized,
             role: toBackendRole(inviteForm.role),
+            unit_id: inviteUnitId,
+            business_id: inviteBusinessId,
             module_slugs: inviteModuleIds
               .map((route) => backendSlugForRoute(route as any))
               .filter((slug): slug is string => Boolean(slug)),
@@ -706,13 +706,9 @@ export default function Users() {
 
     try {
       setLoadError('');
-      await configCenterApi.updateUser(selectedUser.backendId, {
-        role: toBackendRole(selectedUser.role),
-        status: selectedUser.status,
-        module_slugs: selectedModulesDraft
-          .map((route) => backendSlugForRoute(route as any))
-          .filter((slug): slug is string => Boolean(slug)),
-      });
+      await configCenterApi.updateUser(selectedUser.backendId, buildUserUpdatePayload(selectedUser, {
+        modules: selectedModulesDraft,
+      }));
       await refreshUsers();
       setSelectedUserForModules(null);
     } catch (error) {
@@ -750,9 +746,38 @@ export default function Users() {
   };
 
   const updateInviteForm = (field: keyof InviteFormState, value: string) => {
+    if (field === 'scopeType') {
+      setInviteForm((prevForm) => ({
+        ...prevForm,
+        scopeType: value as UserScopeType,
+        unitId: value === 'corporate_office' ? '' : prevForm.unitId,
+        businessId: value === 'business_office' ? prevForm.businessId : '',
+      }));
+      return;
+    }
+
     setInviteForm((prevForm) => ({
       ...prevForm,
       [field]: value,
+    }));
+  };
+
+  const handleInviteUnitChange = (value: string) => {
+    setInviteForm((prevForm) => ({
+      ...prevForm,
+      unitId: value,
+      businessId: prevForm.businessId && availableBusinesses.some((business) => business.id === prevForm.businessId && business.unitId === value)
+        ? prevForm.businessId
+        : '',
+    }));
+  };
+
+  const handleInviteBusinessChange = (value: string) => {
+    const selectedBusiness = availableBusinesses.find((business) => business.id === value);
+    setInviteForm((prevForm) => ({
+      ...prevForm,
+      businessId: value,
+      unitId: selectedBusiness?.unitId ?? prevForm.unitId,
     }));
   };
 
@@ -831,78 +856,139 @@ export default function Users() {
     </button>
   );
 
-  const updateBusinessAssignment = (
-    userId: string,
-    field: BusinessInlineField,
-    value: string,
-  ) => {
-    setBusinessAssignments((currentAssignments) => ({
-      ...currentAssignments,
-      [userId]: {
-        ...currentAssignments[userId],
-        [field === 'businessUnit' ? 'businessUnitId' : 'businessId']: value || undefined,
-      },
-    }));
-    setEditingBusinessCell(null);
-  };
+  const buildUserUpdatePayload = (
+    user: User,
+    overrides: Partial<{
+      role: User['role'];
+      status: User['status'];
+      modules: string[];
+      unitId: number | null;
+      businessId: number | null;
+    }> = {},
+  ) => ({
+    role: toBackendRole(overrides.role ?? user.role),
+    status: overrides.status ?? user.status,
+    unit_id: overrides.unitId ?? user.unitId,
+    business_id: overrides.businessId ?? user.businessId,
+    module_slugs: (overrides.modules ?? user.modules)
+      .map((route) => backendSlugForRoute(route as any))
+      .filter((slug): slug is string => Boolean(slug)),
+  });
 
-  const getBusinessUnitLabel = (assignment: UserBusinessAssignment | undefined) => (
-    businessUnitOptions.find((option) => option.value === assignment?.businessUnitId)?.label
-      ?? usersBusinessCopy.empty
-  );
-
-  const getBusinessLabel = (assignment: UserBusinessAssignment | undefined) => (
-    availableBusinesses.find((business) => business.id === assignment?.businessId)?.name
-      ?? usersBusinessCopy.empty
-  );
-
-  const renderBusinessInlineCell = (user: User, field: BusinessInlineField) => {
-    const assignment = businessAssignments[user.id];
-    const isEditing = editingBusinessCell?.userId === user.id && editingBusinessCell.field === field;
-    const selectedValue = field === 'businessUnit' ? assignment?.businessUnitId : assignment?.businessId;
-    const label = field === 'businessUnit' ? getBusinessUnitLabel(assignment) : getBusinessLabel(assignment);
-    const options = field === 'businessUnit' ? businessUnitOptions : availableBusinesses;
-    const placeholder = field === 'businessUnit'
-      ? usersBusinessCopy.selectBusinessUnit
-      : usersBusinessCopy.selectBusiness;
-
-    if (isEditing) {
-      return (
-        <div ref={businessCellRef} className="relative w-[220px] max-w-full transition-all duration-150 ease-in-out">
-          <select
-            autoFocus
-            value={selectedValue ?? ''}
-            onChange={(event) => updateBusinessAssignment(user.id, field, event.target.value)}
-            className="h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600"
-          >
-            <option value="">{placeholder}</option>
-            {options.length > 0 ? (
-              options.map((option) => (
-                <option
-                  key={field === 'businessUnit' ? option.value : option.id}
-                  value={field === 'businessUnit' ? option.value : option.id}
-                >
-                  {field === 'businessUnit' ? option.label : option.name}
-                </option>
-              ))
-            ) : (
-              <option value="" disabled>{usersBusinessCopy.noBusinessOptions}</option>
-            )}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-        </div>
-      );
+  const filteredBusinesses = (unitId: number | null) => {
+    if (unitId == null) {
+      return availableBusinesses;
     }
 
+    return availableBusinesses.filter((business) => {
+      if (!business.unitId) {
+        return false;
+      }
+      return Number(business.unitId) === unitId;
+    });
+  };
+
+  const saveUserMembership = async (
+    user: User,
+    membership: { unitId: number | null; businessId: number | null },
+  ) => {
+    if (user.source !== 'user') {
+      return;
+    }
+
+    try {
+      setLoadError('');
+      await configCenterApi.updateUser(user.backendId, buildUserUpdatePayload(user, membership));
+      await refreshUsers();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to save membership assignment.');
+    }
+  };
+
+  const handleMembershipChange = async (
+    user: User,
+    field: MembershipField,
+    rawValue: string,
+  ) => {
+    const nextValue = rawValue ? Number(rawValue) : null;
+
+    if (field === 'unitId') {
+      const nextBusinessId = user.businessId != null
+        && availableBusinesses.some((business) => business.id === String(user.businessId) && business.unitId === rawValue)
+        ? user.businessId
+        : null;
+      await saveUserMembership(user, {
+        unitId: nextValue,
+        businessId: nextBusinessId,
+      });
+      return;
+    }
+
+    if (nextValue == null) {
+      await saveUserMembership(user, {
+        unitId: user.unitId,
+        businessId: null,
+      });
+      return;
+    }
+
+    const selectedBusiness = availableBusinesses.find((business) => business.id === rawValue);
+    const derivedUnitId = selectedBusiness?.unitId ? Number(selectedBusiness.unitId) : user.unitId;
+
+    await saveUserMembership(user, {
+      unitId: derivedUnitId ?? null,
+      businessId: nextValue,
+    });
+  };
+
+  const renderScopeBadge = (user: User) => {
+    const label = scopeTypeLabel(user.scopeType);
+    const classes = user.scopeType === 'corporate_office'
+      ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+      : user.scopeType === 'unit_headquarters'
+        ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
+        : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300';
+
     return (
-      <button
-        type="button"
-        onClick={() => setEditingBusinessCell({ userId: user.id, field })}
-        className="group inline-flex h-12 w-[220px] max-w-full items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-white px-5 text-left text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 dark:hover:bg-slate-800"
-      >
-        <span className="min-w-0 truncate">{label}</span>
-        <ChevronDown className="h-5 w-5 flex-shrink-0 text-slate-400 transition-colors group-hover:text-slate-500" />
-      </button>
+      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${classes}`}>
+        {label}
+      </span>
+    );
+  };
+
+  const renderMembershipSelect = (user: User, field: MembershipField) => {
+    const value = field === 'unitId'
+      ? (user.unitId ? String(user.unitId) : '')
+      : (user.businessId ? String(user.businessId) : '');
+    const options = field === 'unitId'
+      ? availableUnits
+      : filteredBusinesses(user.unitId);
+    const placeholder = field === 'unitId'
+      ? usersBusinessCopy.selectBusinessUnit
+      : user.scopeType === 'unit_headquarters'
+        ? 'All businesses in unit'
+        : usersBusinessCopy.selectBusiness;
+    const disabled = user.source !== 'user' || (field === 'businessId' && user.scopeType === 'unit_headquarters');
+
+    return (
+      <div className="relative w-[220px] max-w-full">
+        <select
+          value={value}
+          onChange={(event) => void handleMembershipChange(user, field, event.target.value)}
+          disabled={disabled}
+          className={`h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 ${
+            disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+          }`}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+      </div>
     );
   };
 
@@ -1064,7 +1150,7 @@ export default function Users() {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[1120px] w-full">
+          <table className="min-w-[1320px] w-full">
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -1072,6 +1158,9 @@ export default function Users() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {renderSortableHeader(t.panelInicial.users.table.role, 'role')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {renderSortableHeader('Scope', 'scope')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {renderSortableHeader(usersBusinessCopy.businessUnit, 'businessUnit')}
@@ -1158,10 +1247,13 @@ export default function Users() {
                         </div>
                       </td>
                       <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        {renderBusinessInlineCell(user, 'businessUnit')}
+                        {renderScopeBadge(user)}
                       </td>
                       <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        {renderBusinessInlineCell(user, 'business')}
+                        {renderMembershipSelect(user, 'unitId')}
+                      </td>
+                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                        {renderMembershipSelect(user, 'businessId')}
                       </td>
                       <td className="px-6 py-4 align-middle whitespace-nowrap">
                         <button
@@ -1247,7 +1339,7 @@ export default function Users() {
               ) : (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     {summaryLabels.noResults}
@@ -1429,6 +1521,72 @@ export default function Users() {
                           <option value="User">{t.panelInicial.users.roles.user}</option>
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Operational scope
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={inviteForm.scopeType}
+                          onChange={(event) => updateInviteForm('scopeType', event.target.value)}
+                          className={`appearance-none cursor-pointer px-4 py-2 pr-10 ${inputClassName}`}
+                        >
+                          <option value="corporate_office">Corporate Office</option>
+                          <option value="unit_headquarters">Unit Headquarters</option>
+                          <option value="business_office">Business / Office</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          {usersBusinessCopy.businessUnit}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={inviteForm.unitId}
+                            onChange={(event) => handleInviteUnitChange(event.target.value)}
+                            disabled={inviteForm.scopeType === 'corporate_office'}
+                            className={`appearance-none px-4 py-2 pr-10 ${inputClassName} ${
+                              inviteForm.scopeType === 'corporate_office' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                            }`}
+                          >
+                            <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
+                            {availableUnits.map((unit) => (
+                              <option key={unit.id} value={unit.id}>{unit.name}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          {usersBusinessCopy.business}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={inviteForm.businessId}
+                            onChange={(event) => handleInviteBusinessChange(event.target.value)}
+                            disabled={inviteForm.scopeType !== 'business_office'}
+                            className={`appearance-none px-4 py-2 pr-10 ${inputClassName} ${
+                              inviteForm.scopeType !== 'business_office' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                            }`}
+                          >
+                            <option value="">
+                              {inviteForm.scopeType === 'unit_headquarters' ? 'All businesses in unit' : usersBusinessCopy.selectBusiness}
+                            </option>
+                            {filteredBusinesses(inviteForm.unitId ? Number(inviteForm.unitId) : null).map((business) => (
+                              <option key={business.id} value={business.id}>{business.name}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
                       </div>
                     </div>
 
@@ -1737,9 +1895,17 @@ function mapCatalogModule(module: ConfigCenterCatalogModule, t: any): AvailableM
   };
 }
 
+function mapCatalogUnit(unit: ConfigCenterCatalogUnit): UnitOption {
+  return {
+    id: String(unit.id),
+    name: unit.name,
+  };
+}
+
 function mapCatalogBusiness(business: ConfigCenterCatalogBusiness): BusinessOption {
   return {
     id: String(business.id),
+    unitId: business.unit_id ? String(business.unit_id) : undefined,
     name: business.name,
   };
 }
@@ -1778,7 +1944,11 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     avatarUrl: user.avatar_url ?? null,
     role,
     status,
+    scopeType: normalizeScopeType(user.scope_type, user.unit_id, user.business_id, user.unit_name ?? null),
+    unitId: user.unit_id ?? null,
+    unitName: user.unit_name ?? null,
     businessId: user.business_id ?? null,
+    businessName: user.business_name ?? null,
     isProtected: user.is_protected,
     modules: user.module_slugs
       .flatMap((slug) => {
@@ -1786,6 +1956,39 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
         return route && validModuleIds.has(route) ? [route] : [];
       }),
   };
+}
+
+function normalizeScopeType(
+  scopeType: ConfigCenterUser['scope_type'],
+  unitId?: number | null,
+  businessId?: number | null,
+  unitName?: string | null,
+): UserScopeType {
+  if (scopeType === 'business_office' || businessId != null) {
+    return 'business_office';
+  }
+  if (isCorporateOfficeUnitName(unitName)) {
+    return 'corporate_office';
+  }
+  if (scopeType === 'unit_headquarters' || unitId != null) {
+    return 'unit_headquarters';
+  }
+  return 'corporate_office';
+}
+
+function scopeTypeLabel(scopeType: UserScopeType) {
+  if (scopeType === 'business_office') {
+    return 'Business / Office';
+  }
+  if (scopeType === 'unit_headquarters') {
+    return 'Unit Headquarters';
+  }
+  return 'Corporate Office';
+}
+
+function isCorporateOfficeUnitName(value?: string | null) {
+  const normalized = value?.trim().toLowerCase() ?? '';
+  return normalized === 'corporate office';
 }
 
 function normalizeUserRole(role: string): User['role'] {

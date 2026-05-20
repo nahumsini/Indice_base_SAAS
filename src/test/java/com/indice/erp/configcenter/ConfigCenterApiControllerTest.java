@@ -67,10 +67,12 @@ class ConfigCenterApiControllerTest {
                     "apellidos", "Demo",
                     "role", "admin",
                     "status", "active",
+                    "scope_type", "corporate_office",
                     "module_slugs", List.of("config_center")
                 )
             ),
             "catalog", Map.of(
+                "units", List.of(Map.of("id", 1L, "name", "Corporate office")),
                 "businesses", List.of(Map.of("id", 5L, "name", "Spring Biz A")),
                 "modules", List.of(Map.of("slug", "config_center", "name", "Panel Inicial"))
             )
@@ -82,8 +84,20 @@ class ConfigCenterApiControllerTest {
         mockMvc.perform(get("/api/v1/config-center/users"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.users[0].email").value("demo@example.com"))
+            .andExpect(jsonPath("$.catalog.units[0].name").value("Corporate office"))
             .andExpect(jsonPath("$.catalog.businesses[0].name").value("Spring Biz A"))
             .andExpect(jsonPath("$.catalog.modules[0].slug").value("config_center"));
+    }
+
+    @Test
+    void usersReturnsForbiddenForNormalUser() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 7L, "Usuario Demo", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+
+        mockMvc.perform(get("/api/v1/config-center/users"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test
@@ -249,6 +263,25 @@ class ConfigCenterApiControllerTest {
             .andExpect(jsonPath("$.invite_link").value("http://localhost:5173/invite/abcdef123456"))
             .andExpect(jsonPath("$.email_sent").value(true))
             .andExpect(jsonPath("$.email_status").value("sent"));
+    }
+
+    @Test
+    void inviteUserReturnsForbiddenForNormalUser() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 7L, "Usuario Demo", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/config-center/users/invite")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Pending Invite",
+                      "email": "invite@example.com",
+                      "role": "user"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test
