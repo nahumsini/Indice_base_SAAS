@@ -1,19 +1,19 @@
-import { Columns3, Download, Plus } from 'lucide-react';
+import { Columns3, Plus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type { AnnouncementHeaderCopy } from '../translations';
 
 interface AnnouncementHeaderBarProps {
+  canManage: boolean;
   copy: AnnouncementHeaderCopy;
   onAdd: () => void;
   onColumns: () => void;
-  onExport: () => void;
 }
 
 export function AnnouncementHeaderBar({
+  canManage,
   copy,
   onAdd,
   onColumns,
-  onExport,
 }: AnnouncementHeaderBarProps) {
   return (
     <div className="mb-6 rounded-xl border border-[#143675]/20 bg-[#143675]/10 px-6 py-5 shadow-sm dark:border-blue-400/20 dark:bg-blue-400/10">
@@ -32,26 +32,20 @@ export function AnnouncementHeaderBar({
           <Button
             variant="outline"
             className="h-11 justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#143675] shadow-none hover:bg-[#143675] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            onClick={onExport}
-          >
-            <Download className="h-4 w-4" />
-            {copy.export}
-          </Button>
-          <Button
-            variant="outline"
-            className="h-11 justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#143675] shadow-none hover:bg-[#143675] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             onClick={onColumns}
           >
             <Columns3 className="h-4 w-4" />
             {copy.columns}
           </Button>
-          <Button
-            className="h-11 justify-center gap-2 rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855]"
-            onClick={onAdd}
-          >
-            <Plus className="h-4 w-4" />
-            {copy.addAnnouncement}
-          </Button>
+          {canManage ? (
+            <Button
+              className="h-11 justify-center gap-2 rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855]"
+              onClick={onAdd}
+            >
+              <Plus className="h-4 w-4" />
+              {copy.addAnnouncement}
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>

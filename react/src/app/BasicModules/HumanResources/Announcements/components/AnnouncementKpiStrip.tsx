@@ -9,7 +9,8 @@ interface AnnouncementKpiStripProps {
   publishedCount: number;
   readRate: string;
   scheduledCount: number;
-  selectedCount: number;
+  selectedCount?: number;
+  showSelectionMetrics?: boolean;
   totalCount: number;
   visibleCount: number;
 }
@@ -29,7 +30,8 @@ export function AnnouncementKpiStrip({
   publishedCount,
   readRate,
   scheduledCount,
-  selectedCount,
+  selectedCount = 0,
+  showSelectionMetrics = false,
   totalCount,
   visibleCount,
 }: AnnouncementKpiStripProps) {
@@ -68,17 +70,21 @@ export function AnnouncementKpiStrip({
             label={copy.visibleAfterFilters}
             valueClassName="text-[#143675] dark:text-blue-300"
           />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <AnnouncementKpiMetric
-            icon={<MousePointer2 className="h-4 w-4" />}
-            value={selectedCount}
-            label={copy.selected}
-            valueClassName="text-blue-600 dark:text-blue-300"
-          />
+          {showSelectionMetrics ? (
+            <>
+              <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
+              <AnnouncementKpiMetric
+                icon={<MousePointer2 className="h-4 w-4" />}
+                value={selectedCount}
+                label={copy.selected}
+                valueClassName="text-blue-600 dark:text-blue-300"
+              />
+            </>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {selectedCount > 0 ? (
+          {showSelectionMetrics && selectedCount > 0 ? (
             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
               {copy.selectedBadge(selectedCount)}
             </span>
