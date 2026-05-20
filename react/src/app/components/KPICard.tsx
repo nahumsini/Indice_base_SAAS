@@ -79,16 +79,18 @@ export function KPICard({ kpiId, title, value, change, isPositive }: KPICardProp
   const KpiIcon = kpiId ? kpiIcons[kpiId] ?? BarChart3 : BarChart3;
 
   return (
-    <Card className="group min-h-[118px] w-full snap-center rounded-[8px] border border-slate-200/80 bg-white/90 p-3.5 text-center shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-[0_14px_36px_rgba(15,23,42,0.10)] dark:border-slate-700/70 dark:bg-slate-950/80 dark:shadow-[0_18px_42px_rgba(2,6,23,0.35)] dark:hover:border-slate-600 dark:hover:bg-slate-900">
+    <Card className="group min-h-[108px] w-full snap-center rounded-[8px] border border-[#558DBD]/30 bg-white/90 p-3.5 text-center shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#558DBD]/50 hover:bg-white hover:shadow-[0_14px_36px_rgba(15,23,42,0.10)] dark:border-[#558DBD]/35 dark:bg-slate-950/80 dark:shadow-[0_18px_42px_rgba(2,6,23,0.35)] dark:hover:border-[#558DBD]/55 dark:hover:bg-slate-900">
       <div className="flex h-full flex-col items-center justify-center gap-2">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-slate-200/80 bg-slate-50 text-slate-600 shadow-inner dark:border-slate-700/80 dark:bg-slate-900 dark:text-slate-300">
-          <KpiIcon className="h-5 w-5" aria-hidden="true" />
+        <div className="flex max-w-full items-center justify-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-[#558DBD]/25 bg-[#558DBD]/5 text-[#315f87] shadow-inner dark:border-[#558DBD]/30 dark:bg-[#558DBD]/10 dark:text-[#9cc4e2]">
+            <KpiIcon className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <p className="truncate text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">
+            {title}
+          </p>
         </div>
 
         <div className="min-w-0 max-w-full">
-          <p className="line-clamp-2 text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">
-            {title}
-          </p>
           <div className="mt-2 space-y-2">
             <p className="min-w-0 truncate text-2xl font-semibold leading-none text-slate-950 dark:text-white">
               {value}
