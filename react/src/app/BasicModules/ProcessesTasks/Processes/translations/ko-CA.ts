@@ -25,6 +25,8 @@ export const koCA: ProcessesTranslations = {
     title: '프로세스',
     subtitle: '각 담당자의 일정에 실제 작업을 생성하는 반복 프로세스를 만듭니다.',
     actions: {
+      table: '표',
+      diagram: '다이어그램',
       columns: '열',
       create: '프로세스 만들기',
     },
@@ -105,7 +107,7 @@ export const koCA: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: '엔진 실행',
+    runEngine: '기한 작업 생성',
     pause: '프로세스 일시 중지',
     activate: '프로세스 활성화',
     edit: '프로세스 편집',
@@ -118,7 +120,7 @@ export const koCA: ProcessesTranslations = {
     saveChanges: '프로세스 변경 사항을 저장할 수 없습니다.',
     deleteProcess: '프로세스를 삭제할 수 없습니다.',
     duplicateProcess: '프로세스를 복사할 수 없습니다.',
-    runEngine: '프로세스 엔진을 실행할 수 없습니다.',
+    runEngine: '기한 작업을 생성할 수 없습니다.',
     saveProcess: '프로세스를 저장할 수 없습니다.',
     titleRequired: '제목은 필수입니다.',
     descriptionRequired: '설명은 필수입니다.',

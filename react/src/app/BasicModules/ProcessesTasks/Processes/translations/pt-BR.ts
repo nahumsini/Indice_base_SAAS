@@ -24,6 +24,8 @@ export const ptBR: ProcessesTranslations = {
     title: 'Processos',
     subtitle: 'Crie processos recorrentes que gerem tarefas reais na agenda de cada responsavel.',
     actions: {
+      table: 'Tabela',
+      diagram: 'Diagrama',
       columns: 'Colunas',
       create: 'Criar processo',
     },
@@ -149,7 +151,7 @@ export const ptBR: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: 'Executar motor',
+    runEngine: 'Gerar tarefas vencidas',
     pause: 'Pausar processo',
     activate: 'Ativar processo',
     edit: 'Editar processo',
@@ -162,7 +164,7 @@ export const ptBR: ProcessesTranslations = {
     saveChanges: 'Nao foi possivel salvar as alteracoes do processo.',
     deleteProcess: 'Nao foi possivel excluir o processo.',
     duplicateProcess: 'Nao foi possivel copiar o processo.',
-    runEngine: 'Nao foi possivel executar o motor do processo.',
+    runEngine: 'Nao foi possivel gerar as tarefas vencidas.',
     saveProcess: 'Nao foi possivel salvar o processo.',
     titleRequired: 'O titulo e obrigatorio.',
     descriptionRequired: 'A descricao e obrigatoria.',

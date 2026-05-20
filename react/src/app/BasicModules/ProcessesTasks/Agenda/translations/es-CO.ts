@@ -29,6 +29,7 @@ export const esCO: AgendaTranslations = {
     actions: {
       table: 'Tabla',
       kanban: 'Kanban',
+      diagram: 'Diagrama',
       columns: 'Columnas',
       create: 'Crear tarea',
     },

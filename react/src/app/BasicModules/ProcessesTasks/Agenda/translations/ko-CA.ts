@@ -29,6 +29,7 @@ export const koCA: AgendaTranslations = {
     actions: {
       table: '표',
       kanban: '칸반',
+      diagram: '다이어그램',
       columns: '열',
       create: '작업 만들기',
     },

@@ -29,6 +29,7 @@ export const enUS: AgendaTranslations = {
     actions: {
       table: 'Table',
       kanban: 'Kanban',
+      diagram: 'Diagram',
       columns: 'Columns',
       create: 'Create task',
     },

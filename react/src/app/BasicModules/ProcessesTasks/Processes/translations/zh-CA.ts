@@ -25,6 +25,8 @@ export const zhCA: ProcessesTranslations = {
     title: '流程',
     subtitle: '创建周期性流程，为每位负责人生成真实日程任务。',
     actions: {
+      table: '表格',
+      diagram: '图表',
       columns: '列',
       create: '创建流程',
     },
@@ -105,7 +107,7 @@ export const zhCA: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: '运行引擎',
+    runEngine: '生成到期任务',
     pause: '暂停流程',
     activate: '激活流程',
     edit: '编辑流程',
@@ -118,7 +120,7 @@ export const zhCA: ProcessesTranslations = {
     saveChanges: '无法保存流程更改。',
     deleteProcess: '无法删除流程。',
     duplicateProcess: '无法复制流程。',
-    runEngine: '无法运行流程引擎。',
+    runEngine: '无法生成到期任务。',
     saveProcess: '无法保存流程。',
     titleRequired: '标题为必填项。',
     descriptionRequired: '描述为必填项。',

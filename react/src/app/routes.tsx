@@ -6,6 +6,7 @@ import { authApi } from './api/auth';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
+const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
 
 function KioskRoute() {
   return (
@@ -19,6 +20,22 @@ function KioskRoute() {
       )}
     >
       <HumanResourcesKiosk />
+    </Suspense>
+  );
+}
+
+function TaskKioskRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading task access"
+          description="Preparing the task kiosk."
+        />
+      )}
+    >
+      <ProcessTasksKiosk />
     </Suspense>
   );
 }
@@ -65,6 +82,10 @@ export const router = createBrowserRouter([
   {
     path: '/kiosk/:deviceToken',
     element: <KioskRoute />,
+  },
+  {
+    path: '/task-kiosk/:deviceToken',
+    element: <TaskKioskRoute />,
   },
   {
     path: '/:pageId/*',

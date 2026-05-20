@@ -29,6 +29,7 @@ export const esMX: AgendaTranslations = {
     actions: {
       table: 'Tabla',
       kanban: 'Kanban',
+      diagram: 'Diagrama',
       columns: 'Columnas',
       create: 'Crear tarea',
     },

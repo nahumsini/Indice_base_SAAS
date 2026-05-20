@@ -29,6 +29,7 @@ export const zhCA: AgendaTranslations = {
     actions: {
       table: '表格',
       kanban: '看板',
+      diagram: '图表',
       columns: '列',
       create: '创建任务',
     },

@@ -5,6 +5,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   CalendarPlus,
+  CalendarRange,
   CheckCircle2,
   Columns3,
   Copy,
@@ -23,6 +24,14 @@ import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
+import { Checkbox } from '../../../components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from '../../../components/ui/dialog';
 import { Input } from '../../../components/ui/input';
 import { Skeleton } from '../../../components/ui/skeleton';
 import {
@@ -54,6 +63,7 @@ import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResourc
 import { createProcess, deleteProcess, listProcesses, materializeProcess, updateProcess } from './processesApi';
 import { ProcessFormDialog } from './components/ProcessFormDialog';
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
+import { useRowSelection } from '../shared/useRowSelection';
 import type {
   Option,
   ProcessBusinessOption,
@@ -72,16 +82,17 @@ type FrequencyFilter = 'all' | ProcessFrequency;
 type CollaboratorFilter = 'all' | string;
 type BusinessFilter = 'all' | string;
 type UnitFilter = 'all' | string;
+type ProcessViewMode = 'table' | 'diagram';
 type ProcessConfirmation = { type: 'delete'; record: ProcessRecord };
 
 const actionButtonBaseClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors';
-const progressTrackClass = 'h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700';
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
 const UNASSIGNED_RESPONSIBLE_VALUE = '__unassigned__';
 const processColumnsStorageKey = 'processes-tasks-processes-columns-v1';
 const processPriorityValues: ProcessPriority[] = ['high', 'medium', 'low'];
+const selectionColumnWidth = 64;
 
 const prioritySelectClasses: Record<ProcessPriority, string> = {
   high: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300',
@@ -102,7 +113,6 @@ function createProcessColumns(copy: ProcessesTranslations['columns']): ProcessCo
     { id: 'frequency', label: copy.frequency.label, visible: true, description: copy.frequency.description },
     { id: 'nextOccurrence', label: copy.nextOccurrence.label, visible: true, description: copy.nextOccurrence.description },
     { id: 'generatedUntil', label: copy.generatedUntil.label, visible: false, description: copy.generatedUntil.description },
-    { id: 'progress', label: copy.progress.label, visible: true, description: copy.progress.description },
     { id: 'tasks', label: copy.tasks.label, visible: true, description: copy.tasks.description },
     { id: 'creator', label: copy.creator.label, visible: true, description: copy.creator.description },
     { id: 'responsible', label: copy.responsible.label, visible: true, description: copy.responsible.description },
@@ -118,14 +128,8 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function isProcessAtRisk(record: ProcessRecord) {
-  return record.isActive && record.overdueTaskCount > 0;
-}
-
 interface ProcessKpiMetrics {
   activeCount: number;
-  auditedTaskCount: number;
-  averageProgress: number;
   completedTaskCount: number;
   healthScore: number;
   inactiveCount: number;
@@ -202,26 +206,6 @@ function ProcessStatusBar({ segments }: { segments: ProcessStatusSegment[] }) {
   );
 }
 
-function buildProcessInsight(metrics: ProcessKpiMetrics, copy: ProcessesTranslations['kpis']['insights']) {
-  if (metrics.totalCount === 0) {
-    return copy.empty;
-  }
-
-  if (metrics.overdueTaskCount > 0) {
-    return copy.overdue(metrics.overdueTaskCount, metrics.averageProgress, metrics.openTaskCount);
-  }
-
-  if (metrics.inactiveCount > 0) {
-    return copy.paused(metrics.inactiveCount, metrics.openTaskCount, metrics.healthScore);
-  }
-
-  if (metrics.healthScore >= 85) {
-    return copy.healthy(metrics.activeCount, metrics.completedTaskCount, metrics.healthScore);
-  }
-
-  return copy.default(metrics.healthScore, metrics.activeCount, metrics.averageProgress);
-}
-
 function ProcessKpiStrip({
   copy,
   isLoading,
@@ -260,11 +244,6 @@ function ProcessKpiStrip({
       className: 'bg-emerald-500',
       count: metrics.completedTaskCount,
       label: copy.segments.closedTasks,
-    },
-    {
-      className: 'bg-violet-500',
-      count: metrics.auditedTaskCount,
-      label: copy.segments.audited,
     },
     {
       className: 'bg-rose-500',
@@ -315,13 +294,6 @@ function ProcessKpiStrip({
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProcessKpiMetric
-            icon={<ListChecks className="h-4 w-4" />}
-            label={copy.labels.averageProgress}
-            value={`${metrics.averageProgress}%`}
-            valueClassName="text-[rgb(235,165,52)]"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <ProcessKpiMetric
             icon={<Gauge className="h-4 w-4" />}
             label={copy.labels.tasks}
             value={metrics.linkedTaskCount}
@@ -350,7 +322,9 @@ function ProcessKpiStrip({
       <div className="rounded-lg border border-[rgb(235,165,52)]/20 bg-[rgb(235,165,52)]/10 px-4 py-3 dark:border-[rgb(235,165,52)]/30 dark:bg-[rgb(235,165,52)]/15">
         <div className="flex items-start gap-3">
           <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(235,165,52)]" />
-          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildProcessInsight(metrics, copy.insights)}</p>
+          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+            {metrics.activeCount} {copy.labels.active} · {metrics.openTaskCount} {copy.labels.open} · {metrics.overdueTaskCount} {copy.labels.overdue} · {metrics.linkedTaskCount} {copy.labels.tasks}
+          </p>
         </div>
       </div>
     </div>
@@ -367,6 +341,51 @@ function formatDate(date: string) {
 
 function formatOptionalDate(date: string | null | undefined, fallback: string) {
   return date ? formatDate(date) : fallback;
+}
+
+function dateFromProcessTimelineValue(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addProcessDays(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
+
+function processDaysBetween(start: Date, end: Date) {
+  const startAtMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endAtMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  return Math.round((endAtMidnight.getTime() - startAtMidnight.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function buildProcessTimelineDays(start: Date, end: Date, maxDays = 31) {
+  const span = Math.max(0, Math.min(maxDays - 1, processDaysBetween(start, end)));
+  return Array.from({ length: span + 1 }, (_, index) => addProcessDays(start, index));
+}
+
+function getProcessTimelineRange(record: ProcessRecord, timelineStart: Date, timelineEnd: Date, dayCount: number) {
+  const startDate = dateFromProcessTimelineValue(record.nextOccurrenceDate ?? record.startDate ?? record.createdAt);
+  const endDate = dateFromProcessTimelineValue(record.generatedUntilDate ?? record.nextOccurrenceDate ?? record.endDate);
+
+  if (!startDate && !endDate) {
+    return null;
+  }
+
+  const rawStart = startDate ?? endDate!;
+  const rawEnd = endDate ?? startDate!;
+  const normalizedStart = rawStart > timelineEnd ? timelineEnd : rawStart < timelineStart ? timelineStart : rawStart;
+  const normalizedEnd = rawEnd < timelineStart ? timelineStart : rawEnd > timelineEnd ? timelineEnd : rawEnd;
+  const startOffset = Math.max(0, processDaysBetween(timelineStart, normalizedStart));
+  const endOffset = Math.max(startOffset, processDaysBetween(timelineStart, normalizedEnd));
+
+  return {
+    startOffset,
+    span: Math.max(1, Math.min(dayCount - startOffset, endOffset - startOffset + 1)),
+  };
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -771,6 +790,7 @@ export default function Processes() {
   const [isSubmittingProcess, setIsSubmittingProcess] = useState(false);
   const [pendingRecordIds, setPendingRecordIds] = useState<number[]>([]);
   const [columns, setColumns] = useState<ProcessColumnConfig[]>(() => getInitialProcessColumns(localizedColumns));
+  const [viewMode, setViewMode] = useState<ProcessViewMode>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [unitFilter, setUnitFilter] = useState<UnitFilter>('all');
   const [businessFilter, setBusinessFilter] = useState<BusinessFilter>('all');
@@ -785,6 +805,12 @@ export default function Processes() {
     columnId: 'createdAt',
     direction: 'desc',
   });
+  const rowSelection = useRowSelection<number>();
+  const [bulkConfirmation, setBulkConfirmation] = useState<'delete' | null>(null);
+  const [isBulkActionRunning, setIsBulkActionRunning] = useState(false);
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkResponsibleValue, setBulkResponsibleValue] = useState(UNASSIGNED_RESPONSIBLE_VALUE);
+  const [processesNotice, setProcessesNotice] = useState<string | null>(null);
 
   const unitOptions = useMemo(
     () =>
@@ -967,8 +993,6 @@ export default function Processes() {
         return record.nextOccurrenceDate ?? '';
       case 'generatedUntil':
         return record.generatedUntilDate ?? '';
-      case 'progress':
-        return record.completionPercent;
       case 'tasks':
         return record.taskCount;
       case 'creator':
@@ -997,6 +1021,36 @@ export default function Processes() {
 
     return sortState.direction === 'asc' ? comparison : comparison * -1;
   });
+  const processTimeline = useMemo(() => {
+    const processDates = sortedRecords.flatMap((record) => [
+      dateFromProcessTimelineValue(record.nextOccurrenceDate ?? record.startDate ?? record.createdAt),
+      dateFromProcessTimelineValue(record.generatedUntilDate ?? record.nextOccurrenceDate ?? record.endDate),
+    ]).filter((date): date is Date => date !== null);
+    const today = new Date();
+    const fallbackStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const earliestDate = processDates.length > 0
+      ? new Date(Math.min(...processDates.map((date) => date.getTime())))
+      : fallbackStart;
+    const latestDate = processDates.length > 0
+      ? new Date(Math.max(...processDates.map((date) => date.getTime())))
+      : addProcessDays(fallbackStart, 13);
+    const timelineEnd = processDaysBetween(earliestDate, latestDate) > 30
+      ? addProcessDays(earliestDate, 30)
+      : latestDate;
+
+    return {
+      days: buildProcessTimelineDays(earliestDate, timelineEnd),
+      start: earliestDate,
+      end: timelineEnd,
+    };
+  }, [sortedRecords]);
+  const visibleRecordIds = sortedRecords.map((record) => record.id);
+  const visibleRecordSelection = rowSelection.visibleSelectionState(visibleRecordIds);
+  const selectedRecords = records.filter((record) => rowSelection.selectedIds.has(record.id));
+
+  useEffect(() => {
+    rowSelection.pruneSelection(records.map((record) => record.id));
+  }, [records, rowSelection.pruneSelection]);
 
   const activeCount = filteredRecords.filter((record) => record.isActive).length;
   const inactiveCount = filteredRecords.filter((record) => !record.isActive).length;
@@ -1004,25 +1058,20 @@ export default function Processes() {
   const openTaskCount = filteredRecords.reduce((sum, record) => sum + record.openTaskCount, 0);
   const completedTaskCount = filteredRecords.reduce((sum, record) => sum + record.completedTaskCount, 0);
   const overdueTaskCount = filteredRecords.reduce((sum, record) => sum + record.overdueTaskCount, 0);
-  const auditedTaskCount = filteredRecords.reduce((sum, record) => sum + record.auditedTaskCount, 0);
-  const averageProgress = filteredRecords.length
-    ? clampPercent(filteredRecords.reduce((sum, record) => sum + record.completionPercent, 0) / filteredRecords.length)
-    : 0;
   const activeRate = filteredRecords.length > 0 ? (activeCount / filteredRecords.length) * 100 : 0;
-  const completionRate = linkedTaskCount > 0 ? (completedTaskCount / linkedTaskCount) * 100 : 0;
   const timelinessRate = linkedTaskCount > 0 ? ((linkedTaskCount - overdueTaskCount) / linkedTaskCount) * 100 : 0;
+  const generationCoverageRate = filteredRecords.length > 0
+    ? (filteredRecords.filter((record) => record.taskCount > 0 || record.nextOccurrenceDate).length / filteredRecords.length) * 100
+    : 0;
   const healthScore = filteredRecords.length
     ? clampPercent(
-        averageProgress * 0.4 +
-          activeRate * 0.2 +
-          completionRate * 0.2 +
-          Math.max(0, timelinessRate) * 0.2,
+        activeRate * 0.4 +
+          Math.max(0, timelinessRate) * 0.4 +
+          generationCoverageRate * 0.2,
       )
     : 0;
   const processKpiMetrics: ProcessKpiMetrics = {
     activeCount,
-    auditedTaskCount,
-    averageProgress,
     completedTaskCount,
     healthScore,
     inactiveCount,
@@ -1040,6 +1089,19 @@ export default function Processes() {
           : [...currentIds, recordId]
         : currentIds.filter((currentId) => currentId !== recordId),
     );
+  };
+
+  const setManyRecordsPendingState = (recordIds: number[], isPending: boolean) => {
+    setPendingRecordIds((currentIds) => {
+      if (isPending) {
+        const nextIds = new Set(currentIds);
+        recordIds.forEach((recordId) => nextIds.add(recordId));
+        return Array.from(nextIds);
+      }
+
+      const recordIdSet = new Set(recordIds);
+      return currentIds.filter((currentId) => !recordIdSet.has(currentId));
+    });
   };
 
   const isRecordPending = (recordId: number) => pendingRecordIds.includes(recordId);
@@ -1177,6 +1239,109 @@ export default function Processes() {
     } finally {
       setRecordPendingState(record.id, false);
     }
+  };
+
+  const runBulkProcessAction = async (
+    action: 'delete' | 'duplicate' | 'priority' | 'assign',
+    payload?: { collaborator?: ProcessCollaboratorOption | null; priority?: ProcessPriority },
+  ) => {
+    if (selectedRecords.length === 0) {
+      return;
+    }
+
+    const selectedRecordIds = selectedRecords.map((record) => record.id);
+
+    setIsBulkActionRunning(true);
+    setManyRecordsPendingState(selectedRecordIds, true);
+    setProcessesError(null);
+    setProcessesNotice(null);
+
+    try {
+      if (action === 'delete') {
+        await Promise.all(selectedRecords.map((record) => deleteProcess(record.id)));
+        setRecords((currentRecords) =>
+          currentRecords.filter((record) => !selectedRecordIds.includes(record.id)),
+        );
+      }
+
+      if (action === 'duplicate') {
+        const duplicatedRecords = await Promise.all(
+          selectedRecords.map((record) =>
+            createProcess({
+              ...toProcessFormState(record),
+              title: processCopy.messages.copyPrefix(record.title),
+              recurrence: cloneRecurrenceConfig(record.recurrence),
+            }),
+          ),
+        );
+        setRecords((currentRecords) => [...duplicatedRecords, ...currentRecords]);
+      }
+
+      if (action === 'priority' && payload?.priority) {
+        const updatedRecords = await Promise.all(
+          selectedRecords.map((record) =>
+            updateProcess(record.id, {
+              ...toProcessFormState({
+                ...record,
+                priority: payload.priority!,
+              }),
+              isActive: record.isActive,
+            }),
+          ),
+        );
+        const updatedRecordMap = new Map(updatedRecords.map((record) => [record.id, record]));
+        setRecords((currentRecords) =>
+          currentRecords.map((record) => updatedRecordMap.get(record.id) ?? record),
+        );
+      }
+
+      if (action === 'assign') {
+        const collaborator = payload?.collaborator ?? null;
+        const updatedRecords = await Promise.all(
+          selectedRecords.map((record) =>
+            updateProcess(record.id, {
+              ...toProcessFormState({
+                ...record,
+                responsibleUserCompanyId: collaborator?.userCompanyId ?? null,
+                responsibleUserId: collaborator?.userId ?? null,
+                responsible: collaborator?.name ?? '',
+              }),
+              isActive: record.isActive,
+            }),
+          ),
+        );
+        const updatedRecordMap = new Map(updatedRecords.map((record) => [record.id, record]));
+        setRecords((currentRecords) =>
+          currentRecords.map((record) => updatedRecordMap.get(record.id) ?? record),
+        );
+      }
+
+      rowSelection.clearSelection();
+      setBulkConfirmation(null);
+      setIsBulkAssignOpen(false);
+      setBulkResponsibleValue(UNASSIGNED_RESPONSIBLE_VALUE);
+      setProcessesNotice(`Accion masiva aplicada a ${selectedRecords.length} proceso${selectedRecords.length === 1 ? '' : 's'}.`);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Process bulk action failed.', { action, error, selectedRecordIds });
+      }
+      setProcessesError(getErrorMessage(error, processCopy.messages.saveChanges));
+      await loadProcesses();
+    } finally {
+      setManyRecordsPendingState(selectedRecordIds, false);
+      setIsBulkActionRunning(false);
+    }
+  };
+
+  const handleBulkAssign = () => {
+    const collaborator =
+      bulkResponsibleValue === UNASSIGNED_RESPONSIBLE_VALUE
+        ? null
+        : catalogCollaborators.find(
+            (currentCollaborator) => currentCollaborator.userCompanyId === Number(bulkResponsibleValue),
+          ) ?? null;
+
+    void runBulkProcessAction('assign', { collaborator });
   };
 
   const handleMaterialize = async (record: ProcessRecord) => {
@@ -1494,31 +1659,6 @@ export default function Processes() {
             </p>
           </div>
         );
-      case 'progress':
-        return (
-          <div className="min-w-[190px] space-y-2">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="font-medium text-slate-700 dark:text-slate-200">{processCopy.table.progress}</span>
-              <span className="font-semibold text-slate-900 dark:text-white">
-                {clampPercent(record.completionPercent)}%
-              </span>
-            </div>
-            <div className={progressTrackClass}>
-              <div
-                className="h-full rounded-full bg-[rgb(235,165,52)]"
-                style={{ width: `${clampPercent(record.completionPercent)}%` }}
-              />
-            </div>
-            {isProcessAtRisk(record) ? (
-              <Badge
-                variant="outline"
-                className="rounded-full border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
-              >
-                {processCopy.statuses.atRisk}
-              </Badge>
-            ) : null}
-          </div>
-        );
       case 'tasks':
         return (
           <div className="min-w-[180px] space-y-2">
@@ -1532,7 +1672,6 @@ export default function Processes() {
               {record.overdueTaskCount > 0 ? (
                 <span className="text-red-600 dark:text-red-300">{processCopy.table.taskCounts.overdue} {record.overdueTaskCount}</span>
               ) : null}
-              {record.auditedTaskCount > 0 ? <span>{processCopy.table.taskCounts.audited} {record.auditedTaskCount}</span> : null}
             </div>
           </div>
         );
@@ -1611,6 +1750,141 @@ export default function Processes() {
     }
   };
 
+  const renderProcessDiagram = () => {
+    const dayCount = Math.max(processTimeline.days.length, 1);
+
+    return (
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="border-b border-slate-200 px-5 py-5 dark:border-slate-700">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{headerCopy.actions.diagram}</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                {headerCopy.subtitle}
+              </p>
+            </div>
+            <Badge variant="outline" className="w-fit rounded-full border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]">
+              {sortedRecords.length} {headerCopy.title.toLowerCase()}
+            </Badge>
+          </div>
+        </div>
+
+        {isLoadingProcesses ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {processCopy.table.loading}
+          </div>
+        ) : sortedRecords.length === 0 ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {processCopy.table.empty}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[1040px]">
+              <div className="grid border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50" style={{ gridTemplateColumns: 'minmax(320px, 380px) 1fr minmax(130px, 160px)' }}>
+                <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {processCopy.columns.title.label}
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+                  {processTimeline.days.map((day) => (
+                    <div key={day.toISOString()} className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700">
+                      <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
+                        {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-l border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {processCopy.columns.tasks.label}
+                </div>
+              </div>
+
+              {sortedRecords.map((record) => {
+                const range = getProcessTimelineRange(record, processTimeline.start, processTimeline.end, dayCount);
+
+                return (
+                  <div
+                    key={record.id}
+                    className={cn(
+                      'grid min-h-[94px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
+                      !record.isActive && 'bg-slate-50/80 dark:bg-slate-900/40',
+                      rowSelection.isSelected(record.id) && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                    )}
+                    style={{ gridTemplateColumns: 'minmax(320px, 380px) 1fr minmax(130px, 160px)' }}
+                  >
+                    <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                          {record.folio}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'rounded-full px-2.5 py-1 text-xs font-semibold',
+                            record.isActive
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                          )}
+                        >
+                          {record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{record.title}</p>
+                      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                        {processCopy.frequencies[record.frequency]} · {record.responsible || processCopy.common.unassigned}
+                      </p>
+                    </div>
+                    <div className="relative grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+                      {processTimeline.days.map((day) => (
+                        <div key={`${record.id}-${day.toISOString()}`} className="border-r border-slate-200 last:border-r-0 dark:border-slate-700" />
+                      ))}
+                      {range ? (
+                        <div
+                          className={cn(
+                            'pointer-events-none absolute inset-y-4 rounded-xl border px-3 py-2',
+                            record.isActive
+                              ? 'border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25'
+                              : 'border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-700/50',
+                          )}
+                          style={{
+                            left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
+                            width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
+                          }}
+                        >
+                          <div className="flex h-full items-center justify-between gap-3">
+                            <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{record.title}</span>
+                            <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                              {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate)}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="absolute inset-y-0 left-4 flex items-center text-xs font-medium text-slate-400 dark:text-slate-500">
+                          {processCopy.common.noDate}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col justify-center gap-1 border-l border-slate-200 px-5 py-4 text-sm dark:border-slate-700">
+                      <span className="font-bold text-slate-900 dark:text-white">{record.taskCount}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {processCopy.table.taskCounts.open} {record.openTaskCount}
+                      </span>
+                      {record.overdueTaskCount > 0 ? (
+                        <span className="text-xs font-semibold text-rose-600 dark:text-rose-300">
+                          {processCopy.table.taskCounts.overdue} {record.overdueTaskCount}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
     <>
       <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
@@ -1625,10 +1899,38 @@ export default function Processes() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  viewMode === 'table'
+                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+                )}
+                onClick={() => setViewMode('table')}
+              >
+                <ListChecks className="h-4 w-4" />
+                {headerCopy.actions.table}
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  viewMode === 'diagram'
+                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+                )}
+                onClick={() => setViewMode('diagram')}
+              >
+                <CalendarRange className="h-4 w-4" />
+                {headerCopy.actions.diagram}
+              </button>
+            </div>
             <Button
               type="button"
               variant="outline"
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsDialogOpen(true)}
               disabled={isLoadingProcesses}
             >
@@ -1637,7 +1939,7 @@ export default function Processes() {
             </Button>
             <Button
               type="button"
-              className={cn('h-11 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
               onClick={openCreateDialog}
               disabled={isLoadingProcesses}
             >
@@ -1661,6 +1963,22 @@ export default function Processes() {
               }}
             >
               {processCopy.common.retry}
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+      {processesNotice ? (
+        <section className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{processesNotice}</span>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-emerald-700 shadow-none dark:border-emerald-900/60 dark:bg-slate-800 dark:text-emerald-200"
+              onClick={() => setProcessesNotice(null)}
+            >
+              {processCopy.common.close}
             </Button>
           </div>
         </section>
@@ -1710,11 +2028,98 @@ export default function Processes() {
 
       <ProcessKpiStrip copy={processCopy.kpis} isLoading={isLoadingProcesses} metrics={processKpiMetrics} />
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="overflow-x-auto">
-        <Table className="min-w-[2300px]">
+      {rowSelection.selectedCount > 0 ? (
+        <section className="mb-4 rounded-2xl border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-4 py-3 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+              <Badge variant="outline" className="rounded-full border-[rgb(235,165,52)]/40 bg-white px-3 py-1 text-[rgb(176,111,22)] dark:bg-slate-800 dark:text-[rgb(245,196,112)]">
+                {rowSelection.selectedCount} seleccionados
+              </Badge>
+              <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                disabled={isBulkActionRunning}
+                onClick={() => {
+                  void runBulkProcessAction('duplicate');
+                }}
+              >
+                <Copy className="h-4 w-4" />
+                {processCopy.actions.copy}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                disabled={isBulkActionRunning}
+                onClick={() => setIsBulkAssignOpen(true)}
+              >
+                {processCopy.form.labels.responsible}
+              </Button>
+              <Select
+                disabled={isBulkActionRunning}
+                onValueChange={(value) => {
+                  void runBulkProcessAction('priority', { priority: value as ProcessPriority });
+                }}
+              >
+                <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                  <SelectValue placeholder={processCopy.form.labels.priority} />
+                </SelectTrigger>
+                <SelectContent>
+                  {processPriorityValues.map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {processCopy.priorities[priority]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
+                disabled={isBulkActionRunning}
+                onClick={() => setBulkConfirmation('delete')}
+              >
+                <Trash2 className="h-4 w-4" />
+                {processCopy.actions.delete}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                disabled={isBulkActionRunning}
+                onClick={rowSelection.clearSelection}
+              >
+                {processCopy.common.cancel}
+              </Button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {viewMode === 'table' ? (
+        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="overflow-x-auto">
+          <Table className="min-w-[2160px]">
           <TableHeader>
             <TableRow className="border-slate-200 dark:border-slate-700">
+              <TableHead className="px-5 py-5" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+                <Checkbox
+                  aria-label="Seleccionar procesos visibles"
+                  checked={
+                    visibleRecordSelection.allVisibleSelected
+                      ? true
+                      : visibleRecordSelection.someVisibleSelected
+                        ? 'indeterminate'
+                        : false
+                  }
+                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleRecordIds, checked === true)}
+                  className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                />
+              </TableHead>
               {visibleColumns.map((column) => {
                 const isActiveSort = sortState.columnId === column.id;
                 const SortIcon = isActiveSort ? (sortState.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
@@ -1749,8 +2154,18 @@ export default function Processes() {
                 className={cn(
                   'border-slate-200 dark:border-slate-700',
                   !record.isActive && 'bg-slate-50/80 dark:bg-slate-900/40',
+                  rowSelection.isSelected(record.id) && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
                 )}
               >
+                <TableCell className="px-5 py-6 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+                  <Checkbox
+                    aria-label={`Seleccionar ${record.folio}`}
+                    checked={rowSelection.isSelected(record.id)}
+                    disabled={isRecordPending(record.id)}
+                    onCheckedChange={(checked) => rowSelection.toggleSelection(record.id, checked === true)}
+                    className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                  />
+                </TableCell>
                 {visibleColumns.map((column) => (
                   <TableCell
                     key={`${record.id}-${column.id}`}
@@ -1824,7 +2239,7 @@ export default function Processes() {
             {isLoadingProcesses ? (
               <TableRow>
                 <TableCell
-                  colSpan={visibleColumns.length + 1}
+                  colSpan={visibleColumns.length + 2}
                   className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
                 >
                   {processCopy.table.loading}
@@ -1834,7 +2249,7 @@ export default function Processes() {
             {!isLoadingProcesses && sortedRecords.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={visibleColumns.length + 1}
+                  colSpan={visibleColumns.length + 2}
                   className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
                 >
                   {processCopy.table.empty}
@@ -1842,9 +2257,74 @@ export default function Processes() {
               </TableRow>
             ) : null}
           </TableBody>
-        </Table>
-        </div>
-      </section>
+          </Table>
+          </div>
+        </section>
+      ) : (
+        renderProcessDiagram()
+      )}
+
+      <Dialog open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
+        <DialogContent
+          hideCloseButton
+          className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
+        >
+          <div className="bg-[rgb(235,165,52)] px-5 py-4">
+            <DialogTitle className="text-lg font-bold text-white">{processCopy.form.labels.responsible}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-white/85">
+              Aplicar responsable a {rowSelection.selectedCount} proceso{rowSelection.selectedCount === 1 ? '' : 's'} seleccionado{rowSelection.selectedCount === 1 ? '' : 's'}.
+            </DialogDescription>
+          </div>
+          <div className="space-y-3 px-5 py-5">
+            <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
+              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{processCopy.common.unassigned}</SelectItem>
+                {catalogCollaborators.map((collaborator) => (
+                  <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
+                    {collaborator.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              disabled={isBulkActionRunning}
+              onClick={() => setIsBulkAssignOpen(false)}
+            >
+              {processCopy.common.cancel}
+            </Button>
+            <Button
+              type="button"
+              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              disabled={isBulkActionRunning}
+              onClick={handleBulkAssign}
+            >
+              {isBulkActionRunning ? processCopy.common.saving : processCopy.form.submit.edit}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDeleteDialog
+        isVisible={bulkConfirmation === 'delete'}
+        title={processCopy.confirmation.deleteTitle}
+        itemName={`${rowSelection.selectedCount} proceso${rowSelection.selectedCount === 1 ? '' : 's'}`}
+        description={processCopy.confirmation.deleteDescription}
+        confirmLabel={processCopy.confirmation.deleteConfirm}
+        cancelLabel={processCopy.common.cancel}
+        confirmDisabled={isBulkActionRunning}
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => {
+          void runBulkProcessAction('delete');
+        }}
+      />
 
       <ProcessFormDialog
         copy={processCopy}
@@ -1864,6 +2344,7 @@ export default function Processes() {
         isOpen={isColumnsDialogOpen}
         onClose={() => setIsColumnsDialogOpen(false)}
         columns={columns as ColumnConfig[]}
+        defaultColumns={localizedColumns as ColumnConfig[]}
         fixedColumns={[
           {
             id: 'actions',
@@ -1873,6 +2354,7 @@ export default function Processes() {
             description: processCopy.fixedColumns.actions.description,
           },
         ]}
+        theme="processes"
         onSave={(nextColumns) => setColumns(nextColumns as ProcessColumnConfig[])}
       />
 

@@ -22,6 +22,8 @@ export const esMX: ProcessesTranslations = {
     title: 'Procesos',
     subtitle: 'Crea procesos recurrentes que generen tareas reales en la agenda de cada responsable.',
     actions: {
+      table: 'Tabla',
+      diagram: 'Diagrama',
       columns: 'Columnas',
       create: 'Crear proceso',
     },
@@ -102,7 +104,7 @@ export const esMX: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: 'Ejecutar motor',
+    runEngine: 'Generar tareas vencidas',
     pause: 'Pausar proceso',
     activate: 'Activar proceso',
     edit: 'Editar proceso',
@@ -115,7 +117,7 @@ export const esMX: ProcessesTranslations = {
     saveChanges: 'No se pudieron guardar los cambios del proceso.',
     deleteProcess: 'No se pudo eliminar el proceso.',
     duplicateProcess: 'No se pudo copiar el proceso.',
-    runEngine: 'No se pudo ejecutar el motor del proceso.',
+    runEngine: 'No se pudieron generar las tareas vencidas.',
     saveProcess: 'No se pudo guardar el proceso.',
     titleRequired: 'El titulo es obligatorio.',
     descriptionRequired: 'La descripcion es obligatoria.',

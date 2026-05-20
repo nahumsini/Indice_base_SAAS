@@ -8,10 +8,10 @@ import {
   DialogFooter,
   DialogTitle,
 } from '../../../../components/ui/dialog';
-import { Input } from '../../../../components/ui/input';
 import { Textarea } from '../../../../components/ui/textarea';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { accentButtonClass } from '../../Processes/processesData';
+import { ProgressSlider } from '../../shared/ProgressSlider';
 
 interface CompletableTask {
   description: string | null;
@@ -77,14 +77,10 @@ export function TaskCompletionDialog({
           ) : null}
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.completionLabel}</label>
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              value={completionPercent}
-              onChange={(event) => onCompletionPercentChange(event.target.value)}
-              className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+            <ProgressSlider
+              value={Number(completionPercent || 100)}
+              label={copy.completionLabel}
+              onChange={(value) => onCompletionPercentChange(String(value))}
             />
           </div>
 

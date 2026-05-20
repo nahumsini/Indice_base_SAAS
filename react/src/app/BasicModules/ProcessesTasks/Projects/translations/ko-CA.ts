@@ -25,6 +25,8 @@ export const koCA: ProjectsTranslations = {
     title: '프로젝트',
     subtitle: '일정에서 계산한 진행률, 실제 작업, 증빙, 완료, 감사가 포함된 운영 포트폴리오입니다.',
     actions: {
+      table: '작업',
+      diagram: '다이어그램',
       columns: '열',
       create: '프로젝트 만들기',
     },

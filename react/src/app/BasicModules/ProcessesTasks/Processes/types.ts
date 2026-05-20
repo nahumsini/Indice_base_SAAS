@@ -79,7 +79,6 @@ export type ProcessColumnId =
   | 'frequency'
   | 'nextOccurrence'
   | 'generatedUntil'
-  | 'progress'
   | 'tasks'
   | 'creator'
   | 'responsible'

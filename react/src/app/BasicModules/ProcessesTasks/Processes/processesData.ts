@@ -78,7 +78,6 @@ export const defaultColumns: ProcessColumnConfig[] = [
   { id: 'frequency', label: 'Frecuencia', visible: true, description: 'Periodicidad de generacion de tareas.' },
   { id: 'nextOccurrence', label: 'Proxima generacion', visible: true, description: 'Siguiente ocurrencia programada por el motor.' },
   { id: 'generatedUntil', label: 'Generado hasta', visible: false, description: 'Limite futuro materializado por el motor.' },
-  { id: 'progress', label: 'Avance', visible: true, description: 'Avance calculado con las tareas generadas.' },
   { id: 'tasks', label: 'Tareas', visible: true, description: 'Tareas generadas, abiertas, cerradas y vencidas.' },
   { id: 'creator', label: 'Creador', visible: true, description: 'Usuario que creo el proceso.' },
   { id: 'responsible', label: 'Responsable', visible: true, description: 'Usuario responsable de ejecutar el proceso.' },
