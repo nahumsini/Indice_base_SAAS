@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { dashboardApi } from '../api/dashboard';
 import { LearningModeBanner } from '../components/LearningModeBanner';
 import {
@@ -13,7 +13,8 @@ import { useFavorites, useLanguage } from '../shared/context';
 import { FavoritesSection } from './components/FavoritesSection';
 import { KpiSection } from './components/KpiSection';
 import { ModuleSection } from './components/ModuleSection';
-import { buildDashboardKpiDataMap, defaultDashboardKpiIds } from './dashboardData';
+import { buildDashboardAvailableKpis, buildDashboardKpiDataMap, defaultDashboardKpiIds } from './dashboardData';
+import { useMainDashboardTranslations } from './hooks/useMainDashboardTranslations';
 
 export interface MainDashboardProps {
   learningModeActive: boolean;
@@ -33,6 +34,7 @@ export function MainDashboard({
   onNavigate,
 }: MainDashboardProps) {
   const { t } = useLanguage();
+  const copy = useMainDashboardTranslations();
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
   const [availableModules, setAvailableModules] = useState<DashboardModuleCard[]>(() => buildDefaultModuleCatalog(t));
@@ -95,8 +97,26 @@ export function MainDashboard({
     };
   }, [t]);
 
-  const kpiDataMap = buildDashboardKpiDataMap(t);
-  const kpiData = selectedKPIIds.map(id => kpiDataMap[id]).filter(Boolean);
+  const kpiDataMap = useMemo(() => buildDashboardKpiDataMap(copy), [copy]);
+  const kpiData = useMemo(
+    () => selectedKPIIds.map(id => kpiDataMap[id]).filter(Boolean),
+    [kpiDataMap, selectedKPIIds],
+  );
+  const availableKPIs = useMemo(
+    () => buildDashboardAvailableKpis(copy, {
+      expenses: t.modules.gastos,
+      pettyCash: t.modules.cajaChica,
+      sales: t.modules.ventas,
+      pointOfSale: t.modules.puntoVenta,
+      humanResources: t.modules.recursosHumanos,
+      processesTasks: t.modules.procesosTareas,
+      inventory: t.modules.inventarios,
+      maintenance: t.modules.mantenimiento,
+      invoicing: t.modules.facturacion,
+      workClimate: t.modules.climaLaboral,
+    }),
+    [copy, t],
+  );
 
   const mainModules = availableModules.filter((module) => module.category === 'basic');
   const complementaryModules = availableModules.filter((module) => module.category === 'complementary');
@@ -121,8 +141,11 @@ export function MainDashboard({
 
       {!isGuidedLearningVisible && (
         <KpiSection
-          title={t.sections.kpis}
+          title={copy.sections.kpis}
           kpis={kpiData}
+          availableKPIs={availableKPIs}
+          defaultKPIIds={defaultDashboardKpiIds}
+          copy={copy}
           selectedKPIIds={selectedKPIIds}
           isConfigOpen={isKPIConfigOpen}
           onOpenConfig={() => setIsKPIConfigOpen(true)}
@@ -133,8 +156,8 @@ export function MainDashboard({
 
       {!isGuidedLearningVisible && (
         <FavoritesSection
-          title={t.sections.favorites}
-          quickAccessLabel={t.sections.quickAccess}
+          title={copy.sections.favorites}
+          quickAccessLabel={copy.sections.quickAccess}
           modules={favoriteModules}
           onToggleFavorite={toggleFavorite}
           onModuleClick={handleModuleClick}
@@ -143,8 +166,8 @@ export function MainDashboard({
 
       <ModuleSection
         icon="🏢"
-        title={t.sections.basicModules}
-        label={t.sections.main}
+        title={copy.sections.basicModules}
+        label={copy.sections.main}
         modules={mainModules}
         favoriteIds={favorites}
         onToggleFavorite={toggleFavorite}
@@ -156,8 +179,8 @@ export function MainDashboard({
 
       <ModuleSection
         icon="🔧"
-        title={t.sections.complementaryModules}
-        label={t.sections.additional}
+        title={copy.sections.complementaryModules}
+        label={copy.sections.additional}
         modules={complementaryModules}
         favoriteIds={favorites}
         onToggleFavorite={toggleFavorite}
@@ -167,8 +190,8 @@ export function MainDashboard({
 
       <ModuleSection
         icon="🤖"
-        title={t.sections.aiModules}
-        label={t.sections.aiLabel}
+        title={copy.sections.aiModules}
+        label={copy.sections.aiLabel}
         modules={aiModules}
         favoriteIds={favorites}
         onToggleFavorite={toggleFavorite}

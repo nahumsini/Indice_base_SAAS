@@ -3,11 +3,16 @@ import { KPIConfiguration } from '../../components/KPIConfiguration';
 import { KPICard } from '../../components/KPICard';
 import { KPICarousel } from '../../components/KPICarousel';
 import { Button } from '../../components/ui/button';
+import type { KPIItem } from '../../components/KPIConfiguration';
 import type { DashboardKpiCardData } from '../dashboardData';
+import type { MainDashboardTranslations } from '../translations';
 
 interface KpiSectionProps {
   title: string;
   kpis: DashboardKpiCardData[];
+  availableKPIs: KPIItem[];
+  defaultKPIIds: readonly string[];
+  copy: Pick<MainDashboardTranslations, 'kpiEmptyState' | 'kpiConfiguration'>;
   selectedKPIIds: string[];
   isConfigOpen: boolean;
   onOpenConfig: () => void;
@@ -18,6 +23,9 @@ interface KpiSectionProps {
 export function KpiSection({
   title,
   kpis,
+  availableKPIs,
+  defaultKPIIds,
+  copy,
   selectedKPIIds,
   isConfigOpen,
   onOpenConfig,
@@ -43,6 +51,9 @@ export function KpiSection({
           onClose={onCloseConfig}
           selectedKPIIds={selectedKPIIds}
           onSave={onSave}
+          availableKPIs={availableKPIs}
+          defaultKPIIds={defaultKPIIds}
+          copy={copy.kpiConfiguration}
         />
       </div>
       {kpis.length > 0 ? (
@@ -55,17 +66,17 @@ export function KpiSection({
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700">
           <div className="text-6xl mb-4">📊</div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No KPIs configured
+            {copy.kpiEmptyState.title}
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Select the KPIs you want to display to get started.
+            {copy.kpiEmptyState.description}
           </p>
           <Button
             onClick={onOpenConfig}
             className="bg-[#558DBD] hover:bg-[#4a7aa8] text-white"
           >
             <Settings className="h-4 w-4 mr-2" />
-            Configure KPIs
+            {copy.kpiEmptyState.action}
           </Button>
         </div>
       )}

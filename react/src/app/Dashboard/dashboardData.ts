@@ -1,10 +1,24 @@
-type DashboardTranslator = Record<string, any>;
+import type { KPIItem } from '../components/KPIConfiguration';
+import type { MainDashboardTranslations } from './translations';
 
 export interface DashboardKpiCardData {
   title: string;
   value: string;
   change: string;
   isPositive: boolean;
+}
+
+export interface DashboardKpiModuleLabels {
+  expenses: string;
+  pettyCash: string;
+  sales: string;
+  pointOfSale: string;
+  humanResources: string;
+  processesTasks: string;
+  inventory: string;
+  maintenance: string;
+  invoicing: string;
+  workClimate: string;
 }
 
 export const defaultDashboardKpiIds = [
@@ -16,44 +30,93 @@ export const defaultDashboardKpiIds = [
   'monthlyExpenses',
 ] as const;
 
-export function buildDashboardKpiDataMap(t: DashboardTranslator): Record<string, DashboardKpiCardData> {
+export function buildDashboardKpiDataMap(copy: MainDashboardTranslations): Record<string, DashboardKpiCardData> {
+  const { kpis } = copy;
+
   return {
-    weeklyRevenue: { title: t.kpis.weeklyRevenue, value: '$45,200', change: `+6% ${t.kpis.vsWeekBefore}`, isPositive: true },
-    netProfit: { title: t.kpis.netProfit, value: '$28,750', change: `+12% ${t.kpis.thisMonth}`, isPositive: true },
-    activeClients: { title: t.kpis.activeClients, value: '245', change: `+18 ${t.kpis.newOnes}`, isPositive: true },
-    activeEmployees: { title: t.kpis.activeEmployees, value: '18', change: `+2 ${t.kpis.thisMonth}`, isPositive: true },
-    pendingTasks: { title: t.kpis.pendingTasks, value: '12', change: `3 ${t.kpis.dueToday}`, isPositive: false },
-    monthlyExpenses: { title: t.kpis.monthlyExpenses, value: '$15,320', change: `+10% ${t.kpis.vsMonthBefore}`, isPositive: false },
-    expensesByCategory: { title: 'Expenses by Category', value: '$8,450', change: '+5% vs last month', isPositive: false },
-    pendingExpenses: { title: 'Pending Expenses', value: '8', change: '2 due today', isPositive: false },
-    pettyCashBalance: { title: 'Petty Cash Balance', value: '$2,500', change: '-15% vs last month', isPositive: false },
-    pettyCashExpenses: { title: 'Monthly Petty Cash Expenses', value: '$1,800', change: '+8% vs last month', isPositive: false },
-    monthlyRevenue: { title: 'Monthly Revenue', value: '$180,500', change: '+15% vs last month', isPositive: true },
-    averageTicket: { title: 'Average Ticket', value: '$736', change: '+3% vs last month', isPositive: true },
-    salesConversion: { title: 'Sales Conversion Rate', value: '23%', change: '+2% vs last month', isPositive: true },
-    dailySales: { title: 'Daily Sales', value: '$6,200', change: '+8% vs yesterday', isPositive: true },
-    transactionsCount: { title: 'Transactions', value: '142', change: '+12 vs yesterday', isPositive: true },
-    newHires: { title: 'New Hires', value: '3', change: 'this month', isPositive: true },
-    employeeTurnover: { title: 'Employee Turnover', value: '5%', change: '-2% vs last month', isPositive: true },
-    absenteeismRate: { title: 'Absenteeism Rate', value: '3%', change: '+1% vs last month', isPositive: false },
-    payrollCost: { title: 'Payroll Cost', value: '$45,000', change: '+5% vs last month', isPositive: false },
-    newClients: { title: 'New Clients', value: '28', change: '+10 vs last month', isPositive: true },
-    clientRetention: { title: 'Client Retention', value: '92%', change: '+3% vs last month', isPositive: true },
-    customerLifetimeValue: { title: 'Customer Lifetime Value', value: '$12,450', change: '+8% vs last month', isPositive: true },
-    completedTasks: { title: 'Completed Tasks', value: '48', change: 'this week', isPositive: true },
-    taskCompletionRate: { title: 'Task Completion Rate', value: '87%', change: '+5% vs last week', isPositive: true },
-    overdueTasks: { title: 'Overdue Tasks', value: '5', change: '-2 vs last week', isPositive: true },
-    inventoryValue: { title: 'Inventory Value', value: '$85,000', change: '+3% vs last month', isPositive: true },
-    stockLevel: { title: 'Stock Level', value: '850', change: 'units', isPositive: true },
-    lowStockItems: { title: 'Low Stock Items', value: '12', change: '+3 vs last week', isPositive: false },
-    inventoryTurnover: { title: 'Inventory Turnover', value: '4.2x', change: '+0.3 vs last month', isPositive: true },
-    pendingMaintenance: { title: 'Pending Maintenance', value: '6', change: '2 urgent', isPositive: false },
-    maintenanceCost: { title: 'Maintenance Cost', value: '$3,200', change: '+12% vs last month', isPositive: false },
-    equipmentUptime: { title: 'Equipment Uptime', value: '95%', change: '+2% vs last month', isPositive: true },
-    invoicesIssued: { title: 'Invoices Issued', value: '156', change: 'this month', isPositive: true },
-    pendingInvoices: { title: 'Pending Invoices', value: '23', change: '8 overdue', isPositive: false },
-    collectionRate: { title: 'Collection Rate', value: '88%', change: '+3% vs last month', isPositive: true },
-    employeeSatisfaction: { title: 'Employee Satisfaction', value: '8.2/10', change: '+0.5 vs last quarter', isPositive: true },
-    engagementScore: { title: 'Engagement Score', value: '78%', change: '+6% vs last quarter', isPositive: true },
+    weeklyRevenue: { title: kpis.weeklyRevenue.title, value: '$45,200', change: kpis.weeklyRevenue.change, isPositive: true },
+    netProfit: { title: kpis.netProfit.title, value: '$28,750', change: kpis.netProfit.change, isPositive: true },
+    activeClients: { title: kpis.activeClients.title, value: '245', change: kpis.activeClients.change, isPositive: true },
+    activeEmployees: { title: kpis.activeEmployees.title, value: '18', change: kpis.activeEmployees.change, isPositive: true },
+    pendingTasks: { title: kpis.pendingTasks.title, value: '12', change: kpis.pendingTasks.change, isPositive: false },
+    monthlyExpenses: { title: kpis.monthlyExpenses.title, value: '$15,320', change: kpis.monthlyExpenses.change, isPositive: false },
+    expensesByCategory: { title: kpis.expensesByCategory.title, value: '$8,450', change: kpis.expensesByCategory.change, isPositive: false },
+    pendingExpenses: { title: kpis.pendingExpenses.title, value: '8', change: kpis.pendingExpenses.change, isPositive: false },
+    pettyCashBalance: { title: kpis.pettyCashBalance.title, value: '$2,500', change: kpis.pettyCashBalance.change, isPositive: false },
+    pettyCashExpenses: { title: kpis.pettyCashExpenses.title, value: '$1,800', change: kpis.pettyCashExpenses.change, isPositive: false },
+    monthlyRevenue: { title: kpis.monthlyRevenue.title, value: '$180,500', change: kpis.monthlyRevenue.change, isPositive: true },
+    averageTicket: { title: kpis.averageTicket.title, value: '$736', change: kpis.averageTicket.change, isPositive: true },
+    salesConversion: { title: kpis.salesConversion.title, value: '23%', change: kpis.salesConversion.change, isPositive: true },
+    dailySales: { title: kpis.dailySales.title, value: '$6,200', change: kpis.dailySales.change, isPositive: true },
+    transactionsCount: { title: kpis.transactionsCount.title, value: '142', change: kpis.transactionsCount.change, isPositive: true },
+    newHires: { title: kpis.newHires.title, value: '3', change: kpis.newHires.change, isPositive: true },
+    employeeTurnover: { title: kpis.employeeTurnover.title, value: '5%', change: kpis.employeeTurnover.change, isPositive: true },
+    absenteeismRate: { title: kpis.absenteeismRate.title, value: '3%', change: kpis.absenteeismRate.change, isPositive: false },
+    payrollCost: { title: kpis.payrollCost.title, value: '$45,000', change: kpis.payrollCost.change, isPositive: false },
+    newClients: { title: kpis.newClients.title, value: '28', change: kpis.newClients.change, isPositive: true },
+    clientRetention: { title: kpis.clientRetention.title, value: '92%', change: kpis.clientRetention.change, isPositive: true },
+    customerLifetimeValue: { title: kpis.customerLifetimeValue.title, value: '$12,450', change: kpis.customerLifetimeValue.change, isPositive: true },
+    completedTasks: { title: kpis.completedTasks.title, value: '48', change: kpis.completedTasks.change, isPositive: true },
+    taskCompletionRate: { title: kpis.taskCompletionRate.title, value: '87%', change: kpis.taskCompletionRate.change, isPositive: true },
+    overdueTasks: { title: kpis.overdueTasks.title, value: '5', change: kpis.overdueTasks.change, isPositive: true },
+    inventoryValue: { title: kpis.inventoryValue.title, value: '$85,000', change: kpis.inventoryValue.change, isPositive: true },
+    stockLevel: { title: kpis.stockLevel.title, value: '850', change: kpis.stockLevel.change, isPositive: true },
+    lowStockItems: { title: kpis.lowStockItems.title, value: '12', change: kpis.lowStockItems.change, isPositive: false },
+    inventoryTurnover: { title: kpis.inventoryTurnover.title, value: '4.2x', change: kpis.inventoryTurnover.change, isPositive: true },
+    pendingMaintenance: { title: kpis.pendingMaintenance.title, value: '6', change: kpis.pendingMaintenance.change, isPositive: false },
+    maintenanceCost: { title: kpis.maintenanceCost.title, value: '$3,200', change: kpis.maintenanceCost.change, isPositive: false },
+    equipmentUptime: { title: kpis.equipmentUptime.title, value: '95%', change: kpis.equipmentUptime.change, isPositive: true },
+    invoicesIssued: { title: kpis.invoicesIssued.title, value: '156', change: kpis.invoicesIssued.change, isPositive: true },
+    pendingInvoices: { title: kpis.pendingInvoices.title, value: '23', change: kpis.pendingInvoices.change, isPositive: false },
+    collectionRate: { title: kpis.collectionRate.title, value: '88%', change: kpis.collectionRate.change, isPositive: true },
+    employeeSatisfaction: { title: kpis.employeeSatisfaction.title, value: '8.2/10', change: kpis.employeeSatisfaction.change, isPositive: true },
+    engagementScore: { title: kpis.engagementScore.title, value: '78%', change: kpis.engagementScore.change, isPositive: true },
   };
+}
+
+export function buildDashboardAvailableKpis(
+  copy: MainDashboardTranslations,
+  modules: DashboardKpiModuleLabels,
+): KPIItem[] {
+  const { kpis } = copy;
+
+  return [
+    { id: 'monthlyExpenses', title: kpis.monthlyExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'expensesByCategory', title: kpis.expensesByCategory.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'pendingExpenses', title: kpis.pendingExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'pettyCashBalance', title: kpis.pettyCashBalance.title, module: modules.pettyCash, moduleEmoji: '💳', moduleColor: 'green', category: 'financial' },
+    { id: 'pettyCashExpenses', title: kpis.pettyCashExpenses.title, module: modules.pettyCash, moduleEmoji: '💳', moduleColor: 'green', category: 'financial' },
+    { id: 'weeklyRevenue', title: kpis.weeklyRevenue.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'monthlyRevenue', title: kpis.monthlyRevenue.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'netProfit', title: kpis.netProfit.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'financial' },
+    { id: 'averageTicket', title: kpis.averageTicket.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'salesConversion', title: kpis.salesConversion.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'dailySales', title: kpis.dailySales.title, module: modules.pointOfSale, moduleEmoji: '🛒', moduleColor: 'orange', category: 'sales' },
+    { id: 'transactionsCount', title: kpis.transactionsCount.title, module: modules.pointOfSale, moduleEmoji: '🛒', moduleColor: 'orange', category: 'sales' },
+    { id: 'activeEmployees', title: kpis.activeEmployees.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
+    { id: 'newHires', title: kpis.newHires.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
+    { id: 'employeeTurnover', title: kpis.employeeTurnover.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
+    { id: 'absenteeismRate', title: kpis.absenteeismRate.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
+    { id: 'payrollCost', title: kpis.payrollCost.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'financial' },
+    { id: 'activeClients', title: kpis.activeClients.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'newClients', title: kpis.newClients.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'clientRetention', title: kpis.clientRetention.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'customerLifetimeValue', title: kpis.customerLifetimeValue.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'pendingTasks', title: kpis.pendingTasks.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
+    { id: 'completedTasks', title: kpis.completedTasks.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
+    { id: 'taskCompletionRate', title: kpis.taskCompletionRate.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
+    { id: 'overdueTasks', title: kpis.overdueTasks.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
+    { id: 'inventoryValue', title: kpis.inventoryValue.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
+    { id: 'stockLevel', title: kpis.stockLevel.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
+    { id: 'lowStockItems', title: kpis.lowStockItems.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
+    { id: 'inventoryTurnover', title: kpis.inventoryTurnover.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
+    { id: 'pendingMaintenance', title: kpis.pendingMaintenance.title, module: modules.maintenance, moduleEmoji: '🔧', moduleColor: 'gray', category: 'operational' },
+    { id: 'maintenanceCost', title: kpis.maintenanceCost.title, module: modules.maintenance, moduleEmoji: '🔧', moduleColor: 'gray', category: 'financial' },
+    { id: 'equipmentUptime', title: kpis.equipmentUptime.title, module: modules.maintenance, moduleEmoji: '🔧', moduleColor: 'gray', category: 'operational' },
+    { id: 'invoicesIssued', title: kpis.invoicesIssued.title, module: modules.invoicing, moduleEmoji: '🧾', moduleColor: 'gray', category: 'financial' },
+    { id: 'pendingInvoices', title: kpis.pendingInvoices.title, module: modules.invoicing, moduleEmoji: '🧾', moduleColor: 'gray', category: 'financial' },
+    { id: 'collectionRate', title: kpis.collectionRate.title, module: modules.invoicing, moduleEmoji: '🧾', moduleColor: 'gray', category: 'financial' },
+    { id: 'employeeSatisfaction', title: kpis.employeeSatisfaction.title, module: modules.workClimate, moduleEmoji: '😊', moduleColor: 'gray', category: 'people' },
+    { id: 'engagementScore', title: kpis.engagementScore.title, module: modules.workClimate, moduleEmoji: '😊', moduleColor: 'gray', category: 'people' },
+  ];
 }
