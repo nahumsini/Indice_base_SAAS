@@ -13,7 +13,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const scrollAmount = 240;
+      const scrollAmount = 360;
       scrollRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
@@ -26,15 +26,16 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
     return (
       <div className="relative group">
         {/* Left edge fade */}
-        <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="pointer-events-none absolute bottom-0 left-0 top-0 z-[5] w-16 bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent" />
         
         {/* Left control */}
         {childCount > 3 && (
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Scroll KPI cards left"
             onClick={() => scroll('left')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border-2 border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50 dark:hover:bg-gray-700 -translate-x-5 hover:scale-110"
+            className="absolute left-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border border-slate-200 bg-white/95 shadow-md transition-all hover:scale-105 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/95 dark:hover:bg-slate-800"
           >
             <ChevronLeft className="h-5 w-5 text-gray-700 dark:text-gray-300" />
           </Button>
@@ -43,27 +44,28 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
         {/* Carousel container */}
         <div 
           ref={scrollRef}
-          className="overflow-x-auto scrollbar-hide pb-4 scroll-smooth"
+          className="overflow-x-auto scrollbar-hide px-1 pb-4 scroll-smooth"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex min-w-min snap-x snap-mandatory gap-3 [&>*]:w-[260px] [&>*]:flex-shrink-0">
+          <div className="flex min-w-min snap-x snap-mandatory gap-3 [&>*]:w-[290px] [&>*]:flex-shrink-0 sm:[&>*]:w-[320px] xl:[&>*]:w-[340px]">
             {children}
           </div>
         </div>
 
         {/* Right edge fade */}
-        <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-[5] w-16 bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent" />
 
         {/* Right control */}
         {childCount > 3 && (
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Scroll KPI cards right"
             onClick={() => scroll('right')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border-2 border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50 dark:hover:bg-gray-700 translate-x-5 hover:scale-110"
+            className="absolute right-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border border-slate-200 bg-white/95 shadow-md transition-all hover:scale-105 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/95 dark:hover:bg-slate-800"
           >
             <ChevronRight className="h-5 w-5 text-gray-700 dark:text-gray-300" />
           </Button>

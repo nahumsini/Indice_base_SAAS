@@ -57,7 +57,7 @@ export function KpiSection({
         />
       </div>
       {kpis.length > 0 ? (
-        <KPICarousel>
+        <KPICarousel mode="carousel">
           {kpis.map((kpi, index) => (
             <KPICard key={selectedKPIIds[index] ?? index} {...kpi} kpiId={selectedKPIIds[index]} />
           ))}
