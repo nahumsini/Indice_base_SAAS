@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   BadgeCheck,
@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   CircleDot,
   Clock3,
+  Globe2,
   KeyRound,
   LocateFixed,
   MapPin,
@@ -31,9 +32,13 @@ import {
   type PublicKioskDayActivity,
   type PublicKioskIdentifyResponse,
 } from '../../../../../api/humanResources';
-import { useLanguage } from '../../../../../shared/context';
-import { useHRLanguage } from '../../../HRLanguage';
-import { getPublicKioskGreeting, getPublicKioskMessage } from './publicKioskMessages';
+import { useKioskLocaleControls, useKioskTranslations } from './hooks/useKioskTranslations';
+import {
+  getKioskGreeting,
+  getKioskMessage,
+  type KioskLocale,
+  type KioskTranslations,
+} from './translations';
 
 const padDatePart = (value: number) => `${value}`.padStart(2, '0');
 const localDateString = (date: Date) =>
@@ -132,6 +137,47 @@ function KioskStatusMetric({
   );
 }
 
+function KioskLanguageSelector({
+  copy,
+  detectedLocale,
+  locale,
+  localeOptions,
+  onLocaleChange,
+}: {
+  copy: KioskTranslations;
+  detectedLocale: KioskLocale | null;
+  locale: KioskLocale;
+  localeOptions: ReadonlyArray<{ code: KioskLocale; label: string }>;
+  onLocaleChange: (locale: KioskLocale) => void;
+}) {
+  return (
+    <label className="flex min-w-[13rem] items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950/75 dark:text-slate-200">
+      <Globe2 className="h-4 w-4 shrink-0 text-[#143675] dark:text-[#8bb3ff]" />
+      <span className="sr-only">{copy.language.selectorLabel}</span>
+      <select
+        value={locale}
+        onChange={(event) => onLocaleChange(event.target.value as KioskLocale)}
+        aria-label={copy.language.selectorLabel}
+        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+      >
+        {localeOptions.map((option) => (
+          <option key={option.code} value={option.code}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {detectedLocale === locale ? (
+        <span
+          title={copy.language.autoDetected}
+          className="hidden rounded-full bg-[#143675]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff] sm:inline"
+        >
+          {copy.language.autoBadge}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
 function KioskFlowStepper({ stepLabel, steps }: { stepLabel: string; steps: KioskStepItem[] }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -215,8 +261,13 @@ function KioskPinKeypad({
 
 export default function Kiosk() {
   const { deviceToken } = useParams();
-  const { currentLanguage } = useLanguage();
-  const copy = useHRLanguage().publicKiosk;
+  const copy = useKioskTranslations();
+  const {
+    detectedLocale,
+    localeOptions,
+    selectedLocale,
+    setKioskLocale,
+  } = useKioskLocaleControls();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [bootstrap, setBootstrap] = useState<PublicKioskBootstrapResponse | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<PublicKioskMethod>('pin');
@@ -385,7 +436,7 @@ export default function Kiosk() {
   const canIdentify = credentialValue.trim().length > 0 && busyState === 'idle' && !isLoading;
   const canPunch = identifiedHrUser !== null
     && identificationToken.length > 0
-    && (isOpenAttendanceKiosk || locationState !== null)
+    && locationState !== null
     && hasIdentityEvidence
     && busyState === 'idle';
   const credentialPlaceholder = copy.pinPlaceholder;
@@ -404,9 +455,9 @@ export default function Kiosk() {
       has_active_check_in: false,
     }
     : null;
-  const kioskLocationLabel = isOpenAttendanceKiosk
-    ? copy.locationOptional
-    : bootstrap?.location?.name ?? bootstrap?.scope_label ?? '—';
+  const kioskLocationLabel = bootstrap?.location?.name
+    ?? (isOpenAttendanceKiosk ? copy.deviceGpsRequired : bootstrap?.scope_label)
+    ?? '—';
   const hasActiveCheckIn = Boolean(
     activeTodayActivity?.has_active_check_in
       ?? (activeTodayActivity?.has_check_in && !activeTodayActivity?.has_check_out),
@@ -428,10 +479,10 @@ export default function Kiosk() {
     ? copy.waitingForPin
     : !hasIdentityEvidence
       ? copy.completeVerification
-      : !isOpenAttendanceKiosk && !locationState
+      : !locationState
         ? copy.locationPending
         : copy.readyToRegister;
-  const kioskSteps: KioskStepItem[] = [
+  const kioskSteps = useMemo<KioskStepItem[]>(() => [
     {
       label: copy.steps.pin,
       state: identifiedHrUser ? 'done' : 'active',
@@ -443,8 +494,8 @@ export default function Kiosk() {
       Icon: UserCheck,
     },
     {
-      label: isOpenAttendanceKiosk ? copy.steps.locationOptional : copy.steps.location,
-      state: !identifiedHrUser ? 'pending' : isOpenAttendanceKiosk || locationState ? 'done' : hasIdentityEvidence ? 'active' : 'pending',
+      label: copy.steps.location,
+      state: !identifiedHrUser ? 'pending' : locationState ? 'done' : hasIdentityEvidence ? 'active' : 'pending',
       Icon: MapPin,
     },
     {
@@ -452,29 +503,31 @@ export default function Kiosk() {
       state: canPunch ? 'active' : hasCompletedShift ? 'done' : 'pending',
       Icon: BadgeCheck,
     },
-  ];
+  ], [
+    canPunch,
+    copy.steps.attendance,
+    copy.steps.identity,
+    copy.steps.location,
+    copy.steps.pin,
+    hasCompletedShift,
+    hasIdentityEvidence,
+    identifiedHrUser,
+    locationState,
+  ]);
   const terminalSubtitle = identifiedHrUser
-    ? isOpenAttendanceKiosk
-      ? copy.identifiedOpenHint
-      : copy.identifiedHint
+    ? copy.identifiedHint
     : copy.terminalSubtitle;
-  const verificationLocationLabel = isOpenAttendanceKiosk && !locationState
-    ? copy.locationOptional
-    : locationState
-      ? copy.locationReady
-      : copy.locationPending;
+  const verificationLocationLabel = locationState
+    ? copy.locationReady
+    : copy.locationPending;
   const locationButtonLabel = locationState
     ? copy.refreshLocation
-    : isOpenAttendanceKiosk
-      ? copy.captureLocationOptional
-      : copy.captureLocation;
+    : copy.captureLocation;
   const locationHelpText = locationState
     ? `${copy.locationReady}: ${locationState.latitude.toFixed(5)}, ${locationState.longitude.toFixed(5)}`
-    : isOpenAttendanceKiosk
-      ? copy.locationOptionalHint
-      : copy.locationPending;
-  const kioskGreeting = getPublicKioskGreeting(currentTime, currentLanguage.code);
-  const kioskMessage = getPublicKioskMessage(currentTime, currentLanguage.code);
+    : copy.locationRequiredHint;
+  const kioskGreeting = getKioskGreeting(copy, currentTime);
+  const kioskMessage = getKioskMessage(copy, currentTime);
 
   const formatActivityDate = (dateValue: string) => {
     const [year, month, day] = dateValue.split('-').map(Number);
@@ -482,7 +535,7 @@ export default function Kiosk() {
       return dateValue;
     }
 
-    return new Date(year, month - 1, day).toLocaleDateString(currentLanguage.code, {
+    return new Date(year, month - 1, day).toLocaleDateString(selectedLocale, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -494,7 +547,7 @@ export default function Kiosk() {
       return copy.notRecorded;
     }
 
-    return new Date(dateTimeValue).toLocaleTimeString(currentLanguage.code, {
+    return new Date(dateTimeValue).toLocaleTimeString(selectedLocale, {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -533,9 +586,7 @@ export default function Kiosk() {
       } else {
         showFailureToast(copy.errors.locationUnavailable);
       }
-      if (!isOpenAttendanceKiosk) {
-        setLocationState(null);
-      }
+      setLocationState(null);
       return null;
     } finally {
       setBusyState('idle');
@@ -701,11 +752,15 @@ export default function Kiosk() {
   };
 
   const handlePunch = async (eventType: 'check_in' | 'check_out') => {
-    if (!deviceToken || !identificationToken || (!isOpenAttendanceKiosk && !locationState)) {
+    if (!deviceToken || !identificationToken) {
       return;
     }
     if (!hasIdentityEvidence) {
       showFailureToast(copy.errors.evidenceRequired);
+      return;
+    }
+    if (!locationState) {
+      showFailureToast(copy.errors.locationRequired);
       return;
     }
 
@@ -735,8 +790,9 @@ export default function Kiosk() {
             metadata: {
               identity_evidence: evidenceMode === 'face' ? 'face_verified' : 'photo_fallback',
               evidence_mode: evidenceMode,
-              location_optional: isOpenAttendanceKiosk,
-              gps_captured: Boolean(locationState),
+              location_optional: false,
+              location_forced: true,
+              gps_captured: true,
               face_verification_failed: evidenceMode === 'photo',
               photo_capture_confirmed: evidenceMode === 'photo',
               photo_storage: evidenceMode === 'photo'
@@ -828,16 +884,25 @@ export default function Kiosk() {
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_28px_90px_-46px_rgba(20,54,117,0.55)] dark:border-slate-700/80 dark:bg-slate-950 dark:shadow-[0_28px_90px_-48px_rgba(0,0,0,0.85)]">
             <div className="shrink-0 border-b border-slate-200/80 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950 sm:px-7">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#143675] text-white shadow-sm dark:bg-[#8bb3ff] dark:text-slate-950">
-                    <ShieldCheck className="h-5 w-5" />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#143675] text-white shadow-sm dark:bg-[#8bb3ff] dark:text-slate-950">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">indice</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#143675] dark:text-[#8bb3ff]">
+                        {copy.terminalBadge}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">indice</p>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#143675] dark:text-[#8bb3ff]">
-                      {copy.terminalBadge}
-                    </p>
-                  </div>
+                  <KioskLanguageSelector
+                    copy={copy}
+                    detectedLocale={detectedLocale}
+                    locale={selectedLocale}
+                    localeOptions={localeOptions}
+                    onLocaleChange={setKioskLocale}
+                  />
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[34rem]">
@@ -854,7 +919,7 @@ export default function Kiosk() {
                   />
                   <KioskStatusMetric
                     label={copy.currentTime}
-                    value={currentTime.toLocaleTimeString(currentLanguage.code, { hour: '2-digit', minute: '2-digit' })}
+                    value={currentTime.toLocaleTimeString(selectedLocale, { hour: '2-digit', minute: '2-digit' })}
                     Icon={Clock3}
                   />
                 </div>
@@ -998,7 +1063,7 @@ export default function Kiosk() {
                           <div className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3 text-right text-xs text-slate-500 dark:border-emerald-800/50 dark:bg-slate-950/65 dark:text-slate-400">
                             <p className="font-semibold uppercase tracking-[0.18em]">{copy.nextAction}</p>
                             <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                              {new Date(expiresAt).toLocaleTimeString(currentLanguage.code, { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(expiresAt).toLocaleTimeString(selectedLocale, { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                         ) : null}
@@ -1265,7 +1330,7 @@ export default function Kiosk() {
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{copy.currentTime}</p>
                         <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                          {currentTime.toLocaleTimeString(currentLanguage.code, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          {currentTime.toLocaleTimeString(selectedLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </p>
                       </div>
                     </div>
