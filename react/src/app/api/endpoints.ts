@@ -4,6 +4,10 @@ export const endpoints = {
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',
   },
+  notifications: {
+    list: '/api/v1/notifications',
+    readAll: '/api/v1/notifications/read-all',
+  },
   invitations: {
     base: '/api/v1/invitations',
   },
@@ -63,6 +67,7 @@ export const endpoints = {
     faceEnrollments: '/api/v1/hr/face/enrollments',
     announcementsList: '/api/v1/hr/announcements',
     announcementsCreate: '/api/v1/hr/announcements',
+    announcementsAudienceOptions: '/api/v1/hr/announcements/audience-options',
     recordsList: '/api/v1/hr/records',
     recordsCreate: '/api/v1/hr/records',
     recordDetails: '/api/v1/hr/records',

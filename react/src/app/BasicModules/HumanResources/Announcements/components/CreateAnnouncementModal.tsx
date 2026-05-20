@@ -1,35 +1,25 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Calendar, Megaphone, Search, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import type {
+  AnnouncementDepartmentOption,
+  AnnouncementEmployeeOption,
+  AnnouncementUnitOption,
+  CreateAnnouncementFormData,
+} from '../announcementTypes';
 import type { CreateAnnouncementModalCopy } from '../translations';
-
-interface AnnouncementEmployee {
-  id: number;
-  name: string;
-  position: string;
-  unit: number;
-  department?: string;
-}
-
-export interface CreateAnnouncementFormData {
-  title: string;
-  type: 'general' | 'urgent' | 'reminder' | 'celebration';
-  audienceType: 'all' | 'units' | 'departments' | 'employees';
-  unitIds: string[];
-  departmentNames: string[];
-  employeeIds: number[];
-  content: string;
-  status: 'draft' | 'scheduled' | 'published';
-  scheduledDate: string;
-  scheduledTime: string;
-}
 
 interface CreateAnnouncementModalProps {
   copy: CreateAnnouncementModalCopy;
+  initialData?: CreateAnnouncementFormData | null;
+  isEdit?: boolean;
+  isSubmitting?: boolean;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: CreateAnnouncementFormData) => void;
-  employees?: AnnouncementEmployee[];
+  onSave: (data: CreateAnnouncementFormData) => Promise<void> | void;
+  departments?: AnnouncementDepartmentOption[];
+  employees?: AnnouncementEmployeeOption[];
+  units?: AnnouncementUnitOption[];
 }
 
 interface FormState {
@@ -60,28 +50,51 @@ const initialState: FormState = {
 
 export function CreateAnnouncementModal({
   copy,
+  initialData,
+  isEdit = false,
+  isSubmitting = false,
   isOpen,
   onClose,
   onSave,
+  departments = [],
   employees = [],
+  units = [],
 }: CreateAnnouncementModalProps) {
   const [formData, setFormData] = useState<FormState>(initialState);
   const [employeeSearch, setEmployeeSearch] = useState('');
 
-  const unitOptions = useMemo(
-    () =>
-      Array.from(new Set(employees.map((employee) => String(employee.unit)))).sort((left, right) =>
-        left.localeCompare(right, undefined, { numeric: true }),
-      ),
-    [employees],
-  );
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    setFormData(initialData ? fromInitialData(initialData) : initialState);
+    setEmployeeSearch('');
+  }, [initialData, isOpen]);
 
-  const departmentOptions = useMemo(
-    () =>
-      Array.from(new Set(employees.map((employee) => employee.department).filter(Boolean) as string[]))
-        .sort((left, right) => left.localeCompare(right)),
-    [employees],
-  );
+  const unitOptions = useMemo(() => {
+    const knownIds = new Set(units.map((unit) => unit.id));
+    const missingSelected = formData.unitIds
+      .filter((unitId) => !knownIds.has(unitId))
+      .map((unitId) => ({
+        id: unitId,
+        name: copy.units.unitLabel(unitId),
+        activeUserCount: 0,
+        isAvailable: true,
+      }));
+    return [...units, ...missingSelected];
+  }, [copy.units, formData.unitIds, units]);
+
+  const departmentOptions = useMemo(() => {
+    const knownNames = new Set(departments.map((department) => normalizeOptionName(department.name)));
+    const missingSelected = formData.departmentNames
+      .filter((department) => !knownNames.has(normalizeOptionName(department)))
+      .map((department) => ({
+        name: department,
+        activeUserCount: 0,
+        isAvailable: true,
+      }));
+    return [...departments, ...missingSelected];
+  }, [departments, formData.departmentNames]);
 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = employeeSearch.trim().toLowerCase();
@@ -106,26 +119,33 @@ export function CreateAnnouncementModal({
   };
 
   const resetAndClose = () => {
+    if (isSubmitting) {
+      return;
+    }
     setFormData(initialState);
     setEmployeeSearch('');
     onClose();
   };
 
-  const submitAnnouncement = (status: CreateAnnouncementFormData['status']) => {
-    onSave({
-      title: formData.title.trim(),
-      type: formData.type,
-      audienceType: formData.audienceType,
-      unitIds: formData.unitIds,
-      departmentNames: formData.departmentNames,
-      employeeIds: formData.employeeIds,
-      content: formData.content.trim(),
-      status,
-      scheduledDate: formData.scheduledDate,
-      scheduledTime: formData.scheduledTime,
-    });
-    setFormData(initialState);
-    setEmployeeSearch('');
+  const submitAnnouncement = async (status: CreateAnnouncementFormData['status']) => {
+    try {
+      await onSave({
+        title: formData.title.trim(),
+        type: formData.type,
+        audienceType: formData.audienceType,
+        unitIds: formData.unitIds,
+        departmentNames: formData.departmentNames,
+        employeeIds: formData.employeeIds,
+        content: formData.content.trim(),
+        status,
+        scheduledDate: formData.scheduledDate,
+        scheduledTime: formData.scheduledTime,
+      });
+      setFormData(initialState);
+      setEmployeeSearch('');
+    } catch {
+      // The parent renders the API error. Keep the draft in place for correction.
+    }
   };
 
   const toggleArrayValue = (field: 'unitIds' | 'departmentNames', value: string) => {
@@ -158,7 +178,7 @@ export function CreateAnnouncementModal({
     (formData.publishMode === 'now' || Boolean(formData.scheduledDate && formData.scheduledTime));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" aria-busy={isSubmitting}>
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#143675]/20 bg-white text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
         <div className="flex items-start justify-between gap-4 bg-[#143675] px-6 py-5">
           <div className="flex min-w-0 items-start gap-3">
@@ -175,6 +195,7 @@ export function CreateAnnouncementModal({
           <button
             type="button"
             onClick={resetAndClose}
+            disabled={isSubmitting}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
             aria-label={copy.close}
           >
@@ -236,14 +257,18 @@ export function CreateAnnouncementModal({
             {formData.audienceType === 'units' ? (
               <AudienceOptionSection title={copy.units.title} helperText={copy.units.helper}>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  {unitOptions.map((unit) => (
-                    <CheckboxPill
-                      key={unit}
-                      checked={formData.unitIds.includes(unit)}
-                      label={copy.units.unitLabel(unit)}
-                      onChange={() => toggleArrayValue('unitIds', unit)}
-                    />
-                  ))}
+                  {unitOptions.map((unit) => {
+                    const checked = formData.unitIds.includes(unit.id);
+                    return (
+                      <CheckboxPill
+                        key={unit.id}
+                        checked={checked}
+                        disabled={!unit.isAvailable && !checked}
+                        label={formatAudienceOptionLabel(unit.name, unit.activeUserCount)}
+                        onChange={() => toggleArrayValue('unitIds', unit.id)}
+                      />
+                    );
+                  })}
                 </div>
               </AudienceOptionSection>
             ) : null}
@@ -251,14 +276,18 @@ export function CreateAnnouncementModal({
             {formData.audienceType === 'departments' ? (
               <AudienceOptionSection title={copy.departments.title} helperText={copy.departments.helper}>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  {departmentOptions.map((department) => (
-                    <CheckboxPill
-                      key={department}
-                      checked={formData.departmentNames.includes(department)}
-                      label={department}
-                      onChange={() => toggleArrayValue('departmentNames', department)}
-                    />
-                  ))}
+                  {departmentOptions.map((department) => {
+                    const checked = formData.departmentNames.includes(department.name);
+                    return (
+                      <CheckboxPill
+                        key={department.name}
+                        checked={checked}
+                        disabled={!department.isAvailable && !checked}
+                        label={formatAudienceOptionLabel(department.name, department.activeUserCount)}
+                        onChange={() => toggleArrayValue('departmentNames', department.name)}
+                      />
+                    );
+                  })}
                 </div>
               </AudienceOptionSection>
             ) : null}
@@ -379,6 +408,7 @@ export function CreateAnnouncementModal({
             variant="outline"
             className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
             onClick={resetAndClose}
+            disabled={isSubmitting}
           >
             {copy.buttons.cancel}
           </Button>
@@ -386,24 +416,39 @@ export function CreateAnnouncementModal({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button
               variant="outline"
-              disabled={!canSaveDraft}
+              disabled={isSubmitting || !canSaveDraft}
               className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white disabled:border-white/15 disabled:text-white/50"
-              onClick={() => submitAnnouncement('draft')}
+              onClick={() => void submitAnnouncement('draft')}
             >
               {copy.buttons.saveDraft}
             </Button>
             <Button
-              disabled={!canPublish}
-              onClick={() => submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
+              disabled={isSubmitting || !canPublish}
+              onClick={() => void submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
               className="rounded-xl bg-white text-[#143675] hover:bg-blue-50 disabled:bg-white/50 disabled:text-[#143675]/60"
             >
-              {formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
+              {isEdit ? 'Save changes' : formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
             </Button>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function fromInitialData(data: CreateAnnouncementFormData): FormState {
+  return {
+    title: data.title,
+    type: data.type,
+    audienceType: data.audienceType,
+    unitIds: data.unitIds,
+    departmentNames: data.departmentNames,
+    employeeIds: data.employeeIds,
+    content: data.content,
+    publishMode: data.status === 'scheduled' ? 'scheduled' : 'now',
+    scheduledDate: data.scheduledDate,
+    scheduledTime: data.scheduledTime,
+  };
 }
 
 function AudienceOptionSection({
@@ -426,16 +471,20 @@ function AudienceOptionSection({
 
 function CheckboxPill({
   checked,
+  disabled = false,
   label,
   onChange,
 }: {
   checked: boolean;
+  disabled?: boolean;
   label: string;
   onChange: () => void;
 }) {
   return (
     <label className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-      checked
+      disabled
+        ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500'
+        : checked
         ? 'border-[#143675] bg-[#143675]/10 text-[#143675] dark:border-[#8bb3ff] dark:bg-[#143675]/30 dark:text-white'
         : 'border-gray-300 bg-white text-gray-700 hover:border-[#143675]/40 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200'
     }`}
@@ -443,12 +492,22 @@ function CheckboxPill({
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={onChange}
         className="h-4 w-4 rounded border-gray-300 text-[#143675] focus:ring-[#143675]"
       />
       <span>{label}</span>
     </label>
   );
+}
+
+function formatAudienceOptionLabel(name: string, activeUserCount: number) {
+  const suffix = activeUserCount === 1 ? '1 user' : `${activeUserCount} users`;
+  return `${name} (${suffix})`;
+}
+
+function normalizeOptionName(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function RadioCard({
