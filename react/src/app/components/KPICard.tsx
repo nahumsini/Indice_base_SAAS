@@ -10,24 +10,42 @@ interface KPICardProps {
 }
 
 export function KPICard({ title, value, change, isPositive, orderNumber }: KPICardProps) {
+  const trendClasses = isPositive
+    ? {
+        icon: TrendingUp,
+        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-700',
+        accent: 'bg-emerald-500',
+      }
+    : {
+        icon: TrendingDown,
+        badge: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-700',
+        accent: 'bg-rose-500',
+      };
+  const TrendIcon = trendClasses.icon;
+
   return (
-    <Card className="p-4 hover:shadow-lg transition-all duration-200 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 snap-center relative overflow-hidden w-full">
-      {/* Indicador de orden */}
+    <Card className="group relative min-h-[148px] w-full snap-center overflow-hidden rounded-[8px] border border-slate-200 bg-white p-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600">
+      <div className={`absolute inset-y-0 left-0 w-1 ${trendClasses.accent}`} />
       {orderNumber !== undefined && (
-        <div className="absolute top-0 right-0">
-          <div className="bg-gradient-to-br from-[#558DBD] to-[#4a7aa8] text-white text-xs font-bold px-3 py-1.5 rounded-bl-lg shadow-md">
-            #{orderNumber}
-          </div>
+        <div className="absolute right-3 top-3 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          #{orderNumber}
         </div>
       )}
-      
-      <div className="space-y-2 text-center">
-        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium pr-8">{title}</p>
-        <div className="space-y-1.5">
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
-          <div className={`flex items-center justify-center gap-1.5 text-sm font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-            <span>{change}</span>
+
+      <div className="flex h-full flex-col justify-between gap-5 px-5 py-4 pl-6">
+        <div className="pr-12">
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-600 dark:text-slate-300">
+            {title}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-[2rem] font-bold leading-none tracking-normal text-slate-950 dark:text-white">
+            {value}
+          </p>
+          <div className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-semibold ${trendClasses.badge}`}>
+            <TrendIcon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{change}</span>
           </div>
         </div>
       </div>

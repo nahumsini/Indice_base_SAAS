@@ -21,14 +21,14 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
     }
   };
 
-  // Modo carrusel: siempre horizontal con controles
+  // Carousel mode: always horizontal with controls.
   if (mode === 'carousel' || childCount > 6) {
     return (
       <div className="relative group">
-        {/* Gradiente izquierdo */}
+        {/* Left edge fade */}
         <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
         
-        {/* Botón izquierdo */}
+        {/* Left control */}
         {childCount > 3 && (
           <Button
             variant="ghost"
@@ -40,7 +40,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
           </Button>
         )}
 
-        {/* Contenedor del carrusel */}
+        {/* Carousel container */}
         <div 
           ref={scrollRef}
           className="overflow-x-auto scrollbar-hide pb-4 scroll-smooth"
@@ -54,10 +54,10 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
           </div>
         </div>
 
-        {/* Gradiente derecho */}
+        {/* Right edge fade */}
         <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        {/* Botón derecho */}
+        {/* Right control */}
         {childCount > 3 && (
           <Button
             variant="ghost"
@@ -72,18 +72,18 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
     );
   }
 
-  // Modo grid (default): responsive grid
+  // Grid mode: responsive layout by KPI count.
   return (
     <>
-      {/* Carrusel móvil (< lg) */}
+      {/* Mobile carousel (< lg) */}
       <div className="lg:hidden overflow-x-auto scrollbar-hide pb-4 -mx-8 px-8">
-        <div className="flex gap-5 snap-x snap-mandatory [&>*]:w-[280px] [&>*]:flex-shrink-0">
+        <div className="flex gap-4 snap-x snap-mandatory [&>*]:w-[280px] [&>*]:flex-shrink-0">
           {children}
         </div>
       </div>
       
-      {/* Grid desktop (>= lg) - se ajusta automáticamente según cantidad */}
-      <div className={`hidden lg:grid gap-5 ${
+      {/* Desktop grid (>= lg) */}
+      <div className={`hidden lg:grid gap-4 ${
         childCount === 1 ? 'lg:grid-cols-1 max-w-xs' :
         childCount === 2 ? 'lg:grid-cols-2 max-w-2xl' :
         childCount === 3 ? 'lg:grid-cols-3 max-w-4xl' :
