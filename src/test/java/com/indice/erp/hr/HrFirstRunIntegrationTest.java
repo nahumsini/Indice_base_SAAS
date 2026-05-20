@@ -2187,12 +2187,15 @@ class HrFirstRunIntegrationTest {
     @Test
     void announcementsCreateListAndPublishFlowWorks() throws Exception {
         var session = authenticatedSession();
+        var csrf = "announcement-flow-csrf";
+        session.setAttribute(SessionAuthService.SESSION_LOGIN_CSRF, csrf);
         var uniqueSuffix = System.currentTimeMillis();
         var business = activeBusinessFixture();
 
         var scheduledResponse = mockMvc.perform(
             post("/api/v1/hr/announcements")
                 .session(session)
+                .header("X-CSRF-Token", csrf)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "title", "Scheduled HR Notice " + uniqueSuffix,
@@ -2221,6 +2224,7 @@ class HrFirstRunIntegrationTest {
         var draftResponse = mockMvc.perform(
             post("/api/v1/hr/announcements")
                 .session(session)
+                .header("X-CSRF-Token", csrf)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "title", "Draft HR Notice " + uniqueSuffix,
