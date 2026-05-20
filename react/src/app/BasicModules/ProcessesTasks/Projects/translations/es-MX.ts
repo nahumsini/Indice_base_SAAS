@@ -22,6 +22,8 @@ export const esMX: ProjectsTranslations = {
     title: 'Proyectos',
     subtitle: 'Portafolio operativo con tareas reales, evidencia, cierre, auditoria y avance calculado desde la agenda.',
     actions: {
+      table: 'Tareas',
+      diagram: 'Diagrama',
       columns: 'Columnas',
       create: 'Crear proyecto',
     },

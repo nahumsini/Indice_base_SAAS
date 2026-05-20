@@ -24,6 +24,8 @@ export const ptBR: ProjectsTranslations = {
     title: 'Projetos',
     subtitle: 'Portfólio operacional com tarefas reais, evidências, fechamento, auditoria e progresso calculado pela agenda.',
     actions: {
+      table: 'Tarefas',
+      diagram: 'Diagrama',
       columns: 'Colunas',
       create: 'Criar projeto',
     },

@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  CalendarRange,
   CheckCircle2,
   CircleSlash,
   Columns3,
@@ -67,6 +68,7 @@ import { useProjectsTranslations, type ProjectsTranslations } from './translatio
 
 type StatusFilter = 'all' | ProjectStatus | 'at-risk';
 type OptionFilter = 'all' | string;
+type ProjectViewMode = 'table' | 'diagram';
 type ProjectConfirmation = { type: 'cancel' | 'delete'; project: ProjectRecord };
 type ProjectColumnId =
   | 'folio'
@@ -302,6 +304,51 @@ function formatDate(value: string | null, includeTime = false, noDateLabel: stri
         }
       : {}),
   }).format(date);
+}
+
+function dateFromProjectTimelineValue(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addProjectDays(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
+
+function projectDaysBetween(start: Date, end: Date) {
+  const startAtMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endAtMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  return Math.round((endAtMidnight.getTime() - startAtMidnight.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function buildProjectTimelineDays(start: Date, end: Date, maxDays = 31) {
+  const span = Math.max(0, Math.min(maxDays - 1, projectDaysBetween(start, end)));
+  return Array.from({ length: span + 1 }, (_, index) => addProjectDays(start, index));
+}
+
+function getProjectTimelineRange(project: ProjectRecord, timelineStart: Date, timelineEnd: Date, dayCount: number) {
+  const startDate = dateFromProjectTimelineValue(project.startDate ?? project.createdAt);
+  const endDate = dateFromProjectTimelineValue(project.dueDate ?? project.updatedAt ?? project.startDate);
+
+  if (!startDate && !endDate) {
+    return null;
+  }
+
+  const rawStart = startDate ?? endDate!;
+  const rawEnd = endDate ?? startDate!;
+  const normalizedStart = rawStart > timelineEnd ? timelineEnd : rawStart < timelineStart ? timelineStart : rawStart;
+  const normalizedEnd = rawEnd < timelineStart ? timelineStart : rawEnd > timelineEnd ? timelineEnd : rawEnd;
+  const startOffset = Math.max(0, projectDaysBetween(timelineStart, normalizedStart));
+  const endOffset = Math.max(startOffset, projectDaysBetween(timelineStart, normalizedEnd));
+
+  return {
+    startOffset,
+    span: Math.max(1, Math.min(dayCount - startOffset, endOffset - startOffset + 1)),
+  };
 }
 
 function sortableDateValue(value: string | null) {
@@ -736,6 +783,7 @@ export default function Projects() {
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ProjectViewMode>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [unitFilter, setUnitFilter] = useState<OptionFilter>('all');
@@ -952,6 +1000,27 @@ export default function Projects() {
       })
       .map(({ project }) => project);
   }, [filteredProjects, sortState]);
+  const projectTimeline = useMemo(() => {
+    const projectDates = sortedProjects.flatMap((project) => [
+      dateFromProjectTimelineValue(project.startDate ?? project.createdAt),
+      dateFromProjectTimelineValue(project.dueDate ?? project.updatedAt ?? project.startDate),
+    ]).filter((date): date is Date => date !== null);
+    const today = new Date();
+    const fallbackStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const earliestDate = projectDates.length > 0
+      ? new Date(Math.min(...projectDates.map((date) => date.getTime())))
+      : fallbackStart;
+    const latestDate = projectDates.length > 0
+      ? new Date(Math.max(...projectDates.map((date) => date.getTime())))
+      : addProjectDays(fallbackStart, 13);
+    const timelineEnd = projectDaysBetween(earliestDate, latestDate) > 30 ? addProjectDays(earliestDate, 30) : latestDate;
+
+    return {
+      days: buildProjectTimelineDays(earliestDate, timelineEnd),
+      start: earliestDate,
+      end: timelineEnd,
+    };
+  }, [sortedProjects]);
 
   const metrics = useMemo(() => {
     const totalCount = filteredProjects.length;
@@ -1533,6 +1602,126 @@ export default function Projects() {
     }
   };
 
+  const renderProjectDiagram = () => {
+    const dayCount = Math.max(projectTimeline.days.length, 1);
+
+    return (
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="border-b border-slate-200 px-5 py-5 dark:border-slate-700">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{headerCopy.actions.diagram}</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                {headerCopy.subtitle}
+              </p>
+            </div>
+            <Badge variant="outline" className="w-fit rounded-full border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]">
+              {sortedProjects.length} {headerCopy.title.toLowerCase()}
+            </Badge>
+          </div>
+        </div>
+
+        {isLoadingProjects ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {projectCopy.table.loading}
+          </div>
+        ) : sortedProjects.length === 0 ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {projectCopy.table.empty}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[1040px]">
+              <div className="grid border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50" style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr minmax(120px, 150px)' }}>
+                <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {projectCopy.columns.name.label}
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+                  {projectTimeline.days.map((day) => (
+                    <div key={day.toISOString()} className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700">
+                      <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
+                        {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-l border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {projectCopy.common.actions}
+                </div>
+              </div>
+
+              {sortedProjects.map((project) => {
+                const range = getProjectTimelineRange(project, projectTimeline.start, projectTimeline.end, dayCount);
+
+                return (
+                  <div
+                    key={project.id}
+                    className={cn(
+                      'grid min-h-[92px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
+                      selectedProjectId === project.id && 'bg-[rgb(235,165,52)]/5',
+                    )}
+                    style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr minmax(120px, 150px)' }}
+                  >
+                    <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                          {project.folio}
+                        </Badge>
+                        <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', statusClasses[project.status])}>
+                          {projectCopy.statuses[project.status]}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{project.name}</p>
+                      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                        {project.ownerName ?? projectCopy.common.noResponsible} · {project.taskCount} {projectCopy.columns.tasks.label.toLowerCase()}
+                      </p>
+                    </div>
+                    <div className="relative grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+                      {projectTimeline.days.map((day) => (
+                        <div key={`${project.id}-${day.toISOString()}`} className="border-r border-slate-200 last:border-r-0 dark:border-slate-700" />
+                      ))}
+                      {range ? (
+                        <div
+                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 px-3 py-2 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25"
+                          style={{
+                            left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
+                            width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
+                          }}
+                        >
+                          <div className="flex h-full items-center justify-between gap-3">
+                            <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{project.name}</span>
+                            <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">{clampPercent(project.completionPercent)}%</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="absolute inset-y-0 left-4 flex items-center text-xs font-medium text-slate-400 dark:text-slate-500">
+                          {projectCopy.common.noDate}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center border-l border-slate-200 px-5 py-4 dark:border-slate-700">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 w-full gap-2 rounded-xl border-[rgb(235,165,52)]/35 bg-[rgb(235,165,52)]/10 px-3 text-sm font-semibold text-[rgb(176,111,22)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white"
+                        onClick={() => setSelectedProjectId(selectedProjectId === project.id ? null : project.id)}
+                        disabled={isProjectPending(project.id)}
+                      >
+                        <FolderKanban className="h-4 w-4" />
+                        {selectedProjectId === project.id ? projectCopy.actions.closeTasks : projectCopy.actions.openTasks}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
     <>
       <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
@@ -1547,16 +1736,44 @@ export default function Projects() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  viewMode === 'table'
+                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+                )}
+                onClick={() => setViewMode('table')}
+              >
+                <ListChecks className="h-4 w-4" />
+                {headerCopy.actions.table}
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  viewMode === 'diagram'
+                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+                )}
+                onClick={() => setViewMode('diagram')}
+              >
+                <CalendarRange className="h-4 w-4" />
+                {headerCopy.actions.diagram}
+              </button>
+            </div>
             <Button
               type="button"
               variant="outline"
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
               {headerCopy.actions.columns}
             </Button>
-            <Button className={cn('h-11 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)} onClick={openCreateDialog}>
+            <Button className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)} onClick={openCreateDialog}>
               <Plus className="h-4 w-4" />
               {headerCopy.actions.create}
             </Button>
@@ -1667,9 +1884,10 @@ export default function Projects() {
 
       <ProjectKpiStrip copy={projectCopy.kpis} isLoading={isLoadingProjects} metrics={metrics} />
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="overflow-x-auto">
-          <Table style={{ minWidth: tableMinWidth }}>
+      {viewMode === 'table' ? (
+        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="overflow-x-auto">
+            <Table style={{ minWidth: tableMinWidth }}>
             <TableHeader>
               <TableRow className="border-slate-200 dark:border-slate-700">
                 {visibleColumns.map((column) => (
@@ -1712,9 +1930,12 @@ export default function Projects() {
                 </TableRow>
               ) : null}
             </TableBody>
-          </Table>
-        </div>
-      </section>
+            </Table>
+          </div>
+        </section>
+      ) : (
+        renderProjectDiagram()
+      )}
 
       {selectedProject ? (
         <ProjectTasksWorkspace
@@ -1734,7 +1955,9 @@ export default function Projects() {
         isOpen={isColumnsModalOpen}
         onClose={() => setIsColumnsModalOpen(false)}
         columns={columns}
+        defaultColumns={defaultColumns}
         fixedColumns={fixedColumns}
+        theme="processes"
         onSave={setColumns}
       />
 

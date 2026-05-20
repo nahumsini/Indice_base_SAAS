@@ -20,6 +20,8 @@ export const enCA = {
     title: 'Projects',
     subtitle: 'Operational portfolio with real tasks, evidence, closure, audit, and progress calculated from the agenda.',
     actions: {
+      table: 'Table',
+      diagram: 'Diagram',
       columns: 'Columns',
       create: 'Create project',
     },

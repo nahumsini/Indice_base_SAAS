@@ -11,6 +11,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  CalendarRange,
   CheckCircle2,
   ClipboardCheck,
   Columns3,
@@ -18,6 +19,7 @@ import {
   Download,
   FileText,
   FolderOpen,
+  ListChecks,
   Pencil,
   Plus,
   Trash2,
@@ -28,6 +30,7 @@ import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog'
 import { ColumnasConfigModal, type ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
+import { Checkbox } from '../../../../components/ui/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -79,12 +82,15 @@ import {
   type TaskRecord,
   type TaskStatus,
 } from '../../Tasks/tasksApi';
+import { ProgressSlider } from '../../shared/ProgressSlider';
+import { useRowSelection } from '../../shared/useRowSelection';
 import { listProjectTasks, type ProjectRecord } from '../projectsApi';
 import type { ProjectsTranslations } from '../translations';
 
 type DisplayTaskStatus = TaskStatus | 'overdue';
 type StatusFilter = 'all' | DisplayTaskStatus;
 type OptionFilter = 'all' | string;
+type WorkspaceViewMode = 'table' | 'diagram';
 type ProjectTaskColumnId =
   | 'folio'
   | 'type'
@@ -154,6 +160,7 @@ const NO_BUSINESS_VALUE = '__no_business__';
 const UNASSIGNED_RESPONSIBLE_VALUE = '__unassigned__';
 const projectTaskColumnsStorageKey = 'processes-tasks-project-task-columns-v1';
 const projectTaskSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
+const selectionColumnWidth = 64;
 const prioritySortRank: Record<TaskPriority, number> = {
   high: 3,
   medium: 2,
@@ -285,6 +292,51 @@ function sortableDateValue(value: string | null) {
   const time = parsedDate.getTime();
 
   return Number.isNaN(time) ? null : time;
+}
+
+function dateFromTaskTimelineValue(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addTaskTimelineDays(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
+
+function taskTimelineDaysBetween(start: Date, end: Date) {
+  const startAtMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endAtMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  return Math.round((endAtMidnight.getTime() - startAtMidnight.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function buildTaskTimelineDays(start: Date, end: Date, maxDays = 31) {
+  const span = Math.max(0, Math.min(maxDays - 1, taskTimelineDaysBetween(start, end)));
+  return Array.from({ length: span + 1 }, (_, index) => addTaskTimelineDays(start, index));
+}
+
+function getTaskTimelineRange(task: AgendaTaskItem, timelineStart: Date, timelineEnd: Date, dayCount: number) {
+  const startDate = dateFromTaskTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate);
+  const endDate = dateFromTaskTimelineValue(task.dueDate ?? task.agendaDate ?? task.startDate);
+
+  if (!startDate && !endDate) {
+    return null;
+  }
+
+  const rawStart = startDate ?? endDate!;
+  const rawEnd = endDate ?? startDate!;
+  const normalizedStart = rawStart > timelineEnd ? timelineEnd : rawStart < timelineStart ? timelineStart : rawStart;
+  const normalizedEnd = rawEnd < timelineStart ? timelineStart : rawEnd > timelineEnd ? timelineEnd : rawEnd;
+  const startOffset = Math.max(0, taskTimelineDaysBetween(timelineStart, normalizedStart));
+  const endOffset = Math.max(startOffset, taskTimelineDaysBetween(timelineStart, normalizedEnd));
+
+  return {
+    startOffset,
+    span: Math.max(1, Math.min(dayCount - startOffset, endOffset - startOffset + 1)),
+  };
 }
 
 function compareSortValues(
@@ -902,6 +954,7 @@ export function ProjectTasksWorkspace({
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [workspaceViewMode, setWorkspaceViewMode] = useState<WorkspaceViewMode>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [responsibleFilter, setResponsibleFilter] = useState<OptionFilter>('all');
@@ -923,6 +976,12 @@ export function ProjectTasksWorkspace({
   const [attachmentsTask, setAttachmentsTask] = useState<AgendaTaskItem | null>(null);
   const [reportTask, setReportTask] = useState<AgendaTaskItem | null>(null);
   const [deleteTask, setDeleteTask] = useState<AgendaTaskItem | null>(null);
+  const [tasksNotice, setTasksNotice] = useState<string | null>(null);
+  const rowSelection = useRowSelection<number>();
+  const [bulkConfirmation, setBulkConfirmation] = useState<'delete' | 'complete' | null>(null);
+  const [isBulkActionRunning, setIsBulkActionRunning] = useState(false);
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkResponsibleValue, setBulkResponsibleValue] = useState(UNASSIGNED_RESPONSIBLE_VALUE);
 
   const loadTasks = useCallback(async () => {
     setIsLoadingTasks(true);
@@ -968,8 +1027,9 @@ export function ProjectTasksWorkspace({
     setReportTask(null);
     setAttachmentsTask(null);
     setDeleteTask(null);
+    rowSelection.clearSelection();
     void loadTasks();
-  }, [loadTasks, project]);
+  }, [loadTasks, project, rowSelection.clearSelection]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1108,6 +1168,40 @@ export function ProjectTasksWorkspace({
       })
       .map(({ task }) => task);
   }, [filteredTasks, sortState, taskCopy]);
+  const taskTimeline = useMemo(() => {
+    const taskDates = sortedTasks.flatMap((task) => [
+      dateFromTaskTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate),
+      dateFromTaskTimelineValue(task.dueDate ?? task.agendaDate ?? task.startDate),
+    ]).filter((date): date is Date => date !== null);
+    const today = new Date();
+    const fallbackStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const earliestDate = taskDates.length > 0
+      ? new Date(Math.min(...taskDates.map((date) => date.getTime())))
+      : fallbackStart;
+    const latestDate = taskDates.length > 0
+      ? new Date(Math.max(...taskDates.map((date) => date.getTime())))
+      : addTaskTimelineDays(fallbackStart, 13);
+    const timelineEnd = taskTimelineDaysBetween(earliestDate, latestDate) > 30
+      ? addTaskTimelineDays(earliestDate, 30)
+      : latestDate;
+
+    return {
+      days: buildTaskTimelineDays(earliestDate, timelineEnd),
+      start: earliestDate,
+      end: timelineEnd,
+    };
+  }, [sortedTasks]);
+
+  const visibleTaskIds = useMemo(() => sortedTasks.map((task) => task.taskId), [sortedTasks]);
+  const visibleTaskSelection = rowSelection.visibleSelectionState(visibleTaskIds);
+  const selectedTasks = useMemo(
+    () => tasks.filter((task) => rowSelection.selectedIds.has(task.taskId)),
+    [rowSelection.selectedIds, tasks],
+  );
+
+  useEffect(() => {
+    rowSelection.pruneSelection(tasks.map((task) => task.taskId));
+  }, [rowSelection.pruneSelection, tasks]);
 
   const metrics = useMemo(() => {
     const total = filteredTasks.length;
@@ -1124,8 +1218,8 @@ export function ProjectTasksWorkspace({
   }, [filteredTasks]);
 
   const visibleColumns = useMemo(() => columns.filter((column) => column.visible), [columns]);
-  const tableColumnCount = visibleColumns.length + fixedColumns.length;
-  const tableMinWidth = Math.max(1280, visibleColumns.length * 180 + 360);
+  const tableColumnCount = visibleColumns.length + fixedColumns.length + 1;
+  const tableMinWidth = Math.max(1280, selectionColumnWidth + visibleColumns.length * 180 + 360);
 
   const reloadEverything = async () => {
     await loadTasks();
@@ -1140,6 +1234,19 @@ export function ProjectTasksWorkspace({
           : [...currentIds, taskId]
         : currentIds.filter((currentId) => currentId !== taskId),
     );
+  };
+
+  const setManyTasksPendingState = (taskIds: number[], isPending: boolean) => {
+    setPendingTaskIds((currentIds) => {
+      if (isPending) {
+        const nextIds = new Set(currentIds);
+        taskIds.forEach((taskId) => nextIds.add(taskId));
+        return Array.from(nextIds);
+      }
+
+      const taskIdSet = new Set(taskIds);
+      return currentIds.filter((currentId) => !taskIdSet.has(currentId));
+    });
   };
 
   const isTaskPending = (taskId: number) => pendingTaskIds.includes(taskId);
@@ -1355,6 +1462,119 @@ export function ProjectTasksWorkspace({
     } finally {
       setTaskPendingState(deleteTask.taskId, false);
     }
+  };
+
+  const runBulkTaskAction = async (
+    action: 'delete' | 'duplicate' | 'complete' | 'priority' | 'assign',
+    payload?: { collaborator?: ProcessCollaboratorOption | null; priority?: TaskPriority },
+  ) => {
+    if (selectedTasks.length === 0) {
+      return;
+    }
+
+    const selectedTaskIds = selectedTasks.map((task) => task.taskId);
+
+    setIsBulkActionRunning(true);
+    setManyTasksPendingState(selectedTaskIds, true);
+    setTasksError(null);
+    setTasksNotice(null);
+
+    try {
+      if (action === 'delete') {
+        await Promise.all(selectedTasks.map((task) => deleteProcessTask(task.taskId)));
+      }
+
+      if (action === 'duplicate') {
+        await Promise.all(
+          selectedTasks.map((task) =>
+            createProcessTask(
+              buildTaskPayloadFromRecord(task, {
+                title: copy.messages.copyPrefix(task.title),
+                status: 'pending',
+                completionPercent: 0,
+                audited: false,
+                auditNotes: null,
+                projectId: project.id,
+              }),
+            ),
+          ),
+        );
+      }
+
+      if (action === 'complete') {
+        const completableTasks = selectedTasks.filter(
+          (task) => task.status !== 'completed' && task.status !== 'cancelled',
+        );
+        await Promise.all(
+          completableTasks.map((task) =>
+            completeProcessTask(
+              task.taskId,
+              task.completionNotes ?? null,
+              task.completionPercent > 0 ? clampPercent(task.completionPercent) : 100,
+            ),
+          ),
+        );
+      }
+
+      if (action === 'priority' && payload?.priority) {
+        await Promise.all(
+          selectedTasks.map((task) =>
+            updateProcessTask(task.taskId, buildTaskPayloadFromRecord(task, { priority: payload.priority })),
+          ),
+        );
+      }
+
+      if (action === 'assign') {
+        const collaborator = payload?.collaborator ?? null;
+        await Promise.all(
+          selectedTasks.map((task) =>
+            updateProcessTask(
+              task.taskId,
+              buildTaskPayloadFromRecord(task, {
+                assignedUserCompanyId: collaborator?.userCompanyId ?? null,
+                assignedName: collaborator?.name ?? null,
+                unitId: task.unitId ?? collaborator?.unitId ?? project.unitId ?? null,
+                businessId: task.businessId ?? collaborator?.businessId ?? project.businessId ?? null,
+              }),
+            ),
+          ),
+        );
+      }
+
+      if (reportTask && selectedTaskIds.includes(reportTask.taskId)) {
+        setReportTask(null);
+      }
+      if (attachmentsTask && selectedTaskIds.includes(attachmentsTask.taskId)) {
+        setAttachmentsTask(null);
+      }
+
+      rowSelection.clearSelection();
+      setBulkConfirmation(null);
+      setIsBulkAssignOpen(false);
+      setBulkResponsibleValue(UNASSIGNED_RESPONSIBLE_VALUE);
+      setTasksNotice(`Accion masiva aplicada a ${selectedTasks.length} tarea${selectedTasks.length === 1 ? '' : 's'}.`);
+      await reloadEverything();
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Project task bulk action failed.', { action, error, selectedTaskIds });
+      }
+      setTasksError(getErrorMessage(error, copy.messages.updateTask));
+      await loadTasks();
+    } finally {
+      setManyTasksPendingState(selectedTaskIds, false);
+      setIsBulkActionRunning(false);
+    }
+  };
+
+  const handleBulkAssign = () => {
+    const collaborator =
+      bulkResponsibleValue === UNASSIGNED_RESPONSIBLE_VALUE
+        ? null
+        : collaboratorOptions.find(
+            (currentCollaborator) => currentCollaborator.userCompanyId === Number(bulkResponsibleValue),
+          ) ?? null;
+
+    void runBulkTaskAction('assign', { collaborator });
   };
 
   const handleDownloadTaskReport = (task: AgendaTaskItem) => {
@@ -1732,18 +1952,13 @@ export function ProjectTasksWorkspace({
         );
       case 'completion':
         return (
-          <div className="min-w-[150px] space-y-2">
-            <InlineNumberInput
+          <div className="min-w-[170px]">
+            <ProgressSlider
               value={clampPercent(task.completionPercent)}
-              placeholder={taskCopy.columns.completion.label}
-              rangeMessage={taskCopy.messages.numberRange}
+              label={taskCopy.columns.completion.label}
               disabled={pending}
-              onInvalid={setTasksError}
-              onCommit={(completionPercent) => persistTaskChange(task, { completionPercent: completionPercent ?? 0 })}
+              onCommit={(completionPercent) => persistTaskChange(task, { completionPercent })}
             />
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-              <div className="h-full rounded-full bg-[rgb(235,165,52)]" style={{ width: `${clampPercent(task.completionPercent)}%` }} />
-            </div>
           </div>
         );
       case 'notes':
@@ -1799,6 +2014,102 @@ export function ProjectTasksWorkspace({
     }
   };
 
+  const renderTaskDiagram = () => {
+    const dayCount = Math.max(taskTimeline.days.length, 1);
+
+    if (isLoadingTasks) {
+      return (
+        <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+          {copy.table.loading}
+        </div>
+      );
+    }
+
+    if (sortedTasks.length === 0) {
+      return (
+        <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+          {copy.table.empty}
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <div className="min-w-[980px]">
+          <div className="grid border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" style={{ gridTemplateColumns: 'minmax(280px, 340px) 1fr' }}>
+            <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              {taskCopy.columns.title.label}
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+              {taskTimeline.days.map((day) => (
+                <div key={day.toISOString()} className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700">
+                  <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
+                    {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {sortedTasks.map((task) => {
+            const range = getTaskTimelineRange(task, taskTimeline.start, taskTimeline.end, dayCount);
+            const displayStatus = getTaskDisplayStatus(task);
+
+            return (
+              <div
+                key={task.taskId}
+                className={cn(
+                  'grid min-h-[88px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
+                  rowSelection.isSelected(task.taskId) && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                )}
+                style={{ gridTemplateColumns: 'minmax(280px, 340px) 1fr' }}
+              >
+                <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                      {task.folio}
+                    </Badge>
+                    <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', statusClasses[displayStatus])}>
+                      {taskCopy.statuses[displayStatus]}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{task.title}</p>
+                  <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                    {task.assignedName ?? taskCopy.common.unassigned} · {task.dueDate ? formatDate(task.dueDate, false, taskCopy.common.noDate) : taskCopy.common.noDate}
+                  </p>
+                </div>
+                <div className="relative grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+                  {taskTimeline.days.map((day) => (
+                    <div key={`${task.taskId}-${day.toISOString()}`} className="border-r border-slate-200 last:border-r-0 dark:border-slate-700" />
+                  ))}
+                  {range ? (
+                    <div
+                      className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 px-3 py-2 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25"
+                      style={{
+                        left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
+                        width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
+                      }}
+                    >
+                      <div className="flex h-full items-center justify-between gap-3">
+                        <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{task.title}</span>
+                        <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">{clampPercent(task.completionPercent)}%</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-y-0 left-4 flex items-center text-xs font-medium text-slate-400 dark:text-slate-500">
+                      {taskCopy.common.noDate}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40">
@@ -1818,6 +2129,34 @@ export function ProjectTasksWorkspace({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  workspaceViewMode === 'table'
+                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+                )}
+                onClick={() => setWorkspaceViewMode('table')}
+              >
+                <ListChecks className="h-4 w-4" />
+                {taskCopy.header.actions.table}
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  workspaceViewMode === 'diagram'
+                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+                )}
+                onClick={() => setWorkspaceViewMode('diagram')}
+              >
+                <CalendarRange className="h-4 w-4" />
+                {taskCopy.header.actions.diagram}
+              </button>
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -1928,10 +2267,123 @@ export function ProjectTasksWorkspace({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <Table style={{ minWidth: tableMinWidth }}>
+      {tasksNotice ? (
+        <div className="border-b border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{tasksNotice}</span>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-emerald-700 shadow-none dark:border-emerald-900/60 dark:bg-slate-800 dark:text-emerald-200"
+              onClick={() => setTasksNotice(null)}
+            >
+              {taskCopy.common.close}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {rowSelection.selectedCount > 0 ? (
+        <div className="border-b border-[rgb(235,165,52)]/25 bg-[rgb(235,165,52)]/10 px-5 py-3 dark:bg-[rgb(235,165,52)]/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+              <Badge variant="outline" className="rounded-full border-[rgb(235,165,52)]/40 bg-white px-3 py-1 text-[rgb(176,111,22)] dark:bg-slate-800 dark:text-[rgb(245,196,112)]">
+                {rowSelection.selectedCount} seleccionadas
+              </Badge>
+              <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                disabled={isBulkActionRunning}
+                onClick={() => {
+                  void runBulkTaskAction('duplicate');
+                }}
+              >
+                <Copy className="h-4 w-4" />
+                {taskCopy.actions.copyTask}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                disabled={isBulkActionRunning}
+                onClick={() => setIsBulkAssignOpen(true)}
+              >
+                {taskCopy.form.labels.responsible}
+              </Button>
+              <Select
+                disabled={isBulkActionRunning}
+                onValueChange={(value) => {
+                  void runBulkTaskAction('priority', { priority: value as TaskPriority });
+                }}
+              >
+                <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                  <SelectValue placeholder={taskCopy.form.labels.priority} />
+                </SelectTrigger>
+                <SelectContent>
+                  {taskPriorityValues.map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {taskCopy.priorities[priority]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
+                disabled={isBulkActionRunning}
+                onClick={() => setBulkConfirmation('complete')}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {taskCopy.actions.closeTask}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
+                disabled={isBulkActionRunning}
+                onClick={() => setBulkConfirmation('delete')}
+              >
+                <Trash2 className="h-4 w-4" />
+                {taskCopy.actions.deleteTask}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                disabled={isBulkActionRunning}
+                onClick={rowSelection.clearSelection}
+              >
+                {taskCopy.common.cancel}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {workspaceViewMode === 'table' ? (
+        <div className="overflow-x-auto">
+          <Table style={{ minWidth: tableMinWidth }}>
           <TableHeader>
             <TableRow className="border-slate-200 dark:border-slate-700">
+              <TableHead className="px-5 py-5" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+                <Checkbox
+                  aria-label="Seleccionar tareas visibles"
+                  checked={
+                    visibleTaskSelection.allVisibleSelected
+                      ? true
+                      : visibleTaskSelection.someVisibleSelected
+                        ? 'indeterminate'
+                        : false
+                  }
+                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
+                  className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                />
+              </TableHead>
               {visibleColumns.map((column) => (
                 <SortableHead key={column.id} column={column} sortState={sortState} onSort={handleSort} />
               ))}
@@ -1941,8 +2393,26 @@ export function ProjectTasksWorkspace({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedTasks.map((task) => (
-              <TableRow key={task.taskId} className="border-slate-200 dark:border-slate-700">
+            {sortedTasks.map((task) => {
+              const selected = rowSelection.isSelected(task.taskId);
+
+              return (
+              <TableRow
+                key={task.taskId}
+                className={cn(
+                  'border-slate-200 dark:border-slate-700',
+                  selected && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                )}
+              >
+                <TableCell className="px-5 py-5 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+                  <Checkbox
+                    aria-label={`Seleccionar ${task.folio}`}
+                    checked={selected}
+                    disabled={isTaskPending(task.taskId)}
+                    onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
+                    className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                  />
+                </TableCell>
                 {visibleColumns.map((column) => {
                   const columnId = column.id as ProjectTaskColumnId;
 
@@ -1954,7 +2424,8 @@ export function ProjectTasksWorkspace({
                 })}
                 <TableCell className="px-5 py-5 align-middle">{renderTaskActions(task)}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
 
             {isLoadingTasks ? (
               <TableRow>
@@ -1972,14 +2443,19 @@ export function ProjectTasksWorkspace({
               </TableRow>
             ) : null}
           </TableBody>
-        </Table>
-      </div>
+          </Table>
+        </div>
+      ) : (
+        renderTaskDiagram()
+      )}
 
       <ColumnasConfigModal
         isOpen={isColumnsModalOpen}
         onClose={() => setIsColumnsModalOpen(false)}
         columns={columns}
+        defaultColumns={defaultColumns}
         fixedColumns={fixedColumns}
+        theme="processes"
         onSave={setColumns}
       />
 
@@ -2155,6 +2631,82 @@ export function ProjectTasksWorkspace({
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
+        <DialogContent
+          hideCloseButton
+          className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
+        >
+          <div className="bg-[rgb(235,165,52)] px-5 py-4">
+            <DialogTitle className="text-lg font-bold text-white">{taskCopy.form.labels.responsible}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-white/85">
+              Aplicar responsable a {rowSelection.selectedCount} tarea{rowSelection.selectedCount === 1 ? '' : 's'} seleccionada{rowSelection.selectedCount === 1 ? '' : 's'}.
+            </DialogDescription>
+          </div>
+          <div className="space-y-3 px-5 py-5">
+            <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
+              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{taskCopy.common.unassigned}</SelectItem>
+                {collaboratorOptions.map((collaborator) => (
+                  <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
+                    {collaborator.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              disabled={isBulkActionRunning}
+              onClick={() => setIsBulkAssignOpen(false)}
+            >
+              {taskCopy.common.cancel}
+            </Button>
+            <Button
+              type="button"
+              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              disabled={isBulkActionRunning}
+              onClick={handleBulkAssign}
+            >
+              {isBulkActionRunning ? taskCopy.common.saving : taskCopy.form.submit.edit}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDeleteDialog
+        isVisible={bulkConfirmation === 'delete'}
+        title={copy.deleteTask.title}
+        itemName={`${rowSelection.selectedCount} tarea${rowSelection.selectedCount === 1 ? '' : 's'}`}
+        description={copy.deleteTask.description}
+        confirmLabel={copy.deleteTask.confirm}
+        cancelLabel={taskCopy.common.cancel}
+        confirmDisabled={isBulkActionRunning}
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => {
+          void runBulkTaskAction('delete');
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={bulkConfirmation === 'complete'}
+        title={taskCopy.actions.closeTask}
+        itemName={`${rowSelection.selectedCount} tarea${rowSelection.selectedCount === 1 ? '' : 's'}`}
+        description="Cierra las tareas seleccionadas usando el flujo existente de cierre."
+        confirmLabel={taskCopy.actions.closeTask}
+        cancelLabel={taskCopy.common.cancel}
+        confirmDisabled={isBulkActionRunning}
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => {
+          void runBulkTaskAction('complete');
+        }}
+      />
 
       <ConfirmDeleteDialog
         isVisible={Boolean(deleteTask)}

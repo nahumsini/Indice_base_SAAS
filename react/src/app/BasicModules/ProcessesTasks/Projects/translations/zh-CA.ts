@@ -25,6 +25,8 @@ export const zhCA: ProjectsTranslations = {
     title: '项目',
     subtitle: '包含真实任务、证据、关闭、审核，并从日程计算进度的运营项目组合。',
     actions: {
+      table: '任务',
+      diagram: '图表',
       columns: '列',
       create: '创建项目',
     },
