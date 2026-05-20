@@ -1,4 +1,4 @@
-import { Bell, Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
+import { Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -8,12 +8,14 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
-import { Badge } from './ui/badge';
 import { useLanguage, languages } from '../shared/context';
 import { NotificationCenter } from './NotificationCenter';
 import { useEffect, useState } from 'react';
 import { authApi } from '../api/auth';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCenter';
+import type { AppNotification } from '../api/notifications';
+import { NotificationMenu } from './notifications/NotificationMenu';
+import { useNotifications } from './notifications/useNotifications';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -38,11 +40,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const navigate = useNavigate();
   const { currentLanguage, setCurrentLanguage, t } = useLanguage();
   const currentHour = new Date().getHours();
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentUserName, setCurrentUserName] = useState('User');
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState('');
+  const notifications = useNotifications();
 
   useEffect(() => {
     let active = true;
@@ -131,35 +135,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     minute: '2-digit' 
   });
 
-  // Notificaciones con módulo asociado
-  const notifications = [
-    {
-      title: t.notifications.newTask,
-      time: t.notifications.timeAgo.minutes,
-      module: t.modules.procesosTareas,
-      moduleEmoji: '✅',
-      moduleColor: 'yellow',
-      isUnread: true,
-    },
-    {
-      title: t.notifications.expensePending,
-      time: t.notifications.timeAgo.hour,
-      module: t.modules.gastos,
-      moduleEmoji: '💰',
-      moduleColor: 'green',
-      isUnread: true,
-    },
-    {
-      title: t.notifications.newClient,
-      time: t.notifications.timeAgo.hours,
-      module: t.modules.ventas,
-      moduleEmoji: '💵',
-      moduleColor: 'orange',
-      isUnread: false,
-    },
-  ];
-
-  const unreadCount = notifications.filter(n => n.isUnread).length;
+  const unreadCount = notifications.summary.unread_count;
   const currentUserInitials = currentUserName
     .split(/\s+/)
     .filter(Boolean)
@@ -167,19 +143,6 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     .map((part) => part[0])
     .join('')
     .toUpperCase() || 'U';
-
-  const getModuleColorClasses = (color: string) => {
-    const colorMap: Record<string, { bg: string; text: string; border: string }> = {
-      blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700' },
-      yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700' },
-      green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700' },
-      red: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', border: 'border-red-200 dark:border-red-700' },
-      orange: { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-700' },
-      purple: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-700' },
-      gold: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-700' },
-    };
-    return colorMap[color] || colorMap.blue;
-  };
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -194,6 +157,44 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
       navigate('/login', { replace: true });
       setIsLoggingOut(false);
     }
+  };
+
+  const openNotificationCenter = () => {
+    setIsNotificationMenuOpen(false);
+    setIsNotificationCenterOpen(true);
+    void notifications.refresh();
+  };
+
+  const handleNotificationMenuOpenChange = (open: boolean) => {
+    setIsNotificationMenuOpen(open);
+    if (open) {
+      void notifications.refresh();
+    }
+  };
+
+  const openNotificationItem = (notification: AppNotification) => {
+    setIsNotificationMenuOpen(false);
+    setIsNotificationCenterOpen(false);
+    void (async () => {
+      if (notification.is_unread) {
+        await notifications.markRead(notification.id);
+      }
+      if (notification.action_url) {
+        navigate(notification.action_url);
+      }
+    })();
+  };
+
+  const markNotificationRead = (notificationId: number) => {
+    void notifications.markRead(notificationId);
+  };
+
+  const dismissNotification = (notificationId: number) => {
+    void notifications.dismiss(notificationId);
+  };
+
+  const markAllNotificationsRead = () => {
+    void notifications.markAllRead();
   };
 
   return (
@@ -229,86 +230,17 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
           {/* Sección derecha - Acciones */}
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {/* Notificaciones */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 h-9 w-9 sm:h-10 sm:w-10">
-                  <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-300" />
-                  {unreadCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center p-0 text-[10px] sm:text-xs bg-red-500 hover:bg-red-500">
-                      {unreadCount}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-96 p-0">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#558DBD]">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-base text-white">
-                      {t.header.notifications}
-                    </h3>
-                    {unreadCount > 0 && (
-                      <Badge variant="secondary" className="text-xs bg-white/20 text-white hover:bg-white/30 border-white/30">
-                        {unreadCount} {unreadCount === 1 ? 'nueva' : 'nuevas'}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="max-h-[400px] overflow-y-auto">
-                  {notifications.map((notification, index) => {
-                    const colorClasses = getModuleColorClasses(notification.moduleColor);
-                    return (
-                      <div key={index}>
-                        <DropdownMenuItem className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 focus:bg-gray-50 dark:focus:bg-gray-700/50">
-                          <div className="flex gap-3 w-full">
-                            {/* Emoji del módulo */}
-                            <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center text-lg`}>
-                              {notification.moduleEmoji}
-                            </div>
-                            
-                            {/* Contenido de la notificación */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <p className={`text-sm font-medium ${notification.isUnread ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                                  {notification.title}
-                                </p>
-                                {notification.isUnread && (
-                                  <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
-                                )}
-                              </div>
-                              
-                              {/* Badge del módulo */}
-                              <div className="flex items-center gap-2 mt-1.5">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colorClasses.bg} ${colorClasses.text} border ${colorClasses.border}`}>
-                                  {notification.module}
-                                </span>
-                              </div>
-                              
-                              {/* Tiempo transcurrido */}
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                                {notification.time}
-                              </p>
-                            </div>
-                          </div>
-                        </DropdownMenuItem>
-                        {index < notifications.length - 1 && (
-                          <DropdownMenuSeparator className="my-0" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* Footer - Ver todas */}
-                <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                  <button 
-                    onClick={() => setIsNotificationCenterOpen(true)}
-                    className="w-full text-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                  >
-                    Ver todas las notificaciones
-                  </button>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <NotificationMenu
+              open={isNotificationMenuOpen}
+              items={notifications.items}
+              unreadCount={unreadCount}
+              loading={notifications.loading}
+              error={notifications.error}
+              moduleLabel={t.modules.recursosHumanos}
+              onOpenChange={handleNotificationMenuOpenChange}
+              onOpenAll={openNotificationCenter}
+              onOpenItem={openNotificationItem}
+            />
 
             {/* Selector de idioma */}
             <DropdownMenu>
@@ -428,7 +360,17 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
       {/* Centro de Notificaciones Modal */}
       <NotificationCenter 
         isOpen={isNotificationCenterOpen}
+        items={notifications.items}
+        summary={notifications.summary}
+        loading={notifications.loading}
+        error={notifications.error}
+        moduleLabel={t.modules.recursosHumanos}
         onClose={() => setIsNotificationCenterOpen(false)}
+        onRefresh={() => void notifications.refresh()}
+        onOpenItem={openNotificationItem}
+        onMarkRead={markNotificationRead}
+        onMarkAllRead={markAllNotificationsRead}
+        onDismiss={dismissNotification}
       />
     </header>
   );

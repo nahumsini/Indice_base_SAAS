@@ -1,5 +1,6 @@
 import { apiClient } from '../lib/apiClient';
 import { endpoints } from './endpoints';
+import { dispatchNotificationsRefresh } from './notificationEvents';
 
 export interface BackendHrUser {
   id: number;
@@ -1041,6 +1042,28 @@ export interface AnnouncementListItem {
   created_at?: string | null;
   author_name: string;
   content: string;
+  targets?: AnnouncementTarget[];
+  attachments?: AnnouncementAttachment[];
+  attachment_count?: number;
+  delivery_count?: number;
+  read_count?: number;
+  is_read?: boolean;
+  read_at?: string | null;
+}
+
+export interface AnnouncementTarget {
+  target_type: 'unit' | 'department' | 'employee';
+  target_value: string;
+}
+
+export interface AnnouncementAttachment {
+  id: number;
+  announcement_id: number;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  object_key: string;
+  download_url?: string | null;
 }
 
 export interface AnnouncementsListResponse {
@@ -1050,7 +1073,36 @@ export interface AnnouncementsListResponse {
     published_count: number;
     scheduled_count: number;
     draft_count: number;
+    can_manage?: boolean;
   };
+}
+
+export interface AnnouncementAudienceDepartmentOption {
+  name: string;
+  active_user_count: number;
+  is_available: boolean;
+}
+
+export interface AnnouncementAudienceUnitOption {
+  id: number;
+  name: string;
+  active_user_count: number;
+  is_available: boolean;
+}
+
+export interface AnnouncementAudienceEmployeeOption {
+  id: number;
+  name: string;
+  position?: string | null;
+  unit_id?: number | null;
+  unit_name?: string | null;
+  department?: string | null;
+}
+
+export interface AnnouncementAudienceOptionsResponse {
+  departments: AnnouncementAudienceDepartmentOption[];
+  units: AnnouncementAudienceUnitOption[];
+  employees: AnnouncementAudienceEmployeeOption[];
 }
 
 export interface CreateAnnouncementPayload {
@@ -1063,6 +1115,26 @@ export interface CreateAnnouncementPayload {
   unit_ids?: string[];
   department_names?: string[];
   user_company_ids?: number[];
+}
+
+export interface AnnouncementAttachmentPresignPayload {
+  file_name: string;
+  content_type: string;
+  size_bytes: number;
+}
+
+export interface AnnouncementAttachmentPresignResponse {
+  object_key: string;
+  upload_url: string;
+  expires_at: string;
+  upload_headers: Record<string, string>;
+}
+
+export interface RegisterAnnouncementAttachmentPayload {
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  object_key: string;
 }
 
 const toQueryString = (params: Record<string, string | number | undefined>) => {
@@ -1637,11 +1709,92 @@ export const humanResourcesApi = {
     return apiClient<AnnouncementsListResponse>(endpoints.humanResources.announcementsList);
   },
 
-  createAnnouncement(payload: CreateAnnouncementPayload) {
-    return apiClient<AnnouncementListItem>(endpoints.humanResources.announcementsCreate, {
+  getAnnouncementAudienceOptions() {
+    return apiClient<AnnouncementAudienceOptionsResponse>(endpoints.humanResources.announcementsAudienceOptions);
+  },
+
+  async createAnnouncement(payload: CreateAnnouncementPayload) {
+    const response = await apiClient<AnnouncementListItem>(endpoints.humanResources.announcementsCreate, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    dispatchNotificationsRefresh();
+    return response;
+  },
+
+  async updateAnnouncement(announcementId: string | number, payload: CreateAnnouncementPayload) {
+    const response = await apiClient<AnnouncementListItem>(`${endpoints.humanResources.announcementsList}/${announcementId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    dispatchNotificationsRefresh();
+    return response;
+  },
+
+  async deleteAnnouncement(announcementId: string | number) {
+    const response = await apiClient<{ success: boolean }>(`${endpoints.humanResources.announcementsList}/${announcementId}`, {
+      method: 'DELETE',
+    });
+    dispatchNotificationsRefresh();
+    return response;
+  },
+
+  async markAnnouncementRead(announcementId: string | number) {
+    const response = await apiClient<{ announcement_id: number; read_at: string }>(
+      `${endpoints.humanResources.announcementsList}/${announcementId}/read`,
+      { method: 'POST' },
+    );
+    dispatchNotificationsRefresh();
+    return response;
+  },
+
+  presignAnnouncementAttachmentUpload(
+    announcementId: string | number,
+    payload: AnnouncementAttachmentPresignPayload,
+  ) {
+    return apiClient<AnnouncementAttachmentPresignResponse>(
+      `${endpoints.humanResources.announcementsList}/${announcementId}/attachments/presign-upload`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  async uploadAnnouncementAttachment(
+    uploadUrl: string,
+    file: Blob,
+    contentType: string,
+    uploadHeaders: Record<string, string> = {},
+  ) {
+    const headers = new Headers(uploadHeaders);
+    if (contentType && !headers.has('Content-Type')) {
+      headers.set('Content-Type', contentType);
+    }
+    const response = await fetch(uploadUrl, { method: 'PUT', headers, body: file });
+    if (!response.ok) {
+      throw new Error('Announcement attachment upload failed.');
+    }
+  },
+
+  registerAnnouncementAttachment(
+    announcementId: string | number,
+    payload: RegisterAnnouncementAttachmentPayload,
+  ) {
+    return apiClient<AnnouncementListItem>(
+      `${endpoints.humanResources.announcementsList}/${announcementId}/attachments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  deleteAnnouncementAttachment(announcementId: string | number, attachmentId: string | number) {
+    return apiClient<AnnouncementListItem>(
+      `${endpoints.humanResources.announcementsList}/${announcementId}/attachments/${attachmentId}`,
+      { method: 'DELETE' },
+    );
   },
 
   listRecords(filters: Record<string, string | number | undefined> = {}) {
