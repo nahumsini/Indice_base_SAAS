@@ -1,7 +1,7 @@
-import { Star, Settings, Home } from 'lucide-react';
 import { useLanguage } from '../shared/context';
 import { useFavorites } from '../shared/context';
 import { buildDefaultModuleCatalog } from '../config/moduleCatalog';
+import { resolvePageId } from '../config/navigation';
 
 interface FavoritesBarProps {
   onNavigate: (page: string) => void;
@@ -21,21 +21,8 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
   const { getFavoriteModules } = useFavorites();
 
   const allModules = buildDefaultModuleCatalog(t);
-  const coreModuleFlow = [
-    'home-panel',
-    'human-resources',
-    'processes-tasks',
-    'expenses',
-    'petty-cash',
-  ] as const;
-  const moduleById = new Map(allModules.map((module) => [module.id, module] as const));
-  const pinnedModules = coreModuleFlow
-    .map((moduleId) => moduleById.get(moduleId))
-    .filter(Boolean) as FavoriteBarModule[];
-  const extraFavoriteModules: FavoriteBarModule[] = getFavoriteModules(allModules).filter(
-    (module) => !coreModuleFlow.includes(module.id as (typeof coreModuleFlow)[number]),
-  );
-  const visibleModules: FavoriteBarModule[] = [...pinnedModules, ...extraFavoriteModules];
+  const visibleModules: FavoriteBarModule[] = getFavoriteModules(allModules);
+  const activeModule = resolvePageId(currentModule) ?? currentModule;
 
   const handleModuleClick = (module: FavoriteBarModule) => {
     onNavigate(module.route);
@@ -54,7 +41,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
     return colorMap[color] || colorMap.blue;
   };
 
-  // No mostrar la barra si estamos en el dashboard
+  // The Dashboard screen owns the main favorites section, so the compact bar is hidden there.
   if (currentModule === 'dashboard') {
     return null;
   }
@@ -63,7 +50,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
     <div className="mb-6">
       <div className="-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0">
         <div className="flex min-w-max items-center gap-2 sm:min-w-0 sm:flex-wrap">
-          {/* Botón Dashboard - Siempre fijo */}
+          {/* Dashboard is always pinned as the fixed entry point. */}
           <button
             onClick={() => onNavigate('dashboard')}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -72,9 +59,9 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
             <span>Dashboard</span>
           </button>
 
-          {/* Módulos Favoritos */}
+          {/* Favorite modules selected from the Dashboard. */}
           {visibleModules.map((module) => {
-            const isActive = currentModule === module.route;
+            const isActive = activeModule === module.route;
             const baseClasses = getButtonColorClasses(module.color);
             const activeClasses = isActive ? 'ring-2 ring-offset-2 ring-blue-500' : '';
 
