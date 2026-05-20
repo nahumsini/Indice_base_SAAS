@@ -13,7 +13,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const scrollAmount = 280;
+      const scrollAmount = 252;
       scrollRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
@@ -50,7 +50,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex min-w-min snap-x snap-mandatory gap-3 [&>*]:w-[225px] [&>*]:flex-shrink-0 sm:[&>*]:w-[252px] xl:[&>*]:w-[266px]">
+          <div className="flex min-w-min snap-x snap-mandatory gap-3 [&>*]:w-[203px] [&>*]:flex-shrink-0 sm:[&>*]:w-[227px] xl:[&>*]:w-[240px]">
             {children}
           </div>
         </div>
