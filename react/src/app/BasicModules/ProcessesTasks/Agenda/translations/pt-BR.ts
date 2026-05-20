@@ -29,6 +29,7 @@ export const ptBR: AgendaTranslations = {
     actions: {
       table: 'Tabela',
       kanban: 'Kanban',
+      diagram: 'Diagrama',
       columns: 'Colunas',
       create: 'Criar tarefa',
     },

@@ -20,6 +20,7 @@ import {
 import { Textarea } from '../../../../components/ui/textarea';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { accentButtonClass } from '../../Processes/processesData';
+import { ProgressSlider } from '../../shared/ProgressSlider';
 import type {
   ProcessBusinessOption,
   ProcessCollaboratorOption,
@@ -53,6 +54,7 @@ interface TaskFormDialogProps {
   copy?: AgendaTranslations;
   form: TaskFormValues;
   isSubmitting: boolean;
+  layout?: 'full' | 'quickCreate';
   mode: 'create' | 'edit';
   onOpenChange: (open: boolean) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -157,6 +159,7 @@ export function TaskFormDialog({
   copy = defaultAgendaTranslations,
   form,
   isSubmitting,
+  layout = 'full',
   mode,
   onOpenChange,
   onSubmit,
@@ -173,6 +176,7 @@ export function TaskFormDialog({
   const statusOptions = statusOptionValues.map((value) => ({ value, label: copy.statuses[value] }));
   const priorityOptions = priorityOptionValues.map((value) => ({ value, label: copy.priorities[value] }));
   const isFormValid = Boolean(form.title.trim());
+  const isQuickCreate = layout === 'quickCreate' && mode === 'create';
   const selectedUnitId = numericFormValue(form.unitId);
   const selectedBusinessId = numericFormValue(form.businessId);
   const selectedAssignedUserCompanyId = numericFormValue(form.assignedUserCompanyId);
@@ -371,7 +375,7 @@ export function TaskFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="!flex h-[min(88vh,820px)] w-[calc(100vw-2rem)] !max-w-[820px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[820px] dark:border-slate-700 dark:bg-slate-800"
+        className={`!flex ${isQuickCreate ? 'h-[min(82vh,720px)] !max-w-[760px] sm:!max-w-[760px]' : 'h-[min(88vh,820px)] !max-w-[820px] sm:!max-w-[820px]'} w-[calc(100vw-2rem)] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800`}
       >
         <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
@@ -429,16 +433,18 @@ export function TaskFormDialog({
                     }))
                   }
                   placeholder={formCopy.placeholders.description}
-                  className="min-h-[120px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className={`${isQuickCreate ? 'min-h-[96px]' : 'min-h-[120px]'} rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100`}
                 />
               </div>
 
-              <SelectField
-                label={formCopy.labels.status}
-                value={form.status}
-                onChange={(value) => setForm((currentForm) => ({ ...currentForm, status: value }))}
-                options={statusOptions}
-              />
+              {!isQuickCreate ? (
+                <SelectField
+                  label={formCopy.labels.status}
+                  value={form.status}
+                  onChange={(value) => setForm((currentForm) => ({ ...currentForm, status: value }))}
+                  options={statusOptions}
+                />
+              ) : null}
               <SelectField
                 label={formCopy.labels.priority}
                 value={form.priority}
@@ -470,63 +476,64 @@ export function TaskFormDialog({
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.completion}</label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={form.completionPercent}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({ ...currentForm, completionPercent: event.target.value }))
-                  }
-                  placeholder={formCopy.placeholders.completion}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
+              {!isQuickCreate ? (
+                <div className="space-y-2">
+                  <ProgressSlider
+                    value={Number(form.completionPercent || 0)}
+                    label={formCopy.labels.completion}
+                    onChange={(completionPercent) =>
+                      setForm((currentForm) => ({ ...currentForm, completionPercent: String(completionPercent) }))
+                    }
+                  />
+                </div>
+              ) : null}
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.process}</label>
-                <Select
-                  value={form.processId || 'none'}
-                  onValueChange={(value) =>
-                    setForm((currentForm) => ({ ...currentForm, processId: value === 'none' ? '' : value }))
-                  }
-                >
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                    <SelectValue placeholder={formCopy.placeholders.process} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{formCopy.empty.process}</SelectItem>
-                    {processes.map((process) => (
-                      <SelectItem key={process.id} value={process.id.toString()}>
-                        {process.folio} - {process.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.project}</label>
-                <Select
-                  value={form.projectId || 'none'}
-                  onValueChange={(value) =>
-                    setForm((currentForm) => ({ ...currentForm, projectId: value === 'none' ? '' : value }))
-                  }
-                >
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                    <SelectValue placeholder={formCopy.placeholders.project} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{formCopy.empty.project}</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.folio} - {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isQuickCreate ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.process}</label>
+                    <Select
+                      value={form.processId || 'none'}
+                      onValueChange={(value) =>
+                        setForm((currentForm) => ({ ...currentForm, processId: value === 'none' ? '' : value }))
+                      }
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                        <SelectValue placeholder={formCopy.placeholders.process} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{formCopy.empty.process}</SelectItem>
+                        {processes.map((process) => (
+                          <SelectItem key={process.id} value={process.id.toString()}>
+                            {process.folio} - {process.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.project}</label>
+                    <Select
+                      value={form.projectId || 'none'}
+                      onValueChange={(value) =>
+                        setForm((currentForm) => ({ ...currentForm, projectId: value === 'none' ? '' : value }))
+                      }
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                        <SelectValue placeholder={formCopy.placeholders.project} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{formCopy.empty.project}</SelectItem>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id.toString()}>
+                            {project.folio} - {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : null}
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.unit}</label>
@@ -574,20 +581,22 @@ export function TaskFormDialog({
                 </Select>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.notes}</label>
-                <Textarea
-                  value={form.notes}
-                  onChange={(event) =>
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      notes: event.target.value,
-                    }))
-                  }
-                  placeholder={formCopy.placeholders.notes}
-                  className="min-h-[96px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
+              {!isQuickCreate ? (
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.notes}</label>
+                  <Textarea
+                    value={form.notes}
+                    onChange={(event) =>
+                      setForm((currentForm) => ({
+                        ...currentForm,
+                        notes: event.target.value,
+                      }))
+                    }
+                    placeholder={formCopy.placeholders.notes}
+                    className="min-h-[96px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  />
+                </div>
+              ) : null}
 
             </div>
           </div>

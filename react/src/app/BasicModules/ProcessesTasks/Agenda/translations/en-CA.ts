@@ -27,6 +27,7 @@ export const enCA = {
     actions: {
       table: 'Table',
       kanban: 'Kanban',
+      diagram: 'Diagram',
       columns: 'Columns',
       create: 'Create task',
     },

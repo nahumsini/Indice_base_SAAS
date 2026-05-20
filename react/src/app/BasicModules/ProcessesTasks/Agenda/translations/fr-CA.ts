@@ -29,6 +29,7 @@ export const frCA: AgendaTranslations = {
     actions: {
       table: "Tableau",
       kanban: "Kanban",
+      diagram: "Diagramme",
       columns: "Colonnes",
       create: "Creer une tache",
     },

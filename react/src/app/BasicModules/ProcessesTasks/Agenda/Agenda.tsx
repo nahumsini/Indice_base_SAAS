@@ -12,6 +12,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  CalendarRange,
   CheckCircle2,
   ClipboardCheck,
   Columns3,
@@ -21,6 +22,7 @@ import {
   FolderOpen,
   GripVertical,
   ListChecks,
+  MonitorSmartphone,
   Pencil,
   Plus,
   Trash2,
@@ -29,6 +31,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
+import { Checkbox } from '../../../components/ui/checkbox';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import {
@@ -86,12 +89,20 @@ import { listAgendaTasks, type AgendaTaskItem } from './agendaApi';
 import { AgendaKpiStrip, type AgendaKpiMetrics } from './components/AgendaKpiStrip';
 import { TaskAttachmentsDialog } from './components/TaskAttachmentsDialog';
 import { useAgendaTranslations, type AgendaTranslations } from './translations';
+import { TaskKioskManagementModal } from '../Kiosk/TaskKioskManagementModal';
+import {
+  processTaskKioskApi,
+  type ProcessTaskKiosk,
+  type ProcessTaskKioskPayload,
+} from '../Kiosk/processTaskKioskApi';
+import { ProgressSlider } from '../shared/ProgressSlider';
+import { useRowSelection } from '../shared/useRowSelection';
 
 type PeriodFilter = 'mine' | 'team' | 'week' | 'month' | 'overdue' | 'custom';
 type DisplayTaskStatus = TaskStatus | 'overdue' | 'audited';
 type StatusFilter = 'all' | DisplayTaskStatus;
 type OptionFilter = 'all' | string;
-type AgendaViewMode = 'table' | 'kanban';
+type AgendaViewMode = 'table' | 'kanban' | 'diagram';
 type AgendaColumnId =
   | 'folio'
   | 'type'
@@ -138,11 +149,33 @@ interface AgendaParticipantFilterOption {
   normalizedName: string;
 }
 
+interface AgendaProjectFilterOption {
+  value: string;
+  label: string;
+}
+
 const auditStatusClasses: Record<AgendaTaskItem['auditStatus'], string> = {
   not_ready:
     'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200',
   pending:
     'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300',
+  audited:
+    'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300',
+};
+
+const agendaDisplayStatusClasses: Record<DisplayTaskStatus, string> = {
+  pending:
+    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200',
+  in_progress:
+    'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300',
+  paused:
+    'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300',
+  completed:
+    'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300',
+  cancelled:
+    'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  overdue:
+    'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/60 dark:text-rose-300',
   audited:
     'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300',
 };
@@ -156,6 +189,7 @@ const agendaColumnsStorageKey = 'processes-tasks-agenda-columns-v2';
 const agendaColumnWidthsStorageKey = 'processes-tasks-agenda-column-widths-v2';
 const agendaSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
 const maximumAuditWeighting = 5;
+const selectionColumnWidth = 64;
 const agendaPrioritySortRank: Record<TaskPriority, number> = {
   high: 3,
   medium: 2,
@@ -1114,88 +1148,6 @@ function InlineTextArea({ value, placeholder, disabled = false, className, onCom
   );
 }
 
-interface InlineNumberInputProps {
-  value: number | null | undefined;
-  placeholder: string;
-  disabled?: boolean;
-  min?: number;
-  max?: number;
-  className?: string;
-  onInvalid?: (message: string) => void;
-  onCommit: (value: number | null) => void | Promise<void>;
-  rangeError?: (label: string, min: number, max: number) => string;
-}
-
-function InlineNumberInput({
-  value,
-  placeholder,
-  disabled = false,
-  min = 0,
-  max = 100,
-  className,
-  onInvalid,
-  onCommit,
-  rangeError,
-}: InlineNumberInputProps) {
-  const normalizedValue = value == null ? '' : String(value);
-  const [draft, setDraft] = useState(normalizedValue);
-
-  useEffect(() => {
-    setDraft(normalizedValue);
-  }, [normalizedValue]);
-
-  const commit = () => {
-    const normalizedDraft = draft.trim();
-
-    if (!normalizedDraft) {
-      if (value != null) {
-        void onCommit(null);
-      }
-      return;
-    }
-
-    const parsedValue = Number(normalizedDraft);
-    if (!Number.isInteger(parsedValue) || parsedValue < min || parsedValue > max) {
-      onInvalid?.(rangeError ? rangeError(placeholder, min, max) : `${placeholder} must be between ${min} and ${max}.`);
-      setDraft(normalizedValue);
-      return;
-    }
-
-    if (parsedValue === value) {
-      setDraft(normalizedValue);
-      return;
-    }
-
-    void onCommit(parsedValue);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commit();
-    }
-
-    if (event.key === 'Escape') {
-      setDraft(normalizedValue);
-    }
-  };
-
-  return (
-    <Input
-      type="number"
-      min={min}
-      max={max}
-      value={draft}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={cn(tableInputClass, className)}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={handleKeyDown}
-    />
-  );
-}
-
 function buildAgendaTaskPayload(task: AgendaTaskItem, patch: Partial<TaskPayload> = {}): TaskPayload {
   return {
     title: task.title.trim(),
@@ -1216,6 +1168,47 @@ function buildAgendaTaskPayload(task: AgendaTaskItem, patch: Partial<TaskPayload
     businessId: task.businessId,
     unitId: task.unitId,
     ...patch,
+  };
+}
+
+function buildAgendaOptimisticPatch(
+  payload: TaskPayload,
+  unitOptions: ProcessUnitOption[],
+  businessOptions: ProcessBusinessOption[],
+  projectOptions: ProjectRecord[],
+): Partial<AgendaTaskItem> {
+  const selectedUnit = payload.unitId != null ? unitOptions.find((unit) => unit.id === payload.unitId) : null;
+  const selectedBusiness =
+    payload.businessId != null ? businessOptions.find((business) => business.id === payload.businessId) : null;
+  const selectedProject =
+    payload.projectId != null ? projectOptions.find((project) => project.id === payload.projectId) : null;
+
+  return {
+    assignedName: payload.assignedName,
+    assignedUserCompanyId: payload.assignedUserCompanyId,
+    auditNotes: payload.auditNotes,
+    audited: payload.audited,
+    business: selectedBusiness?.name ?? null,
+    businessId: payload.businessId,
+    businessName: selectedBusiness?.name ?? null,
+    completion: clampPercent(payload.completionPercent ?? 0),
+    completionPercent: clampPercent(payload.completionPercent ?? 0),
+    description: payload.description,
+    dueDate: payload.dueDate ?? '',
+    notes: payload.notes,
+    priority: payload.priority,
+    processId: payload.processId,
+    project: selectedProject?.name ?? null,
+    projectFolio: selectedProject?.folio ?? null,
+    projectId: payload.projectId,
+    projectName: selectedProject?.name ?? null,
+    startDate: payload.startDate,
+    status: payload.status,
+    title: payload.title,
+    unit: selectedUnit?.name ?? null,
+    unitId: payload.unitId,
+    unitName: selectedUnit?.name ?? null,
+    weighting: payload.weighting,
   };
 }
 
@@ -1260,6 +1253,94 @@ function collaboratorCanReceiveAssignment(
 
 function projectLabel(project: ProjectRecord) {
   return `${project.folio ? `${project.folio} - ` : ''}${project.name}`;
+}
+
+function agendaProjectFilterValue(task: AgendaTaskItem) {
+  if (task.projectId != null) {
+    return `project:${task.projectId}`;
+  }
+
+  const fallbackLabel = compactText(task.projectName ?? task.project ?? task.projectFolio);
+  return fallbackLabel ? `project-legacy:${fallbackLabel.toLowerCase()}` : NO_PROJECT_VALUE;
+}
+
+function agendaProjectFilterLabel(task: AgendaTaskItem, copy: AgendaTranslations) {
+  if (task.projectId != null) {
+    const label = compactText(task.projectName ?? task.project);
+    const folio = compactText(task.projectFolio);
+    return label ? `${folio ? `${folio} - ` : ''}${label}` : `${copy.form.labels.project} #${task.projectId}`;
+  }
+
+  const fallbackLabel = compactText(task.projectName ?? task.project ?? task.projectFolio);
+  return fallbackLabel || copy.form.empty.project;
+}
+
+function agendaProjectOptions(tasks: AgendaTaskItem[], copy: AgendaTranslations) {
+  const optionMap = new Map<string, AgendaProjectFilterOption>();
+
+  tasks.forEach((task) => {
+    const value = agendaProjectFilterValue(task);
+    if (!optionMap.has(value)) {
+      optionMap.set(value, {
+        value,
+        label: agendaProjectFilterLabel(task, copy),
+      });
+    }
+  });
+
+  return Array.from(optionMap.values()).sort((left, right) => {
+    if (left.value === NO_PROJECT_VALUE) {
+      return -1;
+    }
+
+    if (right.value === NO_PROJECT_VALUE) {
+      return 1;
+    }
+
+    return left.label.localeCompare(right.label);
+  });
+}
+
+function dateFromTimelineValue(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function daysBetweenDates(start: Date, end: Date) {
+  const startAtMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endAtMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((endAtMidnight.getTime() - startAtMidnight.getTime()) / millisecondsPerDay);
+}
+
+function buildTimelineDays(start: Date, end: Date, maxDays = 31) {
+  const span = Math.max(0, Math.min(maxDays - 1, daysBetweenDates(start, end)));
+  return Array.from({ length: span + 1 }, (_, index) => addDays(start, index));
+}
+
+function getTaskTimelineRange(task: AgendaTaskItem, timelineStart: Date, timelineEnd: Date, dayCount: number) {
+  const startDate = dateFromTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate);
+  const endDate = dateFromTimelineValue(task.dueDate ?? task.agendaDate ?? task.startDate);
+
+  if (!startDate && !endDate) {
+    return null;
+  }
+
+  const rawStart = startDate ?? endDate!;
+  const rawEnd = endDate ?? startDate!;
+  const normalizedStart = rawStart > timelineEnd ? timelineEnd : rawStart < timelineStart ? timelineStart : rawStart;
+  const normalizedEnd = rawEnd < timelineStart ? timelineStart : rawEnd > timelineEnd ? timelineEnd : rawEnd;
+  const startOffset = Math.max(0, daysBetweenDates(timelineStart, normalizedStart));
+  const endOffset = Math.max(startOffset, daysBetweenDates(timelineStart, normalizedEnd));
+
+  return {
+    startOffset,
+    span: Math.max(1, Math.min(dayCount - startOffset, endOffset - startOffset + 1)),
+  };
 }
 
 function reportValue(value: string | number | null | undefined, fallback: string) {
@@ -1324,6 +1405,7 @@ export default function Agenda() {
   const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [agendaError, setAgendaError] = useState<string | null>(null);
+  const [agendaNotice, setAgendaNotice] = useState<string | null>(null);
   const [agendaColumns, setAgendaColumns] = useState<ColumnConfig[]>(() =>
     getInitialAgendaColumns(defaultAgendaColumns),
   );
@@ -1342,6 +1424,7 @@ export default function Agenda() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [unitFilter, setUnitFilter] = useState<OptionFilter>('all');
   const [businessFilter, setBusinessFilter] = useState<OptionFilter>('all');
+  const [projectFilter, setProjectFilter] = useState<OptionFilter>('all');
   const [collaboratorFilter, setCollaboratorFilter] = useState<OptionFilter>('all');
   const [processes, setProcesses] = useState<ProcessRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
@@ -1363,6 +1446,14 @@ export default function Agenda() {
   const [attachmentsTask, setAttachmentsTask] = useState<AgendaTaskItem | null>(null);
   const [reportTask, setReportTask] = useState<AgendaTaskItem | null>(null);
   const [deleteTask, setDeleteTask] = useState<AgendaTaskItem | null>(null);
+  const [isTaskKioskModalOpen, setIsTaskKioskModalOpen] = useState(false);
+  const [isTaskKioskSaving, setIsTaskKioskSaving] = useState(false);
+  const [taskKiosks, setTaskKiosks] = useState<ProcessTaskKiosk[]>([]);
+  const rowSelection = useRowSelection<number>();
+  const [bulkConfirmation, setBulkConfirmation] = useState<'delete' | 'complete' | null>(null);
+  const [isBulkActionRunning, setIsBulkActionRunning] = useState(false);
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkResponsibleValue, setBulkResponsibleValue] = useState(UNASSIGNED_RESPONSIBLE_VALUE);
 
   const activeRange = useMemo(
     () => periodRange(periodFilter, customDateFrom, customDateTo),
@@ -1412,6 +1503,89 @@ export default function Agenda() {
       setIsLoadingTasks(false);
     }
   }, [activeRange.from, activeRange.to, agendaCopy.messages.loadTasks]);
+
+  const publicTaskKioskUrl = useCallback((kiosk: ProcessTaskKiosk) => {
+    if (typeof window === 'undefined') {
+      return `/task-kiosk/${kiosk.public_access_token}`;
+    }
+    return `${window.location.origin}/task-kiosk/${kiosk.public_access_token}`;
+  }, []);
+
+  const loadTaskKiosks = useCallback(async () => {
+    try {
+      const response = await processTaskKioskApi.listKiosks();
+      setTaskKiosks(response.items);
+    } catch (error) {
+      setAgendaError(getErrorMessage(error, 'Could not load task access points.'));
+    }
+  }, []);
+
+  const handleOpenTaskKiosks = () => {
+    setIsTaskKioskModalOpen(true);
+    void loadTaskKiosks();
+  };
+
+  const handleSaveTaskKiosk = async (payload: ProcessTaskKioskPayload, kioskId?: number) => {
+    setIsTaskKioskSaving(true);
+    setAgendaError(null);
+    try {
+      if (kioskId) {
+        await processTaskKioskApi.updateKiosk(kioskId, payload);
+      } else {
+        await processTaskKioskApi.createKiosk(payload);
+      }
+      await loadTaskKiosks();
+    } catch (error) {
+      setAgendaError(getErrorMessage(error, 'Could not save task access point.'));
+      throw error;
+    } finally {
+      setIsTaskKioskSaving(false);
+    }
+  };
+
+  const handleDeleteTaskKiosk = async (kiosk: ProcessTaskKiosk) => {
+    if (typeof window !== 'undefined' && !window.confirm(`Delete ${kiosk.name}?`)) {
+      return;
+    }
+    setIsTaskKioskSaving(true);
+    setAgendaError(null);
+    try {
+      await processTaskKioskApi.deleteKiosk(kiosk.id);
+      await loadTaskKiosks();
+    } catch (error) {
+      setAgendaError(getErrorMessage(error, 'Could not delete task access point.'));
+    } finally {
+      setIsTaskKioskSaving(false);
+    }
+  };
+
+  const handleRotateTaskKiosk = async (kiosk: ProcessTaskKiosk) => {
+    setIsTaskKioskSaving(true);
+    setAgendaError(null);
+    try {
+      await processTaskKioskApi.rotateToken(kiosk.id);
+      await loadTaskKiosks();
+    } catch (error) {
+      setAgendaError(getErrorMessage(error, 'Could not reset task access link.'));
+    } finally {
+      setIsTaskKioskSaving(false);
+    }
+  };
+
+  const handleCopyTaskKiosk = (kiosk: ProcessTaskKiosk) => {
+    const url = publicTaskKioskUrl(kiosk);
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(url);
+      return;
+    }
+    setAgendaError(url);
+  };
+
+  const handleOpenTaskKiosk = (kiosk: ProcessTaskKiosk) => {
+    if (typeof window !== 'undefined') {
+      window.open(publicTaskKioskUrl(kiosk), '_blank', 'noopener,noreferrer');
+    }
+  };
 
   useEffect(() => {
     void loadAgenda();
@@ -1532,9 +1706,24 @@ export default function Agenda() {
         : tasksMatchingSelectedUnit.filter((task) => businessFilterValue(task, agendaCopy) === businessFilter),
     [agendaCopy, businessFilter, tasksMatchingSelectedUnit],
   );
+  const projectOptions = useMemo(
+    () => agendaProjectOptions(tasksMatchingSelectedBusiness, agendaCopy),
+    [agendaCopy, tasksMatchingSelectedBusiness],
+  );
+  const projectOptionMap = useMemo(
+    () => new Map(projectOptions.map((option) => [option.value, option])),
+    [projectOptions],
+  );
+  const tasksMatchingSelectedProject = useMemo(
+    () =>
+      projectFilter === 'all'
+        ? tasksMatchingSelectedBusiness
+        : tasksMatchingSelectedBusiness.filter((task) => agendaProjectFilterValue(task) === projectFilter),
+    [projectFilter, tasksMatchingSelectedBusiness],
+  );
   const collaboratorOptions = useMemo(
-    () => agendaParticipantOptions(tasksMatchingSelectedBusiness),
-    [tasksMatchingSelectedBusiness],
+    () => agendaParticipantOptions(tasksMatchingSelectedProject),
+    [tasksMatchingSelectedProject],
   );
   const collaboratorOptionMap = useMemo(
     () => new Map(collaboratorOptions.map((option) => [option.value, option])),
@@ -1621,6 +1810,12 @@ export default function Agenda() {
     }
   }, [collaboratorFilter, collaboratorOptionMap]);
 
+  useEffect(() => {
+    if (projectFilter !== 'all' && !projectOptionMap.has(projectFilter)) {
+      setProjectFilter('all');
+    }
+  }, [projectFilter, projectOptionMap]);
+
   const resetTaskForm = () => {
     setTaskForm(createDefaultTaskForm());
     setEditingTaskId(null);
@@ -1666,6 +1861,9 @@ export default function Agenda() {
       resetTaskForm();
       await loadAgenda();
     } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Agenda task modal save failed.', { error, taskId: editingTaskId });
+      }
       setAgendaError(getErrorMessage(error, agendaCopy.messages.saveTask));
     } finally {
       setIsSubmittingTask(false);
@@ -1680,6 +1878,19 @@ export default function Agenda() {
           : [...currentIds, taskId]
         : currentIds.filter((currentId) => currentId !== taskId),
     );
+  };
+
+  const setManyTasksPendingState = (taskIds: number[], isPending: boolean) => {
+    setPendingTaskIds((currentIds) => {
+      if (isPending) {
+        const nextIds = new Set(currentIds);
+        taskIds.forEach((taskId) => nextIds.add(taskId));
+        return Array.from(nextIds);
+      }
+
+      const taskIdSet = new Set(taskIds);
+      return currentIds.filter((currentId) => !taskIdSet.has(currentId));
+    });
   };
 
   const isTaskPending = (taskId: number) => pendingTaskIds.includes(taskId);
@@ -1742,7 +1953,8 @@ export default function Agenda() {
   };
 
   const persistTaskChange = async (task: AgendaTaskItem, patch: Partial<TaskPayload>) => {
-    const nextTitle = 'title' in patch ? patch.title : task.title;
+    const latestTask = tasks.find((currentTask) => currentTask.taskId === task.taskId) ?? task;
+    const nextTitle = 'title' in patch ? patch.title : latestTask.title;
     if (!nextTitle?.trim()) {
       setAgendaError(agendaCopy.messages.titleRequired);
       return;
@@ -1752,10 +1964,19 @@ export default function Agenda() {
     setAgendaError(null);
 
     try {
-      await updateProcessTask(task.taskId, buildAgendaTaskPayload(task, patch));
+      const payload = buildAgendaTaskPayload(latestTask, patch);
+      patchTaskInAgenda(
+        task.taskId,
+        buildAgendaOptimisticPatch(payload, catalogUnits, catalogBusinesses, projects),
+      );
+      await updateProcessTask(task.taskId, payload);
       await loadAgenda();
     } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Agenda task inline save failed.', { error, patch, taskId: task.taskId });
+      }
       setAgendaError(getErrorMessage(error, agendaCopy.messages.updateTask));
+      await loadAgenda();
     } finally {
       setTaskPendingState(task.taskId, false);
     }
@@ -1913,6 +2134,118 @@ export default function Agenda() {
     }
   };
 
+  const runBulkTaskAction = async (
+    action: 'delete' | 'duplicate' | 'complete' | 'priority' | 'assign',
+    payload?: { collaborator?: ProcessCollaboratorOption | null; priority?: TaskPriority },
+  ) => {
+    if (selectedTasks.length === 0) {
+      return;
+    }
+
+    const selectedTaskIds = selectedTasks.map((task) => task.taskId);
+
+    setIsBulkActionRunning(true);
+    setManyTasksPendingState(selectedTaskIds, true);
+    setAgendaError(null);
+    setAgendaNotice(null);
+
+    try {
+      if (action === 'delete') {
+        await Promise.all(selectedTasks.map((task) => deleteProcessTask(task.taskId)));
+      }
+
+      if (action === 'duplicate') {
+        await Promise.all(
+          selectedTasks.map((task) =>
+            createProcessTask(
+              buildAgendaTaskPayload(task, {
+                title: `Copia de ${task.title}`,
+                status: 'pending',
+                completionPercent: 0,
+                audited: false,
+                auditNotes: null,
+              }),
+            ),
+          ),
+        );
+      }
+
+      if (action === 'complete') {
+        const completableTasks = selectedTasks.filter(
+          (task) => task.status !== 'completed' && task.status !== 'cancelled',
+        );
+        await Promise.all(
+          completableTasks.map((task) =>
+            completeProcessTask(
+              task.taskId,
+              task.completionNotes ?? null,
+              task.completionPercent > 0 ? clampPercent(task.completionPercent) : 100,
+            ),
+          ),
+        );
+      }
+
+      if (action === 'priority' && payload?.priority) {
+        await Promise.all(
+          selectedTasks.map((task) =>
+            updateProcessTask(task.taskId, buildAgendaTaskPayload(task, { priority: payload.priority })),
+          ),
+        );
+      }
+
+      if (action === 'assign') {
+        const collaborator = payload?.collaborator ?? null;
+        await Promise.all(
+          selectedTasks.map((task) =>
+            updateProcessTask(
+              task.taskId,
+              buildAgendaTaskPayload(task, {
+                assignedUserCompanyId: collaborator?.userCompanyId ?? null,
+                assignedName: collaborator?.name ?? null,
+                unitId: task.unitId ?? collaborator?.unitId ?? null,
+                businessId: task.businessId ?? collaborator?.businessId ?? null,
+              }),
+            ),
+          ),
+        );
+      }
+
+      if (reportTask && selectedTaskIds.includes(reportTask.taskId)) {
+        setReportTask(null);
+      }
+      if (attachmentsTask && selectedTaskIds.includes(attachmentsTask.taskId)) {
+        setAttachmentsTask(null);
+      }
+
+      rowSelection.clearSelection();
+      setBulkConfirmation(null);
+      setIsBulkAssignOpen(false);
+      setBulkResponsibleValue(UNASSIGNED_RESPONSIBLE_VALUE);
+      setAgendaNotice(`Accion masiva aplicada a ${selectedTasks.length} tarea${selectedTasks.length === 1 ? '' : 's'}.`);
+      await loadAgenda();
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Agenda bulk task action failed.', { action, error, selectedTaskIds });
+      }
+      setAgendaError(getErrorMessage(error, agendaCopy.messages.updateTask));
+      await loadAgenda();
+    } finally {
+      setManyTasksPendingState(selectedTaskIds, false);
+      setIsBulkActionRunning(false);
+    }
+  };
+
+  const handleBulkAssign = () => {
+    const collaborator =
+      bulkResponsibleValue === UNASSIGNED_RESPONSIBLE_VALUE
+        ? null
+        : catalogCollaborators.find(
+            (currentCollaborator) => currentCollaborator.userCompanyId === Number(bulkResponsibleValue),
+          ) ?? null;
+
+    void runBulkTaskAction('assign', { collaborator });
+  };
+
   const handleDownloadTaskReport = (task: AgendaTaskItem) => {
     const doc = new jsPDF();
 
@@ -2046,16 +2379,14 @@ export default function Agenda() {
     const selectedCollaborator =
       collaboratorFilter === 'all' ? null : collaboratorOptionMap.get(collaboratorFilter) ?? null;
 
-    return periodFilteredTasks.filter((task) => {
-      const matchesUnit = unitFilter === 'all' || unitFilterValue(task, agendaCopy) === unitFilter;
-      const matchesBusiness = businessFilter === 'all' || businessFilterValue(task, agendaCopy) === businessFilter;
+    return tasksMatchingSelectedProject.filter((task) => {
       const matchesCollaborator =
         selectedCollaborator == null || taskMatchesParticipantFilter(task, selectedCollaborator);
       const matchesStatus = statusFilter === 'all' || getTaskDisplayStatus(task) === statusFilter;
 
-      return matchesUnit && matchesBusiness && matchesCollaborator && matchesStatus;
+      return matchesCollaborator && matchesStatus;
     });
-  }, [agendaCopy, businessFilter, collaboratorFilter, collaboratorOptionMap, periodFilteredTasks, statusFilter, unitFilter]);
+  }, [collaboratorFilter, collaboratorOptionMap, statusFilter, tasksMatchingSelectedProject]);
 
   const sortedTasks = useMemo(() => {
     return filteredTasks
@@ -2071,6 +2402,40 @@ export default function Agenda() {
       })
       .map(({ task }) => task);
   }, [agendaCopy, filteredTasks, sortState.columnId, sortState.direction]);
+  const agendaTimeline = useMemo(() => {
+    const taskDates = sortedTasks.flatMap((task) => [
+      dateFromTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate),
+      dateFromTimelineValue(task.dueDate ?? task.agendaDate ?? task.startDate),
+    ]).filter((date): date is Date => date !== null);
+    const today = new Date();
+    const fallbackStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const earliestDate = taskDates.length > 0
+      ? new Date(Math.min(...taskDates.map((date) => date.getTime())))
+      : fallbackStart;
+    const latestDate = taskDates.length > 0
+      ? new Date(Math.max(...taskDates.map((date) => date.getTime())))
+      : addDays(fallbackStart, 13);
+    const timelineStart = earliestDate;
+    const timelineEnd = daysBetweenDates(earliestDate, latestDate) > 30 ? addDays(earliestDate, 30) : latestDate;
+    const days = buildTimelineDays(timelineStart, timelineEnd);
+
+    return {
+      days,
+      start: timelineStart,
+      end: timelineEnd,
+    };
+  }, [sortedTasks]);
+
+  const visibleTaskIds = useMemo(() => sortedTasks.map((task) => task.taskId), [sortedTasks]);
+  const visibleTaskSelection = rowSelection.visibleSelectionState(visibleTaskIds);
+  const selectedTasks = useMemo(
+    () => tasks.filter((task) => rowSelection.selectedIds.has(task.taskId)),
+    [rowSelection.selectedIds, tasks],
+  );
+
+  useEffect(() => {
+    rowSelection.pruneSelection(tasks.map((task) => task.taskId));
+  }, [rowSelection.pruneSelection, tasks]);
 
   const kanbanTasksByColumn = useMemo(() => {
     const groupedTasks = new Map<AgendaKanbanColumnId, AgendaTaskItem[]>();
@@ -2203,11 +2568,12 @@ export default function Agenda() {
     () => translatedAgendaColumns.filter((column) => column.visible),
     [translatedAgendaColumns],
   );
-  const agendaTableColumnCount = visibleAgendaColumns.length + fixedAgendaColumns.length;
+  const agendaTableColumnCount = visibleAgendaColumns.length + fixedAgendaColumns.length + 1;
   const agendaTableMinWidth = useMemo(
     () =>
       Math.max(
         1120,
+        selectionColumnWidth +
         visibleAgendaColumns.reduce(
           (totalWidth, column) => totalWidth + agendaColumnWidths[column.id as AgendaColumnId],
           0,
@@ -2555,23 +2921,13 @@ export default function Agenda() {
       }
       case 'completion':
         return (
-          <div className="w-full space-y-2">
-            <InlineNumberInput
+          <div className="w-full min-w-[170px]">
+            <ProgressSlider
               value={clampPercent(task.completionPercent)}
-              placeholder={agendaCopy.form.labels.completion}
+              label={agendaCopy.form.labels.completion}
               disabled={pending}
-              onInvalid={setAgendaError}
-              rangeError={agendaCopy.messages.numberRange}
-              onCommit={(completionPercent) =>
-                persistTaskChange(task, { completionPercent: completionPercent ?? 0 })
-              }
+              onCommit={(completionPercent) => persistTaskChange(task, { completionPercent })}
             />
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-              <div
-                className="h-full rounded-full bg-[rgb(235,165,52)]"
-                style={{ width: `${clampPercent(task.completionPercent)}%` }}
-              />
-            </div>
           </div>
         );
       case 'notes':
@@ -2864,6 +3220,118 @@ export default function Agenda() {
     </section>
   );
 
+  const renderAgendaDiagram = () => {
+    const dayCount = Math.max(agendaTimeline.days.length, 1);
+
+    return (
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{headerCopy.actions.diagram}</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {agendaCopy.kanban.visibleTasks(sortedTasks.length)}
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className="w-fit rounded-full border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]"
+            >
+              {agendaCopy.kanban.filteredBadge}
+            </Badge>
+          </div>
+        </div>
+
+        {isAgendaViewLoading ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {agendaCopy.kanban.loading}
+          </div>
+        ) : sortedTasks.length === 0 ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {agendaCopy.table.empty}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[980px]">
+              <div className="grid border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50" style={{ gridTemplateColumns: 'minmax(260px, 320px) 1fr' }}>
+                <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {agendaCopy.columns.title.label}
+                </div>
+                <div
+                  className="grid"
+                  style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}
+                >
+                  {agendaTimeline.days.map((day) => (
+                    <div
+                      key={day.toISOString()}
+                      className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700"
+                    >
+                      <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
+                        {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {sortedTasks.map((task) => {
+                const range = getTaskTimelineRange(task, agendaTimeline.start, agendaTimeline.end, dayCount);
+                const displayStatus = getTaskDisplayStatus(task);
+
+                return (
+                  <div
+                    key={task.taskId}
+                    className="grid min-h-[86px] border-b border-slate-200 last:border-b-0 dark:border-slate-700"
+                    style={{ gridTemplateColumns: 'minmax(260px, 320px) 1fr' }}
+                  >
+                    <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                          {task.folio}
+                        </Badge>
+                        <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', agendaDisplayStatusClasses[displayStatus])}>
+                          {agendaCopy.statuses[displayStatus]}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{task.title}</p>
+                      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                        {task.assignedName ?? agendaCopy.common.unassigned} · {task.dueDate ? formatDate(task.dueDate) : agendaCopy.common.noDate}
+                      </p>
+                    </div>
+                    <div className="relative grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+                      {agendaTimeline.days.map((day) => (
+                        <div key={`${task.taskId}-${day.toISOString()}`} className="border-r border-slate-200 last:border-r-0 dark:border-slate-700" />
+                      ))}
+                      {range ? (
+                        <div
+                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 px-3 py-2 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25"
+                          style={{
+                            left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
+                            width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
+                          }}
+                        >
+                          <div className="flex h-full items-center justify-between gap-3">
+                            <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{task.title}</span>
+                            <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">{clampPercent(task.completionPercent)}%</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="absolute inset-y-0 left-4 flex items-center text-xs font-medium text-slate-400 dark:text-slate-500">
+                          {agendaCopy.common.noDate}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
     <>
       <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
@@ -2878,11 +3346,11 @@ export default function Agenda() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex h-11 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
+            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
               <button
                 type="button"
                 className={cn(
-                  'inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'table'
                     ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
@@ -2895,7 +3363,7 @@ export default function Agenda() {
               <button
                 type="button"
                 className={cn(
-                  'inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'kanban'
                     ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
@@ -2905,11 +3373,33 @@ export default function Agenda() {
                 <Columns3 className="h-4 w-4" />
                 {headerCopy.actions.kanban}
               </button>
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  viewMode === 'diagram'
+                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+                )}
+                onClick={() => setViewMode('diagram')}
+              >
+                <CalendarRange className="h-4 w-4" />
+                {headerCopy.actions.diagram}
+              </button>
             </div>
             <Button
               type="button"
               variant="outline"
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              onClick={handleOpenTaskKiosks}
+            >
+              <MonitorSmartphone className="h-4 w-4" />
+              Task access
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
@@ -2917,7 +3407,7 @@ export default function Agenda() {
             </Button>
             <Button
               type="button"
-              className={cn('h-11 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
               onClick={handleCreateTaskClick}
             >
               <Plus className="h-4 w-4" />
@@ -2945,9 +3435,25 @@ export default function Agenda() {
         </section>
       ) : null}
 
+      {agendaNotice ? (
+        <section className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{agendaNotice}</span>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-emerald-700 shadow-none dark:border-emerald-900/60 dark:bg-slate-800 dark:text-emerald-200"
+              onClick={() => setAgendaNotice(null)}
+            >
+              {agendaCopy.common.close}
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
       <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <h3 className="mb-5 text-base font-bold text-slate-800 dark:text-white">{agendaCopy.filters.title}</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.period}</label>
             <Select value={periodFilter} onValueChange={(value) => setPeriodFilter(value as PeriodFilter)}>
@@ -3020,6 +3526,22 @@ export default function Agenda() {
             </Select>
           </div>
           <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.form.labels.project}</label>
+            <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{agendaCopy.common.all}</SelectItem>
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.value} value={project.value}>
+                    {project.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.collaborator}</label>
             <Select value={collaboratorFilter} onValueChange={setCollaboratorFilter}>
               <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -3056,12 +3578,111 @@ export default function Agenda() {
 
       <AgendaKpiStrip copy={agendaCopy.kpiStrip} isLoading={isAgendaViewLoading} metrics={agendaKpiMetrics} />
 
+      {viewMode === 'table' && rowSelection.selectedCount > 0 ? (
+        <section className="mb-4 rounded-2xl border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-4 py-3 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+              <Badge variant="outline" className="rounded-full border-[rgb(235,165,52)]/40 bg-white px-3 py-1 text-[rgb(176,111,22)] dark:bg-slate-800 dark:text-[rgb(245,196,112)]">
+                {rowSelection.selectedCount} seleccionadas
+              </Badge>
+              <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                disabled={isBulkActionRunning}
+                onClick={() => {
+                  void runBulkTaskAction('duplicate');
+                }}
+              >
+                <Copy className="h-4 w-4" />
+                {agendaCopy.actions.copyTask}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                disabled={isBulkActionRunning}
+                onClick={() => setIsBulkAssignOpen(true)}
+              >
+                {agendaCopy.form.labels.responsible}
+              </Button>
+              <Select
+                disabled={isBulkActionRunning}
+                onValueChange={(value) => {
+                  void runBulkTaskAction('priority', { priority: value as TaskPriority });
+                }}
+              >
+                <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                  <SelectValue placeholder={agendaCopy.form.labels.priority} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(['low', 'medium', 'high'] as TaskPriority[]).map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {agendaCopy.priorities[priority]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
+                disabled={isBulkActionRunning}
+                onClick={() => setBulkConfirmation('complete')}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {agendaCopy.actions.closeTask}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
+                disabled={isBulkActionRunning}
+                onClick={() => setBulkConfirmation('delete')}
+              >
+                <Trash2 className="h-4 w-4" />
+                {agendaCopy.actions.deleteTask}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                disabled={isBulkActionRunning}
+                onClick={rowSelection.clearSelection}
+              >
+                {agendaCopy.common.cancel}
+              </Button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {viewMode === 'table' ? (
         <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <Table style={{ minWidth: agendaTableMinWidth, tableLayout: 'fixed' }}>
             <TableHeader>
               <TableRow className="border-slate-200 dark:border-slate-700">
+                <TableHead
+                  className="px-5 py-5"
+                  style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}
+                >
+                  <Checkbox
+                    aria-label="Seleccionar tareas visibles"
+                    checked={
+                      visibleTaskSelection.allVisibleSelected
+                        ? true
+                        : visibleTaskSelection.someVisibleSelected
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
+                    className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                  />
+                </TableHead>
                 {visibleAgendaColumns.map((column) => (
                   <AgendaSortableTableHead
                     key={column.id}
@@ -3092,8 +3713,29 @@ export default function Agenda() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedTasks.map((task) => (
-                <TableRow key={task.taskId} className="border-slate-200 dark:border-slate-700">
+              {sortedTasks.map((task) => {
+                const selected = rowSelection.isSelected(task.taskId);
+
+                return (
+                <TableRow
+                  key={task.taskId}
+                  className={cn(
+                    'border-slate-200 dark:border-slate-700',
+                    selected && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                  )}
+                >
+                  <TableCell
+                    className="px-5 py-5 align-middle"
+                    style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}
+                  >
+                    <Checkbox
+                      aria-label={`Seleccionar ${task.folio}`}
+                      checked={selected}
+                      disabled={isTaskPending(task.taskId)}
+                      onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
+                      className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                    />
+                  </TableCell>
                   {visibleAgendaColumns.map((column) => {
                     const columnId = column.id as AgendaColumnId;
 
@@ -3127,7 +3769,8 @@ export default function Agenda() {
                     );
                   })}
                 </TableRow>
-              ))}
+              );
+              })}
 
               {isAgendaViewLoading ? (
                 <TableRow>
@@ -3154,16 +3797,34 @@ export default function Agenda() {
           </Table>
         </div>
         </section>
-      ) : (
+      ) : viewMode === 'kanban' ? (
         renderKanbanBoard()
+      ) : (
+        renderAgendaDiagram()
       )}
 
       <ColumnasConfigModal
         isOpen={isColumnsModalOpen}
         onClose={() => setIsColumnsModalOpen(false)}
         columns={translatedAgendaColumns}
+        defaultColumns={defaultAgendaColumns}
         fixedColumns={fixedAgendaColumns}
+        theme="processes"
         onSave={setAgendaColumns}
+      />
+
+      <TaskKioskManagementModal
+        isOpen={isTaskKioskModalOpen}
+        isSaving={isTaskKioskSaving}
+        kiosks={taskKiosks}
+        unitOptions={catalogUnits}
+        businessOptions={catalogBusinesses}
+        onClose={() => setIsTaskKioskModalOpen(false)}
+        onSave={handleSaveTaskKiosk}
+        onDelete={handleDeleteTaskKiosk}
+        onRotate={handleRotateTaskKiosk}
+        onCopy={handleCopyTaskKiosk}
+        onOpen={handleOpenTaskKiosk}
       />
 
       <TaskFormDialog
@@ -3171,6 +3832,7 @@ export default function Agenda() {
         open={isTaskDialogOpen}
         onOpenChange={handleTaskDialogOpenChange}
         mode={taskDialogMode}
+        layout={taskDialogMode === 'create' ? 'quickCreate' : 'full'}
         onSubmit={handleSubmitTask}
         form={taskForm}
         isSubmitting={isSubmittingTask}
@@ -3373,6 +4035,82 @@ export default function Agenda() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
+        <DialogContent
+          hideCloseButton
+          className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
+        >
+          <div className="bg-[rgb(235,165,52)] px-5 py-4">
+            <DialogTitle className="text-lg font-bold text-white">{agendaCopy.form.labels.responsible}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-white/85">
+              Aplicar responsable a {rowSelection.selectedCount} tarea{rowSelection.selectedCount === 1 ? '' : 's'} seleccionada{rowSelection.selectedCount === 1 ? '' : 's'}.
+            </DialogDescription>
+          </div>
+          <div className="space-y-3 px-5 py-5">
+            <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
+              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{agendaCopy.common.unassigned}</SelectItem>
+                {catalogCollaborators.map((collaborator) => (
+                  <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
+                    {collaborator.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              disabled={isBulkActionRunning}
+              onClick={() => setIsBulkAssignOpen(false)}
+            >
+              {agendaCopy.common.cancel}
+            </Button>
+            <Button
+              type="button"
+              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              disabled={isBulkActionRunning}
+              onClick={handleBulkAssign}
+            >
+              {isBulkActionRunning ? agendaCopy.common.saving : agendaCopy.form.submit.edit}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDeleteDialog
+        isVisible={bulkConfirmation === 'delete'}
+        title={agendaCopy.deleteDialog.title}
+        itemName={`${rowSelection.selectedCount} tarea${rowSelection.selectedCount === 1 ? '' : 's'}`}
+        description={agendaCopy.deleteDialog.description}
+        confirmLabel={agendaCopy.deleteDialog.confirm}
+        cancelLabel={agendaCopy.common.cancel}
+        confirmDisabled={isBulkActionRunning}
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => {
+          void runBulkTaskAction('delete');
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={bulkConfirmation === 'complete'}
+        title={agendaCopy.actions.closeTask}
+        itemName={`${rowSelection.selectedCount} tarea${rowSelection.selectedCount === 1 ? '' : 's'}`}
+        description="Cierra las tareas seleccionadas usando el flujo existente de cierre."
+        confirmLabel={agendaCopy.actions.closeTask}
+        cancelLabel={agendaCopy.common.cancel}
+        confirmDisabled={isBulkActionRunning}
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => {
+          void runBulkTaskAction('complete');
+        }}
+      />
 
       <ConfirmDeleteDialog
         isVisible={Boolean(deleteTask)}
