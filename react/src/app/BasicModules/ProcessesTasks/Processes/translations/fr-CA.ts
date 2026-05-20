@@ -24,6 +24,8 @@ export const frCA: ProcessesTranslations = {
     title: 'Processus',
     subtitle: "Creez des processus recurrents qui generent de vraies taches dans l'agenda de chaque responsable.",
     actions: {
+      table: 'Tableau',
+      diagram: 'Diagramme',
       columns: 'Colonnes',
       create: 'Creer un processus',
     },
@@ -104,7 +106,7 @@ export const frCA: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: 'Executer le moteur',
+    runEngine: 'Generer les taches dues',
     pause: 'Mettre en pause',
     activate: 'Activer le processus',
     edit: 'Modifier le processus',
@@ -117,7 +119,7 @@ export const frCA: ProcessesTranslations = {
     saveChanges: 'Impossible d enregistrer les changements du processus.',
     deleteProcess: 'Impossible de supprimer le processus.',
     duplicateProcess: 'Impossible de copier le processus.',
-    runEngine: 'Impossible d executer le moteur du processus.',
+    runEngine: 'Impossible de generer les taches dues.',
     saveProcess: 'Impossible d enregistrer le processus.',
     titleRequired: 'Le titre est obligatoire.',
     descriptionRequired: 'La description est obligatoire.',

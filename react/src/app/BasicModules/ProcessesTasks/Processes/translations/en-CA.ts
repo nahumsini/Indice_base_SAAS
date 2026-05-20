@@ -21,6 +21,8 @@ export const enCA = {
     title: 'Processes',
     subtitle: 'Create recurring processes that generate real agenda tasks for each responsible user.',
     actions: {
+      table: 'Table',
+      diagram: 'Diagram',
       columns: 'Columns',
       create: 'Create process',
     },
@@ -101,7 +103,7 @@ export const enCA = {
     },
   },
   actions: {
-    runEngine: 'Run engine',
+    runEngine: 'Generate due tasks',
     pause: 'Pause process',
     activate: 'Activate process',
     edit: 'Edit process',
@@ -114,7 +116,7 @@ export const enCA = {
     saveChanges: 'Unable to save process changes.',
     deleteProcess: 'Unable to delete process.',
     duplicateProcess: 'Unable to copy process.',
-    runEngine: 'Unable to run process engine.',
+    runEngine: 'Unable to generate due tasks.',
     saveProcess: 'Unable to save process.',
     titleRequired: 'Title is required.',
     descriptionRequired: 'Description is required.',

@@ -10,6 +10,7 @@ import java.sql.Types;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Year;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -295,6 +296,7 @@ public class ProcessesService {
                         WHERE company_id = ?
                           AND id = ?
                           AND deleted_at IS NULL
+                        FOR UPDATE
                         """,
                 companyId,
                 processId);
@@ -899,7 +901,11 @@ public class ProcessesService {
                         rs.getLong("id")));
 
         for (var candidate : candidates) {
-            materializeProcess(candidate.companyId(), candidate.processId());
+            try {
+                materializeProcess(candidate.companyId(), candidate.processId());
+            } catch (NoSuchElementException ignored) {
+                // Process was deleted between candidate collection and row locking.
+            }
         }
     }
 
@@ -1194,13 +1200,19 @@ public class ProcessesService {
         }
 
         for (var day : days) {
-            if (day < 1 || day > from.lengthOfMonth()) {
+            if (day < 1) {
                 continue;
             }
 
-            var date = from.withDayOfMonth(day);
-            if (!date.isBefore(from) && !date.isAfter(to)) {
-                dates.add(date);
+            for (var month = YearMonth.from(from); !month.atDay(1).isAfter(to); month = month.plusMonths(1)) {
+                if (day > month.lengthOfMonth()) {
+                    continue;
+                }
+
+                var date = month.atDay(day);
+                if (!date.isBefore(from) && !date.isAfter(to)) {
+                    dates.add(date);
+                }
             }
         }
     }
