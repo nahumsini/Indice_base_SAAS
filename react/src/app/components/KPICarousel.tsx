@@ -22,7 +22,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
   };
 
   // Carousel mode: always horizontal with controls.
-  if (mode === 'carousel' || childCount > 6) {
+  if (mode === 'carousel') {
     return (
       <div className="relative group">
         {/* Left edge fade */}
@@ -49,7 +49,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex min-w-min snap-x snap-mandatory gap-4 [&>*]:w-[220px] [&>*]:flex-shrink-0">
+          <div className="flex min-w-min snap-x snap-mandatory gap-3 [&>*]:w-[260px] [&>*]:flex-shrink-0">
             {children}
           </div>
         </div>
@@ -75,15 +75,8 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
   // Grid mode: responsive layout by KPI count.
   return (
     <>
-      {/* Mobile carousel (< lg) */}
-      <div className="lg:hidden overflow-x-auto scrollbar-hide pb-4 -mx-8 px-8">
-        <div className="flex snap-x snap-mandatory gap-4 [&>*]:w-[220px] [&>*]:flex-shrink-0">
-          {children}
-        </div>
-      </div>
-      
-      {/* Desktop grid (>= lg) */}
-      <div className="hidden lg:grid grid-cols-[repeat(auto-fit,minmax(180px,220px))] gap-4">
+      {/* Responsive grid */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         {children}
       </div>
     </>
