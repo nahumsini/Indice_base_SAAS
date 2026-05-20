@@ -10,6 +10,61 @@ export const zhCA = {
     aiModules: '人工智能',
     aiLabel: 'AI 模块',
   },
+  operationalJourney: {
+    eyebrow: '运营指引',
+    title: '运营路径',
+    subtitle: '逐步配置你的运营体系。',
+    progressLabel: '进度',
+    dismissLabel: '隐藏运营路径',
+    status: {
+      completed: '已配置',
+      active: '进行中',
+      pending: '待处理',
+      locked: '已锁定',
+    },
+    stages: {
+      company_setup: {
+        title: '企业配置',
+        shortTitle: '企业配置',
+        description: '从配置公司的核心结构开始。',
+        cta: '继续',
+      },
+      human_resources: {
+        title: '团队组织',
+        shortTitle: '团队',
+        description: '集中管理员工、角色和日常运营。',
+        cta: '配置团队',
+      },
+      operations: {
+        title: '运营流程',
+        shortTitle: '流程',
+        description: '定义清晰流程，让运营保持一致。',
+        cta: '定义流程',
+      },
+      finance: {
+        title: '财务控制',
+        shortTitle: '财务',
+        description: '记录费用并管理员工分配的运营资金。',
+        cta: '管理财务',
+      },
+      commercial: {
+        title: '商业运营',
+        shortTitle: '商业',
+        description: '管理收入、机会和商业运营。',
+        cta: '启用销售',
+      },
+      analytics: {
+        title: '运营智能',
+        shortTitle: '分析',
+        description: '实时分析运营绩效。',
+        cta: '查看分析',
+      },
+    },
+  },
+  operationalModules: {
+    title: '运营模块',
+    label: '按运营成熟度组织',
+  },
   kpis: {
     weeklyRevenue: { title: '每周销售额', change: '较上周 +6%' },
     netProfit: { title: '净利润', change: '本月 +12%' },

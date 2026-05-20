@@ -1709,7 +1709,7 @@ const translations: Translations = {
       profile: 'Mi perfil',
       settings: 'Configuración',
       logout: 'Cerrar sesión',
-      learningMode: 'Modo aprendiz',
+      learningMode: 'Ruta operativa',
     },
     sections: {
       kpis: 'Tus KPIs',
@@ -2541,7 +2541,7 @@ const translations: Translations = {
       profile: 'Mi perfil',
       settings: 'Configuración',
       logout: 'Cerrar sesión',
-      learningMode: 'Modo aprendiz',
+      learningMode: 'Ruta operativa',
     },
     sections: {
       kpis: 'Tus KPIs',
@@ -3373,7 +3373,7 @@ const translations: Translations = {
       profile: 'My profile',
       settings: 'Settings',
       logout: 'Log out',
-      learningMode: 'Learning mode',
+      learningMode: 'Operational journey',
     },
     sections: {
       kpis: 'Your KPIs',
@@ -4205,7 +4205,7 @@ const translations: Translations = {
       profile: 'My profile',
       settings: 'Settings',
       logout: 'Log out',
-      learningMode: 'Learning mode',
+      learningMode: 'Operational journey',
     },
     sections: {
       kpis: 'Your KPIs',
@@ -5037,7 +5037,7 @@ const translations: Translations = {
       profile: 'Mon profil',
       settings: 'Paramètres',
       logout: 'Déconnexion',
-      learningMode: 'Mode apprentissage',
+      learningMode: 'Parcours opérationnel',
     },
     sections: {
       kpis: 'Vos KPIs',
@@ -5869,7 +5869,7 @@ const translations: Translations = {
       profile: 'Meu perfil',
       settings: 'Configurações',
       logout: 'Sair',
-      learningMode: 'Modo aprendiz',
+      learningMode: 'Rota operacional',
     },
     sections: {
       kpis: 'Seus KPIs',
@@ -6701,7 +6701,7 @@ const translations: Translations = {
       profile: '내 프로필',
       settings: '설정',
       logout: '로그아웃',
-      learningMode: '학습 모드',
+      learningMode: '운영 경로',
     },
     sections: {
       kpis: '귀하의 KPI',
@@ -7533,7 +7533,7 @@ const translations: Translations = {
       profile: '我的个人资料',
       settings: '设置',
       logout: '退出',
-      learningMode: '学习模式',
+      learningMode: '运营路径',
     },
     sections: {
       kpis: '您的 KPI',

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { dashboardApi } from '../api/dashboard';
-import { LearningModeBanner } from '../components/LearningModeBanner';
 import {
   buildDefaultModuleCatalog,
   mapBackendModuleToCard,
@@ -13,8 +12,17 @@ import { useFavorites, useLanguage } from '../shared/context';
 import { FavoritesSection } from './components/FavoritesSection';
 import { KpiSection } from './components/KpiSection';
 import { ModuleSection } from './components/ModuleSection';
+import { OperationalJourney } from './components/OperationalJourney';
+import { OperationalModulesSection } from './components/OperationalModulesSection';
 import { buildDashboardAvailableKpis, buildDashboardKpiDataMap, defaultDashboardKpiIds } from './dashboardData';
 import { useMainDashboardTranslations } from './hooks/useMainDashboardTranslations';
+import {
+  buildOperationalJourneyView,
+  buildOperationalModuleGroups,
+  clampOperationalJourneyStep,
+  operationalJourneyStages,
+  type OperationalJourneyStageId,
+} from './operationalJourney';
 
 export interface MainDashboardProps {
   learningModeActive: boolean;
@@ -42,18 +50,6 @@ export function MainDashboard({
     'indice.dashboard.selectedKpis',
     [...defaultDashboardKpiIds],
   );
-
-  const handleNextStep = () => {
-    if (learningStep < 7) {
-      setLearningStep(learningStep + 1);
-    }
-  };
-
-  const handlePreviousStep = () => {
-    if (learningStep > 0) {
-      setLearningStep(learningStep - 1);
-    }
-  };
 
   const handleSaveKPIs = (kpis: string[]) => {
     setSelectedKPIIds(kpis);
@@ -123,58 +119,82 @@ export function MainDashboard({
   const aiModules = availableModules.filter((module) => module.category === 'ai');
 
   const favoriteModules = getFavoriteModules(availableModules);
-  const isGuidedLearningVisible = learningModeActive && learningModeVisible;
+  const safeLearningStep = clampOperationalJourneyStep(learningStep);
+  const isOperationalJourneyVisible = learningModeActive && learningModeVisible;
+  const operationalJourneyView = useMemo(
+    () => buildOperationalJourneyView(safeLearningStep),
+    [safeLearningStep],
+  );
+  const operationalModuleGroups = useMemo(
+    () => buildOperationalModuleGroups(mainModules),
+    [mainModules],
+  );
+  const activeOperationalStageId = isOperationalJourneyVisible
+    ? operationalJourneyStages[safeLearningStep]?.id
+    : undefined;
+
+  const handleOperationalStageSelect = (stageId: OperationalJourneyStageId) => {
+    const stageIndex = operationalJourneyStages.findIndex((stage) => stage.id === stageId);
+    if (stageIndex >= 0) {
+      setLearningStep(stageIndex);
+    }
+  };
+
+  const handleOperationalStageAction = (stageId: OperationalJourneyStageId) => {
+    const stageIndex = operationalJourneyStages.findIndex((stage) => stage.id === stageId);
+    const stage = operationalJourneyStages[stageIndex];
+
+    if (!stage) {
+      return;
+    }
+
+    setLearningStep(stageIndex);
+    onNavigate(stage.primaryRoute);
+  };
 
   return (
     <main className="max-w-[1600px] mx-auto px-8 py-10 space-y-12">
-      {/* Learning mode banner */}
-      {isGuidedLearningVisible && (
-        <LearningModeBanner
-          isVisible={learningModeVisible}
-          onHide={() => setLearningModeVisible(false)}
-          currentStep={learningStep}
-          totalSteps={8}
-          onNext={handleNextStep}
-          onPrevious={handlePreviousStep}
+      {isOperationalJourneyVisible && (
+        <OperationalJourney
+          copy={copy.operationalJourney}
+          stages={operationalJourneyView}
+          activeStageId={activeOperationalStageId}
+          onStageSelect={handleOperationalStageSelect}
+          onStageAction={handleOperationalStageAction}
+          onDismiss={() => setLearningModeVisible(false)}
         />
       )}
 
-      {!isGuidedLearningVisible && (
-        <KpiSection
-          title={copy.sections.kpis}
-          kpis={kpiData}
-          availableKPIs={availableKPIs}
-          defaultKPIIds={defaultDashboardKpiIds}
-          copy={copy}
-          selectedKPIIds={selectedKPIIds}
-          isConfigOpen={isKPIConfigOpen}
-          onOpenConfig={() => setIsKPIConfigOpen(true)}
-          onCloseConfig={() => setIsKPIConfigOpen(false)}
-          onSave={handleSaveKPIs}
-        />
-      )}
+      <KpiSection
+        title={copy.sections.kpis}
+        kpis={kpiData}
+        availableKPIs={availableKPIs}
+        defaultKPIIds={defaultDashboardKpiIds}
+        copy={copy}
+        selectedKPIIds={selectedKPIIds}
+        isConfigOpen={isKPIConfigOpen}
+        onOpenConfig={() => setIsKPIConfigOpen(true)}
+        onCloseConfig={() => setIsKPIConfigOpen(false)}
+        onSave={handleSaveKPIs}
+      />
 
-      {!isGuidedLearningVisible && (
-        <FavoritesSection
-          title={copy.sections.favorites}
-          quickAccessLabel={copy.sections.quickAccess}
-          modules={favoriteModules}
-          onToggleFavorite={toggleFavorite}
-          onModuleClick={handleModuleClick}
-        />
-      )}
+      <FavoritesSection
+        title={copy.sections.favorites}
+        quickAccessLabel={copy.sections.quickAccess}
+        modules={favoriteModules}
+        onToggleFavorite={toggleFavorite}
+        onModuleClick={handleModuleClick}
+      />
 
-      <ModuleSection
-        icon="🏢"
-        title={copy.sections.basicModules}
-        label={copy.sections.main}
-        modules={mainModules}
+      <OperationalModulesSection
+        title={copy.operationalModules.title}
+        label={copy.operationalModules.label}
+        copy={copy.operationalJourney}
+        groups={operationalModuleGroups}
+        activeStageId={activeOperationalStageId}
         favoriteIds={favorites}
         onToggleFavorite={toggleFavorite}
         onModuleClick={handleModuleClick}
-        gridClasses="grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10"
-        getStepNumber={(index) => isGuidedLearningVisible ? index + 1 : undefined}
-        getIsHighlighted={(index) => isGuidedLearningVisible && learningStep === index}
       />
 
       <ModuleSection

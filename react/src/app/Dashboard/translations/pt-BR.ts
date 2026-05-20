@@ -10,6 +10,61 @@ export const ptBR = {
     aiModules: 'Inteligência artificial',
     aiLabel: 'Módulos de IA',
   },
+  operationalJourney: {
+    eyebrow: 'Guia operacional',
+    title: 'Rota operacional',
+    subtitle: 'Configure sua operação passo a passo.',
+    progressLabel: 'Progresso',
+    dismissLabel: 'Ocultar rota operacional',
+    status: {
+      completed: 'Configurado',
+      active: 'Ativo',
+      pending: 'Pendente',
+      locked: 'Bloqueado',
+    },
+    stages: {
+      company_setup: {
+        title: 'Configuração empresarial',
+        shortTitle: 'Configuração',
+        description: 'Comece configurando a estrutura principal da sua empresa.',
+        cta: 'Continuar',
+      },
+      human_resources: {
+        title: 'Organização da equipe',
+        shortTitle: 'Equipe',
+        description: 'Centralize colaboradores, funções e operação diária.',
+        cta: 'Configurar equipe',
+      },
+      operations: {
+        title: 'Processos operacionais',
+        shortTitle: 'Processos',
+        description: 'Defina processos claros para manter uma operação consistente.',
+        cta: 'Definir processos',
+      },
+      finance: {
+        title: 'Controle financeiro',
+        shortTitle: 'Finanças',
+        description: 'Registre despesas e administre o dinheiro operacional atribuído aos colaboradores.',
+        cta: 'Administrar finanças',
+      },
+      commercial: {
+        title: 'Operação comercial',
+        shortTitle: 'Comercial',
+        description: 'Gerencie receitas, oportunidades e operação comercial.',
+        cta: 'Ativar vendas',
+      },
+      analytics: {
+        title: 'Inteligência operacional',
+        shortTitle: 'Analítica',
+        description: 'Analise o desempenho da operação em tempo real.',
+        cta: 'Ver analítica',
+      },
+    },
+  },
+  operationalModules: {
+    title: 'Módulos operacionais',
+    label: 'Organizados por maturidade operacional',
+  },
   kpis: {
     weeklyRevenue: { title: 'Vendas Semanais', change: '+6% vs semana anterior' },
     netProfit: { title: 'Lucro Líquido', change: '+12% este mês' },

@@ -10,6 +10,61 @@ export const frCA = {
     aiModules: 'Intelligence artificielle',
     aiLabel: 'Modules IA',
   },
+  operationalJourney: {
+    eyebrow: 'Guidage opérationnel',
+    title: 'Parcours opérationnel',
+    subtitle: 'Configurez votre opération étape par étape.',
+    progressLabel: 'Progrès',
+    dismissLabel: 'Masquer le parcours opérationnel',
+    status: {
+      completed: 'Configuré',
+      active: 'Actif',
+      pending: 'En attente',
+      locked: 'Verrouillé',
+    },
+    stages: {
+      company_setup: {
+        title: 'Configuration de l’entreprise',
+        shortTitle: 'Configuration',
+        description: 'Commencez par configurer la structure principale de votre entreprise.',
+        cta: 'Continuer',
+      },
+      human_resources: {
+        title: 'Organisation de l’équipe',
+        shortTitle: 'Équipe',
+        description: 'Centralisez les employés, les rôles et les opérations quotidiennes.',
+        cta: 'Configurer l’équipe',
+      },
+      operations: {
+        title: 'Processus opérationnels',
+        shortTitle: 'Processus',
+        description: 'Définissez des processus clairs pour garder une opération cohérente.',
+        cta: 'Définir les processus',
+      },
+      finance: {
+        title: 'Contrôle financier',
+        shortTitle: 'Finances',
+        description: 'Enregistrez les dépenses et gérez l’argent opérationnel confié aux employés.',
+        cta: 'Gérer les finances',
+      },
+      commercial: {
+        title: 'Opération commerciale',
+        shortTitle: 'Commercial',
+        description: 'Gérez les revenus, les occasions et l’opération commerciale.',
+        cta: 'Activer les ventes',
+      },
+      analytics: {
+        title: 'Intelligence opérationnelle',
+        shortTitle: 'Analytique',
+        description: 'Analysez la performance opérationnelle en temps réel.',
+        cta: 'Voir l’analytique',
+      },
+    },
+  },
+  operationalModules: {
+    title: 'Modules opérationnels',
+    label: 'Organisés par maturité opérationnelle',
+  },
   kpis: {
     weeklyRevenue: { title: 'Ventes hebdomadaires', change: '+6 % vs semaine précédente' },
     netProfit: { title: 'Bénéfice net', change: '+12 % ce mois-ci' },

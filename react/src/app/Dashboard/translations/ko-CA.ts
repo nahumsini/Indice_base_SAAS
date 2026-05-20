@@ -10,6 +10,61 @@ export const koCA = {
     aiModules: '인공지능',
     aiLabel: 'AI 모듈',
   },
+  operationalJourney: {
+    eyebrow: '운영 안내',
+    title: '운영 경로',
+    subtitle: '운영을 단계별로 설정하세요.',
+    progressLabel: '진행률',
+    dismissLabel: '운영 경로 숨기기',
+    status: {
+      completed: '설정됨',
+      active: '활성',
+      pending: '대기',
+      locked: '잠김',
+    },
+    stages: {
+      company_setup: {
+        title: '회사 설정',
+        shortTitle: '회사 설정',
+        description: '회사의 기본 구조 설정부터 시작하세요.',
+        cta: '계속',
+      },
+      human_resources: {
+        title: '팀 구성',
+        shortTitle: '팀',
+        description: '직원, 역할, 일상 운영을 한곳에서 관리하세요.',
+        cta: '팀 설정',
+      },
+      operations: {
+        title: '운영 프로세스',
+        shortTitle: '프로세스',
+        description: '일관된 운영을 위해 명확한 프로세스를 정의하세요.',
+        cta: '프로세스 정의',
+      },
+      finance: {
+        title: '재무 관리',
+        shortTitle: '재무',
+        description: '비용을 기록하고 직원에게 배정된 운영 자금을 관리하세요.',
+        cta: '재무 관리',
+      },
+      commercial: {
+        title: '상업 운영',
+        shortTitle: '상업',
+        description: '수익, 기회, 상업 운영을 관리하세요.',
+        cta: '판매 활성화',
+      },
+      analytics: {
+        title: '운영 인텔리전스',
+        shortTitle: '분석',
+        description: '운영 성과를 실시간으로 분석하세요.',
+        cta: '분석 보기',
+      },
+    },
+  },
+  operationalModules: {
+    title: '운영 모듈',
+    label: '운영 성숙도 기준으로 정리됨',
+  },
   kpis: {
     weeklyRevenue: { title: '주간 매출', change: '전주 대비 +6%' },
     netProfit: { title: '순이익', change: '이번 달 +12%' },

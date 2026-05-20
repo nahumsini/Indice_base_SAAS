@@ -10,6 +10,61 @@ export const enUS = {
     aiModules: 'Artificial intelligence',
     aiLabel: 'AI modules',
   },
+  operationalJourney: {
+    eyebrow: 'Operational guidance',
+    title: 'Operational journey',
+    subtitle: 'Configure your operation step by step.',
+    progressLabel: 'Progress',
+    dismissLabel: 'Hide operational journey',
+    status: {
+      completed: 'Configured',
+      active: 'Active',
+      pending: 'Pending',
+      locked: 'Locked',
+    },
+    stages: {
+      company_setup: {
+        title: 'Company setup',
+        shortTitle: 'Company setup',
+        description: 'Start by configuring the main structure of your company.',
+        cta: 'Continue',
+      },
+      human_resources: {
+        title: 'Team organization',
+        shortTitle: 'Team organization',
+        description: 'Centralize employees, roles, and daily operation.',
+        cta: 'Configure team',
+      },
+      operations: {
+        title: 'Operational processes',
+        shortTitle: 'Processes',
+        description: 'Define clear processes to keep your operation consistent.',
+        cta: 'Define processes',
+      },
+      finance: {
+        title: 'Financial control',
+        shortTitle: 'Finance',
+        description: 'Register expenses and manage operating money assigned to employees.',
+        cta: 'Manage finance',
+      },
+      commercial: {
+        title: 'Commercial operation',
+        shortTitle: 'Commercial',
+        description: 'Manage revenue, opportunities, and commercial operation.',
+        cta: 'Activate sales',
+      },
+      analytics: {
+        title: 'Operational intelligence',
+        shortTitle: 'Analytics',
+        description: 'Analyze operational performance in real time.',
+        cta: 'View analytics',
+      },
+    },
+  },
+  operationalModules: {
+    title: 'Operational modules',
+    label: 'Organized by operational maturity',
+  },
   kpis: {
     weeklyRevenue: { title: 'Weekly Sales', change: '+6% vs previous week' },
     netProfit: { title: 'Net Profit', change: '+12% this month' },

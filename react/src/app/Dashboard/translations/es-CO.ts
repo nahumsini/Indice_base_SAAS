@@ -10,6 +10,61 @@ export const esCO = {
     aiModules: 'Inteligencia artificial',
     aiLabel: 'Módulos de IA',
   },
+  operationalJourney: {
+    eyebrow: 'Guía operativa',
+    title: 'Ruta operativa',
+    subtitle: 'Configura tu operación paso a paso.',
+    progressLabel: 'Progreso',
+    dismissLabel: 'Ocultar ruta operativa',
+    status: {
+      completed: 'Configurado',
+      active: 'Activo',
+      pending: 'Pendiente',
+      locked: 'Bloqueado',
+    },
+    stages: {
+      company_setup: {
+        title: 'Configuración empresarial',
+        shortTitle: 'Configuración',
+        description: 'Comienza configurando la estructura principal de tu empresa.',
+        cta: 'Continuar',
+      },
+      human_resources: {
+        title: 'Organización del personal',
+        shortTitle: 'Personal',
+        description: 'Centraliza personal, roles y operación diaria.',
+        cta: 'Configurar personal',
+      },
+      operations: {
+        title: 'Procesos operativos',
+        shortTitle: 'Procesos',
+        description: 'Define procesos claros para mantener una operación consistente.',
+        cta: 'Definir procesos',
+      },
+      finance: {
+        title: 'Control financiero',
+        shortTitle: 'Finanzas',
+        description: 'Registra gastos y administra el dinero operativo asignado al personal.',
+        cta: 'Administrar finanzas',
+      },
+      commercial: {
+        title: 'Operación comercial',
+        shortTitle: 'Comercial',
+        description: 'Gestiona ingresos, oportunidades y operación comercial.',
+        cta: 'Activar ventas',
+      },
+      analytics: {
+        title: 'Inteligencia operacional',
+        shortTitle: 'Analítica',
+        description: 'Analiza el desempeño de tu operación en tiempo real.',
+        cta: 'Ver analítica',
+      },
+    },
+  },
+  operationalModules: {
+    title: 'Módulos operativos',
+    label: 'Organizados por madurez operativa',
+  },
   kpis: {
     weeklyRevenue: { title: 'Ventas semanales', change: '+6% vs semana anterior' },
     netProfit: { title: 'Utilidad neta', change: '+12% este mes' },
