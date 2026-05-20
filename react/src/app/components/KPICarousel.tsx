@@ -13,7 +13,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const scrollAmount = 300;
+      const scrollAmount = 240;
       scrollRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
@@ -49,7 +49,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex gap-5 snap-x snap-mandatory min-w-min [&>*]:w-[280px] [&>*]:flex-shrink-0">
+          <div className="flex min-w-min snap-x snap-mandatory gap-4 [&>*]:w-[220px] [&>*]:flex-shrink-0">
             {children}
           </div>
         </div>
@@ -77,20 +77,13 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
     <>
       {/* Mobile carousel (< lg) */}
       <div className="lg:hidden overflow-x-auto scrollbar-hide pb-4 -mx-8 px-8">
-        <div className="flex gap-4 snap-x snap-mandatory [&>*]:w-[280px] [&>*]:flex-shrink-0">
+        <div className="flex snap-x snap-mandatory gap-4 [&>*]:w-[220px] [&>*]:flex-shrink-0">
           {children}
         </div>
       </div>
       
       {/* Desktop grid (>= lg) */}
-      <div className={`hidden lg:grid gap-4 ${
-        childCount === 1 ? 'lg:grid-cols-1 max-w-xs' :
-        childCount === 2 ? 'lg:grid-cols-2 max-w-2xl' :
-        childCount === 3 ? 'lg:grid-cols-3 max-w-4xl' :
-        childCount === 4 ? 'lg:grid-cols-4 max-w-5xl' :
-        childCount === 5 ? 'lg:grid-cols-5 max-w-6xl' :
-        'lg:grid-cols-3 xl:grid-cols-6'
-      }`}>
+      <div className="hidden lg:grid grid-cols-[repeat(auto-fit,minmax(180px,220px))] gap-4">
         {children}
       </div>
     </>
