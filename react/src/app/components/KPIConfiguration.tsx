@@ -99,7 +99,7 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
         hover:border-[#558DBD] transition-all cursor-move relative
       `}
     >
-      {/* Indicador de orden */}
+      {/* Display order indicator */}
       <div className="bg-[#558DBD] text-white text-xs font-bold px-2 py-1 rounded">
         #{index + 1}
       </div>
