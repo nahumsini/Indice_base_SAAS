@@ -126,6 +126,29 @@ export const mockNodes: LogisticsNode[] = [
   },
 ];
 
+export const mockLocations = mockNodes.map((node, index) => ({
+  id: node.id,
+  code: `LOC-${String(index + 1).padStart(3, '0')}`,
+  name: node.name,
+  type: node.type === 'warehouse'
+    ? 'almacen_central'
+    : node.type === 'branch'
+      ? 'sucursal'
+      : node.type === 'vehicle'
+        ? 'unidad_movil'
+        : node.type === 'transit'
+          ? 'transito'
+          : 'bodega',
+  isActive: node.status !== 'critical',
+  address: node.location,
+  capacity: node.capacity,
+  occupation: node.capacityUsed,
+  totalStock: node.stockTotal,
+  movements: node.movementsToday,
+  manager: node.responsible,
+  phone: index % 2 === 0 ? '+52 33 0000 0000' : undefined,
+}));
+
 // Mock Movements
 export const mockMovements: Movement[] = [
   {
@@ -394,6 +417,39 @@ export const mockStockItems: StockItem[] = [
   },
 ];
 
+export const mockInventoryLocations = mockStockItems.flatMap((item) =>
+  item.stockByNode.map((stockNode) => {
+    const reserved = stockNode.nodeId === item.stockByNode[0]?.nodeId ? item.reserved : 0;
+    const inTransit = stockNode.nodeId === item.stockByNode[0]?.nodeId ? item.inTransit : 0;
+    const minStock = item.alerts.length > 0 ? 50 : 20;
+    const maxStock = Math.max(100, stockNode.quantity * 2);
+    const available = Math.max(0, stockNode.quantity - reserved);
+    const status = stockNode.quantity <= minStock / 2
+      ? 'critico'
+      : stockNode.quantity <= minStock
+        ? 'bajo'
+        : stockNode.quantity >= maxStock
+          ? 'exceso'
+          : 'normal';
+
+    return {
+      id: `${item.productId}-${stockNode.nodeId}`,
+      productId: item.productId,
+      productName: item.productName,
+      productSku: item.sku,
+      locationId: stockNode.nodeId,
+      locationName: stockNode.nodeName,
+      stock: stockNode.quantity,
+      reserved,
+      inTransit,
+      available,
+      minStock,
+      maxStock,
+      status,
+    };
+  }),
+);
+
 // Mock Alerts
 export const mockAlerts: Alert[] = [
   {
@@ -458,6 +514,27 @@ export const mockAlerts: Alert[] = [
     action: 'Revisar ajustes',
   },
 ];
+
+export const mockIncidents = mockAlerts.map((alert, index) => ({
+  id: alert.id,
+  folio: `INC-2026-${String(index + 41).padStart(3, '0')}`,
+  title: alert.title,
+  description: alert.description,
+  priority: alert.priority === 'urgent'
+    ? 'critica'
+    : alert.priority === 'high'
+      ? 'alta'
+      : alert.priority === 'medium'
+        ? 'media'
+        : 'baja',
+  status: alert.resolvedAt ? 'resuelta' : 'abierta',
+  locationName: alert.nodeName,
+  productName: alert.productName,
+  reportedBy: alert.responsible ?? 'Sistema de inventarios',
+  reportedAt: alert.createdAt,
+  estimatedCost: alert.value ? Math.round(alert.value * 120) : undefined,
+  solution: alert.resolvedAt ? 'Incidencia atendida y cerrada por operación.' : undefined,
+}));
 
 // Mock Audits
 export const mockAudits: Audit[] = [
@@ -528,6 +605,31 @@ export const mockAudits: Audit[] = [
     adjustments: [],
   },
 ];
+
+export const mockCounts = mockAudits.map((audit) => ({
+  id: audit.id,
+  folio: audit.folio,
+  locationName: audit.nodeName,
+  status: audit.status === 'pending'
+    ? 'pendiente'
+    : audit.status === 'in_progress'
+      ? 'proceso'
+      : audit.differencesFound > 0
+        ? 'diferencia'
+        : 'validado',
+  totalItems: audit.productsAudited,
+  differences: audit.differencesFound,
+  countedBy: audit.responsible,
+  startedAt: audit.scheduledDate,
+  items: audit.adjustments.map((adjustment) => ({
+    id: adjustment.productId,
+    productName: adjustment.productName,
+    systemStock: adjustment.systemCount,
+    countedStock: adjustment.physicalCount,
+    difference: adjustment.difference,
+    hasDifference: adjustment.difference !== 0,
+  })),
+}));
 
 // Mock Product Trace
 export const mockProductTraces: ProductTrace[] = [

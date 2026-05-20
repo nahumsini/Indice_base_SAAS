@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { mockMetrics } from './mocks/vehicles.mock';
 import type { VehicleMetrics } from './types/vehicles.types';
 import OperacionTab from './OperacionTab';
@@ -30,7 +30,7 @@ interface Tab {
   label: string;
   emoji: string;
   icon: typeof Activity;
-  component: () => JSX.Element;
+  component: ComponentType;
 }
 
 export default function VehiculosMaquinaria() {
