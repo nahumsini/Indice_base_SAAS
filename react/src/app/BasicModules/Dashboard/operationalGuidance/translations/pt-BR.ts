@@ -4,7 +4,6 @@ export const ptBR = {
   subtitle: 'Use este espaço para configurar a base operacional que mantém o restante do Índice alinhado.',
   controlLabel: 'Controle da empresa',
   functionsLabel: 'Funções da aba',
-  tabsLabel: 'Áreas de configuração',
   previousStepLabel: 'Recomendação anterior',
   nextStepLabel: 'Próxima recomendação',
   stepIndicatorLabel: 'Mostrar recomendação',

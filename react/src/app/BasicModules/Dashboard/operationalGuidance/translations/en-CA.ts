@@ -4,7 +4,6 @@ export const enCA = {
   subtitle: 'Use this space to configure the operating base that keeps the rest of Índice aligned.',
   controlLabel: 'Company control',
   functionsLabel: 'Tab functions',
-  tabsLabel: 'Configuration areas',
   previousStepLabel: 'Previous recommendation',
   nextStepLabel: 'Next recommendation',
   stepIndicatorLabel: 'Show recommendation',

@@ -4,7 +4,6 @@ export const frCA = {
   subtitle: 'Utilisez cet espace pour configurer la base opérationnelle qui garde le reste d’Índice aligné.',
   controlLabel: 'Contrôle de l’entreprise',
   functionsLabel: 'Fonctions de l’onglet',
-  tabsLabel: 'Zones de configuration',
   previousStepLabel: 'Recommandation précédente',
   nextStepLabel: 'Recommandation suivante',
   stepIndicatorLabel: 'Afficher la recommandation',

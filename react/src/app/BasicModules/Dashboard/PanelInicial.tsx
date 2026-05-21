@@ -109,7 +109,6 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
               <OperationalModuleGuide
                 copy={guidanceCopy}
                 activeTabId={activeSubTab}
-                onTabSelect={handleTabClick}
               />
             </div>
           ) : null}

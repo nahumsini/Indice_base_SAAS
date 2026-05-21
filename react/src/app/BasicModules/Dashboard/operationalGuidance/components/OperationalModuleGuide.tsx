@@ -18,7 +18,6 @@ import type { PanelInicialGuidanceTranslations } from '../translations';
 interface OperationalModuleGuideProps {
   copy: PanelInicialGuidanceTranslations;
   activeTabId: PanelInicialGuidanceTabId;
-  onTabSelect: (tabId: PanelInicialGuidanceTabId) => void;
 }
 
 const iconMap: Record<PanelInicialGuidanceIcon, LucideIcon> = {
@@ -32,7 +31,6 @@ const iconMap: Record<PanelInicialGuidanceIcon, LucideIcon> = {
 export function OperationalModuleGuide({
   copy,
   activeTabId,
-  onTabSelect,
 }: OperationalModuleGuideProps) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const activeGuide = copy.tabs[activeTabId];
@@ -67,47 +65,22 @@ export function OperationalModuleGuide({
       className="overflow-hidden rounded-xl border border-[#2563EB]/15 bg-white/95 shadow-[0_14px_38px_-30px_rgba(37,99,235,0.42)] dark:border-[#60A5FA]/20 dark:bg-slate-950/80"
     >
       <div className="border-b border-slate-200/80 p-4 dark:border-slate-800">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#2563EB]/20 bg-[#2563EB]/6 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#1D4ED8] dark:border-[#60A5FA]/25 dark:bg-[#60A5FA]/10 dark:text-[#BFDBFE]">
               <Lightbulb className="h-3.5 w-3.5" />
               {copy.eyebrow}
             </div>
-            <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-end sm:gap-3">
+            <div className="mt-2 flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-4">
               <h2 id="panel-inicial-guidance-title" className="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
                 {copy.title}
               </h2>
-              <p className="max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+              <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {copy.subtitle}
               </p>
             </div>
           </div>
 
-          <div className="-mx-1 overflow-x-auto px-1 pb-1 lg:max-w-[52%]">
-            <div className="flex min-w-max items-center gap-2">
-              {panelInicialGuidanceTabs.map((tab) => {
-                const tabCopy = copy.tabs[tab.id];
-                const TabIcon = iconMap[tab.icon];
-                const isActive = tab.id === activeTabId;
-
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => onTabSelect(tab.id)}
-                    className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-semibold transition ${
-                      isActive
-                        ? 'border-[#2563EB]/25 bg-[#2563EB] text-white shadow-sm shadow-[#2563EB]/20'
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB]/30 hover:bg-[#2563EB]/5 hover:text-[#1D4ED8] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-[#60A5FA]/30 dark:hover:bg-[#60A5FA]/10 dark:hover:text-[#BFDBFE]'
-                    }`}
-                  >
-                    <TabIcon className="h-3.5 w-3.5" />
-                    {tabCopy.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
 

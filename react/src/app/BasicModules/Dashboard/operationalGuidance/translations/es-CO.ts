@@ -4,7 +4,6 @@ export const esCO = {
   subtitle: 'Usa este espacio para configurar la base operativa que mantiene alineado el resto de Índice.',
   controlLabel: 'Control de la empresa',
   functionsLabel: 'Funciones de la pestaña',
-  tabsLabel: 'Áreas de configuración',
   previousStepLabel: 'Recomendación anterior',
   nextStepLabel: 'Siguiente recomendación',
   stepIndicatorLabel: 'Mostrar recomendación',

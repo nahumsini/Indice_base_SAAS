@@ -4,7 +4,6 @@ export const koCA = {
   subtitle: 'Índice의 다른 영역이 같은 운영 기준을 따르도록 기본 운영 구조를 설정하세요.',
   controlLabel: '회사 통제',
   functionsLabel: '탭 기능',
-  tabsLabel: '설정 영역',
   previousStepLabel: '이전 추천',
   nextStepLabel: '다음 추천',
   stepIndicatorLabel: '추천 보기',

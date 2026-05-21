@@ -4,7 +4,6 @@ export const zhCA = {
   subtitle: '在这里配置运营基础，让 Índice 的其他模块保持一致。',
   controlLabel: '企业控制',
   functionsLabel: '标签页功能',
-  tabsLabel: '配置区域',
   previousStepLabel: '上一条建议',
   nextStepLabel: '下一条建议',
   stepIndicatorLabel: '显示建议',
