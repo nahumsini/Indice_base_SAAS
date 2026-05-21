@@ -4,12 +4,15 @@ export const ptBR = {
   subtitle: 'Use este espaço para configurar a base operacional que mantém o restante do Índice alinhado.',
   controlLabel: 'Controle da empresa',
   functionsLabel: 'Funções da aba',
+  guideProgressLabel: 'Progresso do guia',
+  guideProgressCompleteLabel: 'revisado',
   previousStepLabel: 'Recomendação anterior',
   nextStepLabel: 'Próxima recomendação',
   stepIndicatorLabel: 'Mostrar recomendação',
   tabs: {
     profile: {
       label: 'Perfil',
+      ctaLabel: 'Revisar perfil',
       title: 'Mantenha clara a identidade do negócio',
       summary: 'Complete seu perfil pessoal e operacional para que o workspace parta de dados confiáveis.',
       value: 'Um perfil claro reduz confusão quando a equipe compartilha responsabilidades, notificações e decisões.',
@@ -26,6 +29,7 @@ export const ptBR = {
     },
     'business-structure': {
       label: 'Estrutura empresarial',
+      ctaLabel: 'Configurar estrutura',
       title: 'Mapeie como a empresa realmente opera',
       summary: 'Defina unidades, negócios, locais e sede principal para que todos os módulos leiam o mesmo mapa operacional.',
       value: 'Quando a estrutura está clara, presença, despesas, usuários e KPIs se conectam à parte correta da operação.',
@@ -42,6 +46,7 @@ export const ptBR = {
     },
     'business-profile': {
       label: 'Maturidade empresarial',
+      ctaLabel: 'Revisar maturidade',
       title: 'Diagnostique a maturidade operacional',
       summary: 'Use o perfil empresarial para entender onde a empresa está forte e onde precisa de foco operacional.',
       value: 'A avaliação ajuda o Índice a recomendar melhores prioridades antes de adicionar mais ferramentas, pessoas ou processos.',
@@ -58,6 +63,7 @@ export const ptBR = {
     },
     'personal-performance': {
       label: 'Desempenho pessoal',
+      ctaLabel: 'Avaliar desempenho',
       title: 'Fortaleça hábitos de execução',
       summary: 'Revise hábitos operacionais pessoais que influenciam acompanhamento, disciplina e qualidade de decisão.',
       value: 'Melhores hábitos de liderança ajudam a sustentar rotinas, fechar lacunas e manter o trabalho visível.',
@@ -74,6 +80,7 @@ export const ptBR = {
     },
     users: {
       label: 'Usuários',
+      ctaLabel: 'Gerenciar usuários',
       title: 'Controle acessos antes de escalar',
       summary: 'Convide usuários, atribua módulos e mantenha permissões alinhadas à responsabilidade de cada pessoa.',
       value: 'Um bom controle de acesso protege informações e ajuda cada colaborador a focar nas ferramentas certas.',

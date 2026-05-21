@@ -4,12 +4,15 @@ export const enCA = {
   subtitle: 'Use this space to configure the operating base that keeps the rest of Índice aligned.',
   controlLabel: 'Company control',
   functionsLabel: 'Tab functions',
+  guideProgressLabel: 'Guide progress',
+  guideProgressCompleteLabel: 'reviewed',
   previousStepLabel: 'Previous recommendation',
   nextStepLabel: 'Next recommendation',
   stepIndicatorLabel: 'Show recommendation',
   tabs: {
     profile: {
       label: 'Profile',
+      ctaLabel: 'Review profile',
       title: 'Keep your business identity clear',
       summary: 'Complete your personal and company-facing profile so the workspace starts from reliable contact and identity data.',
       value: 'A clear profile reduces confusion when teams share responsibility, notifications, and operating decisions.',
@@ -26,6 +29,7 @@ export const enCA = {
     },
     'business-structure': {
       label: 'Company structure',
+      ctaLabel: 'Configure structure',
       title: 'Map how the company really operates',
       summary: 'Define units, businesses, locations, and the main headquarters so every module reads the same operating map.',
       value: 'When the structure is clear, attendance, expenses, users, and KPIs can connect to the right part of the operation.',
@@ -42,6 +46,7 @@ export const enCA = {
     },
     'business-profile': {
       label: 'Business maturity',
+      ctaLabel: 'Review maturity',
       title: 'Diagnose operational maturity',
       summary: 'Use the business profile to understand where the company is strong and where it needs operational focus.',
       value: 'The assessment helps Índice guide better priorities before adding more tools, people, or processes.',
@@ -58,6 +63,7 @@ export const enCA = {
     },
     'personal-performance': {
       label: 'Personal performance',
+      ctaLabel: 'Evaluate performance',
       title: 'Strengthen leadership execution habits',
       summary: 'Review personal operating habits that influence follow-up, discipline, and decision quality.',
       value: 'Better leadership habits help the company sustain routines, close gaps, and keep work visible.',
@@ -74,6 +80,7 @@ export const enCA = {
     },
     users: {
       label: 'Users',
+      ctaLabel: 'Manage users',
       title: 'Control access before scaling work',
       summary: 'Invite users, assign modules, and keep permissions aligned with each person’s responsibility.',
       value: 'Good access control protects information and helps every collaborator focus only on the tools they need.',

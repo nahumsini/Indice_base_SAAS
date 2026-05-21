@@ -4,12 +4,15 @@ export const frCA = {
   subtitle: 'Utilisez cet espace pour configurer la base opérationnelle qui garde le reste d’Índice aligné.',
   controlLabel: 'Contrôle de l’entreprise',
   functionsLabel: 'Fonctions de l’onglet',
+  guideProgressLabel: 'Progression du guide',
+  guideProgressCompleteLabel: 'consulté',
   previousStepLabel: 'Recommandation précédente',
   nextStepLabel: 'Recommandation suivante',
   stepIndicatorLabel: 'Afficher la recommandation',
   tabs: {
     profile: {
       label: 'Profil',
+      ctaLabel: 'Réviser le profil',
       title: 'Gardez l’identité de l’entreprise claire',
       summary: 'Complétez votre profil personnel et opérationnel afin que l’espace de travail parte de données fiables.',
       value: 'Un profil clair réduit la confusion lorsque l’équipe partage responsabilités, notifications et décisions.',
@@ -26,6 +29,7 @@ export const frCA = {
     },
     'business-structure': {
       label: 'Structure d’entreprise',
+      ctaLabel: 'Configurer la structure',
       title: 'Cartographiez le fonctionnement réel',
       summary: 'Définissez unités, activités, emplacements et siège principal pour que tous les modules utilisent la même carte opérationnelle.',
       value: 'Quand la structure est claire, présence, dépenses, utilisateurs et KPIs se rattachent à la bonne partie de l’opération.',
@@ -42,6 +46,7 @@ export const frCA = {
     },
     'business-profile': {
       label: 'Maturité d’entreprise',
+      ctaLabel: 'Réviser la maturité',
       title: 'Diagnostiquer la maturité opérationnelle',
       summary: 'Utilisez le profil d’entreprise pour comprendre les forces de l’entreprise et les zones qui demandent plus d’attention.',
       value: 'L’évaluation aide Índice à recommander les bonnes priorités avant d’ajouter plus d’outils, de personnes ou de processus.',
@@ -58,6 +63,7 @@ export const frCA = {
     },
     'personal-performance': {
       label: 'Performance personnelle',
+      ctaLabel: 'Évaluer la performance',
       title: 'Renforcer les habitudes d’exécution',
       summary: 'Révisez les habitudes opérationnelles personnelles qui influencent le suivi, la discipline et la qualité des décisions.',
       value: 'De meilleures habitudes de leadership aident à soutenir les routines, fermer les écarts et rendre le travail visible.',
@@ -74,6 +80,7 @@ export const frCA = {
     },
     users: {
       label: 'Utilisateurs',
+      ctaLabel: 'Gérer les utilisateurs',
       title: 'Contrôler les accès avant de grandir',
       summary: 'Invitez des utilisateurs, assignez les modules et gardez les permissions alignées avec les responsabilités.',
       value: 'Un bon contrôle des accès protège l’information et aide chaque collaborateur à se concentrer sur les bons outils.',

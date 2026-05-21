@@ -4,12 +4,15 @@ export const zhCA = {
   subtitle: '在这里配置运营基础，让 Índice 的其他模块保持一致。',
   controlLabel: '企业控制',
   functionsLabel: '标签页功能',
+  guideProgressLabel: '指南进度',
+  guideProgressCompleteLabel: '已查看',
   previousStepLabel: '上一条建议',
   nextStepLabel: '下一条建议',
   stepIndicatorLabel: '显示建议',
   tabs: {
     profile: {
       label: '个人资料',
+      ctaLabel: '查看资料',
       title: '保持业务身份清晰',
       summary: '完善个人和运营资料，让工作区从可靠的联系方式和身份信息开始。',
       value: '清晰的资料可以减少团队共享责任、通知和运营决策时的混乱。',
@@ -26,6 +29,7 @@ export const zhCA = {
     },
     'business-structure': {
       label: '企业结构',
+      ctaLabel: '配置结构',
       title: '映射公司的真实运营方式',
       summary: '定义单位、业务、地点和主办公室，让所有模块读取同一张运营地图。',
       value: '结构清晰时，考勤、费用、用户和 KPI 都能连接到正确的运营区域。',
@@ -42,6 +46,7 @@ export const zhCA = {
     },
     'business-profile': {
       label: '业务成熟度',
+      ctaLabel: '查看成熟度',
       title: '诊断运营成熟度',
       summary: '使用业务资料了解公司的强项，以及需要运营关注的区域。',
       value: '该评估帮助 Índice 在增加更多工具、人员或流程之前推荐更好的优先事项。',
@@ -58,6 +63,7 @@ export const zhCA = {
     },
     'personal-performance': {
       label: '个人绩效',
+      ctaLabel: '评估绩效',
       title: '强化执行习惯',
       summary: '检查影响跟进、纪律和决策质量的个人运营习惯。',
       value: '更好的领导习惯有助于维持流程、减少缺口并保持工作可见。',
@@ -74,6 +80,7 @@ export const zhCA = {
     },
     users: {
       label: '用户',
+      ctaLabel: '管理用户',
       title: '扩展工作前先控制访问',
       summary: '邀请用户、分配模块，并让权限与每个人的实际责任保持一致。',
       value: '良好的访问控制保护信息，并帮助每位成员专注于需要的工具。',

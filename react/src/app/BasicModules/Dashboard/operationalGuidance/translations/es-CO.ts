@@ -4,12 +4,15 @@ export const esCO = {
   subtitle: 'Usa este espacio para configurar la base operativa que mantiene alineado el resto de Índice.',
   controlLabel: 'Control de la empresa',
   functionsLabel: 'Funciones de la pestaña',
+  guideProgressLabel: 'Progreso de guía',
+  guideProgressCompleteLabel: 'revisado',
   previousStepLabel: 'Recomendación anterior',
   nextStepLabel: 'Siguiente recomendación',
   stepIndicatorLabel: 'Mostrar recomendación',
   tabs: {
     profile: {
       label: 'Perfil',
+      ctaLabel: 'Revisar perfil',
       title: 'Mantén clara la identidad del negocio',
       summary: 'Completa tu perfil personal y operativo para que el espacio de trabajo parta de datos confiables de contacto e identidad.',
       value: 'Un perfil claro reduce confusión cuando el equipo comparte responsabilidades, notificaciones y decisiones operativas.',
@@ -26,6 +29,7 @@ export const esCO = {
     },
     'business-structure': {
       label: 'Estructura empresarial',
+      ctaLabel: 'Configurar estructura',
       title: 'Mapea cómo opera realmente la empresa',
       summary: 'Define unidades, negocios, sedes y ubicaciones para que todos los módulos lean el mismo mapa operativo.',
       value: 'Cuando la estructura está clara, asistencia, gastos, usuarios y KPIs se conectan con la parte correcta de la operación.',
@@ -42,6 +46,7 @@ export const esCO = {
     },
     'business-profile': {
       label: 'Madurez empresarial',
+      ctaLabel: 'Revisar madurez',
       title: 'Diagnostica la madurez operativa',
       summary: 'Usa el perfil empresarial para entender dónde la empresa está fuerte y dónde necesita foco operativo.',
       value: 'La evaluación ayuda a Índice a recomendar mejores prioridades antes de sumar más herramientas, personas o procesos.',
@@ -58,6 +63,7 @@ export const esCO = {
     },
     'personal-performance': {
       label: 'Desempeño personal',
+      ctaLabel: 'Evaluar desempeño',
       title: 'Fortalece hábitos de ejecución',
       summary: 'Revisa hábitos operativos personales que influyen en seguimiento, disciplina y calidad de decisión.',
       value: 'Mejores hábitos de liderazgo ayudan a sostener rutinas, cerrar huecos y mantener visible el trabajo.',
@@ -74,6 +80,7 @@ export const esCO = {
     },
     users: {
       label: 'Usuarios',
+      ctaLabel: 'Gestionar usuarios',
       title: 'Controla accesos antes de escalar',
       summary: 'Invita usuarios, asigna módulos y mantén permisos alineados con la responsabilidad real de cada persona.',
       value: 'Un buen control de accesos protege información y ayuda a que cada colaborador se enfoque en sus herramientas.',

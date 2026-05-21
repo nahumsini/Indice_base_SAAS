@@ -4,12 +4,15 @@ export const koCA = {
   subtitle: 'Índice의 다른 영역이 같은 운영 기준을 따르도록 기본 운영 구조를 설정하세요.',
   controlLabel: '회사 통제',
   functionsLabel: '탭 기능',
+  guideProgressLabel: '가이드 진행률',
+  guideProgressCompleteLabel: '확인됨',
   previousStepLabel: '이전 추천',
   nextStepLabel: '다음 추천',
   stepIndicatorLabel: '추천 보기',
   tabs: {
     profile: {
       label: '프로필',
+      ctaLabel: '프로필 검토',
       title: '비즈니스 정체성을 명확하게 유지하세요',
       summary: '개인 및 운영 프로필을 완성해 신뢰할 수 있는 연락처와 식별 정보에서 업무 공간을 시작하세요.',
       value: '명확한 프로필은 책임, 알림, 운영 의사결정을 공유할 때 혼선을 줄여 줍니다.',
@@ -26,6 +29,7 @@ export const koCA = {
     },
     'business-structure': {
       label: '회사 구조',
+      ctaLabel: '구조 설정',
       title: '실제 운영 방식을 지도화하세요',
       summary: '모든 모듈이 같은 운영 지도를 읽도록 단위, 사업, 위치, 본사를 정의하세요.',
       value: '구조가 명확하면 출퇴근, 비용, 사용자, KPI가 올바른 운영 영역에 연결됩니다.',
@@ -42,6 +46,7 @@ export const koCA = {
     },
     'business-profile': {
       label: '비즈니스 성숙도',
+      ctaLabel: '성숙도 검토',
       title: '운영 성숙도를 진단하세요',
       summary: '비즈니스 프로필로 회사의 강점과 운영 집중이 필요한 영역을 파악하세요.',
       value: '평가는 더 많은 도구, 인력, 프로세스를 추가하기 전에 더 나은 우선순위를 제안하는 데 도움을 줍니다.',
@@ -58,6 +63,7 @@ export const koCA = {
     },
     'personal-performance': {
       label: '개인 성과',
+      ctaLabel: '성과 평가',
       title: '실행 습관을 강화하세요',
       summary: '후속 조치, 규율, 의사결정 품질에 영향을 주는 개인 운영 습관을 검토하세요.',
       value: '더 나은 리더십 습관은 루틴을 유지하고 공백을 줄이며 업무를 가시화합니다.',
@@ -74,6 +80,7 @@ export const koCA = {
     },
     users: {
       label: '사용자',
+      ctaLabel: '사용자 관리',
       title: '확장하기 전에 접근을 통제하세요',
       summary: '사용자를 초대하고 모듈을 할당하며 각 사람의 책임에 맞게 권한을 유지하세요.',
       value: '좋은 접근 제어는 정보를 보호하고 각 협업자가 필요한 도구에 집중하도록 돕습니다.',

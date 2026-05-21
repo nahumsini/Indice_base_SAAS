@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -39,6 +39,7 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialGuidanceTabId>> = 
 export default function PanelInicial({ learningModeActive = false, onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
   const guidanceCopy = usePanelInicialGuidanceTranslations();
+  const mainContentRef = useRef<HTMLDivElement | null>(null);
   const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialGuidanceTabId>(
     'profile',
     subTabIds,
@@ -62,6 +63,13 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     }
 
     setActiveSubTab(tabId);
+  };
+
+  const handleGuidePrimaryAction = () => {
+    mainContentRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
   };
 
   return (
@@ -109,6 +117,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
               <OperationalModuleGuide
                 copy={guidanceCopy}
                 activeTabId={activeSubTab}
+                onPrimaryAction={handleGuidePrimaryAction}
               />
             </div>
           ) : null}
@@ -136,7 +145,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
       </div>
 
       {/* Main content */}
-      <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
+      <div ref={mainContentRef} className="max-w-[1600px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
         <Suspense
           fallback={(
             <LoadingBarOverlay
