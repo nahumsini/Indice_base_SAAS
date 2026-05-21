@@ -2,8 +2,8 @@ export const esCO = {
   eyebrow: 'Modo Aprendiz',
   title: 'Guía de configuración empresarial',
   subtitle: 'Usa este espacio para configurar la base operativa que mantiene alineado el resto de Índice.',
-  focusLabel: 'Enfoque actual',
-  actionsLabel: 'Acciones recomendadas',
+  controlLabel: 'Control de la empresa',
+  functionsLabel: 'Funciones de la pestaña',
   tabsLabel: 'Áreas de configuración',
   previousStepLabel: 'Recomendación anterior',
   nextStepLabel: 'Siguiente recomendación',
@@ -16,12 +16,12 @@ export const esCO = {
       value: 'Un perfil claro reduce confusión cuando el equipo comparte responsabilidades, notificaciones y decisiones operativas.',
       steps: [
         {
-          title: 'Confirma tus datos personales',
-          description: 'Mantén nombre, teléfono, idioma y foto actualizados para identificar responsables con rapidez.',
+          title: 'Datos personales y preferencias',
+          description: 'Administra nombre, teléfono, idioma, foto y preferencias para que tu perfil mantenga identificable al responsable.',
         },
         {
-          title: 'Revisa tus preferencias de acceso',
-          description: 'Un perfil ordenado facilita auditar y soportar cualquier configuración posterior.',
+          title: 'Seguridad de cuenta',
+          description: 'Actualiza credenciales y datos de acceso para conservar un entorno de trabajo confiable.',
         },
       ],
     },
@@ -32,12 +32,12 @@ export const esCO = {
       value: 'Cuando la estructura está clara, asistencia, gastos, usuarios y KPIs se conectan con la parte correcta de la operación.',
       steps: [
         {
-          title: 'Confirma Hedwig Edher como sede principal',
-          description: 'Usa la ubicación principal como ancla operativa para la estructura de la empresa.',
+          title: 'Unidades, negocios y sede',
+          description: 'Organiza las áreas de operación y conserva Hedwig Edher como referencia principal de la estructura.',
         },
         {
-          title: 'Crea unidades y negocios con intención',
-          description: 'Agrega solo áreas que ayuden a reportar, asignar responsabilidad o controlar la operación diaria.',
+          title: 'Ubicación operativa',
+          description: 'Define direcciones y coordenadas para que asistencia, kioskos y reportes trabajen desde ubicaciones correctas.',
         },
       ],
     },
@@ -48,12 +48,12 @@ export const esCO = {
       value: 'La evaluación ayuda a Índice a recomendar mejores prioridades antes de sumar más herramientas, personas o procesos.',
       steps: [
         {
-          title: 'Responde con realidad operativa',
-          description: 'Las respuestas honestas generan mejores recomendaciones que las respuestas ideales.',
+          title: 'Diagnóstico por pilares',
+          description: 'Evalúa personas, procesos, productos y finanzas para entender la madurez real de la empresa.',
         },
         {
-          title: 'Revisa señales de mejora',
-          description: 'Usa el diagnóstico para decidir qué debe profesionalizar la empresa después.',
+          title: 'Reporte de madurez',
+          description: 'Consulta señales, riesgos y recomendaciones para priorizar la siguiente mejora operativa.',
         },
       ],
     },
@@ -64,12 +64,12 @@ export const esCO = {
       value: 'Mejores hábitos de liderazgo ayudan a sostener rutinas, cerrar huecos y mantener visible el trabajo.',
       steps: [
         {
-          title: 'Evalúa rutinas de ejecución',
-          description: 'Identifica dónde seguimiento, priorización o comunicación pueden volverse más consistentes.',
+          title: 'Evaluación de hábitos',
+          description: 'Revisa liderazgo, disciplina, comunicación y seguimiento para entender tu estilo de ejecución.',
         },
         {
-          title: 'Convierte hallazgos en rutinas',
-          description: 'Usa los resultados para construir hábitos pequeños que mejoren el control diario.',
+          title: 'Lectura de desempeño',
+          description: 'Convierte resultados personales en señales para mejorar decisiones, enfoque y control diario.',
         },
       ],
     },
@@ -80,12 +80,12 @@ export const esCO = {
       value: 'Un buen control de accesos protege información y ayuda a que cada colaborador se enfoque en sus herramientas.',
       steps: [
         {
-          title: 'Invita a los responsables correctos',
-          description: 'Empieza por quienes lideran configuración, talento humano, finanzas, operación y analítica.',
+          title: 'Invitaciones y roles',
+          description: 'Agrega usuarios, define roles y vincula cada persona con su responsabilidad operativa.',
         },
         {
-          title: 'Asigna módulos por responsabilidad',
-          description: 'Evita accesos amplios cuando un espacio enfocado genera mayor control.',
+          title: 'Permisos por módulo',
+          description: 'Selecciona qué herramientas puede usar cada usuario para mantener acceso controlado y trazable.',
         },
       ],
     },

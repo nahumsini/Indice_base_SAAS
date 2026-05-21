@@ -2,8 +2,8 @@ export const zhCA = {
   eyebrow: '学习模式',
   title: '企业配置指南',
   subtitle: '在这里配置运营基础，让 Índice 的其他模块保持一致。',
-  focusLabel: '当前重点',
-  actionsLabel: '建议操作',
+  controlLabel: '企业控制',
+  functionsLabel: '标签页功能',
   tabsLabel: '配置区域',
   previousStepLabel: '上一条建议',
   nextStepLabel: '下一条建议',
@@ -16,12 +16,12 @@ export const zhCA = {
       value: '清晰的资料可以减少团队共享责任、通知和运营决策时的混乱。',
       steps: [
         {
-          title: '确认个人信息',
-          description: '保持姓名、电话、语言和照片为最新状态，以便快速识别负责人。',
+          title: '个人信息和偏好',
+          description: '管理姓名、电话、语言、照片和偏好，让负责人保持清晰可识别。',
         },
         {
-          title: '检查访问偏好',
-          description: '有序的个人资料让后续配置更容易审计和支持。',
+          title: '账户安全',
+          description: '更新凭据和访问数据，保持工作区可靠。',
         },
       ],
     },
@@ -32,12 +32,12 @@ export const zhCA = {
       value: '结构清晰时，考勤、费用、用户和 KPI 都能连接到正确的运营区域。',
       steps: [
         {
-          title: '确认 Hedwig Edher 为主办公室',
-          description: '将主要地点作为企业结构的运营锚点。',
+          title: '单位、业务和总部',
+          description: '组织运营区域，并将 Hedwig Edher 保持为结构的主要参考点。',
         },
         {
-          title: '有目的地创建单位和业务',
-          description: '只添加有助于报表、责任分配或日常控制的运营区域。',
+          title: '运营地点',
+          description: '定义地址和坐标，让考勤、 kiosk 和报表使用正确的位置。',
         },
       ],
     },
@@ -48,12 +48,12 @@ export const zhCA = {
       value: '该评估帮助 Índice 在增加更多工具、人员或流程之前推荐更好的优先事项。',
       steps: [
         {
-          title: '按照运营现实回答',
-          description: '真实答案比理想化答案能产生更好的建议。',
+          title: '按支柱诊断',
+          description: '评估人员、流程、产品和财务，了解公司的真实成熟度。',
         },
         {
-          title: '查看改进信号',
-          description: '使用诊断结果决定公司下一步应专业化的内容。',
+          title: '成熟度报告',
+          description: '查看信号、风险和建议，确定下一项运营改进优先级。',
         },
       ],
     },
@@ -64,12 +64,12 @@ export const zhCA = {
       value: '更好的领导习惯有助于维持流程、减少缺口并保持工作可见。',
       steps: [
         {
-          title: '评估执行节奏',
-          description: '找出跟进、优先级或沟通可以更稳定的地方。',
+          title: '习惯评估',
+          description: '检查领导力、纪律、沟通和跟进，以理解执行方式。',
         },
         {
-          title: '把洞察变成习惯',
-          description: '使用结果建立改善日常运营控制的小习惯。',
+          title: '绩效解读',
+          description: '将个人结果转化为改善决策、专注和日常控制的信号。',
         },
       ],
     },
@@ -80,12 +80,12 @@ export const zhCA = {
       value: '良好的访问控制保护信息，并帮助每位成员专注于需要的工具。',
       steps: [
         {
-          title: '邀请正确的负责人',
-          description: '从负责公司配置、人力资源、财务、运营和分析的人开始。',
+          title: '邀请和角色',
+          description: '添加用户、定义角色，并将每个人连接到其运营责任。',
         },
         {
-          title: '按责任分配模块',
-          description: '当聚焦的工作区能带来更好控制时，避免过宽的访问权限。',
+          title: '模块权限',
+          description: '选择每位用户可访问的工具，让工作保持可控和可追踪。',
         },
       ],
     },

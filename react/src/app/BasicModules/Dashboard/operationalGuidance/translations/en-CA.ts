@@ -2,8 +2,8 @@ export const enCA = {
   eyebrow: 'Learning mode',
   title: 'Company setup guide',
   subtitle: 'Use this space to configure the operating base that keeps the rest of Índice aligned.',
-  focusLabel: 'Current focus',
-  actionsLabel: 'Recommended actions',
+  controlLabel: 'Company control',
+  functionsLabel: 'Tab functions',
   tabsLabel: 'Configuration areas',
   previousStepLabel: 'Previous recommendation',
   nextStepLabel: 'Next recommendation',
@@ -16,12 +16,12 @@ export const enCA = {
       value: 'A clear profile reduces confusion when teams share responsibility, notifications, and operating decisions.',
       steps: [
         {
-          title: 'Confirm personal data',
-          description: 'Keep name, phone, language, and photo current so collaborators can identify accountable owners quickly.',
+          title: 'Personal data and preferences',
+          description: 'Manage name, phone, language, photo, and preferences so the accountable owner stays easy to identify.',
         },
         {
-          title: 'Review access preferences',
-          description: 'A clean profile makes every later configuration easier to audit and support.',
+          title: 'Account security',
+          description: 'Update credentials and access data to keep the workspace reliable.',
         },
       ],
     },
@@ -32,12 +32,12 @@ export const enCA = {
       value: 'When the structure is clear, attendance, expenses, users, and KPIs can connect to the right part of the operation.',
       steps: [
         {
-          title: 'Confirm Hedwig Edher as main headquarters',
-          description: 'Use the principal location as the operational anchor for the company structure.',
+          title: 'Units, businesses, and headquarters',
+          description: 'Organize operating areas and keep Hedwig Edher as the main reference for the structure.',
         },
         {
-          title: 'Keep units and businesses intentional',
-          description: 'Only create operating areas that help reporting, responsibility, or daily control.',
+          title: 'Operating location',
+          description: 'Define addresses and coordinates so attendance, kiosks, and reports use the right locations.',
         },
       ],
     },
@@ -48,12 +48,12 @@ export const enCA = {
       value: 'The assessment helps Índice guide better priorities before adding more tools, people, or processes.',
       steps: [
         {
-          title: 'Answer with operational reality',
-          description: 'Accurate answers create better recommendations than idealized answers.',
+          title: 'Pillar diagnosis',
+          description: 'Evaluate people, processes, products, and finance to understand the company’s real maturity.',
         },
         {
-          title: 'Review improvement signals',
-          description: 'Use the diagnosis to decide what the company should professionalize next.',
+          title: 'Maturity report',
+          description: 'Review signals, risks, and recommendations to prioritize the next operational improvement.',
         },
       ],
     },
@@ -64,12 +64,12 @@ export const enCA = {
       value: 'Better leadership habits help the company sustain routines, close gaps, and keep work visible.',
       steps: [
         {
-          title: 'Evaluate execution routines',
-          description: 'Identify where follow-up, prioritization, or communication can become more consistent.',
+          title: 'Habit assessment',
+          description: 'Review leadership, discipline, communication, and follow-up to understand execution style.',
         },
         {
-          title: 'Turn insights into routines',
-          description: 'Use the results to build small habits that improve daily operating control.',
+          title: 'Performance reading',
+          description: 'Turn personal results into signals that improve decisions, focus, and daily control.',
         },
       ],
     },
@@ -80,12 +80,12 @@ export const enCA = {
       value: 'Good access control protects information and helps every collaborator focus only on the tools they need.',
       steps: [
         {
-          title: 'Invite the right owners',
-          description: 'Start with the people responsible for company setup, HR, finance, operations, and analytics.',
+          title: 'Invitations and roles',
+          description: 'Add users, define roles, and connect each person to their operating responsibility.',
         },
         {
-          title: 'Assign modules by responsibility',
-          description: 'Avoid giving broad access when a focused workspace creates better control.',
+          title: 'Module permissions',
+          description: 'Select the tools each user can access to keep work controlled and traceable.',
         },
       ],
     },

@@ -2,8 +2,8 @@ export const frCA = {
   eyebrow: 'Mode apprentissage',
   title: 'Guide de configuration de l’entreprise',
   subtitle: 'Utilisez cet espace pour configurer la base opérationnelle qui garde le reste d’Índice aligné.',
-  focusLabel: 'Priorité actuelle',
-  actionsLabel: 'Actions recommandées',
+  controlLabel: 'Contrôle de l’entreprise',
+  functionsLabel: 'Fonctions de l’onglet',
   tabsLabel: 'Zones de configuration',
   previousStepLabel: 'Recommandation précédente',
   nextStepLabel: 'Recommandation suivante',
@@ -16,12 +16,12 @@ export const frCA = {
       value: 'Un profil clair réduit la confusion lorsque l’équipe partage responsabilités, notifications et décisions.',
       steps: [
         {
-          title: 'Confirmer les données personnelles',
-          description: 'Gardez nom, téléphone, langue et photo à jour pour identifier rapidement les responsables.',
+          title: 'Données personnelles et préférences',
+          description: 'Gérez nom, téléphone, langue, photo et préférences pour garder le responsable identifiable.',
         },
         {
-          title: 'Réviser les préférences d’accès',
-          description: 'Un profil ordonné facilite l’audit et le soutien des configurations futures.',
+          title: 'Sécurité du compte',
+          description: 'Mettez à jour les identifiants et données d’accès pour garder un espace fiable.',
         },
       ],
     },
@@ -32,12 +32,12 @@ export const frCA = {
       value: 'Quand la structure est claire, présence, dépenses, utilisateurs et KPIs se rattachent à la bonne partie de l’opération.',
       steps: [
         {
-          title: 'Confirmer Hedwig Edher comme siège principal',
-          description: 'Utilisez l’emplacement principal comme ancrage opérationnel de la structure de l’entreprise.',
+          title: 'Unités, activités et siège',
+          description: 'Organisez les zones d’opération et gardez Hedwig Edher comme référence principale de la structure.',
         },
         {
-          title: 'Créer des unités avec intention',
-          description: 'Ajoutez seulement les zones qui aident le reporting, la responsabilité ou le contrôle quotidien.',
+          title: 'Emplacement opérationnel',
+          description: 'Définissez adresses et coordonnées pour que présence, kiosques et rapports utilisent les bons lieux.',
         },
       ],
     },
@@ -48,12 +48,12 @@ export const frCA = {
       value: 'L’évaluation aide Índice à recommander les bonnes priorités avant d’ajouter plus d’outils, de personnes ou de processus.',
       steps: [
         {
-          title: 'Répondre selon la réalité',
-          description: 'Des réponses exactes produisent de meilleures recommandations que des réponses idéalisées.',
+          title: 'Diagnostic par piliers',
+          description: 'Évaluez personnes, processus, produits et finances pour comprendre la maturité réelle.',
         },
         {
-          title: 'Lire les signaux d’amélioration',
-          description: 'Utilisez le diagnostic pour décider ce que l’entreprise doit professionnaliser ensuite.',
+          title: 'Rapport de maturité',
+          description: 'Consultez signaux, risques et recommandations pour prioriser la prochaine amélioration.',
         },
       ],
     },
@@ -64,12 +64,12 @@ export const frCA = {
       value: 'De meilleures habitudes de leadership aident à soutenir les routines, fermer les écarts et rendre le travail visible.',
       steps: [
         {
-          title: 'Évaluer les routines d’exécution',
-          description: 'Identifiez où le suivi, la priorisation ou la communication peuvent devenir plus constants.',
+          title: 'Évaluation des habitudes',
+          description: 'Révisez leadership, discipline, communication et suivi pour comprendre le style d’exécution.',
         },
         {
-          title: 'Transformer les constats en routines',
-          description: 'Utilisez les résultats pour créer de petites habitudes qui améliorent le contrôle quotidien.',
+          title: 'Lecture de performance',
+          description: 'Transformez les résultats personnels en signaux pour améliorer décisions, focus et contrôle.',
         },
       ],
     },
@@ -80,12 +80,12 @@ export const frCA = {
       value: 'Un bon contrôle des accès protège l’information et aide chaque collaborateur à se concentrer sur les bons outils.',
       steps: [
         {
-          title: 'Inviter les bons responsables',
-          description: 'Commencez par les personnes responsables de la configuration, RH, finance, opérations et analytique.',
+          title: 'Invitations et rôles',
+          description: 'Ajoutez des utilisateurs, définissez les rôles et reliez chacun à sa responsabilité opérationnelle.',
         },
         {
-          title: 'Assigner les modules par rôle',
-          description: 'Évitez les accès trop larges quand un espace ciblé crée plus de contrôle.',
+          title: 'Permissions par module',
+          description: 'Choisissez les outils accessibles à chaque utilisateur pour garder le travail contrôlé et traçable.',
         },
       ],
     },

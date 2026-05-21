@@ -2,8 +2,8 @@ export const ptBR = {
   eyebrow: 'Modo Aprendiz',
   title: 'Guia de configuração empresarial',
   subtitle: 'Use este espaço para configurar a base operacional que mantém o restante do Índice alinhado.',
-  focusLabel: 'Foco atual',
-  actionsLabel: 'Ações recomendadas',
+  controlLabel: 'Controle da empresa',
+  functionsLabel: 'Funções da aba',
   tabsLabel: 'Áreas de configuração',
   previousStepLabel: 'Recomendação anterior',
   nextStepLabel: 'Próxima recomendação',
@@ -16,12 +16,12 @@ export const ptBR = {
       value: 'Um perfil claro reduz confusão quando a equipe compartilha responsabilidades, notificações e decisões.',
       steps: [
         {
-          title: 'Confirme seus dados pessoais',
-          description: 'Mantenha nome, telefone, idioma e foto atualizados para identificar responsáveis rapidamente.',
+          title: 'Dados pessoais e preferências',
+          description: 'Gerencie nome, telefone, idioma, foto e preferências para manter o responsável identificável.',
         },
         {
-          title: 'Revise preferências de acesso',
-          description: 'Um perfil organizado facilita auditoria e suporte em configurações futuras.',
+          title: 'Segurança da conta',
+          description: 'Atualize credenciais e dados de acesso para manter um workspace confiável.',
         },
       ],
     },
@@ -32,12 +32,12 @@ export const ptBR = {
       value: 'Quando a estrutura está clara, presença, despesas, usuários e KPIs se conectam à parte correta da operação.',
       steps: [
         {
-          title: 'Confirme Hedwig Edher como sede principal',
-          description: 'Use a localização principal como âncora operacional para a estrutura da empresa.',
+          title: 'Unidades, negócios e sede',
+          description: 'Organize áreas de operação e mantenha Hedwig Edher como referência principal da estrutura.',
         },
         {
-          title: 'Crie unidades com intenção',
-          description: 'Adicione apenas áreas que ajudem relatórios, responsabilidade ou controle diário.',
+          title: 'Localização operacional',
+          description: 'Defina endereços e coordenadas para que presença, quiosques e relatórios usem os locais corretos.',
         },
       ],
     },
@@ -48,12 +48,12 @@ export const ptBR = {
       value: 'A avaliação ajuda o Índice a recomendar melhores prioridades antes de adicionar mais ferramentas, pessoas ou processos.',
       steps: [
         {
-          title: 'Responda com realidade operacional',
-          description: 'Respostas honestas geram recomendações melhores do que respostas idealizadas.',
+          title: 'Diagnóstico por pilares',
+          description: 'Avalie pessoas, processos, produtos e finanças para entender a maturidade real da empresa.',
         },
         {
-          title: 'Revise sinais de melhoria',
-          description: 'Use o diagnóstico para decidir o que a empresa deve profissionalizar em seguida.',
+          title: 'Relatório de maturidade',
+          description: 'Consulte sinais, riscos e recomendações para priorizar a próxima melhoria operacional.',
         },
       ],
     },
@@ -64,12 +64,12 @@ export const ptBR = {
       value: 'Melhores hábitos de liderança ajudam a sustentar rotinas, fechar lacunas e manter o trabalho visível.',
       steps: [
         {
-          title: 'Avalie rotinas de execução',
-          description: 'Identifique onde acompanhamento, priorização ou comunicação podem ficar mais consistentes.',
+          title: 'Avaliação de hábitos',
+          description: 'Revise liderança, disciplina, comunicação e acompanhamento para entender seu estilo de execução.',
         },
         {
-          title: 'Transforme sinais em rotinas',
-          description: 'Use os resultados para criar pequenos hábitos que melhorem o controle diário.',
+          title: 'Leitura de desempenho',
+          description: 'Transforme resultados pessoais em sinais para melhorar decisões, foco e controle diário.',
         },
       ],
     },
@@ -80,12 +80,12 @@ export const ptBR = {
       value: 'Um bom controle de acesso protege informações e ajuda cada colaborador a focar nas ferramentas certas.',
       steps: [
         {
-          title: 'Convide os responsáveis certos',
-          description: 'Comece por quem lidera configuração, RH, finanças, operação e análise.',
+          title: 'Convites e funções',
+          description: 'Adicione usuários, defina funções e conecte cada pessoa à sua responsabilidade operacional.',
         },
         {
-          title: 'Atribua módulos por responsabilidade',
-          description: 'Evite acessos amplos quando um workspace focado gera mais controle.',
+          title: 'Permissões por módulo',
+          description: 'Selecione as ferramentas que cada usuário pode acessar para manter controle e rastreabilidade.',
         },
       ],
     },
