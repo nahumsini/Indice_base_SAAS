@@ -272,7 +272,10 @@ export default function App() {
         onNavigate={handleModuleNavigation}
       />
     ) : currentPage === 'processes-tasks' ? (
-      <ProcessesTasks onNavigate={handleModuleNavigation} />
+      <ProcessesTasks
+        learningModeActive={learningModeActive}
+        onNavigate={handleModuleNavigation}
+      />
     ) : currentPage === 'home-panel' ? (
       <PanelInicial
         learningModeActive={learningModeActive}
