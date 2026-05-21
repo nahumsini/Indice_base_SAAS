@@ -14,6 +14,7 @@ import { KpiSection } from './components/KpiSection';
 import { ModuleSection } from './components/ModuleSection';
 import { OperationalJourney } from './components/OperationalJourney';
 import { OperationalModulesSection } from './components/OperationalModulesSection';
+import { OperationalTipsSection } from './components/OperationalTipsSection';
 import { buildDashboardAvailableKpis, buildDashboardKpiDataMap, defaultDashboardKpiIds } from './dashboardData';
 import { useMainDashboardTranslations } from './hooks/useMainDashboardTranslations';
 import {
@@ -23,6 +24,7 @@ import {
   operationalJourneyStages,
   type OperationalJourneyStageId,
 } from './operationalJourney';
+import { buildOperationalTipsForStage } from './operationalTips';
 
 export interface MainDashboardProps {
   learningModeActive: boolean;
@@ -132,6 +134,10 @@ export function MainDashboard({
   const activeOperationalStageId = isOperationalJourneyVisible
     ? operationalJourneyStages[safeLearningStep]?.id
     : undefined;
+  const operationalTips = useMemo(
+    () => buildOperationalTipsForStage(activeOperationalStageId),
+    [activeOperationalStageId],
+  );
 
   const handleOperationalStageSelect = (stageId: OperationalJourneyStageId) => {
     const stageIndex = operationalJourneyStages.findIndex((stage) => stage.id === stageId);
@@ -209,6 +215,13 @@ export function MainDashboard({
           onToggleFavorite={toggleFavorite}
           onModuleClick={handleModuleClick}
           singleRow
+        />
+      )}
+
+      {isOperationalJourneyVisible && (
+        <OperationalTipsSection
+          copy={copy.operationalJourney.tips}
+          tips={operationalTips}
         />
       )}
 
