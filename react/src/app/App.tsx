@@ -267,7 +267,10 @@ export default function App() {
         onNavigate={(page) => handleModuleNavigation(page)}
       />
     ) : currentPage === 'human-resources' ? (
-      <HumanResources onNavigate={handleModuleNavigation} />
+      <HumanResources
+        learningModeActive={learningModeActive}
+        onNavigate={handleModuleNavigation}
+      />
     ) : currentPage === 'processes-tasks' ? (
       <ProcessesTasks onNavigate={handleModuleNavigation} />
     ) : currentPage === 'home-panel' ? (

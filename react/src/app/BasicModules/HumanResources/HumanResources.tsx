@@ -1,9 +1,13 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { useHRLanguage } from './HRLanguage';
+import {
+  OperationalModuleGuide,
+  useHumanResourcesGuidanceTranslations,
+} from './operationalGuidance';
 
 const Employees = lazy(() => import('./Employees'));
 const Attendance = lazy(() => import('./Attendance/Attendance'));
@@ -17,6 +21,7 @@ const Incentives = lazy(() => import('./Incentives'));
 const KPIs = lazy(() => import('./KPIs'));
 
 interface HumanResourcesProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -46,8 +51,10 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
   incentivos: 'incentives',
 };
 
-export default function HumanResources({ onNavigate }: HumanResourcesProps) {
+export default function HumanResources({ learningModeActive = false, onNavigate }: HumanResourcesProps) {
   const t = useHRLanguage();
+  const guidanceCopy = useHumanResourcesGuidanceTranslations();
+  const mainContentRef = useRef<HTMLDivElement | null>(null);
   const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
     'collaborators',
     humanResourcesTabIds,
@@ -76,6 +83,13 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
     }
 
     setActiveTab(tabId);
+  };
+
+  const handleGuidePrimaryAction = () => {
+    mainContentRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
   };
 
   return (
@@ -110,6 +124,16 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             </Button>
           </div>
 
+          {learningModeActive ? (
+            <div className="mt-5">
+              <OperationalModuleGuide
+                copy={guidanceCopy}
+                activeTabId={activeTab}
+                onPrimaryAction={handleGuidePrimaryAction}
+              />
+            </div>
+          ) : null}
+
           {/* Pestañas */}
           <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
             {tabs.map((tab) => (
@@ -131,7 +155,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
       </div>
 
       {/* Contenido del tab activo */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
+      <div ref={mainContentRef} className="max-w-[1600px] mx-auto px-8 py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
