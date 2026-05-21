@@ -58,6 +58,7 @@ const statusClasses: Record<OperationalJourneyStageStatus, string> = {
 };
 
 const moduleButtonClasses: Record<DashboardModuleColor, string> = {
+  aqua: 'border-[#59C3A5]/35 bg-[#59C3A5]/10 text-[#257B68] hover:border-[#59C3A5] hover:bg-[#59C3A5] hover:text-white dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]',
   blue: 'border-[#143675]/30 bg-[#143675]/10 text-[#143675] hover:border-[#143675] hover:bg-[#143675] hover:text-white dark:border-[#558DBD]/35 dark:bg-[#558DBD]/10 dark:text-[#b7d6ed]',
   yellow: 'border-[#FFC300]/45 bg-[#FFC300]/10 text-[#8a6a00] hover:border-[#FFC300] hover:bg-[#FFC300] hover:text-[#3b2b00] dark:border-[#FFC300]/35 dark:bg-[#FFC300]/10 dark:text-[#ffd966]',
   orange: 'border-orange-300 bg-orange-50 text-orange-700 hover:border-orange-500 hover:bg-orange-500 hover:text-white dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300',

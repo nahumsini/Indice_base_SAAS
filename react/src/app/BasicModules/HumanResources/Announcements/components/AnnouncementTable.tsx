@@ -63,7 +63,7 @@ export function AnnouncementTable({
                   >
                     <td className="min-w-[320px] px-5 py-5 align-middle">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-[#143675] dark:bg-slate-700 dark:text-blue-200">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-[#59C3A5] dark:bg-slate-700 dark:text-blue-200">
                           {announcement.title.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">

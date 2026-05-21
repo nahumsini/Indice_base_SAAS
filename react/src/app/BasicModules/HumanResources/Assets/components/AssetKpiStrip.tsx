@@ -14,7 +14,7 @@ interface AssetKpiStripProps {
   visibleCount: number;
 }
 
-function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
+function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
   icon: ReactNode;
   label: string;
   value: ReactNode;
@@ -22,7 +22,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
 }) {
   return (
     <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#143675] shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#59C3A5] shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {icon}
       </span>
       <span className={`text-base font-bold ${valueClassName}`}>{value}</span>
@@ -62,9 +62,9 @@ export function AssetKpiStrip({
         <span className="text-slate-300 dark:text-slate-600">•</span>
         <Metric icon={<Wrench className="h-4 w-4" />} label={copy.cards.maintenance} value={maintenanceCount} valueClassName="text-amber-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visibleCount} valueClassName="text-[#143675]" />
+        <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visibleCount} valueClassName="text-[#59C3A5]" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={copy.kpis.assetValue} value={formattedValue} valueClassName="text-[#143675]" />
+        <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={copy.kpis.assetValue} value={formattedValue} valueClassName="text-[#59C3A5]" />
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -75,7 +75,7 @@ export function AssetKpiStrip({
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 text-sm font-medium text-[#143675] dark:border-[#4a7bc8]/25 dark:bg-[#143675]/15 dark:text-blue-100">
+      <div className="rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#59C3A5] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-blue-100">
         {copy.kpis.summary(assignedCount, availableCount, maintenanceCount, selectedCount, visibleCount, totalCount)}
       </div>
     </div>

@@ -88,7 +88,7 @@ function KioskStepGuide({ stepLabel, steps }: { stepLabel: string; steps: KioskS
             state === 'done'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200'
               : state === 'active'
-                ? 'border-[#143675]/35 bg-[#143675]/8 text-[#143675] shadow-[0_2px_10px_rgba(20,54,117,0.08)] dark:border-[#8bb3ff]/35 dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]'
+                ? 'border-[#59C3A5]/35 bg-[#59C3A5]/8 text-[#59C3A5] shadow-[0_2px_10px_rgba(89,195,165,0.08)] dark:border-[#8FE0CA]/35 dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]'
                 : 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-400'
           }`}
         >
@@ -97,7 +97,7 @@ function KioskStepGuide({ stepLabel, steps }: { stepLabel: string; steps: KioskS
               state === 'done'
                 ? 'bg-emerald-500 text-white'
                 : state === 'active'
-                  ? 'bg-[#143675] text-white dark:bg-[#8bb3ff] dark:text-slate-950'
+                  ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
                   : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
             }`}
           >
@@ -125,12 +125,12 @@ function KioskStatusMetric({
   isStrong?: boolean;
 }) {
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${isStrong ? 'border-[#143675]/25 bg-[#143675]/8 dark:border-[#8bb3ff]/25 dark:bg-[#8bb3ff]/10' : 'border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-950/75'}`}>
+    <div className={`rounded-2xl border px-4 py-3 ${isStrong ? 'border-[#59C3A5]/25 bg-[#59C3A5]/8 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10' : 'border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-950/75'}`}>
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
         <Icon className="h-4 w-4" />
         {label}
       </div>
-      <p className={`mt-2 text-base font-semibold ${isStrong ? 'text-[#143675] dark:text-[#8bb3ff]' : 'text-slate-950 dark:text-white'}`}>
+      <p className={`mt-2 text-base font-semibold ${isStrong ? 'text-[#59C3A5] dark:text-[#8FE0CA]' : 'text-slate-950 dark:text-white'}`}>
         {value}
       </p>
     </div>
@@ -152,7 +152,7 @@ function KioskLanguageSelector({
 }) {
   return (
     <label className="flex min-w-[13rem] items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950/75 dark:text-slate-200">
-      <Globe2 className="h-4 w-4 shrink-0 text-[#143675] dark:text-[#8bb3ff]" />
+      <Globe2 className="h-4 w-4 shrink-0 text-[#59C3A5] dark:text-[#8FE0CA]" />
       <span className="sr-only">{copy.language.selectorLabel}</span>
       <select
         value={locale}
@@ -169,7 +169,7 @@ function KioskLanguageSelector({
       {detectedLocale === locale ? (
         <span
           title={copy.language.autoDetected}
-          className="hidden rounded-full bg-[#143675]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff] sm:inline"
+          className="hidden rounded-full bg-[#59C3A5]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA] sm:inline"
         >
           {copy.language.autoBadge}
         </span>
@@ -188,18 +188,18 @@ function KioskFlowStepper({ stepLabel, steps }: { stepLabel: string; steps: Kios
             state === 'done'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200'
               : state === 'active'
-                ? 'border-[#143675]/35 bg-white text-[#143675] shadow-[0_12px_34px_-26px_rgba(20,54,117,0.7)] dark:border-[#8bb3ff]/35 dark:bg-slate-950 dark:text-[#8bb3ff]'
+                ? 'border-[#59C3A5]/35 bg-white text-[#59C3A5] shadow-[0_12px_34px_-26px_rgba(89,195,165,0.7)] dark:border-[#8FE0CA]/35 dark:bg-slate-950 dark:text-[#8FE0CA]'
                 : 'border-slate-200 bg-white/80 text-slate-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-400'
           }`}
         >
-          {state === 'active' ? <div className="absolute inset-y-0 left-0 w-1 bg-[#143675] dark:bg-[#8bb3ff]" /> : null}
+          {state === 'active' ? <div className="absolute inset-y-0 left-0 w-1 bg-[#59C3A5] dark:bg-[#8FE0CA]" /> : null}
           <div className="flex items-center gap-3">
             <div
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
                 state === 'done'
                   ? 'bg-emerald-500 text-white'
                   : state === 'active'
-                    ? 'bg-[#143675] text-white dark:bg-[#8bb3ff] dark:text-slate-950'
+                    ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
                     : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
               }`}
             >
@@ -248,7 +248,7 @@ function KioskPinKeypad({
           type="button"
           disabled={disabled}
           onClick={() => handleKey(key)}
-          className={`flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-semibold text-slate-950 shadow-sm transition hover:border-[#143675]/35 hover:bg-[#143675]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-[#8bb3ff]/35 dark:hover:bg-[#8bb3ff]/10 ${
+          className={`flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-semibold text-slate-950 shadow-sm transition hover:border-[#59C3A5]/35 hover:bg-[#59C3A5]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-[#8FE0CA]/35 dark:hover:bg-[#8FE0CA]/10 ${
             key === '0' ? 'col-start-2' : ''
           }`}
         >
@@ -881,17 +881,17 @@ export default function Kiosk() {
 
       <main className="min-h-dvh bg-[linear-gradient(135deg,_#e8f0f7_0%,_#f8fbfd_44%,_#e7f5f0_100%)] px-3 py-3 text-slate-900 dark:bg-[linear-gradient(135deg,_#020617_0%,_#0f172a_54%,_#06201a_100%)] dark:text-slate-100 sm:px-5 lg:overflow-hidden">
         <div className="mx-auto flex max-w-[92rem] flex-col gap-3 lg:h-[calc(100dvh-1.5rem)]">
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_28px_90px_-46px_rgba(20,54,117,0.55)] dark:border-slate-700/80 dark:bg-slate-950 dark:shadow-[0_28px_90px_-48px_rgba(0,0,0,0.85)]">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_28px_90px_-46px_rgba(89,195,165,0.55)] dark:border-slate-700/80 dark:bg-slate-950 dark:shadow-[0_28px_90px_-48px_rgba(0,0,0,0.85)]">
             <div className="shrink-0 border-b border-slate-200/80 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950 sm:px-7">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#143675] text-white shadow-sm dark:bg-[#8bb3ff] dark:text-slate-950">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#59C3A5] text-white shadow-sm dark:bg-[#8FE0CA] dark:text-slate-950">
                       <ShieldCheck className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">indice</p>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#143675] dark:text-[#8bb3ff]">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#59C3A5] dark:text-[#8FE0CA]">
                         {copy.terminalBadge}
                       </p>
                     </div>
@@ -926,8 +926,8 @@ export default function Kiosk() {
               </div>
 
               <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.74fr)]">
-                <div className="rounded-[28px] border border-[#143675]/10 bg-[linear-gradient(135deg,_#ffffff_0%,_#eef5ff_58%,_#effaf5_100%)] p-5 dark:border-[#8bb3ff]/15 dark:bg-[linear-gradient(135deg,_#020617_0%,_#0f172a_62%,_#08251d_100%)]">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-[#143675] ring-1 ring-[#143675]/10 dark:bg-slate-950/70 dark:text-[#8bb3ff] dark:ring-[#8bb3ff]/15">
+                <div className="rounded-[28px] border border-[#59C3A5]/10 bg-[linear-gradient(135deg,_#ffffff_0%,_#F0FBF7_58%,_#effaf5_100%)] p-5 dark:border-[#8FE0CA]/15 dark:bg-[linear-gradient(135deg,_#020617_0%,_#0f172a_62%,_#08251d_100%)]">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-[#59C3A5] ring-1 ring-[#59C3A5]/10 dark:bg-slate-950/70 dark:text-[#8FE0CA] dark:ring-[#8FE0CA]/15">
                     <Sparkles className="h-4 w-4" />
                     {kioskGreeting}
                   </div>
@@ -941,13 +941,13 @@ export default function Kiosk() {
 
                 <div className="rounded-[28px] border border-pink-100 bg-[linear-gradient(135deg,_#fff7ed_0%,_#fff1f2_100%)] p-5 shadow-[0_14px_34px_-30px_rgba(244,114,182,0.6)] dark:border-pink-900/40 dark:bg-[linear-gradient(135deg,_#1f1020_0%,_#2b1320_100%)]">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#143675] shadow-sm dark:bg-slate-950 dark:text-[#8bb3ff]">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#59C3A5] shadow-sm dark:bg-slate-950 dark:text-[#8FE0CA]">
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-lg font-semibold text-slate-950 dark:text-white">{kioskMessage.title}</p>
                       <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">{kioskMessage.body}</p>
-                      <p className="mt-2 text-sm font-semibold text-[#143675] dark:text-[#8bb3ff]">{kioskMessage.note}</p>
+                      <p className="mt-2 text-sm font-semibold text-[#59C3A5] dark:text-[#8FE0CA]">{kioskMessage.note}</p>
                     </div>
                   </div>
                 </div>
@@ -959,7 +959,7 @@ export default function Kiosk() {
             </div>
 
             <div className="grid min-h-0 flex-1 gap-5 overflow-hidden bg-slate-50/70 px-5 py-5 dark:bg-slate-900/55 sm:px-7 lg:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)]">
-              <section className="min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_-24px_rgba(20,54,117,0.45)] dark:border-slate-800 dark:bg-slate-950">
+              <section className="min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_-24px_rgba(89,195,165,0.45)] dark:border-slate-800 dark:bg-slate-950">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
@@ -985,17 +985,17 @@ export default function Kiosk() {
                 ) : null}
 
                 {!identifiedHrUser ? (
-                  <div className="mt-7 rounded-[28px] border border-[#143675]/20 bg-[#143675]/6 p-4 shadow-[0_16px_40px_-30px_rgba(20,54,117,0.65)] dark:border-[#8bb3ff]/20 dark:bg-[#8bb3ff]/10">
+                  <div className="mt-7 rounded-[28px] border border-[#59C3A5]/20 bg-[#59C3A5]/6 p-4 shadow-[0_16px_40px_-30px_rgba(89,195,165,0.65)] dark:border-[#8FE0CA]/20 dark:bg-[#8FE0CA]/10">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#143675] dark:text-[#8bb3ff]">
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#59C3A5] dark:text-[#8FE0CA]">
                           {copy.steps.pin}
                         </p>
                         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                           {copy.methods[selectedMethod]}
                         </p>
                       </div>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#143675] text-white shadow-sm dark:bg-[#8bb3ff] dark:text-slate-950">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#59C3A5] text-white shadow-sm dark:bg-[#8FE0CA] dark:text-slate-950">
                         <KeyRound className="h-6 w-6" />
                       </div>
                     </div>
@@ -1020,12 +1020,12 @@ export default function Kiosk() {
                         autoFocus
                         autoComplete="off"
                         enterKeyHint="done"
-                        className="h-20 rounded-[24px] border-[#143675]/25 bg-white text-center text-3xl font-semibold tracking-[0.42em] text-slate-950 shadow-inner outline-none placeholder:tracking-normal dark:border-[#8bb3ff]/25 dark:bg-slate-950 dark:text-white sm:h-24 sm:text-4xl"
+                        className="h-20 rounded-[24px] border-[#59C3A5]/25 bg-white text-center text-3xl font-semibold tracking-[0.42em] text-slate-950 shadow-inner outline-none placeholder:tracking-normal dark:border-[#8FE0CA]/25 dark:bg-slate-950 dark:text-white sm:h-24 sm:text-4xl"
                       />
                       <Button
                         type="button"
                         disabled={!canIdentify}
-                        className="h-20 rounded-[24px] bg-[#143675] px-6 text-base font-semibold text-white shadow-[0_14px_26px_-18px_rgba(20,54,117,0.8)] hover:bg-[#0f2855] disabled:opacity-45 dark:bg-[#8bb3ff] dark:text-slate-950 dark:hover:bg-[#a9c7ff] sm:h-24"
+                        className="h-20 rounded-[24px] bg-[#59C3A5] px-6 text-base font-semibold text-white shadow-[0_14px_26px_-18px_rgba(89,195,165,0.8)] hover:bg-[#3AAE90] disabled:opacity-45 dark:bg-[#8FE0CA] dark:text-slate-950 dark:hover:bg-[#a9c7ff] sm:h-24"
                         onClick={() => void handleIdentify()}
                       >
                         <KeyRound className="h-5 w-5" />
@@ -1046,7 +1046,7 @@ export default function Kiosk() {
                     <div className="rounded-[26px] border border-emerald-200 bg-emerald-50/85 p-4 dark:border-emerald-800/50 dark:bg-emerald-950/35">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[#143675] text-xl font-semibold text-white shadow-sm dark:bg-[#8bb3ff] dark:text-slate-950">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[#59C3A5] text-xl font-semibold text-white shadow-sm dark:bg-[#8FE0CA] dark:text-slate-950">
                             {deriveInitials(identifiedHrUser.full_name)}
                           </div>
                           <div>
@@ -1093,10 +1093,10 @@ export default function Kiosk() {
 	                      </div>
                     </div>
 
-                    <div className="rounded-[30px] border border-[#143675]/20 bg-white p-5 shadow-[0_18px_44px_-32px_rgba(20,54,117,0.7)] dark:border-[#8bb3ff]/20 dark:bg-slate-950">
+                    <div className="rounded-[30px] border border-[#59C3A5]/20 bg-white p-5 shadow-[0_18px_44px_-32px_rgba(89,195,165,0.7)] dark:border-[#8FE0CA]/20 dark:bg-slate-950">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#143675] dark:text-[#8bb3ff]">
+                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#59C3A5] dark:text-[#8FE0CA]">
                             {copy.verificationMethod}
                           </p>
                           <h3 className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">
@@ -1112,7 +1112,7 @@ export default function Kiosk() {
                             onClick={() => handleEvidenceModeChange('face')}
                             className={`flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition ${
                               evidenceMode === 'face'
-                                ? 'bg-[#143675] text-white shadow-sm'
+                                ? 'bg-[#59C3A5] text-white shadow-sm'
                                 : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-950'
                             }`}
                           >
@@ -1124,7 +1124,7 @@ export default function Kiosk() {
                             onClick={() => handleEvidenceModeChange('photo')}
                             className={`flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition ${
                               evidenceMode === 'photo'
-                                ? 'bg-[#143675] text-white shadow-sm'
+                                ? 'bg-[#59C3A5] text-white shadow-sm'
                                 : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-950'
                             }`}
                           >
@@ -1185,9 +1185,9 @@ export default function Kiosk() {
                             className="rounded-[26px] border border-slate-200 bg-slate-50/70 p-4 shadow-none dark:border-slate-700 dark:bg-slate-900/70"
                             videoClassName="h-[min(46vh,30rem)] min-h-[18rem] w-full object-cover"
                             photoClassName="mb-4 h-[min(46vh,30rem)] min-h-[18rem] w-full rounded-[22px] object-cover shadow-sm"
-                            emptyPreviewClassName="mb-4 flex h-[min(46vh,30rem)] min-h-[18rem] w-full flex-col items-center justify-center rounded-[22px] border border-dashed border-[#143675]/25 bg-white text-center text-slate-500 dark:border-[#8bb3ff]/25 dark:bg-slate-950 dark:text-slate-400"
+                            emptyPreviewClassName="mb-4 flex h-[min(46vh,30rem)] min-h-[18rem] w-full flex-col items-center justify-center rounded-[22px] border border-dashed border-[#59C3A5]/25 bg-white text-center text-slate-500 dark:border-[#8FE0CA]/25 dark:bg-slate-950 dark:text-slate-400"
                             actionClassName="mb-4 grid grid-cols-1 gap-3"
-                            primaryButtonClassName="h-12 rounded-2xl bg-[#143675] text-white hover:bg-[#0f2855]"
+                            primaryButtonClassName="h-12 rounded-2xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
                             onPhotoChange={fallbackPhotoUpload.setCapturedPhoto}
                             onError={showFailureToast}
                             errors={{
@@ -1223,7 +1223,7 @@ export default function Kiosk() {
                       <Button
                         type="button"
                         disabled={!canCheckIn}
-                        className="h-16 rounded-[22px] bg-[#143675] text-lg font-semibold text-white shadow-[0_14px_26px_-18px_rgba(20,54,117,0.8)] hover:bg-[#0f2855] disabled:opacity-45"
+                        className="h-16 rounded-[22px] bg-[#59C3A5] text-lg font-semibold text-white shadow-[0_14px_26px_-18px_rgba(89,195,165,0.8)] hover:bg-[#3AAE90] disabled:opacity-45"
                         onClick={() => void handlePunch('check_in')}
                       >
                         {copy.checkIn}
@@ -1252,7 +1252,7 @@ export default function Kiosk() {
                               {activityStateLabel}
                             </p>
                           </div>
-                          <div className="inline-flex w-fit items-center rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+                          <div className="inline-flex w-fit items-center rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
                             {copy.activityStatus}: {copy.activityStatusLabels[activeTodayActivity.status]}
                           </div>
                         </div>
@@ -1287,11 +1287,11 @@ export default function Kiosk() {
                 )}
               </section>
 
-              <aside className="min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_-24px_rgba(20,54,117,0.45)] dark:border-slate-800 dark:bg-slate-950">
-                <div className="rounded-[24px] border border-[#143675]/20 bg-[#143675]/6 p-4 dark:border-[#8bb3ff]/20 dark:bg-[#8bb3ff]/10">
+              <aside className="min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_-24px_rgba(89,195,165,0.45)] dark:border-slate-800 dark:bg-slate-950">
+                <div className="rounded-[24px] border border-[#59C3A5]/20 bg-[#59C3A5]/6 p-4 dark:border-[#8FE0CA]/20 dark:bg-[#8FE0CA]/10">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#143675] dark:text-[#8bb3ff]">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#59C3A5] dark:text-[#8FE0CA]">
                         {copy.pointStatus}
                       </p>
                       <p className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">
@@ -1315,7 +1315,7 @@ export default function Kiosk() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-950/70">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#143675]/10 text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
                         <BadgeCheck className="h-5 w-5" />
                       </div>
                       <div>
@@ -1342,7 +1342,7 @@ export default function Kiosk() {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
                       {copy.nextAction}
                     </p>
-                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#143675] ring-1 ring-slate-200 dark:bg-slate-950 dark:text-[#8bb3ff] dark:ring-slate-700">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#59C3A5] ring-1 ring-slate-200 dark:bg-slate-950 dark:text-[#8FE0CA] dark:ring-slate-700">
                       <CircleDot className="h-3.5 w-3.5" />
                       {nextActionLabel}
                     </div>

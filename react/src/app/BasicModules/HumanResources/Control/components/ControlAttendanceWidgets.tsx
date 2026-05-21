@@ -117,8 +117,8 @@ export function ControlAttendanceRow({
         onKeyDown={handleKeyDown}
         className={`w-full cursor-pointer rounded-xl border border-l-4 px-4 py-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all ${rowBorderClassName} ${
           selected
-            ? 'border-[#143675]/30 bg-white shadow-[0_1px_2px_rgba(20,54,117,0.10),0_0_0_3px_rgba(20,54,117,0.06)] dark:border-[#8bb3ff]/35 dark:bg-gray-900'
-            : 'border-gray-100 bg-white/85 hover:border-[#143675]/20 hover:bg-white hover:shadow-[0_2px_6px_rgba(15,23,42,0.06)] dark:border-gray-800 dark:bg-gray-900/70 dark:hover:border-[#8bb3ff]/30 dark:hover:bg-gray-900'
+            ? 'border-[#59C3A5]/30 bg-white shadow-[0_1px_2px_rgba(89,195,165,0.10),0_0_0_3px_rgba(89,195,165,0.06)] dark:border-[#8FE0CA]/35 dark:bg-gray-900'
+            : 'border-gray-100 bg-white/85 hover:border-[#59C3A5]/20 hover:bg-white hover:shadow-[0_2px_6px_rgba(15,23,42,0.06)] dark:border-gray-800 dark:bg-gray-900/70 dark:hover:border-[#8FE0CA]/30 dark:hover:bg-gray-900'
         }`}
       >
         <div className="flex items-start justify-between gap-3">
@@ -194,7 +194,7 @@ function AttendanceEvidencePreviewDialog({
       >
         <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#143675] dark:text-blue-200">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#59C3A5] dark:text-blue-200">
               {copy.labels.viewEvidence}
             </p>
             <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{photo.label}</p>
@@ -202,7 +202,7 @@ function AttendanceEvidencePreviewDialog({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition hover:border-[#143675]/30 hover:text-[#143675] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition hover:border-[#59C3A5]/30 hover:text-[#59C3A5] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
             aria-label={copy.labels.closeEvidence}
           >
             <X className="h-4 w-4" />
@@ -245,7 +245,7 @@ export function AttendanceMomentPanel({
   const mapsUrl = buildGoogleMapsUrl({ latitude, longitude, location });
 
   return (
-    <div className="flex min-w-0 items-start justify-between gap-2 rounded-xl border border-[#143675]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
+    <div className="flex min-w-0 items-start justify-between gap-2 rounded-xl border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
       <div className="min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
         <p className={`mt-1 truncate text-sm font-semibold ${isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{time}</p>
@@ -300,7 +300,7 @@ function AttendanceLocationLink({
       rel="noreferrer"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
-      className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[#143675] underline-offset-2 hover:underline dark:text-blue-200"
+      className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[#59C3A5] underline-offset-2 hover:underline dark:text-blue-200"
       title={`${title} · ${copy.labels.openInMaps}`}
       aria-label={`${copy.labels.openInMaps}: ${title}`}
     >
@@ -358,7 +358,7 @@ function AttendanceEvidenceThumbnail({
   return (
     <button
       type="button"
-      className="relative mt-0.5 flex h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-[#143675]/15 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition hover:scale-[1.03] hover:border-[#143675]/40 focus:outline-none focus:ring-2 focus:ring-[#143675]/30 dark:border-gray-700 dark:bg-gray-900"
+      className="relative mt-0.5 flex h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-[#59C3A5]/15 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition hover:scale-[1.03] hover:border-[#59C3A5]/40 focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/30 dark:border-gray-700 dark:bg-gray-900"
       onClick={(event) => {
         event.stopPropagation();
         onPreviewPhoto?.(photoUrl, label);
@@ -372,7 +372,7 @@ function AttendanceEvidenceThumbnail({
         className="h-full w-full object-cover"
         loading="lazy"
       />
-      <span className="absolute bottom-0.5 right-0.5 rounded bg-white/90 p-0.5 text-[#143675] shadow-sm dark:bg-gray-950/90 dark:text-blue-200">
+      <span className="absolute bottom-0.5 right-0.5 rounded bg-white/90 p-0.5 text-[#59C3A5] shadow-sm dark:bg-gray-950/90 dark:text-blue-200">
         <ImageIcon className="h-2.5 w-2.5" />
       </span>
     </button>
@@ -439,17 +439,17 @@ export function ControlCalendarDayCell({
       title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : attendanceTooltip}
       className={`group relative min-h-[104px] select-none overflow-hidden rounded-2xl border p-3 text-left transition-all ${
         isSelected
-          ? 'border-[#143675]/45 bg-white shadow-[0_1px_2px_rgba(20,54,117,0.10),0_0_0_4px_rgba(20,54,117,0.06)] dark:border-[#8bb3ff]/45 dark:bg-gray-900'
+          ? 'border-[#59C3A5]/45 bg-white shadow-[0_1px_2px_rgba(89,195,165,0.10),0_0_0_4px_rgba(89,195,165,0.06)] dark:border-[#8FE0CA]/45 dark:bg-gray-900'
           : isMultiSelected
-          ? 'border-[#143675]/35 bg-[#f8fbff] shadow-[inset_0_0_0_1px_rgba(20,54,117,0.12)]'
-          : `${heatmapTone} hover:-translate-y-0.5 hover:border-[#143675]/35 hover:shadow-sm dark:hover:border-[#8bb3ff]/40`
+          ? 'border-[#59C3A5]/35 bg-[#f8fbff] shadow-[inset_0_0_0_1px_rgba(89,195,165,0.12)]'
+          : `${heatmapTone} hover:-translate-y-0.5 hover:border-[#59C3A5]/35 hover:shadow-sm dark:hover:border-[#8FE0CA]/40`
       }`}
     >
       {day ? <span className={`absolute inset-x-0 top-0 h-1 ${dayHeatmapStripe(day)}`} /> : null}
       <div className="flex items-start justify-between gap-2">
         <span className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</span>
         {hasCorrection ? (
-          <span className="rounded-full bg-[#143675] px-1.5 py-0.5 text-[10px] font-semibold text-white">M</span>
+          <span className="rounded-full bg-[#59C3A5] px-1.5 py-0.5 text-[10px] font-semibold text-white">M</span>
         ) : null}
       </div>
       {day ? (
@@ -493,7 +493,7 @@ export function LegendOutline({ label }: { label: string }) {
 
 export function DayInfoStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[#143675]/10 bg-[#f8fbff] px-3 py-2.5 dark:border-gray-800 dark:bg-gray-900/40">
+    <div className="rounded-xl border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2.5 dark:border-gray-800 dark:bg-gray-900/40">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
       <p className="mt-1.5 text-base font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>
@@ -515,7 +515,7 @@ export function DayEvidenceCard({
 }) {
   if (compact) {
     return (
-      <div className="min-w-0 rounded-xl border border-[#143675]/10 bg-[#f8fbff] p-3 dark:border-gray-800 dark:bg-gray-900/40">
+      <div className="min-w-0 rounded-xl border border-[#59C3A5]/10 bg-[#f8fbff] p-3 dark:border-gray-800 dark:bg-gray-900/40">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
         <div className="mt-2 flex items-center gap-2">
           {photoUrl ? (
@@ -533,7 +533,7 @@ export function DayEvidenceCard({
             </div>
           )}
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-xs text-[#1463ff] dark:text-[#8bb3ff]">
+            <div className="flex items-center gap-1.5 text-xs text-[#1463ff] dark:text-[#8FE0CA]">
               <MapPin className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{location || copy.labels.noLocationHistory}</span>
             </div>
@@ -544,7 +544,7 @@ export function DayEvidenceCard({
   }
 
   return (
-    <div className="rounded-xl border border-[#143675]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-xl border border-[#59C3A5]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
       {photoUrl ? (
         <img
@@ -558,7 +558,7 @@ export function DayEvidenceCard({
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2 text-sm text-[#1463ff] dark:text-[#8bb3ff]">
+      <div className="mt-3 flex items-center gap-2 text-sm text-[#1463ff] dark:text-[#8FE0CA]">
         <MapPin className="h-4 w-4" />
         <span className="truncate">{location || copy.labels.noLocationHistory}</span>
       </div>

@@ -36,9 +36,9 @@ function EmployeeInfoItem({
   value: string;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-[#143675]/10 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-900/40">
+    <div className="min-w-0 rounded-xl border border-[#59C3A5]/10 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-900/40">
       <div className="flex items-center gap-2">
-        <span className="text-[#143675] dark:text-[#8bb3ff]">{icon}</span>
+        <span className="text-[#59C3A5] dark:text-[#8FE0CA]">{icon}</span>
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
       </div>
       <p className="mt-2 truncate text-sm font-semibold text-gray-900 dark:text-white" title={value}>{value}</p>
@@ -177,7 +177,7 @@ export function EmployeeHeaderCard({
   });
 
   return (
-    <div className="rounded-2xl border border-[#143675]/10 bg-[#fbfdff] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-800">
+    <div className="rounded-2xl border border-[#59C3A5]/10 bg-[#fbfdff] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-800">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="truncate text-xl font-semibold text-gray-900 dark:text-white">{selectedEmployee.user_name}</p>

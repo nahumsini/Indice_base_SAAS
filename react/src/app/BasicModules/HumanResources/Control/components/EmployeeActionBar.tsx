@@ -39,7 +39,7 @@ export function EmployeeActionBar({
   onError: (message: string) => void;
 }) {
   return (
-    <div className={embedded ? 'border-t border-[#143675]/10 pt-4 dark:border-gray-700' : 'rounded-2xl border border-[#143675]/10 bg-[#f7faff] p-3 dark:border-gray-800 dark:bg-gray-900/30'}>
+    <div className={embedded ? 'border-t border-[#59C3A5]/10 pt-4 dark:border-gray-700' : 'rounded-2xl border border-[#59C3A5]/10 bg-[#F4FCF9] p-3 dark:border-gray-800 dark:bg-gray-900/30'}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.sections.access}</p>
@@ -51,7 +51,7 @@ export function EmployeeActionBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-9 justify-center gap-2 rounded-xl border-[#143675]/25 bg-[#143675]/10 text-xs font-semibold text-[#143675] shadow-[0_1px_2px_rgba(20,54,117,0.08)] hover:border-[#143675]/45 hover:bg-[#143675]/15 hover:text-[#143675] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8bb3ff]/25 dark:bg-[#143675]/30 dark:text-[#8bb3ff] dark:hover:bg-[#143675]/40"
+          className="h-9 justify-center gap-2 rounded-xl border-[#59C3A5]/25 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.08)] hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/15 hover:text-[#59C3A5] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/40"
           disabled={assignLocationDisabled}
           title={assignLocationTitle}
           onClick={onAssignLocation}

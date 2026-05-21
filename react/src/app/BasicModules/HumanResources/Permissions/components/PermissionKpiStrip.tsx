@@ -11,7 +11,7 @@ interface PermissionKpiStripProps {
   visible: number;
 }
 
-function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
+function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
   icon: ReactNode;
   label: string;
   value: ReactNode;
@@ -19,7 +19,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
 }) {
   return (
     <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#143675] shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#59C3A5] shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {icon}
       </span>
       <span className={`text-base font-bold ${valueClassName}`}>{value}</span>
@@ -46,7 +46,7 @@ export function PermissionKpiStrip({ approved, copy, pending, rejected, total, v
         <Metric icon={<XCircle className="h-4 w-4" />} label={copy.kpis.rejected} value={rejected} valueClassName="text-rose-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
         <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visible} />
-        <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-[#143675] dark:bg-slate-800 dark:text-blue-100">
+        <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-[#59C3A5] dark:bg-slate-800 dark:text-blue-100">
           {copy.kpis.approvalRate(approvalRate)}
         </span>
       </div>
@@ -59,7 +59,7 @@ export function PermissionKpiStrip({ approved, copy, pending, rejected, total, v
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 text-sm font-medium text-[#143675] dark:border-[#4a7bc8]/25 dark:bg-[#143675]/15 dark:text-blue-100">
+      <div className="rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#59C3A5] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-blue-100">
         {copy.kpis.summary(approved, pending, rejected, visible, total)}
       </div>
     </div>

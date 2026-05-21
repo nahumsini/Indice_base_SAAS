@@ -26,10 +26,10 @@ export function PayrollSetupGuide({
   ] as const;
 
   return (
-    <section className="mb-6 rounded-2xl border border-[#143675]/20 bg-white p-6 shadow-sm dark:border-blue-300/25 dark:bg-slate-800">
+    <section className="mb-6 rounded-2xl border border-[#59C3A5]/20 bg-white p-6 shadow-sm dark:border-blue-300/25 dark:bg-slate-800">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-200">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-200">
             {copy.eyebrow}
           </p>
           <h3 className="mt-2 text-xl font-bold text-slate-950 dark:text-white">
@@ -45,7 +45,7 @@ export function PayrollSetupGuide({
             variant="outline"
             disabled={isBusy}
             onClick={onOpenPreferences}
-            className="h-11 gap-2 rounded-xl border-[#143675]/25 bg-white text-[#143675] hover:bg-[#143675]/5 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-300/30 dark:bg-slate-900 dark:text-blue-100"
+            className="h-11 gap-2 rounded-xl border-[#59C3A5]/25 bg-white text-[#59C3A5] hover:bg-[#59C3A5]/5 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-300/30 dark:bg-slate-900 dark:text-blue-100"
           >
             <Settings className="h-4 w-4" />
             {copy.configurePreferences}
@@ -57,7 +57,7 @@ export function PayrollSetupGuide({
         {setupModes.map((mode) => (
           <div key={mode.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#143675]/10 text-[#143675] dark:bg-blue-400/10 dark:text-blue-200">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-blue-400/10 dark:text-blue-200">
                 <mode.Icon className="h-5 w-5" />
               </span>
               <h4 className="text-base font-bold text-slate-950 dark:text-white">{mode.title}</h4>

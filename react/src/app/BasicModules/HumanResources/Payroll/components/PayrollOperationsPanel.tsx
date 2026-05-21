@@ -119,37 +119,37 @@ export function PayrollOperationsPanel({
       label: operations.metrics.payrollRuns,
       value: runs.length,
       Icon: ClipboardCheck,
-      valueClassName: 'text-[#143675]',
+      valueClassName: 'text-[#59C3A5]',
     },
     {
       label: operations.metrics.pendingReview,
       value: reviewCount + draftCount,
       Icon: FileClock,
-      valueClassName: reviewCount + draftCount > 0 ? 'text-amber-600' : 'text-[#143675]',
+      valueClassName: reviewCount + draftCount > 0 ? 'text-amber-600' : 'text-[#59C3A5]',
     },
     {
       label: operations.metrics.pendingPayment,
       value: approvedCount,
       Icon: CreditCard,
-      valueClassName: approvedCount > 0 ? 'text-indigo-600' : 'text-[#143675]',
+      valueClassName: approvedCount > 0 ? 'text-indigo-600' : 'text-[#59C3A5]',
     },
     {
       label: operations.metrics.blocked,
       value: blockedCount,
       Icon: AlertTriangle,
-      valueClassName: blockedCount > 0 ? 'text-rose-600' : 'text-[#143675]',
+      valueClassName: blockedCount > 0 ? 'text-rose-600' : 'text-[#59C3A5]',
     },
     {
       label: operations.metrics.processed,
       value: reviewCount,
       Icon: CheckCircle2,
-      valueClassName: 'text-[#143675]',
+      valueClassName: 'text-[#59C3A5]',
     },
     {
       label: operations.metrics.payoutTotal,
       value: formatMoney(payoutTotal),
       Icon: Wallet,
-      valueClassName: 'text-[#143675]',
+      valueClassName: 'text-[#59C3A5]',
     },
   ];
 
@@ -182,7 +182,7 @@ export function PayrollOperationsPanel({
               {approvedCount} {operations.badges.pendingPayment}
             </span>
           ) : null}
-          <span className="rounded-full border border-[#143675]/15 bg-[#143675]/5 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+          <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
             {paidRate} {operations.badges.paidRate}
           </span>
         </div>
@@ -216,10 +216,10 @@ export function PayrollOperationsPanel({
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 dark:border-blue-400/20 dark:bg-blue-400/10">
+      <div className="rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 dark:border-blue-400/20 dark:bg-blue-400/10">
         <div className="flex items-start gap-3">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#143675] dark:text-blue-300" />
-          <p className="text-sm leading-relaxed text-[#143675] dark:text-blue-200">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#59C3A5] dark:text-blue-300" />
+          <p className="text-sm leading-relaxed text-[#59C3A5] dark:text-blue-200">
             {insightMessage}
           </p>
         </div>

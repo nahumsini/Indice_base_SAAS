@@ -53,8 +53,8 @@ export function AttendanceDailyBoard({
   onScroll: (event: UIEvent<HTMLDivElement>) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-[22px] border border-[#143675]/10 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05),0_8px_24px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-800">
-      <div className="border-b border-[#143675]/10 px-5 py-5 dark:border-gray-800">
+    <section className="overflow-hidden rounded-[22px] border border-[#59C3A5]/10 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05),0_8px_24px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-800">
+      <div className="border-b border-[#59C3A5]/10 px-5 py-5 dark:border-gray-800">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{copy.labels.dailyAttendance}</h3>
@@ -71,7 +71,7 @@ export function AttendanceDailyBoard({
               type="date"
               value={controlDate}
               onChange={(event) => onDateChange(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
             />
           </div>
         </div>

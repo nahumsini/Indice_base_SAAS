@@ -416,6 +416,7 @@ export default function Users() {
 
   const getModuleColorClasses = (color: AvailableModule['color']) => {
     const styles: Record<AvailableModule['color'], string> = {
+      aqua: 'border-[#59C3A5]/35 bg-[#59C3A5]/10 dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/20',
       blue: 'border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20',
       yellow: 'border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20',
       orange: 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20',

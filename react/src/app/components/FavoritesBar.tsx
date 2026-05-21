@@ -30,6 +30,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
 
   const getButtonColorClasses = (color: string) => {
     const colorMap: Record<string, string> = {
+      aqua: 'bg-[#59C3A5]/10 text-[#257B68] border-[#59C3A5]/30 hover:bg-[#59C3A5]/20 dark:bg-[#59C3A5]/20 dark:text-[#8FE0CA] dark:border-[#59C3A5]/30 dark:hover:bg-[#59C3A5]/30',
       blue: 'bg-[rgb(85,141,189)]/10 text-[rgb(85,141,189)] border-[rgb(85,141,189)]/30 hover:bg-[rgb(85,141,189)]/20 dark:bg-[rgb(85,141,189)]/20 dark:text-[rgb(85,141,189)] dark:border-[rgb(85,141,189)]/30 dark:hover:bg-[rgb(85,141,189)]/30',
       yellow: 'bg-[rgb(255,214,80)]/10 text-[rgb(180,150,50)] border-[rgb(255,214,80)]/30 hover:bg-[rgb(255,214,80)]/20 dark:bg-[rgb(255,214,80)]/20 dark:text-[rgb(255,214,80)] dark:border-[rgb(255,214,80)]/30 dark:hover:bg-[rgb(255,214,80)]/30',
       green: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-900/40',

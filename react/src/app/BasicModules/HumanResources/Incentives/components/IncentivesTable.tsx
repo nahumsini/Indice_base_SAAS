@@ -51,7 +51,7 @@ export function IncentivesTable({
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={(event) => onToggleAll(event.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-[#143675] focus:ring-[#143675]"
+                  className="h-4 w-4 rounded border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                 />
               </th>
               {visibleColumnSet.has('incentive') ? <TableHeader label={copy.columns.incentive} /> : null}
@@ -77,7 +77,7 @@ export function IncentivesTable({
                       type="checkbox"
                       checked={selectedIds.includes(incentive.id)}
                       onChange={() => onToggleRow(incentive.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-[#143675] focus:ring-[#143675]"
+                      className="h-4 w-4 rounded border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                     />
                   </td>
                   {visibleColumnSet.has('incentive') ? (

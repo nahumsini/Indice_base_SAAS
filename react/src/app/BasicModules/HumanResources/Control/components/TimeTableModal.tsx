@@ -238,12 +238,12 @@ const printHtmlDocument = ({
       html, body { margin: 0; padding: 0; color: #0f172a; font-family: "Segoe UI", Tahoma, sans-serif; }
       body { padding: 14px; }
       h1, h2, p { margin: 0; }
-      .header { border-bottom: 3px solid #143675; margin-bottom: 14px; padding-bottom: 10px; }
-      .header h1 { color: #143675; font-size: 20px; margin-bottom: 4px; }
+      .header { border-bottom: 3px solid #59C3A5; margin-bottom: 14px; padding-bottom: 10px; }
+      .header h1 { color: #59C3A5; font-size: 20px; margin-bottom: 4px; }
       .meta { color: #475569; font-size: 12px; margin-top: 2px; }
       .metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
       .metric { border: 1px solid #dbe3ee; border-radius: 8px; padding: 8px; }
-      .metric-value { color: #143675; font-size: 18px; font-weight: 700; }
+      .metric-value { color: #59C3A5; font-size: 18px; font-weight: 700; }
       .metric-label { color: #475569; font-size: 11px; margin-top: 2px; }
       table { width: 100%; border-collapse: collapse; table-layout: auto; }
       th, td { border: 1px solid #dbe3ee; padding: 7px 8px; font-size: 11px; text-align: left; vertical-align: top; }
@@ -477,7 +477,7 @@ export function TimeTableModal({
         label: 'salidas registradas',
         title: 'Salidas registradas en el dia seleccionado.',
         value: dailyAttendanceSummary.checkOuts,
-        valueClassName: 'text-[#143675]',
+        valueClassName: 'text-[#59C3A5]',
       },
       {
         key: 'activeShifts',
@@ -485,7 +485,7 @@ export function TimeTableModal({
         label: 'turnos activos',
         title: 'Turnos activos configurados para el dia seleccionado.',
         value: dailyAttendanceSummary.activeShifts,
-        valueClassName: 'text-[#143675]',
+        valueClassName: 'text-[#59C3A5]',
       },
       {
         key: 'noRecords',
@@ -590,7 +590,7 @@ export function TimeTableModal({
           <DialogDescription>Review daily attendance by unit and business.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
               <CalendarDays className="h-5 w-5" />
@@ -661,7 +661,7 @@ export function TimeTableModal({
           />
         </div>
 
-        <div className="flex shrink-0 justify-end gap-3 bg-[#143675] px-6 py-3 dark:bg-[#143675]">
+        <div className="flex shrink-0 justify-end gap-3 bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5]">
           <Button
             type="button"
             variant="outline"
@@ -673,7 +673,7 @@ export function TimeTableModal({
           <Button
             type="button"
             onClick={handlePrintDailyAttendance}
-            className="gap-2 border-white bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+            className="gap-2 border-white bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
           >
             <Printer className="h-4 w-4" />
             Imprimir
@@ -725,7 +725,7 @@ function TimeTableFilters({
                 onDateChange(event.target.value);
               }
             }}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           />
         </label>
 
@@ -736,7 +736,7 @@ function TimeTableFilters({
           <select
             value={unitFilter}
             onChange={(event) => onUnitFilterChange(event.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">Todas</option>
             {unitOptions.map(([value, label]) => (
@@ -752,7 +752,7 @@ function TimeTableFilters({
           <select
             value={businessFilter}
             onChange={(event) => onBusinessFilterChange(event.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">Todos</option>
             {businessOptions.map(([value, label]) => (
@@ -789,7 +789,7 @@ function TimeTableKpiMetric({
   label,
   title,
   value,
-  valueClassName = 'text-[#143675]',
+  valueClassName = 'text-[#59C3A5]',
 }: {
   icon: ReactNode;
   label: string;
@@ -799,7 +799,7 @@ function TimeTableKpiMetric({
 }) {
   return (
     <div className="flex min-w-[145px] items-center gap-2" title={title}>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#143675]/10 text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff]">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA]">
         {icon}
       </span>
       <div className="min-w-0">
@@ -844,7 +844,7 @@ function OrganizationSummary({
             {totalEmployees} active HR user{totalEmployees === 1 ? '' : 's'} · {unitFilter ? selectedUnitLabel : 'All units'} · {businessFilter ? selectedBusinessLabel : 'All businesses'}
           </p>
         </div>
-        <span className="inline-flex w-fit rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff]">
+        <span className="inline-flex w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA]">
           {dateLabel}
         </span>
       </div>
@@ -857,7 +857,7 @@ function OrganizationSummary({
             onClick={() => onUnitFilterChange(group.unitId)}
             className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${
               unitFilter === group.unitId
-                ? 'border-[#143675] bg-[#143675]/5 shadow-sm dark:border-[#8bb3ff] dark:bg-[#8bb3ff]/10'
+                ? 'border-[#59C3A5] bg-[#59C3A5]/5 shadow-sm dark:border-[#8FE0CA] dark:bg-[#8FE0CA]/10'
                 : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950/40'
             }`}
           >
@@ -868,7 +868,7 @@ function OrganizationSummary({
                   {group.businessList.length} business{group.businessList.length === 1 ? '' : 'es'}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-[#143675] dark:bg-slate-800 dark:text-[#8bb3ff]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-slate-800 dark:text-[#8FE0CA]">
                 <Users className="h-3.5 w-3.5" />
                 {group.count}
               </span>

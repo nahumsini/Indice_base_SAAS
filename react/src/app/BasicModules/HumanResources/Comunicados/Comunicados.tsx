@@ -174,7 +174,7 @@ export default function Comunicados() {
         </div>
       ) : null}
 
-      <div className="mb-6 rounded-lg border border-[#143675]/20 bg-[#143675]/5 p-6 dark:border-[#143675]/30 dark:bg-[#143675]/10">
+      <div className="mb-6 rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-6 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
@@ -185,7 +185,7 @@ export default function Comunicados() {
               Publicaciones internas con persistencia, programación y segmentación real.
             </p>
           </div>
-          <Button className="bg-[#143675] text-white hover:bg-[#0f2855]" onClick={() => setIsModalOpen(true)}>
+          <Button className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]" onClick={() => setIsModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo comunicado
           </Button>
@@ -221,7 +221,7 @@ export default function Comunicados() {
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <p className="text-sm text-gray-500 dark:text-gray-400">Alcance base</p>
-            <p className="mt-2 text-3xl font-bold text-[#143675] dark:text-[#8bb3ff]">{employees.length}</p>
+            <p className="mt-2 text-3xl font-bold text-[#59C3A5] dark:text-[#8FE0CA]">{employees.length}</p>
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Colaboradores disponibles</p>
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function Comunicados() {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Título, autor o alcance"
-            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
           />
         </div>
       </div>

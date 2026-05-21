@@ -32,7 +32,7 @@ export function StepProgress({
       </div>
       <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
         <div
-          className="h-full rounded-full bg-[#143675] transition-all duration-300 ease-out dark:bg-blue-500"
+          className="h-full rounded-full bg-[#59C3A5] transition-all duration-300 ease-out dark:bg-blue-500"
           style={{ width: progressPercentage }}
         />
       </div>
@@ -51,17 +51,17 @@ export function StepProgress({
                 className={cn(
                   'flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all',
                   isActive
-                    ? 'border-[#143675]/40 bg-[#143675]/10 text-[#143675] shadow-sm dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300'
+                    ? 'border-[#59C3A5]/40 bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300'
                     : isCompleted
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
-                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-[#143675]/25 hover:bg-white hover:text-[#143675] dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400 dark:hover:border-blue-500/30 dark:hover:text-blue-300',
+                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-[#59C3A5]/25 hover:bg-white hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400 dark:hover:border-blue-500/30 dark:hover:text-blue-300',
                 )}
               >
                 <span
                   className={cn(
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold',
                     isActive
-                      ? 'bg-[#143675] text-white dark:bg-blue-500'
+                      ? 'bg-[#59C3A5] text-white dark:bg-blue-500'
                       : isCompleted
                         ? 'bg-emerald-600 text-white'
                         : 'border border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-500',

@@ -72,6 +72,7 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
 
   const getModuleColorClasses = (color: string) => {
     const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+      aqua: { bg: 'bg-[#59C3A5]/10 dark:bg-[#59C3A5]/20', text: 'text-[#257B68] dark:text-[#8FE0CA]', border: 'border-[#59C3A5]/30 dark:border-[#59C3A5]/35' },
       blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700' },
       yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700' },
       green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700' },
@@ -275,6 +276,7 @@ export function KPIConfiguration({
 
   const getModuleColorClasses = (color: string) => {
     const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+      aqua: { bg: 'bg-[#59C3A5]/10 dark:bg-[#59C3A5]/20', text: 'text-[#257B68] dark:text-[#8FE0CA]', border: 'border-[#59C3A5]/30 dark:border-[#59C3A5]/35' },
       blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700' },
       yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700' },
       green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700' },

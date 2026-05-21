@@ -34,7 +34,7 @@ export function KioskActionsMenu({
           type="button"
           variant="outline"
           size="icon"
-          className="h-10 w-10 rounded-lg border-slate-200 text-slate-600 hover:border-[#143675]/30 hover:bg-[#143675]/5 hover:text-[#143675] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-[#8bb3ff]/10 dark:hover:text-[#8bb3ff]"
+          className="h-10 w-10 rounded-lg border-slate-200 text-slate-600 hover:border-[#59C3A5]/30 hover:bg-[#59C3A5]/5 hover:text-[#59C3A5] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-[#8FE0CA]/10 dark:hover:text-[#8FE0CA]"
           aria-label="Open attendance point actions"
           title="Open attendance point actions"
         >

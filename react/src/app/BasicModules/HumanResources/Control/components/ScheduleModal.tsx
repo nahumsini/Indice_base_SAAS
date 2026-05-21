@@ -1393,7 +1393,7 @@ export function ScheduleModal({
 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
         <div className="my-8 flex max-h-[92vh] w-full max-w-[96rem] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
-          <div className="flex shrink-0 items-start justify-between gap-4 bg-[#143675] px-6 py-4 text-white">
+          <div className="flex shrink-0 items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
                 <Clock className="h-5 w-5" />
@@ -1502,7 +1502,7 @@ export function ScheduleModal({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col gap-3 bg-[#143675] px-6 py-3 text-white md:flex-row md:items-center md:justify-between">
+          <div className="flex shrink-0 flex-col gap-3 bg-[#59C3A5] px-6 py-3 text-white md:flex-row md:items-center md:justify-between">
             <ScheduleImpactSummary
               assignmentDateError={assignmentDateError}
               effectiveStartDate={assignmentEffectiveStartDate}
@@ -1522,7 +1522,7 @@ export function ScheduleModal({
               <Button
                 type="button"
                 onClick={() => void aplicarHorarios()}
-                className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+                className="gap-2 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
                 disabled={selectedEmployeeIds.length === 0 || isSubmitting || Boolean(assignmentDateError)}
                 title={
                   selectedEmployeeIds.length === 0
@@ -1567,7 +1567,7 @@ function SaveTemplateModal({
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
-        <div className="flex items-center justify-between gap-3 bg-[#143675] px-5 py-4 text-white">
+        <div className="flex items-center justify-between gap-3 bg-[#59C3A5] px-5 py-4 text-white">
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-white">Save schedule template</h3>
             <p className="mt-1 text-sm text-white/75">Name this schedule so you can reuse it later.</p>
@@ -1600,7 +1600,7 @@ function SaveTemplateModal({
                 }
               }}
               placeholder="Example: Office schedule"
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </label>
           {errorMessage ? (
@@ -1614,7 +1614,7 @@ function SaveTemplateModal({
           )}
         </div>
 
-        <div className="flex justify-end gap-3 bg-[#143675] px-5 py-3">
+        <div className="flex justify-end gap-3 bg-[#59C3A5] px-5 py-3">
           <Button
             type="button"
             variant="outline"
@@ -1628,7 +1628,7 @@ function SaveTemplateModal({
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+            className="gap-2 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
           >
             <Save className="h-4 w-4" />
             {isSaving ? 'Saving...' : 'Save template'}
@@ -1711,7 +1711,7 @@ function EmployeeSelectionTable({
               Existing schedules will be replaced from this date. Recorded attendance stays protected.
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 self-start rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff] sm:self-auto">
+          <span className="inline-flex shrink-0 items-center gap-1 self-start rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA] sm:self-auto">
             <UserCheck className="h-3.5 w-3.5" />
             {selectedEmployeeIds.length} selected
           </span>
@@ -1721,7 +1721,7 @@ function EmployeeSelectionTable({
           value={availabilityDate}
           min={todayDate}
           onChange={(event) => onAvailabilityDateChange(event.target.value)}
-          className="mt-4 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-56"
+          className="mt-4 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-56"
         />
       </section>
 
@@ -1759,7 +1759,7 @@ function EmployeeSelectionTable({
                 }
               }}
               placeholder="Filter by name or code"
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </div>
 
@@ -1767,7 +1767,7 @@ function EmployeeSelectionTable({
             aria-label="Filter by unit"
             value={unidadFilter}
             onChange={(event) => onUnitFilterChange(event.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">All units</option>
             {unitOptions.map(([value, label]) => (
@@ -1779,7 +1779,7 @@ function EmployeeSelectionTable({
             aria-label="Filter by business"
             value={negocioFilter}
             onChange={(event) => onBusinessFilterChange(event.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">All businesses</option>
             {businessOptions.map(([value, label]) => (
@@ -1791,7 +1791,7 @@ function EmployeeSelectionTable({
             type="button"
             variant="outline"
             onClick={onApplySearchFilters}
-            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#143675] shadow-sm hover:bg-blue-50 hover:text-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8bb3ff] dark:hover:bg-blue-950/20"
+            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#59C3A5] shadow-sm hover:bg-blue-50 hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8FE0CA] dark:hover:bg-blue-950/20"
           >
             <Search className="h-4 w-4" />
             Filter
@@ -2043,7 +2043,7 @@ function ScheduleBuilder({
 
   return (
     <section aria-labelledby="schedule-details-heading" className="flex min-h-full flex-col gap-5">
-      <div className="rounded-2xl border border-[#143675]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8bb3ff]/30 dark:bg-blue-950/20">
+      <div className="rounded-2xl border border-[#59C3A5]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8FE0CA]/30 dark:bg-blue-950/20">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 id="schedule-details-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
@@ -2053,7 +2053,7 @@ function ScheduleBuilder({
               Build the workforce rule in steps, then review exactly what will be applied.
             </p>
           </div>
-          <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#143675] shadow-sm dark:bg-slate-950 dark:text-[#8bb3ff]">
+          <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#59C3A5] shadow-sm dark:bg-slate-950 dark:text-[#8FE0CA]">
             {currentStepIndex + 1}/{scheduleBuilderSteps.length}
           </span>
         </div>
@@ -2148,7 +2148,7 @@ function ScheduleBuilder({
           type="button"
           onClick={goNext}
           disabled={!canGoNext}
-          className="rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+          className="rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
         >
           {canGoNext ? 'Continue' : 'Ready to save'}
         </Button>
@@ -2175,7 +2175,7 @@ function ScheduleWorkflowTabs({
             onClick={() => onStepChange(step.id)}
             className={`rounded-xl border px-3 py-2 text-left transition-colors ${
               isActive
-                ? 'border-[#143675] bg-white text-[#143675] shadow-sm dark:border-[#8bb3ff] dark:bg-slate-950 dark:text-[#8bb3ff]'
+                ? 'border-[#59C3A5] bg-white text-[#59C3A5] shadow-sm dark:border-[#8FE0CA] dark:bg-slate-950 dark:text-[#8FE0CA]'
                 : 'border-transparent bg-white/50 text-slate-600 hover:bg-white dark:bg-slate-900/30 dark:text-slate-300 dark:hover:bg-slate-900'
             }`}
           >
@@ -2243,7 +2243,7 @@ function ScheduleSetupStep({
             size="sm"
             onClick={onOpenSaveTemplateModal}
             disabled={isSubmitting}
-            className="gap-2 text-[#143675] hover:text-[#143675] dark:text-[#8bb3ff]"
+            className="gap-2 text-[#59C3A5] hover:text-[#59C3A5] dark:text-[#8FE0CA]"
           >
             <Save className="h-4 w-4" />
             Save as template
@@ -2277,13 +2277,13 @@ function ScheduleTypeSelector({
           onClick={() => onModeChange('Horario estricto')}
           className={`rounded-2xl border p-4 text-left transition-all ${
             !isHorarioAbierto
-              ? 'border-[#143675] bg-white ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+              ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
           }`}
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              !isHorarioAbierto ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              !isHorarioAbierto ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
               {!isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
@@ -2301,13 +2301,13 @@ function ScheduleTypeSelector({
           onClick={() => onModeChange('Horario abierto')}
           className={`rounded-2xl border p-4 text-left transition-all ${
             isHorarioAbierto
-              ? 'border-[#143675] bg-white ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+              ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
           }`}
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              isHorarioAbierto ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              isHorarioAbierto ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
               {isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
@@ -2351,7 +2351,7 @@ function ScheduleTemplateSelector({
           <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Reusable template</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use a saved workforce rule or continue with a custom setup.</p>
         </div>
-        <span className="inline-flex max-w-[14rem] shrink-0 truncate rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-blue-950/40 dark:text-[#8bb3ff]">
+        <span className="inline-flex max-w-[14rem] shrink-0 truncate rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-blue-950/40 dark:text-[#8FE0CA]">
           {selectedTemplateName}
         </span>
       </div>
@@ -2359,7 +2359,7 @@ function ScheduleTemplateSelector({
         value={selectedScheduleTemplateId ? String(selectedScheduleTemplateId) : ''}
         onChange={(event) => onScheduleTemplateChange(event.target.value)}
         disabled={isDeletingTemplate || isSubmitting}
-        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       >
         <option value="">Default schedule</option>
         {activeTemplates.map((template) => (
@@ -2460,7 +2460,7 @@ function WorkingGrid({
                         type="time"
                         value={horario.entrada}
                         onChange={(event) => onHorarioChange(index, 'entrada', event.target.value)}
-                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                       />
                     </label>
                     <span className="mt-6 text-sm font-semibold text-slate-400">to</span>
@@ -2470,7 +2470,7 @@ function WorkingGrid({
                         type="time"
                         value={horario.salida}
                         onChange={(event) => onHorarioChange(index, 'salida', event.target.value)}
-                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                       />
                     </label>
                   </div>
@@ -2540,7 +2540,7 @@ function BreakConfigurationCard({
                 min="0"
                 value={mealMinutes}
                 onChange={(event) => updateAllWorkingDays('comida', Number(event.target.value) || 0)}
-                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
               <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
             </div>
@@ -2565,7 +2565,7 @@ function BreakConfigurationCard({
                 min="0"
                 value={breakMinutes}
                 onChange={(event) => updateAllWorkingDays('descanso', Number(event.target.value) || 0)}
-                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
               <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
             </div>
@@ -2666,7 +2666,7 @@ function ScheduleReviewStep({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-[#143675]/20 bg-blue-50 p-4 text-[#143675] dark:border-[#8bb3ff]/30 dark:bg-blue-950/20 dark:text-blue-100">
+      <div className="rounded-2xl border border-[#59C3A5]/20 bg-blue-50 p-4 text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-blue-950/20 dark:text-blue-100">
         <p className="text-sm font-semibold">Schedule will apply</p>
         <p className="mt-2 text-lg font-semibold leading-7">{operationalSummary.compact}</p>
       </div>
@@ -2748,7 +2748,7 @@ function LocationRuleSelector({
       <div className="mb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Location</p>
         <h3 className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-white">
-          <MapPin className="h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
+          <MapPin className="h-4 w-4 text-[#59C3A5] dark:text-[#8FE0CA]" />
           Check-in location rule
         </h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -2766,13 +2766,13 @@ function LocationRuleSelector({
               onClick={() => onLocationRuleChange(option.value)}
               className={`rounded-2xl border p-4 text-left transition-all ${
                 isSelected
-                  ? 'border-[#143675] bg-blue-50 ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+                  ? 'border-[#59C3A5] bg-blue-50 ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
                   : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50'
               }`}
             >
               <div className="flex items-start gap-3">
                 <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                  isSelected ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+                  isSelected ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
                 }`}
                 >
                   {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
@@ -2796,7 +2796,7 @@ function LocationRuleSelector({
             value={ubicacionSeleccionada}
             onChange={(event) => onUbicacionSeleccionadaChange(event.target.value)}
             disabled={exactLocationOptions.length === 0}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">{exactLocationOptions.length === 0 ? 'No active locations available' : 'Select location'}</option>
             {exactLocationOptions.map((location) => (
@@ -2866,7 +2866,7 @@ function ScheduleImpactSummary({
   return (
     <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
       <div className="flex items-start gap-3">
-        <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-[#8bb3ff]" />
+        <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-[#8FE0CA]" />
         <div>
           <p className="font-semibold">{selectedEmployeeCount} HR user{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
           <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{assignmentDateError || startMessage}</p>

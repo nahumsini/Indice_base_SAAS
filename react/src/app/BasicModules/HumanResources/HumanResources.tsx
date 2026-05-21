@@ -118,7 +118,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
                 onClick={() => handleTabClick(tab.id as HumanResourcesTabId)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-md'
+                    ? 'bg-[#59C3A5] text-white shadow-md shadow-[#59C3A5]/20'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >

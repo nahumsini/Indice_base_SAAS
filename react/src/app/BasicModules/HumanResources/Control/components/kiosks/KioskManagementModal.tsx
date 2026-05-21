@@ -201,7 +201,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
         hideCloseButton
         className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
       >
-        <div className="shrink-0 bg-[#143675] px-6 py-4 text-white">
+        <div className="shrink-0 bg-[#59C3A5] px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15">
@@ -235,7 +235,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
             </div>
             <Button
               type="button"
-              className="h-10 gap-2 rounded-lg bg-[#143675] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#0f2855] hover:shadow-md"
+              className="h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#3AAE90] hover:shadow-md"
               onClick={onNew}
             >
               <Plus className="h-4 w-4" />
@@ -257,7 +257,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Needs review</p>
             </div>
             <div>
-              <p className="text-2xl font-semibold text-[#143675] dark:text-[#8bb3ff]">{publicLinkDevices}</p>
+              <p className="text-2xl font-semibold text-[#59C3A5] dark:text-[#8FE0CA]">{publicLinkDevices}</p>
               <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Access screens ready</p>
             </div>
           </div>
@@ -291,7 +291,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
             </div>
           ) : (
             <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900/40">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-[#143675]/10 text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
                 <MonitorSmartphone className="h-6 w-6" />
               </div>
               <p className="mt-4 text-base font-semibold text-slate-950 dark:text-white">No attendance points yet</p>
@@ -300,7 +300,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               </p>
               <Button
                 type="button"
-                className="mt-5 h-10 gap-2 rounded-lg bg-[#143675] px-4 text-white hover:bg-[#0f2855]"
+                className="mt-5 h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white hover:bg-[#3AAE90]"
                 onClick={onNew}
               >
                 <Plus className="h-4 w-4" />
@@ -310,11 +310,11 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
           )}
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-[#0f2855] bg-[#143675] px-6 py-4">
+        <DialogFooter className="shrink-0 border-t border-[#3AAE90] bg-[#59C3A5] px-6 py-4">
           <Button
             type="button"
             variant="outline"
-            className="rounded-lg border-white/30 bg-white text-[#143675] hover:bg-white/90 hover:text-[#143675]"
+            className="rounded-lg border-white/30 bg-white text-[#59C3A5] hover:bg-white/90 hover:text-[#59C3A5]"
             onClick={onClose}
           >
             Close

@@ -501,7 +501,7 @@ const normalizeScheduleTemplatePayload = (payload: AttendanceControlTemplatePayl
     })),
   });
 
-const hrAccentButtonClass = 'bg-[#143675] text-white hover:bg-[#0f2855]';
+const hrAccentButtonClass = 'bg-[#59C3A5] text-white hover:bg-[#3AAE90]';
 
 const employeeStatusOrder: Record<EmployeeStatus, number> = {
   active: 1,
@@ -656,13 +656,13 @@ function InlineTableSelect({
 
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className="h-10 min-w-[190px] max-w-[320px] rounded-full border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-800 shadow-none transition hover:border-[#143675]/40 hover:bg-[#143675]/5 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-blue-300/50 dark:hover:bg-blue-950/30">
+      <SelectTrigger className="h-10 min-w-[190px] max-w-[320px] rounded-full border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-800 shadow-none transition hover:border-[#59C3A5]/40 hover:bg-[#59C3A5]/5 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-blue-300/50 dark:hover:bg-blue-950/30">
         <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
           <span className="min-w-0 truncate">
             {selectedOption?.label ?? placeholder}
           </span>
           {selectedOption?.badge ? (
-            <span className="shrink-0 rounded-full bg-[#143675]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#143675] dark:bg-blue-300/10 dark:text-blue-200">
+            <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#59C3A5] dark:bg-blue-300/10 dark:text-blue-200">
               {selectedOption.badge}
             </span>
           ) : null}
@@ -675,7 +675,7 @@ function InlineTableSelect({
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-semibold">{option.label}</span>
                 {option.badge ? (
-                  <span className="shrink-0 rounded-full bg-[#143675]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#143675] dark:bg-blue-300/10 dark:text-blue-200">
+                  <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#59C3A5] dark:bg-blue-300/10 dark:text-blue-200">
                     {option.badge}
                   </span>
                 ) : null}
@@ -2137,7 +2137,7 @@ export default function Employees() {
       case 'employee':
         return (
           <div className="flex min-w-[250px] items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#143675]/10 text-sm font-bold text-[#143675] dark:bg-[#143675]/30 dark:text-blue-200">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#59C3A5]/10 text-sm font-bold text-[#59C3A5] dark:bg-[#59C3A5]/30 dark:text-blue-200">
               {getEmployeeInitials(employee)}
             </div>
             <div className="min-w-0">
@@ -2341,7 +2341,7 @@ export default function Employees() {
         </div>
       ) : null}
 
-      <section className="mb-5 rounded-lg border border-[#143675]/30 bg-[#143675]/10 p-6 shadow-sm dark:border-[#143675]/40 dark:bg-[#143675]/15">
+      <section className="mb-5 rounded-lg border border-[#59C3A5]/30 bg-[#59C3A5]/10 p-6 shadow-sm dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -2354,7 +2354,7 @@ export default function Employees() {
             <Button
               variant="outline"
               onClick={() => setIsColumnsModalOpen(true)}
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-4 text-[#143675] shadow-none hover:bg-[#143675] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-4 text-[#59C3A5] shadow-none hover:bg-[#59C3A5] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
               <Columns3 className="h-4 w-4" />
               {copy.configureColumns}
@@ -2451,7 +2451,7 @@ export default function Employees() {
                     <ArrowUpDown
                       className={cn(
                         'h-4 w-4',
-                        sortState.columnId === column.id ? 'text-[#143675] dark:text-blue-300' : 'text-slate-400',
+                        sortState.columnId === column.id ? 'text-[#59C3A5] dark:text-blue-300' : 'text-slate-400',
                       )}
                     />
                   </button>

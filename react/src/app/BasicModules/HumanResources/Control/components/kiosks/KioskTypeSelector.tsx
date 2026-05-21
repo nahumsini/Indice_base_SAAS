@@ -48,10 +48,10 @@ export function KioskTypeSelector({ value, onChange }: KioskTypeSelectorProps) {
           <button
             key={optionValue}
             type="button"
-            className={`rounded-lg border px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#143675]/30 ${
+            className={`rounded-lg border px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/30 ${
               isSelected
-                ? 'border-[#143675] bg-[#143675]/10 text-[#143675] shadow-sm dark:border-[#8bb3ff] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-[#143675]/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-[#8bb3ff]/40'
+                ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-[#8FE0CA] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5]/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-[#8FE0CA]/40'
             }`}
             aria-pressed={isSelected}
             onClick={() => onChange(optionValue)}
@@ -59,7 +59,7 @@ export function KioskTypeSelector({ value, onChange }: KioskTypeSelectorProps) {
             <span className="flex items-center gap-2 text-sm font-semibold">
               <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                 isSelected
-                  ? 'bg-[#143675] text-white dark:bg-[#8bb3ff] dark:text-slate-950'
+                  ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
                   : 'bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300'
               }`}
               >

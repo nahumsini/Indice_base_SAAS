@@ -45,8 +45,8 @@ export interface CreateKioskModalProps {
 
 const emptyLocationMessage = 'No active locations available for this attendance point type. Create a location first.';
 
-const selectClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition focus:border-[#143675] focus:outline-none focus:ring-2 focus:ring-[#143675]/15 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900';
-const inputClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-[#143675] focus:outline-none focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+const selectClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition focus:border-[#59C3A5] focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/15 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900';
+const inputClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-[#59C3A5] focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 const referenceFromTitle = (value: string) => {
   const slug = value
     .trim()
@@ -99,7 +99,7 @@ export function CreateKioskModal({
         hideCloseButton
         className="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-3xl"
       >
-        <div className="bg-[#143675] px-6 py-4 text-white">
+        <div className="bg-[#59C3A5] px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-xl font-semibold text-white">{modalTitle}</DialogTitle>
@@ -269,7 +269,7 @@ export function CreateKioskModal({
                 </div>
               )}
 
-              <div className="mt-4 rounded-lg bg-[#143675]/5 px-3 py-3 text-sm font-medium text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+              <div className="mt-4 rounded-lg bg-[#59C3A5]/5 px-3 py-3 text-sm font-medium text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em]">This attendance point will be available for</p>
                 <p className="mt-1">{selectedScopeLabel}</p>
               </div>
@@ -290,7 +290,7 @@ export function CreateKioskModal({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-[#0f2855] bg-[#143675] px-6 py-4">
+        <DialogFooter className="border-t border-[#3AAE90] bg-[#59C3A5] px-6 py-4">
           <Button
             type="button"
             variant="outline"
@@ -301,7 +301,7 @@ export function CreateKioskModal({
           </Button>
           <Button
             type="button"
-            className="rounded-lg bg-white text-[#143675] hover:bg-white/90"
+            className="rounded-lg bg-white text-[#59C3A5] hover:bg-white/90"
             disabled={!canSave}
             onClick={onSave}
           >

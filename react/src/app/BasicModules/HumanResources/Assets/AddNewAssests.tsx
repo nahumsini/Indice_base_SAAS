@@ -178,8 +178,8 @@ export function AddNewAssests({
           className={cn(
             'border-b px-6 py-5 text-left',
             isDarkMode
-              ? 'border-gray-700 bg-[linear-gradient(135deg,rgba(20,54,117,0.18)_0%,rgba(37,24,130,0.22)_100%)]'
-              : 'border-gray-200 bg-[linear-gradient(135deg,#f7faff_0%,#eef3ff_100%)]',
+              ? 'border-gray-700 bg-[linear-gradient(135deg,rgba(89,195,165,0.18)_0%,rgba(37,24,130,0.22)_100%)]'
+              : 'border-gray-200 bg-[linear-gradient(135deg,#F4FCF9_0%,#eef3ff_100%)]',
           )}
         >
           <DialogTitle className={cn('flex items-center gap-2 text-2xl font-semibold', isDarkMode ? 'text-white' : 'text-gray-900')}>

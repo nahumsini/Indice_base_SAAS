@@ -218,7 +218,7 @@ export function ControlContractSiteDialog({
               type="text"
               value={form.name}
               onChange={(event) => onChange({ ...form, name: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
 
@@ -227,7 +227,7 @@ export function ControlContractSiteDialog({
             <select
               value={form.status}
               onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="active">{copy.statuses.active}</option>
               <option value="inactive">{copy.statuses.inactive}</option>
@@ -242,7 +242,7 @@ export function ControlContractSiteDialog({
                 step="0.000001"
                 value={form.latitude}
                 onChange={(event) => onChange({ ...form, latitude: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -252,7 +252,7 @@ export function ControlContractSiteDialog({
                 step="0.000001"
                 value={form.longitude}
                 onChange={(event) => onChange({ ...form, longitude: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
@@ -264,7 +264,7 @@ export function ControlContractSiteDialog({
                 type="date"
                 value={form.contract_start_date}
                 onChange={(event) => onChange({ ...form, contract_start_date: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -274,7 +274,7 @@ export function ControlContractSiteDialog({
                 value={form.contract_end_date}
                 min={form.contract_start_date}
                 onChange={(event) => onChange({ ...form, contract_end_date: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
@@ -287,7 +287,7 @@ export function ControlContractSiteDialog({
                 min="1"
                 value={form.radius_meters}
                 onChange={(event) => onChange({ ...form, radius_meters: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
 	            </div>
 	            <div>
@@ -299,7 +299,7 @@ export function ControlContractSiteDialog({
                 step="0.25"
                 value={form.required_hours_per_day}
                 onChange={(event) => onChange({ ...form, required_hours_per_day: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
 	            </div>
 	            <div>
@@ -308,7 +308,7 @@ export function ControlContractSiteDialog({
 	                type="time"
 	                value={timeToInput(form.required_start_time) || '08:00'}
 	                onChange={(event) => onChange(withContractSiteTime(form, 'required_start_time', event.target.value))}
-	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 	              />
 	            </div>
 	            <div>
@@ -317,7 +317,7 @@ export function ControlContractSiteDialog({
 	                type="time"
 	                value={timeToInput(form.required_end_time) || '16:00'}
 	                onChange={(event) => onChange(withContractSiteTime(form, 'required_end_time', event.target.value))}
-	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 	              />
 	            </div>
           </div>
@@ -369,7 +369,7 @@ export function ControlTemplateDialog({
                 type="text"
                 value={form.name}
                 onChange={(event) => onChange({ ...form, name: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -377,7 +377,7 @@ export function ControlTemplateDialog({
               <select
                 value={form.status}
                 onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
                 <option value="active">{copy.statuses.active}</option>
                 <option value="inactive">{copy.statuses.inactive}</option>
@@ -429,7 +429,7 @@ export function ControlTemplateDialog({
                         );
                         onChange({ ...form, days: nextDays });
                       }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
@@ -444,7 +444,7 @@ export function ControlTemplateDialog({
                         );
                         onChange({ ...form, days: nextDays });
                       }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
@@ -459,7 +459,7 @@ export function ControlTemplateDialog({
                         );
                         onChange({ ...form, days: nextDays });
                       }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                 </div>
@@ -528,7 +528,7 @@ export function ControlAssignmentDialog({
             <select
               value={form.template_id}
               onChange={(event) => onChange({ ...form, template_id: Number(event.target.value) })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="0">--</option>
               {templates.map((template) => (
@@ -556,7 +556,7 @@ export function ControlAssignmentDialog({
                       : nextStartDate,
                   });
                 }}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -566,7 +566,7 @@ export function ControlAssignmentDialog({
                 value={form.effective_end_date ?? ''}
                 min={form.effective_start_date || todayDate}
                 onChange={(event) => onChange({ ...form, effective_end_date: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
@@ -723,7 +723,7 @@ export function ControlWorkSiteDialog({
                   effective_end_date: nextDates.endDate,
                 });
               }}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               <option value="">{copy.labels.selectContractSite}</option>
               {activeLocations.map((location) => (
@@ -757,7 +757,7 @@ export function ControlWorkSiteDialog({
                   effective_end_date: maximumEndDate && nextEndDate > maximumEndDate ? maximumEndDate : nextEndDate,
                 });
               }}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
           <div>
@@ -768,7 +768,7 @@ export function ControlWorkSiteDialog({
               min={form.effective_start_date || minimumStartDate}
               max={maximumEndDate}
               onChange={(event) => onChange({ ...form, effective_end_date: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
           {dateValidationMessage ? (
@@ -786,7 +786,7 @@ export function ControlWorkSiteDialog({
               type="time"
               value={form.start_time}
               onChange={(event) => onChange({ ...form, start_time: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
           <div>
@@ -795,10 +795,10 @@ export function ControlWorkSiteDialog({
               type="time"
               value={form.end_time}
               onChange={(event) => onChange({ ...form, end_time: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
-          <div className="rounded-lg bg-[#143675]/5 px-3 py-2 text-xs text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff] sm:col-span-2">
+          <div className="rounded-lg bg-[#59C3A5]/5 px-3 py-2 text-xs text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA] sm:col-span-2">
             End date is the last day this shift starts. Use the same start and end date for a one-day shift.
           </div>
           {invalidTimeRange ? (

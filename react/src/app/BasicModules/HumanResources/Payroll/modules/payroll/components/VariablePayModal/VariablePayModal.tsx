@@ -217,7 +217,7 @@ export function VariablePayModal({
                     </span>
                 </div>
                 <div className="min-w-[120px] text-right">
-                    <p className="text-sm font-bold text-[#143675] dark:text-blue-300">${money(item.amount)}</p>
+                    <p className="text-sm font-bold text-[#59C3A5] dark:text-blue-300">${money(item.amount)}</p>
                 </div>
             </div>
 
@@ -248,7 +248,7 @@ export function VariablePayModal({
                 }
             }}>
                 <DialogContent className="z-[140] flex h-[min(88vh,860px)] max-w-[980px] flex-col gap-0 overflow-hidden p-0">
-                    <DialogHeader className="border-b border-[#0f2855] bg-[#143675] px-5 py-4">
+                    <DialogHeader className="border-b border-[#3AAE90] bg-[#59C3A5] px-5 py-4">
                         <DialogTitle className="text-lg font-semibold text-white">
                             {copy.title}
                         </DialogTitle>
@@ -265,7 +265,7 @@ export function VariablePayModal({
 
                             <TabsContent value="bonuses" className="space-y-3">
                                 <div className="flex justify-end">
-                                    <Button type="button" size="sm" className="h-8 bg-[#143675] px-2 text-white hover:bg-[#0f2855]" onClick={() => setAddMode('bonus')}>
+                                    <Button type="button" size="sm" className="h-8 bg-[#59C3A5] px-2 text-white hover:bg-[#3AAE90]" onClick={() => setAddMode('bonus')}>
                                         <Plus className="mr-1 h-3.5 w-3.5" />
                                         {copy.actions.addBonus}
                                     </Button>
@@ -282,7 +282,7 @@ export function VariablePayModal({
 
                             <TabsContent value="commissions" className="space-y-3">
                                 <div className="flex justify-end">
-                                    <Button type="button" size="sm" className="h-8 bg-[#143675] px-2 text-white hover:bg-[#0f2855]" onClick={() => setAddMode('commission')}>
+                                    <Button type="button" size="sm" className="h-8 bg-[#59C3A5] px-2 text-white hover:bg-[#3AAE90]" onClick={() => setAddMode('commission')}>
                                         <Plus className="mr-1 h-3.5 w-3.5" />
                                         {copy.actions.addCommission}
                                     </Button>
@@ -302,7 +302,7 @@ export function VariablePayModal({
                                     <Button
                                         type="button"
                                         size="sm"
-                                        className="h-8 bg-[#143675] px-2 text-white hover:bg-[#0f2855]"
+                                        className="h-8 bg-[#59C3A5] px-2 text-white hover:bg-[#3AAE90]"
                                         onClick={() => {
                                             setAdjustmentDraft(defaultAdjustmentDraft);
                                             setAddMode('adjustment');
@@ -323,7 +323,7 @@ export function VariablePayModal({
 
                     <DialogFooter className="border-t border-slate-200 px-5 py-4 dark:border-slate-700">
                         <Button type="button" variant="outline" onClick={onClose}>{copy.actions.cancel}</Button>
-                        <Button type="button" onClick={() => onSave(localItems)} className="bg-[#143675] text-white hover:bg-[#0f2855]">{copy.actions.saveChanges}</Button>
+                        <Button type="button" onClick={() => onSave(localItems)} className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]">{copy.actions.saveChanges}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -341,7 +341,7 @@ export function VariablePayModal({
                                 key={template.id}
                                 type="button"
                                 onClick={() => applyBonusTemplate(template)}
-                                className={`w-full rounded-xl border p-3 text-left ${selectedBonusTemplateId === template.id ? 'border-[#143675] bg-[#143675]/5' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/60'}`}
+                                className={`w-full rounded-xl border p-3 text-left ${selectedBonusTemplateId === template.id ? 'border-[#59C3A5] bg-[#59C3A5]/5' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/60'}`}
                             >
                                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{template.name}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">{template.description}</p>
@@ -350,7 +350,7 @@ export function VariablePayModal({
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
-                        <Button type="button" onClick={addBonus} className="bg-[#143675] text-white hover:bg-[#0f2855]">{copy.actions.addSelectedBonus}</Button>
+                        <Button type="button" onClick={addBonus} className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]">{copy.actions.addSelectedBonus}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -368,7 +368,7 @@ export function VariablePayModal({
                                 key={template.id}
                                 type="button"
                                 onClick={() => applyCommissionTemplate(template)}
-                                className={`w-full rounded-xl border p-3 text-left ${selectedCommissionTemplateId === template.id ? 'border-[#143675] bg-[#143675]/5' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/60'}`}
+                                className={`w-full rounded-xl border p-3 text-left ${selectedCommissionTemplateId === template.id ? 'border-[#59C3A5] bg-[#59C3A5]/5' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/60'}`}
                             >
                                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{template.name}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">{template.description}</p>
@@ -380,7 +380,7 @@ export function VariablePayModal({
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
-                        <Button type="button" onClick={addCommission} className="bg-[#143675] text-white hover:bg-[#0f2855]">{copy.actions.addSelectedCommission}</Button>
+                        <Button type="button" onClick={addCommission} className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]">{copy.actions.addSelectedCommission}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -400,7 +400,7 @@ export function VariablePayModal({
                             <button
                                 type="button"
                                 onClick={() => setAdjustmentDraft((current) => ({ ...current, kind: 'earning' }))}
-                                className={`h-9 rounded-md border px-3 text-left text-sm font-medium ${adjustmentDraft.kind === 'earning' ? 'border-[#143675] bg-[#143675]/5 text-[#143675]' : 'border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-200'}`}
+                                className={`h-9 rounded-md border px-3 text-left text-sm font-medium ${adjustmentDraft.kind === 'earning' ? 'border-[#59C3A5] bg-[#59C3A5]/5 text-[#59C3A5]' : 'border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-200'}`}
                             >
                                 {copy.labels.perception}
                             </button>
@@ -469,7 +469,7 @@ export function VariablePayModal({
                             type="button"
                             onClick={addAdjustment}
                             disabled={!adjustmentDraft.reason.trim()}
-                            className="bg-[#143675] text-white hover:bg-[#0f2855] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="bg-[#59C3A5] text-white hover:bg-[#3AAE90] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {copy.actions.addAdjustment}
                         </Button>

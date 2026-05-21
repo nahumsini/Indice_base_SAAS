@@ -1083,7 +1083,7 @@ export function ContractSiteRegistrationModal({
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
         <div className="flex max-h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
-          <div className="flex shrink-0 items-center justify-between bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+          <div className="flex shrink-0 items-center justify-between bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
                 <MapPin className="h-5 w-5 text-white" />
@@ -1112,8 +1112,8 @@ export function ContractSiteRegistrationModal({
               </div>
             ) : null}
 
-          <div className="rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-            <p className="text-sm text-[#143675] dark:text-blue-200">
+          <div className="rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+            <p className="text-sm text-[#59C3A5] dark:text-blue-200">
               Crea ubicaciones temporales para registrar asistencia fuera de la oficina. Puedes inactivarlas sin borrar historial.
             </p>
           </div>
@@ -1139,7 +1139,7 @@ export function ContractSiteRegistrationModal({
                     Te guiamos paso a paso para evitar errores de configuración.
                   </p>
                 </div>
-                <div className="inline-flex rounded-full border border-[#143675]/15 bg-[#143675]/5 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+                <div className="inline-flex rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
                   Paso {currentWizardStepIndex + 1} de {contractSiteWizardSteps.length}
                 </div>
               </div>
@@ -1155,15 +1155,15 @@ export function ContractSiteRegistrationModal({
                       onClick={() => setWizardStep(step.id)}
                       className={`flex min-h-[76px] items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
                         isCurrent
-                          ? 'border-[#143675] bg-[#143675]/10 text-[#143675] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-[#143675]/30 hover:bg-[#143675]/5 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                          ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-[#59C3A5]/30 hover:bg-[#59C3A5]/5 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
                       }`}
                     >
                       <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         isCompleted
                           ? 'bg-emerald-500 text-white'
                           : isCurrent
-                            ? 'bg-[#143675] text-white'
+                            ? 'bg-[#59C3A5] text-white'
                             : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
                       }`}>
                         {isCompleted ? <Check className="h-4 w-4" /> : index + 1}
@@ -1181,10 +1181,10 @@ export function ContractSiteRegistrationModal({
             <div className="p-5">
               {wizardStep === 'basic' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Información básica</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">Información básica</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                         Define dónde pertenece esta ubicación y por cuánto tiempo estará activa.
                       </p>
@@ -1198,7 +1198,7 @@ export function ContractSiteRegistrationModal({
                         value={selectedUnitId}
                         onChange={(event) => setSelectedUnitId(event.target.value)}
                         disabled={isLoadingScopeOptions}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
                       >
                         <option value="">{isLoadingScopeOptions ? 'Cargando unidades...' : 'Selecciona una unidad'}</option>
                         {units.map((unit) => (
@@ -1212,7 +1212,7 @@ export function ContractSiteRegistrationModal({
                         value={selectedBusinessId}
                         onChange={(event) => setSelectedBusinessId(event.target.value)}
                         disabled={isLoadingScopeOptions || !selectedUnitId}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
                       >
                         <option value="">
                           {!selectedUnitId
@@ -1236,7 +1236,7 @@ export function ContractSiteRegistrationModal({
                       value={nombre}
                       onChange={(event) => setNombre(event.target.value)}
                       placeholder="Ej. Obra Plaza Centro"
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     />
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                       Usa un nombre fácil de reconocer para supervisores y colaboradores.
@@ -1256,7 +1256,7 @@ export function ContractSiteRegistrationModal({
                             setContractEndDate(nextStartDate);
                           }
                         }}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
@@ -1266,7 +1266,7 @@ export function ContractSiteRegistrationModal({
                         value={contractEndDate}
                         min={contractStartDate}
                         onChange={(event) => setContractEndDate(event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
@@ -1275,7 +1275,7 @@ export function ContractSiteRegistrationModal({
                         type="text"
                         value={contractDaysForForm ? formatContractDays(contractStartDate, contractEndDate) : 'Rango inválido'}
                         readOnly
-                        className="w-full rounded-lg border border-gray-300 bg-slate-50 px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-slate-50 px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                   </div>
@@ -1290,10 +1290,10 @@ export function ContractSiteRegistrationModal({
 
               {wizardStep === 'location' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Ubicación</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">Ubicación</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                         Pega un enlace de Google Maps o usa tu ubicación actual. Las coordenadas técnicas quedan ocultas.
                       </p>
@@ -1308,7 +1308,7 @@ export function ContractSiteRegistrationModal({
                         value={enlaceGoogleMaps}
                         onChange={(event) => setEnlaceGoogleMaps(event.target.value)}
                         placeholder="Pega aquí el enlace de Google Maps"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         Recomendado: copiar enlace desde Google Maps para evitar errores manuales.
@@ -1339,7 +1339,7 @@ export function ContractSiteRegistrationModal({
                           value={radio}
                           onChange={(event) => setRadio(event.target.value)}
                           min="1"
-                          className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                         <span className="text-sm text-slate-500 dark:text-slate-400">m</span>
                       </div>
@@ -1351,7 +1351,7 @@ export function ContractSiteRegistrationModal({
                       step="10"
                       value={Number.isFinite(parsedRadiusForForm) ? Math.min(Math.max(parsedRadiusForForm, 20), 500) : 80}
                       onChange={(event) => setRadio(event.target.value)}
-                      className="mt-4 w-full accent-[#143675]"
+                      className="mt-4 w-full accent-[#59C3A5]"
                     />
                   </div>
 
@@ -1368,7 +1368,7 @@ export function ContractSiteRegistrationModal({
                   <button
                     type="button"
                     onClick={() => setShowAdvancedLocationFields((current) => !current)}
-                    className="text-sm font-semibold text-[#143675] hover:underline dark:text-blue-300"
+                    className="text-sm font-semibold text-[#59C3A5] hover:underline dark:text-blue-300"
                   >
                     {showAdvancedLocationFields ? 'Ocultar opciones avanzadas' : 'Mostrar opciones avanzadas'}
                   </button>
@@ -1382,7 +1382,7 @@ export function ContractSiteRegistrationModal({
                           value={latitud}
                           onChange={(event) => setLatitud(event.target.value)}
                           placeholder="21.1619"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                       <div>
@@ -1392,7 +1392,7 @@ export function ContractSiteRegistrationModal({
                           value={longitud}
                           onChange={(event) => setLongitud(event.target.value)}
                           placeholder="-86.8515"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                       <div>
@@ -1402,7 +1402,7 @@ export function ContractSiteRegistrationModal({
                           value={altitud}
                           onChange={(event) => setAltitud(event.target.value)}
                           placeholder="metros sobre nivel del mar"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                     </div>
@@ -1412,10 +1412,10 @@ export function ContractSiteRegistrationModal({
 
               {wizardStep === 'schedule' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Horario esperado</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">Horario esperado</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                         Define la jornada que se usará como referencia para la asistencia en esta ubicación.
                       </p>
@@ -1433,7 +1433,7 @@ export function ContractSiteRegistrationModal({
                         max="24"
                         step="0.25"
                         placeholder="8"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
@@ -1442,7 +1442,7 @@ export function ContractSiteRegistrationModal({
                         type="time"
                         value={requiredStartTime}
                         onChange={(event) => setRequiredStartTime(event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
@@ -1451,7 +1451,7 @@ export function ContractSiteRegistrationModal({
                         type="time"
                         value={requiredEndTime}
                         onChange={(event) => setRequiredEndTime(event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                   </div>
@@ -1465,10 +1465,10 @@ export function ContractSiteRegistrationModal({
 
               {wizardStep === 'review' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Revisión final</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">Revisión final</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                         Confirma que la ubicación sea clara antes de agregarla a la lista.
                       </p>
@@ -1512,7 +1512,7 @@ export function ContractSiteRegistrationModal({
                       <select
                         value={contractStatus}
                         onChange={(event) => setContractStatus(event.target.value as 'active' | 'inactive')}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white md:w-44"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white md:w-44"
                       >
                         <option value="active">Activa</option>
                         <option value="inactive">Inactiva</option>
@@ -1542,12 +1542,12 @@ export function ContractSiteRegistrationModal({
                   </Button>
                 ) : null}
                 {wizardStep === 'review' ? (
-                  <Button onClick={handleAgregar} type="button" className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]" disabled={!hasCompleteFormInput}>
+                  <Button onClick={handleAgregar} type="button" className="gap-2 bg-[#59C3A5] text-white hover:bg-[#3AAE90]" disabled={!hasCompleteFormInput}>
                     <Check className="h-4 w-4" />
                     {editingLocationId ? 'Actualizar ubicación' : 'Agregar ubicación'}
                   </Button>
                 ) : (
-                  <Button onClick={goToNextWizardStep} type="button" className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]" disabled={!canContinueWizard}>
+                  <Button onClick={goToNextWizardStep} type="button" className="gap-2 bg-[#59C3A5] text-white hover:bg-[#3AAE90]" disabled={!canContinueWizard}>
                     Continuar
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -1566,8 +1566,8 @@ export function ContractSiteRegistrationModal({
 	                      Consulta, edita o inactiva ubicaciones sin mezclarlo con el alta guiada.
 	                    </p>
 	                  </div>
-	                  <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#143675]/20 bg-[#143675]/5 px-3 py-2 dark:border-[#8bb3ff]/20 dark:bg-[#8bb3ff]/10">
-	                    <span className="text-xs font-semibold uppercase tracking-wide text-[#143675] dark:text-[#8bb3ff]">Fecha mostrada</span>
+	                  <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/5 px-3 py-2 dark:border-[#8FE0CA]/20 dark:bg-[#8FE0CA]/10">
+	                    <span className="text-xs font-semibold uppercase tracking-wide text-[#59C3A5] dark:text-[#8FE0CA]">Fecha mostrada</span>
 	                    <span className="text-sm font-semibold text-gray-950 dark:text-white">{formatDateLabel(controlDate)}</span>
 	                    <span className="rounded-md bg-white px-2 py-1 font-mono text-xs text-gray-600 shadow-sm dark:bg-gray-900 dark:text-gray-300">
 	                      {controlDate}
@@ -1734,7 +1734,7 @@ export function ContractSiteRegistrationModal({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end bg-[#143675] px-6 py-3 dark:bg-[#143675]">
+        <div className="flex shrink-0 items-center justify-end bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5]">
           <div className="flex items-center gap-3">
             <Button
               onClick={onClose}
@@ -1746,7 +1746,7 @@ export function ContractSiteRegistrationModal({
             </Button>
             <Button
               onClick={() => void handleGuardar()}
-              className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675] disabled:bg-white/45 disabled:text-[#143675]/60"
+              className="gap-2 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5] disabled:bg-white/45 disabled:text-[#59C3A5]/60"
               disabled={(!hasChanges && !hasCompleteFormInput) || isSaving}
             >
               Guardar
@@ -1758,7 +1758,7 @@ export function ContractSiteRegistrationModal({
       {selectedContractSite ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
-            <div className="flex shrink-0 items-start justify-between bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+            <div className="flex shrink-0 items-start justify-between bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
               <div className="min-w-0">
                 <h3 className="truncate text-lg font-semibold text-white">Detalle de ubicación temporal</h3>
                 <p className="mt-1 text-sm text-white/80">
@@ -1896,12 +1896,12 @@ export function ContractSiteRegistrationModal({
 	              </div>
             </div>
 
-            <div className="flex shrink-0 justify-end bg-[#143675] px-6 py-3 dark:bg-[#143675]">
+            <div className="flex shrink-0 justify-end bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5]">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setSelectedContractSiteId(null)}
-                className="border-white/25 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+                className="border-white/25 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
               >
                 Cerrar
               </Button>

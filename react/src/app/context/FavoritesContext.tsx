@@ -4,7 +4,7 @@ export interface Module {
   id: string;
   emoji: string;
   title: string;
-  color: 'blue' | 'yellow' | 'green' | 'red' | 'purple' | 'gold' | 'gray';
+  color: 'aqua' | 'blue' | 'yellow' | 'green' | 'red' | 'purple' | 'gold' | 'gray';
   route?: string;
 }
 

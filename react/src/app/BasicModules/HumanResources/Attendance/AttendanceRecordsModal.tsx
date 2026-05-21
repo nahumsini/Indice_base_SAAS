@@ -55,7 +55,7 @@ export function AttendanceRecordsModal({
           <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
               <CalendarDays className="h-5 w-5" />
@@ -97,12 +97,12 @@ export function AttendanceRecordsModal({
           )}
         </div>
 
-        <div className="flex shrink-0 justify-end bg-[#143675] px-6 py-3 dark:bg-[#143675]">
+        <div className="flex shrink-0 justify-end bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5]">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-white/25 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+            className="border-white/25 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
           >
             {closeLabel}
           </Button>

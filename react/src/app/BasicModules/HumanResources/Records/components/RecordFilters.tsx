@@ -30,7 +30,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
               value={filters.search}
               onChange={(event) => updateFilter('search', event.target.value)}
               placeholder={copy.filters.searchPlaceholder}
-              className="h-11 w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </div>
         </div>
@@ -42,7 +42,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
           <select
             value={filters.unit}
             onChange={(event) => updateFilter('unit', event.target.value)}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             <option value="all">{copy.filters.allUnits}</option>
             {unitOptions.map((unit) => (
@@ -58,7 +58,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
           <select
             value={filters.business}
             onChange={(event) => updateFilter('business', event.target.value)}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             <option value="all">{copy.filters.allBusinesses}</option>
             {businessOptions.map((business) => (
@@ -74,7 +74,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
           <select
             value={filters.status}
             onChange={(event) => updateFilter('status', event.target.value as RecordFiltersState['status'])}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             <option value="all">{copy.filters.allStatuses}</option>
             <option value="pending">{copy.status.pending}</option>
@@ -90,7 +90,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
           <select
             value={filters.type}
             onChange={(event) => updateFilter('type', event.target.value as RecordFiltersState['type'])}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             <option value="all">{copy.filters.allTypes}</option>
             <option value="incident">{copy.types.incident}</option>
@@ -108,7 +108,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
           <select
             value={filters.severity}
             onChange={(event) => updateFilter('severity', event.target.value as RecordFiltersState['severity'])}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             <option value="all">{copy.filters.allSeverity}</option>
             <option value="low">{copy.severity.low}</option>
@@ -125,7 +125,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
             type="date"
             value={filters.dateFrom || ''}
             onChange={(event) => updateFilter('dateFrom', event.target.value)}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
         </div>
 
@@ -137,7 +137,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
             type="date"
             value={filters.dateTo || ''}
             onChange={(event) => updateFilter('dateTo', event.target.value)}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
         </div>
       </div>

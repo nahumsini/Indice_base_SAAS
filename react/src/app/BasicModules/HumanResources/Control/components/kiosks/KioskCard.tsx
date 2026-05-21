@@ -41,11 +41,11 @@ export function KioskCard({
   onShowQr,
 }: KioskCardProps) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#143675]/30 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#59C3A5]/30 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#143675]/10 text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
               <MapPin className="h-5 w-5" />
             </span>
             <div className="min-w-0">
@@ -64,7 +64,7 @@ export function KioskCard({
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                <Building2 className="h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
+                <Building2 className="h-4 w-4 text-[#59C3A5] dark:text-[#8FE0CA]" />
                 Available for
               </div>
               <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{scopeDescription}</p>
@@ -73,7 +73,7 @@ export function KioskCard({
 
             <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                <MapPin className="h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
+                <MapPin className="h-4 w-4 text-[#59C3A5] dark:text-[#8FE0CA]" />
                 Check-in rule
               </div>
               <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{locationRuleDescription}</p>
@@ -89,7 +89,7 @@ export function KioskCard({
               <Radio className="h-3.5 w-3.5" />
               {usageLabel}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#143675]/10 px-3 py-1.5 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#59C3A5]/10 px-3 py-1.5 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
               <ShieldCheck className="h-3.5 w-3.5" />
               Attendance point
             </span>
@@ -99,7 +99,7 @@ export function KioskCard({
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
           <Button
             type="button"
-            className="h-10 gap-2 rounded-lg bg-[#143675] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#0f2855] hover:shadow-md disabled:hover:translate-y-0 disabled:hover:shadow-sm"
+            className="h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#3AAE90] hover:shadow-md disabled:hover:translate-y-0 disabled:hover:shadow-sm"
             disabled={!hasPublicLink}
             onClick={onOpen}
           >
