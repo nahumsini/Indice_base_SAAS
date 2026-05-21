@@ -45,6 +45,7 @@ interface HorarioDiaDraft {
   isRestDay: boolean;
 }
 
+type ScheduleMode = 'strict' | 'open';
 type ScheduleLocationRule = 'business' | 'temporary' | 'open';
 type ScheduleBuilderStep = 'setup' | 'workdays' | 'rules' | 'review';
 
@@ -123,8 +124,7 @@ const emptyScheduleDays = (): HorarioDiaDraft[] =>
 const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
 
 const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
-  const modoHorario: 'Horario estricto' | 'Horario abierto' =
-    template?.schedule_mode === 'open' ? 'Horario abierto' : 'Horario estricto';
+  const scheduleMode: ScheduleMode = template?.schedule_mode === 'open' ? 'open' : 'strict';
   const locationRule: ScheduleLocationRule = template?.enforce_location
     ? 'temporary'
     : template?.schedule_mode === 'open'
@@ -145,7 +145,7 @@ const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
   });
 
   return {
-    modoHorario,
+    scheduleMode,
     locationRule,
     toleranciaIngreso,
     noPermitirFueraUbicacion: Boolean(template?.enforce_location),
@@ -381,7 +381,7 @@ export function ScheduleModal({
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
   const [deletedTemplateIds, setDeletedTemplateIds] = useState<number[]>([]);
-  const [modoHorario, setModoHorario] = useState<'Horario estricto' | 'Horario abierto'>('Horario estricto');
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('strict');
   const [toleranciaIngreso, setToleranciaIngreso] = useState(10);
   const [locationRule, setLocationRule] = useState<ScheduleLocationRule>('business');
   const [noPermitirFueraUbicacion, setNoPermitirFueraUbicacion] = useState(false);
@@ -448,7 +448,7 @@ export function ScheduleModal({
     setCurrentPage(1);
     setSelectedTemplateName(initialTemplate?.name ?? defaultScheduleTemplateName);
     setSelectedScheduleTemplateId(initialTemplate?.id ?? null);
-    setModoHorario(templateDraft.modoHorario);
+    setScheduleMode(templateDraft.scheduleMode);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
     setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
@@ -858,7 +858,7 @@ export function ScheduleModal({
     copy: copy.schedule,
     effectiveStartDate: assignmentEffectiveStartDate,
     horarios,
-    isOpenSchedule: modoHorario === 'Horario abierto',
+    isOpenSchedule: scheduleMode === 'open',
     locationRule,
     selectedEmployeeCount: selectedEmployeeIds.length,
     selectedTemplateName,
@@ -868,7 +868,7 @@ export function ScheduleModal({
     copy,
     horarios,
     locationRule,
-    modoHorario,
+    scheduleMode,
     selectedEmployeeIds.length,
     selectedTemplateName,
     toleranciaIngreso,
@@ -895,7 +895,7 @@ export function ScheduleModal({
     );
   }
 
-  const isHorarioAbierto = modoHorario === 'Horario abierto';
+  const isOpenSchedule = scheduleMode === 'open';
 
   const rememberSelectedAssignments = (assignments: AttendanceControlAssignment[]) => {
     if (assignments.length === 0) {
@@ -983,18 +983,18 @@ export function ScheduleModal({
     setLocationRule(nextRule);
     setNoPermitirFueraUbicacion(useExactLocation);
     if (nextRule === 'open') {
-      setModoHorario('Horario abierto');
-    } else if (modoHorario === 'Horario abierto') {
-      setModoHorario('Horario estricto');
+      setScheduleMode('open');
+    } else if (scheduleMode === 'open') {
+      setScheduleMode('strict');
     }
     if (!useExactLocation) {
       setUbicacionSeleccionada('');
     }
   };
 
-  const handleScheduleModeChange = (value: 'Horario estricto' | 'Horario abierto') => {
-    setModoHorario(value);
-    if (value === 'Horario abierto') {
+  const handleScheduleModeChange = (value: ScheduleMode) => {
+    setScheduleMode(value);
+    if (value === 'open') {
       setLocationRule('open');
       setNoPermitirFueraUbicacion(false);
       setUbicacionSeleccionada('');
@@ -1121,7 +1121,7 @@ export function ScheduleModal({
     const templateDraft = draftFromTemplate(null);
     setSelectedTemplateName(defaultScheduleTemplateName);
     setSelectedScheduleTemplateId(null);
-    setModoHorario(templateDraft.modoHorario);
+    setScheduleMode(templateDraft.scheduleMode);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
     setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
@@ -1143,7 +1143,7 @@ export function ScheduleModal({
     const templateDraft = draftFromTemplate(template);
     setSelectedScheduleTemplateId(template?.id ?? null);
     setSelectedTemplateName(template?.name ?? defaultScheduleTemplateName);
-    setModoHorario(templateDraft.modoHorario);
+    setScheduleMode(templateDraft.scheduleMode);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
     setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
@@ -1157,7 +1157,7 @@ export function ScheduleModal({
 
   const buildTemplatePayload = (templateName = selectedTemplateName.trim() || defaultScheduleTemplateName): AttendanceControlTemplatePayload | null => {
     const usesExactLocation = locationRule === 'temporary';
-    const usesOpenRegistration = locationRule === 'open' || isHorarioAbierto;
+    const usesOpenRegistration = locationRule === 'open' || isOpenSchedule;
 
     if (usesExactLocation && !ubicacionSeleccionada) {
       const message = copy.schedule.errors.selectAllowedLocation;
@@ -1493,7 +1493,7 @@ export function ScheduleModal({
                     effectiveStartDate={assignmentEffectiveStartDate}
                     horarios={horarios}
                     isDeletingTemplate={isDeletingTemplate}
-                    isHorarioAbierto={isHorarioAbierto}
+                    isOpenSchedule={isOpenSchedule}
                     isSubmitting={isSubmitting}
                     locationRule={locationRule}
                     locationScopeFallbackMessage={locationScopeFallbackMessage}
@@ -1993,7 +1993,7 @@ function ScheduleBuilder({
   effectiveStartDate,
   horarios,
   isDeletingTemplate,
-  isHorarioAbierto,
+  isOpenSchedule,
   isSubmitting,
   locationRule,
   locationScopeFallbackMessage,
@@ -2027,7 +2027,7 @@ function ScheduleBuilder({
   effectiveStartDate: string;
   horarios: HorarioDiaDraft[];
   isDeletingTemplate: boolean;
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   isSubmitting: boolean;
   locationRule: ScheduleLocationRule;
   locationScopeFallbackMessage: string;
@@ -2044,7 +2044,7 @@ function ScheduleBuilder({
   onDeleteSelectedTemplate: () => void;
   onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
   onLocationRuleChange: (value: string) => void;
-  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  onModeChange: (value: ScheduleMode) => void;
   onOpenSaveTemplateModal: () => void;
   onStepChange: (step: ScheduleBuilderStep) => void;
   onResetSchedule: () => void;
@@ -2096,7 +2096,7 @@ function ScheduleBuilder({
           activeTemplates={activeTemplates}
           copy={copy}
           isDeletingTemplate={isDeletingTemplate}
-          isHorarioAbierto={isHorarioAbierto}
+          isOpenSchedule={isOpenSchedule}
           isSubmitting={isSubmitting}
           selectedScheduleTemplateId={selectedScheduleTemplateId}
           selectedTemplateName={selectedTemplateName}
@@ -2113,7 +2113,7 @@ function ScheduleBuilder({
           <WorkingGrid
             copy={copy}
             horarios={horarios}
-            isHorarioAbierto={isHorarioAbierto}
+            isOpenSchedule={isOpenSchedule}
             onCopyMondayToAllDays={onCopyMondayToAllDays}
             onHorarioChange={onHorarioChange}
             onWorkingDayChange={onWorkingDayChange}
@@ -2128,7 +2128,7 @@ function ScheduleBuilder({
 
       {activeStep === 'rules' ? (
         <section className="space-y-4">
-          {!isHorarioAbierto ? (
+          {!isOpenSchedule ? (
             <AttendanceRulesCard
               copy={copy}
               toleranciaIngreso={toleranciaIngreso}
@@ -2158,7 +2158,7 @@ function ScheduleBuilder({
           copy={copy}
           effectiveStartDate={effectiveStartDate}
           horarios={horarios}
-          isHorarioAbierto={isHorarioAbierto}
+          isOpenSchedule={isOpenSchedule}
           locationRule={locationRule}
           operationalSummary={operationalSummary}
           selectedEmployeeCount={selectedEmployeeCount}
@@ -2232,7 +2232,7 @@ function ScheduleSetupStep({
   activeTemplates,
   copy,
   isDeletingTemplate,
-  isHorarioAbierto,
+  isOpenSchedule,
   isSubmitting,
   selectedScheduleTemplateId,
   selectedTemplateName,
@@ -2245,12 +2245,12 @@ function ScheduleSetupStep({
   activeTemplates: AttendanceControlTemplate[];
   copy: ControlTranslations;
   isDeletingTemplate: boolean;
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   isSubmitting: boolean;
   selectedScheduleTemplateId: number | null;
   selectedTemplateName: string;
   onDeleteSelectedTemplate: () => void;
-  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  onModeChange: (value: ScheduleMode) => void;
   onOpenSaveTemplateModal: () => void;
   onResetSchedule: () => void;
   onScheduleTemplateChange: (value: string) => void;
@@ -2296,7 +2296,7 @@ function ScheduleSetupStep({
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <ScheduleTypeSelector
           copy={copy}
-          isHorarioAbierto={isHorarioAbierto}
+          isOpenSchedule={isOpenSchedule}
           onModeChange={onModeChange}
         />
       </div>
@@ -2306,12 +2306,12 @@ function ScheduleSetupStep({
 
 function ScheduleTypeSelector({
   copy,
-  isHorarioAbierto,
+  isOpenSchedule,
   onModeChange,
 }: {
   copy: ControlTranslations;
-  isHorarioAbierto: boolean;
-  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  isOpenSchedule: boolean;
+  onModeChange: (value: ScheduleMode) => void;
 }) {
   return (
     <div>
@@ -2319,19 +2319,19 @@ function ScheduleTypeSelector({
       <div className="grid gap-3 md:grid-cols-2">
         <button
           type="button"
-          onClick={() => onModeChange('Horario estricto')}
+          onClick={() => onModeChange('strict')}
           className={`rounded-2xl border p-4 text-left transition-all ${
-            !isHorarioAbierto
+            !isOpenSchedule
               ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
           }`}
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              !isHorarioAbierto ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              !isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
-              {!isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+              {!isOpenSchedule ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
             </span>
             <div>
               <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.strictTitle}</p>
@@ -2343,19 +2343,19 @@ function ScheduleTypeSelector({
         </button>
         <button
           type="button"
-          onClick={() => onModeChange('Horario abierto')}
+          onClick={() => onModeChange('open')}
           className={`rounded-2xl border p-4 text-left transition-all ${
-            isHorarioAbierto
+            isOpenSchedule
               ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
           }`}
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              isHorarioAbierto ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
-              {isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+              {isOpenSchedule ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
             </span>
             <div>
               <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.openTitle}</p>
@@ -2438,14 +2438,14 @@ function ScheduleTemplateSelector({
 function WorkingGrid({
   copy,
   horarios,
-  isHorarioAbierto,
+  isOpenSchedule,
   onCopyMondayToAllDays,
   onHorarioChange,
   onWorkingDayChange,
 }: {
   copy: ControlTranslations;
   horarios: HorarioDiaDraft[];
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   onCopyMondayToAllDays: () => void;
   onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
   onWorkingDayChange: (index: number, isWorkingDay: boolean) => void;
@@ -2501,7 +2501,7 @@ function WorkingGrid({
                   </span>
                 </label>
 
-                {!isHorarioAbierto && isWorkingDay ? (
+                {!isOpenSchedule && isWorkingDay ? (
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:w-64">
                     <label>
                       <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.start}</span>
@@ -2525,7 +2525,7 @@ function WorkingGrid({
                   </div>
                 ) : null}
 
-                {isHorarioAbierto && isWorkingDay ? (
+                {isOpenSchedule && isWorkingDay ? (
                   <p className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-slate-950 dark:text-emerald-200">
                     {copy.schedule.workdays.openAccessDay}
                   </p>
@@ -2684,7 +2684,7 @@ function ScheduleReviewStep({
   copy,
   effectiveStartDate,
   horarios,
-  isHorarioAbierto,
+  isOpenSchedule,
   locationRule,
   operationalSummary,
   selectedEmployeeCount,
@@ -2694,7 +2694,7 @@ function ScheduleReviewStep({
   copy: ControlTranslations;
   effectiveStartDate: string;
   horarios: HorarioDiaDraft[];
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   locationRule: ScheduleLocationRule;
   operationalSummary: OperationalScheduleSummary;
   selectedEmployeeCount: number;
@@ -2743,7 +2743,7 @@ function ScheduleReviewStep({
 
       <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
         {copy.schedule.summary.existingSchedulesProtected(formatEffectiveDate(effectiveStartDate))}
-        {isHorarioAbierto ? ` ${copy.schedule.summary.openScheduleNote}` : ` ${copy.schedule.summary.strictScheduleNote(toleranciaIngreso)}`}
+        {isOpenSchedule ? ` ${copy.schedule.summary.openScheduleNote}` : ` ${copy.schedule.summary.strictScheduleNote(toleranciaIngreso)}`}
         {selectedTemplateName && selectedTemplateName !== defaultScheduleTemplateName ? ` ${copy.schedule.summary.templateNote(selectedTemplateName)}` : ''}
         {locationRule === 'open' ? ` ${copy.schedule.summary.noExactLocationNote}` : ''}
       </p>
