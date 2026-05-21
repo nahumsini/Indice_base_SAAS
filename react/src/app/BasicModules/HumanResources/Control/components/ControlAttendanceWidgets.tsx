@@ -449,7 +449,12 @@ export function ControlCalendarDayCell({
       <div className="flex items-start justify-between gap-2">
         <span className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</span>
         {hasCorrection ? (
-          <span className="rounded-full bg-[#59C3A5] px-1.5 py-0.5 text-[10px] font-semibold text-white">M</span>
+          <span
+            className="rounded-full bg-[#59C3A5] px-1.5 py-0.5 text-[10px] font-semibold text-white"
+            title={copy.labels.correction}
+          >
+            {copy.labels.manualCorrectionBadge}
+          </span>
         ) : null}
       </div>
       {day ? (

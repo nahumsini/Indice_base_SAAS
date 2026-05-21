@@ -259,7 +259,7 @@ export function ControlContractSiteDialog({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Contract start date</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.basic.contractStart}</label>
               <input
                 type="date"
                 value={form.contract_start_date}
@@ -268,7 +268,7 @@ export function ControlContractSiteDialog({
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Contract end date</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.basic.contractEnd}</label>
               <input
                 type="date"
                 value={form.contract_end_date}
@@ -291,7 +291,7 @@ export function ControlContractSiteDialog({
               />
 	            </div>
 	            <div>
-	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Working hours</label>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.hoursPerDay}</label>
 	              <input
                 type="number"
                 min="0.25"
@@ -303,7 +303,7 @@ export function ControlContractSiteDialog({
               />
 	            </div>
 	            <div>
-	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Preferred start</label>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.startTime}</label>
 	              <input
 	                type="time"
 	                value={timeToInput(form.required_start_time) || '08:00'}
@@ -312,7 +312,7 @@ export function ControlContractSiteDialog({
 	              />
 	            </div>
 	            <div>
-	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Preferred end</label>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.endTime}</label>
 	              <input
 	                type="time"
 	                value={timeToInput(form.required_end_time) || '16:00'}
@@ -740,7 +740,7 @@ export function ControlWorkSiteDialog({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start date</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.effectiveStart}</label>
             <input
               type="date"
               value={form.effective_start_date}
@@ -761,7 +761,7 @@ export function ControlWorkSiteDialog({
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End date</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.effectiveEnd}</label>
             <input
               type="date"
               value={form.effective_end_date}
@@ -778,10 +778,10 @@ export function ControlWorkSiteDialog({
           ) : null}
 
           <div className="sm:col-span-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Assigned hours</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.assignedHours}</p>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start time</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.startTime}</label>
             <input
               type="time"
               value={form.start_time}
@@ -790,7 +790,7 @@ export function ControlWorkSiteDialog({
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End time</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.endTime}</label>
             <input
               type="time"
               value={form.end_time}
@@ -799,16 +799,16 @@ export function ControlWorkSiteDialog({
             />
           </div>
           <div className="rounded-lg bg-[#59C3A5]/5 px-3 py-2 text-xs text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA] sm:col-span-2">
-            End date is the last day this shift starts. Use the same start and end date for a one-day shift.
+            {copy.labels.workSiteDateHint}
           </div>
           {invalidTimeRange ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
-              End time cannot equal start time.
+              {copy.labels.endTimeCannotEqualStartTime}
             </div>
           ) : null}
           {isOvernightShift ? (
             <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-200 sm:col-span-2">
-              Overnight shift: the shift starts on the selected date and ends the next day.
+              {copy.labels.overnightShiftHint}
             </div>
           ) : null}
         </div>
