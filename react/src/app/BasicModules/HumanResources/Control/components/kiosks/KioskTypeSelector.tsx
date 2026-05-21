@@ -1,45 +1,49 @@
 import { Building2, Globe2, MapPin, Warehouse, type LucideIcon } from 'lucide-react';
+import type { ControlTranslations } from '../../translations';
 
 export type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
 
 export interface KioskTypeSelectorProps {
+  copy: ControlTranslations;
   value: KioskType;
   onChange: (value: KioskType) => void;
 }
 
-const kioskTypeOptions: Array<{
-  value: KioskType;
-  label: string;
-  description: string;
-  Icon: LucideIcon;
-}> = [
-  {
-    value: 'business_unit',
-    label: 'Business or unit',
-    description: 'For fixed attendance at a store, branch, warehouse, restaurant, or operational unit.',
-    Icon: Building2,
-  },
-  {
-    value: 'contract_site',
-    label: 'Temporary work site',
-    description: 'For construction, events, external work, or short-term teams.',
-    Icon: MapPin,
-  },
-  {
-    value: 'head_office',
-    label: 'Main office',
-    description: 'For central office attendance registration.',
-    Icon: Warehouse,
-  },
-  {
-    value: 'open_attendance',
-    label: 'Open attendance',
-    description: 'For teams that can clock in and out from any location.',
-    Icon: Globe2,
-  },
-];
+const kioskTypeIcons: Record<KioskType, LucideIcon> = {
+  business_unit: Building2,
+  contract_site: MapPin,
+  head_office: Warehouse,
+  open_attendance: Globe2,
+};
 
-export function KioskTypeSelector({ value, onChange }: KioskTypeSelectorProps) {
+export function KioskTypeSelector({ copy, value, onChange }: KioskTypeSelectorProps) {
+  const kioskTypeOptions = [
+    {
+      value: 'business_unit' as const,
+      label: copy.kiosk.types.businessUnit.label,
+      description: copy.kiosk.types.businessUnit.description,
+      Icon: kioskTypeIcons.business_unit,
+    },
+    {
+      value: 'contract_site' as const,
+      label: copy.kiosk.types.contractSite.label,
+      description: copy.kiosk.types.contractSite.description,
+      Icon: kioskTypeIcons.contract_site,
+    },
+    {
+      value: 'head_office' as const,
+      label: copy.kiosk.types.headOffice.label,
+      description: copy.kiosk.types.headOffice.description,
+      Icon: kioskTypeIcons.head_office,
+    },
+    {
+      value: 'open_attendance' as const,
+      label: copy.kiosk.types.openAttendance.label,
+      description: copy.kiosk.types.openAttendance.description,
+      Icon: kioskTypeIcons.open_attendance,
+    },
+  ];
+
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {kioskTypeOptions.map(({ value: optionValue, label, description, Icon }) => {

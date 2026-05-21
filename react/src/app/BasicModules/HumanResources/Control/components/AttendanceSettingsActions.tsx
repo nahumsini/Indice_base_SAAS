@@ -45,7 +45,7 @@ export function AttendanceSettingsActions({
           </Button>
           <Button className={primaryActionButtonClassName} onClick={onOpenKiosks}>
             <ShieldCheck className="h-4 w-4" />
-            Attendance Points
+            {copy.kiosk.management.title}
           </Button>
         </div>
       </div>

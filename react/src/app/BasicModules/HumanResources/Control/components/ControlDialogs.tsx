@@ -888,7 +888,7 @@ export function ControlKioskDialog({
   const selectedBusiness = businessOptions.find((business) => business.id === form.business_id) ?? null;
   const selectedScopeLabel = (() => {
     if (kioskType === 'open_attendance') {
-      return 'All employees / location not enforced';
+      return copy.kiosk.form.allEmployeesNoLocationScope;
     }
     if (kioskType === 'business_unit') {
       if (form.business_id) {
@@ -991,6 +991,7 @@ export function ControlKioskDialog({
   return (
     <CreateKioskModal
       canSave={canSave}
+      copy={copy}
       form={form}
       isBusinessUnitKiosk={isBusinessUnitKiosk}
       isOpenAttendanceKiosk={isOpenAttendanceKiosk}

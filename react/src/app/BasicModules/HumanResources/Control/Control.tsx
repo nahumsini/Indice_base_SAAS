@@ -1605,7 +1605,7 @@ export default function Control() {
         }
 
         setIsKioskDialogOpen(false);
-        showSuccessToast('Attendance point saved successfully.');
+        showSuccessToast(copy.labels.kioskSaved);
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1623,7 +1623,7 @@ export default function Control() {
   const handleOpenKiosk = (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      showFailureToast('This attendance point does not have an access link yet.');
+      showFailureToast(copy.kiosk.card.noAccessLink);
       return;
     }
 
@@ -1640,13 +1640,13 @@ export default function Control() {
   const handleCopyKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      showFailureToast('This attendance point does not have an access link yet.');
+      showFailureToast(copy.kiosk.card.noAccessLink);
       return;
     }
 
     try {
       await navigator.clipboard.writeText(kioskLink);
-      showSuccessToast('Access link copied.');
+      showSuccessToast(copy.labels.kioskLinkCopied);
     } catch {
       showFailureToast(copy.saveError);
     }
@@ -1655,7 +1655,7 @@ export default function Control() {
   const handleRotateKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const targetDevice = device ?? selectedKioskDevice;
     if (!targetDevice) {
-      showFailureToast('This attendance point does not have an access link yet.');
+      showFailureToast(copy.kiosk.card.noAccessLink);
       return;
     }
 
@@ -1670,7 +1670,7 @@ export default function Control() {
           device.id === response.kiosk_device.id ? response.kiosk_device : device
         )));
         setSelectedKioskDeviceId(response.kiosk_device.id);
-        showSuccessToast('Access link reset successfully.');
+        showSuccessToast(copy.labels.kioskLinkRotated);
         setIsKioskQrDialogOpen(false);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1694,7 +1694,7 @@ export default function Control() {
         await humanResourcesApi.deleteAttendanceKioskDevice(kioskDeviceToDelete.id);
         setIsKioskQrDialogOpen(false);
         setKioskDeviceToDelete(null);
-        showSuccessToast('Attendance point deleted successfully.');
+        showSuccessToast(copy.labels.kioskDeleted);
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
