@@ -22,15 +22,17 @@ export const statusClasses: Record<string, string> = {
 
 type ControlAssignment = AttendanceControlOverviewResponse['assignments'][number];
 
+const assignmentBusyReasonFallback = '__assignment_busy__';
+
 export function getAssignmentBusyReason(assignment: ControlAssignment, copy?: AttendanceControlCopy) {
   if (assignment.first_check_in_at || assignment.last_check_out_at) {
-    return copy?.labels.assignmentBusyAttendanceRecorded ?? 'Attendance already recorded for this date';
+    return copy?.labels.assignmentBusyAttendanceRecorded ?? assignmentBusyReasonFallback;
   }
   if (assignment.active_work_site) {
-    return copy?.labels.assignmentBusyContractSiteAssigned ?? 'Contract site already assigned';
+    return copy?.labels.assignmentBusyContractSiteAssigned ?? assignmentBusyReasonFallback;
   }
   if (assignment.schedule_template_id) {
-    return copy?.labels.assignmentBusyScheduleAssigned ?? 'Schedule already assigned';
+    return copy?.labels.assignmentBusyScheduleAssigned ?? assignmentBusyReasonFallback;
   }
   return '';
 }
