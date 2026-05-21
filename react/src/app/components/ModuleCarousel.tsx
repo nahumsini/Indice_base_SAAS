@@ -1,4 +1,4 @@
-import { Children, ReactNode } from 'react';
+import { ReactNode } from 'react';
 
 interface ModuleCarouselProps {
   children: ReactNode;
@@ -11,8 +11,6 @@ export function ModuleCarousel({
   gridClasses = 'grid-cols-[repeat(auto-fit,140px)]',
   singleRow = false,
 }: ModuleCarouselProps) {
-  const itemCount = Children.count(children);
-  const shouldCenterSingleRow = itemCount > 1 && itemCount <= 8;
   const fluidGap = 'gap-[clamp(1rem,1.7vw,1.75rem)]';
 
   // Single-row mode: horizontal carousel on every viewport.
@@ -20,7 +18,7 @@ export function ModuleCarousel({
     return (
       <div className="-mx-1 overflow-x-auto px-1 pb-4 scrollbar-hide">
         <div
-          className={`grid auto-cols-[140px] grid-flow-col ${fluidGap} snap-x snap-mandatory ${shouldCenterSingleRow ? '2xl:justify-center' : 'justify-start'}`}
+          className={`grid auto-cols-[140px] grid-flow-col justify-start ${fluidGap} snap-x snap-mandatory`}
         >
           {children}
         </div>
