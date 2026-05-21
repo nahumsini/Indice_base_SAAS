@@ -4,8 +4,10 @@ import { LiveFaceChallenge } from '../../../../components/LiveFaceChallenge';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../../components/LoadingBarOverlay';
 import { Button } from '../../../../components/ui/button';
 import { humanResourcesApi } from '../../../../api/humanResources';
+import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 
 interface FaceEnrollmentModalProps {
+  copy: AttendanceControlCopy;
   isOpen: boolean;
   employeeId: number | null;
   employeeName: string;
@@ -15,6 +17,7 @@ interface FaceEnrollmentModalProps {
 }
 
 export function FaceEnrollmentModal({
+  copy,
   isOpen,
   employeeId,
   employeeName,
@@ -58,22 +61,22 @@ export function FaceEnrollmentModal({
     <>
       <LoadingBarOverlay
         isVisible={isSubmitting}
-        title="Saving face enrollment"
-        description="Uploading captures and completing enrollment."
+        title={copy.labels.savingFaceEnrollment}
+        description={copy.labels.savingFaceEnrollmentDescription}
         className="z-[95]"
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
         <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#59C3A5]/20 bg-white text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
           <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5">
             <div className="min-w-0">
-              <h2 className="text-xl font-semibold leading-7 text-white">Face enrollment</h2>
+              <h2 className="text-xl font-semibold leading-7 text-white">{copy.labels.faceEnrollmentStatus}</h2>
               <p className="mt-1 truncate text-sm leading-5 text-blue-100">{employeeName}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-              aria-label="Close"
+              aria-label={copy.labels.closeModal}
             >
               <X className="h-5 w-5" />
             </button>
@@ -81,21 +84,21 @@ export function FaceEnrollmentModal({
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-white px-6 py-5 dark:bg-gray-950">
             <LiveFaceChallenge
-              title="Face enrollment"
-              helperText="Keep one face centered in the frame. The app will guide the neutral, left, and right poses automatically."
+              title={copy.labels.faceEnrollmentStatus}
+              helperText={copy.labels.faceEnrollmentHelper}
               onSubmit={handleSubmit}
               onError={onError}
               resetToken={employeeId}
               copy={{
-                success: 'Face enrollment completed.',
-                retry: 'Retry enrollment',
+                success: copy.labels.faceEnrollmentCompleted,
+                retry: copy.labels.retryFaceEnrollment,
               }}
             />
           </div>
 
           <div className="flex justify-end border-t border-white/10 bg-[#59C3A5] px-6 py-4">
             <Button className="rounded-xl bg-white text-[#59C3A5] hover:bg-blue-50" onClick={onClose}>
-              Close
+              {copy.labels.closeModal}
             </Button>
           </div>
         </div>

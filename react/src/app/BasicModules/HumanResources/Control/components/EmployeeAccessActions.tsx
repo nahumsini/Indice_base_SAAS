@@ -256,7 +256,7 @@ export function EmployeeAccessActions({
             disabled={isSaving}
             onClick={() => void handleDeleteFaceEnrollment()}
           >
-            Delete face
+            {copy.labels.deleteFaceEnrollment}
           </Button>
         ) : null}
       </div>
@@ -284,6 +284,7 @@ export function EmployeeAccessActions({
       />
 
       <FaceEnrollmentModal
+        copy={copy}
         isOpen={isFaceEnrollmentModalOpen}
         employeeId={selectedEmployee.user_company_id}
         employeeName={selectedEmployee.user_name}
@@ -464,11 +465,11 @@ function AccessProfileDialog({
 
   const pinStatusDescription = !hasExistingPin
     ? accessProfileId
-      ? 'No PIN exists yet. View PIN will create a visible 5-digit PIN immediately.'
-      : 'A unique 5-digit PIN will be generated automatically when you save.'
+      ? copy.labels.pinStatusCreateNow
+      : copy.labels.pinStatusCreateOnSave
     : canRevealPin
-      ? 'A unique 5-digit PIN is saved for this HR user. Reveal it when HR needs to share it.'
-      : 'This HR user has an older PIN. View PIN will create a visible 5-digit PIN immediately.';
+      ? copy.labels.pinStatusSaved
+      : copy.labels.pinStatusLegacy;
 
   return (
     <>
@@ -543,7 +544,7 @@ function AccessProfileDialog({
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">PIN status</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.pinStatus}</p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{pinStatusDescription}</p>
               </div>
               {canOpenResetPin ? (
@@ -583,9 +584,9 @@ function AccessProfileDialog({
 
             {shouldRegeneratePin ? (
               <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
-                <span>A new unique PIN will be generated when you save.</span>
+                <span>{copy.labels.pinResetPending}</span>
                 <Button type="button" variant="ghost" size="sm" onClick={onCancelRegeneratePin} disabled={isSaving}>
-                  Cancel
+                  {copy.labels.cancel}
                 </Button>
               </div>
             ) : null}
