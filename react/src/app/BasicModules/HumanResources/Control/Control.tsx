@@ -1150,7 +1150,7 @@ export default function Control() {
 
     setPendingCalendarScheduleClear({
       employeeId: selectedEmployeeId,
-      employeeName: selectedEmployee?.user_name ?? 'this employee',
+      employeeName: selectedEmployee?.user_name ?? copy.labels.selectedEmployeeFallback,
       targetDate: date,
     });
 
@@ -1276,7 +1276,7 @@ export default function Control() {
     }
     const busyReason = getAssignmentBusyReason(selectedEmployee, copy);
     if (busyReason) {
-      showFailureToast(`${busyReason}. Remove the existing shift before assigning a contract site.`);
+      showFailureToast(copy.labels.removeExistingShiftBeforeContractSite(busyReason));
       return;
     }
 
@@ -1487,14 +1487,17 @@ export default function Control() {
       (selectedLocation.contract_start_date && workSiteForm.effective_start_date < selectedLocation.contract_start_date) ||
       (selectedLocation.contract_end_date && workSiteForm.effective_end_date > selectedLocation.contract_end_date)
     ) {
-      showFailureToast(`Contract site is only open from ${selectedLocation.contract_start_date ?? 'the first configured day'} to ${selectedLocation.contract_end_date ?? 'the last configured day'}.`);
+      showFailureToast(copy.labels.contractSiteWindow(
+        selectedLocation.contract_start_date ?? copy.labels.firstConfiguredDay,
+        selectedLocation.contract_end_date ?? copy.labels.lastConfiguredDay,
+      ));
       return;
     }
 
     const currentAssignment = overview?.assignments.find((assignment) => assignment.user_company_id === employeeId) ?? null;
     const busyReason = currentAssignment ? getAssignmentBusyReason(currentAssignment, copy) : '';
     if (busyReason) {
-      showFailureToast(`${busyReason}. Remove the existing shift before assigning a contract site.`);
+      showFailureToast(copy.labels.removeExistingShiftBeforeContractSite(busyReason));
       return;
     }
 
