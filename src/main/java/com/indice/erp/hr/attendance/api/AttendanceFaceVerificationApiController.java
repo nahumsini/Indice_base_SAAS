@@ -3,6 +3,8 @@ package com.indice.erp.hr.attendance.api;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.FaceVerificationIntegrationException;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
@@ -23,15 +25,18 @@ public class AttendanceFaceVerificationApiController {
     private final SessionAuthService sessionAuthService;
     private final HrAttendanceService hrAttendanceService;
     private final HrFaceService hrFaceService;
+    private final HrAccessService hrAccessService;
 
     public AttendanceFaceVerificationApiController(
         SessionAuthService sessionAuthService,
         HrAttendanceService hrAttendanceService,
-        HrFaceService hrFaceService
+        HrFaceService hrFaceService,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.hrAttendanceService = hrAttendanceService;
         this.hrFaceService = hrFaceService;
+        this.hrAccessService = hrAccessService;
     }
 
     @PostMapping("/face-verification-sessions")
@@ -39,6 +44,9 @@ public class AttendanceFaceVerificationApiController {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL)) {
+            return forbidden();
         }
 
         try {
@@ -132,5 +140,9 @@ public class AttendanceFaceVerificationApiController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }
 }

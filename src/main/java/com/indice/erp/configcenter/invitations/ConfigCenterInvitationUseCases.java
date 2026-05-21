@@ -6,6 +6,7 @@ import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -56,6 +57,11 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
         var membership = resolveInvitationMembership(companyId, payload);
         ensureModuleSlugsExist(moduleSlugs);
+        var shouldPersistTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
+        var tabPermissionKeys = shouldPersistTabPermissions
+            ? tabPermissionAccess.normalizeTabPermissionKeys(payload)
+            : List.<String>of();
+        tabPermissionAccess.ensureTabPermissionKeysValid(tabPermissionKeys, moduleSlugs);
 
         if (fullName.isBlank() || email.isBlank()) {
             throw new IllegalArgumentException("Name and email are required.");
@@ -84,6 +90,13 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
             invitedByUserId,
             expiresAt
         );
+        var invitationId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        if (invitationId == null) {
+            throw new IllegalStateException("Unable to create invitation.");
+        }
+        if (shouldPersistTabPermissions) {
+            tabPermissionAccess.replaceInvitationTabPermissions(invitationId, tabPermissionKeys, moduleSlugs);
+        }
 
         var result = new LinkedHashMap<String, Object>();
         result.put("email", email);
@@ -174,6 +187,9 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
                 slug
             );
         }
+        var invitationTabPermissions = tabPermissionAccess.listInvitationTabPermissionKeys(invitation.id());
+        tabPermissionAccess.ensureTabPermissionKeysValid(invitationTabPermissions, invitation.moduleSlugs());
+        tabPermissionAccess.copyInvitationTabPermissionsToUserCompany(invitation.id(), userCompanyId);
 
         jdbcTemplate.update(
             "UPDATE user_invitations SET status = 'accepted' WHERE id = ?",

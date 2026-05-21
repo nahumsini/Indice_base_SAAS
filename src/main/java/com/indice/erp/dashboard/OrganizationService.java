@@ -1,6 +1,5 @@
 package com.indice.erp.dashboard;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,24 +12,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class OrganizationService {
 
-    private static final Set<String> BASIC_SLUGS = Set.of(
-        "config_center",
-        "human_resources",
-        "expenses",
-        "petty_cash",
-        "pos",
-        "processes",
-        "sales",
-        "kpis"
-    );
-
-    private static final Set<String> AI_SLUGS = Set.of(
-        "agente_ventas",
-        "indice_analitica",
-        "capacitacion",
-        "coach"
-    );
-
     private static final String CORPORATE_OFFICE_UNIT_NAME = "Corporate office";
     private static final String UNIT_HEADQUARTERS_SUFFIX = " headquarters";
     private static final Set<String> CORPORATE_OFFICE_KEYS = Set.of(
@@ -42,41 +23,22 @@ public class OrganizationService {
     );
 
     private final JdbcTemplate jdbcTemplate;
+    private final DashboardModuleAccessRepository moduleAccessRepository;
+    private final DashboardModuleCatalogRepository moduleCatalogRepository;
 
-    public OrganizationService(JdbcTemplate jdbcTemplate) {
+    public OrganizationService(
+        JdbcTemplate jdbcTemplate,
+        DashboardModuleAccessRepository moduleAccessRepository,
+        DashboardModuleCatalogRepository moduleCatalogRepository
+    ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.moduleAccessRepository = moduleAccessRepository;
+        this.moduleCatalogRepository = moduleCatalogRepository;
     }
 
-    public List<ModuleListItem> listModules(long userId, long companyId) {
-        var favorites = Set.copyOf(jdbcTemplate.query(
-            "SELECT module_slug FROM user_module_favorites WHERE user_id = ?",
-            (rs, rowNum) -> rs.getString(1),
-            userId
-        ));
-
-        return jdbcTemplate.query(
-            """
-                SELECT slug, name, description, icon, badge_text, tier, sort_order, is_core, is_active
-                FROM modules
-                WHERE COALESCE(is_active, 1) = 1
-                ORDER BY sort_order ASC, id ASC
-                """,
-            (rs, rowNum) -> {
-                var slug = rs.getString("slug");
-                return new ModuleListItem(
-                    slug,
-                    rs.getString("name"),
-                    rs.getString("description"),
-                    resolveCategory(slug, rs.getBoolean("is_core"), rs.getString("tier")),
-                    rs.getString("badge_text") != null ? rs.getString("badge_text") : rs.getString("tier"),
-                    rs.getString("icon") != null ? rs.getString("icon") : "bi-grid",
-                    null,
-                    favorites.contains(slug),
-                    false,
-                    "/modules/" + slug + "/"
-                );
-            }
-        );
+    public List<ModuleListItem> listModules(long userId, long companyId, String role) {
+        var moduleAccess = moduleAccessRepository.loadAccess(userId, companyId, role);
+        return moduleCatalogRepository.listModules(userId, moduleAccess);
     }
 
     public List<UnitSummary> listUnits(long companyId) {
@@ -456,16 +418,6 @@ public class OrganizationService {
         private String key(Long unitId, String name) {
             return String.valueOf(unitId) + "::" + (name == null ? "" : name.trim().toLowerCase(Locale.ROOT));
         }
-    }
-
-    private String resolveCategory(String slug, boolean isCore, String tier) {
-        if (AI_SLUGS.contains(slug)) {
-            return "ai";
-        }
-        if (isCore || BASIC_SLUGS.contains(slug)) {
-            return "basic";
-        }
-        return "complementary";
     }
 
     private Long getNullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {

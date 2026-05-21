@@ -20,12 +20,9 @@ import {
 } from './config/navigation';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { dashboardApi } from './api/dashboard';
-import {
-  buildDefaultModuleCatalog,
-  mapBackendModuleToCard,
-  mergeDashboardModules,
-  type DashboardModuleCard,
-} from './config/moduleCatalog';
+import { routeForBackendSlug } from './config/moduleCatalog';
+import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
+import { canAccessModulePage } from './access/accessRules';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -107,7 +104,7 @@ function Dashboard({
   const { t } = useLanguage();
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
-  const [availableModules, setAvailableModules] = useState<DashboardModuleCard[]>(() => buildDefaultModuleCatalog(t));
+  const availableModules = useAccessibleModuleCatalog(t);
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>('indice.dashboard.selectedKpis', [
     'weeklyRevenue',
     'netProfit',
@@ -136,40 +133,6 @@ function Dashboard({
   const handleModuleClick = (moduleRoute: PageId) => {
     onNavigate(moduleRoute);
   };
-
-  useEffect(() => {
-    let active = true;
-
-    const defaultModules = buildDefaultModuleCatalog(t);
-    setAvailableModules(defaultModules);
-
-    dashboardApi.listModules()
-      .then((backendModules) => {
-        if (!active) {
-          return;
-        }
-
-        const mappedModules = backendModules
-          .map((module) => mapBackendModuleToCard(module, t))
-          .filter((module): module is DashboardModuleCard => module !== null);
-
-        if (mappedModules.length === 0) {
-          setAvailableModules(defaultModules);
-          return;
-        }
-
-        setAvailableModules(mergeDashboardModules(mappedModules, defaultModules));
-      })
-      .catch(() => {
-        if (active) {
-          setAvailableModules(defaultModules);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [t]);
 
   // Mapeo de IDs de KPIs a datos visuales
   const kpiDataMap: Record<string, any> = {
@@ -391,12 +354,21 @@ export default function App() {
   const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [isModuleNavigationLoading, setIsModuleNavigationLoading] = useState(false);
+  const [allowedModuleRoutes, setAllowedModuleRoutes] = useState<Set<PageId> | null>(null);
+  const [isModuleAccessLoaded, setIsModuleAccessLoaded] = useState(false);
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
   const moduleNavigationStartedAtRef = useRef(0);
   const moduleNavigationTargetPathRef = useRef<string | null>(null);
   const currentPage = resolvePageId(pageId);
   const needsPageRedirect = Boolean(pageId && currentPage && pageId !== currentPage);
+  const isModuleAccessPending = Boolean(currentPage && currentPage !== 'dashboard' && !isModuleAccessLoaded);
+  const isDeniedModulePage = Boolean(
+    currentPage
+    && currentPage !== 'dashboard'
+    && isModuleAccessLoaded
+    && !canAccessModulePage(currentPage, allowedModuleRoutes),
+  );
 
   const clearModuleNavigationTimeout = () => {
     if (moduleNavigationTimeoutRef.current !== null) {
@@ -474,6 +446,40 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    dashboardApi.listModules()
+      .then((backendModules) => {
+        if (!active) {
+          return;
+        }
+
+        const routes = new Set<PageId>();
+        for (const module of backendModules) {
+          const route = routeForBackendSlug(module.slug);
+          if (route) {
+            routes.add(route);
+          }
+        }
+        setAllowedModuleRoutes(routes);
+      })
+      .catch(() => {
+        if (active) {
+          setAllowedModuleRoutes(new Set<PageId>());
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsModuleAccessLoaded(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isModuleNavigationLoading || moduleNavigationTargetPathRef.current !== pathname) {
       return;
     }
@@ -513,6 +519,12 @@ export default function App() {
     }
   }, [currentPage, navigate, needsPageRedirect, pageId, pathname, state, wildcardPath]);
 
+  useEffect(() => {
+    if (isDeniedModulePage) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isDeniedModulePage, navigate]);
+
   const toggleLearningMode = () => {
     setLearningModeActive((current) => {
       const next = !current;
@@ -531,11 +543,15 @@ export default function App() {
 
   const handleModuleNavigation = (page?: string) => {
     const targetPage = resolvePageId(page) ?? 'dashboard';
-    if (targetPage === currentPage) {
+    const safeTargetPage = isModuleAccessLoaded && !canAccessModulePage(targetPage, allowedModuleRoutes)
+      ? 'dashboard'
+      : targetPage;
+
+    if (safeTargetPage === currentPage) {
       return;
     }
 
-    const targetPath = getPagePath(targetPage);
+    const targetPath = getPagePath(safeTargetPage);
     showModuleNavigationLoading(targetPath);
     navigateAfterLoadingPaint(targetPath);
   };
@@ -596,7 +612,7 @@ export default function App() {
       </StandaloneModuleShell>
     ) : null;
 
-  if (!currentPage || needsPageRedirect) {
+  if (!currentPage || needsPageRedirect || isModuleAccessPending || isDeniedModulePage) {
     return null;
   }
 

@@ -2,11 +2,13 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.payroll.HrPayrollApiController;
 import com.indice.erp.hr.payroll.HrPayrollService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -37,6 +39,15 @@ class HrPayrollApiControllerTest {
     @MockBean
     private HrPayrollService hrPayrollService;
 
+    @MockBean
+    private HrAccessService hrAccessService;
+
+    @BeforeEach
+    void allowHrAccessByDefault() {
+        given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
+    }
+
     @Test
     void overviewRequiresAuthentication() throws Exception {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.empty());
@@ -45,6 +56,18 @@ class HrPayrollApiControllerTest {
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.message").value("Unauthorized"));
     }
+
+    @Test
+    void overviewReturnsForbiddenWhenPayrollTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.PAYROLL)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/payroll/overview"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
 
     @Test
     void preferencesUpdateReturnsBadRequestFromServiceValidation() throws Exception {

@@ -5,6 +5,10 @@ import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { authApi } from '../../api/auth';
+import {
+  canAccessHomePanelTab,
+  type HomePanelTabId,
+} from '../../access/accessRules';
 
 const Profile = lazy(() => import('./Profile'));
 const BusinessStructure = lazy(() => import('./BusinessStructure'));
@@ -24,9 +28,7 @@ const subTabIds = [
   'users',
 ] as const;
 
-type PanelInicialTabId = (typeof subTabIds)[number];
-
-const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
+const legacySubTabAliases: Partial<Record<string, HomePanelTabId>> = {
   perfil: 'profile',
   estructuraEmpresarial: 'business-structure',
   perfilEmpresarial: 'business-profile',
@@ -35,23 +37,48 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
 
 export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
-  const [canManageUsers, setCanManageUsers] = useState(true);
-  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
+  const [sessionAccess, setSessionAccess] = useState<{
+    role: string | null;
+    tabPermissionKeys: string[];
+    tabPermissionsConfigured: boolean;
+  }>({
+    role: null,
+    tabPermissionKeys: [],
+    tabPermissionsConfigured: false,
+  });
+  const [isAccessLoaded, setIsAccessLoaded] = useState(false);
+  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<HomePanelTabId>(
     'profile',
     subTabIds,
     legacySubTabAliases,
   );
 
-  const subTabs = [
+  const allSubTabs = [
     { id: 'profile', label: t.panelInicial.tabs.profile, emoji: '👤', component: Profile },
     { id: 'business-structure', label: t.panelInicial.tabs.businessStructure, emoji: '🏢', component: BusinessStructure },
     { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, emoji: '📊', component: BusinessProfile },
     { id: 'personal-performance', label: t.panelInicial.tabs.personalPerformance, emoji: '📈', component: PersonalPerformance },
     { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
-  ].filter((tab) => canManageUsers || tab.id !== 'users');
+  ] satisfies Array<{
+    id: HomePanelTabId;
+    label: string;
+    emoji: string;
+    component: typeof Profile;
+  }>;
+
+  const canAccessTab = (tabId: HomePanelTabId) => canAccessHomePanelTab(
+    sessionAccess.role,
+    tabId,
+    sessionAccess.tabPermissionKeys,
+    sessionAccess.tabPermissionsConfigured,
+  );
+
+  const subTabs = isAccessLoaded
+    ? allSubTabs.filter((tab) => canAccessTab(tab.id))
+    : [];
 
   // Get the active component
-  const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
+  const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component ?? null;
 
   useEffect(() => {
     let active = true;
@@ -61,12 +88,24 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
         if (!active) {
           return;
         }
-        const role = session?.user.role?.trim().toLowerCase();
-        setCanManageUsers(role === 'root' || role === 'superadmin' || role === 'admin');
+        setSessionAccess({
+          role: session?.user.role ?? null,
+          tabPermissionKeys: session?.user.tab_permission_keys ?? [],
+          tabPermissionsConfigured: Boolean(session?.user.tab_permissions_configured),
+        });
       })
       .catch(() => {
         if (active) {
-          setCanManageUsers(false);
+          setSessionAccess({
+            role: null,
+            tabPermissionKeys: [],
+            tabPermissionsConfigured: false,
+          });
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsAccessLoaded(true);
         }
       });
 
@@ -76,13 +115,20 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   }, []);
 
   useEffect(() => {
-    if (!canManageUsers && activeSubTab === 'users') {
-      setActiveSubTab('profile');
+    if (!isAccessLoaded || canAccessTab(activeSubTab)) {
+      return;
     }
-  }, [activeSubTab, canManageUsers, setActiveSubTab]);
 
-  const handleTabClick = (tabId: PanelInicialTabId) => {
+    if (subTabs[0]) {
+      setActiveSubTab(subTabs[0].id);
+    }
+  }, [activeSubTab, isAccessLoaded, sessionAccess, setActiveSubTab, subTabs]);
+
+  const handleTabClick = (tabId: HomePanelTabId) => {
     if (tabId === activeSubTab) {
+      return;
+    }
+    if (!canAccessTab(tabId)) {
       return;
     }
 
@@ -140,7 +186,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
                       ? 'bg-purple-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
-                  onClick={() => handleTabClick(tab.id as PanelInicialTabId)}
+                  onClick={() => handleTabClick(tab.id)}
                 >
                   <span>{tab.emoji}</span>
                   <span>{tab.label}</span>
@@ -162,7 +208,19 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
             />
           )}
         >
-          <ActiveComponent />
+          {isAccessLoaded && ActiveComponent ? (
+            <ActiveComponent />
+          ) : isAccessLoaded ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+              No Home Panel tabs are available for this user.
+            </div>
+          ) : (
+            <LoadingBarOverlay
+              isVisible
+              title="Loading Home Panel access"
+              description="Checking which setup areas are available."
+            />
+          )}
         </Suspense>
       </div>
     </div>

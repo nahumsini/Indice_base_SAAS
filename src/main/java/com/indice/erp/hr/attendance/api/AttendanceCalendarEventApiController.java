@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
@@ -23,9 +24,10 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
 
     public AttendanceCalendarEventApiController(
         SessionAuthService sessionAuthService,
-        HrAttendanceService hrAttendanceService
+        HrAttendanceService hrAttendanceService,
+        HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService);
+        super(sessionAuthService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/users/{userCompanyId}/calendar")
@@ -37,6 +39,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {
@@ -81,6 +86,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(hrAttendanceService.createPhotoUpload(currentUser.get().companyId(), payload));
@@ -122,6 +130,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {

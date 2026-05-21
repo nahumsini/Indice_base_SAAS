@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -20,9 +21,10 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
 
     public AttendanceDailyRecordApiController(
         SessionAuthService sessionAuthService,
-        HrAttendanceService hrAttendanceService
+        HrAttendanceService hrAttendanceService,
+        HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService);
+        super(sessionAuthService, hrAttendanceService, hrAccessService);
     }
 
     @PutMapping("/daily-records/{userCompanyId}/{date}")
@@ -35,6 +37,9 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {
@@ -65,6 +70,9 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {

@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -23,9 +24,10 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
 
     public AttendanceLocationApiController(
         SessionAuthService sessionAuthService,
-        HrAttendanceService hrAttendanceService
+        HrAttendanceService hrAttendanceService,
+        HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService);
+        super(sessionAuthService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/locations")
@@ -33,6 +35,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         return ResponseEntity.ok(hrAttendanceService.listControlLocations(currentUser.get().companyId()));
@@ -43,6 +48,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {
@@ -57,6 +65,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {
@@ -85,6 +96,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(
@@ -108,6 +122,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             hrAttendanceService.deleteLocation(currentUser.get().companyId(), locationId);
@@ -126,6 +143,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {
@@ -150,6 +170,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(
@@ -171,6 +194,9 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {

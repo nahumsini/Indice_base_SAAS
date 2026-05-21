@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -23,9 +24,10 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
 
     public AttendanceKioskDeviceApiController(
         SessionAuthService sessionAuthService,
-        HrAttendanceService hrAttendanceService
+        HrAttendanceService hrAttendanceService,
+        HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService);
+        super(sessionAuthService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/kiosk-devices")
@@ -33,6 +35,9 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         return ResponseEntity.ok(hrAttendanceService.listKioskDevices(currentUser.get().companyId()));
@@ -43,6 +48,9 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {
@@ -71,6 +79,9 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(
@@ -94,6 +105,9 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             hrAttendanceService.deleteKioskDevice(currentUser.get().companyId(), kioskDeviceId);
@@ -108,6 +122,9 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
         }
 
         try {

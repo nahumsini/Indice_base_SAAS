@@ -1,6 +1,9 @@
 package com.indice.erp.hr.payroll;
 
+import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import jakarta.servlet.http.HttpSession;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -26,13 +29,16 @@ public class HrPayrollApiController {
 
     private final SessionAuthService sessionAuthService;
     private final HrPayrollService hrPayrollService;
+    private final HrAccessService hrAccessService;
 
     public HrPayrollApiController(
         SessionAuthService sessionAuthService,
-        HrPayrollService hrPayrollService
+        HrPayrollService hrPayrollService,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.hrPayrollService = hrPayrollService;
+        this.hrAccessService = hrAccessService;
     }
 
     @GetMapping("/overview")
@@ -40,6 +46,9 @@ public class HrPayrollApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
         }
 
         return ResponseEntity.ok(hrPayrollService.overview(user.get().companyId()));
@@ -51,6 +60,9 @@ public class HrPayrollApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
 
         return ResponseEntity.ok(hrPayrollService.getPreferences(user.get().companyId()));
     }
@@ -60,6 +72,9 @@ public class HrPayrollApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
         }
 
         try {
@@ -84,6 +99,9 @@ public class HrPayrollApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
 
         try {
             var filters = new LinkedHashMap<String, String>();
@@ -106,6 +124,9 @@ public class HrPayrollApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -121,6 +142,9 @@ public class HrPayrollApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
         }
 
         try {
@@ -141,6 +165,9 @@ public class HrPayrollApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(hrPayrollService.updateRunLine(user.get().companyId(), runId, lineId, payload));
@@ -156,6 +183,9 @@ public class HrPayrollApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
         }
 
         try {
@@ -173,6 +203,9 @@ public class HrPayrollApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(hrPayrollService.approveRun(user.get().companyId(), user.get().userId(), runId));
@@ -188,6 +221,9 @@ public class HrPayrollApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
         }
 
         try {
@@ -205,6 +241,9 @@ public class HrPayrollApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(hrPayrollService.cancelRun(user.get().companyId(), user.get().userId(), runId));
@@ -220,6 +259,9 @@ public class HrPayrollApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
         }
 
         try {
@@ -242,6 +284,9 @@ public class HrPayrollApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
 
         try {
             var pdf = hrPayrollService.exportRunPdf(user.get().companyId(), runId);
@@ -255,5 +300,13 @@ public class HrPayrollApiController {
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private boolean canAccessPayroll(AuthSessionUser user) {
+        return hrAccessService.canAccessManagementTab(user, HrTab.PAYROLL);
+    }
+
+    private ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }
 }

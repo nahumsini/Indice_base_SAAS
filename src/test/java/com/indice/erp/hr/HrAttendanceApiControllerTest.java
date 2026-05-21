@@ -3,6 +3,7 @@ package com.indice.erp.hr;
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.hr.attendance.api.AttendanceAccessApiController;
 import com.indice.erp.hr.attendance.api.AttendanceCalendarEventApiController;
@@ -16,6 +17,7 @@ import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -58,6 +60,15 @@ class HrAttendanceApiControllerTest {
     @MockBean
     private HrFaceService hrFaceService;
 
+    @MockBean
+    private HrAccessService hrAccessService;
+
+    @BeforeEach
+    void allowHrAccessByDefault() {
+        given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
+    }
+
     @Test
     void controlOverviewRequiresAuthentication() throws Exception {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.empty());
@@ -89,6 +100,18 @@ class HrAttendanceApiControllerTest {
             .andExpect(jsonPath("$.templates[0].name").value("Spring Default Schedule"))
             .andExpect(jsonPath("$.assignments[0].user_name").value("Second Empleado"));
     }
+
+    @Test
+    void controlOverviewReturnsForbiddenWhenControlTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.CONTROL)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/attendance/control-overview").param("date", "2026-04-07"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
 
     @Test
     void myDashboardReturnsPayloadForAuthenticatedUser() throws Exception {

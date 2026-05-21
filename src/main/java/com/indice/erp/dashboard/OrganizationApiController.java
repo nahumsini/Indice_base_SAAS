@@ -33,7 +33,7 @@ public class OrganizationApiController {
         }
 
         var user = currentUser.get();
-        return ResponseEntity.ok(organizationService.listModules(user.userId(), user.companyId()));
+        return ResponseEntity.ok(organizationService.listModules(user.userId(), user.companyId(), user.role()));
     }
 
     @GetMapping("/org/units")

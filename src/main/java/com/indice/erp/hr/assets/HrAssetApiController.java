@@ -1,6 +1,10 @@
 package com.indice.erp.hr.assets;
 
+import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import jakarta.servlet.http.HttpSession;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,13 +26,16 @@ public class HrAssetApiController {
 
     private final SessionAuthService sessionAuthService;
     private final HrAssetService hrAssetService;
+    private final HrAccessService hrAccessService;
 
     public HrAssetApiController(
         SessionAuthService sessionAuthService,
-        HrAssetService hrAssetService
+        HrAssetService hrAssetService,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.hrAssetService = hrAssetService;
+        this.hrAccessService = hrAccessService;
     }
 
     @GetMapping
@@ -46,6 +53,9 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessAssets(user.get())) {
+            return forbidden();
+        }
 
         try {
             var filters = new LinkedHashMap<String, Object>();
@@ -57,7 +67,7 @@ public class HrAssetApiController {
             filters.put("page", page);
             filters.put("size", size);
 
-            var result = hrAssetService.listAssets(user.get().companyId(), filters);
+            var result = hrAssetService.listAssets(user.get(), filters);
             var body = new LinkedHashMap<String, Object>();
             body.put("items", result.get("rows"));
             body.put("count", ((java.util.List<?>) result.get("rows")).size());
@@ -67,6 +77,8 @@ public class HrAssetApiController {
             body.put("total_pages", result.get("total_pages"));
             body.put("summary", result.get("summary"));
             return ResponseEntity.ok(body);
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -78,9 +90,14 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessAssets(user.get())) {
+            return forbidden();
+        }
 
         try {
-            return ResponseEntity.ok(hrAssetService.assetDetails(user.get().companyId(), assetId).get("asset"));
+            return ResponseEntity.ok(hrAssetService.assetDetails(user.get(), assetId).get("asset"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -92,10 +109,15 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessAssets(user.get())) {
+            return forbidden();
+        }
 
         try {
-            var result = hrAssetService.createAsset(user.get().companyId(), user.get().userId(), payload);
+            var result = hrAssetService.createAsset(user.get(), payload);
             return ResponseEntity.status(HttpStatus.CREATED).body(result.get("asset"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -109,10 +131,15 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessAssets(user.get())) {
+            return forbidden();
+        }
 
         try {
-            var result = hrAssetService.updateAsset(user.get().companyId(), user.get().userId(), assetId, payload);
+            var result = hrAssetService.updateAsset(user.get(), assetId, payload);
             return ResponseEntity.ok(result.get("asset"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -126,10 +153,15 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessAssets(user.get())) {
+            return forbidden();
+        }
 
         try {
-            var result = hrAssetService.reassignAsset(user.get().companyId(), user.get().userId(), assetId, payload);
+            var result = hrAssetService.reassignAsset(user.get(), assetId, payload);
             return ResponseEntity.ok(result.get("asset"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -143,10 +175,15 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessAssets(user.get())) {
+            return forbidden();
+        }
 
         try {
-            var result = hrAssetService.changeStatus(user.get().companyId(), user.get().userId(), assetId, payload);
+            var result = hrAssetService.changeStatus(user.get(), assetId, payload);
             return ResponseEntity.ok(result.get("asset"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -160,11 +197,24 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessAssets(user.get())) {
+            return forbidden();
+        }
 
         try {
-            return ResponseEntity.ok(hrAssetService.assetHistory(user.get().companyId(), assetId));
+            return ResponseEntity.ok(hrAssetService.assetHistory(user.get(), assetId));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private boolean canAccessAssets(AuthSessionUser user) {
+        return hrAccessService.canAccessManagementTab(user, HrTab.ASSETS);
+    }
+
+    private ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }
 }

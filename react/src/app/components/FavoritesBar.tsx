@@ -1,7 +1,6 @@
-import { Star, Settings, Home } from 'lucide-react';
 import { useLanguage } from '../shared/context';
 import { useFavorites } from '../shared/context';
-import { buildDefaultModuleCatalog } from '../config/moduleCatalog';
+import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
 
 interface FavoritesBarProps {
   onNavigate: (page: string) => void;
@@ -20,7 +19,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
   const { t } = useLanguage();
   const { getFavoriteModules } = useFavorites();
 
-  const allModules = buildDefaultModuleCatalog(t);
+  const allModules = useAccessibleModuleCatalog(t);
   const coreModuleFlow = [
     'home-panel',
     'human-resources',

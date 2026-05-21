@@ -8,7 +8,10 @@ public record AuthSessionResponse(
     public record UserInfo(
         Long id,
         String name,
-        String role
+        String role,
+        java.util.List<String> module_slugs,
+        java.util.List<String> tab_permission_keys,
+        boolean tab_permissions_configured
     ) {
     }
 

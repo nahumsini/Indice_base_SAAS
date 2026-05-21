@@ -5,6 +5,8 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
 import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
 import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
+import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
@@ -40,24 +42,40 @@ public class HrRecordService {
     private static final int MAX_PAGE_SIZE = 200;
 
     private final JdbcTemplate jdbcTemplate;
+    private final HrRecordScopeAccess hrRecordScopeAccess;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
 
     public HrRecordService(
         JdbcTemplate jdbcTemplate,
+        HrRecordScopeAccess hrRecordScopeAccess,
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties
     ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.hrRecordScopeAccess = hrRecordScopeAccess;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> listRecords(long companyId, Map<String, Object> filters) {
+        return listRecords(companyId, filters, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> listRecords(AuthSessionUser currentUser, Map<String, Object> filters) {
+        return listRecords(currentUser.companyId(), filters, hrRecordScopeAccess.resolve(currentUser));
+    }
+
+    private Map<String, Object> listRecords(
+        long companyId,
+        Map<String, Object> filters,
+        HrOperationalScope scope
+    ) {
         var page = parsePage(filters);
         var size = parseSize(filters);
-        var query = buildListQuery(companyId, filters);
+        var query = buildListQuery(companyId, filters, scope);
         var offset = (page - 1) * size;
 
         var rows = jdbcTemplate.query(
@@ -103,17 +121,17 @@ public class HrRecordService {
             query.params().toArray()
         );
 
+        var summaryQuery = buildSummaryQuery(companyId, scope);
         var summary = jdbcTemplate.query(
             """
                 SELECT COUNT(*) AS total_count,
-                       SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'pending' THEN 1 ELSE 0 END) AS pending_count,
-                       SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'reviewed' THEN 1 ELSE 0 END) AS reviewed_count,
-                       SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'resolved' THEN 1 ELSE 0 END) AS resolved_count,
-                       SUM(CASE WHEN LOWER(COALESCE(severity, '')) = 'high' THEN 1 ELSE 0 END) AS high_severity_count
-                FROM user_records
-                WHERE company_id = ?
-                  AND deleted_at IS NULL
-                """,
+                       SUM(CASE WHEN LOWER(COALESCE(r.status, 'pending')) = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+                       SUM(CASE WHEN LOWER(COALESCE(r.status, 'pending')) = 'reviewed' THEN 1 ELSE 0 END) AS reviewed_count,
+                       SUM(CASE WHEN LOWER(COALESCE(r.status, 'pending')) = 'resolved' THEN 1 ELSE 0 END) AS resolved_count,
+                       SUM(CASE WHEN LOWER(COALESCE(r.severity, '')) = 'high' THEN 1 ELSE 0 END) AS high_severity_count
+                FROM user_records r
+                """
+                + summaryQuery.whereClause(),
             (rs, rowNum) -> {
                 var body = new LinkedHashMap<String, Object>();
                 body.put("total_count", rs.getLong("total_count"));
@@ -123,7 +141,7 @@ public class HrRecordService {
                 body.put("high_severity_count", rs.getLong("high_severity_count"));
                 return body;
             },
-            companyId
+            summaryQuery.params().toArray()
         );
 
         var totalRows = totalCount == null ? 0L : totalCount;
@@ -148,11 +166,38 @@ public class HrRecordService {
         return body;
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> getRecordDetails(AuthSessionUser currentUser, long recordId) {
+        var scope = hrRecordScopeAccess.resolve(currentUser);
+        hrRecordScopeAccess.requireRecordInScope(currentUser.companyId(), scope, recordId);
+        return getRecordDetails(currentUser.companyId(), recordId);
+    }
+
     @Transactional
     public Map<String, Object> createRecord(long companyId, long actorUserId, Map<String, Object> payload) {
+        return createRecord(companyId, actorUserId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> createRecord(AuthSessionUser currentUser, Map<String, Object> payload) {
+        return createRecord(
+            currentUser.companyId(),
+            currentUser.userId(),
+            payload,
+            hrRecordScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> createRecord(
+        long companyId,
+        long actorUserId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         var actor = loadActorRef(actorUserId);
         var userSnapshot = loadUserSnapshot(companyId, requiredUserCompanyId(payload));
-        var draft = normalizeDraft(companyId, payload, userSnapshot, actor, null);
+        hrRecordScopeAccess.requireAssignmentInScope(companyId, scope, userSnapshot.unitId(), userSnapshot.businessId());
+        var draft = normalizeDraft(companyId, payload, userSnapshot, actor, null, scope);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -213,10 +258,37 @@ public class HrRecordService {
 
     @Transactional
     public Map<String, Object> updateRecord(long companyId, long actorUserId, long recordId, Map<String, Object> payload) {
+        return updateRecord(companyId, actorUserId, recordId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> updateRecord(
+        AuthSessionUser currentUser,
+        long recordId,
+        Map<String, Object> payload
+    ) {
+        return updateRecord(
+            currentUser.companyId(),
+            currentUser.userId(),
+            recordId,
+            payload,
+            hrRecordScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> updateRecord(
+        long companyId,
+        long actorUserId,
+        long recordId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         var current = requireRecordState(companyId, recordId);
+        hrRecordScopeAccess.requireRecordInScope(companyId, scope, recordId);
         var actor = loadActorRef(actorUserId);
         var userSnapshot = loadUserSnapshot(companyId, requiredUserCompanyId(payload));
-        var draft = normalizeDraft(companyId, payload, userSnapshot, actor, current.status());
+        hrRecordScopeAccess.requireAssignmentInScope(companyId, scope, userSnapshot.unitId(), userSnapshot.businessId());
+        var draft = normalizeDraft(companyId, payload, userSnapshot, actor, current.status(), scope);
 
         jdbcTemplate.update(
             """
@@ -314,6 +386,13 @@ public class HrRecordService {
     }
 
     @Transactional
+    public void deleteRecord(AuthSessionUser currentUser, long recordId) {
+        var scope = hrRecordScopeAccess.resolve(currentUser);
+        hrRecordScopeAccess.requireRecordInScope(currentUser.companyId(), scope, recordId);
+        deleteRecord(currentUser.companyId(), currentUser.userId(), recordId);
+    }
+
+    @Transactional
     public Map<String, Object> createAttachmentUpload(long companyId, long recordId, Map<String, Object> payload) {
         requireRecordState(companyId, recordId);
         if (!objectStorageService.isEnabled()) {
@@ -344,6 +423,13 @@ public class HrRecordService {
         body.put("expires_at", upload.expiresAt());
         body.put("upload_headers", upload.uploadHeaders());
         return body;
+    }
+
+    @Transactional
+    public Map<String, Object> createAttachmentUpload(AuthSessionUser currentUser, long recordId, Map<String, Object> payload) {
+        var scope = hrRecordScopeAccess.resolve(currentUser);
+        hrRecordScopeAccess.requireRecordInScope(currentUser.companyId(), scope, recordId);
+        return createAttachmentUpload(currentUser.companyId(), recordId, payload);
     }
 
     @Transactional
@@ -399,6 +485,13 @@ public class HrRecordService {
     }
 
     @Transactional
+    public Map<String, Object> registerAttachment(AuthSessionUser currentUser, long recordId, Map<String, Object> payload) {
+        var scope = hrRecordScopeAccess.resolve(currentUser);
+        hrRecordScopeAccess.requireRecordInScope(currentUser.companyId(), scope, recordId);
+        return registerAttachment(currentUser.companyId(), currentUser.userId(), recordId, payload);
+    }
+
+    @Transactional
     public void deleteAttachment(long companyId, long actorUserId, long recordId, long attachmentId) {
         requireRecordState(companyId, recordId);
 
@@ -444,12 +537,36 @@ public class HrRecordService {
         insertActivity(companyId, recordId, "attachment_removed", null, null, rows.getFirst().fileName(), actorUserId, actor.actorName());
     }
 
-    private RecordListQuery buildListQuery(long companyId, Map<String, Object> filters) {
+    @Transactional
+    public void deleteAttachment(AuthSessionUser currentUser, long recordId, long attachmentId) {
+        var scope = hrRecordScopeAccess.resolve(currentUser);
+        hrRecordScopeAccess.requireRecordInScope(currentUser.companyId(), scope, recordId);
+        deleteAttachment(currentUser.companyId(), currentUser.userId(), recordId, attachmentId);
+    }
+
+    private RecordListQuery buildSummaryQuery(long companyId, HrOperationalScope scope) {
         var conditions = new ArrayList<String>();
         var params = new ArrayList<Object>();
         conditions.add("WHERE r.company_id = ?");
         params.add(companyId);
         conditions.add("AND r.deleted_at IS NULL");
+        conditions.add(hrRecordScopeAccess.recordPredicate(scope));
+        params.addAll(hrRecordScopeAccess.recordParameters(scope));
+        return new RecordListQuery(" " + String.join(" ", conditions) + " ", params);
+    }
+
+    private RecordListQuery buildListQuery(
+        long companyId,
+        Map<String, Object> filters,
+        HrOperationalScope scope
+    ) {
+        var conditions = new ArrayList<String>();
+        var params = new ArrayList<Object>();
+        conditions.add("WHERE r.company_id = ?");
+        params.add(companyId);
+        conditions.add("AND r.deleted_at IS NULL");
+        conditions.add(hrRecordScopeAccess.recordPredicate(scope));
+        params.addAll(hrRecordScopeAccess.recordParameters(scope));
 
         var search = stringValue(filters, "search");
         if (!search.isBlank()) {
@@ -524,7 +641,8 @@ public class HrRecordService {
         Map<String, Object> payload,
         UserSnapshot userSnapshot,
         ActorRef actor,
-        String currentStatus
+        String currentStatus,
+        HrOperationalScope scope
     ) {
         var recordType = normalizeRecordType(stringValue(payload, "record_type", "recordType", "type"));
         var severityRaw = stringValue(payload, "severity");
@@ -550,7 +668,7 @@ public class HrRecordService {
             throw new IllegalArgumentException("event_date cannot be in the future.");
         }
 
-        var witnesses = normalizeWitnesses(companyId, payload, userSnapshot.userCompanyId());
+        var witnesses = normalizeWitnesses(companyId, payload, userSnapshot.userCompanyId(), scope);
         return new RecordDraft(
             userSnapshot,
             recordType,
@@ -574,7 +692,12 @@ public class HrRecordService {
         return userCompanyId;
     }
 
-    private List<WitnessDraft> normalizeWitnesses(long companyId, Map<String, Object> payload, long userCompanyId) {
+    private List<WitnessDraft> normalizeWitnesses(
+        long companyId,
+        Map<String, Object> payload,
+        long userCompanyId,
+        HrOperationalScope scope
+    ) {
         var value = payload.get("witnesses");
         if (!(value instanceof List<?> list) || list.isEmpty()) {
             return List.of();
@@ -592,6 +715,7 @@ public class HrRecordService {
                     if (witnessUserCompanyId == userCompanyId) {
                         continue;
                     }
+                    hrRecordScopeAccess.requireUserInScope(companyId, scope, witnessUserCompanyId);
                     var user = loadUserSnapshot(companyId, witnessUserCompanyId);
                     witnesses.add(new WitnessDraft(user.userCompanyId(), user.userName()));
                     continue;

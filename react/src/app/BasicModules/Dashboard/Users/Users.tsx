@@ -20,6 +20,7 @@ import {
   configCenterApi,
   type ConfigCenterCatalogBusiness,
   type ConfigCenterCatalogModule,
+  type ConfigCenterCatalogTab,
   type ConfigCenterCatalogUnit,
   type ConfigCenterUser,
 } from '../../../api/configCenter';
@@ -32,6 +33,14 @@ import {
   type DashboardModuleColor,
 } from '../../../config/moduleCatalog';
 import { validateEmail } from '../../../shared/validation/email';
+import {
+  type TabPermissionModuleOption,
+  buildTabPermissionModuleOptions,
+  mergeDefaultTabPermissions,
+  permissionKeysForModuleIds,
+  pruneTabPermissionKeysForModules,
+} from './usersTabPermissionAssignments';
+import { UsersTabPermissionPicker } from './UsersTabPermissionPicker';
 
 interface User {
   id: string;
@@ -48,6 +57,8 @@ interface User {
   businessId: number | null;
   businessName?: string | null;
   modules: string[];
+  tabPermissionKeys: string[];
+  tabPermissionsConfigured: boolean;
   isProtected: boolean;
 }
 
@@ -120,6 +131,7 @@ export default function Users() {
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>(() =>
     buildAvailableModules(t),
   );
+  const [availableTabs, setAvailableTabs] = useState<ConfigCenterCatalogTab[]>([]);
   const [availableUnits, setAvailableUnits] = useState<UnitOption[]>([]);
   const [availableBusinesses, setAvailableBusinesses] = useState<BusinessOption[]>([]);
   const [sortState, setSortState] = useState<SortState>(null);
@@ -136,6 +148,7 @@ export default function Users() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [inviteForm, setInviteForm] = useState<InviteFormState>(emptyInviteForm);
   const [inviteModuleIds, setInviteModuleIds] = useState<string[]>([]);
+  const [inviteTabPermissionKeys, setInviteTabPermissionKeys] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -150,6 +163,7 @@ export default function Users() {
     title: '',
   });
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
+  const [selectedTabPermissionsDraft, setSelectedTabPermissionsDraft] = useState<string[]>([]);
   const usersBusinessCopy = t.panelInicial.users.businessStructure;
 
   const statusLabelMap: Record<User['status'], string> = {
@@ -337,6 +351,10 @@ export default function Users() {
   const activeUsers = users.filter((user) => user.status === 'active').length;
   const pendingUsers = users.filter((user) => user.status === 'pending').length;
   const inactiveUsers = users.filter((user) => user.status === 'inactive').length;
+  const tabPermissionModules = useMemo<TabPermissionModuleOption[]>(
+    () => buildTabPermissionModuleOptions(availableModules),
+    [availableModules],
+  );
 
   const hideLoadingOverlay = () => {
     setLoadingOverlay({
@@ -430,10 +448,12 @@ export default function Users() {
     const mappedModules = response.catalog.modules
       .map((module) => mapCatalogModule(module, t))
       .filter((module): module is AvailableModule => module !== null);
+    const mappedTabs = response.catalog.tabs ?? [];
 
     setUsers(mappedUsers);
     setAvailableUnits(mappedUnits);
     setAvailableBusinesses(mappedBusinesses);
+    setAvailableTabs(mappedTabs);
     if (mappedModules.length > 0) {
       setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
     } else {
@@ -467,10 +487,12 @@ export default function Users() {
         const mappedModules = response.catalog.modules
           .map((module) => mapCatalogModule(module, t))
           .filter((module): module is AvailableModule => module !== null);
+        const mappedTabs = response.catalog.tabs ?? [];
 
         setUsers(mappedUsers);
         setAvailableUnits(mappedUnits);
         setAvailableBusinesses(mappedBusinesses);
+        setAvailableTabs(mappedTabs);
         if (mappedModules.length > 0) {
           setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
         }
@@ -496,6 +518,7 @@ export default function Users() {
     setShowInviteModal(false);
     setInviteForm(emptyInviteForm);
     setInviteModuleIds([]);
+    setInviteTabPermissionKeys([]);
     setInviteLink('');
     setInviteEmailStatus(null);
     setCopiedLink(false);
@@ -510,12 +533,33 @@ export default function Users() {
     setNewEmail('');
   };
 
+  const getPermissionKeysForModuleIds = (moduleIds: string[]) => (
+    permissionKeysForModuleIds(availableTabs, tabPermissionModules, moduleIds)
+  );
+
+  const pruneDraftTabPermissions = (permissionKeys: string[], moduleIds: string[]) => (
+    pruneTabPermissionKeysForModules(availableTabs, tabPermissionModules, permissionKeys, moduleIds)
+  );
+
+  const mergeDefaultDraftTabPermissions = (permissionKeys: string[], moduleIds: string[]) => (
+    mergeDefaultTabPermissions(availableTabs, tabPermissionModules, permissionKeys, moduleIds)
+  );
+
   const toggleUserModule = (moduleId: string) => {
-    setSelectedModulesDraft((prevModules) =>
-      prevModules.includes(moduleId)
+    setSelectedModulesDraft((prevModules) => {
+      const isSelected = prevModules.includes(moduleId);
+      const nextModules = isSelected
         ? prevModules.filter((module) => module !== moduleId)
-        : [...prevModules, moduleId],
-    );
+        : [...prevModules, moduleId];
+
+      setSelectedTabPermissionsDraft((prevPermissionKeys) => (
+        isSelected
+          ? pruneDraftTabPermissions(prevPermissionKeys, nextModules)
+          : mergeDefaultDraftTabPermissions(prevPermissionKeys, [moduleId])
+      ));
+
+      return nextModules;
+    });
   };
 
   const toggleUserStatus = async (user: User) => {
@@ -604,6 +648,10 @@ export default function Users() {
             module_slugs: inviteModuleIds
               .map((route) => backendSlugForRoute(route as any))
               .filter((slug): slug is string => Boolean(slug)),
+            tab_permission_keys: pruneDraftTabPermissions(
+              inviteTabPermissionKeys,
+              inviteModuleIds,
+            ),
           });
           await refreshUsers();
           setInviteLink(response.invite_link);
@@ -696,6 +744,14 @@ export default function Users() {
 
     setSelectedUserForModules(user.id);
     setSelectedModulesDraft(user.modules);
+    setSelectedTabPermissionsDraft(
+      pruneDraftTabPermissions(
+        user.tabPermissionsConfigured
+          ? user.tabPermissionKeys
+          : getPermissionKeysForModuleIds(user.modules),
+        user.modules,
+      ),
+    );
   };
 
   const handleSaveSelectedModules = async () => {
@@ -708,9 +764,14 @@ export default function Users() {
       setLoadError('');
       await configCenterApi.updateUser(selectedUser.backendId, buildUserUpdatePayload(selectedUser, {
         modules: selectedModulesDraft,
+        tabPermissionKeys: pruneDraftTabPermissions(
+          selectedTabPermissionsDraft,
+          selectedModulesDraft,
+        ),
       }));
       await refreshUsers();
       setSelectedUserForModules(null);
+      setSelectedTabPermissionsDraft([]);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to save module access.');
     }
@@ -782,11 +843,20 @@ export default function Users() {
   };
 
   const toggleInviteModule = (moduleId: string) => {
-    setInviteModuleIds((currentModuleIds) =>
-      currentModuleIds.includes(moduleId)
+    setInviteModuleIds((currentModuleIds) => {
+      const isSelected = currentModuleIds.includes(moduleId);
+      const nextModuleIds = isSelected
         ? currentModuleIds.filter((currentModuleId) => currentModuleId !== moduleId)
-        : [...currentModuleIds, moduleId],
-    );
+        : [...currentModuleIds, moduleId];
+
+      setInviteTabPermissionKeys((currentPermissionKeys) => (
+        isSelected
+          ? pruneDraftTabPermissions(currentPermissionKeys, nextModuleIds)
+          : mergeDefaultDraftTabPermissions(currentPermissionKeys, [moduleId])
+      ));
+
+      return nextModuleIds;
+    });
   };
 
   const formatSelectedModulesCount = (count: number) => {
@@ -864,16 +934,29 @@ export default function Users() {
       modules: string[];
       unitId: number | null;
       businessId: number | null;
+      tabPermissionKeys: string[];
     }> = {},
-  ) => ({
-    role: toBackendRole(overrides.role ?? user.role),
-    status: overrides.status ?? user.status,
-    unit_id: overrides.unitId ?? user.unitId,
-    business_id: overrides.businessId ?? user.businessId,
-    module_slugs: (overrides.modules ?? user.modules)
-      .map((route) => backendSlugForRoute(route as any))
-      .filter((slug): slug is string => Boolean(slug)),
-  });
+  ) => {
+    const moduleIds = overrides.modules ?? user.modules;
+    const payload = {
+      role: toBackendRole(overrides.role ?? user.role),
+      status: overrides.status ?? user.status,
+      unit_id: overrides.unitId ?? user.unitId,
+      business_id: overrides.businessId ?? user.businessId,
+      module_slugs: moduleIds
+        .map((route) => backendSlugForRoute(route as any))
+        .filter((slug): slug is string => Boolean(slug)),
+    };
+
+    if (overrides.tabPermissionKeys) {
+      return {
+        ...payload,
+        tab_permission_keys: pruneDraftTabPermissions(overrides.tabPermissionKeys, moduleIds),
+      };
+    }
+
+    return payload;
+  };
 
   const filteredBusinesses = (unitId: number | null) => {
     if (unitId == null) {
@@ -1056,6 +1139,7 @@ export default function Users() {
             onClick={() => {
               setInviteForm(emptyInviteForm);
               setInviteModuleIds([]);
+              setInviteTabPermissionKeys([]);
               setInviteLink('');
               setInviteEmailStatus(null);
               setCopiedLink(false);
@@ -1363,7 +1447,10 @@ export default function Users() {
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedUserForModules(null)}
+                onClick={() => {
+                  setSelectedUserForModules(null);
+                  setSelectedTabPermissionsDraft([]);
+                }}
                 className="rounded-xl p-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
               >
                 <X className="h-6 w-6" />
@@ -1433,12 +1520,29 @@ export default function Users() {
                     </div>
                   </div>
                 ))}
+
+                <UsersTabPermissionPicker
+                  catalogTabs={availableTabs}
+                  modules={tabPermissionModules}
+                  selectedModuleIds={selectedModulesDraft}
+                  selectedPermissionKeys={selectedTabPermissionsDraft}
+                  onChange={(permissionKeys) => {
+                    setSelectedTabPermissionsDraft(
+                      pruneDraftTabPermissions(permissionKeys, selectedModulesDraft),
+                    );
+                  }}
+                />
               </div>
             </div>
 
             <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-8">
               <div className="text-sm font-medium text-slate-600 dark:text-slate-300">
                 {formatSelectedModulesCount(selectedModulesDraft.length)}
+                {selectedTabPermissionsDraft.length > 0 ? (
+                  <span className="ml-2 text-slate-400">
+                    {selectedTabPermissionsDraft.length} tabs
+                  </span>
+                ) : null}
               </div>
               <Button
                 onClick={handleSaveSelectedModules}
@@ -1453,7 +1557,7 @@ export default function Users() {
 
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full">
+          <div className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-gray-800">
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -1626,6 +1730,18 @@ export default function Users() {
                         })}
                       </div>
                     </div>
+
+                    <UsersTabPermissionPicker
+                      catalogTabs={availableTabs}
+                      modules={tabPermissionModules}
+                      selectedModuleIds={inviteModuleIds}
+                      selectedPermissionKeys={inviteTabPermissionKeys}
+                      onChange={(permissionKeys) => {
+                        setInviteTabPermissionKeys(
+                          pruneDraftTabPermissions(permissionKeys, inviteModuleIds),
+                        );
+                      }}
+                    />
                   </>
                 ) : (
                   <div className="space-y-4">
@@ -1955,6 +2071,8 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
         const route = routeForBackendSlug(slug);
         return route && validModuleIds.has(route) ? [route] : [];
       }),
+    tabPermissionKeys: user.tab_permission_keys ?? [],
+    tabPermissionsConfigured: Boolean(user.tab_permissions_configured),
   };
 }
 

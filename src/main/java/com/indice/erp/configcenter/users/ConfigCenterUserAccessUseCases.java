@@ -8,6 +8,7 @@ import com.indice.erp.storage.ObjectStorageService;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,6 +20,8 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
     private static final java.util.Set<String> PROTECTED_ROLES = new HashSet<>(Arrays.asList("root", "superadmin"));
     private static final java.util.Set<String> ADMIN_ROLES = new HashSet<>(Arrays.asList("root", "superadmin", "admin"));
 
+    protected final ConfigCenterTabPermissionAccess tabPermissionAccess;
+
     protected ConfigCenterUserAccessUseCases(
         JdbcTemplate jdbcTemplate,
         ObjectMapper objectMapper,
@@ -27,6 +30,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         ObjectStorageProperties objectStorageProperties
     ) {
         super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
+        this.tabPermissionAccess = new ConfigCenterTabPermissionAccess(jdbcTemplate);
     }
 
     public Map<String, Object> getUsers(long companyId) {
@@ -84,7 +88,10 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 user.put("unit_name", safe(rs.getString("unit_name")));
                 user.put("business_id", businessId);
                 user.put("business_name", safe(rs.getString("business_name")));
-                user.put("module_slugs", listModuleSlugs(rs.getLong("user_company_id")));
+                var userCompanyId = rs.getLong("user_company_id");
+                user.put("module_slugs", listModuleSlugs(userCompanyId));
+                user.put("tab_permission_keys", tabPermissionAccess.listUserTabPermissionKeys(userCompanyId));
+                user.put("tab_permissions_configured", tabPermissionAccess.hasUserTabPermissionRows(userCompanyId));
                 user.put("is_protected", PROTECTED_ROLES.contains(safe(rs.getString("role"))));
                 user.put("source", "user");
                 return user;
@@ -135,7 +142,10 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 invitation.put("unit_name", safe(rs.getString("unit_name")));
                 invitation.put("business_id", businessId);
                 invitation.put("business_name", safe(rs.getString("business_name")));
+                var invitationId = rs.getLong("id");
                 invitation.put("module_slugs", parseStoredModuleSlugs(safe(rs.getString("module_slugs_json"))));
+                invitation.put("tab_permission_keys", tabPermissionAccess.listInvitationTabPermissionKeys(invitationId));
+                invitation.put("tab_permissions_configured", tabPermissionAccess.hasInvitationTabPermissionRows(invitationId));
                 invitation.put("is_protected", false);
                 invitation.put("source", "invitation");
                 return invitation;
@@ -194,6 +204,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         catalog.put("units", catalogUnits);
         catalog.put("businesses", catalogBusinesses);
         catalog.put("modules", catalogModules);
+        catalog.put("tabs", tabPermissionAccess.catalogTabs());
 
         var result = new LinkedHashMap<String, Object>();
         result.put("users", users);
@@ -206,6 +217,9 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var status = normalizeStatus(value(payload, "status"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
         ensureModuleSlugsExist(moduleSlugs);
+        var shouldReplaceTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
+        var tabPermissionKeys = shouldReplaceTabPermissions ? tabPermissionAccess.normalizeTabPermissionKeys(payload) : List.<String>of();
+        tabPermissionAccess.ensureTabPermissionKeysValid(tabPermissionKeys, moduleSlugs);
 
         var rows = jdbcTemplate.query(
             """
@@ -246,6 +260,9 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 userCompanyId,
                 slug
             );
+        }
+        if (shouldReplaceTabPermissions) {
+            tabPermissionAccess.replaceUserTabPermissions(userCompanyId, tabPermissionKeys, moduleSlugs);
         }
 
         var result = new LinkedHashMap<String, Object>();

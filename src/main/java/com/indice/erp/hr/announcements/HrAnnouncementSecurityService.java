@@ -2,6 +2,8 @@ package com.indice.erp.hr.announcements;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.shared.HrPayloadUtils;
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
@@ -15,20 +17,22 @@ public class HrAnnouncementSecurityService {
 
     private static final Set<String> ADMIN_ROLES = Set.of("root", "superadmin", "admin", "owner", "dueno");
     private static final Set<String> MANAGER_ROLES = Set.of("manager", "approver");
-    private static final String HR_MODULE = "human_resources";
 
     private final SessionAuthService sessionAuthService;
     private final SessionCsrfService sessionCsrfService;
     private final JdbcTemplate jdbcTemplate;
+    private final HrAccessService hrAccessService;
 
     public HrAnnouncementSecurityService(
         SessionAuthService sessionAuthService,
         SessionCsrfService sessionCsrfService,
-        JdbcTemplate jdbcTemplate
+        JdbcTemplate jdbcTemplate,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
         this.jdbcTemplate = jdbcTemplate;
+        this.hrAccessService = hrAccessService;
     }
 
     public HrAnnouncementActor requireReadActor(HttpSession session) {
@@ -121,9 +125,8 @@ public class HrAnnouncementSecurityService {
     }
 
     private boolean canManage(HrAnnouncementActor actor) {
-        var hasModule = actor.moduleSlugs().contains(HR_MODULE)
-            || (actor.moduleSlugs().isEmpty() && ADMIN_ROLES.contains(actor.role()));
-        return hasModule && (ADMIN_ROLES.contains(actor.role()) || MANAGER_ROLES.contains(actor.role()));
+        return (ADMIN_ROLES.contains(actor.role()) || MANAGER_ROLES.contains(actor.role()))
+            && hrAccessService.canAccessManagementTab(actor.userCompanyId(), actor.role(), HrTab.ANNOUNCEMENTS);
     }
 
     private void requireCsrf(HttpSession session, String csrfToken) {
