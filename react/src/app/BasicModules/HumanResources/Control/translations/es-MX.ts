@@ -296,6 +296,8 @@ export const esMX = {
       contractSiteHint: 'La asistencia solo se aceptará desde este sitio de contrato para las fechas seleccionadas.',
       attendanceLocation: 'Ubicación de asistencia',
       selectContractSite: 'Seleccionar sitio de contrato',
+      noFreeHrUsersForDate: 'No hay colaboradores libres para esta fecha. Elimina un turno existente antes de asignar nuevo trabajo.',
+      busyHrUsersHidden: 'Los colaboradores ocupados están ocultos en esta lista.',
       authMethods: {
         pin: 'PIN',
         badge: 'Gafete',
@@ -937,6 +939,9 @@ export const esMX = {
       saveAttendancePoint: 'Guardar punto de asistencia',
       createAttendancePoint: 'Crear punto de asistencia',
       allEmployeesNoLocationScope: 'Todos los colaboradores / ubicación sin restricción',
+      defaultOpenAttendanceName: 'Punto de asistencia abierta',
+      defaultOpenAttendanceCodeLabel: 'Asistencia abierta',
+      defaultAttendancePointName: (scopeLabel: string) => `${scopeLabel} Punto de asistencia`,
     },
     management: {
       title: 'Puntos de asistencia',

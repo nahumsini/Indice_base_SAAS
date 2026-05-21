@@ -294,6 +294,8 @@ export const enCA = {
       contractSiteHint: 'Attendance will only be accepted from this contract site for the selected dates.',
       attendanceLocation: 'Attendance location',
       selectContractSite: 'Select contract site',
+      noFreeHrUsersForDate: 'No free HR users available for this date. Remove an existing shift before assigning new work.',
+      busyHrUsersHidden: 'Busy HR users are hidden from this list.',
       authMethods: {
         pin: 'PIN',
         badge: 'Badge',
@@ -921,6 +923,9 @@ export const enCA = {
       saveAttendancePoint: 'Save attendance point',
       createAttendancePoint: 'Create attendance point',
       allEmployeesNoLocationScope: 'All employees / location not enforced',
+      defaultOpenAttendanceName: 'Open Attendance Point',
+      defaultOpenAttendanceCodeLabel: 'Open Attendance',
+      defaultAttendancePointName: (scopeLabel: string) => `${scopeLabel} Attendance Point`,
     },
     management: {
       title: 'Attendance Points',

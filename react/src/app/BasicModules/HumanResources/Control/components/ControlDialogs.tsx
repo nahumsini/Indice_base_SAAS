@@ -603,13 +603,13 @@ export function ControlAssignmentDialog({
                 );
               }) : (
                 <div className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                  No free HR users available for this date. Remove an existing shift before assigning new work.
+                  {copy.labels.noFreeHrUsersForDate}
                 </div>
               )}
             </div>
             {assignments.length > availableAssignments.length ? (
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Busy HR users are hidden from this list.
+                {copy.labels.busyHrUsersHidden}
               </p>
             ) : null}
           </div>
@@ -918,8 +918,8 @@ export function ControlKioskDialog({
         unit_id: null,
         business_id: null,
         location_id: null,
-        name: form.name || 'Open Attendance Point',
-        code: form.code || defaultKioskScopeCode('Open Attendance', `open-attendance-${Date.now().toString(36).slice(-5)}`),
+        name: form.name || copy.kiosk.form.defaultOpenAttendanceName,
+        code: form.code || defaultKioskScopeCode(copy.kiosk.form.defaultOpenAttendanceCodeLabel, `open-attendance-${Date.now().toString(36).slice(-5)}`),
         metadata: withKioskType(form.metadata, nextType),
       });
       return;
@@ -961,7 +961,7 @@ export function ControlKioskDialog({
       unit_id: unitId,
       business_id: shouldKeepBusiness ? form.business_id ?? null : null,
       location_id: null,
-      name: form.name || `${label} Attendance Point`,
+      name: form.name || copy.kiosk.form.defaultAttendancePointName(label),
       code: form.code || defaultKioskScopeCode(label, unitId ? `unit-${unitId}` : 'all-business'),
     });
   };
@@ -972,7 +972,7 @@ export function ControlKioskDialog({
       unit_id: nextBusiness?.unitId ?? form.unit_id ?? null,
       business_id: businessId,
       location_id: null,
-      name: form.name || `${nextBusiness?.name || copy.labels.allBusinesses} Attendance Point`,
+      name: form.name || copy.kiosk.form.defaultAttendancePointName(nextBusiness?.name || copy.labels.allBusinesses),
       code: form.code || defaultKioskScopeCode(nextBusiness?.name || copy.labels.allBusinesses, businessId ? `business-${businessId}` : 'all-business'),
     });
   };
@@ -983,7 +983,7 @@ export function ControlKioskDialog({
       unit_id: nextLocation?.unit_id ?? null,
       business_id: nextLocation?.business_id ?? null,
       location_id: nextLocation?.id ?? null,
-      name: form.name || (nextLocation ? `${nextLocation.name} Attendance Point` : form.name),
+      name: form.name || (nextLocation ? copy.kiosk.form.defaultAttendancePointName(nextLocation.name) : form.name),
       code: form.code || (nextLocation ? defaultKioskCode(nextLocation, kioskType) : form.code),
     });
   };
