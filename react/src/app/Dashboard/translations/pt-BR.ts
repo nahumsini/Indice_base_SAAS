@@ -60,6 +60,75 @@ export const ptBR = {
         cta: 'Ver analítica',
       },
     },
+    tips: {
+      eyebrow: 'Dicas',
+      title: 'Guia operacional',
+      subtitle: 'Contexto breve para entender por que cada ação importa na sua operação.',
+      categoryLabels: {
+        header: 'Interface',
+        stage: 'Etapa',
+        module: 'Módulo',
+        workflow: 'Fluxo',
+      },
+      items: {
+        notifications: {
+          title: 'Acompanhe a operação',
+          description: 'Consulte notificações importantes sobre movimentos, tarefas e eventos que podem afetar o dia a dia.',
+        },
+        languageSelector: {
+          title: 'Trabalhe no seu idioma',
+          description: 'Configure o idioma que ajuda sua equipe a trabalhar com mais clareza dentro do Índice.',
+        },
+        darkMode: {
+          title: 'Reduza o cansaço visual',
+          description: 'Use o modo noturno para uma experiência mais confortável durante jornadas longas ou turnos tardios.',
+        },
+        operationalJourney: {
+          title: 'Use orientação quando precisar',
+          description: 'Ative ou desative a Rota operacional sempre que quiser contexto sem perder velocidade de navegação.',
+        },
+        profileSettings: {
+          title: 'Mantenha seu espaço pessoal',
+          description: 'Gerencie suas informações e preferências no perfil para trabalhar com uma visão alinhada ao seu papel.',
+        },
+        favorites: {
+          title: 'Priorize o trabalho frequente',
+          description: 'Marque módulos como favoritos para acessar rapidamente as ferramentas mais usadas pela operação.',
+        },
+        companySetup: {
+          title: 'Construa a estrutura da empresa',
+          description: 'Configure a estrutura principal para que o Índice reflita como sua operação está organizada.',
+        },
+        businessMaturity: {
+          title: 'Entenda sua maturidade',
+          description: 'Conclua a avaliação de maturidade para que o Índice ofereça melhores recomendações operacionais.',
+        },
+        humanResources: {
+          title: 'Centralize a operação da equipe',
+          description: 'Reúna colaboradores, ponto e estrutura organizacional para melhorar o controle operacional.',
+        },
+        attendanceControl: {
+          title: 'Leia sinais diários de desempenho',
+          description: 'Acompanhe entradas, saídas e jornadas para entender como a atividade da equipe sustenta a execução.',
+        },
+        operationalProcesses: {
+          title: 'Torne a execução consistente',
+          description: 'Padronize tarefas e processos recorrentes para operar com menos falhas e responsabilidades mais claras.',
+        },
+        financeControl: {
+          title: 'Mantenha o dinheiro operacional visível',
+          description: 'Registre despesas e controle caixa pequeno para que o gasto diário seja rastreável e fácil de administrar.',
+        },
+        commercialOperation: {
+          title: 'Conecte receita à execução',
+          description: 'Gerencie vendas, oportunidades e ponto de venda para apoiar o crescimento da empresa.',
+        },
+        analyticsKpis: {
+          title: 'Transforme dados em decisões',
+          description: 'Analise indicadores-chave para entender o desempenho real e detectar oportunidades de melhoria.',
+        },
+      },
+    },
   },
   operationalModules: {
     title: 'Módulos operacionais',

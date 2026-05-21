@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   BarChart3,
   Building2,
@@ -19,7 +20,9 @@ import type {
   OperationalJourneyStageStatus,
   OperationalJourneyStageView,
 } from '../operationalJourney';
+import { buildOperationalTipsForStage } from '../operationalTips';
 import type { MainDashboardTranslations } from '../translations';
+import { OperationalTipsSection } from './OperationalTipsSection';
 
 interface OperationalJourneyProps {
   copy: MainDashboardTranslations['operationalJourney'];
@@ -63,6 +66,10 @@ export function OperationalJourney({
 }: OperationalJourneyProps) {
   const completedCount = stages.filter((stage) => stage.status === 'completed').length;
   const progressPercent = Math.round((completedCount / Math.max(stages.length, 1)) * 100);
+  const tips = useMemo(
+    () => buildOperationalTipsForStage(activeStageId),
+    [activeStageId],
+  );
 
   return (
     <section aria-labelledby="operational-journey-title">
@@ -158,6 +165,8 @@ export function OperationalJourney({
               );
             })}
           </div>
+
+          <OperationalTipsSection copy={copy.tips} tips={tips} />
         </div>
       </Card>
     </section>

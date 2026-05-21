@@ -60,6 +60,75 @@ export const zhCA = {
         cta: '查看分析',
       },
     },
+    tips: {
+      eyebrow: '建议',
+      title: '运营指引',
+      subtitle: '用简短上下文说明每个动作为什么会影响运营。',
+      categoryLabels: {
+        header: '界面',
+        stage: '阶段',
+        module: '模块',
+        workflow: '流程',
+      },
+      items: {
+        notifications: {
+          title: '掌握运营动态',
+          description: '查看与移动、任务和重要事件相关的通知，及时了解可能影响日常运营的信息。',
+        },
+        languageSelector: {
+          title: '使用更顺手的语言',
+          description: '设置团队更容易理解的语言，让大家在 Índice 中更清楚地工作。',
+        },
+        darkMode: {
+          title: '降低视觉疲劳',
+          description: '在长时间工作或较晚班次中使用深色模式，获得更舒适的操作体验。',
+        },
+        operationalJourney: {
+          title: '需要时开启指引',
+          description: '当你需要上下文时开启运营路径，想快速浏览时也可以随时关闭。',
+        },
+        profileSettings: {
+          title: '保持个人工作空间',
+          description: '从个人资料中管理信息和偏好，让工作界面更符合你的角色。',
+        },
+        favorites: {
+          title: '优先处理常用工作',
+          description: '用星标收藏模块，更快进入运营中最常使用的工具。',
+        },
+        companySetup: {
+          title: '建立企业结构',
+          description: '配置公司的核心结构，让 Índice 能反映你的真实运营组织方式。',
+        },
+        businessMaturity: {
+          title: '了解企业成熟度',
+          description: '完成成熟度评估后，Índice 可以提供更贴合运营现状的建议。',
+        },
+        humanResources: {
+          title: '集中管理团队运营',
+          description: '把员工、考勤和组织结构集中起来，提高运营控制力。',
+        },
+        attendanceControl: {
+          title: '读取日常执行信号',
+          description: '跟踪上班、下班和工作日，理解团队活动如何支撑执行。',
+        },
+        operationalProcesses: {
+          title: '让执行保持一致',
+          description: '标准化重复任务和流程，减少空档，并让责任更清晰。',
+        },
+        financeControl: {
+          title: '保持运营资金可见',
+          description: '记录支出并控制备用金，让日常花费可追踪、易管理。',
+        },
+        commercialOperation: {
+          title: '连接收入与执行',
+          description: '管理销售活动、机会和收银流转，支持企业增长。',
+        },
+        analyticsKpis: {
+          title: '把数据变成决策',
+          description: '分析关键指标，理解真实绩效并发现改进机会。',
+        },
+      },
+    },
   },
   operationalModules: {
     title: '运营模块',

@@ -60,6 +60,75 @@ export const esCO = {
         cta: 'Ver analítica',
       },
     },
+    tips: {
+      eyebrow: 'Consejos',
+      title: 'Guía operativa',
+      subtitle: 'Contexto breve para entender por qué cada acción aporta valor a la operación.',
+      categoryLabels: {
+        header: 'Interfaz',
+        stage: 'Etapa',
+        module: 'Módulo',
+        workflow: 'Flujo',
+      },
+      items: {
+        notifications: {
+          title: 'Mantente atento a la operación',
+          description: 'Consulta notificaciones sobre movimientos, tareas y eventos relevantes que pueden impactar el trabajo diario.',
+        },
+        languageSelector: {
+          title: 'Trabaja en tu idioma',
+          description: 'Configura el idioma con el que tu equipo se sienta más cómodo para operar dentro de Índice.',
+        },
+        darkMode: {
+          title: 'Reduce el cansancio visual',
+          description: 'Activa el modo nocturno para una experiencia más cómoda durante jornadas largas o cierres operativos.',
+        },
+        operationalJourney: {
+          title: 'Usa guía cuando la necesites',
+          description: 'Activa o desactiva la Ruta operativa cuando quieras navegar con contexto sin perder agilidad.',
+        },
+        profileSettings: {
+          title: 'Mantén tu espacio personal',
+          description: 'Administra tu información y preferencias desde tu perfil para trabajar con una vista alineada a tu rol.',
+        },
+        favorites: {
+          title: 'Prioriza el trabajo frecuente',
+          description: 'Marca módulos como favoritos con la estrella para acceder más rápido a las herramientas que más utilizas.',
+        },
+        companySetup: {
+          title: 'Construye la estructura de tu empresa',
+          description: 'Configura la estructura principal para que Índice refleje cómo está organizada tu operación.',
+        },
+        businessMaturity: {
+          title: 'Entiende tu madurez empresarial',
+          description: 'Realiza la evaluación de madurez para que Índice pueda orientarte con mejores recomendaciones operativas.',
+        },
+        humanResources: {
+          title: 'Centraliza la operación del equipo',
+          description: 'Organiza personal, asistencia y estructura organizacional para mantener mayor control operativo.',
+        },
+        attendanceControl: {
+          title: 'Lee señales de desempeño diario',
+          description: 'Gestiona entradas, salidas y jornadas para entender cómo la actividad del equipo sostiene la ejecución.',
+        },
+        operationalProcesses: {
+          title: 'Haz consistente la ejecución',
+          description: 'Homologa tareas y procesos recurrentes para operar con menos vacíos y responsabilidades más claras.',
+        },
+        financeControl: {
+          title: 'Mantén visible el dinero operativo',
+          description: 'Registra gastos y controla caja menor para que el gasto diario sea trazable y fácil de administrar.',
+        },
+        commercialOperation: {
+          title: 'Conecta ingresos con ejecución',
+          description: 'Gestiona ventas, oportunidades y punto de venta para impulsar el crecimiento de la empresa.',
+        },
+        analyticsKpis: {
+          title: 'Convierte datos en decisiones',
+          description: 'Analiza indicadores clave para entender el desempeño real y detectar oportunidades de mejora.',
+        },
+      },
+    },
   },
   operationalModules: {
     title: 'Módulos operativos',

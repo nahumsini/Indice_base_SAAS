@@ -60,6 +60,75 @@ export const frCA = {
         cta: 'Voir l’analytique',
       },
     },
+    tips: {
+      eyebrow: 'Conseils',
+      title: 'Guidage opérationnel',
+      subtitle: 'Un contexte bref pour comprendre pourquoi chaque action compte dans votre opération.',
+      categoryLabels: {
+        header: 'Interface',
+        stage: 'Étape',
+        module: 'Module',
+        workflow: 'Flux',
+      },
+      items: {
+        notifications: {
+          title: 'Gardez le pouls de l’opération',
+          description: 'Consultez les notifications importantes sur les mouvements, les tâches et les événements qui touchent le quotidien.',
+        },
+        languageSelector: {
+          title: 'Travaillez dans votre langue',
+          description: 'Choisissez la langue qui aide votre équipe à travailler plus clairement dans Índice.',
+        },
+        darkMode: {
+          title: 'Réduisez la fatigue visuelle',
+          description: 'Utilisez le mode sombre pour une expérience plus confortable pendant les longues journées ou les quarts tardifs.',
+        },
+        operationalJourney: {
+          title: 'Activez le guidage au besoin',
+          description: 'Activez ou désactivez le parcours opérationnel lorsque vous voulez du contexte sans ralentir votre navigation.',
+        },
+        profileSettings: {
+          title: 'Gardez votre espace personnel',
+          description: 'Gérez vos informations et préférences depuis votre profil pour travailler selon votre rôle.',
+        },
+        favorites: {
+          title: 'Priorisez le travail fréquent',
+          description: 'Ajoutez des modules aux favoris pour accéder rapidement aux outils les plus utilisés par votre opération.',
+        },
+        companySetup: {
+          title: 'Structurez votre entreprise',
+          description: 'Configurez la structure principale afin qu’Índice reflète la façon dont votre opération est organisée.',
+        },
+        businessMaturity: {
+          title: 'Comprenez votre maturité',
+          description: 'Complétez l’évaluation de maturité pour permettre à Índice de proposer de meilleures recommandations opérationnelles.',
+        },
+        humanResources: {
+          title: 'Centralisez l’opération d’équipe',
+          description: 'Regroupez employés, présence et structure organisationnelle pour améliorer le contrôle opérationnel.',
+        },
+        attendanceControl: {
+          title: 'Lisez les signaux quotidiens',
+          description: 'Suivez les entrées, les sorties et les journées pour comprendre comment l’activité de l’équipe soutient l’exécution.',
+        },
+        operationalProcesses: {
+          title: 'Rendez l’exécution constante',
+          description: 'Standardisez les tâches et processus récurrents pour réduire les écarts et clarifier les responsabilités.',
+        },
+        financeControl: {
+          title: 'Gardez l’argent opérationnel visible',
+          description: 'Enregistrez les dépenses et contrôlez la petite caisse pour rendre les dépenses quotidiennes traçables.',
+        },
+        commercialOperation: {
+          title: 'Reliez les revenus à l’exécution',
+          description: 'Gérez les ventes, les occasions et le point de vente pour soutenir la croissance de l’entreprise.',
+        },
+        analyticsKpis: {
+          title: 'Transformez les données en décisions',
+          description: 'Analysez les indicateurs clés pour comprendre la performance réelle et repérer les occasions d’amélioration.',
+        },
+      },
+    },
   },
   operationalModules: {
     title: 'Modules opérationnels',

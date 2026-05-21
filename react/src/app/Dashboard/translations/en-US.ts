@@ -60,6 +60,75 @@ export const enUS = {
         cta: 'View analytics',
       },
     },
+    tips: {
+      eyebrow: 'Tips',
+      title: 'Operational guidance',
+      subtitle: 'Short context to understand why each action matters in your operation.',
+      categoryLabels: {
+        header: 'Interface',
+        stage: 'Stage',
+        module: 'Module',
+        workflow: 'Workflow',
+      },
+      items: {
+        notifications: {
+          title: 'Stay aware of movement',
+          description: 'Review important notifications about movements, tasks, and events that can affect your daily operation.',
+        },
+        languageSelector: {
+          title: 'Work in your preferred language',
+          description: 'Set the language that helps your team work with more clarity across Índice.',
+        },
+        darkMode: {
+          title: 'Reduce visual fatigue',
+          description: 'Use dark mode for a calmer experience during long work sessions or late operating hours.',
+        },
+        operationalJourney: {
+          title: 'Use guidance when you need it',
+          description: 'Turn the operational journey on or off whenever you want contextual guidance while navigating the system.',
+        },
+        profileSettings: {
+          title: 'Keep your workspace personal',
+          description: 'Manage your personal information and preferences from your profile to keep your workspace aligned with your role.',
+        },
+        favorites: {
+          title: 'Prioritize frequent work',
+          description: 'Mark modules as favorites to reach the tools your operation uses most without scanning the full dashboard.',
+        },
+        companySetup: {
+          title: 'Build your company structure',
+          description: 'Configure the main structure of your company so Índice can reflect how your operation is organized.',
+        },
+        businessMaturity: {
+          title: 'Understand your maturity',
+          description: 'Complete the business maturity assessment so Índice can guide better operational recommendations.',
+        },
+        humanResources: {
+          title: 'Centralize your team operation',
+          description: 'Bring employees, attendance, and organizational structure together to improve operational control.',
+        },
+        attendanceControl: {
+          title: 'Read daily performance signals',
+          description: 'Track clock-ins, clock-outs, and workdays to understand how team activity supports execution.',
+        },
+        operationalProcesses: {
+          title: 'Make execution consistent',
+          description: 'Standardize tasks and recurring processes so the operation runs with fewer gaps and clearer responsibility.',
+        },
+        financeControl: {
+          title: 'Keep operating money visible',
+          description: 'Register expenses and control assigned cash so daily spending stays traceable and easier to manage.',
+        },
+        commercialOperation: {
+          title: 'Connect revenue to execution',
+          description: 'Manage sales activity, opportunities, and point-of-sale movement to support business growth.',
+        },
+        analyticsKpis: {
+          title: 'Turn data into decisions',
+          description: 'Review key indicators to understand real performance and detect opportunities for improvement.',
+        },
+      },
+    },
   },
   operationalModules: {
     title: 'Operational modules',

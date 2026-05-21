@@ -60,6 +60,75 @@ export const koCA = {
         cta: '분석 보기',
       },
     },
+    tips: {
+      eyebrow: '팁',
+      title: '운영 안내',
+      subtitle: '각 작업이 운영에 왜 중요한지 짧게 이해할 수 있는 안내입니다.',
+      categoryLabels: {
+        header: '인터페이스',
+        stage: '단계',
+        module: '모듈',
+        workflow: '흐름',
+      },
+      items: {
+        notifications: {
+          title: '운영 변화를 확인하세요',
+          description: '일상 운영에 영향을 줄 수 있는 이동, 작업, 주요 이벤트 알림을 확인하세요.',
+        },
+        languageSelector: {
+          title: '편한 언어로 작업하세요',
+          description: '팀이 Índice에서 더 명확하게 일할 수 있도록 선호 언어를 설정하세요.',
+        },
+        darkMode: {
+          title: '시각 피로를 줄이세요',
+          description: '긴 근무 시간이나 늦은 운영 시간에는 다크 모드로 더 편안하게 작업하세요.',
+        },
+        operationalJourney: {
+          title: '필요할 때 안내를 켜세요',
+          description: '맥락이 필요할 때 운영 경로를 켜고, 빠르게 이동하고 싶을 때 끌 수 있습니다.',
+        },
+        profileSettings: {
+          title: '개인 작업 공간을 유지하세요',
+          description: '프로필에서 정보와 환경설정을 관리해 역할에 맞는 작업 환경을 유지하세요.',
+        },
+        favorites: {
+          title: '자주 쓰는 작업을 우선하세요',
+          description: '별표로 모듈을 즐겨찾기에 추가해 자주 쓰는 도구에 더 빠르게 접근하세요.',
+        },
+        companySetup: {
+          title: '회사 구조를 만드세요',
+          description: 'Índice가 실제 운영 구조를 반영할 수 있도록 회사의 기본 구조를 설정하세요.',
+        },
+        businessMaturity: {
+          title: '운영 성숙도를 이해하세요',
+          description: '성숙도 평가를 완료하면 Índice가 더 적절한 운영 추천을 제공할 수 있습니다.',
+        },
+        humanResources: {
+          title: '팀 운영을 중앙화하세요',
+          description: '직원, 출퇴근, 조직 구조를 한곳에 모아 운영 통제를 개선하세요.',
+        },
+        attendanceControl: {
+          title: '일일 실행 신호를 읽으세요',
+          description: '출근, 퇴근, 근무일을 추적해 팀 활동이 실행을 어떻게 지원하는지 파악하세요.',
+        },
+        operationalProcesses: {
+          title: '실행을 일관되게 만드세요',
+          description: '반복 작업과 프로세스를 표준화해 빈틈을 줄이고 책임을 명확히 하세요.',
+        },
+        financeControl: {
+          title: '운영 자금을 보이게 관리하세요',
+          description: '비용과 소액 현금을 기록해 일일 지출을 추적 가능하고 관리하기 쉽게 만드세요.',
+        },
+        commercialOperation: {
+          title: '수익과 실행을 연결하세요',
+          description: '판매 활동, 기회, POS 흐름을 관리해 회사 성장을 지원하세요.',
+        },
+        analyticsKpis: {
+          title: '데이터를 의사결정으로 바꾸세요',
+          description: '핵심 지표를 분석해 실제 성과를 이해하고 개선 기회를 찾으세요.',
+        },
+      },
+    },
   },
   operationalModules: {
     title: '운영 모듈',
