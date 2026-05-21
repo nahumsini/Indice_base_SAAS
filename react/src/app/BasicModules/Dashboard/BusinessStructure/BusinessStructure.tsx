@@ -88,7 +88,6 @@ type PendingDeleteTarget =
       type: 'unit';
       unidadId: string;
       name: string;
-      isCorporateOffice: boolean;
     }
   | {
       type: 'business';
@@ -836,7 +835,6 @@ export default function BusinessStructure() {
   const [editingUnidad, setEditingUnidad] = useState<Unidad | null>(null);
   const [editingNegocio, setEditingNegocio] = useState<EditingNegocio | null>(null);
   const [pendingDeleteTarget, setPendingDeleteTarget] = useState<PendingDeleteTarget | null>(null);
-  const [corporateReplacementUnitId, setCorporateReplacementUnitId] = useState('');
   const [unidadFormValues, setUnidadFormValues] = useState<UnidadFormValues>(DEFAULT_UNIDAD_FORM_VALUES);
   const [unidadInitialValues, setUnidadInitialValues] = useState<UnidadFormValues>(DEFAULT_UNIDAD_FORM_VALUES);
   const [negocioFormValues, setNegocioFormValues] = useState<NegocioFormValues>(DEFAULT_NEGOCIO_FORM_VALUES);
@@ -1124,7 +1122,7 @@ export default function BusinessStructure() {
       }
 
       if (deletedUnidad?.isCorporateOffice) {
-        return remainingUnidades;
+        return normalizeCorporateOfficeUnits(remainingUnidades);
       }
 
       return normalizeCorporateOfficeUnits(remainingUnidades);
@@ -1154,13 +1152,7 @@ export default function BusinessStructure() {
       type: 'unit',
       unidadId,
       name: unidad.name,
-      isCorporateOffice: unidad.isCorporateOffice === true,
     });
-    setCorporateReplacementUnitId(
-      unidad.isCorporateOffice
-        ? unidades.find((item) => item.id !== unidadId)?.id ?? ''
-        : '',
-    );
   };
 
   const handleRequestDeleteNegocio = (unidadId: string, negocioId: string) => {
@@ -1181,7 +1173,6 @@ export default function BusinessStructure() {
 
   const handleCancelDelete = () => {
     setPendingDeleteTarget(null);
-    setCorporateReplacementUnitId('');
   };
 
   const handleConfirmDelete = () => {
@@ -1190,18 +1181,12 @@ export default function BusinessStructure() {
     }
 
     if (pendingDeleteTarget.type === 'unit') {
-      if (pendingDeleteTarget.isCorporateOffice && unidades.length > 1 && !corporateReplacementUnitId) {
-        setLoadError('Choose another corporate office before deleting this unit.');
-        return;
-      }
-
-      applyDeleteUnidad(pendingDeleteTarget.unidadId, corporateReplacementUnitId);
+      applyDeleteUnidad(pendingDeleteTarget.unidadId);
     } else {
       applyDeleteNegocio(pendingDeleteTarget.unidadId, pendingDeleteTarget.negocioId);
     }
 
     setPendingDeleteTarget(null);
-    setCorporateReplacementUnitId('');
   };
 
   const handleSaveUnidad = (event: FormEvent<HTMLFormElement>) => {
@@ -1377,31 +1362,6 @@ export default function BusinessStructure() {
     setNegocioFormValues(DEFAULT_NEGOCIO_FORM_VALUES);
     setNegocioInitialValues(DEFAULT_NEGOCIO_FORM_VALUES);
     setShowNegocioModal(true);
-  };
-
-  const handleSetCorporateOffice = (unidadId: string) => {
-    const targetUnidad = unidades.find((unidad) => unidad.id === unidadId);
-    if (!targetUnidad || targetUnidad.isCorporateOffice) {
-      return;
-    }
-
-    void runStructureFeedbackTask({
-      title: 'Saving corporate office...',
-      description: 'Updating the selected corporate office for this company.',
-      successMessage: 'Corporate office updated.',
-      task: async () => {
-        const nextUnidades = unidades.map((unidad) => ({
-          ...unidad,
-          isCorporateOffice: unidad.id === unidadId,
-        }));
-
-        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
-        const savedUnidades = mapConfigUnitsToState(response.map);
-        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
-        setUnidades(committedUnidades);
-        syncSavedStructure(estructuraType, committedUnidades);
-      },
-    });
   };
 
   const handlePersistBusinessStructure = async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -1620,7 +1580,6 @@ export default function BusinessStructure() {
           structure={structure}
           onEditUnidad={handleEditUnidad}
           onDeleteUnidad={handleRequestDeleteUnidad}
-          onSetCorporateOffice={handleSetCorporateOffice}
           onEditNegocio={handleEditNegocio}
           onDeleteNegocio={handleRequestDeleteNegocio}
           onCreateNegocio={handleCreateNegocio}
@@ -2198,38 +2157,12 @@ export default function BusinessStructure() {
         title={pendingDeleteTarget?.type === 'unit'
           ? structure.modal.confirmDeleteUnit
           : structure.modal.confirmDeleteBusiness}
-        description={pendingDeleteTarget?.type === 'unit' && pendingDeleteTarget.isCorporateOffice && unidades.length > 1
-          ? 'Choose the unit that should become the corporate office after this one is deleted.'
-          : undefined}
         itemName={pendingDeleteTarget?.name}
         confirmLabel={structure.modal.delete}
         cancelLabel={structure.modal.cancel}
-        confirmDisabled={pendingDeleteTarget?.type === 'unit'
-          && pendingDeleteTarget.isCorporateOffice
-          && unidades.length > 1
-          && !corporateReplacementUnitId}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
-      >
-        {pendingDeleteTarget?.type === 'unit' && pendingDeleteTarget.isCorporateOffice && unidades.length > 1 ? (
-          <label className="block text-left text-sm font-medium text-gray-700 dark:text-gray-200">
-            New corporate office
-            <select
-              value={corporateReplacementUnitId}
-              onChange={(event) => setCorporateReplacementUnitId(event.target.value)}
-              className={`${inputClassName} mt-2`}
-            >
-              {unidades
-                .filter((unidad) => unidad.id !== pendingDeleteTarget.unidadId)
-                .map((unidad) => (
-                  <option key={unidad.id} value={unidad.id}>
-                    {unidad.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-        ) : null}
-      </ConfirmDeleteDialog>
+      />
 
     </div>
   );
