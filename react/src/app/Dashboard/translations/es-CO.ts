@@ -11,7 +11,7 @@ export const esCO = {
     aiLabel: 'Módulos de IA',
   },
   operationalJourney: {
-    eyebrow: 'Guía operativa',
+    eyebrow: 'Modo aprendiz',
     title: 'Ruta operativa',
     subtitle: 'Configura tu operación paso a paso.',
     progressLabel: 'Progreso',

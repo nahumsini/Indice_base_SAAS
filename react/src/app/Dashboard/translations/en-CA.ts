@@ -11,7 +11,7 @@ export const enCA = {
     aiLabel: 'AI modules',
   },
   operationalJourney: {
-    eyebrow: 'Operational guidance',
+    eyebrow: 'Learning mode',
     title: 'Operational journey',
     subtitle: 'Configure your operation step by step.',
     progressLabel: 'Progress',

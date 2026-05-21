@@ -11,7 +11,7 @@ export const frCA = {
     aiLabel: 'Modules IA',
   },
   operationalJourney: {
-    eyebrow: 'Guidage opérationnel',
+    eyebrow: 'Mode apprentissage',
     title: 'Parcours opérationnel',
     subtitle: 'Configurez votre opération étape par étape.',
     progressLabel: 'Progrès',

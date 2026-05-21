@@ -11,7 +11,7 @@ export const zhCA = {
     aiLabel: 'AI 模块',
   },
   operationalJourney: {
-    eyebrow: '运营指引',
+    eyebrow: '学习模式',
     title: '运营路径',
     subtitle: '逐步配置你的运营体系。',
     progressLabel: '进度',

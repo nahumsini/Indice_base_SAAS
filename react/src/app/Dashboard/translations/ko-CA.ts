@@ -11,7 +11,7 @@ export const koCA = {
     aiLabel: 'AI 모듈',
   },
   operationalJourney: {
-    eyebrow: '운영 안내',
+    eyebrow: '학습 모드',
     title: '운영 경로',
     subtitle: '운영을 단계별로 설정하세요.',
     progressLabel: '진행률',

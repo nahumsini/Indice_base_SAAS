@@ -11,7 +11,7 @@ export const ptBR = {
     aiLabel: 'Módulos de IA',
   },
   operationalJourney: {
-    eyebrow: 'Guia operacional',
+    eyebrow: 'Modo aprendiz',
     title: 'Rota operacional',
     subtitle: 'Configure sua operação passo a passo.',
     progressLabel: 'Progresso',
