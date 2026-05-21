@@ -5,6 +5,9 @@ export const enCA = {
   focusLabel: 'Current focus',
   actionsLabel: 'Recommended actions',
   tabsLabel: 'Configuration areas',
+  previousStepLabel: 'Previous recommendation',
+  nextStepLabel: 'Next recommendation',
+  stepIndicatorLabel: 'Show recommendation',
   tabs: {
     profile: {
       label: 'Profile',

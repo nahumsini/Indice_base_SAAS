@@ -5,6 +5,9 @@ export const ptBR = {
   focusLabel: 'Foco atual',
   actionsLabel: 'Ações recomendadas',
   tabsLabel: 'Áreas de configuração',
+  previousStepLabel: 'Recomendação anterior',
+  nextStepLabel: 'Próxima recomendação',
+  stepIndicatorLabel: 'Mostrar recomendação',
   tabs: {
     profile: {
       label: 'Perfil',

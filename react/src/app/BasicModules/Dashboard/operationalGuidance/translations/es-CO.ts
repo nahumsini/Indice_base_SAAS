@@ -5,6 +5,9 @@ export const esCO = {
   focusLabel: 'Enfoque actual',
   actionsLabel: 'Acciones recomendadas',
   tabsLabel: 'Áreas de configuración',
+  previousStepLabel: 'Recomendación anterior',
+  nextStepLabel: 'Siguiente recomendación',
+  stepIndicatorLabel: 'Mostrar recomendación',
   tabs: {
     profile: {
       label: 'Perfil',

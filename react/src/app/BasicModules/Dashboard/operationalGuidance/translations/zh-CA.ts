@@ -5,6 +5,9 @@ export const zhCA = {
   focusLabel: '当前重点',
   actionsLabel: '建议操作',
   tabsLabel: '配置区域',
+  previousStepLabel: '上一条建议',
+  nextStepLabel: '下一条建议',
+  stepIndicatorLabel: '显示建议',
   tabs: {
     profile: {
       label: '个人资料',

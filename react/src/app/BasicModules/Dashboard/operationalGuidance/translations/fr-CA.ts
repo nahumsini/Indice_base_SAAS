@@ -5,6 +5,9 @@ export const frCA = {
   focusLabel: 'Priorité actuelle',
   actionsLabel: 'Actions recommandées',
   tabsLabel: 'Zones de configuration',
+  previousStepLabel: 'Recommandation précédente',
+  nextStepLabel: 'Recommandation suivante',
+  stepIndicatorLabel: 'Afficher la recommandation',
   tabs: {
     profile: {
       label: 'Profil',

@@ -5,6 +5,9 @@ export const koCA = {
   focusLabel: '현재 초점',
   actionsLabel: '권장 작업',
   tabsLabel: '설정 영역',
+  previousStepLabel: '이전 추천',
+  nextStepLabel: '다음 추천',
+  stepIndicatorLabel: '추천 보기',
   tabs: {
     profile: {
       label: '프로필',
