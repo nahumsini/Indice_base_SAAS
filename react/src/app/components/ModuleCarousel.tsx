@@ -7,7 +7,7 @@ interface ModuleCarouselProps {
 }
 
 export function ModuleCarousel({ children, gridClasses = "grid-cols-[repeat(auto-fill,140px)]", singleRow = false }: ModuleCarouselProps) {
-  // Modo single row: carousel horizontal en todas las pantallas
+  // Single-row mode: horizontal carousel on every viewport.
   if (singleRow) {
     return (
       <div className="overflow-x-auto scrollbar-hide pb-4">
@@ -18,17 +18,17 @@ export function ModuleCarousel({ children, gridClasses = "grid-cols-[repeat(auto
     );
   }
 
-  // Modo normal: carousel en móvil, grid en desktop
+  // Default mode: mobile carousel, desktop grid.
   return (
     <>
-      {/* Carrusel móvil (< md) */}
+      {/* Mobile carousel (< md) */}
       <div className="md:hidden overflow-x-auto scrollbar-hide pb-4 -mx-8 px-8">
         <div className="flex gap-4 snap-x snap-mandatory">
           {children}
         </div>
       </div>
       
-      {/* Grid desktop (>= md) */}
+      {/* Desktop grid (>= md) */}
       <div className={`hidden md:grid ${gridClasses} justify-start gap-4`}>
         {children}
       </div>

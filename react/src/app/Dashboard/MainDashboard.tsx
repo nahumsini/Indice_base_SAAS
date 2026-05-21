@@ -165,18 +165,20 @@ export function MainDashboard({
         />
       )}
 
-      <KpiSection
-        title={copy.sections.kpis}
-        kpis={kpiData}
-        availableKPIs={availableKPIs}
-        defaultKPIIds={defaultDashboardKpiIds}
-        copy={copy}
-        selectedKPIIds={selectedKPIIds}
-        isConfigOpen={isKPIConfigOpen}
-        onOpenConfig={() => setIsKPIConfigOpen(true)}
-        onCloseConfig={() => setIsKPIConfigOpen(false)}
-        onSave={handleSaveKPIs}
-      />
+      {!isOperationalJourneyVisible && (
+        <KpiSection
+          title={copy.sections.kpis}
+          kpis={kpiData}
+          availableKPIs={availableKPIs}
+          defaultKPIIds={defaultDashboardKpiIds}
+          copy={copy}
+          selectedKPIIds={selectedKPIIds}
+          isConfigOpen={isKPIConfigOpen}
+          onOpenConfig={() => setIsKPIConfigOpen(true)}
+          onCloseConfig={() => setIsKPIConfigOpen(false)}
+          onSave={handleSaveKPIs}
+        />
+      )}
 
       <FavoritesSection
         title={copy.sections.favorites}
@@ -186,16 +188,29 @@ export function MainDashboard({
         onModuleClick={handleModuleClick}
       />
 
-      <OperationalModulesSection
-        title={copy.operationalModules.title}
-        label={copy.operationalModules.label}
-        copy={copy.operationalJourney}
-        groups={operationalModuleGroups}
-        activeStageId={activeOperationalStageId}
-        favoriteIds={favorites}
-        onToggleFavorite={toggleFavorite}
-        onModuleClick={handleModuleClick}
-      />
+      {isOperationalJourneyVisible ? (
+        <OperationalModulesSection
+          title={copy.operationalModules.title}
+          label={copy.operationalModules.label}
+          copy={copy.operationalJourney}
+          groups={operationalModuleGroups}
+          activeStageId={activeOperationalStageId}
+          favoriteIds={favorites}
+          onToggleFavorite={toggleFavorite}
+          onModuleClick={handleModuleClick}
+        />
+      ) : (
+        <ModuleSection
+          icon="🏢"
+          title={copy.sections.basicModules}
+          label={copy.sections.main}
+          modules={mainModules}
+          favoriteIds={favorites}
+          onToggleFavorite={toggleFavorite}
+          onModuleClick={handleModuleClick}
+          singleRow
+        />
+      )}
 
       <ModuleSection
         icon="🔧"
