@@ -1,7 +1,14 @@
 import { mockTransfers } from './mocks/inventory.mock';
+import type { Transfer } from './types/inventory.types';
+
+const transferItemCount = (transfer: Transfer) =>
+  transfer.products.reduce((total, product) => total + product.quantity, 0);
+
+const hasTransferDifferences = (transfer: Transfer) =>
+  Boolean(transfer.notes?.toLowerCase().includes('diferencia'));
 
 export default function RecepcionesTab() {
-  const pendingReceptions = mockTransfers.filter(t => t.status === 'transito' || t.status === 'enviado');
+  const pendingReceptions = mockTransfers.filter(t => t.status === 'in_transit' || t.status === 'approved');
 
   return (
     <div className="space-y-6">
@@ -13,12 +20,12 @@ export default function RecepcionesTab() {
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">✅</div>
-          <p className="text-3xl font-bold">{mockTransfers.filter(t => t.status === 'recibido' && !t.hasDifferences).length}</p>
+          <p className="text-3xl font-bold">{mockTransfers.filter(t => t.status === 'received' && !hasTransferDifferences(t)).length}</p>
           <p className="text-sm opacity-90">Sin Diferencias</p>
         </div>
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">⚠️</div>
-          <p className="text-3xl font-bold">{mockTransfers.filter(t => t.hasDifferences).length}</p>
+          <p className="text-3xl font-bold">{mockTransfers.filter(hasTransferDifferences).length}</p>
           <p className="text-sm opacity-90">Con Diferencias</p>
         </div>
       </div>
@@ -30,7 +37,7 @@ export default function RecepcionesTab() {
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">{transfer.folio}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  De: {transfer.originName}
+                  De: {transfer.originNodeName}
                 </p>
               </div>
               <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium">
@@ -41,7 +48,7 @@ export default function RecepcionesTab() {
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Productos</p>
-                <p className="font-medium text-gray-900 dark:text-white">{transfer.totalItems}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{transferItemCount(transfer)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Enviado</p>
@@ -52,7 +59,7 @@ export default function RecepcionesTab() {
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">ETA</p>
                 <p className="font-medium text-gray-900 dark:text-white">
-                  {transfer.estimatedArrival?.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                  {transfer.eta?.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             </div>
