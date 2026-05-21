@@ -4,6 +4,11 @@ import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import {
+  OperationalModuleGuide,
+  usePanelInicialGuidanceTranslations,
+  type PanelInicialGuidanceTabId,
+} from './operationalGuidance';
 
 const Profile = lazy(() => import('./Profile'));
 const BusinessStructure = lazy(() => import('./BusinessStructure'));
@@ -12,6 +17,7 @@ const PersonalPerformance = lazy(() => import('./PersonalPerformance'));
 const Users = lazy(() => import('./Users'));
 
 interface PanelInicialProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -23,18 +29,17 @@ const subTabIds = [
   'users',
 ] as const;
 
-type PanelInicialTabId = (typeof subTabIds)[number];
-
-const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
+const legacySubTabAliases: Partial<Record<string, PanelInicialGuidanceTabId>> = {
   perfil: 'profile',
   estructuraEmpresarial: 'business-structure',
   perfilEmpresarial: 'business-profile',
   usuarios: 'users',
 };
 
-export default function PanelInicial({ onNavigate }: PanelInicialProps) {
+export default function PanelInicial({ learningModeActive = false, onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
-  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
+  const guidanceCopy = usePanelInicialGuidanceTranslations();
+  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialGuidanceTabId>(
     'profile',
     subTabIds,
     legacySubTabAliases,
@@ -51,7 +56,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   // Get the active component
   const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
 
-  const handleTabClick = (tabId: PanelInicialTabId) => {
+  const handleTabClick = (tabId: PanelInicialGuidanceTabId) => {
     if (tabId === activeSubTab) {
       return;
     }
@@ -67,10 +72,10 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
         description="Opening the selected configuration workspace."
       />
 
-      {/* Header del módulo */}
+      {/* Module header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-4 sm:px-8 sm:py-6">
         <div className="max-w-[1600px] mx-auto">
-          {/* Barra de Favoritos */}
+          {/* Favorites bar */}
           <div className="mt-2 sm:mt-3">
             <FavoritesBar
               onNavigate={(page) => {
@@ -99,6 +104,16 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
             </Button>
           </div>
 
+          {learningModeActive ? (
+            <div className="mt-5">
+              <OperationalModuleGuide
+                copy={guidanceCopy}
+                activeTabId={activeSubTab}
+                onTabSelect={handleTabClick}
+              />
+            </div>
+          ) : null}
+
           {/* Sub-tabs */}
           <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
             <div className="flex min-w-max items-center gap-2">
@@ -110,7 +125,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
                       ? 'bg-blue-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
-                  onClick={() => handleTabClick(tab.id as PanelInicialTabId)}
+                  onClick={() => handleTabClick(tab.id as PanelInicialGuidanceTabId)}
                 >
                   <span>{tab.emoji}</span>
                   <span>{tab.label}</span>
@@ -121,7 +136,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
         </div>
       </div>
 
-      {/* Contenido Principal */}
+      {/* Main content */}
       <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
         <Suspense
           fallback={(

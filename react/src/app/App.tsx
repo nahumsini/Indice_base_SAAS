@@ -271,7 +271,10 @@ export default function App() {
     ) : currentPage === 'processes-tasks' ? (
       <ProcessesTasks onNavigate={handleModuleNavigation} />
     ) : currentPage === 'home-panel' ? (
-      <PanelInicial onNavigate={handleModuleNavigation} />
+      <PanelInicial
+        learningModeActive={learningModeActive}
+        onNavigate={handleModuleNavigation}
+      />
     ) : currentPage === 'expenses' ? (
       <Gastos onNavigate={handleModuleNavigation} />
     ) : currentPage === 'petty-cash' ? (
