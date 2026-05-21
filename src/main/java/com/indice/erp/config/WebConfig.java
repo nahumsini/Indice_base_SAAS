@@ -1,5 +1,6 @@
 package com.indice.erp.config;
 
+import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -29,5 +30,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Bean
     BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    Clock clock() {
+        return Clock.systemUTC();
     }
 }

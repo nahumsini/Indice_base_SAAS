@@ -18,6 +18,7 @@ public class AppWebProperties {
     ));
     private String publicUrl = "";
     private String invitationBaseUrl = "";
+    private String passwordResetBaseUrl = "";
 
     public List<String> getAllowedOrigins() {
         return allowedOrigins;
@@ -53,6 +54,18 @@ public class AppWebProperties {
 
     public String resolveInvitationBaseUrl() {
         return invitationBaseUrl.isBlank() ? publicUrl : invitationBaseUrl;
+    }
+
+    public String getPasswordResetBaseUrl() {
+        return passwordResetBaseUrl;
+    }
+
+    public void setPasswordResetBaseUrl(String passwordResetBaseUrl) {
+        this.passwordResetBaseUrl = normalizeBaseUrl(passwordResetBaseUrl);
+    }
+
+    public String resolvePasswordResetBaseUrl() {
+        return passwordResetBaseUrl.isBlank() ? publicUrl : passwordResetBaseUrl;
     }
 
     private String normalizeBaseUrl(String value) {
