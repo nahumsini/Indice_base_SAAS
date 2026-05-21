@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import { useHRLanguage } from './HRLanguage';
+import { useHumanResourcesTranslations } from './hooks/useHumanResourcesTranslations';
 import {
   OperationalModuleGuide,
   useHumanResourcesGuidanceTranslations,
@@ -52,7 +52,7 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
 };
 
 export default function HumanResources({ learningModeActive = false, onNavigate }: HumanResourcesProps) {
-  const t = useHRLanguage();
+  const copy = useHumanResourcesTranslations();
   const guidanceCopy = useHumanResourcesGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
   const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
@@ -62,19 +62,18 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
   );
 
   const tabs = [
-    { id: 'collaborators', label: t.shell.tabs.collaborators, emoji: '👥', component: Employees },
-    { id: 'attendance', label: t.shell.tabs.attendance, emoji: '📅', component: Attendance },
-    { id: 'control', label: t.shell.tabs.control, emoji: '⏱️', component: Control },
-    { id: 'payroll', label: t.shell.tabs.payroll, emoji: '💰', component: Payroll },
-    { id: 'announcements', label: t.shell.tabs.announcements, emoji: '📢', component: Announcements },
-    { id: 'assets', label: t.shell.tabs.assets, emoji: '💼', component: Assets },
-    { id: 'records', label: t.shell.tabs.records, emoji: '📋', component: Records },
-    { id: 'permissions', label: t.shell.tabs.permissions, emoji: '✅', component: Permissions },
-    { id: 'incentives', label: t.shell.tabs.incentives, emoji: '🎁', component: Incentives },
-    { id: 'kpis', label: t.shell.tabs.kpis, emoji: '📊', component: KPIs },
+    { id: 'collaborators', label: copy.tabs.collaborators, emoji: '👥', component: Employees },
+    { id: 'attendance', label: copy.tabs.attendance, emoji: '📅', component: Attendance },
+    { id: 'control', label: copy.tabs.control, emoji: '⏱️', component: Control },
+    { id: 'payroll', label: copy.tabs.payroll, emoji: '💰', component: Payroll },
+    { id: 'announcements', label: copy.tabs.announcements, emoji: '📢', component: Announcements },
+    { id: 'assets', label: copy.tabs.assets, emoji: '💼', component: Assets },
+    { id: 'records', label: copy.tabs.records, emoji: '📋', component: Records },
+    { id: 'permissions', label: copy.tabs.permissions, emoji: '✅', component: Permissions },
+    { id: 'incentives', label: copy.tabs.incentives, emoji: '🎁', component: Incentives },
+    { id: 'kpis', label: copy.tabs.kpis, emoji: '📊', component: KPIs },
   ];
 
-  // Get the active component
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Employees;
 
   const handleTabClick = (tabId: HumanResourcesTabId) => {
@@ -94,10 +93,8 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
-          {/* Barra de Favoritos */}
           <FavoritesBar 
             onNavigate={(page) => {
               if (page === 'human-resources') return;
@@ -109,10 +106,10 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {t.shell.title}
+                {copy.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {t.shell.subtitle}
+                {copy.subtitle}
               </p>
             </div>
             <Button 
@@ -120,7 +117,7 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
               onClick={() => onNavigate()}
               className="text-sm gap-2"
             >
-              <span className="text-lg">🏠</span> {t.shell.back}
+              <span className="text-lg">🏠</span> {copy.back}
             </Button>
           </div>
 
@@ -134,7 +131,6 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
             </div>
           ) : null}
 
-          {/* Pestañas */}
           <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
             {tabs.map((tab) => (
               <button
@@ -154,14 +150,13 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
         </div>
       </div>
 
-      {/* Contenido del tab activo */}
       <div ref={mainContentRef} className="max-w-[1600px] mx-auto px-8 py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
               isVisible
-              title="Loading HR tab"
-              description="Downloading only the selected human resources workspace."
+              title={copy.loading.title}
+              description={copy.loading.description}
             />
           )}
         >
