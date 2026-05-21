@@ -252,7 +252,6 @@ export function MainDashboard({
         onToggleFavorite={toggleFavorite}
         onModuleClick={handleModuleClick}
         className="pb-10"
-        gridClasses="grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10"
       />
     </main>
   );
