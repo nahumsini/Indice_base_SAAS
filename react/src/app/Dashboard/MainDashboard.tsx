@@ -186,13 +186,15 @@ export function MainDashboard({
         />
       )}
 
-      <FavoritesSection
-        title={copy.sections.favorites}
-        quickAccessLabel={copy.sections.quickAccess}
-        modules={favoriteModules}
-        onToggleFavorite={toggleFavorite}
-        onModuleClick={handleModuleClick}
-      />
+      {!isOperationalJourneyVisible && (
+        <FavoritesSection
+          title={copy.sections.favorites}
+          quickAccessLabel={copy.sections.quickAccess}
+          modules={favoriteModules}
+          onToggleFavorite={toggleFavorite}
+          onModuleClick={handleModuleClick}
+        />
+      )}
 
       {isOperationalJourneyVisible ? (
         <OperationalModulesSection
