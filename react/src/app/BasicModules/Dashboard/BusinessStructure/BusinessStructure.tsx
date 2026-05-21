@@ -1553,7 +1553,7 @@ export default function BusinessStructure() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200 p-4 dark:border-purple-700/30 sm:p-6">
+      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
@@ -1572,7 +1572,7 @@ export default function BusinessStructure() {
       </div>
 
       {isLoading ? (
-        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:border-purple-700/30 dark:bg-purple-900/20 dark:text-purple-300">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
           {structure.messages.loading}
         </div>
       ) : null}
@@ -1631,14 +1631,14 @@ export default function BusinessStructure() {
       {showUnidadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between gap-4 bg-purple-600 p-4 dark:bg-purple-700 sm:p-6">
+            <div className="flex items-start justify-between gap-4 bg-blue-600 p-4 dark:bg-blue-700 sm:p-6">
               <div>
                 <h3 className="text-xl font-semibold text-white">
                   {editingUnidad
                     ? structure.modal.editUnit
                     : structure.modal.newUnit}
                 </h3>
-                <p className="text-sm text-purple-100 mt-1">
+                <p className="text-sm text-blue-100 mt-1">
                   {editingUnidad
                     ? structure.modal.editUnitDescription
                     : structure.modal.newUnitDescription}
@@ -1647,7 +1647,7 @@ export default function BusinessStructure() {
               <button
                 type="button"
                 onClick={closeUnidadModal}
-                className="p-2 hover:bg-purple-700 dark:hover:bg-purple-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-blue-700 dark:hover:bg-blue-800 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -1709,7 +1709,7 @@ export default function BusinessStructure() {
                                 logo: preview,
                               }));
                             })}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700 dark:file:bg-purple-900/30 dark:file:text-purple-400 hover:file:bg-purple-100 dark:hover:file:bg-purple-900/50 file:cursor-pointer"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50 file:cursor-pointer"
                           />
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             {structure.fields.uploadHint}
@@ -1875,7 +1875,7 @@ export default function BusinessStructure() {
                 <Button
                   type="submit"
                   disabled={!isUnidadModalDirty || unidadFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
-                  className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                 >
                   {structure.modal.save}
                 </Button>
@@ -1888,14 +1888,14 @@ export default function BusinessStructure() {
       {showNegocioModal && editingNegocio && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between gap-4 bg-purple-600 p-4 dark:bg-purple-700 sm:p-6">
+            <div className="flex items-start justify-between gap-4 bg-blue-600 p-4 dark:bg-blue-700 sm:p-6">
               <div>
                 <h3 className="text-xl font-semibold text-white">
                   {editingNegocio.id
                     ? structure.modal.editBusiness
                     : structure.modal.newBusiness}
                 </h3>
-                <p className="text-sm text-purple-100 mt-1">
+                <p className="text-sm text-blue-100 mt-1">
                   {editingNegocio.id
                     ? structure.modal.editBusinessDescription
                     : structure.modal.newBusinessDescription}
@@ -1904,7 +1904,7 @@ export default function BusinessStructure() {
               <button
                 type="button"
                 onClick={closeNegocioModal}
-                className="p-2 hover:bg-purple-700 dark:hover:bg-purple-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-blue-700 dark:hover:bg-blue-800 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -1966,7 +1966,7 @@ export default function BusinessStructure() {
                                 logo: preview,
                               }));
                             })}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700 dark:file:bg-purple-900/30 dark:file:text-purple-400 hover:file:bg-purple-100 dark:hover:file:bg-purple-900/50 file:cursor-pointer"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50 file:cursor-pointer"
                           />
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             {structure.fields.uploadHint}
@@ -2169,7 +2169,7 @@ export default function BusinessStructure() {
                 <Button
                   type="submit"
                   disabled={!isNegocioModalDirty || negocioFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
-                  className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                 >
                   {editingNegocio.id
                     ? structure.modal.save

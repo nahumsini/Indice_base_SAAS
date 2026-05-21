@@ -390,7 +390,7 @@ export default function Billing() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200 p-4 dark:border-purple-700/30 sm:p-6">
+      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
           <span className="text-2xl">🧾</span>
           {t.panelInicial.billing.title}
@@ -401,7 +401,7 @@ export default function Billing() {
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
           <div className="flex items-start gap-2 mb-4">
-            <div className="w-6 h-6 rounded bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+            <div className="w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
               📋
             </div>
             <div>
@@ -444,7 +444,7 @@ export default function Billing() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
           <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-2">
-              <div className="w-6 h-6 rounded bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+              <div className="w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
                 <CreditCard className="w-4 h-4" />
               </div>
               <div>
@@ -480,7 +480,7 @@ export default function Billing() {
                   key={card.id}
                   className={`p-4 border-2 rounded-lg transition-all cursor-pointer ${
                     card.isDefault
-                      ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                   onClick={() => setDefaultCard(card.id)}
@@ -502,7 +502,7 @@ export default function Billing() {
 
                     <div className="flex flex-wrap items-center gap-3">
                       {card.isDefault && (
-                        <span className="px-3 py-1 text-xs font-medium bg-purple-600 text-white rounded-full">
+                        <span className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-full">
                           {t.panelInicial.billing.paymentMethod.defaultCard}
                         </span>
                       )}
@@ -597,7 +597,7 @@ export default function Billing() {
 
               <Button
                 onClick={handleSaveCard}
-                className="w-full bg-purple-600 hover:bg-purple-700"
+                className="w-full bg-blue-600 hover:bg-blue-700"
                 disabled={
                   !cardForm.type ||
                   !cardForm.cardNumber.trim() ||
@@ -636,7 +636,7 @@ export default function Billing() {
                   type="checkbox"
                   checked={automaticRenewal}
                   onChange={(event) => setAutomaticRenewal(event.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
               </label>
 
@@ -709,7 +709,7 @@ export default function Billing() {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
           <div className="flex items-start gap-2 mb-4">
-            <div className="w-6 h-6 rounded bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+            <div className="w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
               <FileText className="w-4 h-4" />
             </div>
             <div>

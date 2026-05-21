@@ -201,8 +201,8 @@ export function BusinessIdentitySection({
       </div>
 
       {estructuraType === 'multi' && (
-        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-5 border border-purple-200 dark:border-purple-700/30">
-          <p className="text-sm text-purple-800 dark:text-purple-300">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-5 border border-blue-200 dark:border-blue-700/30">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
             <strong>{structure.identity.holdingNotice}</strong>
           </p>
         </div>
@@ -263,7 +263,7 @@ export function BusinessIdentitySection({
           <div className="flex flex-col items-start gap-2">
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <label
-                className={`px-4 py-2 bg-white dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-500 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium transition-all ${
+                className={`px-4 py-2 bg-white dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium transition-all ${
                   disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
                 }`}
               >

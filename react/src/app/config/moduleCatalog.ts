@@ -38,7 +38,7 @@ const moduleMetaBySlug: Record<
   config_center: {
     route: 'home-panel',
     emoji: '📊',
-    color: 'purple',
+    color: 'blue',
     category: 'basic',
     title: (t) => t.modules.panelInicial,
   },
