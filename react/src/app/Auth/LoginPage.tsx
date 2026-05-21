@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   ArrowRight,
   Building2,
+  CheckCircle2,
   Eye,
   EyeOff,
   Globe,
@@ -10,6 +11,8 @@ import {
   Mail,
   ShieldCheck,
   Sparkles,
+  TriangleAlert,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { authApi } from '../api/auth';
@@ -46,15 +49,29 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetEmailTouched, setResetEmailTouched] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetErrorMessage, setResetErrorMessage] = useState('');
+  const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const copy = t.loginPage;
 
   const normalizedEmail = normalizeEmail(email);
   const emailIsValid = isValidEmail(normalizedEmail);
   const showEmailError = emailTouched && normalizedEmail.length > 0 && !emailIsValid;
+  const normalizedResetEmail = normalizeEmail(resetEmail);
+  const resetEmailIsValid = isValidEmail(normalizedResetEmail);
+  const showResetEmailError = resetEmailTouched && normalizedResetEmail.length > 0 && !resetEmailIsValid;
 
   const canSubmit = useMemo(
     () => normalizedEmail.length > 0 && emailIsValid && password.trim().length > 0 && !isSubmitting,
     [emailIsValid, isSubmitting, normalizedEmail, password],
+  );
+
+  const canSubmitReset = useMemo(
+    () => normalizedResetEmail.length > 0 && resetEmailIsValid && !isResetSubmitting,
+    [isResetSubmitting, normalizedResetEmail, resetEmailIsValid],
   );
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -86,6 +103,43 @@ export default function LoginPage() {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : copy.errorFallback);
       setIsSubmitting(false);
+    }
+  };
+
+  const openResetModal = () => {
+    setResetEmail(emailIsValid ? normalizedEmail : '');
+    setResetEmailTouched(false);
+    setResetMessage('');
+    setResetErrorMessage('');
+    setShowResetModal(true);
+  };
+
+  const closeResetModal = () => {
+    if (isResetSubmitting) {
+      return;
+    }
+
+    setShowResetModal(false);
+  };
+
+  const handlePasswordResetRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setResetEmailTouched(true);
+
+    if (!canSubmitReset) {
+      return;
+    }
+
+    try {
+      setIsResetSubmitting(true);
+      setResetMessage('');
+      setResetErrorMessage('');
+      const response = await authApi.requestPasswordReset({ email: normalizedResetEmail });
+      setResetMessage(response.message || 'If that email exists, a password reset link has been sent.');
+    } catch (error) {
+      setResetErrorMessage(error instanceof Error ? error.message : 'Password reset request could not be sent.');
+    } finally {
+      setIsResetSubmitting(false);
     }
   };
 
@@ -206,7 +260,16 @@ export default function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">{copy.passwordLabel}</label>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-sm font-medium text-slate-700">{copy.passwordLabel}</label>
+                    <button
+                      type="button"
+                      onClick={openResetModal}
+                      className="text-sm font-semibold text-[#143675] underline-offset-4 transition hover:text-[#0f2855] hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <Input
@@ -263,6 +326,94 @@ export default function LoginPage() {
         isVisible={isSubmitting}
         title={copy.signingIn}
       />
+
+      {showResetModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
+          <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)]">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#143675]/8 px-3 py-1 text-sm font-medium text-[#143675]">
+                  <KeyRound className="h-4 w-4" />
+                  Password reset
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">Reset your password</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Enter your account email. If it exists, we will send a reset link that expires in 10 minutes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeResetModal}
+                disabled={isResetSubmitting}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Close password reset"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordResetRequest} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Email</label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(event) => {
+                      setResetEmail(event.target.value);
+                      setResetMessage('');
+                      setResetErrorMessage('');
+                    }}
+                    onBlur={() => setResetEmailTouched(true)}
+                    placeholder={copy.emailPlaceholder}
+                    className="h-12 rounded-xl border-slate-200 bg-white pl-10 text-sm shadow-sm"
+                    autoComplete="email"
+                    aria-invalid={showResetEmailError}
+                    autoFocus
+                  />
+                </div>
+                {showResetEmailError ? (
+                  <p className="text-sm text-red-600">{copy.emailError}</p>
+                ) : null}
+              </div>
+
+              {resetMessage ? (
+                <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{resetMessage}</span>
+                </div>
+              ) : null}
+
+              {resetErrorMessage ? (
+                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{resetErrorMessage}</span>
+                </div>
+              ) : null}
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeResetModal}
+                  disabled={isResetSubmitting}
+                  className="h-11 rounded-xl border-slate-200"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!canSubmitReset}
+                  className="h-11 rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+                >
+                  {isResetSubmitting ? 'Sending link...' : 'Send reset link'}
+                </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }
