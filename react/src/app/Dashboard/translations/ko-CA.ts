@@ -127,6 +127,78 @@ export const koCA = {
           title: '데이터를 의사결정으로 바꾸세요',
           description: '핵심 지표를 분석해 실제 성과를 이해하고 개선 기회를 찾으세요.',
         },
+        companyStructure: {
+          title: '회사 구조',
+          description: '각 모듈이 같은 운영 지도를 기준으로 작동하도록 회사 조직 방식을 정의하세요.',
+        },
+        companyMaturity: {
+          title: '기업 성숙도',
+          description: '새 도구를 추가하기 전에 성숙도 평가로 다음 운영 우선순위를 파악하세요.',
+        },
+        companyVisibility: {
+          title: '운영 맥락',
+          description: '흩어진 메모에 의존하지 않고 리더가 운영을 읽을 수 있도록 기본 정보를 명확히 유지하세요.',
+        },
+        hrCollaborators: {
+          title: '직원',
+          description: '직원 기록을 중앙화해 수동 확인을 줄이고 책임을 더 잘 보이게 하세요.',
+        },
+        hrAttendance: {
+          title: '출퇴근과 통제',
+          description: '출근, 퇴근, 근무 패턴을 운영 규율의 초기 신호로 읽으세요.',
+        },
+        hrPayroll: {
+          title: '급여 맥락',
+          description: '팀 구조와 급여 맥락을 연결해 인건비 판단을 더 잘 지원하세요.',
+        },
+        processAgenda: {
+          title: '아젠다',
+          description: '아젠다를 일일 실행 콘솔로 사용해 미결 작업, 증빙, 담당자를 계속 보이게 하세요.',
+        },
+        processProjects: {
+          title: '프로젝트',
+          description: '관련 업무를 프로젝트로 묶어 우선순위를 보호하고 진행 상황을 더 쉽게 추적하세요.',
+        },
+        processRecurring: {
+          title: '반복 프로세스',
+          description: '반복 업무를 표준화해 기억보다 명확한 루틴에 의존하는 운영을 만드세요.',
+        },
+        financeExpenses: {
+          title: '비용',
+          description: '비용이 발생한 시점에 가깝게 기록해 운영 비용을 보이고 통제 가능하게 유지하세요.',
+        },
+        financePettyCash: {
+          title: '소액 현금',
+          description: '배정된 현금을 엄격히 추적해 작은 일일 지출이 사각지대가 되지 않게 하세요.',
+        },
+        financeApprovals: {
+          title: '재무 검토',
+          description: '예외와 대기 중인 이동을 정기적으로 검토해 건강한 책임 문화를 유지하세요.',
+        },
+        commercialPointOfSale: {
+          title: '판매 시점',
+          description: '거래를 일관되게 기록해 매출과 운영 움직임이 연결되도록 하세요.',
+        },
+        commercialSales: {
+          title: '영업 CRM',
+          description: '기회와 고객 활동을 추적해 영업 노력을 반복 가능한 매출로 전환하세요.',
+        },
+        commercialPipeline: {
+          title: '영업 파이프라인',
+          description: '파이프라인 가시성을 활용해 사업을 움직일 가능성이 큰 기회에 팀을 집중시키세요.',
+        },
+        analyticsKpiSelection: {
+          title: 'KPI 선택',
+          description: '보기 좋은 숫자가 아니라 운영 의사결정을 드러내는 지표를 선택하세요.',
+        },
+        analyticsPerformance: {
+          title: '성과 읽기',
+          description: '성과 신호를 자주 비교해 작은 편차를 문제 전에 행동으로 바꾸세요.',
+        },
+        analyticsReview: {
+          title: '검토 리듬',
+          description: 'KPI 검토 습관을 만들어 리더십 판단이 실제 실행과 연결되게 하세요.',
+        },
       },
     },
   },

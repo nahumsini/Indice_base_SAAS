@@ -127,6 +127,78 @@ export const frCA = {
           title: 'Transformez les données en décisions',
           description: 'Analysez les indicateurs clés pour comprendre la performance réelle et repérer les occasions d’amélioration.',
         },
+        companyStructure: {
+          title: 'Structure d’entreprise',
+          description: 'Définissez l’organisation de l’entreprise afin que chaque module parte de la même carte opérationnelle.',
+        },
+        companyMaturity: {
+          title: 'Maturité d’affaires',
+          description: 'Utilisez l’évaluation de maturité pour repérer la prochaine priorité opérationnelle avant d’ajouter des outils.',
+        },
+        companyVisibility: {
+          title: 'Contexte opérationnel',
+          description: 'Gardez une base claire pour permettre aux dirigeants de lire l’opération sans notes dispersées.',
+        },
+        hrCollaborators: {
+          title: 'Employés',
+          description: 'Centralisez les dossiers d’employés pour réduire le suivi manuel et rendre les responsabilités visibles.',
+        },
+        hrAttendance: {
+          title: 'Présence et contrôle',
+          description: 'Lisez les entrées, sorties et horaires comme signaux précoces de discipline opérationnelle.',
+        },
+        hrPayroll: {
+          title: 'Contexte de paie',
+          description: 'Reliez la structure d’équipe à la paie pour mieux appuyer les décisions sur les coûts de main-d’œuvre.',
+        },
+        processAgenda: {
+          title: 'Agenda',
+          description: 'Utilisez l’agenda comme console quotidienne où tâches, preuves et responsables restent visibles.',
+        },
+        processProjects: {
+          title: 'Projets',
+          description: 'Regroupez le travail connexe en projets pour protéger les priorités et suivre les progrès clairement.',
+        },
+        processRecurring: {
+          title: 'Processus récurrents',
+          description: 'Standardisez le travail répété pour dépendre moins de la mémoire et davantage de routines claires.',
+        },
+        financeExpenses: {
+          title: 'Dépenses',
+          description: 'Enregistrez les dépenses près du moment où elles surviennent pour garder les coûts visibles et contrôlés.',
+        },
+        financePettyCash: {
+          title: 'Petite caisse',
+          description: 'Suivez l’argent confié avec rigueur afin que les petites dépenses quotidiennes ne deviennent pas invisibles.',
+        },
+        financeApprovals: {
+          title: 'Révision financière',
+          description: 'Révisez souvent les exceptions et mouvements en attente pour maintenir une bonne responsabilisation.',
+        },
+        commercialPointOfSale: {
+          title: 'Point de vente',
+          description: 'Saisissez les transactions de façon constante pour relier les revenus au mouvement opérationnel.',
+        },
+        commercialSales: {
+          title: 'Ventes CRM',
+          description: 'Suivez les occasions et clients pour transformer l’effort commercial en revenus répétables.',
+        },
+        commercialPipeline: {
+          title: 'Pipeline commercial',
+          description: 'Utilisez la visibilité du pipeline pour concentrer l’équipe sur les occasions qui font avancer l’entreprise.',
+        },
+        analyticsKpiSelection: {
+          title: 'Sélection des KPI',
+          description: 'Choisissez des indicateurs qui éclairent les décisions, pas seulement des chiffres attrayants.',
+        },
+        analyticsPerformance: {
+          title: 'Lecture de performance',
+          description: 'Comparez souvent les signaux de performance pour transformer les écarts mineurs en actions rapides.',
+        },
+        analyticsReview: {
+          title: 'Rythme de révision',
+          description: 'Créez une habitude de révision des KPI pour relier les décisions de direction à l’exécution réelle.',
+        },
       },
     },
   },

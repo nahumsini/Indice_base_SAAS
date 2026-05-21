@@ -127,6 +127,78 @@ export const ptBR = {
           title: 'Transforme dados em decisões',
           description: 'Analise indicadores-chave para entender o desempenho real e detectar oportunidades de melhoria.',
         },
+        companyStructure: {
+          title: 'Estrutura empresarial',
+          description: 'Defina como a empresa é organizada para que cada módulo trabalhe a partir do mesmo mapa operacional.',
+        },
+        companyMaturity: {
+          title: 'Maturidade empresarial',
+          description: 'Use a avaliação de maturidade para identificar a próxima prioridade operacional antes de adicionar mais ferramentas.',
+        },
+        companyVisibility: {
+          title: 'Contexto operacional',
+          description: 'Mantenha a base da empresa clara para que a liderança leia a operação sem depender de anotações soltas.',
+        },
+        hrCollaborators: {
+          title: 'Colaboradores',
+          description: 'Centralize registros da equipe para reduzir acompanhamento manual e manter responsabilidades visíveis.',
+        },
+        hrAttendance: {
+          title: 'Ponto e controle',
+          description: 'Leia entradas, saídas e jornadas como sinais iniciais de disciplina e continuidade operacional.',
+        },
+        hrPayroll: {
+          title: 'Contexto de folha',
+          description: 'Conecte estrutura da equipe com folha para apoiar melhores decisões sobre custo de pessoal.',
+        },
+        processAgenda: {
+          title: 'Agenda',
+          description: 'Use a agenda como console diário para manter pendências, evidências e responsáveis visíveis.',
+        },
+        processProjects: {
+          title: 'Projetos',
+          description: 'Agrupe trabalhos relacionados em projetos para proteger prioridades e acompanhar avanços com clareza.',
+        },
+        processRecurring: {
+          title: 'Processos recorrentes',
+          description: 'Padronize o trabalho repetitivo para depender menos da memória e mais de rotinas claras.',
+        },
+        financeExpenses: {
+          title: 'Despesas',
+          description: 'Registre despesas perto do momento em que acontecem para manter o custo operacional visível e controlado.',
+        },
+        financePettyCash: {
+          title: 'Caixa pequeno',
+          description: 'Controle dinheiro atribuído com disciplina para que pequenos gastos diários não virem ponto cego.',
+        },
+        financeApprovals: {
+          title: 'Revisão financeira',
+          description: 'Revise exceções e movimentos pendentes com frequência para manter uma prestação de contas saudável.',
+        },
+        commercialPointOfSale: {
+          title: 'Ponto de venda',
+          description: 'Capture transações com consistência para manter receita e movimento operacional conectados.',
+        },
+        commercialSales: {
+          title: 'Vendas CRM',
+          description: 'Acompanhe oportunidades e clientes para transformar esforço comercial em receita repetível.',
+        },
+        commercialPipeline: {
+          title: 'Funil comercial',
+          description: 'Use visibilidade do pipeline para focar a equipe nas oportunidades que mais movem o negócio.',
+        },
+        analyticsKpiSelection: {
+          title: 'Seleção de KPIs',
+          description: 'Escolha indicadores que revelem decisões operacionais, não apenas números bonitos no painel.',
+        },
+        analyticsPerformance: {
+          title: 'Leitura de desempenho',
+          description: 'Compare sinais de desempenho com frequência para transformar pequenos desvios em ação antecipada.',
+        },
+        analyticsReview: {
+          title: 'Ritmo de revisão',
+          description: 'Crie o hábito de revisar KPIs para manter decisões de liderança conectadas à execução real.',
+        },
       },
     },
   },

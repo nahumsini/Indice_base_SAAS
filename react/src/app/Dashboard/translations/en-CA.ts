@@ -127,6 +127,78 @@ export const enCA = {
           title: 'Turn data into decisions',
           description: 'Review key indicators to understand real performance and detect opportunities for improvement.',
         },
+        companyStructure: {
+          title: 'Company structure',
+          description: 'Define how your company is organized so each module works from the same operational map.',
+        },
+        companyMaturity: {
+          title: 'Business maturity',
+          description: 'Use the maturity assessment to identify the next operational priority before adding more tools.',
+        },
+        companyVisibility: {
+          title: 'Operating context',
+          description: 'Keep your company baseline clear so leaders can read the operation without depending on scattered notes.',
+        },
+        hrCollaborators: {
+          title: 'Employees',
+          description: 'Centralize employee records to reduce manual follow-up and keep responsibilities visible.',
+        },
+        hrAttendance: {
+          title: 'Attendance and control',
+          description: 'Read clock-ins, shifts, and attendance patterns as early signals of operational discipline.',
+        },
+        hrPayroll: {
+          title: 'Payroll context',
+          description: 'Connect team structure with payroll context so labour cost decisions have better support.',
+        },
+        processAgenda: {
+          title: 'Agenda',
+          description: 'Use the agenda as the daily execution console where pending work, evidence, and ownership stay visible.',
+        },
+        processProjects: {
+          title: 'Projects',
+          description: 'Group related work into projects to protect priorities and make progress easier to follow.',
+        },
+        processRecurring: {
+          title: 'Recurring processes',
+          description: 'Standardize repeated work so the operation depends less on memory and more on clear routines.',
+        },
+        financeExpenses: {
+          title: 'Expenses',
+          description: 'Register expenses close to the moment they happen to keep operating cost visible and controlled.',
+        },
+        financePettyCash: {
+          title: 'Petty cash',
+          description: 'Track assigned cash with discipline so small daily spending does not become a blind spot.',
+        },
+        financeApprovals: {
+          title: 'Financial review',
+          description: 'Review exceptions and pending movements regularly to keep accountability healthy.',
+        },
+        commercialPointOfSale: {
+          title: 'Point of sale',
+          description: 'Capture transactions consistently so revenue and operating movement stay connected.',
+        },
+        commercialSales: {
+          title: 'Sales CRM',
+          description: 'Follow opportunities and customer activity to turn commercial effort into repeatable revenue.',
+        },
+        commercialPipeline: {
+          title: 'Commercial pipeline',
+          description: 'Use pipeline visibility to focus the team on the opportunities most likely to move the business.',
+        },
+        analyticsKpiSelection: {
+          title: 'KPI selection',
+          description: 'Choose indicators that reveal operating decisions, not just numbers that look good on a dashboard.',
+        },
+        analyticsPerformance: {
+          title: 'Performance reading',
+          description: 'Compare performance signals often so small deviations become action before they become problems.',
+        },
+        analyticsReview: {
+          title: 'Review rhythm',
+          description: 'Create a review habit around KPIs so leadership decisions stay connected to real execution.',
+        },
       },
     },
   },

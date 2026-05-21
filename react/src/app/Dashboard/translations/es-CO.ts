@@ -127,6 +127,78 @@ export const esCO = {
           title: 'Convierte datos en decisiones',
           description: 'Analiza indicadores clave para entender el desempeño real y detectar oportunidades de mejora.',
         },
+        companyStructure: {
+          title: 'Estructura empresarial',
+          description: 'Define cómo está organizada tu empresa para que cada módulo trabaje desde el mismo mapa operativo.',
+        },
+        companyMaturity: {
+          title: 'Madurez empresarial',
+          description: 'Usa la evaluación de madurez para identificar la siguiente prioridad operativa antes de sumar más herramientas.',
+        },
+        companyVisibility: {
+          title: 'Contexto operativo',
+          description: 'Mantén clara la base de tu empresa para que la dirección pueda leer la operación sin depender de notas sueltas.',
+        },
+        hrCollaborators: {
+          title: 'Personal',
+          description: 'Centraliza información del personal para reducir seguimiento manual y mantener responsabilidades visibles.',
+        },
+        hrAttendance: {
+          title: 'Asistencia y control',
+          description: 'Lee entradas, salidas y jornadas como señales tempranas de disciplina y continuidad operativa.',
+        },
+        hrPayroll: {
+          title: 'Contexto de pago',
+          description: 'Conecta estructura del equipo con pago para tomar mejores decisiones sobre costo laboral.',
+        },
+        processAgenda: {
+          title: 'Agenda',
+          description: 'Usa la agenda como consola diaria para mantener visibles pendientes, evidencia y responsables.',
+        },
+        processProjects: {
+          title: 'Proyectos',
+          description: 'Agrupa trabajo relacionado en proyectos para proteger prioridades y seguir avances con mayor claridad.',
+        },
+        processRecurring: {
+          title: 'Procesos recurrentes',
+          description: 'Estandariza trabajo repetitivo para depender menos de la memoria y más de rutinas claras.',
+        },
+        financeExpenses: {
+          title: 'Gastos',
+          description: 'Registra gastos cerca del momento en que ocurren para mantener visible y controlado el costo operativo.',
+        },
+        financePettyCash: {
+          title: 'Caja menor',
+          description: 'Controla dinero asignado con disciplina para que el gasto diario pequeño no se vuelva un punto ciego.',
+        },
+        financeApprovals: {
+          title: 'Revisión financiera',
+          description: 'Revisa excepciones y movimientos pendientes con frecuencia para sostener una rendición de cuentas sana.',
+        },
+        commercialPointOfSale: {
+          title: 'Punto de venta',
+          description: 'Captura transacciones con consistencia para mantener conectados ingresos y movimiento operativo.',
+        },
+        commercialSales: {
+          title: 'Ventas CRM',
+          description: 'Da seguimiento a oportunidades y clientes para convertir el esfuerzo comercial en ingresos repetibles.',
+        },
+        commercialPipeline: {
+          title: 'Embudo comercial',
+          description: 'Usa visibilidad del pipeline para enfocar al equipo en las oportunidades que más pueden mover el negocio.',
+        },
+        analyticsKpiSelection: {
+          title: 'Selección de KPIs',
+          description: 'Elige indicadores que revelen decisiones operativas, no solo números que se vean bien en el panel.',
+        },
+        analyticsPerformance: {
+          title: 'Lectura de desempeño',
+          description: 'Compara señales de desempeño con frecuencia para convertir desviaciones pequeñas en acción temprana.',
+        },
+        analyticsReview: {
+          title: 'Ritmo de revisión',
+          description: 'Crea un hábito de revisión de KPIs para que las decisiones directivas estén conectadas con la ejecución real.',
+        },
       },
     },
   },

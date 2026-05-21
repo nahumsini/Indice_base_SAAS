@@ -16,6 +16,8 @@ export type OperationalTipIcon =
   | 'route'
   | 'star'
   | 'team'
+  | 'wallet'
+  | 'chart'
   | 'workflow';
 
 interface OperationalTipDefinitionBase {
@@ -27,81 +29,111 @@ interface OperationalTipDefinitionBase {
 
 export const operationalTips = [
   {
-    id: 'notifications',
-    category: 'header',
-    icon: 'bell',
-  },
-  {
-    id: 'languageSelector',
-    category: 'header',
-    icon: 'globe',
-  },
-  {
-    id: 'darkMode',
-    category: 'header',
-    icon: 'moon',
-  },
-  {
-    id: 'operationalJourney',
-    category: 'header',
-    icon: 'route',
-  },
-  {
-    id: 'profileSettings',
-    category: 'header',
-    icon: 'profile',
-  },
-  {
-    id: 'favorites',
-    category: 'workflow',
-    icon: 'star',
-  },
-  {
-    id: 'companySetup',
+    id: 'companyStructure',
     category: 'module',
     icon: 'building',
     stageId: 'company_setup',
   },
   {
-    id: 'businessMaturity',
+    id: 'companyMaturity',
     category: 'workflow',
     icon: 'checklist',
     stageId: 'company_setup',
   },
   {
-    id: 'humanResources',
+    id: 'companyVisibility',
+    category: 'workflow',
+    icon: 'analytics',
+    stageId: 'company_setup',
+  },
+  {
+    id: 'hrCollaborators',
     category: 'module',
     icon: 'team',
     stageId: 'human_resources',
   },
   {
-    id: 'attendanceControl',
+    id: 'hrAttendance',
     category: 'workflow',
     icon: 'attendance',
     stageId: 'human_resources',
   },
   {
-    id: 'operationalProcesses',
+    id: 'hrPayroll',
+    category: 'workflow',
+    icon: 'finance',
+    stageId: 'human_resources',
+  },
+  {
+    id: 'processAgenda',
     category: 'module',
     icon: 'workflow',
     stageId: 'operations',
   },
   {
-    id: 'financeControl',
+    id: 'processProjects',
+    category: 'workflow',
+    icon: 'checklist',
+    stageId: 'operations',
+  },
+  {
+    id: 'processRecurring',
+    category: 'workflow',
+    icon: 'route',
+    stageId: 'operations',
+  },
+  {
+    id: 'financeExpenses',
     category: 'module',
     icon: 'finance',
     stageId: 'finance',
   },
   {
-    id: 'commercialOperation',
+    id: 'financePettyCash',
+    category: 'workflow',
+    icon: 'wallet',
+    stageId: 'finance',
+  },
+  {
+    id: 'financeApprovals',
+    category: 'workflow',
+    icon: 'checklist',
+    stageId: 'finance',
+  },
+  {
+    id: 'commercialPointOfSale',
     category: 'module',
     icon: 'commerce',
     stageId: 'commercial',
   },
   {
-    id: 'analyticsKpis',
+    id: 'commercialSales',
+    category: 'workflow',
+    icon: 'team',
+    stageId: 'commercial',
+  },
+  {
+    id: 'commercialPipeline',
+    category: 'workflow',
+    icon: 'workflow',
+    stageId: 'commercial',
+  },
+  {
+    id: 'analyticsKpiSelection',
     category: 'module',
     icon: 'analytics',
+    stageId: 'analytics',
+  },
+  {
+    id: 'analyticsPerformance',
+    category: 'workflow',
+    icon: 'chart',
+    stageId: 'analytics',
+  },
+  {
+    id: 'analyticsReview',
+    category: 'workflow',
+    icon: 'checklist',
     stageId: 'analytics',
   },
 ] as const satisfies ReadonlyArray<OperationalTipDefinitionBase>;
@@ -116,22 +148,12 @@ function belongsToStage(
   return 'stageId' in tip && tip.stageId === stageId;
 }
 
-function hasNoStage(tip: OperationalTipDefinition): boolean {
-  return !('stageId' in tip);
-}
-
 export function buildOperationalTipsForStage(
   activeStageId: OperationalJourneyStageId | undefined,
 ): OperationalTipDefinition[] {
   const stageTips = activeStageId
     ? operationalTips.filter((tip) => belongsToStage(tip, activeStageId))
     : [];
-  const globalWorkflowTips = operationalTips.filter((tip) => tip.category === 'workflow' && hasNoStage(tip));
-  const headerTips = operationalTips.filter((tip) => tip.category === 'header');
 
-  return [
-    ...stageTips,
-    ...globalWorkflowTips,
-    ...headerTips,
-  ];
+  return stageTips;
 }

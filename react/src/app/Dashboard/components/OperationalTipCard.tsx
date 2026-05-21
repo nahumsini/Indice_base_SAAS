@@ -40,6 +40,8 @@ const tipIcons: Record<OperationalTipIcon, LucideIcon> = {
   route: Route,
   star: Star,
   team: Users,
+  wallet: WalletCards,
+  chart: BarChart3,
   workflow: Workflow,
 };
 

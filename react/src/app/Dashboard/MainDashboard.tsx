@@ -48,6 +48,7 @@ export function MainDashboard({
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
   const [availableModules, setAvailableModules] = useState<DashboardModuleCard[]>(() => buildDefaultModuleCatalog(t));
+  const [guidanceStageId, setGuidanceStageId] = useState<OperationalJourneyStageId | undefined>();
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>(
     'indice.dashboard.selectedKpis',
     [...defaultDashboardKpiIds],
@@ -131,31 +132,33 @@ export function MainDashboard({
     () => buildOperationalModuleGroups(mainModules),
     [mainModules],
   );
+  const operationalJourneyModules = useMemo(
+    () => operationalModuleGroups.reduce<Partial<Record<OperationalJourneyStageId, DashboardModuleCard[]>>>(
+      (groupsByStage, group) => ({
+        ...groupsByStage,
+        [group.stage.id]: group.modules,
+      }),
+      {},
+    ),
+    [operationalModuleGroups],
+  );
   const activeOperationalStageId = isOperationalJourneyVisible
     ? operationalJourneyStages[safeLearningStep]?.id
     : undefined;
+  const guidanceOperationalStageId = isOperationalJourneyVisible
+    ? guidanceStageId ?? activeOperationalStageId
+    : undefined;
   const operationalTips = useMemo(
-    () => buildOperationalTipsForStage(activeOperationalStageId),
-    [activeOperationalStageId],
+    () => buildOperationalTipsForStage(guidanceOperationalStageId),
+    [guidanceOperationalStageId],
   );
 
   const handleOperationalStageSelect = (stageId: OperationalJourneyStageId) => {
     const stageIndex = operationalJourneyStages.findIndex((stage) => stage.id === stageId);
     if (stageIndex >= 0) {
+      setGuidanceStageId(stageId);
       setLearningStep(stageIndex);
     }
-  };
-
-  const handleOperationalStageAction = (stageId: OperationalJourneyStageId) => {
-    const stageIndex = operationalJourneyStages.findIndex((stage) => stage.id === stageId);
-    const stage = operationalJourneyStages[stageIndex];
-
-    if (!stage) {
-      return;
-    }
-
-    setLearningStep(stageIndex);
-    onNavigate(stage.primaryRoute);
   };
 
   return (
@@ -164,9 +167,11 @@ export function MainDashboard({
         <OperationalJourney
           copy={copy.operationalJourney}
           stages={operationalJourneyView}
+          stageModules={operationalJourneyModules}
           activeStageId={activeOperationalStageId}
           onStageSelect={handleOperationalStageSelect}
-          onStageAction={handleOperationalStageAction}
+          onStagePreview={setGuidanceStageId}
+          onModuleClick={handleModuleClick}
           onDismiss={() => setLearningModeVisible(false)}
         />
       )}

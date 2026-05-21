@@ -127,6 +127,78 @@ export const zhCA = {
           title: '把数据变成决策',
           description: '分析关键指标，理解真实绩效并发现改进机会。',
         },
+        companyStructure: {
+          title: '企业结构',
+          description: '定义公司的组织方式，让每个模块都基于同一张运营地图工作。',
+        },
+        companyMaturity: {
+          title: '企业成熟度',
+          description: '在增加更多工具之前，用成熟度评估找出下一项运营优先级。',
+        },
+        companyVisibility: {
+          title: '运营上下文',
+          description: '保持公司基础信息清晰，让管理层不用依赖零散记录也能理解运营。',
+        },
+        hrCollaborators: {
+          title: '员工',
+          description: '集中管理员工资料，减少手动跟进，并让责任更清晰可见。',
+        },
+        hrAttendance: {
+          title: '考勤与控制',
+          description: '把上班、下班和班次模式视为运营纪律的早期信号。',
+        },
+        hrPayroll: {
+          title: '薪资上下文',
+          description: '连接团队结构与薪资背景，让人工成本决策更有依据。',
+        },
+        processAgenda: {
+          title: '议程',
+          description: '把议程作为每日执行控制台，让待办、证据和负责人保持可见。',
+        },
+        processProjects: {
+          title: '项目',
+          description: '把相关工作归入项目，保护优先级，并让进度更容易跟踪。',
+        },
+        processRecurring: {
+          title: '周期流程',
+          description: '标准化重复工作，让运营更依靠清晰流程，而不是个人记忆。',
+        },
+        financeExpenses: {
+          title: '费用',
+          description: '在费用发生时及时记录，让运营成本保持可见并可控。',
+        },
+        financePettyCash: {
+          title: '备用金',
+          description: '严格跟踪已分配现金，避免日常小额支出成为管理盲点。',
+        },
+        financeApprovals: {
+          title: '财务复核',
+          description: '定期复核异常和待处理流水，保持健康的责任与透明度。',
+        },
+        commercialPointOfSale: {
+          title: '销售终端',
+          description: '稳定记录交易，让收入和运营动作保持连接。',
+        },
+        commercialSales: {
+          title: '销售 CRM',
+          description: '跟进机会和客户活动，把商业努力转化为可重复收入。',
+        },
+        commercialPipeline: {
+          title: '销售管道',
+          description: '利用管道可见性，让团队聚焦最可能推动业务的机会。',
+        },
+        analyticsKpiSelection: {
+          title: 'KPI 选择',
+          description: '选择能支持运营决策的指标，而不只是看起来漂亮的数字。',
+        },
+        analyticsPerformance: {
+          title: '绩效阅读',
+          description: '经常比较绩效信号，把小偏差尽早转化为行动。',
+        },
+        analyticsReview: {
+          title: '复盘节奏',
+          description: '建立 KPI 复盘习惯，让管理决策始终连接真实执行。',
+        },
       },
     },
   },

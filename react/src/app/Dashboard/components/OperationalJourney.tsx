@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
+import type { DashboardModuleCard, DashboardModuleColor } from '../../config/moduleCatalog';
+import type { PageId } from '../../config/navigation';
 import type {
   OperationalJourneyStageId,
   OperationalJourneyStageStatus,
@@ -24,9 +26,11 @@ import type { MainDashboardTranslations } from '../translations';
 interface OperationalJourneyProps {
   copy: MainDashboardTranslations['operationalJourney'];
   stages: OperationalJourneyStageView[];
+  stageModules: Partial<Record<OperationalJourneyStageId, DashboardModuleCard[]>>;
   activeStageId?: OperationalJourneyStageId;
   onStageSelect: (stageId: OperationalJourneyStageId) => void;
-  onStageAction: (stageId: OperationalJourneyStageId) => void;
+  onStagePreview: (stageId: OperationalJourneyStageId) => void;
+  onModuleClick: (moduleRoute: PageId) => void;
   onDismiss?: () => void;
 }
 
@@ -53,12 +57,25 @@ const statusClasses: Record<OperationalJourneyStageStatus, string> = {
   locked: 'border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500',
 };
 
+const moduleButtonClasses: Record<DashboardModuleColor, string> = {
+  blue: 'border-[#143675]/30 bg-[#143675]/10 text-[#143675] hover:border-[#143675] hover:bg-[#143675] hover:text-white dark:border-[#558DBD]/35 dark:bg-[#558DBD]/10 dark:text-[#b7d6ed]',
+  yellow: 'border-[#FFC300]/45 bg-[#FFC300]/10 text-[#8a6a00] hover:border-[#FFC300] hover:bg-[#FFC300] hover:text-[#3b2b00] dark:border-[#FFC300]/35 dark:bg-[#FFC300]/10 dark:text-[#ffd966]',
+  orange: 'border-orange-300 bg-orange-50 text-orange-700 hover:border-orange-500 hover:bg-orange-500 hover:text-white dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300',
+  green: 'border-[#147514]/25 bg-emerald-50 text-[#147514] hover:border-[#147514] hover:bg-[#147514] hover:text-white dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+  gray: 'border-[#558DBD]/30 bg-[#558DBD]/10 text-[#2b5d86] hover:border-[#558DBD] hover:bg-[#558DBD] hover:text-white dark:border-[#558DBD]/35 dark:bg-[#558DBD]/10 dark:text-[#b7d6ed]',
+  purple: 'border-purple-300 bg-purple-50 text-purple-700 hover:border-purple-600 hover:bg-purple-600 hover:text-white dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300',
+  red: 'border-red-300 bg-red-50 text-red-700 hover:border-red-500 hover:bg-red-500 hover:text-white dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300',
+  gold: 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500 hover:bg-amber-500 hover:text-white dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300',
+};
+
 export function OperationalJourney({
   copy,
   stages,
+  stageModules,
   activeStageId,
   onStageSelect,
-  onStageAction,
+  onStagePreview,
+  onModuleClick,
   onDismiss,
 }: OperationalJourneyProps) {
   const completedCount = stages.filter((stage) => stage.status === 'completed').length;
@@ -116,10 +133,13 @@ export function OperationalJourney({
               const StageIcon = stageIcons[stage.id];
               const StatusIcon = statusIcons[stage.status];
               const isActive = activeStageId === stage.id;
+              const modules = stageModules[stage.id] ?? [];
 
               return (
                 <article
                   key={stage.id}
+                  onMouseEnter={() => onStagePreview(stage.id)}
+                  onFocusCapture={() => onStagePreview(stage.id)}
                   className={`flex min-h-[168px] flex-col justify-between rounded-xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${statusClasses[stage.status]} ${isActive ? 'shadow-[0_14px_36px_rgba(85,141,189,0.16)]' : 'shadow-sm'}`}
                 >
                   <button
@@ -147,13 +167,29 @@ export function OperationalJourney({
                     </span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => onStageAction(stage.id)}
-                    className="mt-4 inline-flex w-fit rounded-full border border-current/15 bg-white/70 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white dark:bg-white/5 dark:hover:bg-white/10"
-                  >
-                    {labels.cta}
-                  </button>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {modules.length > 0 ? (
+                      modules.map((module) => (
+                        <button
+                          key={module.id}
+                          type="button"
+                          onClick={() => onModuleClick(module.route)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${moduleButtonClasses[module.color]}`}
+                        >
+                          <span aria-hidden="true">{module.emoji}</span>
+                          {module.title}
+                        </button>
+                      ))
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onModuleClick(stage.primaryRoute)}
+                        className="inline-flex w-fit rounded-full border border-current/15 bg-white/70 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white dark:bg-white/5 dark:hover:bg-white/10"
+                      >
+                        {labels.cta}
+                      </button>
+                    )}
+                  </div>
                 </article>
               );
             })}
