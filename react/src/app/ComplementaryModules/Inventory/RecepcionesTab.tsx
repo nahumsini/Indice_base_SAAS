@@ -1,14 +1,11 @@
 import { mockTransfers } from './mocks/inventory.mock';
 import type { Transfer } from './types/inventory.types';
 
-const transferItemCount = (transfer: Transfer) =>
-  transfer.products.reduce((total, product) => total + product.quantity, 0);
-
-const hasTransferDifferences = (transfer: Transfer) =>
-  Boolean(transfer.notes?.toLowerCase().includes('diferencia'));
-
 export default function RecepcionesTab() {
   const pendingReceptions = mockTransfers.filter(t => t.status === 'in_transit' || t.status === 'approved');
+  const hasTransferDifferences = (transfer: Transfer) => transfer.notes?.toLowerCase().includes('diferencia') ?? false;
+  const getTransferQuantity = (transfer: Transfer) =>
+    transfer.products.reduce((total, product) => total + product.quantity, 0);
 
   return (
     <div className="space-y-6">
@@ -48,7 +45,7 @@ export default function RecepcionesTab() {
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Productos</p>
-                <p className="font-medium text-gray-900 dark:text-white">{transferItemCount(transfer)}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{getTransferQuantity(transfer)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Enviado</p>

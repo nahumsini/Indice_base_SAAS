@@ -589,7 +589,7 @@ export default function Attendance() {
         durationMs={4200}
       />
 
-      <div className="mb-5 rounded-lg border border-[#143675]/30 bg-[#143675]/10 p-6 shadow-sm dark:border-[#143675]/40 dark:bg-[#143675]/15">
+      <div className="mb-5 rounded-lg border border-[#59C3A5]/30 bg-[#59C3A5]/10 p-6 shadow-sm dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -602,7 +602,7 @@ export default function Attendance() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              className="h-11 gap-2 rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855] disabled:bg-gray-300 disabled:text-gray-500"
+              className="h-11 gap-2 rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#3AAE90] disabled:bg-gray-300 disabled:text-gray-500"
               onClick={() => setIsRecordsOpen(true)}
               disabled={!selectedItem}
             >
@@ -752,7 +752,7 @@ export default function Attendance() {
                       setRecorderLocationId('');
                     }}
                     disabled={recorderDisabled || attendanceUnitOptions.length === 0}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
                   >
                     <option value="">{copy.recorder.selectUnit}</option>
                     {attendanceUnitOptions.length ? (
@@ -776,7 +776,7 @@ export default function Attendance() {
                       setRecorderLocationId('');
                     }}
                     disabled={recorderDisabled || !recorderUnitKey || businessLocationOptions.length === 0}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
                   >
                     <option value="">{copy.recorder.selectBusiness}</option>
                     {businessLocationOptions.length ? (
@@ -833,7 +833,7 @@ export default function Attendance() {
               <Button
                 type="button"
                 disabled={recorderDisabled || !canInlineCheckIn || isSubmitting}
-                className="bg-[#143675] text-white hover:bg-[#0f2855] disabled:bg-gray-300 disabled:text-gray-500"
+                className="bg-[#59C3A5] text-white hover:bg-[#3AAE90] disabled:bg-gray-300 disabled:text-gray-500"
                 onClick={() => {
                   void handleInlineAttendanceRecord('check_in');
                 }}

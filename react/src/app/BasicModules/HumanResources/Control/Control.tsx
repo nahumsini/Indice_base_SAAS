@@ -243,8 +243,8 @@ export default function Control() {
     () => copy.kpi satisfies ControlKpiStripLabels,
     [copy.kpi],
   );
-  const headerActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#143675] shadow-none hover:bg-[#143675] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto';
-  const headerPrimaryActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855] sm:w-auto';
+  const headerActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#59C3A5] shadow-none hover:bg-[#59C3A5] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto';
+  const headerPrimaryActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#3AAE90] sm:w-auto';
   const [controlDate, setControlDate] = useState(todayIsoDate());
   const [calendarMonth, setCalendarMonth] = useState(toMonthValue(todayIsoDate()));
   const [searchQuery, setSearchQuery] = useState('');
@@ -685,7 +685,7 @@ export default function Control() {
       margin: 1,
       width: 320,
       color: {
-        dark: '#143675',
+        dark: '#59C3A5',
         light: '#ffffff',
       },
     })
@@ -1150,7 +1150,7 @@ export default function Control() {
 
     setPendingCalendarScheduleClear({
       employeeId: selectedEmployeeId,
-      employeeName: selectedEmployee?.user_name ?? 'this employee',
+      employeeName: selectedEmployee?.user_name ?? copy.labels.selectedEmployeeFallback,
       targetDate: date,
     });
 
@@ -1276,7 +1276,7 @@ export default function Control() {
     }
     const busyReason = getAssignmentBusyReason(selectedEmployee, copy);
     if (busyReason) {
-      showFailureToast(`${busyReason}. Remove the existing shift before assigning a contract site.`);
+      showFailureToast(copy.labels.removeExistingShiftBeforeContractSite(busyReason));
       return;
     }
 
@@ -1487,14 +1487,17 @@ export default function Control() {
       (selectedLocation.contract_start_date && workSiteForm.effective_start_date < selectedLocation.contract_start_date) ||
       (selectedLocation.contract_end_date && workSiteForm.effective_end_date > selectedLocation.contract_end_date)
     ) {
-      showFailureToast(`Contract site is only open from ${selectedLocation.contract_start_date ?? 'the first configured day'} to ${selectedLocation.contract_end_date ?? 'the last configured day'}.`);
+      showFailureToast(copy.labels.contractSiteWindow(
+        selectedLocation.contract_start_date ?? copy.labels.firstConfiguredDay,
+        selectedLocation.contract_end_date ?? copy.labels.lastConfiguredDay,
+      ));
       return;
     }
 
     const currentAssignment = overview?.assignments.find((assignment) => assignment.user_company_id === employeeId) ?? null;
     const busyReason = currentAssignment ? getAssignmentBusyReason(currentAssignment, copy) : '';
     if (busyReason) {
-      showFailureToast(`${busyReason}. Remove the existing shift before assigning a contract site.`);
+      showFailureToast(copy.labels.removeExistingShiftBeforeContractSite(busyReason));
       return;
     }
 
@@ -1605,7 +1608,7 @@ export default function Control() {
         }
 
         setIsKioskDialogOpen(false);
-        showSuccessToast('Attendance point saved successfully.');
+        showSuccessToast(copy.labels.kioskSaved);
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1623,7 +1626,7 @@ export default function Control() {
   const handleOpenKiosk = (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      showFailureToast('This attendance point does not have an access link yet.');
+      showFailureToast(copy.kiosk.card.noAccessLink);
       return;
     }
 
@@ -1640,13 +1643,13 @@ export default function Control() {
   const handleCopyKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const kioskLink = buildKioskDeviceLink(device ?? selectedKioskDevice);
     if (!kioskLink) {
-      showFailureToast('This attendance point does not have an access link yet.');
+      showFailureToast(copy.kiosk.card.noAccessLink);
       return;
     }
 
     try {
       await navigator.clipboard.writeText(kioskLink);
-      showSuccessToast('Access link copied.');
+      showSuccessToast(copy.labels.kioskLinkCopied);
     } catch {
       showFailureToast(copy.saveError);
     }
@@ -1655,7 +1658,7 @@ export default function Control() {
   const handleRotateKioskLink = async (device?: AttendanceKioskDevice | null) => {
     const targetDevice = device ?? selectedKioskDevice;
     if (!targetDevice) {
-      showFailureToast('This attendance point does not have an access link yet.');
+      showFailureToast(copy.kiosk.card.noAccessLink);
       return;
     }
 
@@ -1670,7 +1673,7 @@ export default function Control() {
           device.id === response.kiosk_device.id ? response.kiosk_device : device
         )));
         setSelectedKioskDeviceId(response.kiosk_device.id);
-        showSuccessToast('Access link reset successfully.');
+        showSuccessToast(copy.labels.kioskLinkRotated);
         setIsKioskQrDialogOpen(false);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {
@@ -1694,7 +1697,7 @@ export default function Control() {
         await humanResourcesApi.deleteAttendanceKioskDevice(kioskDeviceToDelete.id);
         setIsKioskQrDialogOpen(false);
         setKioskDeviceToDelete(null);
-        showSuccessToast('Attendance point deleted successfully.');
+        showSuccessToast(copy.labels.kioskDeleted);
         await loadControl(controlDate);
       })(), CONTROL_SAVE_MINIMUM_LOADING_MS);
     } catch (error) {

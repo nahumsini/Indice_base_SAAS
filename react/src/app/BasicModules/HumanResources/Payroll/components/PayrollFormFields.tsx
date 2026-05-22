@@ -22,7 +22,7 @@ export function SelectField({
             <select
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-none focus:border-[#143675] focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-none focus:border-[#59C3A5] focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -57,7 +57,7 @@ export function DateField({
                 value={value}
                 disabled={disabled}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-none focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-none focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
             />
             {helperText ? (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{helperText}</p>

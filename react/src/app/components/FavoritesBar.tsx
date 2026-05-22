@@ -1,7 +1,7 @@
-import { Star, Settings, Home } from 'lucide-react';
 import { useLanguage } from '../shared/context';
 import { useFavorites } from '../shared/context';
 import { buildDefaultModuleCatalog } from '../config/moduleCatalog';
+import { resolvePageId } from '../config/navigation';
 
 interface FavoritesBarProps {
   onNavigate: (page: string) => void;
@@ -21,21 +21,8 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
   const { getFavoriteModules } = useFavorites();
 
   const allModules = buildDefaultModuleCatalog(t);
-  const coreModuleFlow = [
-    'home-panel',
-    'human-resources',
-    'processes-tasks',
-    'expenses',
-    'petty-cash',
-  ] as const;
-  const moduleById = new Map(allModules.map((module) => [module.id, module] as const));
-  const pinnedModules = coreModuleFlow
-    .map((moduleId) => moduleById.get(moduleId))
-    .filter(Boolean) as FavoriteBarModule[];
-  const extraFavoriteModules: FavoriteBarModule[] = getFavoriteModules(allModules).filter(
-    (module) => !coreModuleFlow.includes(module.id as (typeof coreModuleFlow)[number]),
-  );
-  const visibleModules: FavoriteBarModule[] = [...pinnedModules, ...extraFavoriteModules];
+  const visibleModules: FavoriteBarModule[] = getFavoriteModules(allModules);
+  const activeModule = resolvePageId(currentModule) ?? currentModule;
 
   const handleModuleClick = (module: FavoriteBarModule) => {
     onNavigate(module.route);
@@ -43,6 +30,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
 
   const getButtonColorClasses = (color: string) => {
     const colorMap: Record<string, string> = {
+      aqua: 'bg-[#59C3A5]/10 text-[#257B68] border-[#59C3A5]/30 hover:bg-[#59C3A5]/20 dark:bg-[#59C3A5]/20 dark:text-[#8FE0CA] dark:border-[#59C3A5]/30 dark:hover:bg-[#59C3A5]/30',
       blue: 'bg-[rgb(85,141,189)]/10 text-[rgb(85,141,189)] border-[rgb(85,141,189)]/30 hover:bg-[rgb(85,141,189)]/20 dark:bg-[rgb(85,141,189)]/20 dark:text-[rgb(85,141,189)] dark:border-[rgb(85,141,189)]/30 dark:hover:bg-[rgb(85,141,189)]/30',
       yellow: 'bg-[rgb(255,214,80)]/10 text-[rgb(180,150,50)] border-[rgb(255,214,80)]/30 hover:bg-[rgb(255,214,80)]/20 dark:bg-[rgb(255,214,80)]/20 dark:text-[rgb(255,214,80)] dark:border-[rgb(255,214,80)]/30 dark:hover:bg-[rgb(255,214,80)]/30',
       green: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-900/40',
@@ -54,7 +42,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
     return colorMap[color] || colorMap.blue;
   };
 
-  // No mostrar la barra si estamos en el dashboard
+  // The Dashboard screen owns the main favorites section, so the compact bar is hidden there.
   if (currentModule === 'dashboard') {
     return null;
   }
@@ -63,7 +51,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
     <div className="mb-6">
       <div className="-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0">
         <div className="flex min-w-max items-center gap-2 sm:min-w-0 sm:flex-wrap">
-          {/* Botón Dashboard - Siempre fijo */}
+          {/* Dashboard is always pinned as the fixed entry point. */}
           <button
             onClick={() => onNavigate('dashboard')}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -72,9 +60,9 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
             <span>Dashboard</span>
           </button>
 
-          {/* Módulos Favoritos */}
+          {/* Favorite modules selected from the Dashboard. */}
           {visibleModules.map((module) => {
-            const isActive = currentModule === module.route;
+            const isActive = activeModule === module.route;
             const baseClasses = getButtonColorClasses(module.color);
             const activeClasses = isActive ? 'ring-2 ring-offset-2 ring-blue-500' : '';
 

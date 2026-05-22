@@ -218,7 +218,7 @@ export function ControlContractSiteDialog({
               type="text"
               value={form.name}
               onChange={(event) => onChange({ ...form, name: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
 
@@ -227,7 +227,7 @@ export function ControlContractSiteDialog({
             <select
               value={form.status}
               onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="active">{copy.statuses.active}</option>
               <option value="inactive">{copy.statuses.inactive}</option>
@@ -242,7 +242,7 @@ export function ControlContractSiteDialog({
                 step="0.000001"
                 value={form.latitude}
                 onChange={(event) => onChange({ ...form, latitude: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -252,29 +252,29 @@ export function ControlContractSiteDialog({
                 step="0.000001"
                 value={form.longitude}
                 onChange={(event) => onChange({ ...form, longitude: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Contract start date</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.basic.contractStart}</label>
               <input
                 type="date"
                 value={form.contract_start_date}
                 onChange={(event) => onChange({ ...form, contract_start_date: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Contract end date</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.basic.contractEnd}</label>
               <input
                 type="date"
                 value={form.contract_end_date}
                 min={form.contract_start_date}
                 onChange={(event) => onChange({ ...form, contract_end_date: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
@@ -287,11 +287,11 @@ export function ControlContractSiteDialog({
                 min="1"
                 value={form.radius_meters}
                 onChange={(event) => onChange({ ...form, radius_meters: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
 	            </div>
 	            <div>
-	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Working hours</label>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.hoursPerDay}</label>
 	              <input
                 type="number"
                 min="0.25"
@@ -299,25 +299,25 @@ export function ControlContractSiteDialog({
                 step="0.25"
                 value={form.required_hours_per_day}
                 onChange={(event) => onChange({ ...form, required_hours_per_day: Number(event.target.value) })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
 	            </div>
 	            <div>
-	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Preferred start</label>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.startTime}</label>
 	              <input
 	                type="time"
 	                value={timeToInput(form.required_start_time) || '08:00'}
 	                onChange={(event) => onChange(withContractSiteTime(form, 'required_start_time', event.target.value))}
-	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 	              />
 	            </div>
 	            <div>
-	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Preferred end</label>
+	              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.endTime}</label>
 	              <input
 	                type="time"
 	                value={timeToInput(form.required_end_time) || '16:00'}
 	                onChange={(event) => onChange(withContractSiteTime(form, 'required_end_time', event.target.value))}
-	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+	                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 	              />
 	            </div>
           </div>
@@ -369,7 +369,7 @@ export function ControlTemplateDialog({
                 type="text"
                 value={form.name}
                 onChange={(event) => onChange({ ...form, name: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -377,7 +377,7 @@ export function ControlTemplateDialog({
               <select
                 value={form.status}
                 onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
                 <option value="active">{copy.statuses.active}</option>
                 <option value="inactive">{copy.statuses.inactive}</option>
@@ -429,7 +429,7 @@ export function ControlTemplateDialog({
                         );
                         onChange({ ...form, days: nextDays });
                       }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
@@ -444,7 +444,7 @@ export function ControlTemplateDialog({
                         );
                         onChange({ ...form, days: nextDays });
                       }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
@@ -459,7 +459,7 @@ export function ControlTemplateDialog({
                         );
                         onChange({ ...form, days: nextDays });
                       }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                 </div>
@@ -528,7 +528,7 @@ export function ControlAssignmentDialog({
             <select
               value={form.template_id}
               onChange={(event) => onChange({ ...form, template_id: Number(event.target.value) })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="0">--</option>
               {templates.map((template) => (
@@ -556,7 +556,7 @@ export function ControlAssignmentDialog({
                       : nextStartDate,
                   });
                 }}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -566,7 +566,7 @@ export function ControlAssignmentDialog({
                 value={form.effective_end_date ?? ''}
                 min={form.effective_start_date || todayDate}
                 onChange={(event) => onChange({ ...form, effective_end_date: event.target.value })}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
@@ -603,13 +603,13 @@ export function ControlAssignmentDialog({
                 );
               }) : (
                 <div className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                  No free HR users available for this date. Remove an existing shift before assigning new work.
+                  {copy.labels.noFreeHrUsersForDate}
                 </div>
               )}
             </div>
             {assignments.length > availableAssignments.length ? (
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Busy HR users are hidden from this list.
+                {copy.labels.busyHrUsersHidden}
               </p>
             ) : null}
           </div>
@@ -723,7 +723,7 @@ export function ControlWorkSiteDialog({
                   effective_end_date: nextDates.endDate,
                 });
               }}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               <option value="">{copy.labels.selectContractSite}</option>
               {activeLocations.map((location) => (
@@ -740,7 +740,7 @@ export function ControlWorkSiteDialog({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start date</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.effectiveStart}</label>
             <input
               type="date"
               value={form.effective_start_date}
@@ -757,18 +757,18 @@ export function ControlWorkSiteDialog({
                   effective_end_date: maximumEndDate && nextEndDate > maximumEndDate ? maximumEndDate : nextEndDate,
                 });
               }}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End date</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.effectiveEnd}</label>
             <input
               type="date"
               value={form.effective_end_date}
               min={form.effective_start_date || minimumStartDate}
               max={maximumEndDate}
               onChange={(event) => onChange({ ...form, effective_end_date: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
           {dateValidationMessage ? (
@@ -778,37 +778,37 @@ export function ControlWorkSiteDialog({
           ) : null}
 
           <div className="sm:col-span-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Assigned hours</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.assignedHours}</p>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Start time</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.startTime}</label>
             <input
               type="time"
               value={form.start_time}
               onChange={(event) => onChange({ ...form, start_time: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">End time</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.endTime}</label>
             <input
               type="time"
               value={form.end_time}
               onChange={(event) => onChange({ ...form, end_time: event.target.value })}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
           </div>
-          <div className="rounded-lg bg-[#143675]/5 px-3 py-2 text-xs text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff] sm:col-span-2">
-            End date is the last day this shift starts. Use the same start and end date for a one-day shift.
+          <div className="rounded-lg bg-[#59C3A5]/5 px-3 py-2 text-xs text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA] sm:col-span-2">
+            {copy.labels.workSiteDateHint}
           </div>
           {invalidTimeRange ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
-              End time cannot equal start time.
+              {copy.labels.endTimeCannotEqualStartTime}
             </div>
           ) : null}
           {isOvernightShift ? (
             <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-200 sm:col-span-2">
-              Overnight shift: the shift starts on the selected date and ends the next day.
+              {copy.labels.overnightShiftHint}
             </div>
           ) : null}
         </div>
@@ -888,7 +888,7 @@ export function ControlKioskDialog({
   const selectedBusiness = businessOptions.find((business) => business.id === form.business_id) ?? null;
   const selectedScopeLabel = (() => {
     if (kioskType === 'open_attendance') {
-      return 'All employees / location not enforced';
+      return copy.kiosk.form.allEmployeesNoLocationScope;
     }
     if (kioskType === 'business_unit') {
       if (form.business_id) {
@@ -918,8 +918,8 @@ export function ControlKioskDialog({
         unit_id: null,
         business_id: null,
         location_id: null,
-        name: form.name || 'Open Attendance Point',
-        code: form.code || defaultKioskScopeCode('Open Attendance', `open-attendance-${Date.now().toString(36).slice(-5)}`),
+        name: form.name || copy.kiosk.form.defaultOpenAttendanceName,
+        code: form.code || defaultKioskScopeCode(copy.kiosk.form.defaultOpenAttendanceCodeLabel, `open-attendance-${Date.now().toString(36).slice(-5)}`),
         metadata: withKioskType(form.metadata, nextType),
       });
       return;
@@ -961,7 +961,7 @@ export function ControlKioskDialog({
       unit_id: unitId,
       business_id: shouldKeepBusiness ? form.business_id ?? null : null,
       location_id: null,
-      name: form.name || `${label} Attendance Point`,
+      name: form.name || copy.kiosk.form.defaultAttendancePointName(label),
       code: form.code || defaultKioskScopeCode(label, unitId ? `unit-${unitId}` : 'all-business'),
     });
   };
@@ -972,7 +972,7 @@ export function ControlKioskDialog({
       unit_id: nextBusiness?.unitId ?? form.unit_id ?? null,
       business_id: businessId,
       location_id: null,
-      name: form.name || `${nextBusiness?.name || copy.labels.allBusinesses} Attendance Point`,
+      name: form.name || copy.kiosk.form.defaultAttendancePointName(nextBusiness?.name || copy.labels.allBusinesses),
       code: form.code || defaultKioskScopeCode(nextBusiness?.name || copy.labels.allBusinesses, businessId ? `business-${businessId}` : 'all-business'),
     });
   };
@@ -983,7 +983,7 @@ export function ControlKioskDialog({
       unit_id: nextLocation?.unit_id ?? null,
       business_id: nextLocation?.business_id ?? null,
       location_id: nextLocation?.id ?? null,
-      name: form.name || (nextLocation ? `${nextLocation.name} Attendance Point` : form.name),
+      name: form.name || (nextLocation ? copy.kiosk.form.defaultAttendancePointName(nextLocation.name) : form.name),
       code: form.code || (nextLocation ? defaultKioskCode(nextLocation, kioskType) : form.code),
     });
   };
@@ -991,6 +991,7 @@ export function ControlKioskDialog({
   return (
     <CreateKioskModal
       canSave={canSave}
+      copy={copy}
       form={form}
       isBusinessUnitKiosk={isBusinessUnitKiosk}
       isOpenAttendanceKiosk={isOpenAttendanceKiosk}

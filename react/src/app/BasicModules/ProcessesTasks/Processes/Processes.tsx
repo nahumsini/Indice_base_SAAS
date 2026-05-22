@@ -319,9 +319,9 @@ function ProcessKpiStrip({
 
       <ProcessStatusBar segments={statusSegments} />
 
-      <div className="rounded-lg border border-[rgb(235,165,52)]/20 bg-[rgb(235,165,52)]/10 px-4 py-3 dark:border-[rgb(235,165,52)]/30 dark:bg-[rgb(235,165,52)]/15">
+      <div className="rounded-lg border border-[rgb(250,204,21)]/20 bg-[rgb(250,204,21)]/10 px-4 py-3 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex items-start gap-3">
-          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(235,165,52)]" />
+          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
             {metrics.activeCount} {copy.labels.active} · {metrics.openTaskCount} {copy.labels.open} · {metrics.overdueTaskCount} {copy.labels.overdue} · {metrics.linkedTaskCount} {copy.labels.tasks}
           </p>
@@ -1763,7 +1763,7 @@ export default function Processes() {
                 {headerCopy.subtitle}
               </p>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]">
+            <Badge variant="outline" className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]">
               {sortedRecords.length} {headerCopy.title.toLowerCase()}
             </Badge>
           </div>
@@ -1808,7 +1808,7 @@ export default function Processes() {
                     className={cn(
                       'grid min-h-[94px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
                       !record.isActive && 'bg-slate-50/80 dark:bg-slate-900/40',
-                      rowSelection.isSelected(record.id) && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                      rowSelection.isSelected(record.id) && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
                     )}
                     style={{ gridTemplateColumns: 'minmax(320px, 380px) 1fr minmax(130px, 160px)' }}
                   >
@@ -1843,7 +1843,7 @@ export default function Processes() {
                           className={cn(
                             'pointer-events-none absolute inset-y-4 rounded-xl border px-3 py-2',
                             record.isActive
-                              ? 'border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25'
+                              ? 'border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25'
                               : 'border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-700/50',
                           )}
                           style={{
@@ -1887,7 +1887,7 @@ export default function Processes() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -1905,7 +1905,7 @@ export default function Processes() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'table'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('table')}
@@ -1918,7 +1918,7 @@ export default function Processes() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'diagram'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('diagram')}
@@ -1930,7 +1930,7 @@ export default function Processes() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsDialogOpen(true)}
               disabled={isLoadingProcesses}
             >
@@ -2029,10 +2029,10 @@ export default function Processes() {
       <ProcessKpiStrip copy={processCopy.kpis} isLoading={isLoadingProcesses} metrics={processKpiMetrics} />
 
       {rowSelection.selectedCount > 0 ? (
-        <section className="mb-4 rounded-2xl border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-4 py-3 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+        <section className="mb-4 rounded-2xl border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-4 py-3 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              <Badge variant="outline" className="rounded-full border-[rgb(235,165,52)]/40 bg-white px-3 py-1 text-[rgb(176,111,22)] dark:bg-slate-800 dark:text-[rgb(245,196,112)]">
+              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-white px-3 py-1 text-[rgb(113,63,18)] dark:bg-slate-800 dark:text-[rgb(254,240,138)]">
                 {rowSelection.selectedCount} seleccionados
               </Badge>
               <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
@@ -2117,7 +2117,7 @@ export default function Processes() {
                         : false
                   }
                   onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleRecordIds, checked === true)}
-                  className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                  className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
                 />
               </TableHead>
               {visibleColumns.map((column) => {
@@ -2129,13 +2129,13 @@ export default function Processes() {
                     <button
                       type="button"
                       onClick={() => handleSort(column.id)}
-                      className="flex min-h-8 items-center gap-2 rounded-md text-left text-sm font-semibold tracking-tight text-slate-500 transition hover:text-[rgb(235,165,52)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(235,165,52)] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-slate-100 dark:focus-visible:ring-offset-slate-800"
+                      className="flex min-h-8 items-center gap-2 rounded-md text-left text-sm font-semibold tracking-tight text-slate-500 transition hover:text-[rgb(113,63,18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(250,204,21)] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-slate-100 dark:focus-visible:ring-offset-slate-800"
                     >
                       <span>{column.label}</span>
                       <SortIcon
                         className={cn(
                           'h-4 w-4',
-                          isActiveSort ? 'text-[rgb(235,165,52)]' : 'text-slate-400',
+                          isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400',
                         )}
                       />
                     </button>
@@ -2154,7 +2154,7 @@ export default function Processes() {
                 className={cn(
                   'border-slate-200 dark:border-slate-700',
                   !record.isActive && 'bg-slate-50/80 dark:bg-slate-900/40',
-                  rowSelection.isSelected(record.id) && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                  rowSelection.isSelected(record.id) && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
                 )}
               >
                 <TableCell className="px-5 py-6 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
@@ -2163,7 +2163,7 @@ export default function Processes() {
                     checked={rowSelection.isSelected(record.id)}
                     disabled={isRecordPending(record.id)}
                     onCheckedChange={(checked) => rowSelection.toggleSelection(record.id, checked === true)}
-                    className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                    className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
                   />
                 </TableCell>
                 {visibleColumns.map((column) => (
@@ -2185,7 +2185,7 @@ export default function Processes() {
                         void handleMaterialize(record);
                       }}
                       disabled={isRecordPending(record.id)}
-                      className="border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 text-[rgb(176,111,22)] hover:bg-[rgb(235,165,52)] hover:text-white dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15 dark:text-[rgb(245,196,112)] dark:hover:bg-[rgb(235,165,52)] dark:hover:text-white"
+                      className="border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 text-[rgb(113,63,18)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)] dark:hover:bg-[rgb(250,204,21)] dark:hover:text-slate-950"
                       icon={<CalendarPlus className="h-4 w-4" />}
                     />
                     <ProcessActionButton
@@ -2269,9 +2269,9 @@ export default function Processes() {
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[rgb(235,165,52)] px-5 py-4">
-            <DialogTitle className="text-lg font-bold text-white">{processCopy.form.labels.responsible}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-white/85">
+          <div className="bg-[rgb(250,204,21)] px-5 py-4">
+            <DialogTitle className="text-lg font-bold text-slate-950">{processCopy.form.labels.responsible}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-slate-800/85">
               Aplicar responsable a {rowSelection.selectedCount} proceso{rowSelection.selectedCount === 1 ? '' : 's'} seleccionado{rowSelection.selectedCount === 1 ? '' : 's'}.
             </DialogDescription>
           </div>

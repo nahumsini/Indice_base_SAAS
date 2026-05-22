@@ -40,7 +40,7 @@ function CalendarKpiDistribution({
     <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
       <div className="flex h-full">
         <div
-          className="bg-[#143675] transition-all duration-300 dark:bg-[#8bb3ff]"
+          className="bg-[#59C3A5] transition-all duration-300 dark:bg-[#8FE0CA]"
           style={{ width: getCalendarSegmentWidth(attendanceCount, totalCount) }}
         />
         <div
@@ -122,7 +122,7 @@ export function EmployeeCalendarPanel({
   }, [monthDays]);
 
   return (
-    <div className="rounded-[22px] border border-[#143675]/10 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_6px_18px_rgba(20,54,117,0.04)] dark:border-gray-800 dark:bg-gray-900">
+    <div className="rounded-[22px] border border-[#59C3A5]/10 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_6px_18px_rgba(89,195,165,0.04)] dark:border-gray-800 dark:bg-gray-900">
       <div className="space-y-5">
       <div className="flex items-center justify-between gap-4">
         <Button variant="outline" size="icon" onClick={() => onShiftMonth(-1)}>
@@ -139,13 +139,13 @@ export function EmployeeCalendarPanel({
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-[#143675]/10 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-950/40">
+      <div className="rounded-2xl border border-[#59C3A5]/10 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-950/40">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <ControlKpiMetric
             icon={<CheckCircle2 className="h-4 w-4" />}
             label={copy.labels.calendarKpiAttendances}
             value={calendarInsights.attendanceCount}
-            valueClassName="text-[#143675] dark:text-[#8bb3ff]"
+            valueClassName="text-[#59C3A5] dark:text-[#8FE0CA]"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ControlKpiMetric
@@ -159,7 +159,7 @@ export function EmployeeCalendarPanel({
             icon={<Clock3 className="h-4 w-4" />}
             label={copy.labels.calendarKpiLate}
             value={calendarInsights.lateCount}
-            valueClassName="text-[#4f78bd] dark:text-[#8bb3ff]"
+            valueClassName="text-[#4f78bd] dark:text-[#8FE0CA]"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ControlKpiMetric
@@ -180,7 +180,7 @@ export function EmployeeCalendarPanel({
       </div>
 
       {selectedCalendarDates.length > 1 ? (
-        <div className="flex flex-col gap-3 rounded-2xl border border-[#143675]/20 bg-[#143675]/5 p-4 dark:border-[#8bb3ff]/30 dark:bg-[#143675]/20 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-4 dark:border-[#8FE0CA]/30 dark:bg-[#59C3A5]/20 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
               {selectedCalendarDates.length} days selected
@@ -194,7 +194,7 @@ export function EmployeeCalendarPanel({
               value={bulkCalendarStatus}
               disabled={isUpdatingCalendarDay}
               onChange={(event) => onBulkStatusChange(event.target.value as AttendanceCorrectionStatus | '')}
-              className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+              className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             >
               <option value="on_time">{copy.labels.markAsAttendance}</option>
               <option value="absence">{copy.labels.markAsAbsent}</option>
@@ -204,7 +204,7 @@ export function EmployeeCalendarPanel({
             </select>
             <Button
               type="button"
-              className="h-10 bg-[#143675] text-white hover:bg-[#0f2855]"
+              className="h-10 bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
               disabled={isUpdatingCalendarDay}
               onClick={onBulkApply}
             >
@@ -265,7 +265,7 @@ export function EmployeeCalendarPanel({
         </div>
       )}
 
-      <div className="border-t border-[#143675]/10 pt-4 dark:border-gray-700">
+      <div className="border-t border-[#59C3A5]/10 pt-4 dark:border-gray-700">
         <div className="flex flex-wrap gap-5 text-xs text-gray-600 dark:text-gray-300">
           <LegendPill color="bg-emerald-500" label={copy.labels.checkIn} />
           <LegendPill color="bg-sky-500" label={copy.labels.checkOut} />

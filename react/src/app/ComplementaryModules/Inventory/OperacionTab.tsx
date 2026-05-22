@@ -1,93 +1,81 @@
 import { useState } from 'react';
 import { mockTransfers, mockInsights, mockInventoryLocations, mockMovements } from './mocks/inventory.mock';
-import type { Movement, Transfer } from './types/inventory.types';
-
-type TimelineEvent = {
-  id: string;
-  stage: string;
-  user: string;
-  timestamp: Date;
-};
-
-const transferItemCount = (transfer: Transfer) =>
-  transfer.products.reduce((total, product) => total + product.quantity, 0);
-
-const transferTimeline = (transfer: Transfer): TimelineEvent[] => {
-  const events: TimelineEvent[] = [
-    {
-      id: `${transfer.id}-created`,
-      stage: 'creada',
-      user: transfer.responsible,
-      timestamp: transfer.createdAt,
-    },
-  ];
-  if (transfer.sentAt) {
-    events.push({
-      id: `${transfer.id}-sent`,
-      stage: 'en_transito',
-      user: transfer.transport || transfer.responsible,
-      timestamp: transfer.sentAt,
-    });
-  }
-  if (transfer.receivedAt) {
-    events.push({
-      id: `${transfer.id}-received`,
-      stage: 'recibida',
-      user: transfer.responsible,
-      timestamp: transfer.receivedAt,
-    });
-  }
-  return events;
-};
-
-const movementIcon = (movement: Movement) => {
-  switch (movement.type) {
-    case 'entry':
-      return '📥';
-    case 'exit':
-      return '📤';
-    case 'transfer':
-      return '🔄';
-    case 'adjustment':
-      return '⚙️';
-    default:
-      return '📋';
-  }
-};
-
-const movementTitle = (movement: Movement) =>
-  movement.products.map((product) => product.productName).join(', ') || movement.folio;
-
-const movementLocation = (movement: Movement) =>
-  movement.destinationNodeName || movement.originNodeName || 'Sin ubicación';
-
-const movementQuantity = (movement: Movement) =>
-  movement.products.reduce((total, product) => total + product.quantity, 0);
+import type { Movement, Transfer, TransferStatus } from './types/inventory.types';
 
 export default function OperacionTab() {
   const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: TransferStatus) => {
     switch (status) {
       case 'pending':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">⏳ Pendiente</span>;
       case 'approved':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">🔵 Aprobada</span>;
+        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">🔵 Preparado</span>;
       case 'in_transit':
         return <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">🟡 En Tránsito</span>;
       case 'received':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">🟢 Recibida</span>;
+        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">🟢 Recibido</span>;
       case 'cancelled':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">🔴 Cancelada</span>;
+        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">🔴 Cancelado</span>;
       default:
         return <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">{status}</span>;
     }
   };
 
   const criticalStock = mockInventoryLocations.filter(inv => inv.status === 'critico');
+  const activeTransfers = mockTransfers.filter(t => t.status !== 'received' && t.status !== 'cancelled');
+
+  const getTransferQuantity = (transfer: Transfer) =>
+    transfer.products.reduce((total, product) => total + product.quantity, 0);
+
+  const getMovementIcon = (movement: Movement) => {
+    switch (movement.type) {
+      case 'entry':
+        return '📥';
+      case 'exit':
+        return '📤';
+      case 'transfer':
+      case 'return':
+      case 'assignment':
+        return '🔄';
+      case 'adjustment':
+        return '⚙️';
+      default:
+        return '📋';
+    }
+  };
+
+  const getMovementQuantity = (movement: Movement) => {
+    const quantity = movement.products.reduce((total, product) => total + product.quantity, 0);
+
+    if (movement.type === 'exit') {
+      return -Math.abs(quantity);
+    }
+
+    return quantity;
+  };
+
+  const getMovementProductLabel = (movement: Movement) => {
+    const [firstProduct, ...remainingProducts] = movement.products;
+
+    if (!firstProduct) {
+      return movement.folio;
+    }
+
+    return remainingProducts.length > 0
+      ? `${firstProduct.productName} +${remainingProducts.length}`
+      : firstProduct.productName;
+  };
+
+  const buildTransferTimeline = (transfer: Transfer) => [
+    { id: 'created', stage: 'creada', user: transfer.responsible, timestamp: transfer.createdAt },
+    transfer.sentAt ? { id: 'sent', stage: 'enviada', user: transfer.responsible, timestamp: transfer.sentAt } : null,
+    transfer.eta ? { id: 'eta', stage: 'eta', user: transfer.transport ?? transfer.responsible, timestamp: transfer.eta } : null,
+    transfer.receivedAt ? { id: 'received', stage: 'recibida', user: transfer.responsible, timestamp: transfer.receivedAt } : null,
+  ].filter((event): event is { id: string; stage: string; user: string; timestamp: Date } => event !== null);
 
   return (
     <div className="space-y-6">
+      {/* Insights */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {mockInsights.map(insight => (
           <div
@@ -116,14 +104,16 @@ export default function OperacionTab() {
         ))}
       </div>
 
+      {/* Main Dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Transferencias Activas */}
         <div className="lg:col-span-2">
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               🚚 Transferencias Activas
             </h2>
             <div className="space-y-4">
-              {mockTransfers.filter(t => t.status !== 'received' && t.status !== 'cancelled').map(transfer => (
+              {activeTransfers.map(transfer => (
                 <div
                   key={transfer.id}
                   onClick={() => setSelectedTransfer(transfer)}
@@ -141,11 +131,11 @@ export default function OperacionTab() {
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <p className="text-gray-500 dark:text-gray-400">Productos</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{transferItemCount(transfer)}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{getTransferQuantity(transfer)}</p>
                     </div>
                     <div>
                       <p className="text-gray-500 dark:text-gray-400">Operador</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{transfer.responsible || '-'}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{transfer.responsible}</p>
                     </div>
                     <div>
                       <p className="text-gray-500 dark:text-gray-400">ETA</p>
@@ -160,6 +150,7 @@ export default function OperacionTab() {
           </div>
         </div>
 
+        {/* Stock Crítico */}
         <div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -181,31 +172,32 @@ export default function OperacionTab() {
         </div>
       </div>
 
+      {/* Movimientos Recientes */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           📊 Movimientos Recientes
         </h2>
         <div className="space-y-3">
-          {mockMovements.slice(0, 5).map(movement => {
-            const quantity = movementQuantity(movement);
-            return (
-              <div key={movement.id} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <div className="text-2xl">{movementIcon(movement)}</div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-900 dark:text-white text-sm">{movementTitle(movement)}</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {movementLocation(movement)} • {movement.timestamp.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                <div className={`font-bold ${quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {quantity > 0 ? '+' : ''}{quantity}
-                </div>
+          {mockMovements.slice(0, 5).map(movement => (
+            <div key={movement.id} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+              <div className="text-2xl">
+                {getMovementIcon(movement)}
               </div>
-            );
-          })}
+              <div className="flex-1">
+                <h3 className="font-medium text-gray-900 dark:text-white text-sm">{getMovementProductLabel(movement)}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {movement.destinationNodeName ?? movement.originNodeName ?? 'Sin ubicación'} • {movement.timestamp.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              <div className={`font-bold ${getMovementQuantity(movement) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {getMovementQuantity(movement) > 0 ? '+' : ''}{getMovementQuantity(movement)}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* Side Panel */}
       {selectedTransfer && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setSelectedTransfer(null)} />
@@ -224,14 +216,15 @@ export default function OperacionTab() {
             </div>
 
             <div className="p-6 space-y-6">
+              {/* Timeline */}
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4">📅 Timeline</h3>
                 <div className="space-y-3">
-                  {transferTimeline(selectedTransfer).map(event => (
+                  {buildTransferTimeline(selectedTransfer).map(event => (
                     <div key={event.id} className="flex gap-3">
                       <div className="text-xl">
                         {event.stage === 'creada' ? '📝' :
-                         event.stage === 'en_transito' ? '🚚' :
+                         event.stage === 'enviada' ? '🚚' :
                          event.stage === 'recibida' ? '✅' : '🔄'}
                       </div>
                       <div className="flex-1">
@@ -248,6 +241,7 @@ export default function OperacionTab() {
                 </div>
               </div>
 
+              {/* Productos */}
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4">📦 Productos</h3>
                 <div className="space-y-2">
@@ -255,12 +249,18 @@ export default function OperacionTab() {
                     <div key={item.productId} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <div className="flex justify-between mb-2">
                         <span className="font-medium text-gray-900 dark:text-white text-sm">{item.productName}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.sku}</span>
+                        <span className="text-xs text-gray-500">{item.sku}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
-                          <p className="text-gray-500">Cantidad</p>
+                          <p className="text-gray-500">Enviados</p>
                           <p className="font-medium text-gray-900 dark:text-white">{item.quantity}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Recibidos</p>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {selectedTransfer.status === 'received' ? item.quantity : '-'}
+                          </p>
                         </div>
                         <div>
                           <p className="text-gray-500">Unidad</p>

@@ -951,11 +951,11 @@ function AgendaColumnResizeHandle({
       aria-label={resizeLabel}
       onMouseDown={(event) => onResizeStart(event, columnId)}
       className={cn(
-        'absolute bottom-0 right-0 top-0 flex w-3 cursor-col-resize items-center justify-center opacity-0 transition-opacity hover:bg-[rgb(235,165,52)]/20 group-hover:opacity-100',
-        resizingColumn === columnId && 'bg-[rgb(235,165,52)]/25 opacity-100',
+        'absolute bottom-0 right-0 top-0 flex w-3 cursor-col-resize items-center justify-center opacity-0 transition-opacity hover:bg-[rgb(250,204,21)]/20 group-hover:opacity-100',
+        resizingColumn === columnId && 'bg-[rgb(250,204,21)]/25 opacity-100',
       )}
     >
-      <GripVertical className="h-4 w-4 text-[rgb(235,165,52)]" />
+      <GripVertical className="h-4 w-4 text-[rgb(113,63,18)]" />
     </button>
   );
 }
@@ -991,14 +991,14 @@ function AgendaSortableTableHead({
       <div className="flex min-w-0 items-center justify-between gap-3 pr-2">
         <button
           type="button"
-          className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(235,165,52)] dark:text-slate-400"
+          className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(113,63,18)] dark:text-slate-400"
           onClick={() => onSort(columnId)}
         >
           <span className="truncate">{column.label}</span>
           <SortIcon
             className={cn(
               'h-4 w-4 shrink-0',
-              isActiveSort ? 'text-[rgb(235,165,52)]' : 'text-slate-400',
+              isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400',
             )}
           />
         </button>
@@ -2883,7 +2883,7 @@ export default function Agenda() {
             title={agendaCopy.actions.files}
             disabled={pending}
             onClick={() => setAttachmentsTask(task)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgb(235,165,52)]/35 bg-[rgb(235,165,52)]/10 px-3 py-2 text-sm font-semibold text-[rgb(176,111,22)] transition-colors hover:border-[rgb(235,165,52)] hover:bg-[rgb(235,165,52)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15 dark:text-[rgb(245,196,112)] dark:hover:bg-[rgb(235,165,52)] dark:hover:text-white"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 px-3 py-2 text-sm font-semibold text-[rgb(113,63,18)] transition-colors hover:border-[rgb(250,204,21)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)] dark:hover:bg-[rgb(250,204,21)] dark:hover:text-slate-950"
           >
             <FolderOpen className="h-4 w-4" />
             {task.attachments}
@@ -3029,7 +3029,7 @@ export default function Agenda() {
           </div>
           <Badge
             variant="outline"
-            className="w-fit rounded-full border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]"
+            className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]"
           >
             {agendaCopy.kanban.filteredBadge}
           </Badge>
@@ -3057,7 +3057,7 @@ export default function Agenda() {
                   className={cn(
                     'flex min-h-[520px] flex-col rounded-2xl border p-3 transition-colors',
                     column.accentClassName,
-                    draggedTaskIsActive && 'ring-2 ring-[rgb(235,165,52)]/25',
+                    draggedTaskIsActive && 'ring-2 ring-[rgb(250,204,21)]/25',
                   )}
                   onDragOver={(event) => {
                     if (column.acceptsDrop) {
@@ -3156,7 +3156,7 @@ export default function Agenda() {
                             </div>
                             <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                               <div
-                                className="h-full rounded-full bg-[rgb(235,165,52)]"
+                                className="h-full rounded-full bg-[rgb(250,204,21)]"
                                 style={{ width: `${clampPercent(task.completionPercent)}%` }}
                               />
                             </div>
@@ -3189,7 +3189,7 @@ export default function Agenda() {
                               label={agendaCopy.actions.files}
                               onClick={() => setAttachmentsTask(task)}
                               disabled={pending}
-                              className="border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 text-[rgb(176,111,22)] hover:bg-[rgb(235,165,52)] hover:text-white"
+                              className="border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 text-[rgb(113,63,18)] hover:bg-[rgb(250,204,21)] hover:text-slate-950"
                               icon={<FolderOpen className="h-4 w-4" />}
                             />
                             <TableActionButton
@@ -3235,7 +3235,7 @@ export default function Agenda() {
             </div>
             <Badge
               variant="outline"
-              className="w-fit rounded-full border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]"
+              className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]"
             >
               {agendaCopy.kanban.filteredBadge}
             </Badge>
@@ -3305,7 +3305,7 @@ export default function Agenda() {
                       ))}
                       {range ? (
                         <div
-                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 px-3 py-2 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25"
+                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 px-3 py-2 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25"
                           style={{
                             left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
                             width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
@@ -3334,7 +3334,7 @@ export default function Agenda() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -3352,7 +3352,7 @@ export default function Agenda() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'table'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('table')}
@@ -3365,7 +3365,7 @@ export default function Agenda() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'kanban'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('kanban')}
@@ -3378,7 +3378,7 @@ export default function Agenda() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'diagram'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('diagram')}
@@ -3390,7 +3390,7 @@ export default function Agenda() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={handleOpenTaskKiosks}
             >
               <MonitorSmartphone className="h-4 w-4" />
@@ -3399,7 +3399,7 @@ export default function Agenda() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
@@ -3579,10 +3579,10 @@ export default function Agenda() {
       <AgendaKpiStrip copy={agendaCopy.kpiStrip} isLoading={isAgendaViewLoading} metrics={agendaKpiMetrics} />
 
       {viewMode === 'table' && rowSelection.selectedCount > 0 ? (
-        <section className="mb-4 rounded-2xl border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-4 py-3 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+        <section className="mb-4 rounded-2xl border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-4 py-3 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              <Badge variant="outline" className="rounded-full border-[rgb(235,165,52)]/40 bg-white px-3 py-1 text-[rgb(176,111,22)] dark:bg-slate-800 dark:text-[rgb(245,196,112)]">
+              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-white px-3 py-1 text-[rgb(113,63,18)] dark:bg-slate-800 dark:text-[rgb(254,240,138)]">
                 {rowSelection.selectedCount} seleccionadas
               </Badge>
               <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
@@ -3680,7 +3680,7 @@ export default function Agenda() {
                           : false
                     }
                     onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
-                    className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                    className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
                   />
                 </TableHead>
                 {visibleAgendaColumns.map((column) => (
@@ -3721,7 +3721,7 @@ export default function Agenda() {
                   key={task.taskId}
                   className={cn(
                     'border-slate-200 dark:border-slate-700',
-                    selected && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                    selected && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
                   )}
                 >
                   <TableCell
@@ -3733,7 +3733,7 @@ export default function Agenda() {
                       checked={selected}
                       disabled={isTaskPending(task.taskId)}
                       onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
-                      className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                      className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
                     />
                   </TableCell>
                   {visibleAgendaColumns.map((column) => {
@@ -3899,10 +3899,10 @@ export default function Agenda() {
           hideCloseButton
           className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-[920px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[920px] dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
+          <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="pr-4">
-                <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
+                <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
                   <FileText className="h-5 w-5" />
                   {agendaCopy.report.title}
                 </DialogTitle>
@@ -3911,7 +3911,7 @@ export default function Agenda() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-9 rounded-2xl border-white/70 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white"
+                  className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 >
                   {agendaCopy.common.close}
                 </Button>
@@ -4041,9 +4041,9 @@ export default function Agenda() {
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[rgb(235,165,52)] px-5 py-4">
-            <DialogTitle className="text-lg font-bold text-white">{agendaCopy.form.labels.responsible}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-white/85">
+          <div className="bg-[rgb(250,204,21)] px-5 py-4">
+            <DialogTitle className="text-lg font-bold text-slate-950">{agendaCopy.form.labels.responsible}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-slate-800/85">
               Aplicar responsable a {rowSelection.selectedCount} tarea{rowSelection.selectedCount === 1 ? '' : 's'} seleccionada{rowSelection.selectedCount === 1 ? '' : 's'}.
             </DialogDescription>
           </div>

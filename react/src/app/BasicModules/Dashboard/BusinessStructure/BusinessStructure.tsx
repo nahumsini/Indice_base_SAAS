@@ -88,7 +88,6 @@ type PendingDeleteTarget =
       type: 'unit';
       unidadId: string;
       name: string;
-      isCorporateOffice: boolean;
     }
   | {
       type: 'business';
@@ -836,7 +835,6 @@ export default function BusinessStructure() {
   const [editingUnidad, setEditingUnidad] = useState<Unidad | null>(null);
   const [editingNegocio, setEditingNegocio] = useState<EditingNegocio | null>(null);
   const [pendingDeleteTarget, setPendingDeleteTarget] = useState<PendingDeleteTarget | null>(null);
-  const [corporateReplacementUnitId, setCorporateReplacementUnitId] = useState('');
   const [unidadFormValues, setUnidadFormValues] = useState<UnidadFormValues>(DEFAULT_UNIDAD_FORM_VALUES);
   const [unidadInitialValues, setUnidadInitialValues] = useState<UnidadFormValues>(DEFAULT_UNIDAD_FORM_VALUES);
   const [negocioFormValues, setNegocioFormValues] = useState<NegocioFormValues>(DEFAULT_NEGOCIO_FORM_VALUES);
@@ -1124,7 +1122,7 @@ export default function BusinessStructure() {
       }
 
       if (deletedUnidad?.isCorporateOffice) {
-        return remainingUnidades;
+        return normalizeCorporateOfficeUnits(remainingUnidades);
       }
 
       return normalizeCorporateOfficeUnits(remainingUnidades);
@@ -1154,13 +1152,7 @@ export default function BusinessStructure() {
       type: 'unit',
       unidadId,
       name: unidad.name,
-      isCorporateOffice: unidad.isCorporateOffice === true,
     });
-    setCorporateReplacementUnitId(
-      unidad.isCorporateOffice
-        ? unidades.find((item) => item.id !== unidadId)?.id ?? ''
-        : '',
-    );
   };
 
   const handleRequestDeleteNegocio = (unidadId: string, negocioId: string) => {
@@ -1181,7 +1173,6 @@ export default function BusinessStructure() {
 
   const handleCancelDelete = () => {
     setPendingDeleteTarget(null);
-    setCorporateReplacementUnitId('');
   };
 
   const handleConfirmDelete = () => {
@@ -1190,18 +1181,12 @@ export default function BusinessStructure() {
     }
 
     if (pendingDeleteTarget.type === 'unit') {
-      if (pendingDeleteTarget.isCorporateOffice && unidades.length > 1 && !corporateReplacementUnitId) {
-        setLoadError('Choose another corporate office before deleting this unit.');
-        return;
-      }
-
-      applyDeleteUnidad(pendingDeleteTarget.unidadId, corporateReplacementUnitId);
+      applyDeleteUnidad(pendingDeleteTarget.unidadId);
     } else {
       applyDeleteNegocio(pendingDeleteTarget.unidadId, pendingDeleteTarget.negocioId);
     }
 
     setPendingDeleteTarget(null);
-    setCorporateReplacementUnitId('');
   };
 
   const handleSaveUnidad = (event: FormEvent<HTMLFormElement>) => {
@@ -1379,31 +1364,6 @@ export default function BusinessStructure() {
     setShowNegocioModal(true);
   };
 
-  const handleSetCorporateOffice = (unidadId: string) => {
-    const targetUnidad = unidades.find((unidad) => unidad.id === unidadId);
-    if (!targetUnidad || targetUnidad.isCorporateOffice) {
-      return;
-    }
-
-    void runStructureFeedbackTask({
-      title: 'Saving corporate office...',
-      description: 'Updating the selected corporate office for this company.',
-      successMessage: 'Corporate office updated.',
-      task: async () => {
-        const nextUnidades = unidades.map((unidad) => ({
-          ...unidad,
-          isCorporateOffice: unidad.id === unidadId,
-        }));
-
-        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
-        const savedUnidades = mapConfigUnitsToState(response.map);
-        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
-        setUnidades(committedUnidades);
-        syncSavedStructure(estructuraType, committedUnidades);
-      },
-    });
-  };
-
   const handlePersistBusinessStructure = async ({ silent = false }: { silent?: boolean } = {}) => {
     setIsSaving(true);
     setLoadError('');
@@ -1553,7 +1513,7 @@ export default function BusinessStructure() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200 p-4 dark:border-purple-700/30 sm:p-6">
+      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
@@ -1572,7 +1532,7 @@ export default function BusinessStructure() {
       </div>
 
       {isLoading ? (
-        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:border-purple-700/30 dark:bg-purple-900/20 dark:text-purple-300">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
           {structure.messages.loading}
         </div>
       ) : null}
@@ -1620,7 +1580,6 @@ export default function BusinessStructure() {
           structure={structure}
           onEditUnidad={handleEditUnidad}
           onDeleteUnidad={handleRequestDeleteUnidad}
-          onSetCorporateOffice={handleSetCorporateOffice}
           onEditNegocio={handleEditNegocio}
           onDeleteNegocio={handleRequestDeleteNegocio}
           onCreateNegocio={handleCreateNegocio}
@@ -1631,14 +1590,14 @@ export default function BusinessStructure() {
       {showUnidadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between gap-4 bg-purple-600 p-4 dark:bg-purple-700 sm:p-6">
+            <div className="flex items-start justify-between gap-4 bg-blue-600 p-4 dark:bg-blue-700 sm:p-6">
               <div>
                 <h3 className="text-xl font-semibold text-white">
                   {editingUnidad
                     ? structure.modal.editUnit
                     : structure.modal.newUnit}
                 </h3>
-                <p className="text-sm text-purple-100 mt-1">
+                <p className="text-sm text-blue-100 mt-1">
                   {editingUnidad
                     ? structure.modal.editUnitDescription
                     : structure.modal.newUnitDescription}
@@ -1647,7 +1606,7 @@ export default function BusinessStructure() {
               <button
                 type="button"
                 onClick={closeUnidadModal}
-                className="p-2 hover:bg-purple-700 dark:hover:bg-purple-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-blue-700 dark:hover:bg-blue-800 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -1709,7 +1668,7 @@ export default function BusinessStructure() {
                                 logo: preview,
                               }));
                             })}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700 dark:file:bg-purple-900/30 dark:file:text-purple-400 hover:file:bg-purple-100 dark:hover:file:bg-purple-900/50 file:cursor-pointer"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50 file:cursor-pointer"
                           />
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             {structure.fields.uploadHint}
@@ -1875,7 +1834,7 @@ export default function BusinessStructure() {
                 <Button
                   type="submit"
                   disabled={!isUnidadModalDirty || unidadFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
-                  className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                 >
                   {structure.modal.save}
                 </Button>
@@ -1888,14 +1847,14 @@ export default function BusinessStructure() {
       {showNegocioModal && editingNegocio && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between gap-4 bg-purple-600 p-4 dark:bg-purple-700 sm:p-6">
+            <div className="flex items-start justify-between gap-4 bg-blue-600 p-4 dark:bg-blue-700 sm:p-6">
               <div>
                 <h3 className="text-xl font-semibold text-white">
                   {editingNegocio.id
                     ? structure.modal.editBusiness
                     : structure.modal.newBusiness}
                 </h3>
-                <p className="text-sm text-purple-100 mt-1">
+                <p className="text-sm text-blue-100 mt-1">
                   {editingNegocio.id
                     ? structure.modal.editBusinessDescription
                     : structure.modal.newBusinessDescription}
@@ -1904,7 +1863,7 @@ export default function BusinessStructure() {
               <button
                 type="button"
                 onClick={closeNegocioModal}
-                className="p-2 hover:bg-purple-700 dark:hover:bg-purple-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-blue-700 dark:hover:bg-blue-800 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -1966,7 +1925,7 @@ export default function BusinessStructure() {
                                 logo: preview,
                               }));
                             })}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700 dark:file:bg-purple-900/30 dark:file:text-purple-400 hover:file:bg-purple-100 dark:hover:file:bg-purple-900/50 file:cursor-pointer"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50 file:cursor-pointer"
                           />
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             {structure.fields.uploadHint}
@@ -2169,7 +2128,7 @@ export default function BusinessStructure() {
                 <Button
                   type="submit"
                   disabled={!isNegocioModalDirty || negocioFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
-                  className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                 >
                   {editingNegocio.id
                     ? structure.modal.save
@@ -2198,38 +2157,12 @@ export default function BusinessStructure() {
         title={pendingDeleteTarget?.type === 'unit'
           ? structure.modal.confirmDeleteUnit
           : structure.modal.confirmDeleteBusiness}
-        description={pendingDeleteTarget?.type === 'unit' && pendingDeleteTarget.isCorporateOffice && unidades.length > 1
-          ? 'Choose the unit that should become the corporate office after this one is deleted.'
-          : undefined}
         itemName={pendingDeleteTarget?.name}
         confirmLabel={structure.modal.delete}
         cancelLabel={structure.modal.cancel}
-        confirmDisabled={pendingDeleteTarget?.type === 'unit'
-          && pendingDeleteTarget.isCorporateOffice
-          && unidades.length > 1
-          && !corporateReplacementUnitId}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
-      >
-        {pendingDeleteTarget?.type === 'unit' && pendingDeleteTarget.isCorporateOffice && unidades.length > 1 ? (
-          <label className="block text-left text-sm font-medium text-gray-700 dark:text-gray-200">
-            New corporate office
-            <select
-              value={corporateReplacementUnitId}
-              onChange={(event) => setCorporateReplacementUnitId(event.target.value)}
-              className={`${inputClassName} mt-2`}
-            >
-              {unidades
-                .filter((unidad) => unidad.id !== pendingDeleteTarget.unidadId)
-                .map((unidad) => (
-                  <option key={unidad.id} value={unidad.id}>
-                    {unidad.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-        ) : null}
-      </ConfirmDeleteDialog>
+      />
 
     </div>
   );

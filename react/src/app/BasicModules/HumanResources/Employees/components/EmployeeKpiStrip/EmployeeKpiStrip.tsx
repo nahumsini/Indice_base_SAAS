@@ -99,7 +99,7 @@ export function EmployeeKpiStrip({
             icon={<Eye className="h-4 w-4" />}
             label={labels.visible}
             value={visibleCount}
-            valueClassName="text-[#143675] dark:text-blue-300"
+            valueClassName="text-[#59C3A5] dark:text-blue-300"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <EmployeeKpiMetric
@@ -113,7 +113,7 @@ export function EmployeeKpiStrip({
             icon={<Wallet className="h-4 w-4" />}
             label={labels.payroll}
             value={monthlyPayroll}
-            valueClassName="text-[#143675] dark:text-blue-300"
+            valueClassName="text-[#59C3A5] dark:text-blue-300"
           />
         </div>
 
@@ -128,7 +128,7 @@ export function EmployeeKpiStrip({
               {labels.selectedBadge(selectedCount)}
             </span>
           ) : null}
-          <span className="rounded-full border border-[#143675]/15 bg-[#143675]/5 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+          <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
             {activeRate} {labels.activeRate}
           </span>
         </div>

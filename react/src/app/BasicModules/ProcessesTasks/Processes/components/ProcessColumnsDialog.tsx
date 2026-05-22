@@ -62,10 +62,10 @@ export function ProcessColumnsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[640px] overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className="bg-[rgb(235,165,52)] px-6 py-4">
+        <div className="bg-[rgb(250,204,21)] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white">
+              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950">
                 <Columns3 className="h-5 w-5" />
                 Manage Columns
               </DialogTitle>
@@ -73,7 +73,7 @@ export function ProcessColumnsDialog({
             <DialogClose asChild>
               <button
                 type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[rgb(113,63,18)]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
               >
                 <X className="h-4 w-4" />
               </button>

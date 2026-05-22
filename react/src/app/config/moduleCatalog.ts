@@ -3,6 +3,7 @@ import type { PageId } from './navigation';
 
 export type DashboardModuleCategory = 'basic' | 'complementary' | 'ai';
 export type DashboardModuleColor =
+  | 'aqua'
   | 'blue'
   | 'yellow'
   | 'orange'
@@ -38,14 +39,14 @@ const moduleMetaBySlug: Record<
   config_center: {
     route: 'home-panel',
     emoji: '📊',
-    color: 'purple',
+    color: 'blue',
     category: 'basic',
     title: (t) => t.modules.panelInicial,
   },
   human_resources: {
     route: 'human-resources',
     emoji: '👥',
-    color: 'blue',
+    color: 'aqua',
     category: 'basic',
     title: (t) => t.modules.recursosHumanos,
   },

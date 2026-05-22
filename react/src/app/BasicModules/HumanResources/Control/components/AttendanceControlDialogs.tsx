@@ -276,7 +276,7 @@ export function AttendanceControlDialogs({
         onClose={onCloseKioskDialog}
         onChange={onKioskFormChange}
         onSave={onSaveKiosk}
-        title={editingKioskName ? `Edit attendance point: ${editingKioskName}` : 'New attendance point'}
+        title={editingKioskName ? `${copy.kiosk.actions.editAttendancePoint}: ${editingKioskName}` : copy.kiosk.form.newTitle}
         isEditing={Boolean(editingKioskName)}
       />
 
@@ -339,10 +339,10 @@ export function AttendanceControlDialogs({
 
       <ConfirmDeleteDialog
         isVisible={kioskDeviceToDelete !== null}
-        title="Delete attendance point?"
-        description="The attendance screen and QR will stop working. Existing attendance history will stay saved."
+        title={copy.kiosk.management.deleteTitle}
+        description={copy.kiosk.management.deleteDescription}
         itemName={kioskDeviceToDelete?.name}
-        confirmLabel="Delete attendance point"
+        confirmLabel={copy.kiosk.management.deleteConfirm}
         cancelLabel={copy.labels.cancel}
         onConfirm={onConfirmDeleteKiosk}
         onCancel={onCancelDeleteKiosk}

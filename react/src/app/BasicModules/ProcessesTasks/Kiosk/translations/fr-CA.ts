@@ -16,10 +16,10 @@ export const frCA = {
     title: 'Effectuer les tâches terrain',
     subtitle: 'Entrez votre NIP, consultez le travail assigné et fermez les tâches sans ouvrir une session complète.',
     point: 'Point',
-    scope: 'Portée',
+    scope: 'Contexte',
     time: 'Heure',
     defaultPoint: 'Kiosque de tâches',
-    defaultScope: 'Tous les employés',
+    defaultScope: 'Tâches assignées',
   },
   steps: {
     pin: 'Entrer le NIP',
@@ -41,7 +41,7 @@ export const frCA = {
   },
   empty: {
     title: 'Aucune tâche ouverte assignée',
-    body: 'Vous n’avez rien en attente pour ce point en ce moment.',
+    body: 'Vous n’avez aucune tâche ouverte assignée pour le moment.',
   },
   task: {
     task: 'Tâche',
@@ -68,7 +68,7 @@ export const frCA = {
     pointStatus: 'État du point',
     active: 'Actif',
     defaultPoint: 'Point d’accès aux tâches',
-    availableFor: 'Disponible pour',
+    availableFor: 'Contexte opérationnel',
     openTasks: 'Tâches ouvertes',
     openTasksValue: (count: number) => `${count} tâche${count === 1 ? '' : 's'}`,
     currentTime: 'Heure actuelle',

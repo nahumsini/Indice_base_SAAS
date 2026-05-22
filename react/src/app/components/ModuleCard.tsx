@@ -9,7 +9,7 @@ interface ModuleCardProps {
   iconType?: string;
   emoji?: string;
   title: string;
-  color: 'blue' | 'yellow' | 'orange' | 'green' | 'gray' | 'purple' | 'red' | 'gold';
+  color: 'aqua' | 'blue' | 'yellow' | 'orange' | 'green' | 'gray' | 'purple' | 'red' | 'gold';
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   onClick?: () => void;
@@ -20,6 +20,12 @@ interface ModuleCardProps {
 }
 
 const colorClasses = {
+  aqua: {
+    border: 'border-[#59C3A5]',
+    icon: 'text-[#3AAE90]',
+    iconBg: 'bg-gradient-to-br from-emerald-50 to-teal-100',
+    shadow: 'shadow-emerald-200',
+  },
   blue: {
     border: 'border-[#143675]',
     icon: 'text-[#143675]',

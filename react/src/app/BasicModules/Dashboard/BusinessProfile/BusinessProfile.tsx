@@ -753,7 +753,7 @@ export default function BusinessProfile() {
   return (
     <>
       <div className="space-y-6">
-        <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-700/30 dark:bg-purple-900/10 sm:p-6">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-700/30 dark:bg-blue-900/10 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
@@ -768,7 +768,7 @@ export default function BusinessProfile() {
               variant="outline"
               size="sm"
               onClick={handlePrintDiagnosis}
-              className="w-full gap-2 border-purple-600 bg-purple-600 text-white hover:border-purple-700 hover:bg-purple-700 sm:w-auto"
+              className="w-full gap-2 border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 sm:w-auto"
             >
               <Printer className="h-4 w-4" />
               {diagnosisCopy.printDiagnosis}
@@ -777,7 +777,7 @@ export default function BusinessProfile() {
         </div>
 
         {isLoading ? (
-          <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:border-purple-700/30 dark:bg-purple-900/20 dark:text-purple-300">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
             {diagnosisCopy.messages.loading}
           </div>
         ) : null}
@@ -797,7 +797,7 @@ export default function BusinessProfile() {
           </p>
           <p className="mb-4 text-sm font-medium text-gray-900 dark:text-white">
             {diagnosisCopy.questionCountLabel}{' '}
-            <span className="text-purple-600">{diagnosisCopy.questionCount}</span>
+            <span className="text-blue-600">{diagnosisCopy.questionCount}</span>
           </p>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -809,7 +809,7 @@ export default function BusinessProfile() {
                 <div key={pilar.id} className="flex items-center gap-2">
                   <div
                     className={`flex h-5 w-5 items-center justify-center rounded border-2 ${
-                      isComplete ? 'border-purple-600 bg-purple-600' : 'border-gray-300 dark:border-gray-600'
+                      isComplete ? 'border-blue-600 bg-blue-600' : 'border-gray-300 dark:border-gray-600'
                     }`}
                   >
                     {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
@@ -839,7 +839,7 @@ export default function BusinessProfile() {
                 <div key={pilar.id} className="flex items-center gap-2">
                   <div
                     className={`flex h-5 w-5 items-center justify-center rounded border-2 ${
-                      isComplete ? 'border-purple-600 bg-purple-600' : 'border-gray-300 dark:border-gray-600'
+                      isComplete ? 'border-blue-600 bg-blue-600' : 'border-gray-300 dark:border-gray-600'
                     }`}
                   >
                     {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
@@ -865,7 +865,7 @@ export default function BusinessProfile() {
               <div key={pilar.id}>
                 <div className={`transform-gpu rounded-lg border-2 p-4 transition-all duration-200 ease-in-out sm:p-6 ${colors.border} ${colors.bg} ${
                   isActive
-                    ? 'scale-[1.01] shadow-lg ring-2 ring-purple-500/20'
+                    ? 'scale-[1.01] shadow-lg ring-2 ring-blue-500/20'
                     : isDimmed
                       ? 'opacity-60'
                       : 'hover:shadow-md'
@@ -886,7 +886,7 @@ export default function BusinessProfile() {
                     <Button
                       onClick={() => handleStartPillar(pilar.id)}
                       size="sm"
-                      className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                      className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                     >
                       {getPillarActionLabel(pilar.id)}
                     </Button>
@@ -894,7 +894,7 @@ export default function BusinessProfile() {
                 </div>
 
                 {isActive ? (
-                  <div className="mt-4 rounded-lg border-2 border-purple-600 bg-white p-4 shadow-lg dark:bg-gray-800 sm:p-8">
+                  <div className="mt-4 rounded-lg border-2 border-blue-600 bg-white p-4 shadow-lg dark:bg-gray-800 sm:p-8">
                     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
                         {pilar.emoji} {pilar.onboardingTitle}
@@ -922,13 +922,13 @@ export default function BusinessProfile() {
                         </span>
                       </div>
                       {encouragement ? (
-                        <p className="mb-3 text-xs font-medium text-purple-700 dark:text-purple-300">
+                        <p className="mb-3 text-xs font-medium text-blue-700 dark:text-blue-300">
                           {encouragement}
                         </p>
                       ) : null}
                       <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
                         <div
-                          className="h-2 rounded-full bg-purple-600 transition-all duration-300"
+                          className="h-2 rounded-full bg-blue-600 transition-all duration-300"
                           style={{ width: `${((activeQuestionIndex + 1) / totalPillarQuestions) * 100}%` }}
                         />
                       </div>
@@ -955,8 +955,8 @@ export default function BusinessProfile() {
                                 aria-pressed={selectedAnswer === optionIndex}
                                 className={`flex items-center justify-between gap-3 rounded-lg border-2 px-4 py-4 text-left text-sm font-medium transition-all duration-150 ease-in-out sm:px-6 sm:text-base ${
                                   selectedAnswer === optionIndex
-                                    ? 'scale-[1.02] border-purple-600 bg-purple-600 text-white shadow-md'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:scale-[1.01] hover:border-purple-400 hover:bg-purple-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-purple-900/20'
+                                    ? 'scale-[1.02] border-blue-600 bg-blue-600 text-white shadow-md'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:scale-[1.01] hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20'
                                 }`}
                               >
                                 <span>{option}</span>
@@ -986,7 +986,7 @@ export default function BusinessProfile() {
                         <Button
                           size="sm"
                           onClick={handleNextQuestion}
-                          className="w-full gap-2 bg-purple-600 hover:bg-purple-700 sm:w-auto"
+                          className="w-full gap-2 bg-blue-600 hover:bg-blue-700 sm:w-auto"
                         >
                           {diagnosisCopy.next}
                           <ChevronRight className="h-4 w-4" />

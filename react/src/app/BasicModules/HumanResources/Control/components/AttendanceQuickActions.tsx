@@ -91,7 +91,7 @@ export function AttendanceQuickActions({
     && manualCheckInExists
     && !manualCheckOutExists
     && !isSaving;
-  const inputClassName = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white';
+  const inputClassName = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white';
 
   useEffect(() => {
     if (!day) {
@@ -114,15 +114,15 @@ export function AttendanceQuickActions({
 
   if (!day) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#143675]/20 bg-[#f7faff] px-5 py-6 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+      <div className="rounded-2xl border border-dashed border-[#59C3A5]/20 bg-[#F4FCF9] px-5 py-6 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
         {copy.labels.selectEmployeeCalendar}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-[#143675]/10 bg-[#fbfdff] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-gray-800 dark:bg-gray-900/30" title={employeeName}>
-      <div className="flex flex-col gap-2 border-b border-[#143675]/10 pb-3 dark:border-gray-800 sm:flex-row sm:items-start sm:justify-between">
+    <div className="space-y-4 rounded-2xl border border-[#59C3A5]/10 bg-[#fbfdff] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-gray-800 dark:bg-gray-900/30" title={employeeName}>
+      <div className="flex flex-col gap-2 border-b border-[#59C3A5]/10 pb-3 dark:border-gray-800 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
             {copy.labels.modifyStatusOfDay}
@@ -165,7 +165,7 @@ export function AttendanceQuickActions({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-[#143675]/10 bg-[#f7faff] p-3 dark:border-gray-800 dark:bg-gray-900/40">
+      <div className="rounded-2xl border border-[#59C3A5]/10 bg-[#F4FCF9] p-3 dark:border-gray-800 dark:bg-gray-900/40">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.manualPunch}</p>
@@ -174,7 +174,7 @@ export function AttendanceQuickActions({
         </div>
 
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="rounded-xl border border-[#143675]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-950">
+          <div className="rounded-xl border border-[#59C3A5]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-950">
             <div className="grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -206,7 +206,7 @@ export function AttendanceQuickActions({
               type="button"
               variant="outline"
               disabled={!canSaveManualCheckIn}
-              className="mt-3 w-full gap-2 border-[#143675] bg-[#143675] text-white shadow-[0_1px_2px_rgba(20,54,117,0.22)] hover:border-[#0f2855] hover:bg-[#0f2855] hover:text-white disabled:border-[#143675]/20 disabled:bg-[#143675]/10 disabled:text-[#143675] dark:border-[#8bb3ff]/60 dark:bg-[#8bb3ff] dark:text-[#081a38] dark:hover:bg-[#b4ccff] dark:disabled:border-[#8bb3ff]/20 dark:disabled:bg-[#143675]/25 dark:disabled:text-[#8bb3ff]"
+              className="mt-3 w-full gap-2 border-[#59C3A5] bg-[#59C3A5] text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:border-[#3AAE90] hover:bg-[#3AAE90] hover:text-white disabled:border-[#59C3A5]/20 disabled:bg-[#59C3A5]/10 disabled:text-[#59C3A5] dark:border-[#8FE0CA]/60 dark:bg-[#8FE0CA] dark:text-[#081a38] dark:hover:bg-[#b4ccff] dark:disabled:border-[#8FE0CA]/20 dark:disabled:bg-[#59C3A5]/25 dark:disabled:text-[#8FE0CA]"
               onClick={() => void onManualPunch(day.date, 'check_in', manualCheckInDate, manualCheckInTime)}
             >
               <LogIn className="h-4 w-4" />
@@ -217,7 +217,7 @@ export function AttendanceQuickActions({
             ) : null}
           </div>
 
-          <div className="rounded-xl border border-[#143675]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-950">
+          <div className="rounded-xl border border-[#59C3A5]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-950">
             <div className="grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -250,7 +250,7 @@ export function AttendanceQuickActions({
               type="button"
               variant="outline"
               disabled={!canSaveManualCheckOut}
-              className="mt-3 w-full gap-2 border-[#1f4c93] bg-[#1f4c93] text-white shadow-[0_1px_2px_rgba(31,76,147,0.20)] hover:border-[#143675] hover:bg-[#143675] hover:text-white disabled:border-[#143675]/20 disabled:bg-[#143675]/10 disabled:text-[#143675] dark:border-[#8bb3ff]/50 dark:bg-[#6f9ee8] dark:text-[#081a38] dark:hover:bg-[#8bb3ff] dark:disabled:border-[#8bb3ff]/20 dark:disabled:bg-[#143675]/25 dark:disabled:text-[#8bb3ff]"
+              className="mt-3 w-full gap-2 border-[#1f4c93] bg-[#1f4c93] text-white shadow-[0_1px_2px_rgba(31,76,147,0.20)] hover:border-[#59C3A5] hover:bg-[#59C3A5] hover:text-white disabled:border-[#59C3A5]/20 disabled:bg-[#59C3A5]/10 disabled:text-[#59C3A5] dark:border-[#8FE0CA]/50 dark:bg-[#6f9ee8] dark:text-[#081a38] dark:hover:bg-[#8FE0CA] dark:disabled:border-[#8FE0CA]/20 dark:disabled:bg-[#59C3A5]/25 dark:disabled:text-[#8FE0CA]"
               onClick={() => void onManualPunch(day.date, 'check_out', manualCheckOutDate, manualCheckOutTime)}
             >
               <LogOut className="h-4 w-4" />
@@ -265,7 +265,7 @@ export function AttendanceQuickActions({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#143675]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-900/40">
+      <div className="rounded-2xl border border-[#59C3A5]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-900/40">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.manuallyModifyStatus}</span>
@@ -273,7 +273,7 @@ export function AttendanceQuickActions({
               value={pendingStatus}
               disabled={isSaving || manualStatusDisabled}
               onChange={(event) => onPendingStatusChange(event.target.value as AttendanceCorrectionStatus | '')}
-              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             >
               <option value="">{copy.labels.clearManualCorrection}</option>
               <option value="on_time">{copy.labels.markAsAttendance}</option>
@@ -285,14 +285,14 @@ export function AttendanceQuickActions({
           <Button
             type="button"
             disabled={isSaving || manualStatusDisabled}
-            className="h-10 bg-[#143675] px-5 text-white shadow-[0_1px_2px_rgba(20,54,117,0.22)] hover:bg-[#0f2855] disabled:bg-[#143675]/40"
+            className="h-10 bg-[#59C3A5] px-5 text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:bg-[#3AAE90] disabled:bg-[#59C3A5]/40"
             onClick={() => void onSave(day.date, pendingStatus)}
           >
             {copy.labels.save}
           </Button>
         </div>
 
-        <div className="mt-3 flex flex-col gap-3 border-t border-[#143675]/10 pt-3 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-3 flex flex-col gap-3 border-t border-[#59C3A5]/10 pt-3 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
           <p>
             {copy.labels.currentStatus}: {' '}
             <span className="font-medium text-gray-900 dark:text-white">

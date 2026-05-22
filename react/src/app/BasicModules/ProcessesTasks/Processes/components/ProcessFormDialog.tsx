@@ -109,7 +109,7 @@ function RecurrenceChip({
       className={cn(
         'inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm font-semibold transition-colors',
         active
-          ? 'border-[rgb(235,165,52)] bg-[rgb(235,165,52)]/15 text-[rgb(181,111,10)] dark:border-[rgb(235,165,52)]/70 dark:bg-[rgb(235,165,52)]/20 dark:text-amber-200'
+          ? 'border-[rgb(250,204,21)] bg-[rgb(250,204,21)]/15 text-[rgb(113,63,18)] dark:border-[rgb(250,204,21)]/70 dark:bg-[rgb(250,204,21)]/20 dark:text-amber-200'
           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600',
       )}
     >
@@ -657,10 +657,10 @@ export function ProcessFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-[860px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[860px] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
+        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
+              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
                 {mode === 'create' ? <Plus className="h-5 w-5" /> : <Save className="h-5 w-5" />}
                 {title}
               </DialogTitle>
@@ -668,7 +668,7 @@ export function ProcessFormDialog({
             <DialogClose asChild>
               <button
                 type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[rgb(113,63,18)]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -822,7 +822,7 @@ export function ProcessFormDialog({
                             evidenceRequired: checked,
                           }))
                         }
-                        className="data-[state=checked]:bg-[rgb(235,165,52)]"
+                        className="data-[state=checked]:bg-[rgb(250,204,21)]"
                       />
                     </div>
                   </div>
@@ -940,7 +940,7 @@ export function ProcessFormDialog({
 
             <div className="space-y-4 rounded-[28px] border border-slate-200 bg-slate-50/70 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-2xl bg-[rgb(235,165,52)]/15 p-2 text-[rgb(181,111,10)] dark:bg-[rgb(235,165,52)]/20 dark:text-amber-200">
+                <div className="mt-0.5 rounded-2xl bg-[rgb(250,204,21)]/15 p-2 text-[rgb(113,63,18)] dark:bg-[rgb(250,204,21)]/20 dark:text-amber-200">
                   <CalendarDays className="h-4 w-4" />
                 </div>
                 <div className="space-y-1">

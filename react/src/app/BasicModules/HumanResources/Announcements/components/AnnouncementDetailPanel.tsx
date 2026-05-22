@@ -30,7 +30,7 @@ export function AnnouncementDetailPanel({
       <aside className="h-full w-full max-w-xl overflow-y-auto bg-white p-6 shadow-2xl dark:bg-slate-900">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-300">
               Announcement details
             </p>
             <h3 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{announcement.title}</h3>
@@ -57,7 +57,7 @@ export function AnnouncementDetailPanel({
             <Button disabled={isBusy} onClick={() => onMarkRead(announcement)}>Mark as read</Button>
           ) : null}
           {canManage ? (
-            <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-slate-200 px-4 text-sm font-medium text-[#143675] hover:bg-slate-50 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-slate-800">
+            <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-slate-200 px-4 text-sm font-medium text-[#59C3A5] hover:bg-slate-50 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-slate-800">
               Upload attachment
               <input
                 type="file"
@@ -85,7 +85,7 @@ export function AnnouncementDetailPanel({
               <p className="text-sm text-slate-500 dark:text-slate-400">No attachments.</p>
             ) : announcement.attachments.map((attachment) => (
               <div key={attachment.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">
-                <a href={attachment.download_url ?? undefined} target="_blank" rel="noreferrer" className="truncate text-[#143675] dark:text-blue-300">
+                <a href={attachment.download_url ?? undefined} target="_blank" rel="noreferrer" className="truncate text-[#59C3A5] dark:text-blue-300">
                   {attachment.original_filename}
                 </a>
                 {canManage ? (

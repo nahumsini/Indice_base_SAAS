@@ -12,7 +12,7 @@ interface RecordKpiStripProps {
   visibleCount: number;
 }
 
-function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
+function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
   icon: ReactNode;
   label: string;
   value: ReactNode;
@@ -20,7 +20,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#143675]' }: {
 }) {
   return (
     <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#143675] shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#59C3A5] shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {icon}
       </span>
       <span className={`text-base font-bold ${valueClassName}`}>{value}</span>
@@ -66,7 +66,7 @@ export function RecordKpiStrip({
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#143675]/15 bg-[#143675]/5 px-4 py-3 text-sm font-medium text-[#143675] dark:border-[#4a7bc8]/25 dark:bg-[#143675]/15 dark:text-blue-100">
+      <div className="rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#59C3A5] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-blue-100">
         {copy.summary(pendingCount, reviewedCount, resolvedCount, highSeverityCount, visibleCount, totalCount)}
       </div>
     </div>

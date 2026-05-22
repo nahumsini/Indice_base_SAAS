@@ -16,10 +16,10 @@ export const koCA = {
     title: '현장 작업 완료',
     subtitle: 'PIN을 입력하고 배정된 작업을 확인한 뒤 전체 세션 없이 작업을 종료하세요.',
     point: '지점',
-    scope: '범위',
+    scope: '컨텍스트',
     time: '시간',
     defaultPoint: '작업 키오스크',
-    defaultScope: '전체 직원',
+    defaultScope: '배정된 작업',
   },
   steps: {
     pin: 'PIN 입력',
@@ -41,7 +41,7 @@ export const koCA = {
   },
   empty: {
     title: '배정된 열린 작업 없음',
-    body: '현재 이 지점에서 처리할 작업이 없습니다.',
+    body: '현재 배정된 열린 작업이 없습니다.',
   },
   task: {
     task: '작업',
@@ -68,7 +68,7 @@ export const koCA = {
     pointStatus: '지점 상태',
     active: '활성',
     defaultPoint: '작업 접근 지점',
-    availableFor: '사용 가능 대상',
+    availableFor: '운영 컨텍스트',
     openTasks: '열린 작업',
     openTasksValue: (count: number) => `${count}개 작업`,
     currentTime: '현재 시간',

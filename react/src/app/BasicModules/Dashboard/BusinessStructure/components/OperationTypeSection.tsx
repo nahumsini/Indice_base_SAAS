@@ -58,8 +58,8 @@ export function OperationTypeSection({
             disabled={isSimpleDisabled}
             className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
               estructuraType === 'simple'
-                ? 'border-purple-600 bg-purple-50/80 shadow-sm ring-2 ring-purple-100 dark:border-purple-400 dark:bg-purple-900/25 dark:ring-purple-900/40'
-                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700'
+                ? 'border-blue-600 bg-blue-50/80 shadow-sm ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/25 dark:ring-blue-900/40'
+                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
             } ${
               isSimpleDisabled
                 ? 'cursor-not-allowed opacity-55 hover:translate-y-0 hover:border-gray-200 hover:shadow-none dark:hover:border-gray-700'
@@ -70,12 +70,12 @@ export function OperationTypeSection({
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   estructuraType === 'simple'
-                    ? 'border-purple-500'
+                    ? 'border-blue-500'
                     : 'border-gray-300 dark:border-gray-600'
                 }`}
               >
                 {estructuraType === 'simple' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                 )}
               </div>
               <span className={`font-semibold ${
@@ -86,7 +86,7 @@ export function OperationTypeSection({
                 {structure.mode.simpleTitle}
               </span>
               {estructuraType === 'simple' ? (
-                <Badge className="bg-purple-600 text-white dark:bg-purple-500">
+                <Badge className="bg-blue-600 text-white dark:bg-blue-500">
                   {structure.mode.selected}
                 </Badge>
               ) : null}
@@ -104,20 +104,20 @@ export function OperationTypeSection({
             onClick={() => onEstructuraTypeChange('multi')}
             className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
               estructuraType === 'multi'
-                ? 'border-purple-600 bg-purple-50/80 shadow-sm ring-2 ring-purple-100 dark:border-purple-400 dark:bg-purple-900/25 dark:ring-purple-900/40'
-                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700'
+                ? 'border-blue-600 bg-blue-50/80 shadow-sm ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/25 dark:ring-blue-900/40'
+                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   estructuraType === 'multi'
-                    ? 'border-purple-500'
+                    ? 'border-blue-500'
                     : 'border-gray-300 dark:border-gray-600'
                 }`}
               >
                 {estructuraType === 'multi' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                 )}
               </div>
               <span className={`font-semibold ${
@@ -128,7 +128,7 @@ export function OperationTypeSection({
                 {structure.mode.multiTitle}
               </span>
               {estructuraType === 'multi' ? (
-                <Badge className="bg-purple-600 text-white dark:bg-purple-500">
+                <Badge className="bg-blue-600 text-white dark:bg-blue-500">
                   {structure.mode.selected}
                 </Badge>
               ) : null}
@@ -143,8 +143,8 @@ export function OperationTypeSection({
         </div>
 
         {estructuraType === 'simple' ? (
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700/30 text-center">
-            <p className="text-sm text-purple-700 dark:text-purple-400">
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700/30 text-center">
+            <p className="text-sm text-blue-700 dark:text-blue-400">
               {structure.mode.switchPrompt}{' '}
               <button
                 type="button"

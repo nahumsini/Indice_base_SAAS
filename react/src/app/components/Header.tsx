@@ -264,7 +264,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Modo nocturno */}
+            {/* Dark mode */}
             <Button 
               variant="ghost" 
               size="icon" 
@@ -278,7 +278,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               )}
             </Button>
 
-            {/* Modo aprendiz - Solo desktop */}
+            {/* Operational journey - desktop only */}
             <Button 
               variant="ghost" 
               size="icon" 
@@ -288,7 +288,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               <GraduationCap className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             </Button>
 
-            {/* Perfil de usuario */}
+            {/* User profile */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors h-9 w-9 sm:h-10 sm:w-10">
@@ -296,7 +296,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-0">
-                {/* Header del perfil */}
+                {/* Profile header */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#558DBD]">
                   <div className="flex items-center gap-3">
                     {currentUserAvatarUrl ? (
@@ -322,7 +322,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   </div>
                 </div>
                 
-                {/* Opciones del menú */}
+                {/* Menu options */}
                 <div className="py-1">
                   <DropdownMenuItem className="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
@@ -334,7 +334,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.settings}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0" />
-                  {/* Modo aprendiz en móvil - Solo dentro del menú */}
+                  {/* Operational journey on mobile - menu only */}
                   <DropdownMenuItem 
                     className="sm:hidden px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onClick={onToggleLearningMode}

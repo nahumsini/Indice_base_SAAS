@@ -16,7 +16,7 @@ export function AnnouncementHeaderBar({
   onColumns,
 }: AnnouncementHeaderBarProps) {
   return (
-    <div className="mb-6 rounded-xl border border-[#143675]/20 bg-[#143675]/10 px-6 py-5 shadow-sm dark:border-blue-400/20 dark:bg-blue-400/10">
+    <div className="mb-6 rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/10 px-6 py-5 shadow-sm dark:border-blue-400/20 dark:bg-blue-400/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -31,7 +31,7 @@ export function AnnouncementHeaderBar({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button
             variant="outline"
-            className="h-11 justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#143675] shadow-none hover:bg-[#143675] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            className="h-11 justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#59C3A5] shadow-none hover:bg-[#59C3A5] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             onClick={onColumns}
           >
             <Columns3 className="h-4 w-4" />
@@ -39,7 +39,7 @@ export function AnnouncementHeaderBar({
           </Button>
           {canManage ? (
             <Button
-              className="h-11 justify-center gap-2 rounded-xl bg-[#143675] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0f2855]"
+              className="h-11 justify-center gap-2 rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#3AAE90]"
               onClick={onAdd}
             >
               <Plus className="h-4 w-4" />

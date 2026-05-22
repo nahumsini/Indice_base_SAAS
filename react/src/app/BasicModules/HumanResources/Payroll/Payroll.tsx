@@ -759,7 +759,7 @@ const printHtmlDocument = ({
       body { padding: 14px; }
       h1, h2, h3, p { margin: 0; }
       .header { margin-bottom: 12px; }
-      .header h1 { font-size: 18px; color: #143675; margin-bottom: 4px; }
+      .header h1 { font-size: 18px; color: #59C3A5; margin-bottom: 4px; }
       .meta { font-size: 12px; color: #475569; margin-bottom: 2px; }
       .badge { display: inline-block; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 2px 8px; font-size: 11px; color: #334155; }
       .section { margin-top: 14px; }
@@ -3464,7 +3464,7 @@ function PayrollEditRunDialog({
       value={value}
       onChange={(event) => onChangeValue(Number(event.target.value))}
       disabled={isSaving}
-      className={`h-8 w-full min-w-[84px] rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-800 outline-none focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 ${alignCenter ? 'text-center' : ''}`}
+      className={`h-8 w-full min-w-[84px] rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-800 outline-none focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 ${alignCenter ? 'text-center' : ''}`}
     >
       {Array.from({ length: attendanceMaxByField[field] + 1 }, (_, option) => (
         <option key={option} value={option}>{option}</option>
@@ -3490,7 +3490,7 @@ function PayrollEditRunDialog({
                   }));
                 }}
                 disabled={isSaving}
-                className="h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
+                className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
               />
               <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
                 {row.statutoryPayroll ? 'Statutory' : 'Internal only'}
@@ -3581,7 +3581,7 @@ function PayrollEditRunDialog({
           </TableCell>
         );
       case 'netPay':
-        return <TableCell className="px-4 py-3 align-top font-semibold text-[#143675] dark:text-blue-300">{formatAmount(row.netPay)}</TableCell>;
+        return <TableCell className="px-4 py-3 align-top font-semibold text-[#59C3A5] dark:text-blue-300">{formatAmount(row.netPay)}</TableCell>;
       case 'status':
         return (
           <TableCell className="px-4 py-3 align-top">
@@ -3743,9 +3743,9 @@ function PayrollEditRunDialog({
       case 'totalEmployerObligations':
         return <TableCell className="px-3 py-3 align-top text-right font-medium text-slate-900 dark:text-slate-100">{formatAmount(effectiveRow[key] as number)}</TableCell>;
       case 'netPay':
-        return <TableCell className="px-3 py-3 align-top text-right font-semibold text-[#143675] dark:text-blue-300">{formatAmount(effectiveRow.netPay)}</TableCell>;
+        return <TableCell className="px-3 py-3 align-top text-right font-semibold text-[#59C3A5] dark:text-blue-300">{formatAmount(effectiveRow.netPay)}</TableCell>;
       case 'totalPayrollCost':
-        return <TableCell className="px-3 py-3 align-top text-right font-semibold text-[#143675] dark:text-blue-300">{formatAmount(effectiveRow.totalPayrollCost)}</TableCell>;
+        return <TableCell className="px-3 py-3 align-top text-right font-semibold text-[#59C3A5] dark:text-blue-300">{formatAmount(effectiveRow.totalPayrollCost)}</TableCell>;
       case 'breakdown':
         return (
           <TableCell className="px-3 py-3 align-top text-right">
@@ -3887,9 +3887,9 @@ function PayrollEditRunDialog({
         <p class="meta">${escapePrintHtml(activeEmployerSummaryConfig.helperText)}</p>
         <div class="grid" style="margin-top:8px;">
           ${activeEmployerSummaryConfig.metrics.map((metric) => `
-            <div class="card" style="${metric.accent === 'primary' ? 'border-color:#143675;background:#eef4ff;' : ''}">
-              <p class="card-title" style="${metric.accent === 'primary' ? 'color:#143675;' : ''}">${escapePrintHtml(metric.label)}</p>
-              <p class="card-value" style="${metric.accent === 'primary' ? 'color:#143675;' : ''}">${escapePrintHtml(formatAmount(employerSummary[metric.key]))}</p>
+            <div class="card" style="${metric.accent === 'primary' ? 'border-color:#59C3A5;background:#eef4ff;' : ''}">
+              <p class="card-title" style="${metric.accent === 'primary' ? 'color:#59C3A5;' : ''}">${escapePrintHtml(metric.label)}</p>
+              <p class="card-value" style="${metric.accent === 'primary' ? 'color:#59C3A5;' : ''}">${escapePrintHtml(formatAmount(employerSummary[metric.key]))}</p>
             </div>
           `).join('')}
         </div>
@@ -3937,7 +3937,7 @@ function PayrollEditRunDialog({
         }
       }}>
         <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 z-[85] flex h-screen !w-screen max-h-none !max-w-none sm:!max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-none dark:bg-slate-900 [&>button]:hidden">
-          <header className="border-b border-white/20 bg-[#143675] px-6 py-5 text-white">
+          <header className="border-b border-white/20 bg-[#59C3A5] px-6 py-5 text-white">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <DialogTitle className="text-2xl font-semibold tracking-tight">
@@ -3974,7 +3974,7 @@ function PayrollEditRunDialog({
                             status: event.target.value as PayrollRunSummary['status'],
                           })}
                           disabled={isSaving}
-                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                           aria-label={copy.labels.status}
                         >
                           <option value="draft">{copy.statuses.draft}</option>
@@ -4025,7 +4025,7 @@ function PayrollEditRunDialog({
                               }
                             }}
                             className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'simplified'
-                              ? 'bg-[#143675] text-white shadow-sm'
+                              ? 'bg-[#59C3A5] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                               }`}
                           >
@@ -4039,7 +4039,7 @@ function PayrollEditRunDialog({
                               }
                             }}
                             className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'detailed'
-                              ? 'bg-[#143675] text-white shadow-sm'
+                              ? 'bg-[#59C3A5] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                               }`}
                           >
@@ -4107,7 +4107,7 @@ function PayrollEditRunDialog({
                                   {simplifiedColumns.map((column, index) => {
                                     if (column.key === 'netPay') {
                                       return (
-                                        <TableCell key={column.key} className="px-4 py-3 align-top font-bold text-[#143675] dark:text-blue-300">
+                                        <TableCell key={column.key} className="px-4 py-3 align-top font-bold text-[#59C3A5] dark:text-blue-300">
                                           {formatAmount(totalSimplifiedNetPay)}
                                         </TableCell>
                                       );
@@ -4174,7 +4174,7 @@ function PayrollEditRunDialog({
                                   {detailedColumns.map((column, index) => {
                                     if (column.key === 'netPay') {
                                       return (
-                                        <TableCell key={column.key} className="px-3 py-3 align-top text-right font-bold text-[#143675] dark:text-blue-300">
+                                        <TableCell key={column.key} className="px-3 py-3 align-top text-right font-bold text-[#59C3A5] dark:text-blue-300">
                                           {formatAmount(totalDetailedNetPay)}
                                         </TableCell>
                                       );
@@ -4210,17 +4210,17 @@ function PayrollEditRunDialog({
                         <div
                           key={metric.key}
                           className={metric.accent === 'primary'
-                            ? 'rounded-lg border border-[#143675]/25 bg-[#143675]/5 px-3 py-2 dark:border-[#143675]/40 dark:bg-[#143675]/20'
+                            ? 'rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/5 px-3 py-2 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/20'
                             : 'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60'}
                         >
                           <p className={metric.accent === 'primary'
-                            ? 'text-xs font-semibold uppercase tracking-wide text-[#143675] dark:text-blue-300'
+                            ? 'text-xs font-semibold uppercase tracking-wide text-[#59C3A5] dark:text-blue-300'
                             : 'text-xs font-semibold uppercase tracking-wide text-slate-500'}
                           >
                             {metric.label}
                           </p>
                           <p className={metric.accent === 'primary'
-                            ? 'mt-1 text-sm font-bold text-[#143675] dark:text-blue-300'
+                            ? 'mt-1 text-sm font-bold text-[#59C3A5] dark:text-blue-300'
                             : 'mt-1 text-sm font-semibold text-slate-900 dark:text-white'}
                           >
                             {formatAmount(employerSummary[metric.key])}
@@ -4258,7 +4258,7 @@ function PayrollEditRunDialog({
               type="button"
               onClick={onSave}
               disabled={isSaving}
-              className="gap-2 rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+              className="gap-2 rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
             >
               <Save className="h-4 w-4" />
               {copy.labels.save}
@@ -4326,7 +4326,7 @@ function PayrollBreakdownModal({
       case 'negative':
         return 'text-rose-700 dark:text-rose-300';
       case 'primary':
-        return 'text-[#143675] dark:text-blue-300';
+        return 'text-[#59C3A5] dark:text-blue-300';
       default:
         return 'text-slate-700 dark:text-slate-200';
     }
@@ -4862,7 +4862,7 @@ function PayrollBreakdownModal({
       }
     }}>
       <DialogContent className="z-[130] !flex h-[min(90vh,920px)] max-h-[calc(100vh-3rem)] max-w-[900px] flex-col gap-0 overflow-hidden rounded-[30px] border border-slate-200 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#143675] px-5 py-4 text-left text-white sm:px-6">
+        <DialogHeader className="shrink-0 bg-[#59C3A5] px-5 py-4 text-left text-white sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <DialogTitle className="text-xl font-semibold">Payroll breakdown</DialogTitle>
@@ -4889,7 +4889,7 @@ function PayrollBreakdownModal({
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-950/40 sm:px-6">
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="inline-flex rounded-full border border-[#143675]/20 bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-[#143675]/40 dark:text-blue-300">
+                <span className="inline-flex rounded-full border border-[#59C3A5]/20 bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-[#59C3A5]/40 dark:text-blue-300">
                   {jurisdictionLabel}
                 </span>
                 {!isCanadaPayroll && !isUsaPayroll && !isBrazilPayroll && !isColombiaPayroll && (
@@ -4913,7 +4913,7 @@ function PayrollBreakdownModal({
                 {summaryRows.map((row) => (
                   <div key={row.label}>
                     <p className="text-xs text-slate-500">{row.label}</p>
-                    <p className={`text-sm font-medium ${row.tone === 'primary' ? 'text-[#143675] dark:text-blue-300' : 'text-slate-900 dark:text-white'}`}>
+                    <p className={`text-sm font-medium ${row.tone === 'primary' ? 'text-[#59C3A5] dark:text-blue-300' : 'text-slate-900 dark:text-white'}`}>
                       {formatBreakdownValue(row.value)}
                     </p>
                   </div>
@@ -4996,10 +4996,10 @@ function PayrollBreakdownModal({
               </>
             )}
 
-            <section className="rounded-2xl border border-[#143675]/20 bg-[#143675]/5 p-4 shadow-sm dark:border-[#143675]/35 dark:bg-[#143675]/20">
-              <h4 className="text-sm font-semibold text-[#143675] dark:text-blue-300">{breakdownConfig.finalCalculationTitle}</h4>
+            <section className="rounded-2xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-4 shadow-sm dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/20">
+              <h4 className="text-sm font-semibold text-[#59C3A5] dark:text-blue-300">{breakdownConfig.finalCalculationTitle}</h4>
               <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-[#143675]/20 bg-white px-3 py-3 dark:border-[#143675]/40 dark:bg-slate-900/60">
+                <div className="rounded-xl border border-[#59C3A5]/20 bg-white px-3 py-3 dark:border-[#59C3A5]/40 dark:bg-slate-900/60">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {usesGrossPayModel ? 'Net Pay = Gross Pay - Total Deductions' : 'Net Pay = Total Earnings - Total Deductions'}
                   </p>
@@ -5013,7 +5013,7 @@ function PayrollBreakdownModal({
                     { label: 'Net pay', value: effectiveEmployee.netPay, tone: 'primary' },
                   ])}
                 </div>
-                <div className="rounded-xl border border-[#143675]/20 bg-white px-3 py-3 dark:border-[#143675]/40 dark:bg-slate-900/60">
+                <div className="rounded-xl border border-[#59C3A5]/20 bg-white px-3 py-3 dark:border-[#59C3A5]/40 dark:bg-slate-900/60">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {effectiveEmployee.statutoryPayroll
                       ? 'Total Payroll Cost = Net Pay + Employer Obligations'
@@ -5034,7 +5034,7 @@ function PayrollBreakdownModal({
 
         <DialogFooter className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900 sm:px-6">
           <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">Close</Button>
-          <Button type="button" onClick={handlePrintBreakdownPdf} className="gap-2 rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]">
+          <Button type="button" onClick={handlePrintBreakdownPdf} className="gap-2 rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]">
             <Printer className="h-4 w-4" />
             Print breakdown
           </Button>
@@ -5128,8 +5128,8 @@ function PayrollPreferencesDialog({
         onClose();
       }
     }}>
-      <DialogContent className="!flex h-[min(720px,calc(100vh-2rem))] w-[min(1040px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border border-[#143675]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#4a7bc8]/30 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#143675] px-6 py-5 text-left text-white">
+      <DialogContent className="!flex h-[min(720px,calc(100vh-2rem))] w-[min(1040px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
+        <DialogHeader className="shrink-0 bg-[#59C3A5] px-6 py-5 text-left text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/12 text-white shadow-sm ring-1 ring-white/10">
@@ -5166,13 +5166,13 @@ function PayrollPreferencesDialog({
                 disabled={isSaving}
                 onClick={() => setCurrentPreferenceStep(index)}
                 className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${currentPreferenceStep === index
-                  ? 'border-[#143675] bg-[#143675]/10 text-[#143675] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
-                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#143675]/30 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300'
+                  ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
+                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#59C3A5]/30 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300'
                   }`}
                 aria-current={currentPreferenceStep === index ? 'step' : undefined}
               >
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${currentPreferenceStep >= index
-                  ? 'bg-[#143675] text-white'
+                  ? 'bg-[#59C3A5] text-white'
                   : 'bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700'
                   }`}>
                   {step.number}
@@ -5188,11 +5188,11 @@ function PayrollPreferencesDialog({
             <div className="grid gap-5 lg:grid-cols-[0.78fr_1.22fr]">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#143675] text-sm font-bold text-white shadow-sm">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5] text-sm font-bold text-white shadow-sm">
                     1
                   </span>
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-300">
                       {preferenceCopy.steps.stepLabel('1')}
                     </p>
                     <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.organizationTitle}</h3>
@@ -5202,10 +5202,10 @@ function PayrollPreferencesDialog({
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                <div className="mt-5 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">{preferenceCopy.selectedOrganization}</p>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#143675] shadow-sm ring-1 ring-[#143675]/10 dark:bg-slate-900 dark:text-blue-200">
+                    <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{preferenceCopy.selectedOrganization}</p>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#59C3A5] shadow-sm ring-1 ring-[#59C3A5]/10 dark:bg-slate-900 dark:text-blue-200">
                       {selectedOption.title}
                     </span>
                   </div>
@@ -5235,12 +5235,12 @@ function PayrollPreferencesDialog({
                         }
                       }}
                       className={`group flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${isSelected
-                        ? 'border-[#143675] bg-[#143675]/5 shadow-sm ring-2 ring-[#143675]/10 dark:border-blue-400/60 dark:bg-[#143675]/20'
-                        : 'border-slate-200 bg-white hover:border-[#143675]/35 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-400/40'
+                        ? 'border-[#59C3A5] bg-[#59C3A5]/5 shadow-sm ring-2 ring-[#59C3A5]/10 dark:border-blue-400/60 dark:bg-[#59C3A5]/20'
+                        : 'border-slate-200 bg-white hover:border-[#59C3A5]/35 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-400/40'
                         }`}
                     >
                       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isSelected
-                        ? 'bg-[#143675] text-white'
+                        ? 'bg-[#59C3A5] text-white'
                         : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                         }`}>
                         <Icon className="h-5 w-5" />
@@ -5249,7 +5249,7 @@ function PayrollPreferencesDialog({
                         <div className="flex items-center justify-between gap-3">
                           <h4 className="text-base font-bold text-slate-900 dark:text-white">{option.title}</h4>
                           <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${isSelected
-                            ? 'border-[#143675] bg-white text-[#143675]'
+                            ? 'border-[#59C3A5] bg-white text-[#59C3A5]'
                             : 'border-slate-300 bg-white text-slate-300 dark:border-slate-600 dark:bg-slate-900'
                             }`}>
                             <CheckCircle2 className="h-4 w-4" />
@@ -5267,11 +5267,11 @@ function PayrollPreferencesDialog({
           <section className={`${currentPreferenceStep === 1 ? 'block' : 'hidden'}`}>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
               <div className="mb-5 flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#143675]/20 bg-[#143675]/5 text-sm font-bold text-[#143675] dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-200">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 text-sm font-bold text-[#59C3A5] dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-200">
                   2
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">{preferenceCopy.steps.stepLabel('2')}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-300">{preferenceCopy.steps.stepLabel('2')}</p>
                   <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.separationTitle}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{preferenceCopy.separationSubtitle}</p>
                 </div>
@@ -5279,7 +5279,7 @@ function PayrollPreferencesDialog({
               <div className="grid gap-4 md:grid-cols-3">
                 {automaticSeparatorCards.map(({ title, description, Icon }) => (
                   <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#143675] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-blue-300 dark:ring-slate-700">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#59C3A5] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-blue-300 dark:ring-slate-700">
                       <Icon className="h-5 w-5" />
                     </span>
                     <div className="mt-4">
@@ -5289,7 +5289,7 @@ function PayrollPreferencesDialog({
                   </div>
                 ))}
               </div>
-              <div className="mt-5 rounded-xl border border-[#143675]/15 bg-[#143675]/5 px-5 py-4 text-sm leading-6 text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
+              <div className="mt-5 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-5 py-4 text-sm leading-6 text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
                 {preferenceCopy.separationNotice}
               </div>
             </div>
@@ -5298,11 +5298,11 @@ function PayrollPreferencesDialog({
           <section className={`${currentPreferenceStep === 2 ? 'block' : 'hidden'}`}>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
               <div className="mb-5 flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#143675]/20 bg-white text-sm font-bold text-[#143675] dark:border-blue-400/25 dark:bg-slate-900 dark:text-blue-200">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#59C3A5]/20 bg-white text-sm font-bold text-[#59C3A5] dark:border-blue-400/25 dark:bg-slate-900 dark:text-blue-200">
                   3
                 </span>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#143675] dark:text-blue-300">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-300">
                     {preferenceCopy.steps.stepLabel('3')}
                   </p>
                   <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{preferenceCopy.defaultsTitle}</h3>
@@ -5325,20 +5325,20 @@ function PayrollPreferencesDialog({
                       disabled={isSaving}
                       value={form.default_daily_hours}
                       onChange={(event) => onChange({ ...form, default_daily_hours: Number(event.target.value) })}
-                      className="h-12 w-32 rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none transition focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800/60"
+                      className="h-12 w-32 rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800/60"
                     />
                     <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{preferenceCopy.hoursPerDay}</span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{dailyHoursHelper}</p>
                 </div>
 
-                <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-[#143675]/35 dark:border-slate-700 dark:bg-slate-800/70">
+                <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-[#59C3A5]/35 dark:border-slate-700 dark:bg-slate-800/70">
                   <input
                     type="checkbox"
                     checked={form.pay_leave_days}
                     disabled={isSaving}
                     onChange={(event) => onChange({ ...form, pay_leave_days: event.target.checked })}
-                    className="mt-1 h-5 w-5 rounded border-slate-300 text-[#143675] focus:ring-[#143675] disabled:cursor-not-allowed"
+                    className="mt-1 h-5 w-5 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5] disabled:cursor-not-allowed"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -5358,7 +5358,7 @@ function PayrollPreferencesDialog({
           </section>
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-white/15 bg-[#143675] px-6 py-4 text-white">
+        <DialogFooter className="shrink-0 border-t border-white/15 bg-[#59C3A5] px-6 py-4 text-white">
           <div className="flex w-full items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-white">{preferenceCopy.footerTitle}</p>
@@ -5388,7 +5388,7 @@ function PayrollPreferencesDialog({
                 <Button
                   onClick={onSave}
                   disabled={isSaving}
-                  className="h-11 gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
+                  className="h-11 gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#59C3A5] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
                   {saveButtonLabel}
@@ -5397,7 +5397,7 @@ function PayrollPreferencesDialog({
                 <Button
                   onClick={goToNextPreferenceStep}
                   disabled={isSaving}
-                  className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#143675] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
+                  className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#59C3A5] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {preferenceCopy.next}
                 </Button>
@@ -5487,7 +5487,7 @@ function PayrollRatesDialog({
           inputMode="decimal"
           value={formatRateInputPercent(values[field])}
           onChange={(event) => handlePercentInputChange(field, event.target.value)}
-          className="h-11 w-full rounded-xl border border-amber-200 bg-white pl-3 pr-9 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-[#143675] dark:border-amber-700/40 dark:bg-slate-800 dark:text-slate-100"
+          className="h-11 w-full rounded-xl border border-amber-200 bg-white pl-3 pr-9 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-[#59C3A5] dark:border-amber-700/40 dark:bg-slate-800 dark:text-slate-100"
         />
         <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-400 dark:text-slate-500">
           %
@@ -5500,7 +5500,7 @@ function PayrollRatesDialog({
     const toneClasses = {
       success: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-300',
       warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300',
-      info: 'border-[#143675]/20 bg-[#143675]/10 text-[#143675] dark:border-[#143675]/30 dark:bg-[#143675]/20 dark:text-[#9fbeff]',
+      info: 'border-[#59C3A5]/20 bg-[#59C3A5]/10 text-[#59C3A5] dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/20 dark:text-[#9fbeff]',
     } as const;
 
     return (
@@ -5514,7 +5514,7 @@ function PayrollRatesDialog({
   const renderBreakdownButton = () => (
     <button
       type="button"
-      className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#143675] transition hover:border-[#143675]/30 hover:bg-[#143675]/5 dark:border-slate-600 dark:text-[#9fbeff] dark:hover:bg-[#143675]/15"
+      className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#59C3A5] transition hover:border-[#59C3A5]/30 hover:bg-[#59C3A5]/5 dark:border-slate-600 dark:text-[#9fbeff] dark:hover:bg-[#59C3A5]/15"
     >
       {copy.rateConfiguration.viewBreakdown}
       <ChevronRight className="h-3.5 w-3.5" />
@@ -5613,7 +5613,7 @@ function PayrollRatesDialog({
       }
     }}>
       <DialogContent className="!flex h-[min(88vh,940px)] max-h-[calc(100vh-3rem)] max-w-[980px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className="shrink-0 bg-[#143675] px-5 py-3 sm:px-6 sm:py-3.5">
+        <div className="shrink-0 bg-[#59C3A5] px-5 py-3 sm:px-6 sm:py-3.5">
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
               <DialogTitle className="text-[1.1rem] font-normal leading-tight text-white sm:text-[1.2rem]">
@@ -5650,7 +5650,7 @@ function PayrollRatesDialog({
                     <select
                       value={selectedProfile}
                       onChange={(event) => onSelectProfile(event.target.value as PayrollRateProfileKey)}
-                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                     >
                       {payrollRateProfileKeys.map((profileKey) => (
                         <option key={profileKey} value={profileKey}>
@@ -5667,7 +5667,7 @@ function PayrollRatesDialog({
                           }
                         }}
                         className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${!isAdvancedMode
-                          ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                          ? 'bg-white text-[#59C3A5] shadow-sm dark:bg-slate-800 dark:text-slate-100'
                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
                           }`}
                       >
@@ -5681,7 +5681,7 @@ function PayrollRatesDialog({
                           }
                         }}
                         className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${isAdvancedMode
-                          ? 'bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                          ? 'bg-white text-[#59C3A5] shadow-sm dark:bg-slate-800 dark:text-slate-100'
                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
                           }`}
                       >
@@ -5692,9 +5692,9 @@ function PayrollRatesDialog({
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-[#143675]/12 bg-[#143675]/5 p-5 shadow-sm dark:border-[#143675]/30 dark:bg-[#143675]/10">
+              <section className="rounded-2xl border border-[#59C3A5]/12 bg-[#59C3A5]/5 p-5 shadow-sm dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10">
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#143675] shadow-sm dark:bg-slate-800 dark:text-[#9fbeff]">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#59C3A5] shadow-sm dark:bg-slate-800 dark:text-[#9fbeff]">
                     <Info className="h-5 w-5" />
                   </div>
                   <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
@@ -5717,7 +5717,7 @@ function PayrollRatesDialog({
 
               <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 <div className="flex items-start gap-3">
-                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-[#8fb2ff]">
+                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#59C3A5]/20 dark:text-[#8fb2ff]">
                     <Info className="h-5 w-5" />
                   </div>
                   <div>
@@ -5742,7 +5742,7 @@ function PayrollRatesDialog({
               <Button
                 onClick={onSave}
                 disabled={isSaving}
-                className="h-11 gap-2 rounded-2xl bg-[#143675] px-5 text-base font-semibold text-white hover:bg-[#0f2855]"
+                className="h-11 gap-2 rounded-2xl bg-[#59C3A5] px-5 text-base font-semibold text-white hover:bg-[#3AAE90]"
               >
                 {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <SlidersHorizontal className="h-4 w-4" />}
                 {copy.rateConfiguration.saveAction}

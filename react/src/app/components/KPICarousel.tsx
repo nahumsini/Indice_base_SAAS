@@ -13,7 +13,7 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const scrollAmount = 300;
+      const scrollAmount = 252;
       scrollRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
@@ -21,49 +21,51 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
     }
   };
 
-  // Modo carrusel: siempre horizontal con controles
-  if (mode === 'carousel' || childCount > 6) {
+  // Carousel mode: always horizontal with controls.
+  if (mode === 'carousel') {
     return (
       <div className="relative group">
-        {/* Gradiente izquierdo */}
-        <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Left edge fade */}
+        <div className="pointer-events-none absolute bottom-0 left-0 top-0 z-[5] w-16 bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent" />
         
-        {/* Botón izquierdo */}
+        {/* Left control */}
         {childCount > 3 && (
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Scroll KPI cards left"
             onClick={() => scroll('left')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border-2 border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50 dark:hover:bg-gray-700 -translate-x-5 hover:scale-110"
+            className="absolute left-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border border-slate-200 bg-white/95 shadow-md transition-all hover:scale-105 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/95 dark:hover:bg-slate-800"
           >
             <ChevronLeft className="h-5 w-5 text-gray-700 dark:text-gray-300" />
           </Button>
         )}
 
-        {/* Contenedor del carrusel */}
+        {/* Carousel container */}
         <div 
           ref={scrollRef}
-          className="overflow-x-auto scrollbar-hide pb-4 scroll-smooth"
+          className="overflow-x-auto scrollbar-hide px-1 pb-4 scroll-smooth"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex gap-5 snap-x snap-mandatory min-w-min [&>*]:w-[280px] [&>*]:flex-shrink-0">
+          <div className="flex min-w-min snap-x snap-mandatory gap-3 [&>*]:w-[203px] [&>*]:flex-shrink-0 sm:[&>*]:w-[227px] xl:[&>*]:w-[240px]">
             {children}
           </div>
         </div>
 
-        {/* Gradiente derecho */}
-        <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent z-[5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Right edge fade */}
+        <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-[5] w-16 bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent" />
 
-        {/* Botón derecho */}
+        {/* Right control */}
         {childCount > 3 && (
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Scroll KPI cards right"
             onClick={() => scroll('right')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border-2 border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50 dark:hover:bg-gray-700 translate-x-5 hover:scale-110"
+            className="absolute right-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border border-slate-200 bg-white/95 shadow-md transition-all hover:scale-105 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/95 dark:hover:bg-slate-800"
           >
             <ChevronRight className="h-5 w-5 text-gray-700 dark:text-gray-300" />
           </Button>
@@ -72,25 +74,11 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
     );
   }
 
-  // Modo grid (default): responsive grid
+  // Grid mode: responsive layout by KPI count.
   return (
     <>
-      {/* Carrusel móvil (< lg) */}
-      <div className="lg:hidden overflow-x-auto scrollbar-hide pb-4 -mx-8 px-8">
-        <div className="flex gap-5 snap-x snap-mandatory [&>*]:w-[280px] [&>*]:flex-shrink-0">
-          {children}
-        </div>
-      </div>
-      
-      {/* Grid desktop (>= lg) - se ajusta automáticamente según cantidad */}
-      <div className={`hidden lg:grid gap-5 ${
-        childCount === 1 ? 'lg:grid-cols-1 max-w-xs' :
-        childCount === 2 ? 'lg:grid-cols-2 max-w-2xl' :
-        childCount === 3 ? 'lg:grid-cols-3 max-w-4xl' :
-        childCount === 4 ? 'lg:grid-cols-4 max-w-5xl' :
-        childCount === 5 ? 'lg:grid-cols-5 max-w-6xl' :
-        'lg:grid-cols-3 xl:grid-cols-6'
-      }`}>
+      {/* Responsive grid */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         {children}
       </div>
     </>

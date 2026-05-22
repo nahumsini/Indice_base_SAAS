@@ -23,6 +23,8 @@ import {
   type BackendBusiness,
   type BackendUnit,
 } from '../../../../api/dashboard';
+import { useControlTranslations } from '../hooks/useControlTranslations';
+import type { ControlTranslations } from '../translations';
 
 interface DraftLocation {
   id: string;
@@ -49,33 +51,14 @@ interface DraftLocation {
 
 type ContractSiteFilter = 'all' | 'assigned' | 'unassigned' | 'active' | 'inactive';
 type ContractSiteWizardStep = 'basic' | 'location' | 'schedule' | 'review';
+type ContractSiteCopy = ControlTranslations['contractSites'];
 const contractSitesPerPage = 10;
-const contractSiteWizardSteps: Array<{
-  id: ContractSiteWizardStep;
-  title: string;
-  description: string;
-}> = [
-  {
-    id: 'basic',
-    title: 'Información básica',
-    description: 'Nombre, negocio y vigencia.',
-  },
-  {
-    id: 'location',
-    title: 'Ubicación',
-    description: 'Mapa, radio y coordenadas.',
-  },
-  {
-    id: 'schedule',
-    title: 'Horario',
-    description: 'Horas y jornada esperada.',
-  },
-  {
-    id: 'review',
-    title: 'Revisión',
-    description: 'Confirma antes de agregar.',
-  },
-];
+const contractSiteWizardStepIds: ContractSiteWizardStep[] = ['basic', 'location', 'schedule', 'review'];
+
+const getContractSiteWizardSteps = (copy: ContractSiteCopy) => contractSiteWizardStepIds.map((id) => ({
+  id,
+  ...copy.wizard.steps[id],
+}));
 
 interface ContractSiteRegistrationModalProps {
   isOpen: boolean;
@@ -133,12 +116,12 @@ const contractDaysBetween = (startDate?: string | null, endDate?: string | null)
   return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
 };
 
-const formatContractDays = (startDate?: string | null, endDate?: string | null) => {
+const formatContractDays = (startDate: string | null | undefined, endDate: string | null | undefined, copy: ContractSiteCopy) => {
   const days = contractDaysBetween(startDate, endDate);
   if (!days) {
-    return 'Date range needed';
+    return copy.days.rangeNeeded;
   }
-  return days === 1 ? '1 day' : `${days} days`;
+  return copy.days.count(days);
 };
 
 const toDraftLocation = (location: AttendanceControlLocation): DraftLocation => {
@@ -176,9 +159,9 @@ const assignmentBelongsToContractSite = (assignment: AttendanceControlAssignment
 const attendanceTouchedContractSite = (assignment: AttendanceControlAssignment, contractSiteId: number) =>
   assignment.first_location?.id === contractSiteId || assignment.last_location?.id === contractSiteId;
 
-const formatDateTime = (value?: string | null) => {
+const formatDateTime = (value: string | null | undefined, copy: ContractSiteCopy) => {
   if (!value) {
-    return 'Not registered';
+    return copy.notRegistered;
   }
 
   const parsed = new Date(value);
@@ -273,6 +256,7 @@ export function ContractSiteRegistrationModal({
   onReload,
   onSaved,
 }: ContractSiteRegistrationModalProps) {
+  const { contractSites: copy } = useControlTranslations();
   const [draftLocations, setDraftLocations] = useState<DraftLocation[]>([]);
   const [removedLocationIds, setRemovedLocationIds] = useState<number[]>([]);
   const [units, setUnits] = useState<BackendUnit[]>([]);
@@ -389,7 +373,7 @@ export function ContractSiteRegistrationModal({
         }
         setUnits([]);
         setBusinesses([]);
-        setErrorMessage(error instanceof Error ? error.message : 'Unable to load units and businesses.');
+        setErrorMessage(error instanceof Error ? error.message : copy.errors.loadScopeOptions);
       })
       .finally(() => {
         if (active) {
@@ -566,6 +550,7 @@ export function ContractSiteRegistrationModal({
     [contractEndDate, contractStartDate],
   );
 
+  const contractSiteWizardSteps = useMemo(() => getContractSiteWizardSteps(copy), [copy]);
   const currentWizardStepIndex = contractSiteWizardSteps.findIndex((step) => step.id === wizardStep);
   const parsedLatitudeForForm = Number(latitud);
   const parsedLongitudeForForm = Number(longitud);
@@ -630,32 +615,32 @@ export function ContractSiteRegistrationModal({
 
   const loadingOverlayCopy = isExtractingCoordinates
     ? {
-        title: 'Fetching coordinates',
-        description: 'We are resolving the map link and fetching the location coordinates.',
+        title: copy.loading.extractingTitle,
+        description: copy.loading.extractingDescription,
       }
     : locationAction === 'load'
       ? {
-        title: 'Loading contract sites',
-        description: 'We are refreshing your contract sites now.',
+        title: copy.loading.loadingTitle,
+        description: copy.loading.loadingDescription,
         }
       : {
-          title: 'Saving contract sites',
-          description: 'We are saving your contract sites now.',
+          title: copy.loading.savingTitle,
+          description: copy.loading.savingDescription,
         };
 
   if (!isOpen) return null;
 
   const getWizardStepErrorMessage = () => {
     if (wizardStep === 'basic') {
-      return 'Completa unidad, negocio, nombre y vigencia antes de continuar.';
+      return copy.errors.completeBasicStep;
     }
     if (wizardStep === 'location') {
-      return 'Agrega una ubicación válida usando Google Maps, tu ubicación actual o las opciones avanzadas.';
+      return copy.errors.completeLocationStep;
     }
     if (wizardStep === 'schedule') {
-      return 'Configura horas y horario válido antes de revisar.';
+      return copy.errors.completeScheduleStep;
     }
-    return 'Revisa la información antes de agregar la ubicación.';
+    return copy.errors.reviewBeforeAdd;
   };
 
   const goToNextWizardStep = () => {
@@ -756,21 +741,21 @@ export function ContractSiteRegistrationModal({
     if (!selectedUnit || !selectedBusiness) {
       return {
         draft: null,
-        errorMessage: 'Select the unit and business before saving this contract site.',
+        errorMessage: copy.errors.selectUnitAndBusiness,
       };
     }
 
     if (!hasText(nombre) || Number.isNaN(parsedLat) || Number.isNaN(parsedLng) || Number.isNaN(parsedRadio) || parsedRadio <= 0) {
       return {
         draft: null,
-        errorMessage: 'Complete the unit, business, name, coordinates, and a valid check-in radius.',
+        errorMessage: copy.errors.completeRequiredFields,
       };
     }
 
     if (!parsedContractDays) {
       return {
         draft: null,
-        errorMessage: 'Select a valid contract start date and end date.',
+        errorMessage: copy.errors.validContractDates,
       };
     }
 
@@ -781,14 +766,14 @@ export function ContractSiteRegistrationModal({
 	    ) {
 	      return {
 	        draft: null,
-	        errorMessage: 'Enter valid working hours between 0.25 and 24.',
+	        errorMessage: copy.errors.validWorkingHours,
 	      };
 	    }
 
     if (calculateDailyHours(requiredStartTime, requiredEndTime) <= 0) {
       return {
         draft: null,
-        errorMessage: 'Select a valid preferred start and end time for this contract site.',
+        errorMessage: copy.errors.validPreferredTime,
       };
     }
 
@@ -829,7 +814,7 @@ export function ContractSiteRegistrationModal({
     setFailureToastMessage('');
 
     if (!enlaceGoogleMaps.trim()) {
-      const message = 'Paste a Google Maps link before extracting coordinates.';
+      const message = copy.errors.mapLinkRequired;
       setErrorMessage(message);
       setFailureToastMessage(message);
       return;
@@ -847,10 +832,10 @@ export function ContractSiteRegistrationModal({
       );
       setLatitud(String(response.latitude));
       setLongitud(String(response.longitude));
-      setSuccessToastMessage('Coordinates fetched successfully.');
+      setSuccessToastMessage(copy.success.coordinatesFetched);
     } catch {
-      setFailureToastMessage('Having problems in fetching coordinates.');
-      setErrorMessage('Having problems in fetching coordinates.');
+      setFailureToastMessage(copy.errors.fetchCoordinates);
+      setErrorMessage(copy.errors.fetchCoordinates);
     } finally {
       setIsExtractingCoordinates(false);
     }
@@ -859,7 +844,7 @@ export function ContractSiteRegistrationModal({
   const handleAgregar = () => {
     const { draft, errorMessage: formErrorMessage } = buildDraftFromForm();
     if (!draft) {
-      setErrorMessage(formErrorMessage ?? 'Complete the form before adding this contract site.');
+      setErrorMessage(formErrorMessage ?? copy.errors.completeBeforeAdd);
       return;
     }
 
@@ -897,7 +882,7 @@ export function ContractSiteRegistrationModal({
     if (hasPendingFormInput) {
       const { draft, errorMessage: formErrorMessage } = buildDraftFromForm();
       if (!draft) {
-        const pendingFormMessage = formErrorMessage ?? 'Complete the form before saving this contract site.';
+        const pendingFormMessage = formErrorMessage ?? copy.errors.completeBeforeSave;
         setFailureToastMessage(pendingFormMessage);
         setErrorMessage(pendingFormMessage);
         return;
@@ -925,7 +910,7 @@ export function ContractSiteRegistrationModal({
 
     const invalidScopeDraft = draftsToPersist.find((location) => !hasValidDraftScope(location));
     if (invalidScopeDraft) {
-      const scopeMessage = 'Every new or edited contract site needs both a business unit and a business before it can be saved.';
+      const scopeMessage = copy.errors.everySiteNeedsScope;
       setFailureToastMessage(scopeMessage);
       setErrorMessage(scopeMessage);
       return;
@@ -933,7 +918,7 @@ export function ContractSiteRegistrationModal({
 
     const invalidDataDraft = draftsToPersist.find((location) => !hasText(location.nombre) || !hasValidDraftCoordinates(location));
     if (invalidDataDraft) {
-      const dataMessage = 'Every new or edited contract site needs a name, coordinates, and a valid check-in radius before it can be saved.';
+      const dataMessage = copy.errors.everySiteNeedsLocation;
       setFailureToastMessage(dataMessage);
       setErrorMessage(dataMessage);
       return;
@@ -941,7 +926,7 @@ export function ContractSiteRegistrationModal({
 
 	    const invalidRequirementDraft = draftsToPersist.find((location) => !hasValidDraftRequirements(location));
 	    if (invalidRequirementDraft) {
-	      const requirementMessage = 'Every new or edited contract site needs valid contract dates, working hours, and preferred work time.';
+	      const requirementMessage = copy.errors.everySiteNeedsRequirements;
 	      setFailureToastMessage(requirementMessage);
 	      setErrorMessage(requirementMessage);
       return;
@@ -996,7 +981,7 @@ export function ContractSiteRegistrationModal({
       onSaved?.();
       onClose();
     } catch (error) {
-      const saveMessage = error instanceof Error ? error.message : 'Could not save contract sites.';
+      const saveMessage = error instanceof Error ? error.message : copy.errors.saveFailed;
       setFailureToastMessage(saveMessage);
       setErrorMessage(saveMessage);
     } finally {
@@ -1017,7 +1002,7 @@ export function ContractSiteRegistrationModal({
         LOCATION_MODAL_MINIMUM_LOADING_MS,
       );
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Could not load contract sites.');
+      setErrorMessage(error instanceof Error ? error.message : copy.errors.loadFailed);
     } finally {
       setLocationAction(null);
       setIsSaving(false);
@@ -1026,7 +1011,7 @@ export function ContractSiteRegistrationModal({
 
   const getCurrentLocation = () => {
     if (!('geolocation' in navigator)) {
-      setErrorMessage('Your browser does not support geolocation.');
+      setErrorMessage(copy.errors.geolocationUnsupported);
       return;
     }
 
@@ -1040,16 +1025,16 @@ export function ContractSiteRegistrationModal({
         setErrorMessage('');
       },
       (error) => {
-        let nextMessage = 'Could not get the current location.';
+        let nextMessage = copy.errors.currentLocationFailed;
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            nextMessage = 'Location permission was denied. Enable location access in your browser.';
+            nextMessage = copy.errors.locationPermissionDenied;
             break;
           case error.POSITION_UNAVAILABLE:
-            nextMessage = 'Location information is unavailable.';
+            nextMessage = copy.errors.locationUnavailable;
             break;
           case error.TIMEOUT:
-            nextMessage = 'Timed out while getting the location.';
+            nextMessage = copy.errors.locationTimeout;
             break;
           default:
             break;
@@ -1083,15 +1068,15 @@ export function ContractSiteRegistrationModal({
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
         <div className="flex max-h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
-          <div className="flex shrink-0 items-center justify-between bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+          <div className="flex shrink-0 items-center justify-between bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
                 <MapPin className="h-5 w-5 text-white" />
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-xl font-semibold tracking-tight text-white">Ubicaciones temporales</h2>
+                <h2 className="truncate text-xl font-semibold tracking-tight text-white">{copy.modalTitle}</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
-                  Configura ubicaciones temporales, requisitos de trabajo y radio de registro.
+                  {copy.modalDescription}
                 </p>
               </div>
             </div>
@@ -1099,7 +1084,7 @@ export function ContractSiteRegistrationModal({
               type="button"
               onClick={onClose}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-              aria-label="Close modal"
+              aria-label={copy.closeModal}
             >
               <X className="h-5 w-5" />
             </button>
@@ -1112,19 +1097,19 @@ export function ContractSiteRegistrationModal({
               </div>
             ) : null}
 
-          <div className="rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-            <p className="text-sm text-[#143675] dark:text-blue-200">
-              Crea ubicaciones temporales para registrar asistencia fuera de la oficina. Puedes inactivarlas sin borrar historial.
+          <div className="rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+            <p className="text-sm text-[#59C3A5] dark:text-blue-200">
+              {copy.intro}
             </p>
           </div>
 
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            <span className="font-medium">Ubicaciones activas: {activeLocationsCount}</span>
-            <span> · Con asignación: {assignedLocationsCount}</span> ·{' '}
+            <span className="font-medium">{copy.stats.activeLocations(activeLocationsCount)}</span>
+            <span> · {copy.stats.assignedLocations(assignedLocationsCount)}</span> ·{' '}
             {hasChanges ? (
-              <span className="text-orange-600 dark:text-orange-400">Cambios pendientes</span>
+              <span className="text-orange-600 dark:text-orange-400">{copy.stats.pendingChanges}</span>
             ) : (
-              <span className="text-green-600 dark:text-green-400">Sin cambios pendientes</span>
+              <span className="text-green-600 dark:text-green-400">{copy.stats.noPendingChanges}</span>
             )}
           </div>
 
@@ -1133,14 +1118,14 @@ export function ContractSiteRegistrationModal({
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-base font-semibold text-slate-950 dark:text-white">
-                    {editingLocationId ? 'Editar ubicación temporal' : 'Crear ubicación temporal'}
+                    {editingLocationId ? copy.form.editTitle : copy.form.createTitle}
                   </p>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    Te guiamos paso a paso para evitar errores de configuración.
+                    {copy.form.description}
                   </p>
                 </div>
-                <div className="inline-flex rounded-full border border-[#143675]/15 bg-[#143675]/5 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
-                  Paso {currentWizardStepIndex + 1} de {contractSiteWizardSteps.length}
+                <div className="inline-flex rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+                  {copy.wizard.stepCounter(currentWizardStepIndex + 1, contractSiteWizardSteps.length)}
                 </div>
               </div>
 
@@ -1155,15 +1140,15 @@ export function ContractSiteRegistrationModal({
                       onClick={() => setWizardStep(step.id)}
                       className={`flex min-h-[76px] items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
                         isCurrent
-                          ? 'border-[#143675] bg-[#143675]/10 text-[#143675] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-[#143675]/30 hover:bg-[#143675]/5 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                          ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-[#59C3A5]/30 hover:bg-[#59C3A5]/5 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
                       }`}
                     >
                       <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         isCompleted
                           ? 'bg-emerald-500 text-white'
                           : isCurrent
-                            ? 'bg-[#143675] text-white'
+                            ? 'bg-[#59C3A5] text-white'
                             : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
                       }`}>
                         {isCompleted ? <Check className="h-4 w-4" /> : index + 1}
@@ -1181,45 +1166,45 @@ export function ContractSiteRegistrationModal({
             <div className="p-5">
               {wizardStep === 'basic' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Información básica</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{copy.basic.title}</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                        Define dónde pertenece esta ubicación y por cuánto tiempo estará activa.
+                        {copy.basic.description}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Unidad de negocio *</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.unitLabel}</label>
                       <select
                         value={selectedUnitId}
                         onChange={(event) => setSelectedUnitId(event.target.value)}
                         disabled={isLoadingScopeOptions}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
                       >
-                        <option value="">{isLoadingScopeOptions ? 'Cargando unidades...' : 'Selecciona una unidad'}</option>
+                        <option value="">{isLoadingScopeOptions ? copy.basic.loadingUnits : copy.basic.selectUnit}</option>
                         {units.map((unit) => (
                           <option key={unit.id} value={unit.id}>{unit.name}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Negocio *</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.businessLabel}</label>
                       <select
                         value={selectedBusinessId}
                         onChange={(event) => setSelectedBusinessId(event.target.value)}
                         disabled={isLoadingScopeOptions || !selectedUnitId}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-700"
                       >
                         <option value="">
                           {!selectedUnitId
-                            ? 'Primero selecciona una unidad'
+                            ? copy.basic.selectUnitFirst
                             : filteredBusinessOptions.length > 0
-                              ? 'Selecciona un negocio'
-                              : 'No hay negocios para esta unidad'}
+                              ? copy.basic.selectBusiness
+                              : copy.basic.noBusinesses}
                         </option>
                         {filteredBusinessOptions.map((business) => (
                           <option key={business.id} value={business.id}>{business.name}</option>
@@ -1229,23 +1214,23 @@ export function ContractSiteRegistrationModal({
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Nombre de la ubicación *</label>
+                    <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.locationNameLabel}</label>
                     <input
                       ref={nameInputRef}
                       type="text"
                       value={nombre}
                       onChange={(event) => setNombre(event.target.value)}
-                      placeholder="Ej. Obra Plaza Centro"
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      placeholder={copy.basic.locationNamePlaceholder}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     />
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      Usa un nombre fácil de reconocer para supervisores y colaboradores.
+                      {copy.basic.locationNameHint}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Inicio del contrato</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.contractStart}</label>
                       <input
                         type="date"
                         value={contractStartDate}
@@ -1256,33 +1241,33 @@ export function ContractSiteRegistrationModal({
                             setContractEndDate(nextStartDate);
                           }
                         }}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Fin del contrato</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.contractEnd}</label>
                       <input
                         type="date"
                         value={contractEndDate}
                         min={contractStartDate}
                         onChange={(event) => setContractEndDate(event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Duración</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.duration}</label>
                       <input
                         type="text"
-                        value={contractDaysForForm ? formatContractDays(contractStartDate, contractEndDate) : 'Rango inválido'}
+                        value={contractDaysForForm ? formatContractDays(contractStartDate, contractEndDate, copy) : copy.days.invalidRange}
                         readOnly
-                        className="w-full rounded-lg border border-gray-300 bg-slate-50 px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-slate-50 px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                   </div>
 
                   {selectedUnit && selectedBusiness ? (
                     <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-300">
-                      Se guardará en: {selectedUnit.name} / {selectedBusiness.name}
+                      {copy.basic.willSaveTo(selectedUnit.name, selectedBusiness.name)}
                     </div>
                   ) : null}
                 </div>
@@ -1290,37 +1275,37 @@ export function ContractSiteRegistrationModal({
 
               {wizardStep === 'location' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Ubicación</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{copy.location.title}</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                        Pega un enlace de Google Maps o usa tu ubicación actual. Las coordenadas técnicas quedan ocultas.
+                        {copy.location.description}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Enlace de Google Maps</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.googleMapsLink}</label>
                       <input
                         type="text"
                         value={enlaceGoogleMaps}
                         onChange={(event) => setEnlaceGoogleMaps(event.target.value)}
-                        placeholder="Pega aquí el enlace de Google Maps"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder={copy.location.googleMapsPlaceholder}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Recomendado: copiar enlace desde Google Maps para evitar errores manuales.
+                        {copy.location.googleMapsHint}
                       </p>
                     </div>
                     <div className="flex items-end gap-2">
                       <Button onClick={() => void extractCoordinates()} variant="outline" type="button" disabled={isExtractingCoordinates}>
-                        {isExtractingCoordinates ? 'Extrayendo...' : 'Extraer'}
+                        {isExtractingCoordinates ? copy.location.extracting : copy.location.extract}
                       </Button>
                       <Button onClick={getCurrentLocation} type="button" variant="outline" className="gap-2">
                         <MapPin className="h-4 w-4" />
-                        Usar mi ubicación
+                        {copy.location.useCurrentLocation}
                       </Button>
                     </div>
                   </div>
@@ -1328,9 +1313,9 @@ export function ContractSiteRegistrationModal({
                   <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/60">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Radio permitido para registrar asistencia</label>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.radiusLabel}</label>
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          Mientras más pequeño sea el radio, más precisa debe ser la ubicación del colaborador.
+                          {copy.location.radiusHint}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1339,9 +1324,9 @@ export function ContractSiteRegistrationModal({
                           value={radio}
                           onChange={(event) => setRadio(event.target.value)}
                           min="1"
-                          className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
-                        <span className="text-sm text-slate-500 dark:text-slate-400">m</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">{copy.metersShort}</span>
                       </div>
                     </div>
                     <input
@@ -1351,7 +1336,7 @@ export function ContractSiteRegistrationModal({
                       step="10"
                       value={Number.isFinite(parsedRadiusForForm) ? Math.min(Math.max(parsedRadiusForForm, 20), 500) : 80}
                       onChange={(event) => setRadio(event.target.value)}
-                      className="mt-4 w-full accent-[#143675]"
+                      className="mt-4 w-full accent-[#59C3A5]"
                     />
                   </div>
 
@@ -1361,48 +1346,48 @@ export function ContractSiteRegistrationModal({
                       : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300'
                   }`}>
                     {hasValidLocationInformation
-                      ? `Ubicación lista: ${latitud}, ${longitud} con radio de ${radio} m.`
-                      : 'Falta detectar o capturar una ubicación válida.'}
+                      ? copy.location.ready(latitud, longitud, radio)
+                      : copy.location.missing}
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setShowAdvancedLocationFields((current) => !current)}
-                    className="text-sm font-semibold text-[#143675] hover:underline dark:text-blue-300"
+                    className="text-sm font-semibold text-[#59C3A5] hover:underline dark:text-blue-300"
                   >
-                    {showAdvancedLocationFields ? 'Ocultar opciones avanzadas' : 'Mostrar opciones avanzadas'}
+                    {showAdvancedLocationFields ? copy.location.hideAdvanced : copy.location.showAdvanced}
                   </button>
 
                   {showAdvancedLocationFields ? (
                     <div className="grid grid-cols-1 gap-4 rounded-xl border border-dashed border-slate-300 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-3">
                       <div>
-                        <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Latitud</label>
+                        <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.latitude}</label>
                         <input
                           type="text"
                           value={latitud}
                           onChange={(event) => setLatitud(event.target.value)}
                           placeholder="21.1619"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Longitud</label>
+                        <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.longitude}</label>
                         <input
                           type="text"
                           value={longitud}
                           onChange={(event) => setLongitud(event.target.value)}
                           placeholder="-86.8515"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Altitud opcional</label>
+                        <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.altitudeOptional}</label>
                         <input
                           type="text"
                           value={altitud}
                           onChange={(event) => setAltitud(event.target.value)}
-                          placeholder="metros sobre nivel del mar"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          placeholder={copy.location.altitudePlaceholder}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                       </div>
                     </div>
@@ -1412,19 +1397,19 @@ export function ContractSiteRegistrationModal({
 
               {wizardStep === 'schedule' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Horario esperado</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{copy.scheduleStep.title}</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                        Define la jornada que se usará como referencia para la asistencia en esta ubicación.
+                        {copy.scheduleStep.description}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Horas por día</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.scheduleStep.hoursPerDay}</label>
                       <input
                         type="number"
                         value={requiredHoursPerDay}
@@ -1433,68 +1418,70 @@ export function ContractSiteRegistrationModal({
                         max="24"
                         step="0.25"
                         placeholder="8"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Hora de inicio</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.scheduleStep.startTime}</label>
                       <input
                         type="time"
                         value={requiredStartTime}
                         onChange={(event) => setRequiredStartTime(event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">Hora de fin</label>
+                      <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.scheduleStep.endTime}</label>
                       <input
                         type="time"
                         value={requiredEndTime}
                         onChange={(event) => setRequiredEndTime(event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
-                    Jornada configurada: <span className="font-semibold text-slate-950 dark:text-white">{requiredStartTime} - {requiredEndTime}</span>
-                    {' '}con <span className="font-semibold text-slate-950 dark:text-white">{requiredHoursPerDay || '0'} h/día</span>.
+                    {copy.scheduleStep.configuredPrefix}{' '}
+                    <span className="font-semibold text-slate-950 dark:text-white">{requiredStartTime} - {requiredEndTime}</span>
+                    {' '}{copy.scheduleStep.withHours}{' '}
+                    <span className="font-semibold text-slate-950 dark:text-white">{copy.hoursPerDay(requiredHoursPerDay || '0')}</span>.
                   </div>
                 </div>
               ) : null}
 
               {wizardStep === 'review' ? (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-3 rounded-xl border border-[#143675]/15 bg-[#143675]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                    <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-blue-300" />
+                  <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-[#143675] dark:text-blue-200">Revisión final</p>
+                      <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{copy.review.title}</p>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                        Confirma que la ubicación sea clara antes de agregarla a la lista.
+                        {copy.review.description}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ubicación</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{nombre || 'Sin nombre'}</p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{selectedUnit?.name ?? 'Sin unidad'} / {selectedBusiness?.name ?? 'Sin negocio'}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{copy.review.location}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{nombre || copy.review.noName}</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{selectedUnit?.name ?? copy.review.noUnit} / {selectedBusiness?.name ?? copy.review.noBusiness}</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Vigencia</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{copy.review.contractWindow}</p>
                       <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{contractStartDate} - {contractEndDate}</p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{contractDaysForForm ? formatContractDays(contractStartDate, contractEndDate) : 'Rango inválido'}</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{contractDaysForForm ? formatContractDays(contractStartDate, contractEndDate, copy) : copy.days.invalidRange}</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Registro por ubicación</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{hasValidLocationInformation ? `${radio} m de radio` : 'Ubicación pendiente'}</p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{hasValidLocationInformation ? `${latitud}, ${longitud}` : 'Usa Maps o tu ubicación actual'}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{copy.review.locationRegistration}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{hasValidLocationInformation ? copy.review.radiusSummary(radio) : copy.review.locationPending}</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{hasValidLocationInformation ? `${latitud}, ${longitud}` : copy.review.useMaps}</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Horario</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{copy.review.schedule}</p>
                       <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{requiredStartTime} - {requiredEndTime}</p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{requiredHoursPerDay || '0'} h/día</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.hoursPerDay(requiredHoursPerDay || '0')}</p>
                     </div>
                   </div>
 
@@ -1503,19 +1490,19 @@ export function ContractSiteRegistrationModal({
                       <div className="flex items-start gap-3">
                         <Settings2 className="mt-0.5 h-5 w-5 text-slate-500 dark:text-slate-400" />
                         <div>
-                          <p className="text-sm font-semibold text-slate-950 dark:text-white">Estado de la ubicación</p>
+                          <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.review.statusTitle}</p>
                           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            Puedes marcarla como inactiva sin borrar el historial.
+                            {copy.review.statusDescription}
                           </p>
                         </div>
                       </div>
                       <select
                         value={contractStatus}
                         onChange={(event) => setContractStatus(event.target.value as 'active' | 'inactive')}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white md:w-44"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white md:w-44"
                       >
-                        <option value="active">Activa</option>
-                        <option value="inactive">Inactiva</option>
+                        <option value="active">{copy.status.active}</option>
+                        <option value="inactive">{copy.status.inactive}</option>
                       </select>
                     </div>
                   </div>
@@ -1526,29 +1513,29 @@ export function ContractSiteRegistrationModal({
             <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {wizardStep === 'review'
-                  ? 'Agregar la ubicación la deja lista para guardar desde el footer.'
-                  : 'Avanza solo cuando la información del paso esté completa.'}
+                  ? copy.form.reviewFooterHint
+                  : copy.form.stepFooterHint}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {currentWizardStepIndex > 0 ? (
                   <Button onClick={goToPreviousWizardStep} type="button" variant="outline" className="gap-2">
                     <ChevronLeft className="h-4 w-4" />
-                    Atrás
+                    {copy.form.back}
                   </Button>
                 ) : null}
                 {editingLocationId ? (
                   <Button onClick={resetDraftForm} type="button" variant="outline">
-                    Cancelar edición
+                    {copy.form.cancelEditing}
                   </Button>
                 ) : null}
                 {wizardStep === 'review' ? (
-                  <Button onClick={handleAgregar} type="button" className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]" disabled={!hasCompleteFormInput}>
+                  <Button onClick={handleAgregar} type="button" className="gap-2 bg-[#59C3A5] text-white hover:bg-[#3AAE90]" disabled={!hasCompleteFormInput}>
                     <Check className="h-4 w-4" />
-                    {editingLocationId ? 'Actualizar ubicación' : 'Agregar ubicación'}
+                    {editingLocationId ? copy.form.updateLocation : copy.form.addLocation}
                   </Button>
                 ) : (
-                  <Button onClick={goToNextWizardStep} type="button" className="gap-2 bg-[#143675] text-white hover:bg-[#0f2855]" disabled={!canContinueWizard}>
-                    Continuar
+                  <Button onClick={goToNextWizardStep} type="button" className="gap-2 bg-[#59C3A5] text-white hover:bg-[#3AAE90]" disabled={!canContinueWizard}>
+                    {copy.form.continue}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 )}
@@ -1561,13 +1548,13 @@ export function ContractSiteRegistrationModal({
 	              <div className="flex flex-col gap-4 border-b border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900/50 lg:flex-row lg:items-center lg:justify-between">
 	                <div className="space-y-3">
 	                  <div>
-	                    <p className="text-base font-semibold text-gray-900 dark:text-white">Ubicaciones existentes</p>
+	                    <p className="text-base font-semibold text-gray-900 dark:text-white">{copy.existing.title}</p>
 	                    <p className="text-sm text-gray-500 dark:text-gray-400">
-	                      Consulta, edita o inactiva ubicaciones sin mezclarlo con el alta guiada.
+	                      {copy.existing.description}
 	                    </p>
 	                  </div>
-	                  <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#143675]/20 bg-[#143675]/5 px-3 py-2 dark:border-[#8bb3ff]/20 dark:bg-[#8bb3ff]/10">
-	                    <span className="text-xs font-semibold uppercase tracking-wide text-[#143675] dark:text-[#8bb3ff]">Fecha mostrada</span>
+	                  <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/5 px-3 py-2 dark:border-[#8FE0CA]/20 dark:bg-[#8FE0CA]/10">
+	                    <span className="text-xs font-semibold uppercase tracking-wide text-[#59C3A5] dark:text-[#8FE0CA]">{copy.existing.shownDate}</span>
 	                    <span className="text-sm font-semibold text-gray-950 dark:text-white">{formatDateLabel(controlDate)}</span>
 	                    <span className="rounded-md bg-white px-2 py-1 font-mono text-xs text-gray-600 shadow-sm dark:bg-gray-900 dark:text-gray-300">
 	                      {controlDate}
@@ -1579,26 +1566,26 @@ export function ContractSiteRegistrationModal({
                   onChange={(event) => setContractSiteFilter(event.target.value as ContractSiteFilter)}
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white md:w-48"
                 >
-                  <option value="all">Todas</option>
-                  <option value="assigned">Con asignación</option>
-                  <option value="unassigned">Sin asignación</option>
-                  <option value="active">Activas</option>
-                  <option value="inactive">Inactivas</option>
+                  <option value="all">{copy.filters.all}</option>
+                  <option value="assigned">{copy.filters.assigned}</option>
+                  <option value="unassigned">{copy.filters.unassigned}</option>
+                  <option value="active">{copy.filters.active}</option>
+                  <option value="inactive">{copy.filters.inactive}</option>
                 </select>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1180px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Unidad</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Negocio</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Ubicación</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Vigencia</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Horario</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Asignación</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Estado</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Radio</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Acción</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.unit}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.business}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.location}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.contractWindow}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.schedule}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.assignment}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.status}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.radius}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.table.action}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900/60">
@@ -1623,17 +1610,17 @@ export function ContractSiteRegistrationModal({
                           <span className="font-medium text-gray-900 dark:text-white">
                             {location.contractStartDate} - {location.contractEndDate}
                           </span>
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatContractDays(location.contractStartDate, location.contractEndDate)}</p>
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatContractDays(location.contractStartDate, location.contractEndDate, copy)}</p>
                         </td>
 	                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
 	                          <span className="font-medium text-gray-900 dark:text-white">
-	                            {location.requiredHoursPerDay} h/día
+	                            {copy.hoursPerDay(location.requiredHoursPerDay)}
 	                          </span>
-	                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Preferido {location.requiredStartTime} - {location.requiredEndTime}</p>
+	                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{copy.table.preferredTime(location.requiredStartTime, location.requiredEndTime)}</p>
 	                        </td>
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                           <span className={location.assignedEmployeeCount > 0 ? 'font-medium text-emerald-700 dark:text-emerald-300' : ''}>
-                            {location.assignedEmployeeCount > 0 ? `${location.assignedEmployeeCount} asignados` : 'Sin asignar'}
+                            {location.assignedEmployeeCount > 0 ? copy.table.assignedCount(location.assignedEmployeeCount) : copy.table.unassigned}
                           </span>
                           {location.assignedEmployeeNames ? (
                             <p className="mt-1 max-w-56 truncate text-xs text-gray-500 dark:text-gray-400" title={location.assignedEmployeeNames}>
@@ -1647,10 +1634,10 @@ export function ContractSiteRegistrationModal({
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
                               : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                           }`}>
-                            {location.status === 'active' ? 'Activa' : 'Inactiva'}
+                            {location.status === 'active' ? copy.status.active : copy.status.inactive}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{location.radio} m</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{copy.meters(location.radio)}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
 	                            <Button
@@ -1662,8 +1649,8 @@ export function ContractSiteRegistrationModal({
 	                              size="icon"
                               type="button"
                               className="h-8 w-8 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20"
-                              aria-label={`Edit ${location.nombre}`}
-                              title="Editar ubicación"
+                              aria-label={copy.actions.editAria(location.nombre)}
+                              title={copy.actions.edit}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -1677,8 +1664,8 @@ export function ContractSiteRegistrationModal({
                               type="button"
                               disabled={location.assignedEmployeeCount > 0}
                               className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
-                              aria-label={`Delete ${location.nombre}`}
-                              title={location.assignedEmployeeCount > 0 ? 'No se puede borrar una ubicación asignada. Márcala como inactiva.' : 'Borrar ubicación'}
+                              aria-label={copy.actions.deleteAria(location.nombre)}
+                              title={location.assignedEmployeeCount > 0 ? copy.actions.deleteDisabled : copy.actions.delete}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1691,13 +1678,13 @@ export function ContractSiteRegistrationModal({
               </div>
               {filteredDraftLocations.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No hay ubicaciones con este filtro.
+                  {copy.emptyFiltered}
                 </div>
               ) : null}
               {filteredDraftLocations.length > 0 ? (
                 <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400 md:flex-row md:items-center md:justify-between">
                   <span>
-                    Mostrando {contractSitePaginationStart}-{contractSitePaginationEnd} de {filteredDraftLocations.length} ubicaciones
+                    {copy.pagination.showing(contractSitePaginationStart, contractSitePaginationEnd, filteredDraftLocations.length)}
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
@@ -1707,7 +1694,7 @@ export function ContractSiteRegistrationModal({
                       disabled={safeContractSitePage <= 1}
                       onClick={() => setContractSitePage((page) => Math.max(1, page - 1))}
                     >
-                      Anterior
+                      {copy.pagination.previous}
                     </Button>
                     <span className="min-w-20 text-center text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       {safeContractSitePage} / {contractSiteTotalPages}
@@ -1719,7 +1706,7 @@ export function ContractSiteRegistrationModal({
                       disabled={safeContractSitePage >= contractSiteTotalPages}
                       onClick={() => setContractSitePage((page) => Math.min(contractSiteTotalPages, page + 1))}
                     >
-                      Siguiente
+                      {copy.pagination.next}
                     </Button>
                   </div>
                 </div>
@@ -1729,12 +1716,12 @@ export function ContractSiteRegistrationModal({
 
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-900/20">
             <p className="text-xs text-yellow-900 dark:text-yellow-200">
-              <span className="font-medium">Tip:</span> en Google Maps, comparte la ubicación y pega el enlace. Si el enlace es corto, ábrelo primero y copia la URL final.
+              <span className="font-medium">{copy.tipLabel}:</span> {copy.googleMapsTip}
             </p>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end bg-[#143675] px-6 py-3 dark:bg-[#143675]">
+        <div className="flex shrink-0 items-center justify-end bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5]">
           <div className="flex items-center gap-3">
             <Button
               onClick={onClose}
@@ -1742,14 +1729,14 @@ export function ContractSiteRegistrationModal({
               className="border-white/25 bg-transparent text-white shadow-none hover:bg-white/10 hover:text-white disabled:border-white/10 disabled:text-white/45"
               disabled={isSaving}
             >
-              Cerrar
+              {copy.actions.close}
             </Button>
             <Button
               onClick={() => void handleGuardar()}
-              className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675] disabled:bg-white/45 disabled:text-[#143675]/60"
+              className="gap-2 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5] disabled:bg-white/45 disabled:text-[#59C3A5]/60"
               disabled={(!hasChanges && !hasCompleteFormInput) || isSaving}
             >
-              Guardar
+              {copy.actions.save}
             </Button>
           </div>
         </div>
@@ -1758,9 +1745,9 @@ export function ContractSiteRegistrationModal({
       {selectedContractSite ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
-            <div className="flex shrink-0 items-start justify-between bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+            <div className="flex shrink-0 items-start justify-between bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
               <div className="min-w-0">
-                <h3 className="truncate text-lg font-semibold text-white">Detalle de ubicación temporal</h3>
+                <h3 className="truncate text-lg font-semibold text-white">{copy.detail.title}</h3>
                 <p className="mt-1 text-sm text-white/80">
                   {selectedContractSite.nombre} · {formatDateLabel(controlDate)}
                 </p>
@@ -1769,7 +1756,7 @@ export function ContractSiteRegistrationModal({
                 type="button"
                 onClick={() => setSelectedContractSiteId(null)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-                aria-label="Close contract site detail"
+                aria-label={copy.detail.closeAria}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1778,51 +1765,51 @@ export function ContractSiteRegistrationModal({
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/70 p-5 dark:bg-slate-950/40">
 	              <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
 	                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Unidad</p>
-	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedContractSite.unitName || 'Sin definir'}</p>
+	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.table.unit}</p>
+	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedContractSite.unitName || copy.detail.undefined}</p>
 	                </div>
 	                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Negocio</p>
-	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedContractSite.businessName || 'Sin definir'}</p>
+	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.table.business}</p>
+	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedContractSite.businessName || copy.detail.undefined}</p>
 	                </div>
 	                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Colaboradores asignados</p>
+	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.detail.assignedEmployees}</p>
 	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedContractSite.assignedEmployeeCount}</p>
 	                </div>
 	                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Estado</p>
+	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.table.status}</p>
 	                  <p className={`mt-1 text-sm font-semibold ${selectedContractSite.status === 'active' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>
-	                    {selectedContractSite.status === 'active' ? 'Activa' : 'Inactiva'}
+	                    {selectedContractSite.status === 'active' ? copy.status.active : copy.status.inactive}
 	                  </p>
 	                </div>
 	              </div>
 
 		              <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
 		                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-		                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Vigencia</p>
+		                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.table.contractWindow}</p>
 		                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
 		                    {selectedContractSite.contractStartDate} - {selectedContractSite.contractEndDate}
 		                  </p>
 		                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-		                    {formatContractDays(selectedContractSite.contractStartDate, selectedContractSite.contractEndDate)}
+		                    {formatContractDays(selectedContractSite.contractStartDate, selectedContractSite.contractEndDate, copy)}
 		                  </p>
 		                </div>
 		                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-		                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Horario preferido</p>
+		                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.detail.preferredSchedule}</p>
 		                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
 		                    {selectedContractSite.requiredStartTime} - {selectedContractSite.requiredEndTime}
 		                  </p>
 		                </div>
 		                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-		                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Horas de trabajo</p>
-		                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedContractSite.requiredHoursPerDay} h/día</p>
+		                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.detail.workingHours}</p>
+		                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{copy.hoursPerDay(selectedContractSite.requiredHoursPerDay)}</p>
 		                </div>
 	                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Radio de registro</p>
-	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{selectedContractSite.radio} m</p>
+	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.table.radius}</p>
+	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{copy.meters(selectedContractSite.radio)}</p>
 	                </div>
 	                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Coordenadas</p>
+	                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{copy.detail.coordinates}</p>
 	                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
 	                    {selectedContractSite.latitud}, {selectedContractSite.longitud}
 	                  </p>
@@ -1831,19 +1818,19 @@ export function ContractSiteRegistrationModal({
 
 	              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
 	                <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/60">
-	                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Actividad del día</p>
-	                  <p className="text-xs text-gray-500 dark:text-gray-400">Asignación, entrada, salida y ubicación usada en el registro.</p>
+	                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.detail.dailyActivity}</p>
+	                  <p className="text-xs text-gray-500 dark:text-gray-400">{copy.detail.dailyActivityDescription}</p>
 	                </div>
 	                {selectedContractSiteActivity.length > 0 ? (
 	                  <div className="overflow-x-auto">
 	                    <table className="w-full min-w-[860px]">
 	                      <thead className="bg-white dark:bg-gray-950">
 	                        <tr>
-	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Colaborador</th>
-	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Asignado</th>
-	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Entrada</th>
-	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Salida</th>
-	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Ubicación registrada</th>
+	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.detail.employee}</th>
+	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.detail.assigned}</th>
+	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.detail.checkIn}</th>
+	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.detail.checkOut}</th>
+	                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{copy.detail.registeredLocation}</th>
 	                        </tr>
 	                      </thead>
 	                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-950">
@@ -1852,7 +1839,7 @@ export function ContractSiteRegistrationModal({
 	                            <td className="px-4 py-3">
 	                              <p className="text-sm font-medium text-gray-900 dark:text-white">{assignment.user_name}</p>
 	                              <p className="text-xs text-gray-500 dark:text-gray-400">
-	                                {assignment.user_code || 'Sin número de colaborador'}
+	                                {assignment.user_code || copy.detail.noEmployeeCode}
 	                                {assignment.position_title ? ` · ${assignment.position_title}` : ''}
 	                              </p>
 	                            </td>
@@ -1862,25 +1849,25 @@ export function ContractSiteRegistrationModal({
 	                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
 	                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
 	                              }`}>
-	                                {assignedToSite ? 'Asignado' : 'Sin asignar'}
+	                                {assignedToSite ? copy.detail.assigned : copy.detail.unassigned}
 	                              </span>
 	                            </td>
 	                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-	                              <p>{formatDateTime(assignment.first_check_in_at)}</p>
+	                              <p>{formatDateTime(assignment.first_check_in_at, copy)}</p>
 	                              <p className={checkedInAtSite ? 'text-xs text-emerald-700 dark:text-emerald-300' : 'text-xs text-gray-500 dark:text-gray-400'}>
-	                                {assignment.first_location?.name ?? 'Sin ubicación de entrada'}
+	                                {assignment.first_location?.name ?? copy.detail.noCheckInLocation}
 	                              </p>
 	                            </td>
 	                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-	                              <p>{formatDateTime(assignment.last_check_out_at)}</p>
+	                              <p>{formatDateTime(assignment.last_check_out_at, copy)}</p>
 	                              <p className={checkedOutAtSite ? 'text-xs text-emerald-700 dark:text-emerald-300' : 'text-xs text-gray-500 dark:text-gray-400'}>
-	                                {assignment.last_location?.name ?? 'Sin ubicación de salida'}
+	                                {assignment.last_location?.name ?? copy.detail.noCheckOutLocation}
 	                              </p>
 	                            </td>
 	                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-	                              <p>Entrada: {checkedInAtSite ? 'Esta ubicación' : assignment.first_location?.name ?? 'Ninguna'}</p>
+	                              <p>{copy.detail.checkInLabel}: {checkedInAtSite ? copy.detail.thisLocation : assignment.first_location?.name ?? copy.detail.none}</p>
 	                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-	                                Salida: {checkedOutAtSite ? 'Esta ubicación' : assignment.last_location?.name ?? 'Ninguna'}
+	                                {copy.detail.checkOutLabel}: {checkedOutAtSite ? copy.detail.thisLocation : assignment.last_location?.name ?? copy.detail.none}
 	                              </p>
 	                            </td>
 	                          </tr>
@@ -1890,20 +1877,20 @@ export function ContractSiteRegistrationModal({
 	                  </div>
 	                ) : (
 	                  <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-	                    No hay colaboradores asignados a esta ubicación para {formatDateLabel(controlDate)}, ni registros de entrada o salida aquí.
+	                    {copy.detail.emptyActivity(formatDateLabel(controlDate))}
 	                  </div>
 	                )}
 	              </div>
             </div>
 
-            <div className="flex shrink-0 justify-end bg-[#143675] px-6 py-3 dark:bg-[#143675]">
+            <div className="flex shrink-0 justify-end bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5]">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setSelectedContractSiteId(null)}
-                className="border-white/25 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+                className="border-white/25 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
               >
-                Cerrar
+                {copy.actions.close}
               </Button>
             </div>
           </div>

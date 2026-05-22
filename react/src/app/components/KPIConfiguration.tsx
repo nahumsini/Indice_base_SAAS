@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLanguage } from '../shared/context';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
@@ -15,15 +14,34 @@ interface KPIConfigurationProps {
   onClose: () => void;
   selectedKPIIds: string[];
   onSave: (kpis: string[]) => void;
+  availableKPIs?: KPIItem[];
+  defaultKPIIds?: readonly string[];
+  copy?: KPIConfigurationCopy;
 }
 
-interface KPIItem {
+export interface KPIItem {
   id: string;
   title: string;
   module: string;
   moduleEmoji: string;
   moduleColor: string;
   category: 'financial' | 'operational' | 'people' | 'sales' | 'inventory' | 'other';
+}
+
+export interface KPIConfigurationCopy {
+  title: string;
+  description: string;
+  availableTitle: (count: number) => string;
+  searchPlaceholder: string;
+  emptyAvailable: string;
+  selectedTitle: (count: number) => string;
+  reset: string;
+  reorderHint: string;
+  emptySelectedTitle: string;
+  emptySelectedDescription: string;
+  summary: (selected: number, available: number) => string;
+  cancel: string;
+  save: string;
 }
 
 interface DraggableKPIProps {
@@ -54,6 +72,7 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
 
   const getModuleColorClasses = (color: string) => {
     const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+      aqua: { bg: 'bg-[#59C3A5]/10 dark:bg-[#59C3A5]/20', text: 'text-[#257B68] dark:text-[#8FE0CA]', border: 'border-[#59C3A5]/30 dark:border-[#59C3A5]/35' },
       blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700' },
       yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700' },
       green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700' },
@@ -81,7 +100,7 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
         hover:border-[#558DBD] transition-all cursor-move relative
       `}
     >
-      {/* Indicador de orden */}
+      {/* Display order indicator */}
       <div className="bg-[#558DBD] text-white text-xs font-bold px-2 py-1 rounded">
         #{index + 1}
       </div>
@@ -107,13 +126,39 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
   );
 };
 
-export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSave }: KPIConfigurationProps) {
+export function KPIConfiguration({
+  isOpen,
+  onOpen,
+  onClose,
+  selectedKPIIds,
+  onSave,
+  availableKPIs: providedAvailableKPIs,
+  defaultKPIIds,
+  copy,
+}: KPIConfigurationProps) {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [tempSelectedKPIs, setTempSelectedKPIs] = useState<string[]>(selectedKPIIds);
 
+  const fallbackCopy = useMemo<KPIConfigurationCopy>(() => ({
+    title: t.sections.configureKpis,
+    description: 'Select and order the KPIs you want to see on your dashboard.',
+    availableTitle: (count) => `Available KPIs (${count})`,
+    searchPlaceholder: 'Search KPIs...',
+    emptyAvailable: 'No KPIs found.',
+    selectedTitle: (count) => `Selected KPIs (${count})`,
+    reset: 'Reset',
+    reorderHint: 'Drag to reorder the KPIs based on your preference.',
+    emptySelectedTitle: 'No KPIs selected',
+    emptySelectedDescription: 'Select KPIs from the list on the left.',
+    summary: (selected, available) => `${selected} KPIs selected out of ${available} available`,
+    cancel: 'Cancel',
+    save: 'Save Configuration',
+  }), [t]);
+  const resolvedCopy = copy ?? fallbackCopy;
+
   // Define all available KPIs grouped by module
-  const availableKPIs: KPIItem[] = [
+  const fallbackAvailableKPIs = useMemo<KPIItem[]>(() => [
     // Financial KPIs - Expenses
     { id: 'monthlyExpenses', title: t.kpis.monthlyExpenses, module: t.modules.gastos, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
     { id: 'expensesByCategory', title: 'Expenses by Category', module: t.modules.gastos, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
@@ -172,7 +217,8 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
     // Work Climate KPIs
     { id: 'employeeSatisfaction', title: 'Employee Satisfaction', module: t.modules.climaLaboral, moduleEmoji: '😊', moduleColor: 'gray', category: 'people' },
     { id: 'engagementScore', title: 'Engagement Score', module: t.modules.climaLaboral, moduleEmoji: '😊', moduleColor: 'gray', category: 'people' },
-  ];
+  ], [t]);
+  const availableKPIs = providedAvailableKPIs ?? fallbackAvailableKPIs;
 
   const [orderedKPIs, setOrderedKPIs] = useState<KPIItem[]>(
     tempSelectedKPIs.map(id => availableKPIs.find(kpi => kpi.id === id)!).filter(Boolean)
@@ -185,7 +231,7 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
       setOrderedKPIs(selectedKPIIds.map(id => availableKPIs.find(kpi => kpi.id === id)!).filter(Boolean));
       setSearchQuery('');
     }
-  }, [isOpen, selectedKPIIds]);
+  }, [availableKPIs, isOpen, selectedKPIIds]);
 
   const filteredAvailableKPIs = availableKPIs.filter(kpi => {
     const matchesSearch = kpi.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -223,13 +269,14 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
 
   const handleReset = () => {
     // Reset to the default KPI selection
-    const defaultKPIs = ['weeklyRevenue', 'netProfit', 'activeClients', 'activeEmployees', 'pendingTasks', 'monthlyExpenses'];
+    const defaultKPIs = [...(defaultKPIIds ?? ['weeklyRevenue', 'netProfit', 'activeClients', 'activeEmployees', 'pendingTasks', 'monthlyExpenses'])];
     setTempSelectedKPIs(defaultKPIs);
     setOrderedKPIs(defaultKPIs.map(id => availableKPIs.find(kpi => kpi.id === id)!).filter(Boolean));
   };
 
   const getModuleColorClasses = (color: string) => {
     const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+      aqua: { bg: 'bg-[#59C3A5]/10 dark:bg-[#59C3A5]/20', text: 'text-[#257B68] dark:text-[#8FE0CA]', border: 'border-[#59C3A5]/30 dark:border-[#59C3A5]/35' },
       blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700' },
       yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700' },
       green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700' },
@@ -247,7 +294,7 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
       {/* Configuration trigger */}
       <Button variant="outline" size="sm" onClick={onOpen}>
         <Settings className="h-4 w-4 mr-2" />
-        {t.sections.configureKpis}
+        {resolvedCopy.title}
       </Button>
 
       {/* Configuration modal */}
@@ -263,10 +310,10 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white">
-                      {t.sections.configureKpis}
+                      {resolvedCopy.title}
                     </h2>
                     <p className="text-sm text-white/80 mt-0.5">
-                      Select and order the KPIs you want to see on your dashboard.
+                      {resolvedCopy.description}
                     </p>
                   </div>
                 </div>
@@ -286,12 +333,12 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
                 <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 flex flex-col">
                   <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                     <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-3">
-                      Available KPIs ({filteredAvailableKPIs.length})
+                      {resolvedCopy.availableTitle(filteredAvailableKPIs.length)}
                     </h3>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
-                        placeholder="Search KPIs..."
+                        placeholder={resolvedCopy.searchPlaceholder}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10"
@@ -326,7 +373,7 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
                       })}
                       {filteredAvailableKPIs.length === 0 && (
                         <div className="text-center py-12">
-                          <p className="text-gray-500 dark:text-gray-400">No KPIs found.</p>
+                          <p className="text-gray-500 dark:text-gray-400">{resolvedCopy.emptyAvailable}</p>
                         </div>
                       )}
                     </div>
@@ -338,7 +385,7 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
                   <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
-                        Selected KPIs ({orderedKPIs.length})
+                        {resolvedCopy.selectedTitle(orderedKPIs.length)}
                       </h3>
                       <Button
                         variant="outline"
@@ -347,11 +394,11 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
                         className="text-xs"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
-                        Reset
+                        {resolvedCopy.reset}
                       </Button>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Drag to reorder the KPIs based on your preference.
+                      {resolvedCopy.reorderHint}
                     </p>
                   </div>
                   <ScrollArea className="flex-1 p-6">
@@ -359,10 +406,10 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
                       <div className="text-center py-12">
                         <Eye className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                         <p className="text-gray-500 dark:text-gray-400 text-lg font-medium mb-1">
-                          No KPIs selected
+                          {resolvedCopy.emptySelectedTitle}
                         </p>
                         <p className="text-gray-400 dark:text-gray-500 text-sm">
-                          Select KPIs from the list on the left.
+                          {resolvedCopy.emptySelectedDescription}
                         </p>
                       </div>
                     ) : (
@@ -385,15 +432,15 @@ export function KPIConfiguration({ isOpen, onOpen, onClose, selectedKPIIds, onSa
               {/* Footer */}
               <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-between">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {orderedKPIs.length} KPIs selected out of {availableKPIs.length} available
+                  {resolvedCopy.summary(orderedKPIs.length, availableKPIs.length)}
                 </p>
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={onClose}>
-                    Cancel
+                    {resolvedCopy.cancel}
                   </Button>
                   <Button onClick={handleSave} className="bg-[#558DBD] hover:bg-[#4a7aa8] text-white">
                     <Save className="h-4 w-4 mr-2" />
-                    Save Configuration
+                    {resolvedCopy.save}
                   </Button>
                 </div>
               </div>

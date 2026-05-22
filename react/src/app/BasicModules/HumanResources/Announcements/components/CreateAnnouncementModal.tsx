@@ -179,8 +179,8 @@ export function CreateAnnouncementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" aria-busy={isSubmitting}>
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#143675]/20 bg-white text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
-        <div className="flex items-start justify-between gap-4 bg-[#143675] px-6 py-5">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#59C3A5]/20 bg-white text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+        <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5">
           <div className="flex min-w-0 items-start gap-3">
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
               <Megaphone className="h-5 w-5" />
@@ -220,7 +220,7 @@ export function CreateAnnouncementModal({
                     value={formData.title}
                     onChange={(event) => updateField('title', event.target.value)}
                     placeholder={copy.placeholders.title}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   />
                 </label>
 
@@ -229,7 +229,7 @@ export function CreateAnnouncementModal({
                   <select
                     value={formData.type}
                     onChange={(event) => updateField('type', event.target.value as FormState['type'])}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   >
                     <option value="general">{copy.typeOptions.general}</option>
                     <option value="urgent">{copy.typeOptions.urgent}</option>
@@ -243,7 +243,7 @@ export function CreateAnnouncementModal({
                   <select
                     value={formData.audienceType}
                     onChange={(event) => updateField('audienceType', event.target.value as FormState['audienceType'])}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   >
                     <option value="all">{copy.audienceOptions.all}</option>
                     <option value="units">{copy.audienceOptions.units}</option>
@@ -304,7 +304,7 @@ export function CreateAnnouncementModal({
                     value={employeeSearch}
                     onChange={(event) => setEmployeeSearch(event.target.value)}
                     placeholder={copy.placeholders.employeeSearch}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   />
                 </div>
 
@@ -318,7 +318,7 @@ export function CreateAnnouncementModal({
                         type="checkbox"
                         checked={formData.employeeIds.includes(employee.id)}
                         onChange={() => toggleEmployee(employee.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-[#143675] focus:ring-[#143675]"
+                        className="h-4 w-4 rounded border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                       />
                       <div className="min-w-0">
                         <p className="truncate font-medium text-gray-900 dark:text-white">{employee.name}</p>
@@ -344,7 +344,7 @@ export function CreateAnnouncementModal({
                 onChange={(event) => updateField('content', event.target.value)}
                 rows={7}
                 placeholder={copy.placeholders.message}
-                className="mt-4 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                className="mt-4 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
               />
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 {copy.message.attachmentNote}
@@ -384,7 +384,7 @@ export function CreateAnnouncementModal({
                         type="date"
                         value={formData.scheduledDate}
                         onChange={(event) => updateField('scheduledDate', event.target.value)}
-                        className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                        className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                       />
                     </div>
                   </label>
@@ -394,7 +394,7 @@ export function CreateAnnouncementModal({
                       type="time"
                       value={formData.scheduledTime}
                       onChange={(event) => updateField('scheduledTime', event.target.value)}
-                      className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#143675] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                      className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                     />
                   </label>
                 </div>
@@ -403,7 +403,7 @@ export function CreateAnnouncementModal({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-white/10 bg-[#143675] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-white/10 bg-[#59C3A5] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Button
             variant="outline"
             className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
@@ -425,7 +425,7 @@ export function CreateAnnouncementModal({
             <Button
               disabled={isSubmitting || !canPublish}
               onClick={() => void submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
-              className="rounded-xl bg-white text-[#143675] hover:bg-blue-50 disabled:bg-white/50 disabled:text-[#143675]/60"
+              className="rounded-xl bg-white text-[#59C3A5] hover:bg-blue-50 disabled:bg-white/50 disabled:text-[#59C3A5]/60"
             >
               {isEdit ? 'Save changes' : formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
             </Button>
@@ -485,8 +485,8 @@ function CheckboxPill({
       disabled
         ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500'
         : checked
-        ? 'border-[#143675] bg-[#143675]/10 text-[#143675] dark:border-[#8bb3ff] dark:bg-[#143675]/30 dark:text-white'
-        : 'border-gray-300 bg-white text-gray-700 hover:border-[#143675]/40 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200'
+        ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#59C3A5] dark:border-[#8FE0CA] dark:bg-[#59C3A5]/30 dark:text-white'
+        : 'border-gray-300 bg-white text-gray-700 hover:border-[#59C3A5]/40 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200'
     }`}
     >
       <input
@@ -494,7 +494,7 @@ function CheckboxPill({
         checked={checked}
         disabled={disabled}
         onChange={onChange}
-        className="h-4 w-4 rounded border-gray-300 text-[#143675] focus:ring-[#143675]"
+        className="h-4 w-4 rounded border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]"
       />
       <span>{label}</span>
     </label>
@@ -524,8 +524,8 @@ function RadioCard({
   return (
     <label className={`rounded-2xl border p-4 transition ${
       checked
-        ? 'border-[#143675] bg-[#143675]/10 shadow-[inset_0_0_0_1px_rgba(20,54,117,0.16)] dark:border-[#8bb3ff] dark:bg-[#143675]/30'
-        : 'border-gray-300 bg-white hover:border-[#143675]/40 dark:border-gray-700 dark:bg-gray-950'
+        ? 'border-[#59C3A5] bg-[#59C3A5]/10 shadow-[inset_0_0_0_1px_rgba(89,195,165,0.16)] dark:border-[#8FE0CA] dark:bg-[#59C3A5]/30'
+        : 'border-gray-300 bg-white hover:border-[#59C3A5]/40 dark:border-gray-700 dark:bg-gray-950'
     }`}
     >
       <div className="flex items-start gap-3">
@@ -533,7 +533,7 @@ function RadioCard({
           type="radio"
           checked={checked}
           onChange={onChange}
-          className="mt-1 h-4 w-4 border-gray-300 text-[#143675] focus:ring-[#143675]"
+          className="mt-1 h-4 w-4 border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]"
         />
         <div>
           <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>

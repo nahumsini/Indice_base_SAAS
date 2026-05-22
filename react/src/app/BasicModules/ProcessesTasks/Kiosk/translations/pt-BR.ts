@@ -16,10 +16,10 @@ export const ptBR = {
     title: 'Concluir tarefas de campo',
     subtitle: 'Digite seu PIN, revise o trabalho atribuído e finalize tarefas sem abrir uma sessão completa.',
     point: 'Ponto',
-    scope: 'Escopo',
+    scope: 'Contexto',
     time: 'Hora',
     defaultPoint: 'Quiosque de tarefas',
-    defaultScope: 'Todos os colaboradores',
+    defaultScope: 'Tarefas atribuídas',
   },
   steps: {
     pin: 'Digitar PIN',
@@ -41,7 +41,7 @@ export const ptBR = {
   },
   empty: {
     title: 'Nenhuma tarefa aberta atribuída',
-    body: 'Você não tem pendências para este ponto no momento.',
+    body: 'Você não tem tarefas abertas atribuídas no momento.',
   },
   task: {
     task: 'Tarefa',
@@ -68,7 +68,7 @@ export const ptBR = {
     pointStatus: 'Status do ponto',
     active: 'Ativo',
     defaultPoint: 'Ponto de tarefas',
-    availableFor: 'Disponível para',
+    availableFor: 'Contexto operacional',
     openTasks: 'Tarefas abertas',
     openTasksValue: (count: number) => `${count} tarefa${count === 1 ? '' : 's'}`,
     currentTime: 'Hora atual',

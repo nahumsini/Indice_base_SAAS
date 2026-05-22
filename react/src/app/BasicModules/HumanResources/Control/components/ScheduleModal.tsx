@@ -32,6 +32,8 @@ import {
   type AttendanceControlTemplatePayload,
 } from '../../../../api/humanResources';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../../api/dashboard';
+import { useControlTranslations } from '../hooks/useControlTranslations';
+import type { ControlTranslations } from '../translations';
 
 interface HorarioDiaDraft {
   dayOfWeek: number;
@@ -43,6 +45,7 @@ interface HorarioDiaDraft {
   isRestDay: boolean;
 }
 
+type ScheduleMode = 'strict' | 'open';
 type ScheduleLocationRule = 'business' | 'temporary' | 'open';
 type ScheduleBuilderStep = 'setup' | 'workdays' | 'rules' | 'review';
 
@@ -67,6 +70,8 @@ interface ScheduleModalProps {
     templateName: string;
   }) => Promise<void> | void;
 }
+type ScheduleCopy = ControlTranslations['schedule'];
+type WeekdayKey = keyof ScheduleCopy['workdays']['days'];
 
 const weekdayConfig = [
   { dayOfWeek: 1, dia: 'Mon' },
@@ -119,8 +124,7 @@ const emptyScheduleDays = (): HorarioDiaDraft[] =>
 const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
 
 const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
-  const modoHorario: 'Horario estricto' | 'Horario abierto' =
-    template?.schedule_mode === 'open' ? 'Horario abierto' : 'Horario estricto';
+  const scheduleMode: ScheduleMode = template?.schedule_mode === 'open' ? 'open' : 'strict';
   const locationRule: ScheduleLocationRule = template?.enforce_location
     ? 'temporary'
     : template?.schedule_mode === 'open'
@@ -141,7 +145,7 @@ const draftFromTemplate = (template: AttendanceControlTemplate | null) => {
   });
 
   return {
-    modoHorario,
+    scheduleMode,
     locationRule,
     toleranciaIngreso,
     noPermitirFueraUbicacion: Boolean(template?.enforce_location),
@@ -195,7 +199,7 @@ const toPositiveNumber = (value: string | number | null | undefined) => {
 const uniquePositiveNumbers = (values: Array<number | null | undefined>) =>
   Array.from(new Set(values.filter((value): value is number => typeof value === 'number' && value > 0)));
 
-const formatPreviewList = (values: string[], fallback: string) => {
+const formatPreviewList = (values: string[], fallback: string, copy: ScheduleCopy) => {
   const cleaned = values.map((value) => value.trim()).filter(Boolean);
   if (cleaned.length === 0) {
     return fallback;
@@ -203,7 +207,7 @@ const formatPreviewList = (values: string[], fallback: string) => {
   if (cleaned.length <= 2) {
     return cleaned.join(', ');
   }
-  return `${cleaned.slice(0, 2).join(', ')} +${cleaned.length - 2} more`;
+  return `${cleaned.slice(0, 2).join(', ')} ${copy.moreItems(cleaned.length - 2)}`;
 };
 
 const formatLocationOption = (location: AttendanceControlLocation) => {
@@ -226,72 +230,62 @@ const blocksScheduleSave = (assignment: AttendanceControlAssignment) => {
 
 const isScheduleAssignable = (assignment: AttendanceControlAssignment) => !blocksScheduleSave(assignment);
 
-const scheduleBuilderSteps: Array<{
-  id: ScheduleBuilderStep;
-  label: string;
-  description: string;
-}> = [
-  { id: 'setup', label: 'Rule type', description: 'Template and schedule mode' },
-  { id: 'workdays', label: 'Workdays', description: 'Days and hours' },
-  { id: 'rules', label: 'Rules', description: 'Attendance and location' },
-  { id: 'review', label: 'Review', description: 'What will happen' },
-];
+const scheduleBuilderStepIds: ScheduleBuilderStep[] = ['setup', 'workdays', 'rules', 'review'];
 
-const fullDayNameByShortName: Record<string, string> = {
-  Mon: 'Monday',
-  Tue: 'Tuesday',
-  Wed: 'Wednesday',
-  Thu: 'Thursday',
-  Fri: 'Friday',
-  Sat: 'Saturday',
-  Sun: 'Sunday',
-};
+const getScheduleBuilderSteps = (copy: ScheduleCopy) =>
+  scheduleBuilderStepIds.map((id) => ({
+    id,
+    label: copy.builder.steps[id].label,
+    description: copy.builder.steps[id].description,
+  }));
 
-const dayName = (shortName: string) => fullDayNameByShortName[shortName] ?? shortName;
+const dayName = (shortName: string, copy: ScheduleCopy) =>
+  copy.workdays.days[shortName as WeekdayKey] ?? shortName;
 
 const workingDays = (horarios: HorarioDiaDraft[]) => horarios.filter((horario) => !horario.isRestDay);
 
-const formatWorkingDaysSummary = (horarios: HorarioDiaDraft[]) => {
+const formatWorkingDaysSummary = (horarios: HorarioDiaDraft[], copy: ScheduleCopy) => {
   const days = workingDays(horarios);
   if (days.length === 0) {
-    return 'No working days selected';
+    return copy.noWorkingDaysSelected;
   }
 
   const isConsecutive = days.every((day, index) => index === 0 || day.dayOfWeek === days[index - 1].dayOfWeek + 1);
   if (days.length > 1 && isConsecutive) {
-    return `${days[0].dia}-${days[days.length - 1].dia}`;
+    return `${dayName(days[0].dia, copy)}-${dayName(days[days.length - 1].dia, copy)}`;
   }
 
-  return days.map((day) => day.dia).join(', ');
+  return days.map((day) => dayName(day.dia, copy)).join(', ');
 };
 
-const formatTimeSummary = (horarios: HorarioDiaDraft[], isOpenSchedule: boolean) => {
+const formatTimeSummary = (horarios: HorarioDiaDraft[], isOpenSchedule: boolean, copy: ScheduleCopy) => {
   const days = workingDays(horarios);
   if (days.length === 0) {
-    return 'No active hours';
+    return copy.noActiveHours;
   }
   if (isOpenSchedule) {
-    return 'Open workdays';
+    return copy.openWorkdays;
   }
 
   const ranges = Array.from(new Set(days.map((day) => `${day.entrada || '--:--'}-${day.salida || '--:--'}`)));
-  return ranges.length === 1 ? ranges[0] : `${ranges.length} time ranges`;
+  return ranges.length === 1 ? ranges[0] : copy.timeRanges(ranges.length);
 };
 
 const firstSharedMinutes = (horarios: HorarioDiaDraft[], field: 'comida' | 'descanso') =>
   workingDays(horarios).find((day) => day[field] > 0)?.[field] ?? 0;
 
-const locationRuleSummary = (locationRule: ScheduleLocationRule) => {
+const locationRuleSummary = (locationRule: ScheduleLocationRule, copy: ScheduleCopy) => {
   if (locationRule === 'temporary') {
-    return 'Temporary location';
+    return copy.locationRule.temporary;
   }
   if (locationRule === 'open') {
-    return 'No location restriction';
+    return copy.locationRule.open;
   }
-  return 'Business location rule';
+  return copy.locationRule.business;
 };
 
 const buildOperationalScheduleSummary = ({
+  copy,
   effectiveStartDate,
   horarios,
   isOpenSchedule,
@@ -300,6 +294,7 @@ const buildOperationalScheduleSummary = ({
   selectedTemplateName,
   toleranciaIngreso,
 }: {
+  copy: ScheduleCopy;
   effectiveStartDate: string;
   horarios: HorarioDiaDraft[];
   isOpenSchedule: boolean;
@@ -308,27 +303,27 @@ const buildOperationalScheduleSummary = ({
   selectedTemplateName: string;
   toleranciaIngreso: number;
 }): OperationalScheduleSummary => {
-  const employeeLabel = `${selectedEmployeeCount} collaborator${selectedEmployeeCount === 1 ? '' : 's'}`;
-  const scheduleType = isOpenSchedule ? 'Open schedule' : 'Strict schedule';
-  const daysLabel = formatWorkingDaysSummary(horarios);
-  const timeLabel = formatTimeSummary(horarios, isOpenSchedule);
-  const locationLabel = locationRuleSummary(locationRule);
-  const toleranceLabel = isOpenSchedule ? 'No late tolerance' : `${toleranciaIngreso} min tolerance`;
+  const employeeLabel = copy.summary.collaborators(selectedEmployeeCount);
+  const scheduleType = isOpenSchedule ? copy.summary.openSchedule : copy.summary.strictSchedule;
+  const daysLabel = formatWorkingDaysSummary(horarios, copy);
+  const timeLabel = formatTimeSummary(horarios, isOpenSchedule, copy);
+  const locationLabel = locationRuleSummary(locationRule, copy);
+  const toleranceLabel = isOpenSchedule ? copy.summary.noLateTolerance : copy.summary.minuteTolerance(toleranciaIngreso);
   const templateLabel = selectedTemplateName && selectedTemplateName !== defaultScheduleTemplateName
     ? selectedTemplateName
-    : 'Custom schedule';
+    : copy.customSchedule;
 
   return {
     compact: `${employeeLabel} | ${scheduleType} | ${daysLabel} | ${timeLabel}`,
     reviewItems: [
-      { label: 'Collaborators', value: employeeLabel },
-      { label: 'Rule type', value: scheduleType },
-      { label: 'Template', value: templateLabel },
-      { label: 'Workdays', value: daysLabel },
-      { label: 'Hours', value: timeLabel },
-      { label: 'Attendance rule', value: toleranceLabel },
-      { label: 'Location rule', value: locationLabel },
-      { label: 'Effective from', value: formatEffectiveDate(effectiveStartDate) },
+      { label: copy.summary.labels.collaborators, value: employeeLabel },
+      { label: copy.summary.labels.ruleType, value: scheduleType },
+      { label: copy.summary.labels.template, value: templateLabel },
+      { label: copy.summary.labels.workdays, value: daysLabel },
+      { label: copy.summary.labels.hours, value: timeLabel },
+      { label: copy.summary.labels.attendanceRule, value: toleranceLabel },
+      { label: copy.summary.labels.locationRule, value: locationLabel },
+      { label: copy.summary.labels.effectiveFrom, value: formatEffectiveDate(effectiveStartDate) },
     ],
   };
 };
@@ -355,6 +350,7 @@ export function ScheduleModal({
   effectiveStartDate,
   onApplied,
 }: ScheduleModalProps) {
+  const copy = useControlTranslations();
   const todayDate = dateInputValue();
   const requestedAvailabilityDate = effectiveStartDate?.trim() || todayDate;
   const defaultAvailabilityDate = requestedAvailabilityDate < todayDate ? todayDate : requestedAvailabilityDate;
@@ -385,7 +381,7 @@ export function ScheduleModal({
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
   const [deletedTemplateIds, setDeletedTemplateIds] = useState<number[]>([]);
-  const [modoHorario, setModoHorario] = useState<'Horario estricto' | 'Horario abierto'>('Horario estricto');
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('strict');
   const [toleranciaIngreso, setToleranciaIngreso] = useState(10);
   const [locationRule, setLocationRule] = useState<ScheduleLocationRule>('business');
   const [noPermitirFueraUbicacion, setNoPermitirFueraUbicacion] = useState(false);
@@ -422,7 +418,7 @@ export function ScheduleModal({
   const assignmentEffectiveStartDate = appliedAvailabilityDate || defaultAvailabilityDate;
   const hasPastAssignmentStartDate = assignmentEffectiveStartDate < todayDate;
   const assignmentDateError = hasPastAssignmentStartDate
-    ? 'Effective date cannot be in the past.'
+    ? copy.schedule.errors.effectiveDatePast
     : '';
 
   useEffect(() => {
@@ -452,7 +448,7 @@ export function ScheduleModal({
     setCurrentPage(1);
     setSelectedTemplateName(initialTemplate?.name ?? defaultScheduleTemplateName);
     setSelectedScheduleTemplateId(initialTemplate?.id ?? null);
-    setModoHorario(templateDraft.modoHorario);
+    setScheduleMode(templateDraft.scheduleMode);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
     setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
@@ -492,7 +488,7 @@ export function ScheduleModal({
           return;
         }
 
-        const message = error instanceof Error ? error.message : 'Could not load organization units.';
+        const message = error instanceof Error ? error.message : copy.schedule.errors.loadOrganizationUnits;
         setOrganizationUnits([]);
         setOrganizationBusinesses([]);
         setErrorMessage(message);
@@ -502,7 +498,7 @@ export function ScheduleModal({
     return () => {
       active = false;
     };
-  }, [isOpen]);
+  }, [copy, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -551,7 +547,7 @@ export function ScheduleModal({
           return;
         }
 
-        const message = error instanceof Error ? error.message : 'Could not load schedule candidates.';
+        const message = error instanceof Error ? error.message : copy.schedule.errors.loadScheduleCandidates;
         setCandidateAssignments([]);
         setCandidateTotalCount(0);
         setCandidateTotalPages(1);
@@ -574,20 +570,21 @@ export function ScheduleModal({
     appliedUnidadFilter,
     assignmentEffectiveStartDate,
     assignmentDateError,
+    copy,
     currentPage,
     isOpen,
   ]);
 
   const unitOptions = useMemo(
-    () => organizationUnits.map((option) => [String(option.id), option.name || 'Unit'] as const),
-    [organizationUnits],
+    () => organizationUnits.map((option) => [String(option.id), option.name || copy.labels.unit] as const),
+    [copy, organizationUnits],
   );
 
   const businessOptions = useMemo(
     () => organizationBusinesses
       .filter((option) => !unidadFilter || String(getBusinessUnitId(option) ?? '') === unidadFilter)
-      .map((option) => [String(option.id), option.name || 'Business'] as const),
-    [organizationBusinesses, unidadFilter],
+      .map((option) => [String(option.id), option.name || copy.labels.business] as const),
+    [copy, organizationBusinesses, unidadFilter],
   );
 
   const totalPages = Math.max(1, candidateTotalPages);
@@ -724,7 +721,7 @@ export function ScheduleModal({
   const businessNameById = useMemo(() => {
     const names = new Map<number, string>();
     organizationBusinesses.forEach((business) => {
-      names.set(business.id, business.name || 'Business');
+      names.set(business.id, business.name || copy.labels.business);
     });
     selectedAssignments.forEach((assignment) => {
       if (typeof assignment.business_id === 'number' && assignment.business_id > 0 && assignment.business_name) {
@@ -732,11 +729,11 @@ export function ScheduleModal({
       }
     });
     return names;
-  }, [organizationBusinesses, selectedAssignments]);
+  }, [copy, organizationBusinesses, selectedAssignments]);
   const unitNameById = useMemo(() => {
     const names = new Map<number, string>();
     organizationUnits.forEach((unit) => {
-      names.set(unit.id, unit.name || 'Unit');
+      names.set(unit.id, unit.name || copy.labels.unit);
     });
     selectedAssignments.forEach((assignment) => {
       if (typeof assignment.unit_id === 'number' && assignment.unit_id > 0 && assignment.unit_name) {
@@ -744,7 +741,7 @@ export function ScheduleModal({
       }
     });
     return names;
-  }, [organizationUnits, selectedAssignments]);
+  }, [copy, organizationUnits, selectedAssignments]);
   const selectedEmployeeBusinessWarning = useMemo(() => {
     if (selectedEmployeeIds.length === 0 || selectedAssignments.length === 0) {
       return '';
@@ -752,7 +749,7 @@ export function ScheduleModal({
 
     const missingBusinessCount = selectedAssignments.filter((assignment) => !assignment.business_id).length;
     if (missingBusinessCount > 0) {
-      return `${missingBusinessCount} selected HR user${missingBusinessCount === 1 ? '' : 's'} need an assigned business before business-location validation can work.`;
+      return copy.schedule.location.summaries.missingBusinessWarning(missingBusinessCount);
     }
 
     const businessIdsWithoutLocations = selectedBusinessIds.filter((businessId) =>
@@ -760,49 +757,64 @@ export function ScheduleModal({
     );
     if (businessIdsWithoutLocations.length > 0) {
       const businessNames = businessIdsWithoutLocations.map((businessId) => businessNameById.get(businessId) || `Business ${businessId}`);
-      return `No active attendance location is saved for ${formatPreviewList(businessNames, 'the selected business')}.`;
+      return copy.schedule.location.summaries.noActiveBusinessLocation(
+        formatPreviewList(businessNames, copy.schedule.location.summaries.selectedBusiness, copy.schedule),
+      );
     }
 
     return '';
-  }, [activeLocationOptions, businessNameById, selectedAssignments, selectedBusinessIds, selectedEmployeeIds.length]);
+  }, [activeLocationOptions, businessNameById, copy, selectedAssignments, selectedBusinessIds, selectedEmployeeIds.length]);
   const locationScopeSummary = useMemo(() => {
     if (hasSelectedEmployees && selectedAssignments.length === 0) {
-      return 'Showing all active locations until selected HR user details are available.';
+      return copy.schedule.location.summaries.loadingSelectedDetails;
     }
 
     if (scopedBusinessIds.length === 1) {
       const businessId = scopedBusinessIds[0];
-      return `Showing locations for ${businessNameById.get(businessId) || 'the selected business'}.`;
+      return copy.schedule.location.summaries.forBusiness(
+        businessNameById.get(businessId) || copy.schedule.location.summaries.selectedBusiness,
+      );
     }
 
     if (scopedBusinessIds.length > 1) {
       const businessNames = scopedBusinessIds.map((businessId) => businessNameById.get(businessId) || `Business ${businessId}`);
-      return `Showing locations from ${formatPreviewList(businessNames, 'selected businesses')}.`;
+      return copy.schedule.location.summaries.fromBusinesses(
+        formatPreviewList(businessNames, copy.schedule.location.summaries.selectedBusinesses, copy.schedule),
+      );
     }
 
     if (scopedUnitIds.length === 1) {
       const unitId = scopedUnitIds[0];
-      return `Showing locations for ${unitNameById.get(unitId) || 'the selected unit'}.`;
+      return copy.schedule.location.summaries.forUnit(
+        unitNameById.get(unitId) || copy.schedule.location.summaries.selectedUnit,
+      );
     }
 
     if (scopedUnitIds.length > 1) {
       const unitNames = scopedUnitIds.map((unitId) => unitNameById.get(unitId) || `Unit ${unitId}`);
-      return `Showing locations from ${formatPreviewList(unitNames, 'selected units')}.`;
+      return copy.schedule.location.summaries.fromUnits(
+        formatPreviewList(unitNames, copy.schedule.location.summaries.selectedUnits, copy.schedule),
+      );
     }
 
     if (appliedBusinessId) {
-      return `Showing locations for ${businessNameById.get(appliedBusinessId) || 'the current business filter'}.`;
+      return copy.schedule.location.summaries.forBusiness(
+        businessNameById.get(appliedBusinessId) || copy.schedule.location.summaries.currentBusinessFilter,
+      );
     }
 
     if (appliedUnitId) {
-      return `Showing locations for ${unitNameById.get(appliedUnitId) || 'the current unit filter'}.`;
+      return copy.schedule.location.summaries.forUnit(
+        unitNameById.get(appliedUnitId) || copy.schedule.location.summaries.currentUnitFilter,
+      );
     }
 
-    return 'Showing all active locations.';
+    return copy.schedule.location.summaries.allLocations;
   }, [
     appliedBusinessId,
     appliedUnitId,
     businessNameById,
+    copy,
     hasSelectedEmployees,
     selectedAssignments.length,
     scopedBusinessIds,
@@ -813,44 +825,50 @@ export function ScheduleModal({
   ]);
   const employeeBusinessLocationSummary = useMemo(() => {
     if (selectedEmployeeIds.length === 0) {
-      return 'Selected HR users will use the active Business Structure location saved for their assigned business.';
+      return copy.schedule.location.summaries.assignedBusinessLocation;
     }
 
     if (selectedAssignments.length === 0) {
-      return 'Selected HR users will use their assigned business location once their business details are available.';
+      return copy.schedule.location.summaries.assignedBusinessLocationPending;
     }
 
     if (selectedBusinessIds.length === 1) {
       const businessId = selectedBusinessIds[0];
-      return `Selected HR users will use ${businessNameById.get(businessId) || 'their assigned business'} location.`;
+      return copy.schedule.location.summaries.assignedBusinessLocationName(
+        businessNameById.get(businessId) || copy.schedule.location.summaries.assignedBusinessFallback,
+      );
     }
 
     if (selectedBusinessIds.length > 1) {
       const businessNames = selectedBusinessIds.map((businessId) => businessNameById.get(businessId) || `Business ${businessId}`);
-      return `Selected HR users cover ${formatPreviewList(businessNames, 'multiple businesses')}; each HR user keeps their own business location.`;
+      return copy.schedule.location.summaries.multipleBusinessLocations(
+        formatPreviewList(businessNames, copy.schedule.location.summaries.multipleBusinessesFallback, copy.schedule),
+      );
     }
 
-    return 'Selected HR users need assigned businesses for business-location validation.';
-  }, [businessNameById, selectedAssignments.length, selectedBusinessIds, selectedBusinessKey, selectedEmployeeIds.length]);
+    return copy.schedule.location.summaries.needAssignedBusiness;
+  }, [businessNameById, copy, selectedAssignments.length, selectedBusinessIds, selectedBusinessKey, selectedEmployeeIds.length]);
   const locationScopeFallbackMessage = hasLocationScope && scopedExactLocationOptions.length === 0 && activeLocationOptions.length > 0
-    ? 'No active location matched that business or unit, so all active locations are shown.'
+    ? copy.schedule.location.summaries.noScopedLocationFallback
     : '';
   const exactLocationWarning = selectedBusinessIds.length > 1
-    ? 'One exact location will apply to every selected HR user, even when they belong to different businesses.'
+    ? copy.schedule.location.summaries.exactLocationWarning
     : '';
   const operationalSummary = useMemo(() => buildOperationalScheduleSummary({
+    copy: copy.schedule,
     effectiveStartDate: assignmentEffectiveStartDate,
     horarios,
-    isOpenSchedule: modoHorario === 'Horario abierto',
+    isOpenSchedule: scheduleMode === 'open',
     locationRule,
     selectedEmployeeCount: selectedEmployeeIds.length,
     selectedTemplateName,
     toleranciaIngreso,
   }), [
     assignmentEffectiveStartDate,
+    copy,
     horarios,
     locationRule,
-    modoHorario,
+    scheduleMode,
     selectedEmployeeIds.length,
     selectedTemplateName,
     toleranciaIngreso,
@@ -877,7 +895,7 @@ export function ScheduleModal({
     );
   }
 
-  const isHorarioAbierto = modoHorario === 'Horario abierto';
+  const isOpenSchedule = scheduleMode === 'open';
 
   const rememberSelectedAssignments = (assignments: AttendanceControlAssignment[]) => {
     if (assignments.length === 0) {
@@ -965,18 +983,18 @@ export function ScheduleModal({
     setLocationRule(nextRule);
     setNoPermitirFueraUbicacion(useExactLocation);
     if (nextRule === 'open') {
-      setModoHorario('Horario abierto');
-    } else if (modoHorario === 'Horario abierto') {
-      setModoHorario('Horario estricto');
+      setScheduleMode('open');
+    } else if (scheduleMode === 'open') {
+      setScheduleMode('strict');
     }
     if (!useExactLocation) {
       setUbicacionSeleccionada('');
     }
   };
 
-  const handleScheduleModeChange = (value: 'Horario estricto' | 'Horario abierto') => {
-    setModoHorario(value);
-    if (value === 'Horario abierto') {
+  const handleScheduleModeChange = (value: ScheduleMode) => {
+    setScheduleMode(value);
+    if (value === 'open') {
       setLocationRule('open');
       setNoPermitirFueraUbicacion(false);
       setUbicacionSeleccionada('');
@@ -1103,7 +1121,7 @@ export function ScheduleModal({
     const templateDraft = draftFromTemplate(null);
     setSelectedTemplateName(defaultScheduleTemplateName);
     setSelectedScheduleTemplateId(null);
-    setModoHorario(templateDraft.modoHorario);
+    setScheduleMode(templateDraft.scheduleMode);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
     setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
@@ -1125,7 +1143,7 @@ export function ScheduleModal({
     const templateDraft = draftFromTemplate(template);
     setSelectedScheduleTemplateId(template?.id ?? null);
     setSelectedTemplateName(template?.name ?? defaultScheduleTemplateName);
-    setModoHorario(templateDraft.modoHorario);
+    setScheduleMode(templateDraft.scheduleMode);
     setToleranciaIngreso(templateDraft.toleranciaIngreso);
     setLocationRule(templateDraft.locationRule);
     setNoPermitirFueraUbicacion(templateDraft.noPermitirFueraUbicacion);
@@ -1139,10 +1157,10 @@ export function ScheduleModal({
 
   const buildTemplatePayload = (templateName = selectedTemplateName.trim() || defaultScheduleTemplateName): AttendanceControlTemplatePayload | null => {
     const usesExactLocation = locationRule === 'temporary';
-    const usesOpenRegistration = locationRule === 'open' || isHorarioAbierto;
+    const usesOpenRegistration = locationRule === 'open' || isOpenSchedule;
 
     if (usesExactLocation && !ubicacionSeleccionada) {
-      const message = 'Select the allowed location for this schedule.';
+      const message = copy.schedule.errors.selectAllowedLocation;
       setErrorMessage(message);
       showFailureToast(message);
       return null;
@@ -1154,10 +1172,10 @@ export function ScheduleModal({
 
       if (!usesOpenRegistration && !horario.isRestDay) {
         if (!startTime || !endTime) {
-          throw new Error(`Provide entry and exit times for ${horario.dia}.`);
+          throw new Error(copy.schedule.errors.missingTimeForDay(dayName(horario.dia, copy.schedule)));
         }
         if (endTime === startTime) {
-          throw new Error(`Exit time cannot equal entry time for ${horario.dia}.`);
+          throw new Error(copy.schedule.errors.equalTimeForDay(dayName(horario.dia, copy.schedule)));
         }
       }
 
@@ -1192,7 +1210,7 @@ export function ScheduleModal({
     try {
       const appliedResult = await runWithMinimumDuration((async () => {
         if (selectedEmployeeIds.length === 0) {
-          const message = 'Select at least one HR user.';
+          const message = copy.schedule.errors.selectHrUser;
           setErrorMessage(message);
           showFailureToast(message);
           return null;
@@ -1201,9 +1219,10 @@ export function ScheduleModal({
         if (selectedLockedAssignments.length > 0) {
           const lockedNames = formatPreviewList(
             selectedLockedAssignments.map((assignment) => assignment.user_name),
-            'selected HR users',
+            copy.schedule.selectedHrUsersFallback,
+            copy.schedule,
           );
-          const message = `${lockedNames} have recorded attendance or an active contract site in this date range. Choose another date or clear the blocking assignment first.`;
+          const message = copy.schedule.errors.lockedAssignments(lockedNames);
           setErrorMessage(message);
           showFailureToast(message);
           return null;
@@ -1267,7 +1286,7 @@ export function ScheduleModal({
       await Promise.resolve(onApplied?.(appliedResult));
       onClose();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'The schedule could not be applied.';
+      const message = error instanceof Error ? error.message : copy.schedule.errors.applyFailed;
       setErrorMessage(message);
       showFailureToast(message);
     } finally {
@@ -1293,12 +1312,12 @@ export function ScheduleModal({
   const saveScheduleTemplate = async () => {
     const templateName = templateNameDraft.trim();
     if (!templateName) {
-      setTemplateNameError('Enter a template name.');
+      setTemplateNameError(copy.schedule.errors.templateNameRequired);
       return;
     }
 
     if (availableTemplates.some((template) => template.name.trim().toLowerCase() === templateName.toLowerCase())) {
-      setTemplateNameError('A template with this name already exists.');
+      setTemplateNameError(copy.schedule.errors.templateExists);
       return;
     }
 
@@ -1310,7 +1329,7 @@ export function ScheduleModal({
     try {
       const payload = buildTemplatePayload(templateName);
       if (!payload) {
-        setTemplateNameError('Complete the schedule rules before saving the template.');
+        setTemplateNameError(copy.schedule.errors.templateIncomplete);
         return;
       }
 
@@ -1324,7 +1343,7 @@ export function ScheduleModal({
         rightPanelScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'The template could not be saved.';
+      const message = error instanceof Error ? error.message : copy.schedule.errors.templateSaveFailed;
       setTemplateNameError(message);
       showFailureToast(message);
     } finally {
@@ -1335,13 +1354,13 @@ export function ScheduleModal({
   const deleteSelectedScheduleTemplate = async () => {
     const template = selectedTemplate;
     if (!template) {
-      const message = 'Select a saved template before removing it.';
+      const message = copy.schedule.errors.selectTemplateBeforeRemove;
       setErrorMessage(message);
       showFailureToast(message);
       return;
     }
 
-    const confirmed = window.confirm(`Remove "${template.name}" from saved templates? Existing schedule assignments will keep their historical reference.`);
+    const confirmed = window.confirm(copy.schedule.errors.removeTemplateConfirm(template.name));
     if (!confirmed) {
       return;
     }
@@ -1359,7 +1378,7 @@ export function ScheduleModal({
       setCreatedTemplates((current) => current.filter((item) => item.id !== template.id));
       limpiarHorarios();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'The template could not be removed.';
+      const message = error instanceof Error ? error.message : copy.schedule.errors.removeTemplateFailed;
       setErrorMessage(message);
       showFailureToast(message);
     } finally {
@@ -1371,8 +1390,8 @@ export function ScheduleModal({
     <>
       <LoadingBarOverlay
         isVisible={isSubmitting}
-        title="Saving schedule"
-        description="Saving the active HR user schedule from the selected date onward."
+        title={copy.schedule.savingSchedule}
+        description={copy.schedule.savingScheduleDescription}
         className="z-[95]"
       />
       <FailureToast
@@ -1382,6 +1401,7 @@ export function ScheduleModal({
         className="z-[100]"
       />
       <SaveTemplateModal
+        copy={copy}
         errorMessage={templateNameError}
         isOpen={isSaveTemplateModalOpen}
         isSaving={isSavingTemplate}
@@ -1393,15 +1413,15 @@ export function ScheduleModal({
 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
         <div className="my-8 flex max-h-[92vh] w-full max-w-[96rem] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
-          <div className="flex shrink-0 items-start justify-between gap-4 bg-[#143675] px-6 py-4 text-white">
+          <div className="flex shrink-0 items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
                 <Clock className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-xl font-semibold tracking-tight text-white">Edit HR user schedule</h2>
+                <h2 className="truncate text-xl font-semibold tracking-tight text-white">{copy.schedule.modalTitle}</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
-                  Choose any HR user and save the schedule that stays active from the selected date onward.
+                  {copy.schedule.modalDescription}
                 </p>
               </div>
             </div>
@@ -1409,7 +1429,7 @@ export function ScheduleModal({
               type="button"
               onClick={onClose}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-              aria-label="Close modal"
+              aria-label={copy.schedule.closeModal}
             >
               <X className="h-5 w-5" />
             </button>
@@ -1435,6 +1455,7 @@ export function ScheduleModal({
                     candidateBusyCount={candidateBusyCount}
                     candidateTotalCount={candidateTotalCount}
                     changePage={changePage}
+                    copy={copy}
                     currentPage={safeCurrentPage}
                     isLoadingCandidates={isLoadingCandidates}
                     negocioFilter={negocioFilter}
@@ -1465,13 +1486,14 @@ export function ScheduleModal({
                 <div ref={rightPanelScrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 pb-28">
                   <ScheduleBuilder
                     activeStep={builderStep}
+                    copy={copy}
                     employeeBusinessLocationSummary={employeeBusinessLocationSummary}
                     exactLocationOptions={exactLocationOptions}
                     exactLocationWarning={exactLocationWarning}
                     effectiveStartDate={assignmentEffectiveStartDate}
                     horarios={horarios}
                     isDeletingTemplate={isDeletingTemplate}
-                    isHorarioAbierto={isHorarioAbierto}
+                    isOpenSchedule={isOpenSchedule}
                     isSubmitting={isSubmitting}
                     locationRule={locationRule}
                     locationScopeFallbackMessage={locationScopeFallbackMessage}
@@ -1502,9 +1524,10 @@ export function ScheduleModal({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col gap-3 bg-[#143675] px-6 py-3 text-white md:flex-row md:items-center md:justify-between">
+          <div className="flex shrink-0 flex-col gap-3 bg-[#59C3A5] px-6 py-3 text-white md:flex-row md:items-center md:justify-between">
             <ScheduleImpactSummary
               assignmentDateError={assignmentDateError}
+              copy={copy}
               effectiveStartDate={assignmentEffectiveStartDate}
               operationalSummary={operationalSummary}
               selectedEmployeeCount={selectedEmployeeIds.length}
@@ -1517,23 +1540,23 @@ export function ScheduleModal({
                 onClick={onClose}
                 className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
               >
-                Cancel
+                {copy.schedule.cancel}
               </Button>
               <Button
                 type="button"
                 onClick={() => void aplicarHorarios()}
-                className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+                className="gap-2 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
                 disabled={selectedEmployeeIds.length === 0 || isSubmitting || Boolean(assignmentDateError)}
                 title={
                   selectedEmployeeIds.length === 0
-                    ? 'Select at least one HR user first.'
+                    ? copy.schedule.errors.selectedHrUserTitle
                     : assignmentDateError
                       ? assignmentDateError
                       : undefined
                 }
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Save schedule
+                {copy.schedule.saveSchedule}
               </Button>
             </div>
           </div>
@@ -1544,6 +1567,7 @@ export function ScheduleModal({
 }
 
 function SaveTemplateModal({
+  copy,
   errorMessage,
   isOpen,
   isSaving,
@@ -1552,6 +1576,7 @@ function SaveTemplateModal({
   onSave,
   onTemplateNameChange,
 }: {
+  copy: ControlTranslations;
   errorMessage: string;
   isOpen: boolean;
   isSaving: boolean;
@@ -1567,17 +1592,17 @@ function SaveTemplateModal({
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
-        <div className="flex items-center justify-between gap-3 bg-[#143675] px-5 py-4 text-white">
+        <div className="flex items-center justify-between gap-3 bg-[#59C3A5] px-5 py-4 text-white">
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-white">Save schedule template</h3>
-            <p className="mt-1 text-sm text-white/75">Name this schedule so you can reuse it later.</p>
+            <h3 className="text-base font-semibold text-white">{copy.schedule.saveTemplate.title}</h3>
+            <p className="mt-1 text-sm text-white/75">{copy.schedule.saveTemplate.description}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isSaving}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Close template modal"
+            aria-label={copy.schedule.saveTemplate.closeAria}
           >
             <X className="h-4 w-4" />
           </button>
@@ -1586,7 +1611,7 @@ function SaveTemplateModal({
         <div className="space-y-3 p-5">
           <label>
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-              Template name
+              {copy.schedule.saveTemplate.nameLabel}
             </span>
             <input
               autoFocus
@@ -1599,8 +1624,8 @@ function SaveTemplateModal({
                   onSave();
                 }
               }}
-              placeholder="Example: Office schedule"
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              placeholder={copy.schedule.saveTemplate.placeholder}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </label>
           {errorMessage ? (
@@ -1609,12 +1634,12 @@ function SaveTemplateModal({
             </p>
           ) : (
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              This saves the current type, workdays, times, location rule, and attendance rules.
+              {copy.schedule.saveTemplate.helper}
             </p>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 bg-[#143675] px-5 py-3">
+        <div className="flex justify-end gap-3 bg-[#59C3A5] px-5 py-3">
           <Button
             type="button"
             variant="outline"
@@ -1622,16 +1647,16 @@ function SaveTemplateModal({
             disabled={isSaving}
             className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
           >
-            Cancel
+            {copy.schedule.cancel}
           </Button>
           <Button
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className="gap-2 bg-white text-[#143675] shadow-sm hover:bg-white/90 hover:text-[#143675]"
+            className="gap-2 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
           >
             <Save className="h-4 w-4" />
-            {isSaving ? 'Saving...' : 'Save template'}
+            {isSaving ? copy.schedule.saveTemplate.saving : copy.schedule.saveTemplate.save}
           </Button>
         </div>
       </div>
@@ -1647,6 +1672,7 @@ function EmployeeSelectionTable({
   candidateBusyCount,
   candidateTotalCount,
   changePage,
+  copy,
   currentPage,
   isLoadingCandidates,
   negocioFilter,
@@ -1677,6 +1703,7 @@ function EmployeeSelectionTable({
   candidateBusyCount: number;
   candidateTotalCount: number;
   changePage: (page: number) => void;
+  copy: ControlTranslations;
   currentPage: number;
   isLoadingCandidates: boolean;
   negocioFilter: string;
@@ -1705,15 +1732,15 @@ function EmployeeSelectionTable({
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Apply schedule</p>
-            <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Effective date</h3>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.filters.applySchedule}</p>
+            <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.filters.effectiveDate}</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Existing schedules will be replaced from this date. Recorded attendance stays protected.
+              {copy.schedule.filters.effectiveDescription}
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 self-start rounded-full bg-[#143675]/10 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-[#8bb3ff]/15 dark:text-[#8bb3ff] sm:self-auto">
+          <span className="inline-flex shrink-0 items-center gap-1 self-start rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA] sm:self-auto">
             <UserCheck className="h-3.5 w-3.5" />
-            {selectedEmployeeIds.length} selected
+            {copy.schedule.selectedCount(selectedEmployeeIds.length)}
           </span>
         </div>
         <input
@@ -1721,7 +1748,7 @@ function EmployeeSelectionTable({
           value={availabilityDate}
           min={todayDate}
           onChange={(event) => onAvailabilityDateChange(event.target.value)}
-          className="mt-4 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-56"
+          className="mt-4 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-56"
         />
       </section>
 
@@ -1729,18 +1756,18 @@ function EmployeeSelectionTable({
         <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 id="available-hr-users-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
-              Select HR users
+              {copy.schedule.filters.selectHrUsers}
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              New schedule starts on {assignmentEffectiveStartDate}.
+              {copy.schedule.newScheduleStartsOn(assignmentEffectiveStartDate)}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              {candidateTotalCount} shown
+              {copy.schedule.shownCount(candidateTotalCount)}
             </span>
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 dark:bg-blue-950/30 dark:text-blue-200">
-              {selectedEmployeeIds.length} selected
+              {copy.schedule.selectedCount(selectedEmployeeIds.length)}
             </span>
           </div>
         </div>
@@ -1758,30 +1785,30 @@ function EmployeeSelectionTable({
                   onApplySearchFilters();
                 }
               }}
-              placeholder="Filter by name or code"
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              placeholder={copy.schedule.filters.searchPlaceholder}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </div>
 
           <select
-            aria-label="Filter by unit"
+            aria-label={copy.schedule.filters.filterByUnit}
             value={unidadFilter}
             onChange={(event) => onUnitFilterChange(event.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
-            <option value="">All units</option>
+            <option value="">{copy.schedule.filters.allUnits}</option>
             {unitOptions.map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
 
           <select
-            aria-label="Filter by business"
+            aria-label={copy.schedule.filters.filterByBusiness}
             value={negocioFilter}
             onChange={(event) => onBusinessFilterChange(event.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
-            <option value="">All businesses</option>
+            <option value="">{copy.schedule.filters.allBusinesses}</option>
             {businessOptions.map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
@@ -1791,10 +1818,10 @@ function EmployeeSelectionTable({
             type="button"
             variant="outline"
             onClick={onApplySearchFilters}
-            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#143675] shadow-sm hover:bg-blue-50 hover:text-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8bb3ff] dark:hover:bg-blue-950/20"
+            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#59C3A5] shadow-sm hover:bg-blue-50 hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8FE0CA] dark:hover:bg-blue-950/20"
           >
             <Search className="h-4 w-4" />
-            Filter
+            {copy.schedule.filters.filter}
           </Button>
         </div>
 
@@ -1809,37 +1836,37 @@ function EmployeeSelectionTable({
                     onCheckedChange={toggleAll}
                   />
                 </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Code</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">HR User</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Dept</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Current schedule</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.table.code}</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.table.employee}</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.table.department}</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.table.currentSchedule}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-950">
               {isLoadingCandidates ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Loading HR users...
+                    {copy.schedule.filters.loadingHrUsers}
                   </td>
                 </tr>
               ) : candidateTotalCount === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No HR users match these filters.
+                    {copy.schedule.filters.noHrUsers}
                   </td>
                 </tr>
               ) : (
                 paginatedAssignments.map((assignment) => {
                   const isSelected = selectedEmployeeIds.includes(assignment.user_company_id);
                   const hasScheduleNotice = !isScheduleAssignable(assignment);
-                  const lockedReason = getScheduleBlockReason(assignment) || 'Existing attendance or contract site detected';
+                  const lockedReason = getScheduleBlockReason(assignment) || copy.schedule.existingScheduleOrSite;
                   const isAttendanceLocked = lockedReason.toLowerCase().includes('attendance');
-                  const currentScheduleName = assignment.schedule_template_name || 'No schedule saved';
+                  const currentScheduleName = assignment.schedule_template_name || copy.schedule.noScheduleSaved;
                   const statusTooltip = hasScheduleNotice
-                    ? `${lockedReason}. Choose another effective date or clear the blocking assignment first.`
+                    ? `${lockedReason}. ${copy.schedule.chooseAnotherDate}`
                     : assignment.schedule_template_name
-                      ? 'Existing schedule will be replaced from the selected effective date.'
-                      : 'This HR user can receive a new active schedule.';
+                      ? copy.schedule.existingScheduleWillReplace
+                      : copy.schedule.canReceiveSchedule;
 
                   return (
                     <tr
@@ -1893,16 +1920,16 @@ function EmployeeSelectionTable({
           <div className="flex flex-col gap-4 border-t border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Showing {paginationStart}-{paginationEnd} of {candidateTotalCount} HR users
+                {copy.schedule.showingRows(paginationStart, paginationEnd, candidateTotalCount)}
               </p>
               {candidateBusyCount > 0 ? (
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {candidateBusyCount} HR users have attendance or contract-site context on this date. Existing schedules can be replaced from the selected effective date.
+                  {copy.schedule.filters.busyContext(candidateBusyCount)}
                 </p>
               ) : null}
             </div>
             <div className="flex flex-col items-start gap-2 md:items-end">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Page {currentPage} of {totalPages}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{copy.schedule.pageLabel(currentPage, totalPages)}</p>
               <Pagination className="mx-0 w-auto justify-start md:justify-end">
                 <PaginationContent>
                   <PaginationItem>
@@ -1959,13 +1986,14 @@ function EmployeeSelectionTable({
 
 function ScheduleBuilder({
   activeStep,
+  copy,
   employeeBusinessLocationSummary,
   exactLocationOptions,
   exactLocationWarning,
   effectiveStartDate,
   horarios,
   isDeletingTemplate,
-  isHorarioAbierto,
+  isOpenSchedule,
   isSubmitting,
   locationRule,
   locationScopeFallbackMessage,
@@ -1992,13 +2020,14 @@ function ScheduleBuilder({
   onWorkingDayChange,
 }: {
   activeStep: ScheduleBuilderStep;
+  copy: ControlTranslations;
   employeeBusinessLocationSummary: string;
   exactLocationOptions: AttendanceControlLocation[];
   exactLocationWarning: string;
   effectiveStartDate: string;
   horarios: HorarioDiaDraft[];
   isDeletingTemplate: boolean;
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   isSubmitting: boolean;
   locationRule: ScheduleLocationRule;
   locationScopeFallbackMessage: string;
@@ -2015,7 +2044,7 @@ function ScheduleBuilder({
   onDeleteSelectedTemplate: () => void;
   onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
   onLocationRuleChange: (value: string) => void;
-  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  onModeChange: (value: ScheduleMode) => void;
   onOpenSaveTemplateModal: () => void;
   onStepChange: (step: ScheduleBuilderStep) => void;
   onResetSchedule: () => void;
@@ -2024,6 +2053,7 @@ function ScheduleBuilder({
   onUbicacionSeleccionadaChange: (value: string) => void;
   onWorkingDayChange: (index: number, isWorkingDay: boolean) => void;
 }) {
+  const scheduleBuilderSteps = useMemo(() => getScheduleBuilderSteps(copy.schedule), [copy]);
   const activeTemplates = templates.filter((template) => template.status !== 'inactive');
   const currentStepIndex = scheduleBuilderSteps.findIndex((step) => step.id === activeStep);
   const canGoBack = currentStepIndex > 0;
@@ -2043,29 +2073,30 @@ function ScheduleBuilder({
 
   return (
     <section aria-labelledby="schedule-details-heading" className="flex min-h-full flex-col gap-5">
-      <div className="rounded-2xl border border-[#143675]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8bb3ff]/30 dark:bg-blue-950/20">
+      <div className="rounded-2xl border border-[#59C3A5]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8FE0CA]/30 dark:bg-blue-950/20">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 id="schedule-details-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
-              Operational rule builder
+              {copy.schedule.builder.title}
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Build the workforce rule in steps, then review exactly what will be applied.
+              {copy.schedule.builder.description}
             </p>
           </div>
-          <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#143675] shadow-sm dark:bg-slate-950 dark:text-[#8bb3ff]">
+          <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#59C3A5] shadow-sm dark:bg-slate-950 dark:text-[#8FE0CA]">
             {currentStepIndex + 1}/{scheduleBuilderSteps.length}
           </span>
         </div>
 
-        <ScheduleWorkflowTabs activeStep={activeStep} onStepChange={onStepChange} />
+        <ScheduleWorkflowTabs activeStep={activeStep} copy={copy} onStepChange={onStepChange} />
       </div>
 
       {activeStep === 'setup' ? (
         <ScheduleSetupStep
           activeTemplates={activeTemplates}
+          copy={copy}
           isDeletingTemplate={isDeletingTemplate}
-          isHorarioAbierto={isHorarioAbierto}
+          isOpenSchedule={isOpenSchedule}
           isSubmitting={isSubmitting}
           selectedScheduleTemplateId={selectedScheduleTemplateId}
           selectedTemplateName={selectedTemplateName}
@@ -2080,13 +2111,15 @@ function ScheduleBuilder({
       {activeStep === 'workdays' ? (
         <section className="space-y-4">
           <WorkingGrid
+            copy={copy}
             horarios={horarios}
-            isHorarioAbierto={isHorarioAbierto}
+            isOpenSchedule={isOpenSchedule}
             onCopyMondayToAllDays={onCopyMondayToAllDays}
             onHorarioChange={onHorarioChange}
             onWorkingDayChange={onWorkingDayChange}
           />
           <BreakConfigurationCard
+            copy={copy}
             horarios={horarios}
             onHorarioChange={onHorarioChange}
           />
@@ -2095,15 +2128,17 @@ function ScheduleBuilder({
 
       {activeStep === 'rules' ? (
         <section className="space-y-4">
-          {!isHorarioAbierto ? (
+          {!isOpenSchedule ? (
             <AttendanceRulesCard
+              copy={copy}
               toleranciaIngreso={toleranciaIngreso}
               onToleranciaIngresoChange={onToleranciaIngresoChange}
             />
           ) : (
-            <OpenScheduleRulesCard />
+            <OpenScheduleRulesCard copy={copy} />
           )}
           <LocationRuleSelector
+            copy={copy}
             employeeBusinessLocationSummary={employeeBusinessLocationSummary}
             exactLocationOptions={exactLocationOptions}
             exactLocationWarning={exactLocationWarning}
@@ -2120,9 +2155,10 @@ function ScheduleBuilder({
 
       {activeStep === 'review' ? (
         <ScheduleReviewStep
+          copy={copy}
           effectiveStartDate={effectiveStartDate}
           horarios={horarios}
-          isHorarioAbierto={isHorarioAbierto}
+          isOpenSchedule={isOpenSchedule}
           locationRule={locationRule}
           operationalSummary={operationalSummary}
           selectedEmployeeCount={selectedEmployeeCount}
@@ -2139,7 +2175,7 @@ function ScheduleBuilder({
           disabled={!canGoBack}
           className="rounded-xl"
         >
-          Back
+          {copy.schedule.builder.back}
         </Button>
         <div className="min-w-0 text-center text-xs text-slate-500 dark:text-slate-400">
           {operationalSummary.compact}
@@ -2148,9 +2184,9 @@ function ScheduleBuilder({
           type="button"
           onClick={goNext}
           disabled={!canGoNext}
-          className="rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+          className="rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
         >
-          {canGoNext ? 'Continue' : 'Ready to save'}
+          {canGoNext ? copy.schedule.builder.continue : copy.schedule.builder.readyToSave}
         </Button>
       </div>
     </section>
@@ -2159,11 +2195,14 @@ function ScheduleBuilder({
 
 function ScheduleWorkflowTabs({
   activeStep,
+  copy,
   onStepChange,
 }: {
   activeStep: ScheduleBuilderStep;
+  copy: ControlTranslations;
   onStepChange: (step: ScheduleBuilderStep) => void;
 }) {
+  const scheduleBuilderSteps = useMemo(() => getScheduleBuilderSteps(copy.schedule), [copy]);
   return (
     <div className="mt-4 grid gap-2 sm:grid-cols-4">
       {scheduleBuilderSteps.map((step, index) => {
@@ -2175,11 +2214,11 @@ function ScheduleWorkflowTabs({
             onClick={() => onStepChange(step.id)}
             className={`rounded-xl border px-3 py-2 text-left transition-colors ${
               isActive
-                ? 'border-[#143675] bg-white text-[#143675] shadow-sm dark:border-[#8bb3ff] dark:bg-slate-950 dark:text-[#8bb3ff]'
+                ? 'border-[#59C3A5] bg-white text-[#59C3A5] shadow-sm dark:border-[#8FE0CA] dark:bg-slate-950 dark:text-[#8FE0CA]'
                 : 'border-transparent bg-white/50 text-slate-600 hover:bg-white dark:bg-slate-900/30 dark:text-slate-300 dark:hover:bg-slate-900'
             }`}
           >
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">{`Step ${index + 1}`}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">{copy.schedule.builder.stepLabel(index + 1)}</span>
             <span className="mt-1 block text-sm font-semibold">{step.label}</span>
             <span className="mt-0.5 block text-xs opacity-75">{step.description}</span>
           </button>
@@ -2191,8 +2230,9 @@ function ScheduleWorkflowTabs({
 
 function ScheduleSetupStep({
   activeTemplates,
+  copy,
   isDeletingTemplate,
-  isHorarioAbierto,
+  isOpenSchedule,
   isSubmitting,
   selectedScheduleTemplateId,
   selectedTemplateName,
@@ -2203,13 +2243,14 @@ function ScheduleSetupStep({
   onScheduleTemplateChange,
 }: {
   activeTemplates: AttendanceControlTemplate[];
+  copy: ControlTranslations;
   isDeletingTemplate: boolean;
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   isSubmitting: boolean;
   selectedScheduleTemplateId: number | null;
   selectedTemplateName: string;
   onDeleteSelectedTemplate: () => void;
-  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  onModeChange: (value: ScheduleMode) => void;
   onOpenSaveTemplateModal: () => void;
   onResetSchedule: () => void;
   onScheduleTemplateChange: (value: string) => void;
@@ -2218,14 +2259,15 @@ function ScheduleSetupStep({
     <section className="space-y-4">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Start here</p>
-          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">What rule are you applying?</h3>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.setup.eyebrow}</p>
+          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.title}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Use a saved template for recurring workforce rules, or build a new schedule for this group.
+            {copy.schedule.setup.description}
           </p>
         </div>
         <ScheduleTemplateSelector
           activeTemplates={activeTemplates}
+          copy={copy}
           isDeletingTemplate={isDeletingTemplate}
           isSubmitting={isSubmitting}
           selectedScheduleTemplateId={selectedScheduleTemplateId}
@@ -2235,7 +2277,7 @@ function ScheduleSetupStep({
         />
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onResetSchedule} disabled={isSubmitting}>
-            Create new schedule
+            {copy.schedule.setup.createNewSchedule}
           </Button>
           <Button
             type="button"
@@ -2243,17 +2285,18 @@ function ScheduleSetupStep({
             size="sm"
             onClick={onOpenSaveTemplateModal}
             disabled={isSubmitting}
-            className="gap-2 text-[#143675] hover:text-[#143675] dark:text-[#8bb3ff]"
+            className="gap-2 text-[#59C3A5] hover:text-[#59C3A5] dark:text-[#8FE0CA]"
           >
             <Save className="h-4 w-4" />
-            Save as template
+            {copy.schedule.setup.saveAsTemplate}
           </Button>
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <ScheduleTypeSelector
-          isHorarioAbierto={isHorarioAbierto}
+          copy={copy}
+          isOpenSchedule={isOpenSchedule}
           onModeChange={onModeChange}
         />
       </div>
@@ -2262,60 +2305,62 @@ function ScheduleSetupStep({
 }
 
 function ScheduleTypeSelector({
-  isHorarioAbierto,
+  copy,
+  isOpenSchedule,
   onModeChange,
 }: {
-  isHorarioAbierto: boolean;
-  onModeChange: (value: 'Horario estricto' | 'Horario abierto') => void;
+  copy: ControlTranslations;
+  isOpenSchedule: boolean;
+  onModeChange: (value: ScheduleMode) => void;
 }) {
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Schedule type</span>
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.setup.scheduleType}</span>
       <div className="grid gap-3 md:grid-cols-2">
         <button
           type="button"
-          onClick={() => onModeChange('Horario estricto')}
+          onClick={() => onModeChange('strict')}
           className={`rounded-2xl border p-4 text-left transition-all ${
-            !isHorarioAbierto
-              ? 'border-[#143675] bg-white ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+            !isOpenSchedule
+              ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
           }`}
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              !isHorarioAbierto ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              !isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
-              {!isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+              {!isOpenSchedule ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
             </span>
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">Strict schedule</p>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.strictTitle}</p>
               <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                Formal start and end times are required for attendance access.
+                {copy.schedule.setup.strictDescription}
               </p>
             </div>
           </div>
         </button>
         <button
           type="button"
-          onClick={() => onModeChange('Horario abierto')}
+          onClick={() => onModeChange('open')}
           className={`rounded-2xl border p-4 text-left transition-all ${
-            isHorarioAbierto
-              ? 'border-[#143675] bg-white ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+            isOpenSchedule
+              ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
           }`}
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              isHorarioAbierto ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
-              {isHorarioAbierto ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+              {isOpenSchedule ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
             </span>
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">Open schedule</p>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.openTitle}</p>
               <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                Workdays are active, but no fixed access time is stored.
+                {copy.schedule.setup.openDescription}
               </p>
             </div>
           </div>
@@ -2327,6 +2372,7 @@ function ScheduleTypeSelector({
 
 function ScheduleTemplateSelector({
   activeTemplates,
+  copy,
   isDeletingTemplate,
   isSubmitting,
   selectedScheduleTemplateId,
@@ -2335,6 +2381,7 @@ function ScheduleTemplateSelector({
   onScheduleTemplateChange,
 }: {
   activeTemplates: AttendanceControlTemplate[];
+  copy: ControlTranslations;
   isDeletingTemplate: boolean;
   isSubmitting: boolean;
   selectedScheduleTemplateId: number | null;
@@ -2348,20 +2395,20 @@ function ScheduleTemplateSelector({
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Reusable template</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use a saved workforce rule or continue with a custom setup.</p>
+          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.template.title}</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.schedule.template.description}</p>
         </div>
-        <span className="inline-flex max-w-[14rem] shrink-0 truncate rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#143675] dark:bg-blue-950/40 dark:text-[#8bb3ff]">
-          {selectedTemplateName}
+        <span className="inline-flex max-w-[14rem] shrink-0 truncate rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-blue-950/40 dark:text-[#8FE0CA]">
+          {selectedTemplateName === defaultScheduleTemplateName ? copy.schedule.defaultTemplateName : selectedTemplateName}
         </span>
       </div>
       <select
         value={selectedScheduleTemplateId ? String(selectedScheduleTemplateId) : ''}
         onChange={(event) => onScheduleTemplateChange(event.target.value)}
         disabled={isDeletingTemplate || isSubmitting}
-        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#143675] focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       >
-        <option value="">Default schedule</option>
+        <option value="">{copy.schedule.defaultTemplateOption}</option>
         {activeTemplates.map((template) => (
           <option key={template.id} value={template.id}>{template.name}</option>
         ))}
@@ -2369,8 +2416,8 @@ function ScheduleTemplateSelector({
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
           {selectedScheduleTemplateId
-            ? 'Remove unused templates from the active list without changing historical assignments.'
-            : 'Select a saved template to remove it from active options.'}
+            ? copy.schedule.template.removeSelected
+            : copy.schedule.template.selectToRemove}
         </p>
         <Button
           type="button"
@@ -2381,7 +2428,7 @@ function ScheduleTemplateSelector({
           className="shrink-0 gap-2 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 disabled:text-slate-400 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/20"
         >
           <Trash2 className="h-4 w-4" />
-          {isDeletingTemplate ? 'Removing...' : 'Remove template'}
+          {isDeletingTemplate ? copy.schedule.template.removing : copy.schedule.template.remove}
         </Button>
       </div>
     </div>
@@ -2389,14 +2436,16 @@ function ScheduleTemplateSelector({
 }
 
 function WorkingGrid({
+  copy,
   horarios,
-  isHorarioAbierto,
+  isOpenSchedule,
   onCopyMondayToAllDays,
   onHorarioChange,
   onWorkingDayChange,
 }: {
+  copy: ControlTranslations;
   horarios: HorarioDiaDraft[];
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   onCopyMondayToAllDays: () => void;
   onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
   onWorkingDayChange: (index: number, isWorkingDay: boolean) => void;
@@ -2405,14 +2454,14 @@ function WorkingGrid({
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Work rhythm</p>
-          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Working days and hours</h3>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.eyebrow}</p>
+          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.workdays.title}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Turn each day on or off and set the expected access window.
+            {copy.schedule.workdays.description}
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onCopyMondayToAllDays}>
-          Copy Monday to all days
+          {copy.schedule.workdays.copyMonday}
         </Button>
       </div>
 
@@ -2440,50 +2489,50 @@ function WorkingGrid({
                     onCheckedChange={(checked) => onWorkingDayChange(index, checked === true)}
                   />
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-slate-950 dark:text-white">{dayName(horario.dia)}</span>
+                    <span className="block text-sm font-semibold text-slate-950 dark:text-white">{dayName(horario.dia, copy.schedule)}</span>
                     <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                       isWorkingDay
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
                         : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                     }`}
                     >
-                      {isWorkingDay ? 'Working day' : 'Off day'}
+                      {isWorkingDay ? copy.schedule.workdays.workingDay : copy.schedule.workdays.offDay}
                     </span>
                   </span>
                 </label>
 
-                {!isHorarioAbierto && isWorkingDay ? (
+                {!isOpenSchedule && isWorkingDay ? (
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:w-64">
                     <label>
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Start</span>
+                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.start}</span>
                       <input
                         type="time"
                         value={horario.entrada}
                         onChange={(event) => onHorarioChange(index, 'entrada', event.target.value)}
-                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                       />
                     </label>
-                    <span className="mt-6 text-sm font-semibold text-slate-400">to</span>
+                    <span className="mt-6 text-sm font-semibold text-slate-400">{copy.schedule.workdays.to}</span>
                     <label>
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">End</span>
+                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.end}</span>
                       <input
                         type="time"
                         value={horario.salida}
                         onChange={(event) => onHorarioChange(index, 'salida', event.target.value)}
-                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                       />
                     </label>
                   </div>
                 ) : null}
 
-                {isHorarioAbierto && isWorkingDay ? (
+                {isOpenSchedule && isWorkingDay ? (
                   <p className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-slate-950 dark:text-emerald-200">
-                    Open access day
+                    {copy.schedule.workdays.openAccessDay}
                   </p>
                 ) : null}
               </div>
               {isOvernightShift ? (
-                <p className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-300">This shift ends the next day.</p>
+                <p className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-300">{copy.schedule.workdays.overnightShift}</p>
               ) : null}
             </div>
           );
@@ -2494,9 +2543,11 @@ function WorkingGrid({
 }
 
 function BreakConfigurationCard({
+  copy,
   horarios,
   onHorarioChange,
 }: {
+  copy: ControlTranslations;
   horarios: HorarioDiaDraft[];
   onHorarioChange: (index: number, field: keyof HorarioDiaDraft, value: string | number | boolean) => void;
 }) {
@@ -2514,10 +2565,10 @@ function BreakConfigurationCard({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Breaks</p>
-        <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Rest time</h3>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.breaks.eyebrow}</p>
+        <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.title}</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Keep breaks simple. Minutes are applied to active workdays.
+          {copy.schedule.breaks.description}
         </p>
       </div>
 
@@ -2525,8 +2576,8 @@ function BreakConfigurationCard({
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
           <label className="flex items-center justify-between gap-3">
             <span>
-              <span className="block text-sm font-semibold text-slate-950 dark:text-white">Includes meal break</span>
-              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">Useful for standard lunch or meal time.</span>
+              <span className="block text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.mealTitle}</span>
+              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{copy.schedule.breaks.mealDescription}</span>
             </span>
             <Checkbox
               checked={hasMealBreak}
@@ -2540,9 +2591,9 @@ function BreakConfigurationCard({
                 min="0"
                 value={mealMinutes}
                 onChange={(event) => updateAllWorkingDays('comida', Number(event.target.value) || 0)}
-                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
-              <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+              <span className="text-sm text-slate-600 dark:text-slate-400">{copy.schedule.breaks.minutes}</span>
             </div>
           ) : null}
         </div>
@@ -2550,8 +2601,8 @@ function BreakConfigurationCard({
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
           <label className="flex items-center justify-between gap-3">
             <span>
-              <span className="block text-sm font-semibold text-slate-950 dark:text-white">Includes short break</span>
-              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">Optional additional rest time.</span>
+              <span className="block text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.shortTitle}</span>
+              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{copy.schedule.breaks.shortDescription}</span>
             </span>
             <Checkbox
               checked={hasShortBreak}
@@ -2565,9 +2616,9 @@ function BreakConfigurationCard({
                 min="0"
                 value={breakMinutes}
                 onChange={(event) => updateAllWorkingDays('descanso', Number(event.target.value) || 0)}
-                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#143675] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
-              <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+              <span className="text-sm text-slate-600 dark:text-slate-400">{copy.schedule.breaks.minutes}</span>
             </div>
           ) : null}
         </div>
@@ -2577,24 +2628,26 @@ function BreakConfigurationCard({
 }
 
 function AttendanceRulesCard({
+  copy,
   toleranciaIngreso,
   onToleranciaIngresoChange,
 }: {
+  copy: ControlTranslations;
   toleranciaIngreso: number;
   onToleranciaIngresoChange: (value: number) => void;
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Attendance</p>
-        <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Late tolerance</h3>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.attendance.eyebrow}</p>
+        <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.attendance.title}</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Define when the system should mark a collaborator as late.
+          {copy.schedule.attendance.description}
         </p>
       </div>
 
       <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/60 dark:bg-orange-950/30">
-        <label className="mb-2 block text-sm font-semibold text-slate-900 dark:text-white">Mark late after</label>
+        <label className="mb-2 block text-sm font-semibold text-slate-900 dark:text-white">{copy.schedule.attendance.markLateAfter}</label>
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -2604,23 +2657,23 @@ function AttendanceRulesCard({
             onChange={(event) => onToleranciaIngresoChange(Number(event.target.value) || 0)}
             className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           />
-          <span className="text-sm text-slate-600 dark:text-slate-400">minutes</span>
+          <span className="text-sm text-slate-600 dark:text-slate-400">{copy.schedule.attendance.minutes}</span>
         </div>
         <p className="mt-2 text-xs text-orange-700 dark:text-orange-300">
-          Collaborators can still clock in after this time. The attendance record will be marked late.
+          {copy.schedule.attendance.helper}
         </p>
       </div>
     </section>
   );
 }
 
-function OpenScheduleRulesCard() {
+function OpenScheduleRulesCard({ copy }: { copy: ControlTranslations }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
-        <p className="font-semibold">Open schedule selected</p>
+        <p className="font-semibold">{copy.schedule.attendance.openTitle}</p>
         <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">
-          Workdays are active, but fixed entry and exit times are not stored. Late tolerance does not apply.
+          {copy.schedule.attendance.openDescription}
         </p>
       </div>
     </section>
@@ -2628,18 +2681,20 @@ function OpenScheduleRulesCard() {
 }
 
 function ScheduleReviewStep({
+  copy,
   effectiveStartDate,
   horarios,
-  isHorarioAbierto,
+  isOpenSchedule,
   locationRule,
   operationalSummary,
   selectedEmployeeCount,
   selectedTemplateName,
   toleranciaIngreso,
 }: {
+  copy: ControlTranslations;
   effectiveStartDate: string;
   horarios: HorarioDiaDraft[];
-  isHorarioAbierto: boolean;
+  isOpenSchedule: boolean;
   locationRule: ScheduleLocationRule;
   operationalSummary: OperationalScheduleSummary;
   selectedEmployeeCount: number;
@@ -2653,21 +2708,21 @@ function ScheduleReviewStep({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Operational review</p>
-        <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">What will happen after saving?</h3>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.review.eyebrow}</p>
+        <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.review.title}</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Review the rule before applying it to the selected collaborators.
+          {copy.schedule.review.description}
         </p>
       </div>
 
       {hasNoEmployees ? (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-          Select at least one collaborator on the left before saving this schedule.
+          {copy.schedule.review.selectCollaborator}
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-[#143675]/20 bg-blue-50 p-4 text-[#143675] dark:border-[#8bb3ff]/30 dark:bg-blue-950/20 dark:text-blue-100">
-        <p className="text-sm font-semibold">Schedule will apply</p>
+      <div className="rounded-2xl border border-[#59C3A5]/20 bg-blue-50 p-4 text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-blue-950/20 dark:text-blue-100">
+        <p className="text-sm font-semibold">{copy.schedule.review.willApply}</p>
         <p className="mt-2 text-lg font-semibold leading-7">{operationalSummary.compact}</p>
       </div>
 
@@ -2679,26 +2734,25 @@ function ScheduleReviewStep({
           </div>
         ))}
         <div className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
-          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Breaks</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.summary.labels.breaks}</span>
           <span className="text-sm font-medium text-slate-950 dark:text-white">
-            {mealMinutes > 0 || breakMinutes > 0
-              ? `${mealMinutes > 0 ? `${mealMinutes} min meal` : 'No meal break'}; ${breakMinutes > 0 ? `${breakMinutes} min short break` : 'no short break'}`
-              : 'No breaks configured'}
+            {copy.schedule.summary.breakSummary(mealMinutes, breakMinutes)}
           </span>
         </div>
       </div>
 
       <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-        Existing schedules are replaced from {formatEffectiveDate(effectiveStartDate)}. Recorded attendance remains protected.
-        {isHorarioAbierto ? ' Open schedules store active workdays without fixed entry or exit times.' : ` Strict schedules use ${toleranciaIngreso} minutes of late tolerance.`}
-        {selectedTemplateName && selectedTemplateName !== defaultScheduleTemplateName ? ` Template: ${selectedTemplateName}.` : ''}
-        {locationRule === 'open' ? ' No exact location will be enforced.' : ''}
+        {copy.schedule.summary.existingSchedulesProtected(formatEffectiveDate(effectiveStartDate))}
+        {isOpenSchedule ? ` ${copy.schedule.summary.openScheduleNote}` : ` ${copy.schedule.summary.strictScheduleNote(toleranciaIngreso)}`}
+        {selectedTemplateName && selectedTemplateName !== defaultScheduleTemplateName ? ` ${copy.schedule.summary.templateNote(selectedTemplateName)}` : ''}
+        {locationRule === 'open' ? ` ${copy.schedule.summary.noExactLocationNote}` : ''}
       </p>
     </section>
   );
 }
 
 function LocationRuleSelector({
+  copy,
   employeeBusinessLocationSummary,
   exactLocationOptions,
   exactLocationWarning,
@@ -2710,6 +2764,7 @@ function LocationRuleSelector({
   onLocationRuleChange,
   onUbicacionSeleccionadaChange,
 }: {
+  copy: ControlTranslations;
   employeeBusinessLocationSummary: string;
   exactLocationOptions: AttendanceControlLocation[];
   exactLocationWarning: string;
@@ -2728,31 +2783,31 @@ function LocationRuleSelector({
   }> = [
     {
       value: 'business',
-      title: 'Force to HR user business location',
-      description: 'Use the active location saved for each HR user business.',
+      title: copy.schedule.location.options.business.title,
+      description: copy.schedule.location.options.business.description,
     },
     {
       value: 'temporary',
-      title: 'Temporary location',
-      description: 'Force all selected HR users to one temporary location.',
+      title: copy.schedule.location.options.temporary.title,
+      description: copy.schedule.location.options.temporary.description,
     },
     {
       value: 'open',
-      title: 'Open (no restriction)',
-      description: 'Do not enforce a specific check-in location from this schedule.',
+      title: copy.schedule.location.options.open.title,
+      description: copy.schedule.location.options.open.description,
     },
   ];
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Location</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.location.eyebrow}</p>
         <h3 className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-white">
-          <MapPin className="h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
-          Check-in location rule
+          <MapPin className="h-4 w-4 text-[#59C3A5] dark:text-[#8FE0CA]" />
+          {copy.schedule.location.title}
         </h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Choose how location validation should behave for this schedule.
+          {copy.schedule.location.description}
         </p>
       </div>
 
@@ -2766,13 +2821,13 @@ function LocationRuleSelector({
               onClick={() => onLocationRuleChange(option.value)}
               className={`rounded-2xl border p-4 text-left transition-all ${
                 isSelected
-                  ? 'border-[#143675] bg-blue-50 ring-2 ring-[#143675]/10 dark:border-[#8bb3ff] dark:bg-blue-950/20'
+                  ? 'border-[#59C3A5] bg-blue-50 ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
                   : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50'
               }`}
             >
               <div className="flex items-start gap-3">
                 <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                  isSelected ? 'border-[#143675] bg-[#143675] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+                  isSelected ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
                 }`}
                 >
                   {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
@@ -2790,15 +2845,15 @@ function LocationRuleSelector({
       {locationRule === 'temporary' ? (
         <div className="mt-4">
           <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            Temporary location
+            {copy.schedule.location.temporaryLabel}
           </label>
           <select
             value={ubicacionSeleccionada}
             onChange={(event) => onUbicacionSeleccionadaChange(event.target.value)}
             disabled={exactLocationOptions.length === 0}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#143675] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
-            <option value="">{exactLocationOptions.length === 0 ? 'No active locations available' : 'Select location'}</option>
+            <option value="">{exactLocationOptions.length === 0 ? copy.schedule.location.noActiveLocations : copy.schedule.location.selectLocation}</option>
             {exactLocationOptions.map((location) => (
               <option key={location.id} value={location.id}>{formatLocationOption(location)}</option>
             ))}
@@ -2827,7 +2882,7 @@ function LocationRuleSelector({
 
       {locationRule === 'open' ? (
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
-          No exact location will be enforced by this schedule.
+          {copy.schedule.location.openNoExactLocation}
         </div>
       ) : null}
     </section>
@@ -2837,22 +2892,24 @@ function LocationRuleSelector({
 function ScheduleImpactSummary({
   assignmentDateError,
   compact = false,
+  copy,
   effectiveStartDate,
   operationalSummary,
   selectedEmployeeCount,
 }: {
   assignmentDateError: string;
   compact?: boolean;
+  copy: ControlTranslations;
   effectiveStartDate: string;
   operationalSummary: OperationalScheduleSummary;
   selectedEmployeeCount: number;
 }) {
   const formattedStartDate = formatEffectiveDate(effectiveStartDate);
   const hasSelectedEmployees = selectedEmployeeCount > 0;
-  const startMessage = `Schedule will be applied starting ${formattedStartDate}.`;
+  const startMessage = copy.schedule.impact.startMessage(formattedStartDate);
   const overrideMessage = hasSelectedEmployees
-    ? 'Existing schedules will be replaced from that date; recorded attendance remains protected.'
-    : 'Select HR users after reviewing the schedule.';
+    ? copy.schedule.impact.overrideMessageSelected
+    : copy.schedule.impact.overrideMessageEmpty;
 
   if (compact) {
     return (
@@ -2866,9 +2923,9 @@ function ScheduleImpactSummary({
   return (
     <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
       <div className="flex items-start gap-3">
-        <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#143675] dark:text-[#8bb3ff]" />
+        <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-[#8FE0CA]" />
         <div>
-          <p className="font-semibold">{selectedEmployeeCount} HR user{selectedEmployeeCount === 1 ? '' : 's'} selected</p>
+          <p className="font-semibold">{copy.schedule.impact.selectedUsers(selectedEmployeeCount)}</p>
           <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{assignmentDateError || startMessage}</p>
           {!assignmentDateError ? (
             <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{overrideMessage}</p>

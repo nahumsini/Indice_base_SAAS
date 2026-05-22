@@ -55,45 +55,45 @@ const valueFromMetadata = (metadata: Record<string, unknown> | undefined, keys: 
   return null;
 };
 
-const kioskTypeLabel = (device: AttendanceKioskDevice) => {
+const kioskTypeLabel = (device: AttendanceKioskDevice, copy: AttendanceControlCopy) => {
   const kioskType = kioskTypeFromMetadata(device.metadata);
   if (kioskType === 'contract_site') {
-    return 'Temporary work site';
+    return copy.kiosk.messages.typeLabelContractSite;
   }
   if (kioskType === 'head_office') {
-    return 'Main office';
+    return copy.kiosk.messages.typeLabelHeadOffice;
   }
   if (kioskType === 'open_attendance') {
-    return 'Open attendance';
+    return copy.kiosk.messages.typeLabelOpenAttendance;
   }
-  return 'Business or unit';
+  return copy.kiosk.messages.typeLabelBusinessUnit;
 };
 
-const scopeDescriptionForDevice = (device: AttendanceKioskDevice) => {
+const scopeDescriptionForDevice = (device: AttendanceKioskDevice, copy: AttendanceControlCopy) => {
   const kioskType = kioskTypeFromMetadata(device.metadata);
-  const unitName = device.unit_name || 'all units';
-  const businessName = device.business_name || 'all businesses';
+  const unitName = device.unit_name || copy.labels.allUnits;
+  const businessName = device.business_name || copy.labels.allBusinesses;
 
   if (kioskType === 'contract_site') {
-    return `Available for ${unitName} / ${businessName}`;
+    return copy.kiosk.messages.availableForUnitBusiness(unitName, businessName);
   }
 
   if (kioskType === 'head_office') {
-    return `Available for main office registration in ${unitName}`;
+    return copy.kiosk.messages.availableForMainOffice(unitName);
   }
   if (kioskType === 'open_attendance') {
-    return 'Available for all employees';
+    return copy.kiosk.messages.allEmployeesAvailable;
   }
 
   if (device.business_id) {
-    return `Available for ${businessName} in ${unitName}`;
+    return copy.kiosk.messages.availableForBusinessInUnit(businessName, unitName);
   }
 
   if (device.unit_id) {
-    return `Available for ${unitName} and all businesses`;
+    return copy.kiosk.messages.availableForUnitAllBusinesses(unitName);
   }
 
-  return 'Available for all units and all businesses';
+  return copy.kiosk.messages.allUnitsAllBusinessesAvailable;
 };
 
 const locationNameForDevice = (
@@ -108,33 +108,34 @@ const locationNameForDevice = (
 const locationRuleForDevice = (
   device: AttendanceKioskDevice,
   locations: AttendanceControlLocation[],
+  copy: AttendanceControlCopy,
 ) => {
   const kioskType = kioskTypeFromMetadata(device.metadata);
   const locationName = locationNameForDevice(device, locations);
 
   if (kioskType === 'business_unit' && !device.location_id) {
-    return "Uses each employee's assigned business location.";
+    return copy.kiosk.messages.employeeLocationRule;
   }
   if (kioskType === 'open_attendance') {
-    return 'Location is not enforced. GPS is captured when available.';
+    return copy.kiosk.messages.openAttendanceLocationRule;
   }
 
   if (!locationName) {
-    return 'No check-in rule linked yet.';
+    return copy.kiosk.messages.noCheckInRule;
   }
 
   if (kioskType === 'contract_site') {
-    return `Employees register from ${locationName}.`;
+    return copy.kiosk.messages.employeesRegisterFrom(locationName);
   }
 
   if (kioskType === 'head_office') {
-    return `Employees register from ${locationName}.`;
+    return copy.kiosk.messages.employeesRegisterFrom(locationName);
   }
 
-  return `Check-ins use ${locationName}.`;
+  return copy.kiosk.messages.checkInsUseLocation(locationName);
 };
 
-const usageLabelForDevice = (device: AttendanceKioskDevice) => {
+const usageLabelForDevice = (device: AttendanceKioskDevice, copy: AttendanceControlCopy) => {
   const usageCount = valueFromMetadata(device.metadata, [
     'today_employee_count',
     'todayEmployeeCount',
@@ -147,10 +148,10 @@ const usageLabelForDevice = (device: AttendanceKioskDevice) => {
   ]);
 
   if (!usageCount) {
-    return 'No check-ins today';
+    return copy.kiosk.messages.noCheckInsToday;
   }
 
-  return `${usageCount} check-in${usageCount === 1 ? '' : 's'} today`;
+  return copy.kiosk.messages.checkInsToday(usageCount);
 };
 
 export interface KioskManagementModalProps {
@@ -171,6 +172,7 @@ export interface KioskManagementModalProps {
 
 export function KioskManagementModal(props: KioskManagementModalProps) {
   const {
+    copy,
     isOpen,
     isSaving,
     kioskDevices,
@@ -201,23 +203,23 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
         hideCloseButton
         className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
       >
-        <div className="shrink-0 bg-[#143675] px-6 py-4 text-white">
+        <div className="shrink-0 bg-[#59C3A5] px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15">
                 <MonitorSmartphone className="h-5 w-5" />
               </span>
               <DialogHeader className="gap-1 text-left">
-                <DialogTitle className="text-xl font-semibold text-white">Attendance Points</DialogTitle>
+                <DialogTitle className="text-xl font-semibold text-white">{copy.kiosk.management.title}</DialogTitle>
                 <DialogDescription className="text-sm text-white/80">
-                  Manage where employees can clock in and out.
+                  {copy.kiosk.management.description}
                 </DialogDescription>
               </DialogHeader>
             </div>
             <button
               type="button"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/70"
-              aria-label="Close attendance points"
+              aria-label={copy.kiosk.management.closeAria}
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -228,37 +230,37 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">Attendance point control center</p>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.kiosk.management.centerTitle}</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Review availability, access screens, and location rules for each point.
+                {copy.kiosk.management.centerDescription}
               </p>
             </div>
             <Button
               type="button"
-              className="h-10 gap-2 rounded-lg bg-[#143675] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#0f2855] hover:shadow-md"
+              className="h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#3AAE90] hover:shadow-md"
               onClick={onNew}
             >
               <Plus className="h-4 w-4" />
-              New attendance point
+              {copy.kiosk.management.newButton}
             </Button>
           </div>
 
           <div className="mt-5 grid gap-3 border-y border-slate-200 py-4 text-sm dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-2xl font-semibold text-slate-950 dark:text-white">{kioskDevices.length}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total points</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.totalPoints}</p>
             </div>
             <div>
               <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-300">{activeDevices}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Active today</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.activeToday}</p>
             </div>
             <div>
               <p className="text-2xl font-semibold text-amber-600 dark:text-amber-300">{inactiveDevices}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Needs review</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.needsReview}</p>
             </div>
             <div>
-              <p className="text-2xl font-semibold text-[#143675] dark:text-[#8bb3ff]">{publicLinkDevices}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Access screens ready</p>
+              <p className="text-2xl font-semibold text-[#59C3A5] dark:text-[#8FE0CA]">{publicLinkDevices}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.accessScreensReady}</p>
             </div>
           </div>
 
@@ -270,15 +272,16 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
                   <KioskCard
                     key={device.id}
                     device={device}
+                    copy={copy}
                     hasPublicLink={hasPublicLink}
                     isSaving={isSaving}
-                    kioskTypeLabel={kioskTypeLabel(device)}
-                    locationRuleDescription={locationRuleForDevice(device, locations)}
-                    publicLinkLabel={hasPublicLink ? 'Ready' : 'Not ready yet'}
-                    scopeDescription={scopeDescriptionForDevice(device)}
+                    kioskTypeLabel={kioskTypeLabel(device, copy)}
+                    locationRuleDescription={locationRuleForDevice(device, locations, copy)}
+                    publicLinkLabel={hasPublicLink ? copy.kiosk.card.publicLinkReady : copy.kiosk.card.publicLinkPending}
+                    scopeDescription={scopeDescriptionForDevice(device, copy)}
                     statusClassName={statusClasses[device.status]}
-                    statusLabel={device.status === 'active' ? 'Active' : 'Inactive'}
-                    usageLabel={usageLabelForDevice(device)}
+                    statusLabel={copy.statuses[device.status]}
+                    usageLabel={usageLabelForDevice(device, copy)}
                     onCopy={() => onCopy(device)}
                     onDelete={() => onDelete(device)}
                     onEdit={() => onEdit(device)}
@@ -291,33 +294,33 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
             </div>
           ) : (
             <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900/40">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-[#143675]/10 text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
                 <MonitorSmartphone className="h-6 w-6" />
               </div>
-              <p className="mt-4 text-base font-semibold text-slate-950 dark:text-white">No attendance points yet</p>
+              <p className="mt-4 text-base font-semibold text-slate-950 dark:text-white">{copy.kiosk.management.emptyTitle}</p>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-                Create an attendance point so employees can register from a clear access screen or QR.
+                {copy.kiosk.management.emptyDescription}
               </p>
               <Button
                 type="button"
-                className="mt-5 h-10 gap-2 rounded-lg bg-[#143675] px-4 text-white hover:bg-[#0f2855]"
+                className="mt-5 h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white hover:bg-[#3AAE90]"
                 onClick={onNew}
               >
                 <Plus className="h-4 w-4" />
-                New attendance point
+                {copy.kiosk.management.newButton}
               </Button>
             </div>
           )}
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-[#0f2855] bg-[#143675] px-6 py-4">
+        <DialogFooter className="shrink-0 border-t border-[#3AAE90] bg-[#59C3A5] px-6 py-4">
           <Button
             type="button"
             variant="outline"
-            className="rounded-lg border-white/30 bg-white text-[#143675] hover:bg-white/90 hover:text-[#143675]"
+            className="rounded-lg border-white/30 bg-white text-[#59C3A5] hover:bg-white/90 hover:text-[#59C3A5]"
             onClick={onClose}
           >
-            Close
+            {copy.kiosk.management.closeButton}
           </Button>
         </DialogFooter>
       </DialogContent>

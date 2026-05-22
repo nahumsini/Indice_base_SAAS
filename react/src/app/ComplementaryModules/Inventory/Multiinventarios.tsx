@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useState, type ComponentType } from 'react';
 import { mockMetrics } from './mocks/inventory.mock';
 import type { InventoryMetrics } from './types/inventory.types';
 import RedLogisticaTab from './RedLogisticaTab';
@@ -28,7 +28,7 @@ interface Tab {
   label: string;
   emoji: string;
   icon: typeof Network;
-  component: () => ReactElement;
+  component: ComponentType;
 }
 
 export default function Multiinventarios() {

@@ -1,7 +1,5 @@
-import { Building2, CheckCircle2, Trash2 } from 'lucide-react';
+import { Building2, Trash2 } from 'lucide-react';
 import type { Negocio, Unidad } from '../types';
-
-const CORPORATE_OFFICE_DISPLAY_NAME = 'Corporate office';
 
 interface UnitsCopy {
   actions: {
@@ -37,7 +35,6 @@ interface UnitsSectionProps {
   structure: UnitsCopy;
   onEditUnidad: (unidad: Unidad) => void;
   onDeleteUnidad: (unidadId: string) => void;
-  onSetCorporateOffice: (unidadId: string) => void;
   onEditNegocio: (negocio: Negocio, unidadId: string) => void;
   onDeleteNegocio: (unidadId: string, negocioId: string) => void;
   onCreateNegocio: (unidadId: string) => void;
@@ -49,7 +46,6 @@ export function UnitsSection({
   structure,
   onEditUnidad,
   onDeleteUnidad,
-  onSetCorporateOffice,
   onEditNegocio,
   onDeleteNegocio,
   onCreateNegocio,
@@ -85,30 +81,17 @@ export function UnitsSection({
 
       <div className="space-y-4 mb-4">
         {unidades.map((unidad) => {
-          const isCorporateOffice = unidad.isCorporateOffice === true;
           const hasBusinesses = unidad.negocios.length > 0;
 
           return (
             <div
               key={unidad.id}
-              className={`rounded-lg border-2 p-4 transition-all ${
-                isCorporateOffice
-                  ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-700/70 dark:bg-emerald-900/10'
-                  : 'border-gray-200 dark:border-gray-700'
-              }`}
+              className="rounded-lg border-2 border-gray-200 p-4 transition-all dark:border-gray-700"
             >
               <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <Building2 className={isCorporateOffice
-                    ? 'h-5 w-5 text-emerald-600 dark:text-emerald-300'
-                    : 'h-5 w-5 text-gray-500 dark:text-gray-400'} />
+                  <Building2 className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                   <div>
-                    {isCorporateOffice ? (
-                      <div className="mb-1 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/30 dark:text-emerald-300">
-                        <CheckCircle2 className="h-3 w-3" />
-                        {CORPORATE_OFFICE_DISPLAY_NAME}
-                      </div>
-                    ) : null}
                     <h4 className="font-semibold text-gray-900 dark:text-white">
                       {unidad.name}
                     </h4>
@@ -137,19 +120,10 @@ export function UnitsSection({
                   <button
                     type="button"
                     onClick={() => onEditUnidad(unidad)}
-                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition-colors"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     {structure.actions.configureGroup}
                   </button>
-                  {!isCorporateOffice ? (
-                    <button
-                      type="button"
-                      onClick={() => onSetCorporateOffice(unidad.id)}
-                      className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-800/60 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
-                    >
-                      Make corporate office
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => onDeleteUnidad(unidad.id)}
@@ -182,7 +156,7 @@ export function UnitsSection({
                         <button
                           type="button"
                           onClick={() => onEditNegocio(negocio, unidad.id)}
-                          className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium transition-colors"
+                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
                         >
                           {structure.actions.configure}
                         </button>
@@ -202,7 +176,7 @@ export function UnitsSection({
               <button
                 type="button"
                 onClick={() => onCreateNegocio(unidad.id)}
-                className="w-full rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-700 sm:ml-8 sm:w-auto"
+                className="w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 sm:ml-8 sm:w-auto"
               >
                 {structure.actions.addUnit}
               </button>
@@ -214,7 +188,7 @@ export function UnitsSection({
       <button
         type="button"
         onClick={onCreateUnidad}
-        className="w-full px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+        className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
       >
         {structure.actions.createUnit}
       </button>

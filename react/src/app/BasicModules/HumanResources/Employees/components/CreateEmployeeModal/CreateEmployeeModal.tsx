@@ -249,11 +249,11 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
 
 const modalLabelClassName = 'mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200';
 const modalControlClassName =
-  'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#143675] focus:outline-none focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500';
+  'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#59C3A5] focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500';
 const modalOutlineButtonClassName =
   'h-10 rounded-xl border-white/30 bg-white/10 px-5 text-white shadow-none hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50 dark:border-white/25 dark:bg-white/10 dark:text-white dark:hover:bg-white/20';
 const modalPrimaryButtonClassName =
-  'h-10 rounded-xl bg-white px-5 text-[#143675] shadow-sm hover:bg-slate-100 hover:text-[#143675] focus-visible:ring-white/40 dark:bg-white dark:text-[#143675] dark:hover:bg-slate-100';
+  'h-10 rounded-xl bg-white px-5 text-[#59C3A5] shadow-sm hover:bg-slate-100 hover:text-[#59C3A5] focus-visible:ring-white/40 dark:bg-white dark:text-[#59C3A5] dark:hover:bg-slate-100';
 
 const formatAttendanceLocationOption = (location: AttendanceControlLocation) => {
   const scope = location.business_name || location.unit_name || '';
@@ -514,9 +514,9 @@ const getOrganizationToneClassNames = (tone: OrganizationOptionTone = 'default',
   if (tone === 'unit') {
     return {
       option: isSelected
-        ? 'border-[#143675]/20 bg-[#143675]/10 text-[#143675] dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-100'
-        : 'border-transparent text-slate-700 hover:bg-[#143675]/5 dark:text-slate-200 dark:hover:bg-blue-400/10',
-      badge: 'bg-[#143675]/10 text-[#143675] ring-[#143675]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20',
+        ? 'border-[#59C3A5]/20 bg-[#59C3A5]/10 text-[#59C3A5] dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-100'
+        : 'border-transparent text-slate-700 hover:bg-[#59C3A5]/5 dark:text-slate-200 dark:hover:bg-blue-400/10',
+      badge: 'bg-[#59C3A5]/10 text-[#59C3A5] ring-[#59C3A5]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20',
     };
   }
 
@@ -766,7 +766,7 @@ function AutoAssignedOrganizationField({
       <div
         className={cn(
           modalControlClassName,
-          'flex h-auto min-h-11 items-center justify-between gap-3 bg-[#143675]/5 text-left text-[#143675] dark:bg-blue-400/10 dark:text-blue-100',
+          'flex h-auto min-h-11 items-center justify-between gap-3 bg-[#59C3A5]/5 text-left text-[#59C3A5] dark:bg-blue-400/10 dark:text-blue-100',
         )}
       >
         <span className="min-w-0">
@@ -775,7 +775,7 @@ function AutoAssignedOrganizationField({
             {helperText}
           </span>
         </span>
-        <span className="shrink-0 rounded-full bg-[#143675]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#143675] ring-1 ring-[#143675]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20">
+        <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#59C3A5] ring-1 ring-[#59C3A5]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20">
           {badge}
         </span>
       </div>
@@ -955,7 +955,7 @@ function CreatableOptionField({
           type="button"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsOpen((current) => !current)}
-          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-[#143675]/10 hover:text-[#143675] dark:text-slate-300 dark:hover:bg-blue-400/10 dark:hover:text-blue-200"
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-[#59C3A5]/10 hover:text-[#59C3A5] dark:text-slate-300 dark:hover:bg-blue-400/10 dark:hover:text-blue-200"
           aria-label={label}
         >
           <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
@@ -978,7 +978,7 @@ function CreatableOptionField({
                   className={cn(
                     'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors',
                     isActive
-                      ? 'bg-[#143675]/10 text-[#143675] dark:bg-blue-400/10 dark:text-blue-200'
+                      ? 'bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-blue-400/10 dark:text-blue-200'
                       : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800',
                   )}
                 >
@@ -996,8 +996,8 @@ function CreatableOptionField({
                 className={cn(
                   'mt-1 flex w-full items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-left text-sm font-semibold transition-colors',
                   activeIndex === visibleOptions.length
-                    ? 'border-[#143675]/40 bg-[#143675]/10 text-[#143675] dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-200'
-                    : 'border-[#143675]/20 bg-[#143675]/5 text-[#143675] hover:bg-[#143675]/10 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200',
+                    ? 'border-[#59C3A5]/40 bg-[#59C3A5]/10 text-[#59C3A5] dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-200'
+                    : 'border-[#59C3A5]/20 bg-[#59C3A5]/5 text-[#59C3A5] hover:bg-[#59C3A5]/10 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200',
                 )}
               >
                 <Plus className="h-4 w-4 shrink-0" />
@@ -1900,13 +1900,13 @@ export function CreateEmployeeModal({
         }}
         className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
       >
-        <div className="flex items-start justify-between gap-4 bg-[#143675] px-6 py-4 text-white dark:bg-[#143675]">
+        <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#143675] shadow-sm">
+              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#59C3A5] shadow-sm">
                 {copy.stepOf(currentStep, modalSteps.length)}
               </div>
               <h2 className="text-xl font-semibold tracking-tight text-white">
@@ -2276,14 +2276,14 @@ export function CreateEmployeeModal({
                   </>
                 ),
                 schedule: isCreateMode ? (
-                  <div className="rounded-[22px] border border-[#143675]/15 bg-[#143675]/5 p-5 dark:border-blue-500/20 dark:bg-blue-500/10">
+                  <div className="rounded-[22px] border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-5 dark:border-blue-500/20 dark:bg-blue-500/10">
                     <label className="flex items-start gap-3">
                       <input
                         name="scheduleOnHire"
                         type="checkbox"
                         checked={formData.scheduleOnHire}
                         onChange={(event) => updateField('scheduleOnHire', event.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675]/30 dark:border-slate-600"
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]/30 dark:border-slate-600"
                       />
                       <span>
                         <span className="block text-sm font-bold text-slate-900 dark:text-white">
@@ -2389,7 +2389,7 @@ export function CreateEmployeeModal({
                             )}
                           </div>
                         ) : (
-                          <p className="self-end rounded-2xl border border-[#143675]/15 bg-white p-3 text-xs leading-5 text-[#143675] dark:border-blue-500/20 dark:bg-slate-900/70 dark:text-blue-200">
+                          <p className="self-end rounded-2xl border border-[#59C3A5]/15 bg-white p-3 text-xs leading-5 text-[#59C3A5] dark:border-blue-500/20 dark:bg-slate-900/70 dark:text-blue-200">
                             {copy.helpers.scheduleBusinessLocation}
                           </p>
                         )}
@@ -2498,7 +2498,7 @@ export function CreateEmployeeModal({
                 return (
                   <div
                     key={documentType}
-                    className="rounded-[22px] border border-slate-200 bg-slate-50/60 p-4 transition-colors hover:border-[#143675]/25 hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-blue-500/30 dark:hover:bg-slate-900"
+                    className="rounded-[22px] border border-slate-200 bg-slate-50/60 p-4 transition-colors hover:border-[#59C3A5]/25 hover:bg-white dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-blue-500/30 dark:hover:bg-slate-900"
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
@@ -2532,7 +2532,7 @@ export function CreateEmployeeModal({
                             href={slot.existingDownloadUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-[#143675] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                            className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                           >
                             {copy.buttons.viewCurrent}
                           </a>
@@ -2548,7 +2548,7 @@ export function CreateEmployeeModal({
                             {slot.removeExisting ? copy.buttons.undoRemove : copy.buttons.removeCurrent}
                           </Button>
                         ) : null}
-                        <label className="inline-flex h-10 cursor-pointer items-center rounded-xl bg-[#143675] px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0f2b5f] dark:bg-blue-600 dark:hover:bg-blue-500">
+                        <label className="inline-flex h-10 cursor-pointer items-center rounded-xl bg-[#59C3A5] px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#3AAE90] dark:bg-blue-600 dark:hover:bg-blue-500">
                           <Upload className="mr-2 h-4 w-4" />
                           {slot.existingId || slot.file ? copy.buttons.replaceFile : copy.buttons.chooseFile}
                           <input
@@ -2568,7 +2568,7 @@ export function CreateEmployeeModal({
 
         </div>
 
-        <div className="flex flex-col gap-3 bg-[#143675] px-6 py-3 dark:bg-[#143675] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5] sm:flex-row sm:items-center sm:justify-between">
           <Button
             type="button"
             variant="outline"

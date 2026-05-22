@@ -9,7 +9,7 @@ import type {
   Weekday,
 } from './types';
 
-export const accentButtonClass = 'bg-[rgb(235,165,52)] text-white hover:bg-[rgb(214,144,35)]';
+export const accentButtonClass = 'bg-[rgb(250,204,21)] text-slate-950 hover:bg-[rgb(234,179,8)]';
 
 export const priorityLabels: Record<ProcessPriority, string> = {
   high: 'Alta',

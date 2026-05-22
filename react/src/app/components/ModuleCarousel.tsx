@@ -6,30 +6,38 @@ interface ModuleCarouselProps {
   singleRow?: boolean;
 }
 
-export function ModuleCarousel({ children, gridClasses = "grid-cols-[repeat(auto-fill,140px)]", singleRow = false }: ModuleCarouselProps) {
-  // Modo single row: carousel horizontal en todas las pantallas
+export function ModuleCarousel({
+  children,
+  gridClasses = 'grid-cols-[repeat(auto-fit,140px)]',
+  singleRow = false,
+}: ModuleCarouselProps) {
+  const fluidGap = 'gap-[clamp(1rem,1.7vw,1.75rem)]';
+
+  // Single-row mode: horizontal carousel on every viewport.
   if (singleRow) {
     return (
-      <div className="overflow-x-auto scrollbar-hide pb-4">
-        <div className="flex gap-4 snap-x snap-mandatory [&>*]:flex-shrink-0">
+      <div className="-mx-1 overflow-x-auto px-1 pb-4 scrollbar-hide">
+        <div
+          className={`grid auto-cols-[140px] grid-flow-col justify-start ${fluidGap} snap-x snap-mandatory`}
+        >
           {children}
         </div>
       </div>
     );
   }
 
-  // Modo normal: carousel en móvil, grid en desktop
+  // Default mode: mobile carousel, desktop grid.
   return (
     <>
-      {/* Carrusel móvil (< md) */}
+      {/* Mobile carousel (< md) */}
       <div className="md:hidden overflow-x-auto scrollbar-hide pb-4 -mx-8 px-8">
-        <div className="flex gap-4 snap-x snap-mandatory">
+        <div className={`grid auto-cols-[140px] grid-flow-col ${fluidGap} snap-x snap-mandatory`}>
           {children}
         </div>
       </div>
       
-      {/* Grid desktop (>= md) */}
-      <div className={`hidden md:grid ${gridClasses} justify-start gap-4`}>
+      {/* Desktop grid (>= md) */}
+      <div className={`hidden md:grid ${gridClasses} justify-start ${fluidGap}`}>
         {children}
       </div>
     </>

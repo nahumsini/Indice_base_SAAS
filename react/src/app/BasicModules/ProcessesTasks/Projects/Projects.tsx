@@ -668,7 +668,7 @@ function ProjectKpiStrip({
             icon={<ListChecks className="h-4 w-4" />}
             label={copy.labels.averageProgress}
             value={`${metrics.averageProgress}%`}
-            valueClassName="text-[rgb(235,165,52)]"
+            valueClassName="text-[rgb(113,63,18)]"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProjectKpiMetric icon={<Gauge className="h-4 w-4" />} label={copy.labels.tasks} value={metrics.linkedTaskCount} />
@@ -698,9 +698,9 @@ function ProjectKpiStrip({
 
       <ProjectStatusBar copy={copy} metrics={metrics} />
 
-      <div className="rounded-lg border border-[rgb(235,165,52)]/20 bg-[rgb(235,165,52)]/10 px-4 py-3 dark:border-[rgb(235,165,52)]/30 dark:bg-[rgb(235,165,52)]/15">
+      <div className="rounded-lg border border-[rgb(250,204,21)]/20 bg-[rgb(250,204,21)]/10 px-4 py-3 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex items-start gap-3">
-          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(235,165,52)]" />
+          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildProjectInsight(metrics, copy.insights)}</p>
         </div>
       </div>
@@ -752,12 +752,12 @@ function SortableTableHead({
     <TableHead className="px-5 py-5">
       <button
         type="button"
-        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(235,165,52)] dark:text-slate-400"
+        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(113,63,18)] dark:text-slate-400"
         onClick={() => onSort(columnId)}
       >
         <span className="truncate">{column.label}</span>
         <SortIcon
-          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[rgb(235,165,52)]' : 'text-slate-400')}
+          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400')}
         />
       </button>
     </TableHead>
@@ -1339,8 +1339,8 @@ export default function Projects() {
           onClick={() => setSelectedProjectId(isSelected ? null : project.id)}
           disabled={pending}
           className={cn(
-            'border-[rgb(235,165,52)]/35 bg-[rgb(235,165,52)]/10 text-[rgb(176,111,22)] hover:bg-[rgb(235,165,52)] hover:text-white dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15 dark:text-[rgb(245,196,112)]',
-            isSelected && 'bg-[rgb(235,165,52)] text-white',
+            'border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 text-[rgb(113,63,18)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)]',
+            isSelected && 'bg-[rgb(250,204,21)] text-slate-950',
           )}
           icon={<FolderKanban className="h-4 w-4" />}
         />
@@ -1574,7 +1574,7 @@ export default function Projects() {
               <span className="font-semibold text-slate-900 dark:text-white">{clampPercent(project.completionPercent)}%</span>
             </div>
             <div className={progressTrackClass}>
-              <div className="h-full rounded-full bg-[rgb(235,165,52)]" style={{ width: `${clampPercent(project.completionPercent)}%` }} />
+              <div className="h-full rounded-full bg-[rgb(250,204,21)]" style={{ width: `${clampPercent(project.completionPercent)}%` }} />
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {project.completedTaskCount} {projectCopy.table.taskCounts.closed.toLowerCase()} / {project.openTaskCount}{' '}
@@ -1615,7 +1615,7 @@ export default function Projects() {
                 {headerCopy.subtitle}
               </p>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]">
+            <Badge variant="outline" className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]">
               {sortedProjects.length} {headerCopy.title.toLowerCase()}
             </Badge>
           </div>
@@ -1659,7 +1659,7 @@ export default function Projects() {
                     key={project.id}
                     className={cn(
                       'grid min-h-[92px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
-                      selectedProjectId === project.id && 'bg-[rgb(235,165,52)]/5',
+                      selectedProjectId === project.id && 'bg-[rgb(250,204,21)]/5',
                     )}
                     style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr minmax(120px, 150px)' }}
                   >
@@ -1683,7 +1683,7 @@ export default function Projects() {
                       ))}
                       {range ? (
                         <div
-                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 px-3 py-2 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25"
+                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 px-3 py-2 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25"
                           style={{
                             left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
                             width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
@@ -1704,7 +1704,7 @@ export default function Projects() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-9 w-full gap-2 rounded-xl border-[rgb(235,165,52)]/35 bg-[rgb(235,165,52)]/10 px-3 text-sm font-semibold text-[rgb(176,111,22)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white"
+                        className="h-9 w-full gap-2 rounded-xl border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 px-3 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950"
                         onClick={() => setSelectedProjectId(selectedProjectId === project.id ? null : project.id)}
                         disabled={isProjectPending(project.id)}
                       >
@@ -1724,7 +1724,7 @@ export default function Projects() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -1742,7 +1742,7 @@ export default function Projects() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'table'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('table')}
@@ -1755,7 +1755,7 @@ export default function Projects() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'diagram'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('diagram')}
@@ -1767,7 +1767,7 @@ export default function Projects() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
@@ -1900,7 +1900,7 @@ export default function Projects() {
             </TableHeader>
             <TableBody>
               {sortedProjects.map((project) => (
-                <TableRow key={project.id} className={cn('border-slate-200 dark:border-slate-700', selectedProjectId === project.id && 'bg-[rgb(235,165,52)]/5')}>
+                <TableRow key={project.id} className={cn('border-slate-200 dark:border-slate-700', selectedProjectId === project.id && 'bg-[rgb(250,204,21)]/5')}>
                   {visibleColumns.map((column) => {
                     const columnId = column.id as ProjectColumnId;
 

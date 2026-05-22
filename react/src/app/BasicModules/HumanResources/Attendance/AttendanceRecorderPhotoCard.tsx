@@ -206,13 +206,13 @@ export function AttendanceRecorderPhotoCard({
             {photoLockedHint}
           </div>
           <div className="mt-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-[#143675] dark:text-[#b8d1ff]">
+            <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-[#59C3A5] dark:text-[#BEEFE3]">
               {capturedPhotoLabel}
             </p>
             <img
               src={photo.previewUrl}
               alt={capturedPhotoLabel}
-              className="h-40 w-full rounded-lg border border-[#143675]/10 object-cover shadow-sm dark:border-[#143675]/20"
+              className="h-40 w-full rounded-lg border border-[#59C3A5]/10 object-cover shadow-sm dark:border-[#59C3A5]/20"
             />
           </div>
         </>
@@ -222,7 +222,7 @@ export function AttendanceRecorderPhotoCard({
             <video ref={videoRef} playsInline muted className="h-64 w-full object-cover" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Button type="button" className="bg-[#143675] text-white hover:bg-[#0f2855]" onClick={capturePhoto}>
+            <Button type="button" className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]" onClick={capturePhoto}>
               {captureLabel}
             </Button>
             <Button type="button" variant="outline" onClick={stopCamera}>

@@ -90,7 +90,7 @@ type SortState = {
 } | null;
 
 const inputClassName =
-  'w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent';
+  'w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
 const categoryMeta: Array<{ category: AvailableModule['category']; emoji: string }> = [
   { category: 'basic', emoji: '📱' },
@@ -381,7 +381,7 @@ export default function Users() {
 
   const getRoleColorClasses = (role: User['role']) => {
     const styles: Record<User['role'], string> = {
-      'Super Admin': 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+      'Super Admin': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
       Admin: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
       User: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
     };
@@ -416,6 +416,7 @@ export default function Users() {
 
   const getModuleColorClasses = (color: AvailableModule['color']) => {
     const styles: Record<AvailableModule['color'], string> = {
+      aqua: 'border-[#59C3A5]/35 bg-[#59C3A5]/10 dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/20',
       blue: 'border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20',
       yellow: 'border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20',
       orange: 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20',
@@ -810,10 +811,10 @@ export default function Users() {
 
     return (
       <span className="inline-flex items-center gap-0.5 text-[10px] leading-none">
-        <span className={isActiveColumn && sortState.direction === 'asc' ? 'text-purple-600 dark:text-purple-300' : 'text-gray-300 dark:text-gray-500'}>
+        <span className={isActiveColumn && sortState.direction === 'asc' ? 'text-blue-600 dark:text-blue-300' : 'text-gray-300 dark:text-gray-500'}>
           ↑
         </span>
-        <span className={isActiveColumn && sortState.direction === 'desc' ? 'text-purple-600 dark:text-purple-300' : 'text-gray-300 dark:text-gray-500'}>
+        <span className={isActiveColumn && sortState.direction === 'desc' ? 'text-blue-600 dark:text-blue-300' : 'text-gray-300 dark:text-gray-500'}>
           ↓
         </span>
       </span>
@@ -824,7 +825,7 @@ export default function Users() {
     <button
       type="button"
       onClick={() => handleSortHeaderClick(column)}
-      className="inline-flex items-center gap-1.5 transition-colors hover:text-purple-600 dark:hover:text-purple-300"
+      className="inline-flex items-center gap-1.5 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
     >
       <span>{label}</span>
       {renderSortIndicator(column)}
@@ -873,7 +874,7 @@ export default function Users() {
             autoFocus
             value={selectedValue ?? ''}
             onChange={(event) => updateBusinessAssignment(user.id, field, event.target.value)}
-            className="h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600"
+            className="h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600"
           >
             <option value="">{placeholder}</option>
             {options.length > 0 ? (
@@ -943,7 +944,7 @@ export default function Users() {
       </div>
 
       {isLoading ? (
-        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:border-purple-700/30 dark:bg-purple-900/20 dark:text-purple-300">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
           Loading users...
         </div>
       ) : null}
@@ -954,7 +955,7 @@ export default function Users() {
         </div>
       ) : null}
 
-      <div className="bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200 p-4 dark:border-purple-700/30 sm:p-6">
+      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
@@ -966,7 +967,7 @@ export default function Users() {
             </p>
           </div>
           <Button
-            className="w-full gap-2 bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+            className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
             onClick={() => {
               setInviteForm(emptyInviteForm);
               setInviteModuleIds([]);
@@ -1030,7 +1031,7 @@ export default function Users() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
           <div className="text-center">
-            <div className="mb-1 text-2xl font-bold text-purple-600 dark:text-purple-400 sm:text-3xl">
+            <div className="mb-1 text-2xl font-bold text-blue-600 dark:text-blue-400 sm:text-3xl">
               {totalUsers}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">{summaryLabels.total}</div>
@@ -1129,7 +1130,7 @@ export default function Users() {
                             <div className="font-medium text-gray-900 dark:text-white">
                               {user.name}
                               {isCurrentUser ? (
-                                <span className="ml-2 inline-flex rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                                <span className="ml-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
                                   {currentUserBadgeLabel}
                                 </span>
                               ) : null}
@@ -1146,7 +1147,7 @@ export default function Users() {
                             value={user.role}
                             onChange={(event) => changeUserRole(user, event.target.value as User['role'])}
                             disabled={user.source !== 'user'}
-                            className={`h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 ${
+                            className={`h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 ${
                               user.source !== 'user' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
                             }`}
                           >
@@ -1168,7 +1169,7 @@ export default function Users() {
                           type="button"
                           onClick={() => handleOpenModuleSettings(user)}
                           disabled={user.source !== 'user'}
-                          className="inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm font-medium text-purple-700 transition-colors hover:border-purple-300 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-purple-800/70 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+                          className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800/70 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
                         >
                           <Settings className="h-4 w-4" />
                           <span>{formatModulesCount(user.modules.length)}</span>
@@ -1262,12 +1263,12 @@ export default function Users() {
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
           <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl dark:bg-slate-900">
-            <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-purple-700 to-fuchsia-600 px-6 py-6 text-white sm:px-8">
+            <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-blue-700 to-sky-600 px-6 py-6 text-white sm:px-8">
               <div>
                 <h3 className="text-2xl font-semibold">
                   {t.panelInicial.users.modal.modules}
                 </h3>
-                <p className="mt-2 text-sm font-medium text-purple-100">{selectedUser.name}</p>
+                <p className="mt-2 text-sm font-medium text-blue-100">{selectedUser.name}</p>
               </div>
               <button
                 type="button"
@@ -1302,7 +1303,7 @@ export default function Users() {
                               onClick={() => toggleUserModule(module.id)}
                               className={`rounded-2xl border-2 bg-white p-4 text-left shadow-sm transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900 ${
                                 isSelected
-                                  ? `${colorClasses} ring-2 ring-purple-500/10`
+                                  ? `${colorClasses} ring-2 ring-blue-500/10`
                                   : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
                               }`}
                             >
@@ -1350,7 +1351,7 @@ export default function Users() {
               </div>
               <Button
                 onClick={handleSaveSelectedModules}
-                className="w-full rounded-xl bg-purple-600 px-6 text-white shadow-sm hover:bg-purple-700 sm:w-auto"
+                className="w-full rounded-xl bg-blue-600 px-6 text-white shadow-sm hover:bg-blue-700 sm:w-auto"
               >
                 {t.panelInicial.users.modal.save}
               </Button>
@@ -1452,8 +1453,8 @@ export default function Users() {
                               onClick={() => toggleInviteModule(module.id)}
                               className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                                 isSelected
-                                  ? 'border-purple-300 bg-purple-50 text-purple-800 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-200'
-                                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-200 hover:bg-purple-50/60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-purple-700 dark:hover:bg-purple-900/20'
+                                  ? 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-200 hover:bg-blue-50/60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-700 dark:hover:bg-blue-900/20'
                               }`}
                             >
                               <span className="min-w-0 truncate">
@@ -1497,7 +1498,7 @@ export default function Users() {
                         <button
                           type="button"
                           onClick={() => copyToClipboard(inviteLink)}
-                          className="flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700 sm:w-auto"
+                          className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto"
                         >
                           {copiedLink ? (
                             <>
@@ -1530,7 +1531,7 @@ export default function Users() {
                     <Button
                       type="submit"
                       disabled={loadingOverlay.isVisible}
-                      className="w-full gap-2 bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                      className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                     >
                       <UserPlus className="w-4 h-4" />
                       {t.panelInicial.users.modal.send}
@@ -1540,7 +1541,7 @@ export default function Users() {
                   <Button
                     type="button"
                     onClick={closeInviteModal}
-                    className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                    className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                   >
                     {closeLabel}
                   </Button>
@@ -1631,7 +1632,7 @@ export default function Users() {
                       <button
                         type="button"
                         onClick={() => copyToClipboard(inviteLink)}
-                        className="flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700 sm:w-auto"
+                        className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto"
                       >
                         {copiedLink ? (
                           <>
@@ -1665,7 +1666,7 @@ export default function Users() {
                     type="button"
                     onClick={handleResendInvite}
                     disabled={loadingOverlay.isVisible}
-                    className="w-full gap-2 bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                    className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                   >
                     <Mail className="w-4 h-4" />
                     {t.panelInicial.users.actions.resend}
@@ -1675,7 +1676,7 @@ export default function Users() {
                 <Button
                   type="button"
                   onClick={closeResendModal}
-                  className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                 >
                   {closeLabel}
                 </Button>

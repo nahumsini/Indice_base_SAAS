@@ -7,8 +7,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../../../../components/ui/dropdown-menu';
+import type { ControlTranslations } from '../../translations';
 
 export interface KioskActionsMenuProps {
+  copy: ControlTranslations;
   hasPublicLink: boolean;
   isSaving: boolean;
   onCopy: () => void;
@@ -19,6 +21,7 @@ export interface KioskActionsMenuProps {
 }
 
 export function KioskActionsMenu({
+  copy,
   hasPublicLink,
   isSaving,
   onCopy,
@@ -34,9 +37,9 @@ export function KioskActionsMenu({
           type="button"
           variant="outline"
           size="icon"
-          className="h-10 w-10 rounded-lg border-slate-200 text-slate-600 hover:border-[#143675]/30 hover:bg-[#143675]/5 hover:text-[#143675] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-[#8bb3ff]/10 dark:hover:text-[#8bb3ff]"
-          aria-label="Open attendance point actions"
-          title="Open attendance point actions"
+          className="h-10 w-10 rounded-lg border-slate-200 text-slate-600 hover:border-[#59C3A5]/30 hover:bg-[#59C3A5]/5 hover:text-[#59C3A5] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-[#8FE0CA]/10 dark:hover:text-[#8FE0CA]"
+          aria-label={copy.kiosk.actions.openActions}
+          title={copy.kiosk.actions.openActions}
         >
           <MoreHorizontal className="h-4 w-4" />
         </Button>
@@ -52,7 +55,7 @@ export function KioskActionsMenu({
           }}
         >
           <Copy className="h-4 w-4" />
-          Copy access link
+          {copy.kiosk.actions.copyAccessLink}
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={!hasPublicLink}
@@ -64,7 +67,7 @@ export function KioskActionsMenu({
           }}
         >
           <QrCode className="h-4 w-4" />
-          Show attendance QR
+          {copy.kiosk.actions.showAttendanceQr}
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={isSaving}
@@ -76,7 +79,7 @@ export function KioskActionsMenu({
           }}
         >
           <RotateCw className="h-4 w-4" />
-          Reset access link
+          {copy.kiosk.actions.resetAccessLink}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -86,7 +89,7 @@ export function KioskActionsMenu({
           }}
         >
           <Pencil className="h-4 w-4" />
-          Edit attendance point
+          {copy.kiosk.actions.editAttendancePoint}
         </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
@@ -99,7 +102,7 @@ export function KioskActionsMenu({
           }}
         >
           <Trash2 className="h-4 w-4" />
-          Delete attendance point
+          {copy.kiosk.actions.deleteAttendancePoint}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,6 +1,7 @@
 import { Save, X } from 'lucide-react';
 import { type AttendanceKioskDevicePayload } from '../../../../../api/humanResources';
 import { Button } from '../../../../../components/ui/button';
+import type { ControlTranslations } from '../../translations';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ export interface KioskOption {
 
 export interface CreateKioskModalProps {
   canSave: boolean;
+  copy: ControlTranslations;
   form: AttendanceKioskDevicePayload;
   isBusinessUnitKiosk: boolean;
   isOpenAttendanceKiosk: boolean;
@@ -43,10 +45,8 @@ export interface CreateKioskModalProps {
   onUnitChange: (unitId: number | null) => void;
 }
 
-const emptyLocationMessage = 'No active locations available for this attendance point type. Create a location first.';
-
-const selectClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition focus:border-[#143675] focus:outline-none focus:ring-2 focus:ring-[#143675]/15 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900';
-const inputClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-[#143675] focus:outline-none focus:ring-2 focus:ring-[#143675]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+const selectClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition focus:border-[#59C3A5] focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/15 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900';
+const inputClassName = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm transition placeholder:text-slate-400 focus:border-[#59C3A5] focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 const referenceFromTitle = (value: string) => {
   const slug = value
     .trim()
@@ -59,6 +59,7 @@ const referenceFromTitle = (value: string) => {
 
 export function CreateKioskModal({
   canSave,
+  copy,
   form,
   isBusinessUnitKiosk,
   isOpenAttendanceKiosk,
@@ -81,10 +82,10 @@ export function CreateKioskModal({
   onUnitChange,
 }: CreateKioskModalProps) {
   const notesValue = typeof form.metadata?.notes === 'string' ? form.metadata.notes : '';
-  const modalTitle = isEditing ? title : 'New attendance point';
+  const modalTitle = isEditing ? title : copy.kiosk.form.newTitle;
   const modalDescription = isEditing
-    ? 'Update where this attendance point is available and how employees recognize it.'
-    : 'Create a place where employees can register attendance.';
+    ? copy.kiosk.form.editDescription
+    : copy.kiosk.form.createDescription;
 
   return (
     <Dialog
@@ -99,7 +100,7 @@ export function CreateKioskModal({
         hideCloseButton
         className="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-3xl"
       >
-        <div className="bg-[#143675] px-6 py-4 text-white">
+        <div className="bg-[#59C3A5] px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-xl font-semibold text-white">{modalTitle}</DialogTitle>
@@ -108,7 +109,7 @@ export function CreateKioskModal({
             <button
               type="button"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/70"
-              aria-label="Close attendance point form"
+              aria-label={copy.kiosk.form.closeAria}
               onClick={onClose}
             >
               <X className="h-4 w-4" />
@@ -119,25 +120,25 @@ export function CreateKioskModal({
         <div className="min-h-0 overflow-y-auto bg-slate-50 px-6 py-5 dark:bg-slate-950">
           <div className="grid gap-4">
             <KioskFormSection
-              title="Where will this point be used?"
-              description="Choose the real-world context for this attendance point."
+              title={copy.kiosk.form.typeSectionTitle}
+              description={copy.kiosk.form.typeSectionDescription}
             >
-              <KioskTypeSelector value={kioskType} onChange={onKioskTypeChange} />
+              <KioskTypeSelector copy={copy} value={kioskType} onChange={onKioskTypeChange} />
             </KioskFormSection>
 
             <KioskFormSection
-              title="Point information"
-              description="Use human-readable details so supervisors recognize this point later."
+              title={copy.kiosk.form.pointInformationTitle}
+              description={copy.kiosk.form.pointInformationDescription}
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Name <span className="text-red-500">*</span>
+                    {copy.kiosk.form.nameLabel} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={form.name}
-                    placeholder="Front Desk - Cancun"
+                    placeholder={copy.kiosk.form.namePlaceholder}
                     onChange={(event) => {
                       const nextTitle = event.target.value;
                       const currentGeneratedReference = referenceFromTitle(form.name);
@@ -151,33 +152,35 @@ export function CreateKioskModal({
                     className={inputClassName}
                   />
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    This is the name supervisors will recognize.
+                    {copy.kiosk.form.nameHint}
                   </p>
                 </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Internal reference <span className="text-red-500">*</span>
+                    {copy.kiosk.form.internalReferenceLabel} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={form.code}
-                    placeholder="front-desk-cancun"
+                    placeholder={copy.kiosk.form.internalReferencePlaceholder}
                     onChange={(event) => onChange({ ...form, code: event.target.value })}
                     className={inputClassName}
                   />
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Used internally to identify this attendance point.
+                    {copy.kiosk.form.internalReferenceHint}
                   </p>
                 </div>
               </div>
 
               <div className="mt-4">
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">Notes</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {copy.kiosk.form.notesLabel}
+                </label>
                 <textarea
                   value={notesValue}
                   rows={3}
-                  placeholder="Example: Used for morning attendance near the warehouse entrance."
+                  placeholder={copy.kiosk.form.notesPlaceholder}
                   onChange={(event) => onChange({
                     ...form,
                     metadata: {
@@ -191,19 +194,19 @@ export function CreateKioskModal({
             </KioskFormSection>
 
             <KioskFormSection
-              title="Who can use this point?"
-              description="Define who can access this attendance point and where attendance is registered."
+              title={copy.kiosk.form.scopeSectionTitle}
+              description={copy.kiosk.form.scopeSectionDescription}
             >
               {isBusinessUnitKiosk ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">Unit</label>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.labels.unit}</label>
                     <select
                       value={form.unit_id ?? ''}
                       onChange={(event) => onUnitChange(event.target.value ? Number(event.target.value) : null)}
                       className={selectClassName}
                     >
-                      <option value="">All units</option>
+                      <option value="">{copy.labels.allUnits}</option>
                       {unitOptions.map((unit) => (
                         <option key={unit.id} value={unit.id}>{unit.name}</option>
                       ))}
@@ -211,14 +214,14 @@ export function CreateKioskModal({
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">Business</label>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.labels.business}</label>
                     <select
                       value={form.business_id ?? ''}
                       disabled={!form.unit_id}
                       onChange={(event) => onBusinessChange(event.target.value ? Number(event.target.value) : null)}
                       className={selectClassName}
                     >
-                      <option value="">All businesses</option>
+                      <option value="">{copy.labels.allBusinesses}</option>
                       {form.unit_id ? businessOptions.map((business) => (
                         <option key={business.id} value={business.id}>{business.name}</option>
                       )) : null}
@@ -227,86 +230,90 @@ export function CreateKioskModal({
 
                   {!hasBusinessStructureLocations ? (
                     <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
-                      {emptyLocationMessage}
+                      {copy.kiosk.form.noActiveLocations}
                     </p>
                   ) : (
                     <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">
-                      Leave both fields as all to make this attendance point available for the full company.
+                      {copy.kiosk.form.allScopeHint}
                     </p>
                   )}
                 </div>
               ) : isOpenAttendanceKiosk ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-100">
-                  <p className="font-semibold">Open attendance for all employees</p>
+                  <p className="font-semibold">{copy.kiosk.form.openAttendanceTitle}</p>
                   <p className="mt-1 leading-6">
-                    This point will not enforce a physical location. Employees can check in and out from any place; GPS is captured when available.
+                    {copy.kiosk.form.openAttendanceDescription}
                   </p>
                 </div>
               ) : (
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {kioskType === 'head_office' ? 'Main office' : 'Temporary work site'}
+                    {kioskType === 'head_office' ? copy.kiosk.form.mainOfficeLabel : copy.kiosk.form.temporaryWorkSiteLabel}
                   </label>
                   <select
                     value={form.location_id ?? ''}
                     onChange={(event) => onLocationChange(event.target.value ? Number(event.target.value) : null)}
                     className={selectClassName}
                   >
-                    <option value="">Select location</option>
+                    <option value="">{copy.kiosk.form.selectLocation}</option>
                     {availableLocations.map((location) => (
                       <option key={location.id} value={location.id}>{location.name}</option>
                     ))}
                   </select>
                   {availableLocations.length === 0 ? (
                     <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
-                      {emptyLocationMessage}
+                      {copy.kiosk.form.noActiveLocations}
                     </p>
                   ) : (
                     <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                      Employees will register attendance from the selected location.
+                      {copy.kiosk.form.selectedLocationHint}
                     </p>
                   )}
                 </div>
               )}
 
-              <div className="mt-4 rounded-lg bg-[#143675]/5 px-3 py-3 text-sm font-medium text-[#143675] dark:bg-[#8bb3ff]/10 dark:text-[#8bb3ff]">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em]">This attendance point will be available for</p>
+              <div className="mt-4 rounded-lg bg-[#59C3A5]/5 px-3 py-3 text-sm font-medium text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em]">{copy.kiosk.form.availableForLabel}</p>
                 <p className="mt-1">{selectedScopeLabel}</p>
               </div>
             </KioskFormSection>
 
             {isEditing ? (
-              <KioskFormSection title="Status" description="Deactivate an attendance point without deleting its history.">
+              <KioskFormSection title={copy.labels.status} description={copy.kiosk.form.statusDescription}>
                 <select
                   value={form.status}
                   onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
                   className={selectClassName}
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">{copy.statuses.active}</option>
+                  <option value="inactive">{copy.statuses.inactive}</option>
                 </select>
               </KioskFormSection>
             ) : null}
           </div>
         </div>
 
-        <DialogFooter className="border-t border-[#0f2855] bg-[#143675] px-6 py-4">
+        <DialogFooter className="border-t border-[#3AAE90] bg-[#59C3A5] px-6 py-4">
           <Button
             type="button"
             variant="outline"
             className="rounded-lg border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
             onClick={onClose}
           >
-            Cancel
+            {copy.labels.cancel}
           </Button>
           <Button
             type="button"
-            className="rounded-lg bg-white text-[#143675] hover:bg-white/90"
+            className="rounded-lg bg-white text-[#59C3A5] hover:bg-white/90"
             disabled={!canSave}
             onClick={onSave}
           >
             <Save className="h-4 w-4" />
-            {isSaving ? 'Saving...' : isEditing ? 'Save attendance point' : 'Create attendance point'}
+            {isSaving
+              ? copy.kiosk.form.saving
+              : isEditing
+                ? copy.kiosk.form.saveAttendancePoint
+                : copy.kiosk.form.createAttendancePoint}
           </Button>
         </DialogFooter>
       </DialogContent>

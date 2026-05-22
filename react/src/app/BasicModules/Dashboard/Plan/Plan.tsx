@@ -6,7 +6,7 @@ export default function Plan() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-purple-50 dark:bg-purple-900/10 rounded-lg p-6 border border-purple-200 dark:border-purple-700/30 text-center">
+      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg p-6 border border-blue-200 dark:border-blue-700/30 text-center">
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
           {t.panelInicial.plan.title}
         </h2>

@@ -1,10 +1,14 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 import { Home } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { useProcessesTasksTranslations } from './hooks/useProcessesTasksTranslations';
+import {
+  OperationalModuleGuide,
+  useProcessesTasksGuidanceTranslations,
+} from './operationalGuidance';
 
 const Agenda = lazy(() => import('./Agenda'));
 const Projects = lazy(() => import('./Projects'));
@@ -12,6 +16,7 @@ const Processes = lazy(() => import('./Processes'));
 const KPIs = lazy(() => import('./KPIs'));
 
 interface ProcessesTasksProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -34,8 +39,10 @@ const legacyProcessTaskTabAliases: Partial<Record<string, ProcessTaskTabId>> = {
   organigrama: 'calendar',
 };
 
-export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
+export default function ProcessesTasks({ learningModeActive = false, onNavigate }: ProcessesTasksProps) {
   const t = useProcessesTasksTranslations();
+  const guidanceCopy = useProcessesTasksGuidanceTranslations();
+  const mainContentRef = useRef<HTMLDivElement | null>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<ProcessTaskTabId>(
     'calendar',
     processTaskTabIds,
@@ -50,6 +57,13 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
   ];
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || Agenda;
+
+  const handleGuidePrimaryAction = () => {
+    mainContentRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -80,6 +94,16 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
             </Button>
           </div>
 
+          {learningModeActive ? (
+            <div className="mt-5">
+              <OperationalModuleGuide
+                copy={guidanceCopy}
+                activeTabId={activeTab}
+                onPrimaryAction={handleGuidePrimaryAction}
+              />
+            </div>
+          ) : null}
+
           <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
             {tabs.map((tab) => {
               return (
@@ -88,7 +112,7 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
                   onClick={() => setActiveTab(tab.id as ProcessTaskTabId)}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                     activeTab === tab.id
-                      ? 'bg-[rgb(235,165,52)] text-white shadow-md'
+                      ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-md'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
                   }`}
                 >
@@ -101,7 +125,7 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-8 py-6">
+      <div ref={mainContentRef} className="mx-auto max-w-[1600px] px-8 py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay

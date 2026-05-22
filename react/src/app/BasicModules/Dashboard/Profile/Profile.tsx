@@ -17,7 +17,7 @@ import {
 } from '../../../shared/validation/phone';
 
 const inputClassName =
-  'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all';
+  'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
 
 const DEFAULT_PREFERRED_LANGUAGE = languages[0]?.code ?? 'es-MX';
 const LEGACY_PREFERRED_LANGUAGE_ALIASES: Record<string, string> = {
@@ -648,7 +648,7 @@ export default function Profile() {
   return (
     <>
       <div>
-        <div className="bg-purple-50 dark:bg-purple-900/10 mb-6 rounded-lg border border-purple-200 p-4 dark:border-purple-700/30 sm:p-6">
+        <div className="bg-blue-50 dark:bg-blue-900/10 mb-6 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
               <span className="text-2xl">👤</span>
@@ -657,14 +657,14 @@ export default function Profile() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {t.panelInicial.profile.subtitle}
             </p>
-            <p className="mt-2 text-sm text-purple-700 dark:text-purple-200">
+            <p className="mt-2 text-sm text-blue-700 dark:text-blue-200">
               {profileCopy.helper}
             </p>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-700 dark:border-purple-700/30 dark:bg-purple-900/20 dark:text-purple-300">
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
             {profileCopy.messages.loading}
           </div>
         ) : null}
@@ -694,10 +694,10 @@ export default function Profile() {
                 <img
                   src={avatarDisplayUrl}
                   alt={t.panelInicial.profile.fields.profilePhoto}
-                  className="h-16 w-16 rounded-full border-2 border-purple-200 object-cover shadow-md dark:border-purple-700/50"
+                  className="h-16 w-16 rounded-full border-2 border-blue-200 object-cover shadow-md dark:border-blue-700/50"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-xl font-semibold text-white shadow-md">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-sky-500 text-xl font-semibold text-white shadow-md">
                   {initials}
                 </div>
               )}
@@ -714,7 +714,7 @@ export default function Profile() {
                   type="button"
                   disabled={isLoading || isSaving || isUploadingAvatar}
                   onClick={() => avatarInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-600/60"
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-600/60"
                 >
                   {isUploadingAvatar ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -838,12 +838,12 @@ export default function Profile() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/80 via-white to-blue-50/70 p-4 dark:border-purple-700/30 dark:from-purple-900/10 dark:via-gray-800 dark:to-blue-900/10 sm:p-5">
+          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/70 p-4 dark:border-blue-700/30 dark:from-blue-900/10 dark:via-gray-800 dark:to-blue-900/10 sm:p-5">
             <div className="flex flex-col gap-4 xl:flex-row">
               <div className="xl:w-[280px] xl:flex-shrink-0">
-                <div className="rounded-2xl border border-purple-100 bg-white/90 p-4 shadow-sm dark:border-purple-700/30 dark:bg-gray-800/90">
+                <div className="rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm dark:border-blue-700/30 dark:bg-gray-800/90">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
                       <ShieldCheck className="h-5 w-5" />
                     </div>
                     <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
@@ -852,8 +852,8 @@ export default function Profile() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-start gap-3 rounded-xl border border-purple-100 bg-purple-50/70 px-3 py-3 dark:border-purple-700/30 dark:bg-purple-900/10">
-                      <KeyRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-purple-600 dark:text-purple-300" />
+                    <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3 dark:border-blue-700/30 dark:bg-blue-900/10">
+                      <KeyRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-300" />
                       <p className="text-xs leading-5 text-gray-600 dark:text-gray-300">
                         {profileCopy.messages.passwordMinLength}
                       </p>
@@ -875,12 +875,12 @@ export default function Profile() {
                     : hasPasswordMinLengthError
                     ? 'border-amber-300 bg-amber-50/80 dark:border-amber-700/40 dark:bg-amber-900/10'
                     : trimmedNewPassword.length > 0
-                      ? 'border-purple-200 bg-white dark:border-purple-700/40 dark:bg-gray-800'
+                      ? 'border-blue-200 bg-white dark:border-blue-700/40 dark:bg-gray-800'
                       : 'border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-gray-800/90'
                 }`}>
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-sm font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
                         1
                       </span>
                       <div>
@@ -911,7 +911,7 @@ export default function Profile() {
                           : hasPasswordMinLengthError
                           ? 'border-amber-300 focus:ring-amber-500'
                           : trimmedNewPassword.length > 0
-                            ? 'border-purple-300 bg-purple-50/40 dark:bg-purple-900/10'
+                            ? 'border-blue-300 bg-blue-50/40 dark:bg-blue-900/10'
                             : ''
                       }`}
                     />
@@ -932,7 +932,7 @@ export default function Profile() {
                     : hasPasswordMismatch
                     ? 'border-red-300 bg-red-50/80 dark:border-red-700/40 dark:bg-red-900/10'
                     : trimmedPasswordConfirmation.length > 0
-                      ? 'border-purple-200 bg-white dark:border-purple-700/40 dark:bg-gray-800'
+                      ? 'border-blue-200 bg-white dark:border-blue-700/40 dark:bg-gray-800'
                       : 'border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-gray-800/90'
                 }`}>
                   <div className="mb-3 flex items-start justify-between gap-3">
@@ -968,7 +968,7 @@ export default function Profile() {
                           : hasPasswordMismatch
                           ? 'border-red-300 focus:ring-red-500'
                           : trimmedPasswordConfirmation.length > 0
-                            ? 'border-purple-300 bg-purple-50/40 dark:bg-purple-900/10'
+                            ? 'border-blue-300 bg-blue-50/40 dark:bg-blue-900/10'
                             : ''
                       }`}
                     />

@@ -732,12 +732,12 @@ function SortableHead({
     <TableHead className="px-5 py-5">
       <button
         type="button"
-        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(235,165,52)] dark:text-slate-400"
+        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(113,63,18)] dark:text-slate-400"
         onClick={() => onSort(columnId)}
       >
         <span className="truncate">{column.label}</span>
         <SortIcon
-          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[rgb(235,165,52)]' : 'text-slate-400')}
+          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400')}
         />
       </button>
     </TableHead>
@@ -1937,7 +1937,7 @@ export function ProjectTasksWorkspace({
             title={taskCopy.actions.files}
             disabled={pending}
             onClick={() => setAttachmentsTask(task)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgb(235,165,52)]/35 bg-[rgb(235,165,52)]/10 px-3 py-2 text-sm font-semibold text-[rgb(176,111,22)] transition-colors hover:border-[rgb(235,165,52)] hover:bg-[rgb(235,165,52)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15 dark:text-[rgb(245,196,112)] dark:hover:bg-[rgb(235,165,52)] dark:hover:text-white"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 px-3 py-2 text-sm font-semibold text-[rgb(113,63,18)] transition-colors hover:border-[rgb(250,204,21)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)] dark:hover:bg-[rgb(250,204,21)] dark:hover:text-slate-950"
           >
             <FolderOpen className="h-4 w-4" />
             {task.attachments}
@@ -2061,7 +2061,7 @@ export function ProjectTasksWorkspace({
                 key={task.taskId}
                 className={cn(
                   'grid min-h-[88px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
-                  rowSelection.isSelected(task.taskId) && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                  rowSelection.isSelected(task.taskId) && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
                 )}
                 style={{ gridTemplateColumns: 'minmax(280px, 340px) 1fr' }}
               >
@@ -2085,7 +2085,7 @@ export function ProjectTasksWorkspace({
                   ))}
                   {range ? (
                     <div
-                      className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/20 px-3 py-2 dark:border-[rgb(235,165,52)]/35 dark:bg-[rgb(235,165,52)]/25"
+                      className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 px-3 py-2 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25"
                       style={{
                         left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
                         width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
@@ -2116,7 +2116,7 @@ export function ProjectTasksWorkspace({
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/10 px-3 py-1 font-semibold text-[rgb(176,111,22)]">
+              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]">
                 {project.folio}
               </Badge>
               <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -2135,7 +2135,7 @@ export function ProjectTasksWorkspace({
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   workspaceViewMode === 'table'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setWorkspaceViewMode('table')}
@@ -2148,7 +2148,7 @@ export function ProjectTasksWorkspace({
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   workspaceViewMode === 'diagram'
-                    ? 'bg-[rgb(235,165,52)] text-white shadow-sm'
+                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setWorkspaceViewMode('diagram')}
@@ -2168,7 +2168,7 @@ export function ProjectTasksWorkspace({
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(235,165,52)] shadow-none hover:bg-[rgb(235,165,52)] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
@@ -2284,10 +2284,10 @@ export function ProjectTasksWorkspace({
       ) : null}
 
       {rowSelection.selectedCount > 0 ? (
-        <div className="border-b border-[rgb(235,165,52)]/25 bg-[rgb(235,165,52)]/10 px-5 py-3 dark:bg-[rgb(235,165,52)]/15">
+        <div className="border-b border-[rgb(250,204,21)]/25 bg-[rgb(250,204,21)]/10 px-5 py-3 dark:bg-[rgb(250,204,21)]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              <Badge variant="outline" className="rounded-full border-[rgb(235,165,52)]/40 bg-white px-3 py-1 text-[rgb(176,111,22)] dark:bg-slate-800 dark:text-[rgb(245,196,112)]">
+              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-white px-3 py-1 text-[rgb(113,63,18)] dark:bg-slate-800 dark:text-[rgb(254,240,138)]">
                 {rowSelection.selectedCount} seleccionadas
               </Badge>
               <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
@@ -2381,7 +2381,7 @@ export function ProjectTasksWorkspace({
                         : false
                   }
                   onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
-                  className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                  className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
                 />
               </TableHead>
               {visibleColumns.map((column) => (
@@ -2401,7 +2401,7 @@ export function ProjectTasksWorkspace({
                 key={task.taskId}
                 className={cn(
                   'border-slate-200 dark:border-slate-700',
-                  selected && 'bg-[rgb(235,165,52)]/10 dark:bg-[rgb(235,165,52)]/15',
+                  selected && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
                 )}
               >
                 <TableCell className="px-5 py-5 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
@@ -2410,7 +2410,7 @@ export function ProjectTasksWorkspace({
                     checked={selected}
                     disabled={isTaskPending(task.taskId)}
                     onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
-                    className="border-slate-300 data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)]"
+                    className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
                   />
                 </TableCell>
                 {visibleColumns.map((column) => {
@@ -2530,9 +2530,9 @@ export function ProjectTasksWorkspace({
           hideCloseButton
           className="!flex h-[min(88vh,760px)] w-[calc(100vw-2rem)] !max-w-[900px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[900px] dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
+          <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
             <div className="flex items-center justify-between gap-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
+              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
                 <FileText className="h-5 w-5" />
                 {copy.report.title}
               </DialogTitle>
@@ -2540,7 +2540,7 @@ export function ProjectTasksWorkspace({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-9 rounded-2xl border-white/70 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white"
+                  className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 >
                   {taskCopy.common.close}
                 </Button>
@@ -2637,9 +2637,9 @@ export function ProjectTasksWorkspace({
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[rgb(235,165,52)] px-5 py-4">
-            <DialogTitle className="text-lg font-bold text-white">{taskCopy.form.labels.responsible}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-white/85">
+          <div className="bg-[rgb(250,204,21)] px-5 py-4">
+            <DialogTitle className="text-lg font-bold text-slate-950">{taskCopy.form.labels.responsible}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-slate-800/85">
               Aplicar responsable a {rowSelection.selectedCount} tarea{rowSelection.selectedCount === 1 ? '' : 's'} seleccionada{rowSelection.selectedCount === 1 ? '' : 's'}.
             </DialogDescription>
           </div>

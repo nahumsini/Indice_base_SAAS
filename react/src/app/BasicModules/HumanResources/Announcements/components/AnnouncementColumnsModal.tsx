@@ -31,8 +31,8 @@ export function AnnouncementColumnsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
-      <div className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#143675]/20 bg-white text-slate-900 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-        <div className="flex items-start justify-between gap-4 bg-[#143675] px-6 py-5">
+      <div className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#59C3A5]/20 bg-white text-slate-900 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+        <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5">
           <div className="flex min-w-0 items-start gap-3">
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
               <Columns3 className="h-5 w-5" />
@@ -61,8 +61,8 @@ export function AnnouncementColumnsModal({
                 key={column.id}
                 className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition ${
                   visibleColumns.includes(column.id)
-                    ? 'border-[#143675] bg-[#143675]/5 text-[#143675] dark:border-blue-400/40 dark:bg-blue-400/10 dark:text-blue-200'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-[#143675]/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                    ? 'border-[#59C3A5] bg-[#59C3A5]/5 text-[#59C3A5] dark:border-blue-400/40 dark:bg-blue-400/10 dark:text-blue-200'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5]/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
                 }`}
               >
                 <span className="font-medium">{column.label}</span>
@@ -71,15 +71,15 @@ export function AnnouncementColumnsModal({
                   checked={visibleColumns.includes(column.id)}
                   disabled={column.locked}
                   onChange={() => onToggleColumn(column.id)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                 />
               </label>
             ))}
           </div>
         </div>
 
-        <div className="flex justify-end border-t border-white/10 bg-[#143675] px-6 py-4">
-          <Button className="rounded-xl bg-white text-[#143675] hover:bg-blue-50" onClick={onClose}>
+        <div className="flex justify-end border-t border-white/10 bg-[#59C3A5] px-6 py-4">
+          <Button className="rounded-xl bg-white text-[#59C3A5] hover:bg-blue-50" onClick={onClose}>
             {copy.done}
           </Button>
         </div>

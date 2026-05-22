@@ -57,14 +57,14 @@ export function TaskAuditDialog({
         hideCloseButton
         className="!flex max-h-[calc(100vh-3rem)] w-[calc(100vw-2rem)] !max-w-[680px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[680px] dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
+        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 pr-4">
-              <DialogTitle className="flex min-w-0 items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
+              <DialogTitle className="flex min-w-0 items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
                 <ClipboardCheck className="h-5 w-5 shrink-0" />
                 <span className="truncate">{copy.title}</span>
               </DialogTitle>
-              <DialogDescription className="mt-1 text-sm font-medium text-white/90">
+              <DialogDescription className="mt-1 text-sm font-medium text-slate-800/90">
                 {copy.scale(maximumAuditWeighting)}
               </DialogDescription>
             </div>
@@ -72,7 +72,7 @@ export function TaskAuditDialog({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-2xl border-white/70 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white"
+                className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 disabled={isSubmitting}
               >
                 {copy.close}
@@ -90,7 +90,7 @@ export function TaskAuditDialog({
 
           {task ? (
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <p className="text-xs font-bold uppercase text-[rgb(176,111,22)]">
+              <p className="text-xs font-bold uppercase text-[rgb(113,63,18)]">
                 {task.folio}
               </p>
               <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">{task.title}</p>
@@ -111,8 +111,8 @@ export function TaskAuditDialog({
                   type="button"
                   className={`h-10 rounded-xl border text-sm font-bold transition-colors ${
                     weighting === String(score)
-                      ? 'border-[rgb(235,165,52)] bg-[rgb(235,165,52)] text-white shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-[rgb(235,165,52)] hover:text-[rgb(176,111,22)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                      ? 'border-[rgb(250,204,21)] bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-[rgb(250,204,21)] hover:text-[rgb(113,63,18)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
                   }`}
                   onClick={() => onWeightingChange(String(score))}
                 >

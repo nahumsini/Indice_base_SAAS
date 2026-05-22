@@ -30,8 +30,8 @@ export function IncentiveColumnsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-      <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#143675]/30 bg-white shadow-2xl dark:bg-slate-900">
-        <header className="flex items-center justify-between bg-[#143675] px-6 py-4 text-white">
+      <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#59C3A5]/30 bg-white shadow-2xl dark:bg-slate-900">
+        <header className="flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
           <div>
             <h2 className="text-lg font-semibold">{copy.title}</h2>
             <p className="text-sm text-blue-100">{copy.subtitle}</p>
@@ -54,7 +54,7 @@ export function IncentiveColumnsModal({
                 className={`flex items-center gap-3 rounded-lg border p-3 text-sm ${
                   column.locked
                     ? 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800/60'
-                    : 'cursor-pointer border-slate-200 bg-white text-slate-800 hover:border-[#143675]/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
+                    : 'cursor-pointer border-slate-200 bg-white text-slate-800 hover:border-[#59C3A5]/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
                 }`}
               >
                 <input
@@ -62,7 +62,7 @@ export function IncentiveColumnsModal({
                   checked={visibleColumns.includes(column.id)}
                   disabled={column.locked}
                   onChange={() => onToggleColumn(column.id)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#143675] focus:ring-[#143675]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                 />
                 <span className="font-medium">{column.label}</span>
                 {column.locked ? <span className="ml-auto text-xs">{copy.required}</span> : null}
@@ -71,11 +71,11 @@ export function IncentiveColumnsModal({
           </div>
         </div>
 
-        <footer className="flex justify-end bg-[#143675] px-6 py-4">
+        <footer className="flex justify-end bg-[#59C3A5] px-6 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[#143675] transition hover:bg-blue-50"
+            className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[#59C3A5] transition hover:bg-blue-50"
           >
             {copy.done}
           </button>
