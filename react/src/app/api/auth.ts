@@ -10,6 +10,28 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface PasswordResetRequestPayload {
+  email: string;
+}
+
+export interface PasswordResetCompletePayload {
+  password: string;
+  confirm_password: string;
+}
+
+export interface PasswordResetMessageResponse {
+  message: string;
+}
+
+export interface PasswordResetValidationResponse {
+  valid: boolean;
+}
+
+export interface PasswordResetCompleteResponse {
+  success: boolean;
+  message: string;
+}
+
 let sessionRequest: Promise<AuthSessionResponse | null> | null = null;
 
 const cacheSession = (session: AuthSessionResponse | null) => {
@@ -81,6 +103,29 @@ export const authApi = {
 
       throw error;
     }
+  },
+
+  requestPasswordReset({ email }: PasswordResetRequestPayload) {
+    return apiClient<PasswordResetMessageResponse>(`${endpoints.auth.passwordReset}/request`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  validatePasswordResetToken(token: string) {
+    return apiClient<PasswordResetValidationResponse>(
+      `${endpoints.auth.passwordReset}/${encodeURIComponent(token)}`,
+    );
+  },
+
+  completePasswordReset(token: string, payload: PasswordResetCompletePayload) {
+    return apiClient<PasswordResetCompleteResponse>(
+      `${endpoints.auth.passwordReset}/${encodeURIComponent(token)}/complete`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   async logout() {

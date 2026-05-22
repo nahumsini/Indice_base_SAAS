@@ -760,3 +760,140 @@ export const mockInsights: Insight[] = [
     nodeId: 'n1',
   },
 ];
+
+const nodeTypeToLegacyLocationType: Record<LogisticsNode['type'], string> = {
+  warehouse: 'almacen_central',
+  branch: 'sucursal',
+  vehicle: 'unidad_movil',
+  technician: 'bodega',
+  transit: 'transito',
+  production: 'bodega',
+  consignment: 'bodega',
+};
+
+export const mockLocations = mockNodes.map((node, index) => ({
+  id: node.id,
+  name: node.name,
+  code: `UBI-${String(index + 1).padStart(3, '0')}`,
+  type: nodeTypeToLegacyLocationType[node.type],
+  isActive: node.status !== 'critical',
+  address: node.location,
+  capacity: node.capacity,
+  occupation: node.capacityUsed,
+  totalStock: node.stockTotal,
+  movements: node.movementsToday,
+  manager: node.responsible,
+  phone: index % 2 === 0 ? '+52 33 5555 0100' : '+52 81 5555 0200',
+}));
+
+const legacyStockStatus = (stock: number, minStock: number, maxStock: number) => {
+  if (stock <= minStock) {
+    return 'critico';
+  }
+  if (stock <= minStock * 1.5) {
+    return 'bajo';
+  }
+  if (stock >= maxStock) {
+    return 'exceso';
+  }
+  return 'normal';
+};
+
+export const mockInventoryLocations = mockStockItems.flatMap((item) =>
+  item.stockByNode.map((nodeStock) => {
+    const minStock = item.alerts.includes('Stock crítico') ? 50 : 20;
+    const maxStock = Math.max(minStock * 4, Math.ceil(nodeStock.quantity * 1.35));
+    const reserved = Math.min(item.reserved, Math.max(nodeStock.quantity, 0));
+    const inTransit = item.inTransit > 0 && nodeStock.nodeId === 'n4' ? item.inTransit : 0;
+    return {
+      id: `${item.productId}-${nodeStock.nodeId}`,
+      productId: item.productId,
+      productName: item.productName,
+      productSku: item.sku,
+      locationId: nodeStock.nodeId,
+      locationName: nodeStock.nodeName,
+      stock: nodeStock.quantity,
+      reserved,
+      inTransit,
+      available: Math.max(nodeStock.quantity - reserved, 0),
+      minStock,
+      maxStock,
+      status: legacyStockStatus(nodeStock.quantity, minStock, maxStock),
+    };
+  })
+);
+
+export const mockCounts = [
+  {
+    id: 'cnt-1',
+    folio: 'CNT-2026-001',
+    locationName: 'Sucursal Norte',
+    status: 'diferencia',
+    totalItems: 145,
+    differences: 2,
+    countedBy: 'Laura Martínez',
+    startedAt: new Date('2026-05-09T08:00:00'),
+    items: [
+      {
+        id: 'cnt-1-p5',
+        productName: 'Patch Panel 24p',
+        systemStock: 44,
+        countedStock: 42,
+        difference: -2,
+        hasDifference: true,
+      },
+      {
+        id: 'cnt-1-p1',
+        productName: 'Cable Cat6 305m',
+        systemStock: 97,
+        countedStock: 98,
+        difference: 1,
+        hasDifference: true,
+      },
+    ],
+  },
+  {
+    id: 'cnt-2',
+    folio: 'CNT-2026-002',
+    locationName: 'Almacén Central',
+    status: 'validado',
+    totalItems: 210,
+    differences: 0,
+    countedBy: 'Carlos Ruiz',
+    startedAt: new Date('2026-05-10T09:00:00'),
+    items: [],
+  },
+  {
+    id: 'cnt-3',
+    folio: 'CNT-2026-003',
+    locationName: 'Sucursal Sur',
+    status: 'pendiente',
+    totalItems: 86,
+    differences: 0,
+    countedBy: null,
+    startedAt: new Date('2026-05-11T09:00:00'),
+    items: [],
+  },
+];
+
+const alertPriorityToLegacyPriority: Record<Alert['priority'], string> = {
+  urgent: 'critica',
+  high: 'alta',
+  medium: 'media',
+  low: 'baja',
+};
+
+export const mockIncidents = mockAlerts.map((alert, index) => ({
+  id: alert.id,
+  folio: `INC-2026-${String(index + 1).padStart(3, '0')}`,
+  title: alert.title,
+  description: alert.description,
+  priority: alertPriorityToLegacyPriority[alert.priority],
+  status: alert.resolvedAt ? 'resuelta' : 'abierta',
+  locationName: alert.nodeName,
+  productName: alert.productName,
+  reportedBy: alert.responsible || 'Sistema',
+  reportedAt: alert.createdAt,
+  estimatedCost: alert.value ? Math.round(alert.value * 100) : null,
+  solution: alert.resolvedAt ? 'Incidencia cerrada y documentada.' : null,
+}));
