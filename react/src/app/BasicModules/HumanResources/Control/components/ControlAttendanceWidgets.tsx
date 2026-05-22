@@ -39,6 +39,11 @@ export function getAssignmentBusyReason(assignment: ControlAssignment, copy?: At
 
 export const isAssignmentFreeForWork = (assignment: ControlAssignment) => !getAssignmentBusyReason(assignment);
 
+const firstUsablePhotoUrl = (...photoUrls: Array<string | null | undefined>) => {
+  const photoUrl = photoUrls.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
+  return photoUrl?.trim() ?? null;
+};
+
 const attendanceRowBorderClass = (assignment: ControlAssignment) => {
   const displayStatus = assignment.corrected_status ?? assignment.today_status;
 
@@ -100,8 +105,12 @@ export function ControlAttendanceRow({
   const checkOutTime = formatTimeOnly(assignment.last_check_out_at, locale, copy.labels.noRegistration);
   const role = assignment.position_title || assignment.department || copy.labels.noDepartment;
   const workLocation = assignment.active_work_site?.location_name ?? assignment.business_name ?? assignment.unit_name ?? '';
-  const latestCheckInPhotoUrl = assignment.latest_event?.event_type === 'check_in' ? assignment.latest_event.photo_url ?? null : null;
-  const latestCheckOutPhotoUrl = assignment.latest_event?.event_type === 'check_out' ? assignment.latest_event.photo_url ?? null : null;
+  const latestEventType = assignment.latest_event?.event_type || assignment.latest_event?.event_kind || '';
+  const latestEventPhotoUrl = firstUsablePhotoUrl(assignment.latest_event?.photo_url);
+  const latestCheckInPhotoUrl = latestEventType === 'check_in' ? latestEventPhotoUrl : null;
+  const latestCheckOutPhotoUrl = latestEventType === 'check_out' ? latestEventPhotoUrl : null;
+  const checkInPhotoUrl = firstUsablePhotoUrl(assignment.first_photo_url, latestCheckInPhotoUrl);
+  const checkOutPhotoUrl = firstUsablePhotoUrl(assignment.last_photo_url, latestCheckOutPhotoUrl);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -144,7 +153,7 @@ export function ControlAttendanceRow({
             label={copy.labels.checkIn}
             time={checkInTime}
             location={assignment.first_location?.name ?? assignment.latest_event?.location_name ?? null}
-            photoUrl={assignment.first_photo_url ?? latestCheckInPhotoUrl}
+            photoUrl={checkInPhotoUrl}
             latitude={assignment.first_latitude ?? null}
             longitude={assignment.first_longitude ?? null}
             copy={copy}
@@ -154,7 +163,7 @@ export function ControlAttendanceRow({
             label={copy.labels.checkOut}
             time={checkOutTime}
             location={assignment.last_location?.name ?? assignment.latest_event?.location_name ?? null}
-            photoUrl={assignment.last_photo_url ?? latestCheckOutPhotoUrl}
+            photoUrl={checkOutPhotoUrl}
             latitude={assignment.last_latitude ?? null}
             longitude={assignment.last_longitude ?? null}
             copy={copy}
