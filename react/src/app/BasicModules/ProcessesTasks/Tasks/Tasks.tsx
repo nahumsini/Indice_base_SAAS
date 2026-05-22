@@ -601,7 +601,7 @@ export default function Tasks() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-white">Execution queue</h2>
@@ -682,7 +682,7 @@ export default function Tasks() {
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-[rgb(235,165,52)]">{averageCompletion}%</span> avg completion
+          <span className="font-medium text-[rgb(113,63,18)]">{averageCompletion}%</span> avg completion
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
@@ -694,7 +694,7 @@ export default function Tasks() {
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-[rgb(235,165,52)]">{filteredTasks.length}</span> visible
+          <span className="font-medium text-[rgb(113,63,18)]">{filteredTasks.length}</span> visible
         </span>
       </div>
 
@@ -773,7 +773,7 @@ export default function Tasks() {
                         {clampPercent(task.completionPercent)}%
                       </span>
                       {task.audited ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[rgb(235,165,52)]">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[rgb(113,63,18)]">
                           <ClipboardCheck className="h-3.5 w-3.5" />
                           Audited
                         </span>
@@ -781,7 +781,7 @@ export default function Tasks() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                       <div
-                        className="h-full rounded-full bg-[rgb(235,165,52)]"
+                        className="h-full rounded-full bg-[rgb(250,204,21)]"
                         style={{ width: `${clampPercent(task.completionPercent)}%` }}
                       />
                     </div>

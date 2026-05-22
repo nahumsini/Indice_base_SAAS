@@ -287,14 +287,14 @@ export function TaskAttachmentsDialog({
         hideCloseButton
         className="!flex h-[min(88vh,820px)] w-[calc(100vw-2rem)] !max-w-[880px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[880px] dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
+        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 pr-4">
-              <DialogTitle className="flex min-w-0 items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
+              <DialogTitle className="flex min-w-0 items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
                 <Paperclip className="h-5 w-5 shrink-0" />
                 <span className="truncate">{copy.title}</span>
               </DialogTitle>
-              <DialogDescription className="mt-1 truncate text-sm font-medium text-white/90">
+              <DialogDescription className="mt-1 truncate text-sm font-medium text-slate-800/90">
                 {task ? `${task.folio} - ${task.title}` : copy.fallbackSubtitle}
               </DialogDescription>
             </div>
@@ -302,7 +302,7 @@ export function TaskAttachmentsDialog({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-2xl border-white/70 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white"
+                className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
               >
                 {commonCopy.close}
               </Button>
@@ -317,14 +317,14 @@ export function TaskAttachmentsDialog({
                 className={cn(
                   'flex min-h-[220px] flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-6 text-center transition-colors',
                   isDragging
-                    ? 'border-[rgb(235,165,52)] bg-[rgb(235,165,52)]/10'
+                    ? 'border-[rgb(250,204,21)] bg-[rgb(250,204,21)]/10'
                     : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/70',
                 )}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgb(235,165,52)]/15 text-[rgb(235,165,52)]">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgb(250,204,21)]/15 text-[rgb(113,63,18)]">
                   {isUploading ? <Loader2 className="h-7 w-7 animate-spin" /> : <Upload className="h-7 w-7" />}
                 </div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -343,7 +343,7 @@ export function TaskAttachmentsDialog({
                 />
                 <Button
                   type="button"
-                  className="mt-5 h-10 rounded-xl bg-[rgb(235,165,52)] px-4 text-sm font-semibold text-white hover:bg-[rgb(216,146,30)]"
+                  className="mt-5 h-10 rounded-xl bg-[rgb(250,204,21)] px-4 text-sm font-semibold text-slate-950 hover:bg-[rgb(234,179,8)]"
                   disabled={isUploading}
                   onClick={() => inputRef.current?.click()}
                 >

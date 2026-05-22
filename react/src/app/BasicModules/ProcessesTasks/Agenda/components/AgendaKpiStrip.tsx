@@ -211,7 +211,7 @@ export function AgendaKpiStrip({
             icon={<ListChecks className="h-4 w-4" />}
             label={copy.labels.averageProgress}
             value={`${metrics.averageCompletion}%`}
-            valueClassName="text-[rgb(235,165,52)]"
+            valueClassName="text-[rgb(113,63,18)]"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AgendaKpiMetric
@@ -241,9 +241,9 @@ export function AgendaKpiStrip({
 
       <AgendaStatusBar segments={statusSegments} />
 
-      <div className="rounded-lg border border-[rgb(235,165,52)]/20 bg-[rgb(235,165,52)]/10 px-4 py-3 dark:border-[rgb(235,165,52)]/30 dark:bg-[rgb(235,165,52)]/15">
+      <div className="rounded-lg border border-[rgb(250,204,21)]/20 bg-[rgb(250,204,21)]/10 px-4 py-3 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex items-start gap-3">
-          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(235,165,52)]" />
+          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildInsight(metrics, copy)}</p>
         </div>
       </div>

@@ -88,7 +88,7 @@ const statusClasses: Record<ProcessTaskKpiStatus, string> = {
 
 const scoreBarClasses: Record<ProcessTaskKpiStatus, string> = {
   healthy: 'bg-emerald-500',
-  watch: 'bg-[rgb(235,165,52)]',
+  watch: 'bg-[rgb(250,204,21)]',
   critical: 'bg-rose-500',
 };
 
@@ -425,7 +425,7 @@ function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: 
             icon={<FileCheck2 className="h-4 w-4" />}
             label={copy.summary.labels.withEvidence}
             value={`${summary.evidenceRate}%`}
-            valueClassName="text-[rgb(235,165,52)]"
+            valueClassName="text-[rgb(113,63,18)]"
           />
         </div>
 
@@ -451,9 +451,9 @@ function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: 
         </div>
       </div>
 
-      <div className="rounded-lg border border-[rgb(235,165,52)]/20 bg-[rgb(235,165,52)]/10 px-4 py-3 dark:border-[rgb(235,165,52)]/30 dark:bg-[rgb(235,165,52)]/15">
+      <div className="rounded-lg border border-[rgb(250,204,21)]/20 bg-[rgb(250,204,21)]/10 px-4 py-3 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex items-start gap-3">
-          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(235,165,52)]" />
+          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildKpiInsight(summary, copy)}</p>
         </div>
       </div>
@@ -853,7 +853,7 @@ export default function KPIs() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(235,165,52)]/30 bg-[rgb(235,165,52)]/10 p-6 shadow-sm dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15">
+      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -1027,7 +1027,7 @@ export default function KPIs() {
               <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{dashboard.summary.projectTasks}</p>
             </article>
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <Trophy className="mb-4 h-5 w-5 text-[rgb(235,165,52)]" />
+              <Trophy className="mb-4 h-5 w-5 text-[rgb(113,63,18)]" />
               <p className="text-sm text-slate-500 dark:text-slate-400">{copy.snapshots.quality}</p>
               <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{formatWeighting(dashboard.summary.averageWeighting, copy.common.notApplicable)}</p>
             </article>

@@ -130,7 +130,7 @@ function TaskPinKeypad({
           key={key}
           type="button"
           disabled={disabled}
-          className={`flex h-16 items-center justify-center rounded-2xl border border-slate-200 bg-white text-2xl font-bold text-slate-950 shadow-sm transition hover:border-[rgb(235,165,52)] hover:bg-[rgb(235,165,52)]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${key === '0' ? 'col-start-2' : ''}`}
+          className={`flex h-16 items-center justify-center rounded-2xl border border-slate-200 bg-white text-2xl font-bold text-slate-950 shadow-sm transition hover:border-[rgb(250,204,21)] hover:bg-[rgb(250,204,21)]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${key === '0' ? 'col-start-2' : ''}`}
           onClick={() => {
             if (key === 'backspace') {
               onChange(value.slice(0, -1));
@@ -161,7 +161,7 @@ function TaskKioskLanguageSelector({
 }) {
   return (
     <label className="flex min-w-[13rem] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-      <Globe2 className="h-4 w-4 shrink-0 text-[rgb(174,111,22)]" />
+      <Globe2 className="h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
       <span className="sr-only">{copy.language.selectorLabel}</span>
       <select
         value={locale}
@@ -178,7 +178,7 @@ function TaskKioskLanguageSelector({
       {detectedLocale === locale ? (
         <span
           title={copy.language.autoDetected}
-          className="hidden rounded-full bg-[rgb(235,165,52)]/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[rgb(174,111,22)] sm:inline"
+          className="hidden rounded-full bg-[rgb(250,204,21)]/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[rgb(113,63,18)] sm:inline"
         >
           {copy.language.autoBadge}
         </span>
@@ -194,7 +194,7 @@ function StepCard({ index, label, active, done }: { index: number; label: string
         done
           ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200'
           : active
-            ? 'border-[rgb(235,165,52)]/40 bg-[rgb(235,165,52)]/10 text-[rgb(174,111,22)] dark:border-[rgb(235,165,52)]/40 dark:bg-[rgb(235,165,52)]/15 dark:text-[rgb(245,196,112)]'
+            ? 'border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/10 text-[rgb(113,63,18)] dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)]'
             : 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-400'
       }`}
     >
@@ -204,7 +204,7 @@ function StepCard({ index, label, active, done }: { index: number; label: string
             done
               ? 'bg-emerald-500 text-white'
               : active
-                ? 'bg-[rgb(235,165,52)] text-white'
+                ? 'bg-[rgb(250,204,21)] text-slate-950'
                 : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
           }`}
         >
@@ -427,7 +427,7 @@ export default function PublicTaskKioskPage() {
         <header className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[rgb(235,165,52)]/12 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[rgb(174,111,22)]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[rgb(250,204,21)]/12 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[rgb(113,63,18)]">
                 <ShieldCheck className="h-4 w-4" />
                 {copy.header.badge}
               </div>
@@ -483,7 +483,7 @@ export default function PublicTaskKioskPage() {
             {!identity ? (
               <section className="rounded-[28px] border border-slate-200 bg-slate-50 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgb(235,165,52)] text-white">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgb(250,204,21)] text-slate-950">
                     <KeyRound className="h-6 w-6" />
                   </span>
                   <div>
@@ -509,7 +509,7 @@ export default function PublicTaskKioskPage() {
                     />
                     <Button
                       type="button"
-                      className="h-14 w-full rounded-2xl bg-[rgb(235,165,52)] text-base font-bold text-white hover:bg-[rgb(174,111,22)]"
+                      className="h-14 w-full rounded-2xl bg-[rgb(250,204,21)] text-base font-bold text-slate-950 hover:bg-[rgb(234,179,8)]"
                       disabled={pin.length < 5 || isSubmitting}
                       onClick={() => void handleIdentify()}
                     >
@@ -556,8 +556,8 @@ export default function PublicTaskKioskPage() {
                           type="button"
                           className={`w-full rounded-2xl border p-4 text-left transition ${
                             selectedTaskId === task.id
-                              ? 'border-[rgb(235,165,52)] bg-[rgb(235,165,52)]/10 shadow-sm'
-                              : 'border-slate-200 bg-white hover:border-[rgb(235,165,52)]/50 dark:border-slate-800 dark:bg-slate-950'
+                              ? 'border-[rgb(250,204,21)] bg-[rgb(250,204,21)]/10 shadow-sm'
+                              : 'border-slate-200 bg-white hover:border-[rgb(250,204,21)]/50 dark:border-slate-800 dark:bg-slate-950'
                           }`}
                           onClick={() => {
                             setSelectedTaskId(task.id);
@@ -601,7 +601,7 @@ export default function PublicTaskKioskPage() {
                     <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                       {selectedTask ? (
                         <>
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[rgb(174,111,22)]">{copy.selectedTask.eyebrow}</p>
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[rgb(113,63,18)]">{copy.selectedTask.eyebrow}</p>
                           <h3 className="mt-2 text-xl font-black">{selectedTask.title}</h3>
                           {selectedTask.description ? (
                             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{selectedTask.description}</p>
@@ -630,8 +630,8 @@ export default function PublicTaskKioskPage() {
                           </div>
                           <div className="mt-5">
                             <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.selectedTask.evidence}</label>
-                            <label className="mt-2 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-center text-sm font-semibold text-slate-600 transition hover:border-[rgb(235,165,52)] hover:bg-[rgb(235,165,52)]/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                              <Upload className="h-6 w-6 text-[rgb(174,111,22)]" />
+                            <label className="mt-2 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-center text-sm font-semibold text-slate-600 transition hover:border-[rgb(250,204,21)] hover:bg-[rgb(250,204,21)]/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                              <Upload className="h-6 w-6 text-[rgb(113,63,18)]" />
                               {copy.selectedTask.addEvidence}
                               <input
                                 type="file"
@@ -649,7 +649,7 @@ export default function PublicTaskKioskPage() {
                                     key={`${file.name}-${file.size}-${file.lastModified}`}
                                     className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                   >
-                                    <Paperclip className="h-4 w-4 text-[rgb(174,111,22)]" />
+                                    <Paperclip className="h-4 w-4 text-[rgb(113,63,18)]" />
                                     <span className="min-w-0 flex-1 truncate">{file.name}</span>
                                   </div>
                                 ))}
@@ -669,7 +669,7 @@ export default function PublicTaskKioskPage() {
                           </div>
                           <Button
                             type="button"
-                            className="mt-5 h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                            className="mt-5 h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-slate-950 hover:bg-emerald-700"
                             disabled={isSubmitting}
                             onClick={() => void handleCompleteTask()}
                           >
@@ -710,8 +710,8 @@ export default function PublicTaskKioskPage() {
               </div>
             </section>
 
-            <section className="rounded-[28px] border border-[rgb(235,165,52)]/25 bg-[rgb(235,165,52)]/10 p-5 dark:border-[rgb(235,165,52)]/30 dark:bg-[rgb(235,165,52)]/15">
-              <Sparkles className="h-6 w-6 text-[rgb(174,111,22)]" />
+            <section className="rounded-[28px] border border-[rgb(250,204,21)]/25 bg-[rgb(250,204,21)]/10 p-5 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
+              <Sparkles className="h-6 w-6 text-[rgb(113,63,18)]" />
               <h3 className="mt-3 text-lg font-black">{copy.sidebar.encouragementTitle}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {copy.sidebar.encouragementBody}

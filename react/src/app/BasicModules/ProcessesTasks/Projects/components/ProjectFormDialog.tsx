@@ -350,9 +350,9 @@ export function ProjectFormDialog({
         hideCloseButton
         className="!flex h-[min(88vh,780px)] w-[calc(100vw-2rem)] !max-w-[820px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[820px] dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[rgb(235,165,52)] px-6 py-4">
+        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
-            <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
+            <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
               {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
               {title}
             </DialogTitle>
@@ -360,7 +360,7 @@ export function ProjectFormDialog({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-2xl border-white/70 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white"
+                className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 disabled={isSubmitting}
               >
                 {copy.common.close}

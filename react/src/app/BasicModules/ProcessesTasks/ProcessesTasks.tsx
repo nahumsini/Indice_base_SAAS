@@ -112,7 +112,7 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
                   onClick={() => setActiveTab(tab.id as ProcessTaskTabId)}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                     activeTab === tab.id
-                      ? 'bg-[rgb(235,165,52)] text-white shadow-md'
+                      ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-md'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
                   }`}
                 >
