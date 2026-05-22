@@ -16,10 +16,10 @@ export const zhCA = {
     title: '完成现场任务',
     subtitle: '输入 PIN，查看分配的工作，并在不打开完整会话的情况下关闭任务。',
     point: '入口点',
-    scope: '范围',
+    scope: '上下文',
     time: '时间',
     defaultPoint: '任务自助终端',
-    defaultScope: '所有员工',
+    defaultScope: '已分配任务',
   },
   steps: {
     pin: '输入 PIN',
@@ -41,7 +41,7 @@ export const zhCA = {
   },
   empty: {
     title: '没有分配的开放任务',
-    body: '此入口点当前没有待处理任务。',
+    body: '当前没有分配给你的开放任务。',
   },
   task: {
     task: '任务',
@@ -68,7 +68,7 @@ export const zhCA = {
     pointStatus: '入口点状态',
     active: '启用',
     defaultPoint: '任务入口点',
-    availableFor: '适用于',
+    availableFor: '运营上下文',
     openTasks: '开放任务',
     openTasksValue: (count: number) => `${count} 个任务`,
     currentTime: '当前时间',

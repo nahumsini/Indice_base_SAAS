@@ -14,10 +14,10 @@ export const enCA = {
     title: 'Complete field tasks',
     subtitle: 'Enter your PIN, review assigned work, and close tasks without opening a full session.',
     point: 'Point',
-    scope: 'Scope',
+    scope: 'Context',
     time: 'Time',
     defaultPoint: 'Task kiosk',
-    defaultScope: 'All employees',
+    defaultScope: 'Assigned tasks',
   },
   steps: {
     pin: 'Enter PIN',
@@ -39,7 +39,7 @@ export const enCA = {
   },
   empty: {
     title: 'No open tasks assigned',
-    body: 'You are clear for this access point right now.',
+    body: 'You do not have assigned open tasks right now.',
   },
   task: {
     task: 'Task',
@@ -66,7 +66,7 @@ export const enCA = {
     pointStatus: 'Point status',
     active: 'Active',
     defaultPoint: 'Task access point',
-    availableFor: 'Available for',
+    availableFor: 'Operational context',
     openTasks: 'Open tasks',
     openTasksValue: (count: number) => `${count} task${count === 1 ? '' : 's'}`,
     currentTime: 'Current time',

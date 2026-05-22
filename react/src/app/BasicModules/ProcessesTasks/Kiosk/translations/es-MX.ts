@@ -16,10 +16,10 @@ export const esMX = {
     title: 'Completar tareas de campo',
     subtitle: 'Ingresa tu PIN, revisa el trabajo asignado y cierra tareas sin abrir una sesión completa.',
     point: 'Punto',
-    scope: 'Alcance',
+    scope: 'Contexto',
     time: 'Hora',
     defaultPoint: 'Kiosko de tareas',
-    defaultScope: 'Todos los colaboradores',
+    defaultScope: 'Tareas asignadas',
   },
   steps: {
     pin: 'Captura PIN',
@@ -41,7 +41,7 @@ export const esMX = {
   },
   empty: {
     title: 'Sin tareas abiertas asignadas',
-    body: 'No tienes pendientes para este punto en este momento.',
+    body: 'No tienes tareas abiertas asignadas en este momento.',
   },
   task: {
     task: 'Tarea',
@@ -68,7 +68,7 @@ export const esMX = {
     pointStatus: 'Estado del punto',
     active: 'Activo',
     defaultPoint: 'Punto de tareas',
-    availableFor: 'Disponible para',
+    availableFor: 'Contexto operativo',
     openTasks: 'Tareas abiertas',
     openTasksValue: (count: number) => `${count} tarea${count === 1 ? '' : 's'}`,
     currentTime: 'Hora actual',

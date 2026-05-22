@@ -285,9 +285,8 @@ public class ProcessTaskKioskService {
         var params = new java.util.ArrayList<Object>();
         params.add(kiosk.companyId());
         params.add(userCompanyId);
-        var scopeSql = appendTaskScopeSql(kiosk, params);
         return jdbcTemplate.query(
-            publicTaskSql(scopeSql) + " ORDER BY COALESCE(task.due_date, CURRENT_DATE) ASC, task.id DESC",
+            publicTaskSql("") + " ORDER BY COALESCE(task.due_date, CURRENT_DATE) ASC, task.id DESC",
             (rs, rowNum) -> mapPublicTask(rs),
             params.toArray()
         );
@@ -298,9 +297,8 @@ public class ProcessTaskKioskService {
         params.add(kiosk.companyId());
         params.add(userCompanyId);
         params.add(taskId);
-        var scopeSql = appendTaskScopeSql(kiosk, params);
         var rows = jdbcTemplate.query(
-            publicTaskSql("AND task.id = ?\n" + scopeSql),
+            publicTaskSql("AND task.id = ?\n"),
             (rs, rowNum) -> mapPublicTask(rs),
             params.toArray()
         );
@@ -308,19 +306,6 @@ public class ProcessTaskKioskService {
             throw new NoSuchElementException("Task not found for this kiosk.");
         }
         return rows.getFirst();
-    }
-
-    private String appendTaskScopeSql(ProcessTaskKioskRow kiosk, List<Object> params) {
-        var sql = new StringBuilder();
-        if (kiosk.unitId() != null) {
-            sql.append(" AND (task.unit_id = ? OR task.unit_id IS NULL)\n");
-            params.add(kiosk.unitId());
-        }
-        if (kiosk.businessId() != null) {
-            sql.append(" AND (task.business_id = ? OR task.business_id IS NULL)\n");
-            params.add(kiosk.businessId());
-        }
-        return sql.toString();
     }
 
     private String publicTaskSql(String extraWhere) {
@@ -668,8 +653,9 @@ public class ProcessTaskKioskService {
     }
 
     private void validateEmployeeScope(ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee) {
-        // Public task kiosks scope tasks, not employee access. The task queries and mutations below
-        // still enforce kiosk unit/business plus assigned employee before exposing or changing work.
+        // Public task kiosks are assignment-driven: the PIN identifies the worker, and every public
+        // task query/mutation below still requires task.assigned_user_company_id to match that worker.
+        // Kiosk unit/business values remain operational context for labels and administration.
     }
 
     private void validateScope(long companyId, Long unitId, Long businessId) {
@@ -812,9 +798,9 @@ public class ProcessTaskKioskService {
             return fallback(kiosk.businessName(), "Business " + kiosk.businessId());
         }
         if (kiosk.unitId() != null) {
-            return fallback(kiosk.unitName(), "Unit " + kiosk.unitId()) + " / all businesses";
+            return fallback(kiosk.unitName(), "Unit " + kiosk.unitId());
         }
-        return "All employees";
+        return "Assigned tasks";
     }
 
     private String normalizeStatus(String value) {
