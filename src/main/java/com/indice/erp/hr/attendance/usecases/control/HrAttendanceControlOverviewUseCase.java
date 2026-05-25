@@ -1,6 +1,10 @@
 package com.indice.erp.hr.attendance.usecases.control;
 
+import com.indice.erp.hr.attendance.kiosk.KioskDeviceRow;
+import com.indice.erp.hr.attendance.models.AttendanceHrUser;
 import com.indice.erp.hr.attendance.models.ControlActivityRow;
+import com.indice.erp.hr.attendance.models.LocationRow;
+import com.indice.erp.hr.attendance.models.WorkSiteAssignmentRow;
 import com.indice.erp.hr.attendance.support.AttendanceLocationPresentation;
 import com.indice.erp.hr.attendance.usecases.calendar.HrAttendanceCalendarUseCases;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
@@ -30,17 +34,37 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
     public Map<String, Object> controlOverview(long companyId, LocalDate date) {
         var users = attendanceUserLookupService.listAttendanceUsers(companyId);
         var locations = listLocations(companyId);
+        return controlOverview(
+            companyId,
+            date,
+            users,
+            locations,
+            loadAllowedLocationsByUser(companyId),
+            loadActiveWorkSiteAssignments(companyId, date),
+            attendanceKioskDeviceRepository.list(companyId),
+            loadRecentControlActivity(companyId, date, 25),
+            loadControlPhotoObjectKeysByUser(companyId, date)
+        );
+    }
+
+    protected Map<String, Object> controlOverview(
+        long companyId,
+        LocalDate date,
+        List<AttendanceHrUser> users,
+        List<LocationRow> locations,
+        Map<Long, List<LocationRow>> allowedLocationsByUser,
+        Map<Long, WorkSiteAssignmentRow> activeWorkSitesByUser,
+        List<KioskDeviceRow> kioskDevices,
+        List<ControlActivityRow> recentEvents,
+        Map<Long, Map<String, String>> photoObjectKeysByUser
+    ) {
+        var visibleUserIds = users.stream().map(AttendanceHrUser::id).toList();
         var templates = loadScheduleTemplates(companyId);
         var currentAssignments = loadCurrentAssignments(companyId, date);
         var scheduleRulesByUser = loadScheduleRules(companyId, date);
         var dailyRecordsByUser = attendanceDailyRecordRepository.loadDailyRecords(companyId, date);
-        var allowedLocationsByUser = loadAllowedLocationsByUser(companyId);
         var businessLocationsByBusiness = groupLocationsByBusiness(locations);
-        var activeWorkSitesByUser = loadActiveWorkSiteAssignments(companyId, date);
         var accessProfilesByUser = attendanceAccessService.loadAccessProfilesByUser(companyId);
-        var kioskDevices = attendanceKioskDeviceRepository.list(companyId);
-        var recentEvents = loadRecentControlActivity(companyId, date, 25);
-        var photoObjectKeysByUser = loadControlPhotoObjectKeysByUser(companyId, date);
         var latestEventByUser = new HashMap<Long, ControlActivityRow>();
         int authSuccessCount = 0;
         int authFailureCount = 0;
@@ -61,9 +85,11 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
         }
 
         var assignedCountsByTemplate = new HashMap<Long, Integer>();
-        currentAssignments.values().forEach((assignment) ->
-            assignedCountsByTemplate.merge(assignment.templateId(), 1, Integer::sum)
-        );
+        currentAssignments.values().stream()
+            .filter((assignment) -> visibleUserIds.contains(assignment.userCompanyId()))
+            .forEach((assignment) ->
+                assignedCountsByTemplate.merge(assignment.templateId(), 1, Integer::sum)
+            );
 
         int assignedUsersCount = 0;
         int unassignedUsersCount = 0;

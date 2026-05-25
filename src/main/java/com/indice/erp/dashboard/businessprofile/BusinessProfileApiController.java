@@ -1,6 +1,8 @@
 package com.indice.erp.dashboard.businessprofile;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.configcenter.ConfigCenterAccessService;
+import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -16,13 +18,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class BusinessProfileApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final ConfigCenterAccessService accessService;
     private final BusinessProfileService businessProfileService;
 
     public BusinessProfileApiController(
         SessionAuthService sessionAuthService,
+        ConfigCenterAccessService accessService,
         BusinessProfileService businessProfileService
     ) {
         this.sessionAuthService = sessionAuthService;
+        this.accessService = accessService;
         this.businessProfileService = businessProfileService;
     }
 
@@ -31,6 +36,9 @@ public class BusinessProfileApiController {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(currentUser.get(), ConfigCenterTab.BUSINESS_PROFILE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         return ResponseEntity.ok(businessProfileService.getBusinessProfile(currentUser.get().companyId()));
@@ -41,6 +49,9 @@ public class BusinessProfileApiController {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(currentUser.get(), ConfigCenterTab.BUSINESS_PROFILE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         try {

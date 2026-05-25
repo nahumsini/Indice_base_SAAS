@@ -41,7 +41,7 @@ public class HrAttendanceApiController extends AttendanceApiControllerSupport {
 
         try {
             var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
-            return ResponseEntity.ok(hrAttendanceService.listDashboard(currentUser.get().companyId(), targetDate));
+            return ResponseEntity.ok(hrAttendanceService.listDashboard(currentUser.get(), targetDate));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -88,7 +88,7 @@ public class HrAttendanceApiController extends AttendanceApiControllerSupport {
 
         try {
             var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
-            return ResponseEntity.ok(hrAttendanceService.controlOverview(currentUser.get().companyId(), targetDate));
+            return ResponseEntity.ok(hrAttendanceService.controlOverview(currentUser.get(), targetDate));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

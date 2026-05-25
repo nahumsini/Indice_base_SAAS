@@ -10,14 +10,21 @@ public class AnnDeleteSvc {
 
     private final JdbcTemplate jdbcTemplate;
     private final AnnDeliverSvc deliverSvc;
+    private final HrAnnouncementScopeService scopeService;
 
-    public AnnDeleteSvc(JdbcTemplate jdbcTemplate, AnnDeliverSvc deliverSvc) {
+    public AnnDeleteSvc(
+        JdbcTemplate jdbcTemplate,
+        AnnDeliverSvc deliverSvc,
+        HrAnnouncementScopeService scopeService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.deliverSvc = deliverSvc;
+        this.scopeService = scopeService;
     }
 
     @Transactional
     public Map<String, Object> delete(HrAnnouncementActor actor, long announcementId) {
+        scopeService.requireManageable(actor, announcementId);
         var updated = jdbcTemplate.update(
             """
                 UPDATE hr_announcements

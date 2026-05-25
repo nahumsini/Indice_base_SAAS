@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
@@ -46,7 +47,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
 
         try {
             YearMonth targetMonth = HrAttendanceService.parseMonth(month);
-            return ResponseEntity.ok(hrAttendanceService.userCalendar(currentUser.get().companyId(), userCompanyId, targetMonth));
+            return ResponseEntity.ok(hrAttendanceService.userCalendar(currentUser.get(), userCompanyId, targetMonth));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -91,7 +94,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
         }
 
         try {
-            return ResponseEntity.ok(hrAttendanceService.createPhotoUpload(currentUser.get().companyId(), payload));
+            return ResponseEntity.ok(hrAttendanceService.createPhotoUpload(currentUser.get(), payload));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {
@@ -137,8 +142,10 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                hrAttendanceService.recordKioskEvent(currentUser.get().companyId(), currentUser.get().userId(), payload)
+                hrAttendanceService.recordKioskEvent(currentUser.get(), payload)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {

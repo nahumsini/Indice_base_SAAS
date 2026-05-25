@@ -1,5 +1,6 @@
 package com.indice.erp.dashboard;
 
+import com.indice.erp.auth.AuthSessionUser;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,15 +26,18 @@ public class OrganizationService {
     private final JdbcTemplate jdbcTemplate;
     private final DashboardModuleAccessRepository moduleAccessRepository;
     private final DashboardModuleCatalogRepository moduleCatalogRepository;
+    private final OrganizationScopeAccess organizationScopeAccess;
 
     public OrganizationService(
         JdbcTemplate jdbcTemplate,
         DashboardModuleAccessRepository moduleAccessRepository,
-        DashboardModuleCatalogRepository moduleCatalogRepository
+        DashboardModuleCatalogRepository moduleCatalogRepository,
+        OrganizationScopeAccess organizationScopeAccess
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.moduleAccessRepository = moduleAccessRepository;
         this.moduleCatalogRepository = moduleCatalogRepository;
+        this.organizationScopeAccess = organizationScopeAccess;
     }
 
     public List<ModuleListItem> listModules(long userId, long companyId, String role) {
@@ -69,6 +73,15 @@ public class OrganizationService {
             .toList();
     }
 
+    public List<UnitSummary> listUnits(AuthSessionUser currentUser) {
+        var scope = organizationScopeAccess.resolve(currentUser);
+        return organizationScopeAccess.filterUnits(
+            currentUser.companyId(),
+            scope,
+            listUnits(currentUser.companyId())
+        );
+    }
+
     public List<BusinessSummary> listBusinesses(long companyId) {
         ensureHeadquartersBusinesses(companyId);
 
@@ -90,6 +103,11 @@ public class OrganizationService {
             ),
             companyId
         );
+    }
+
+    public List<BusinessSummary> listBusinesses(AuthSessionUser currentUser) {
+        var scope = organizationScopeAccess.resolve(currentUser);
+        return organizationScopeAccess.filterBusinesses(scope, listBusinesses(currentUser.companyId()));
     }
 
     private UnitRef ensureHeadquartersBusinesses(long companyId) {

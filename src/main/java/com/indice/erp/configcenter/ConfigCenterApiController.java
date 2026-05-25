@@ -256,7 +256,7 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
-        return ResponseEntity.ok(configCenterService.getEmpresa(current.get().companyId()));
+        return ResponseEntity.ok(configCenterService.getEmpresa(current.get()));
     }
 
     @GetMapping("/config")
@@ -269,7 +269,7 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
-        return ResponseEntity.ok(configCenterService.getConfig(current.get().companyId()));
+        return ResponseEntity.ok(configCenterService.getConfig(current.get()));
     }
 
     @PutMapping("/business-structure")

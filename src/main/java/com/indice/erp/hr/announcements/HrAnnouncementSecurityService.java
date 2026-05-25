@@ -68,6 +68,7 @@ public class HrAnnouncementSecurityService {
                        COALESCE(NULLIF(u.full_name, ''), u.email, CONCAT('User ', u.id)) AS user_name,
                        COALESCE(uc.role, 'user') AS role,
                        wp.unit_id,
+                       wp.business_id,
                        COALESCE(wp.department, '') AS department
                 FROM user_companies uc
                 JOIN users u ON u.id = uc.user_id
@@ -87,6 +88,7 @@ public class HrAnnouncementSecurityService {
                 HrPayloadUtils.safe(rs.getString("user_name")),
                 normalizeRole(rs.getString("role")),
                 (Long) rs.getObject("unit_id"),
+                (Long) rs.getObject("business_id"),
                 HrPayloadUtils.safe(rs.getString("department")),
                 List.of(),
                 false
@@ -109,6 +111,7 @@ public class HrAnnouncementSecurityService {
             actor.userName(),
             actor.role(),
             actor.unitId(),
+            actor.businessId(),
             actor.department(),
             moduleSlugs,
             false

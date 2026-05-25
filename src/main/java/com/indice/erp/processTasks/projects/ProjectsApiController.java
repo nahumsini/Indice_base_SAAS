@@ -1,6 +1,7 @@
 package com.indice.erp.processTasks.projects;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.processTasks.ProcessTasksAccessService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -20,10 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectsApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final ProcessTasksAccessService accessService;
     private final ProjectsService projectsService;
 
-    public ProjectsApiController(SessionAuthService sessionAuthService, ProjectsService projectsService) {
+    public ProjectsApiController(
+        SessionAuthService sessionAuthService,
+        ProcessTasksAccessService accessService,
+        ProjectsService projectsService
+    ) {
         this.sessionAuthService = sessionAuthService;
+        this.accessService = accessService;
         this.projectsService = projectsService;
     }
 
@@ -32,6 +39,9 @@ public class ProjectsApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         return ResponseEntity.ok(projectsService.listProjects(user.get().companyId()));
@@ -42,6 +52,9 @@ public class ProjectsApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         try {
@@ -64,6 +77,9 @@ public class ProjectsApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        }
 
         try {
             return ResponseEntity.ok(projectsService.updateProject(user.get().companyId(), projectId, payload));
@@ -80,6 +96,9 @@ public class ProjectsApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        }
 
         try {
             projectsService.deleteProject(user.get().companyId(), projectId);
@@ -95,6 +114,9 @@ public class ProjectsApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        }
 
         try {
             return ResponseEntity.ok(projectsService.completeProject(user.get().companyId(), projectId));
@@ -109,6 +131,9 @@ public class ProjectsApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        }
 
         try {
             return ResponseEntity.ok(projectsService.cancelProject(user.get().companyId(), projectId));
@@ -122,6 +147,9 @@ public class ProjectsApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         try {

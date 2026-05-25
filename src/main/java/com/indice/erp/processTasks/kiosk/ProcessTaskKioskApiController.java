@@ -1,6 +1,7 @@
 package com.indice.erp.processTasks.kiosk;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.processTasks.ProcessTasksAccessService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -20,10 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProcessTaskKioskApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final ProcessTasksAccessService accessService;
     private final ProcessTaskKioskService kioskService;
 
-    public ProcessTaskKioskApiController(SessionAuthService sessionAuthService, ProcessTaskKioskService kioskService) {
+    public ProcessTaskKioskApiController(
+        SessionAuthService sessionAuthService,
+        ProcessTasksAccessService accessService,
+        ProcessTaskKioskService kioskService
+    ) {
         this.sessionAuthService = sessionAuthService;
+        this.accessService = accessService;
         this.kioskService = kioskService;
     }
 
@@ -33,6 +40,9 @@ public class ProcessTaskKioskApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        }
         return ResponseEntity.ok(kioskService.listKiosks(user.get().companyId()));
     }
 
@@ -41,6 +51,9 @@ public class ProcessTaskKioskApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         try {
@@ -64,6 +77,9 @@ public class ProcessTaskKioskApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        }
 
         try {
             return ResponseEntity.ok(kioskService.saveKiosk(user.get().companyId(), user.get().userId(), kioskId, payload));
@@ -80,6 +96,9 @@ public class ProcessTaskKioskApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        }
 
         try {
             kioskService.deleteKiosk(user.get().companyId(), kioskId);
@@ -94,6 +113,9 @@ public class ProcessTaskKioskApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         try {

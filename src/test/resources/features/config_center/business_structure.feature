@@ -9,6 +9,13 @@ Feature: Business Structure
     Then the backend should return the saved company settings
     And the backend should preserve an explicit empty structure map when one exists
 
+  @implemented @access-control
+  Scenario: Scoped setup user only sees in-scope structure data
+    Given an authenticated setup user is assigned to a specific unit or business from the Users tab
+    When the frontend requests company settings and structure config
+    Then the backend should only return units and businesses inside the assigned operational scope
+    And company-global profile fields may remain shared until they have a safe territorial model
+
   @implemented
   Scenario: User saves business structure
     Given an authenticated admin user has edited units and businesses

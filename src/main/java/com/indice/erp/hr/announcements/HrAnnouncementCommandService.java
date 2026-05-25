@@ -16,25 +16,29 @@ public class HrAnnouncementCommandService {
     private final HrAnnouncementTargetRepository targetRepository;
     private final HrAnnouncementQueryService queryService;
     private final AnnDeliverSvc deliverSvc;
+    private final HrAnnouncementScopeService scopeService;
 
     public HrAnnouncementCommandService(
         JdbcTemplate jdbcTemplate,
         HrAnnouncementAudienceService audienceService,
         HrAnnouncementTargetRepository targetRepository,
         HrAnnouncementQueryService queryService,
-        AnnDeliverSvc deliverSvc
+        AnnDeliverSvc deliverSvc,
+        HrAnnouncementScopeService scopeService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.audienceService = audienceService;
         this.targetRepository = targetRepository;
         this.queryService = queryService;
         this.deliverSvc = deliverSvc;
+        this.scopeService = scopeService;
     }
 
     @Transactional
     public Map<String, Object> create(HrAnnouncementActor actor, Map<String, Object> payload) {
         var announcement = HrAnnouncementPayload.from(payload);
         var targets = audienceService.normalizeTargets(actor.companyId(), announcement.audienceType(), payload);
+        scopeService.requireAudienceManageable(actor, announcement.audienceType(), targets);
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(

@@ -1,5 +1,6 @@
 package com.indice.erp.hr.announcements;
 
+import com.indice.erp.hr.HrOperationalScope;
 import java.util.List;
 
 public record HrAnnouncementActor(
@@ -9,10 +10,15 @@ public record HrAnnouncementActor(
     String userName,
     String role,
     Long unitId,
+    Long businessId,
     String department,
     List<String> moduleSlugs,
     boolean managementAccess
 ) {
+    public HrOperationalScope operationalScope() {
+        return HrOperationalScope.businessOffice(unitId, businessId);
+    }
+
     public String unitTargetValue() {
         return unitId == null ? "" : String.valueOf(unitId);
     }
@@ -29,6 +35,7 @@ public record HrAnnouncementActor(
             userName,
             role,
             unitId,
+            businessId,
             department,
             moduleSlugs,
             nextManagementAccess

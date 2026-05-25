@@ -7,6 +7,9 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
 import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
 import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
+import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.HrAccessDeniedException;
+import com.indice.erp.hr.HrOperationalScope;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -49,14 +52,24 @@ public class HrPayrollService {
     private static final BigDecimal DEFAULT_OVERTIME_MULTIPLIER = BigDecimal.ONE;
 
     private final JdbcTemplate jdbcTemplate;
+    private final HrPayrollScopeAccess hrPayrollScopeAccess;
 
-    public HrPayrollService(JdbcTemplate jdbcTemplate) {
+    public HrPayrollService(JdbcTemplate jdbcTemplate, HrPayrollScopeAccess hrPayrollScopeAccess) {
         this.jdbcTemplate = jdbcTemplate;
+        this.hrPayrollScopeAccess = hrPayrollScopeAccess;
     }
 
     public Map<String, Object> overview(long companyId) {
+        return overview(companyId, HrOperationalScope.corporateOffice());
+    }
+
+    public Map<String, Object> overview(AuthSessionUser currentUser) {
+        return overview(currentUser.companyId(), hrPayrollScopeAccess.resolve(currentUser));
+    }
+
+    private Map<String, Object> overview(long companyId, HrOperationalScope scope) {
         var preferences = ensurePreferences(companyId);
-        var runs = loadRuns(companyId);
+        var runs = loadRuns(companyId, scope);
 
         int draftCount = 0;
         int processedCount = 0;
@@ -145,7 +158,15 @@ public class HrPayrollService {
     }
 
     public Map<String, Object> listRuns(long companyId, Map<String, String> filters) {
-        var items = loadRuns(companyId).stream()
+        return listRuns(companyId, filters, HrOperationalScope.corporateOffice());
+    }
+
+    public Map<String, Object> listRuns(AuthSessionUser currentUser, Map<String, String> filters) {
+        return listRuns(currentUser.companyId(), filters, hrPayrollScopeAccess.resolve(currentUser));
+    }
+
+    private Map<String, Object> listRuns(long companyId, Map<String, String> filters, HrOperationalScope scope) {
+        var items = loadRuns(companyId, scope).stream()
             .filter((run) -> matchesRunFilters(run, filters))
             .map(this::toRunSummaryMap)
             .toList();
@@ -155,6 +176,25 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> createRuns(long companyId, long userId, Map<String, Object> payload) {
+        return createRuns(companyId, userId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> createRuns(AuthSessionUser currentUser, Map<String, Object> payload) {
+        return createRuns(
+            currentUser.companyId(),
+            currentUser.userId(),
+            payload,
+            hrPayrollScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> createRuns(
+        long companyId,
+        long userId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         var preferences = ensurePreferences(companyId);
         var payPeriod = normalizePayPeriod(stringValue(payload, "pay_period"));
         var periodStartDate = parseDate(payload, "period_start_date", "start_date");
@@ -171,7 +211,7 @@ public class HrPayrollService {
         var normalizedPeriodEndDate = periodEndDate;
 
         var groupingMode = normalizeGroupingMode(stringValue(payload, "grouping_mode"), preferences.groupingMode());
-        var hrUsers = loadEligibleHrUsers(companyId, payPeriod, true);
+        var hrUsers = loadEligibleHrUsers(companyId, payPeriod, true, scope);
         if (hrUsers.isEmpty()) {
             throw new IllegalArgumentException("No active HR users are configured for the selected pay frequency.");
         }
@@ -180,7 +220,15 @@ public class HrPayrollService {
         var createdRuns = new ArrayList<Map<String, Object>>();
 
         for (var group : groupedHrUsers) {
-            var existingRun = findExistingRun(companyId, groupingMode, group.groupingKey(), payPeriod, periodStartDate, normalizedPeriodEndDate);
+            var existingRun = findExistingRun(
+                companyId,
+                groupingMode,
+                group.groupingKey(),
+                payPeriod,
+                periodStartDate,
+                normalizedPeriodEndDate,
+                scope
+            );
             if (existingRun != null) {
                 var existingSummary = toRunSummaryMap(existingRun);
                 existingSummary.put("reused", true);
@@ -219,15 +267,23 @@ public class HrPayrollService {
             }
 
             recomputeRunTotals(runId);
-            createdRuns.add(toRunSummaryMap(loadRun(companyId, runId)));
+            createdRuns.add(toRunSummaryMap(loadRun(companyId, runId, scope)));
         }
 
         return Map.of("items", createdRuns);
     }
 
     public Map<String, Object> getRunDetail(long companyId, long runId) {
-        var run = loadRun(companyId, runId);
-        var lines = loadRunLines(runId).stream()
+        return getRunDetail(companyId, runId, HrOperationalScope.corporateOffice());
+    }
+
+    public Map<String, Object> getRunDetail(AuthSessionUser currentUser, long runId) {
+        return getRunDetail(currentUser.companyId(), runId, hrPayrollScopeAccess.resolve(currentUser));
+    }
+
+    private Map<String, Object> getRunDetail(long companyId, long runId, HrOperationalScope scope) {
+        var run = loadRun(companyId, runId, scope);
+        var lines = loadRunLines(companyId, runId, scope).stream()
             .map((line) -> {
                 var body = new LinkedHashMap<String, Object>();
                 body.put("id", line.id());
@@ -270,8 +326,30 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> updateRunLine(long companyId, long runId, long lineId, Map<String, Object> payload) {
+        return updateRunLine(companyId, runId, lineId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> updateRunLine(AuthSessionUser currentUser, long runId, long lineId, Map<String, Object> payload) {
+        return updateRunLine(
+            currentUser.companyId(),
+            runId,
+            lineId,
+            payload,
+            hrPayrollScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> updateRunLine(
+        long companyId,
+        long runId,
+        long lineId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "draft");
+        hrPayrollScopeAccess.requireRunLineInScope(companyId, scope, runId, lineId);
         var line = loadRunLine(runId, lineId);
 
         var includeInFiscal = payload.containsKey("include_in_fiscal")
@@ -317,37 +395,97 @@ public class HrPayrollService {
 
         recomputeRunLineFromStoredItems(lineId, ensurePreferences(companyId));
         recomputeRunTotals(runId);
-        return getRunDetail(companyId, runId);
+        return getRunDetail(companyId, runId, scope);
     }
 
     @Transactional
     public Map<String, Object> processRun(long companyId, long userId, long runId) {
+        return processRun(companyId, userId, runId, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> processRun(AuthSessionUser currentUser, long runId) {
+        return processRun(
+            currentUser.companyId(),
+            currentUser.userId(),
+            runId,
+            hrPayrollScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> processRun(long companyId, long userId, long runId, HrOperationalScope scope) {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "draft");
+        hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         recomputeRunTotals(runId);
         updateRunStatus(runId, "processed", userId);
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
 
     @Transactional
     public Map<String, Object> approveRun(long companyId, long userId, long runId) {
+        return approveRun(companyId, userId, runId, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> approveRun(AuthSessionUser currentUser, long runId) {
+        return approveRun(
+            currentUser.companyId(),
+            currentUser.userId(),
+            runId,
+            hrPayrollScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> approveRun(long companyId, long userId, long runId, HrOperationalScope scope) {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "processed");
+        hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         updateRunStatus(runId, "approved", userId);
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
 
     @Transactional
     public Map<String, Object> markRunPaid(long companyId, long userId, long runId) {
+        return markRunPaid(companyId, userId, runId, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> markRunPaid(AuthSessionUser currentUser, long runId) {
+        return markRunPaid(
+            currentUser.companyId(),
+            currentUser.userId(),
+            runId,
+            hrPayrollScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> markRunPaid(long companyId, long userId, long runId, HrOperationalScope scope) {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "approved");
+        hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         updateRunStatus(runId, "paid", userId);
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
 
     @Transactional
     public Map<String, Object> cancelRun(long companyId, long userId, long runId) {
+        return cancelRun(companyId, userId, runId, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> cancelRun(AuthSessionUser currentUser, long runId) {
+        return cancelRun(
+            currentUser.companyId(),
+            currentUser.userId(),
+            runId,
+            hrPayrollScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> cancelRun(long companyId, long userId, long runId, HrOperationalScope scope) {
         var run = loadRun(companyId, runId);
+        hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         if ("paid".equals(run.status())) {
             throw new IllegalArgumentException("Paid payroll runs cannot be cancelled.");
         }
@@ -367,11 +505,19 @@ public class HrPayrollService {
             runId,
             companyId
         );
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
 
     public String exportRunCsv(long companyId, long runId) {
-        var detail = getRunDetail(companyId, runId);
+        return exportRunCsv(companyId, runId, HrOperationalScope.corporateOffice());
+    }
+
+    public String exportRunCsv(AuthSessionUser currentUser, long runId) {
+        return exportRunCsv(currentUser.companyId(), runId, hrPayrollScopeAccess.resolve(currentUser));
+    }
+
+    private String exportRunCsv(long companyId, long runId, HrOperationalScope scope) {
+        var detail = getRunDetail(companyId, runId, scope);
         @SuppressWarnings("unchecked")
         var run = (Map<String, Object>) detail.get("run");
         @SuppressWarnings("unchecked")
@@ -398,7 +544,15 @@ public class HrPayrollService {
     }
 
     public byte[] exportRunPdf(long companyId, long runId) {
-        var detail = getRunDetail(companyId, runId);
+        return exportRunPdf(companyId, runId, HrOperationalScope.corporateOffice());
+    }
+
+    public byte[] exportRunPdf(AuthSessionUser currentUser, long runId) {
+        return exportRunPdf(currentUser.companyId(), runId, hrPayrollScopeAccess.resolve(currentUser));
+    }
+
+    private byte[] exportRunPdf(long companyId, long runId, HrOperationalScope scope) {
+        var detail = getRunDetail(companyId, runId, scope);
         @SuppressWarnings("unchecked")
         var run = (Map<String, Object>) detail.get("run");
         @SuppressWarnings("unchecked")
@@ -557,6 +711,49 @@ public class HrPayrollService {
         );
     }
 
+    private List<PayrollRunRow> loadRuns(long companyId, HrOperationalScope scope) {
+        if (scope.isCorporateOffice()) {
+            return loadRuns(companyId);
+        }
+
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.addAll(hrPayrollScopeAccess.runLineParameters(scope));
+
+        return jdbcTemplate.query(
+            """
+                SELECT r.id,
+                       r.company_id,
+                       r.grouping_mode,
+                       r.grouping_key,
+                       r.grouping_label,
+                       r.pay_period,
+                       r.period_start_date,
+                       r.period_end_date,
+                       r.status,
+                       COUNT(l.id) AS users_count,
+                       COALESCE(SUM(l.gross_amount), 0) AS gross_amount,
+                       COALESCE(SUM(l.deductions_amount), 0) AS deductions_amount,
+                       COALESCE(SUM(l.employer_contributions_amount), 0) AS employer_contributions_amount,
+                       COALESCE(SUM(l.net_amount), 0) AS net_amount,
+                       r.created_at
+                FROM payroll_runs r
+                JOIN payroll_run_lines l
+                  ON l.run_id = r.id
+                 AND l.company_id = r.company_id
+                WHERE r.company_id = ?
+                """
+                + hrPayrollScopeAccess.runLinePredicate(scope, "l")
+                + """
+                GROUP BY r.id, r.company_id, r.grouping_mode, r.grouping_key, r.grouping_label, r.pay_period,
+                         r.period_start_date, r.period_end_date, r.status, r.created_at
+                ORDER BY r.period_end_date DESC, r.id DESC
+                """,
+            (rs, rowNum) -> mapRunRow(rs),
+            params.toArray()
+        );
+    }
+
     private PayrollRunRow loadRun(long companyId, long runId) {
         var rows = jdbcTemplate.query(
             """
@@ -584,6 +781,59 @@ public class HrPayrollService {
             runId
         );
         if (rows.isEmpty()) {
+            throw new NoSuchElementException("Payroll run not found.");
+        }
+        return rows.getFirst();
+    }
+
+    private PayrollRunRow loadRun(long companyId, long runId, HrOperationalScope scope) {
+        if (scope.isCorporateOffice()) {
+            return loadRun(companyId, runId);
+        }
+
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.add(runId);
+        params.addAll(hrPayrollScopeAccess.runLineParameters(scope));
+
+        var rows = jdbcTemplate.query(
+            """
+                SELECT r.id,
+                       r.company_id,
+                       r.grouping_mode,
+                       r.grouping_key,
+                       r.grouping_label,
+                       r.pay_period,
+                       r.period_start_date,
+                       r.period_end_date,
+                       r.status,
+                       COUNT(l.id) AS users_count,
+                       COALESCE(SUM(l.gross_amount), 0) AS gross_amount,
+                       COALESCE(SUM(l.deductions_amount), 0) AS deductions_amount,
+                       COALESCE(SUM(l.employer_contributions_amount), 0) AS employer_contributions_amount,
+                       COALESCE(SUM(l.net_amount), 0) AS net_amount,
+                       r.created_at
+                FROM payroll_runs r
+                JOIN payroll_run_lines l
+                  ON l.run_id = r.id
+                 AND l.company_id = r.company_id
+                WHERE r.company_id = ?
+                  AND r.id = ?
+                """
+                + hrPayrollScopeAccess.runLinePredicate(scope, "l")
+                + """
+                GROUP BY r.id, r.company_id, r.grouping_mode, r.grouping_key, r.grouping_label, r.pay_period,
+                         r.period_start_date, r.period_end_date, r.status, r.created_at
+                LIMIT 1
+                """,
+            (rs, rowNum) -> mapRunRow(rs),
+            params.toArray()
+        );
+
+        if (rows.isEmpty()) {
+            if (payrollRunExists(companyId, runId)) {
+                throw new HrAccessDeniedException("Forbidden");
+            }
             throw new NoSuchElementException("Payroll run not found.");
         }
         return rows.getFirst();
@@ -637,7 +887,76 @@ public class HrPayrollService {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
+    private PayrollRunRow findExistingRun(
+        long companyId,
+        String groupingMode,
+        String groupingKey,
+        String payPeriod,
+        LocalDate periodStartDate,
+        LocalDate periodEndDate,
+        HrOperationalScope scope
+    ) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT id,
+                       company_id,
+                       grouping_mode,
+                       grouping_key,
+                       grouping_label,
+                       pay_period,
+                       period_start_date,
+                       period_end_date,
+                       status,
+                       users_count,
+                       gross_amount,
+                       deductions_amount,
+                       employer_contributions_amount,
+                       net_amount,
+                       created_at
+                FROM payroll_runs
+                WHERE company_id = ?
+                  AND grouping_mode = ?
+                  AND ((grouping_key IS NULL AND ? IS NULL) OR grouping_key = ?)
+                  AND pay_period = ?
+                  AND period_start_date = ?
+                  AND period_end_date = ?
+                  AND status <> 'cancelled'
+                ORDER BY id DESC
+                """,
+            (rs, rowNum) -> mapRunRow(rs),
+            companyId,
+            groupingMode,
+            nullable(groupingKey),
+            nullable(groupingKey),
+            payPeriod,
+            periodStartDate,
+            periodEndDate
+        );
+
+        for (var row : rows) {
+            if (hrPayrollScopeAccess.isRunFullyInScope(companyId, scope, row.id())) {
+                return scope.isCorporateOffice() ? row : loadRun(companyId, row.id(), scope);
+            }
+        }
+        return null;
+    }
+
     private List<PayrollHrUserRow> loadEligibleHrUsers(long companyId, String payPeriod, boolean matchRequestedPayPeriod) {
+        return loadEligibleHrUsers(companyId, payPeriod, matchRequestedPayPeriod, HrOperationalScope.corporateOffice());
+    }
+
+    private List<PayrollHrUserRow> loadEligibleHrUsers(
+        long companyId,
+        String payPeriod,
+        boolean matchRequestedPayPeriod,
+        HrOperationalScope scope
+    ) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.add(matchRequestedPayPeriod ? 1 : 0);
+        params.add(payPeriod);
+        params.addAll(scope.hrUserParameters());
+
         return jdbcTemplate.query(
             """
                 SELECT e.id,
@@ -661,6 +980,9 @@ public class HrPayrollService {
                 WHERE e.company_id = ?
                   AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
                   AND (? = 0 OR COALESCE(LOWER(e.pay_period), 'weekly') = ?)
+                """
+                + scope.hrUserPredicate("e")
+                + """
                 ORDER BY full_name ASC, e.id ASC
                 """,
             (rs, rowNum) -> new PayrollHrUserRow(
@@ -680,9 +1002,7 @@ public class HrPayrollService {
                 safe(rs.getString("salary_type")),
                 safe(rs.getString("pay_period"))
             ),
-            companyId,
-            matchRequestedPayPeriod ? 1 : 0,
-            payPeriod
+            params.toArray()
         );
     }
 
@@ -1135,6 +1455,36 @@ public class HrPayrollService {
         );
     }
 
+    private List<PayrollRunLineRow> loadRunLines(long companyId, long runId, HrOperationalScope scope) {
+        if (scope.isCorporateOffice()) {
+            return loadRunLines(runId);
+        }
+
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.add(runId);
+        params.addAll(hrPayrollScopeAccess.runLineParameters(scope));
+
+        return jdbcTemplate.query(
+            """
+                SELECT l.id, l.run_id, l.company_id, l.user_company_id, l.user_code_snapshot, l.user_name_snapshot, l.position_title_snapshot,
+                       l.department_snapshot, l.unit_id_snapshot, l.unit_name_snapshot, l.business_id_snapshot, l.business_name_snapshot,
+                       l.pay_period_snapshot, l.salary_type_snapshot, l.base_salary_amount, l.hourly_rate_amount, l.days_payable, l.leave_days,
+                       l.absence_days, l.rest_days, l.late_count, l.regular_hours, l.overtime_hours, l.include_in_fiscal, l.gross_amount,
+                       l.deductions_amount, l.employer_contributions_amount, l.net_amount, l.notes
+                FROM payroll_run_lines l
+                WHERE l.company_id = ?
+                  AND l.run_id = ?
+                """
+                + hrPayrollScopeAccess.runLinePredicate(scope, "l")
+                + """
+                ORDER BY l.user_name_snapshot ASC, l.id ASC
+                """,
+            (rs, rowNum) -> mapRunLineRow(rs),
+            params.toArray()
+        );
+    }
+
     private PayrollRunLineRow loadRunLine(long runId, long lineId) {
         var rows = jdbcTemplate.query(
             """
@@ -1176,6 +1526,16 @@ public class HrPayrollService {
             throw new NoSuchElementException("Payroll run line not found.");
         }
         return rows.getFirst();
+    }
+
+    private boolean payrollRunExists(long companyId, long runId) {
+        var count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM payroll_runs WHERE company_id = ? AND id = ?",
+            Long.class,
+            companyId,
+            runId
+        );
+        return count != null && count > 0;
     }
 
     private List<PayrollRunLineItemRow> loadRunLineItems(long runLineId) {

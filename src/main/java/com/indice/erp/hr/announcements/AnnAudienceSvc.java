@@ -1,6 +1,8 @@
 package com.indice.erp.hr.announcements;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.shared.HrPayloadUtils;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -29,10 +31,11 @@ public class AnnAudienceSvc {
         if (!actor.managementAccess()) {
             throw new HrAnnouncementApiException(HttpStatus.FORBIDDEN, "Forbidden");
         }
+        var scope = actor.operationalScope();
         var body = new LinkedHashMap<String, Object>();
-        body.put("departments", departments(actor.companyId()));
-        body.put("units", units(actor.companyId()));
-        body.put("employees", employees(actor.companyId()));
+        body.put("departments", scope.isCorporateOffice() ? departments(actor.companyId()) : List.of());
+        body.put("units", units(actor.companyId(), scope));
+        body.put("employees", employees(actor.companyId(), scope));
         return body;
     }
 
@@ -68,23 +71,36 @@ public class AnnAudienceSvc {
     }
 
     private List<Map<String, Object>> units(long companyId) {
+        return units(companyId, null);
+    }
+
+    private List<Map<String, Object>> units(long companyId, HrOperationalScope scope) {
+        if (scope != null && HrOperationalScope.Type.BUSINESS_OFFICE.equals(scope.type())) {
+            return List.of();
+        }
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        var sql = """
+            SELECT u.id, u.name, COUNT(DISTINCT uc.id) AS active_user_count
+            FROM units u
+            LEFT JOIN user_work_profiles wp
+              ON wp.company_id = u.company_id
+             AND wp.unit_id = u.id
+             AND LOWER(COALESCE(wp.status, 'active')) IN ('active', 'activo')
+            LEFT JOIN user_companies uc
+              ON uc.id = wp.user_company_id
+             AND uc.company_id = wp.company_id
+             AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
+            WHERE u.company_id = ?
+              AND LOWER(COALESCE(u.status, 'active')) IN ('active', 'activo')
+            """;
+        if (scope != null && !scope.isCorporateOffice()) {
+            sql += " AND u.id = ?";
+            parameters.add(scope.unitId());
+        }
+        sql += " GROUP BY u.id, u.name ORDER BY u.name ASC";
         return jdbcTemplate.query(
-            """
-                SELECT u.id, u.name, COUNT(DISTINCT uc.id) AS active_user_count
-                FROM units u
-                LEFT JOIN user_work_profiles wp
-                  ON wp.company_id = u.company_id
-                 AND wp.unit_id = u.id
-                 AND LOWER(COALESCE(wp.status, 'active')) IN ('active', 'activo')
-                LEFT JOIN user_companies uc
-                  ON uc.id = wp.user_company_id
-                 AND uc.company_id = wp.company_id
-                 AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
-                WHERE u.company_id = ?
-                  AND LOWER(COALESCE(u.status, 'active')) IN ('active', 'activo')
-                GROUP BY u.id, u.name
-                ORDER BY u.name ASC
-                """,
+            sql,
             (rs, rowNum) -> {
                 var count = rs.getInt("active_user_count");
                 var item = new LinkedHashMap<String, Object>();
@@ -94,24 +110,35 @@ public class AnnAudienceSvc {
                 item.put("is_available", count > 0);
                 return item;
             },
-            companyId
+            parameters.toArray()
         );
     }
 
     private List<Map<String, Object>> employees(long companyId) {
+        return employees(companyId, null);
+    }
+
+    private List<Map<String, Object>> employees(long companyId, HrOperationalScope scope) {
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        var sql = """
+            SELECT COALESCE(e.user_company_id, e.id) AS id, e.full_name, e.position,
+                   e.unit_id, u.name AS unit_name, e.department
+            FROM hr_users e
+            LEFT JOIN units u
+              ON u.id = e.unit_id
+             AND u.company_id = e.company_id
+            WHERE e.company_id = ?
+              AND e.work_profile_id IS NOT NULL
+              AND LOWER(COALESCE(e.status, 'active')) IN ('active', 'activo')
+            """;
+        if (scope != null && !scope.isCorporateOffice()) {
+            sql += scope.hrUserPredicate("e");
+            parameters.addAll(scope.hrUserParameters());
+        }
+        sql += " ORDER BY e.full_name ASC, id ASC";
         return jdbcTemplate.query(
-            """
-                SELECT COALESCE(e.user_company_id, e.id) AS id, e.full_name, e.position,
-                       e.unit_id, u.name AS unit_name, e.department
-                FROM hr_users e
-                LEFT JOIN units u
-                  ON u.id = e.unit_id
-                 AND u.company_id = e.company_id
-                WHERE e.company_id = ?
-                  AND e.work_profile_id IS NOT NULL
-                  AND LOWER(COALESCE(e.status, 'active')) IN ('active', 'activo')
-                ORDER BY e.full_name ASC, id ASC
-                """,
+            sql,
             (rs, rowNum) -> {
                 var item = new LinkedHashMap<String, Object>();
                 item.put("id", rs.getLong("id"));
@@ -122,7 +149,7 @@ public class AnnAudienceSvc {
                 item.put("department", clean(rs.getString("department")));
                 return item;
             },
-            companyId
+            parameters.toArray()
         );
     }
 

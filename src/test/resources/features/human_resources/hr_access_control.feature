@@ -76,6 +76,34 @@ Feature: Human Resources access control
     And direct access to assets outside that scope should be rejected
 
   @implemented @access-control
+  Scenario: HR payroll runs are filtered by operational scope
+    Given an HR management user is assigned to a specific unit or business from the Users tab
+    When the user opens Payroll or calls an HR payroll endpoint directly
+    Then the backend should return only payroll run lines inside the assigned operational scope
+    And run-level payroll actions should be rejected when the run contains out-of-scope lines
+
+  @implemented @access-control
+  Scenario: HR attendance dashboards are filtered by operational scope
+    Given an HR management user is assigned to a specific unit or business from the Users tab
+    When the user opens Attendance or Control dashboards
+    Then the backend should return only collaborators, locations, kiosks, and recent events inside the assigned operational scope
+    And attendance summary counts should be calculated from the visible scoped records
+
+  @implemented @access-control
+  Scenario: HR attendance management writes are filtered by operational scope
+    Given an HR management user is assigned to a specific unit or business from the Users tab
+    When the user manages attendance schedules, corrections, locations, work sites, access profiles, kiosk devices, photo uploads, or face-verification sessions
+    Then the backend should reject users and attendance resources outside the assigned operational scope
+    And non-corporate actors should not create or mutate company-wide attendance resources without a scoped unit or business assignment
+
+  @implemented @access-control
+  Scenario: HR announcement management is filtered by operational scope
+    Given an HR management user is assigned to a specific unit or business from the Users tab
+    When the user opens Announcements management or creates a new announcement
+    Then the backend should return only announcements whose targets are manageable inside the assigned operational scope
+    And global or department-wide announcement targets should remain corporate-only until scoped department targeting exists
+
+  @implemented @access-control
   Scenario: HR shell filters tabs by current user role
     Given a normal user with Human Resources module access is authenticated
     When the user opens Human Resources

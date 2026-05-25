@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import jakarta.servlet.http.HttpSession;
@@ -40,7 +41,7 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
             return forbidden();
         }
 
-        return ResponseEntity.ok(hrAttendanceService.listControlLocations(currentUser.get().companyId()));
+        return ResponseEntity.ok(hrAttendanceService.listControlLocations(currentUser.get()));
     }
 
     @PostMapping("/locations/extract-coordinates")
@@ -73,12 +74,13 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 hrAttendanceService.saveLocation(
-                    currentUser.get().companyId(),
-                    currentUser.get().userId(),
+                    currentUser.get(),
                     null,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -103,12 +105,13 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         try {
             return ResponseEntity.ok(
                 hrAttendanceService.saveLocation(
-                    currentUser.get().companyId(),
-                    currentUser.get().userId(),
+                    currentUser.get(),
                     locationId,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -127,8 +130,10 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         }
 
         try {
-            hrAttendanceService.deleteLocation(currentUser.get().companyId(), locationId);
+            hrAttendanceService.deleteLocation(currentUser.get(), locationId);
             return ResponseEntity.ok(Map.of("success", true));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -151,12 +156,13 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         try {
             return ResponseEntity.ok(
                 hrAttendanceService.replaceHrUserAllowedLocations(
-                    currentUser.get().companyId(),
-                    currentUser.get().userId(),
+                    currentUser.get(),
                     userCompanyId,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -177,11 +183,12 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         try {
             return ResponseEntity.ok(
                 hrAttendanceService.bulkAssignActiveWorkSite(
-                    currentUser.get().companyId(),
-                    currentUser.get().userId(),
+                    currentUser.get(),
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -202,11 +209,12 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         try {
             return ResponseEntity.ok(
                 hrAttendanceService.clearHrUserWorkAssignments(
-                    currentUser.get().companyId(),
-                    currentUser.get().userId(),
+                    currentUser.get(),
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

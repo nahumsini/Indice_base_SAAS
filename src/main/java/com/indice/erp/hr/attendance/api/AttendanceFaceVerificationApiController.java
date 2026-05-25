@@ -3,6 +3,7 @@ package com.indice.erp.hr.attendance.api;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.FaceVerificationIntegrationException;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -51,8 +52,10 @@ public class AttendanceFaceVerificationApiController {
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                hrFaceService.createVerificationSession(currentUser.get().companyId(), currentUser.get().userId(), payload)
+                hrAttendanceService.createFaceVerificationSession(currentUser.get(), payload)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -108,9 +111,12 @@ public class AttendanceFaceVerificationApiController {
         }
 
         try {
+            var managementAccess = hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL);
             return ResponseEntity.ok(
-                hrFaceService.createVerificationCaptureUpload(currentUser.get().companyId(), sessionId, payload)
+                hrAttendanceService.createFaceVerificationCaptureUpload(currentUser.get(), sessionId, payload, managementAccess)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -130,9 +136,12 @@ public class AttendanceFaceVerificationApiController {
         }
 
         try {
+            var managementAccess = hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL);
             return ResponseEntity.ok(
-                hrFaceService.completeVerificationSession(currentUser.get().companyId(), currentUser.get().userId(), sessionId)
+                hrAttendanceService.completeFaceVerificationSession(currentUser.get(), sessionId, managementAccess)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {

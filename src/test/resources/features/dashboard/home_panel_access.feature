@@ -53,3 +53,9 @@ Feature: Home Panel access control
     When the user calls a Home Panel backend API for a denied tab
     Then the backend should return forbidden
     And the backend should not run the denied Config Center use case
+
+  @implemented @access-control
+  Scenario: Shared organization catalogs are scoped by operational territory
+    Given an authenticated setup user is assigned to a specific unit or business from the Users tab
+    When the frontend requests shared unit or business catalogs
+    Then the backend should return only units and businesses inside the assigned operational scope

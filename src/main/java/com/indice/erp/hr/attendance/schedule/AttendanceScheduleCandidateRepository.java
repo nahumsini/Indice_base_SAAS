@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.schedule;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.attendance.models.AttendanceHrUser;
 import com.indice.erp.hr.attendance.users.AttendanceUserLookupService;
 import java.sql.ResultSet;
@@ -31,21 +32,23 @@ public class AttendanceScheduleCandidateRepository {
 
     int countAvailable(
         long companyId,
+        HrOperationalScope scope,
         LocalDate startDate,
         LocalDate rangeEnd,
         String search,
         Long unitId,
         Long businessId
     ) {
-        return count(AttendanceScheduleCandidateSql.available(companyId, startDate, rangeEnd, search, unitId, businessId));
+        return count(AttendanceScheduleCandidateSql.available(companyId, scope, startDate, rangeEnd, search, unitId, businessId));
     }
 
-    int countAll(long companyId, String search, Long unitId, Long businessId) {
-        return count(AttendanceScheduleCandidateSql.all(companyId, search, unitId, businessId));
+    int countAll(long companyId, HrOperationalScope scope, String search, Long unitId, Long businessId) {
+        return count(AttendanceScheduleCandidateSql.all(companyId, scope, search, unitId, businessId));
     }
 
     List<AttendanceHrUser> listUsers(
         long companyId,
+        HrOperationalScope scope,
         LocalDate startDate,
         LocalDate rangeEnd,
         String search,
@@ -56,8 +59,8 @@ public class AttendanceScheduleCandidateRepository {
         int offset
     ) {
         var candidateSql = availableOnly
-            ? AttendanceScheduleCandidateSql.available(companyId, startDate, rangeEnd, search, unitId, businessId)
-            : AttendanceScheduleCandidateSql.all(companyId, search, unitId, businessId);
+            ? AttendanceScheduleCandidateSql.available(companyId, scope, startDate, rangeEnd, search, unitId, businessId)
+            : AttendanceScheduleCandidateSql.all(companyId, scope, search, unitId, businessId);
         var params = new ArrayList<>(candidateSql.params());
         params.add(limit);
         params.add(offset);
@@ -86,7 +89,25 @@ public class AttendanceScheduleCandidateRepository {
         );
     }
 
-    List<Map<String, Object>> listUnitOptions(long companyId) {
+    List<Map<String, Object>> listUnitOptions(long companyId, HrOperationalScope scope) {
+        if (scope != null && !scope.isCorporateOffice()) {
+            if (scope.unitId() == null) {
+                return List.of();
+            }
+            return jdbcTemplate.query(
+                """
+                    SELECT id, name
+                    FROM units
+                    WHERE (company_id = ? OR company_id IS NULL)
+                      AND (status = 'active' OR status IS NULL OR status = '')
+                      AND id = ?
+                    ORDER BY name ASC
+                    """,
+                (rs, rowNum) -> Map.<String, Object>of("id", rs.getLong("id"), "name", safe(rs.getString("name"))),
+                companyId,
+                scope.unitId()
+            );
+        }
         return jdbcTemplate.query(
             """
                 SELECT id, name
@@ -100,16 +121,24 @@ public class AttendanceScheduleCandidateRepository {
         );
     }
 
-    List<Map<String, Object>> listBusinessOptions(long companyId) {
+    List<Map<String, Object>> listBusinessOptions(long companyId, HrOperationalScope scope) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        var sql = """
+            SELECT b.id, b.name, u.id AS unit_id, u.name AS unit_name
+            FROM businesses b
+            LEFT JOIN units u ON u.id = b.unit_id
+            WHERE (b.company_id = ? OR b.company_id IS NULL)
+              AND (b.status = 'active' OR b.status IS NULL OR b.status = '')
+            """;
+        if (scope != null && !scope.isCorporateOffice()) {
+            sql += scope.assignmentPredicate("b.unit_id", "b.id", "b.company_id");
+            params.addAll(scope.assignmentParameters());
+        }
+        sql += " ORDER BY b.name ASC";
+
         return jdbcTemplate.query(
-            """
-                SELECT b.id, b.name, u.id AS unit_id, u.name AS unit_name
-                FROM businesses b
-                LEFT JOIN units u ON u.id = b.unit_id
-                WHERE (b.company_id = ? OR b.company_id IS NULL)
-                  AND (b.status = 'active' OR b.status IS NULL OR b.status = '')
-                ORDER BY b.name ASC
-                """,
+            sql,
             (rs, rowNum) -> {
                 var option = new LinkedHashMap<String, Object>();
                 option.put("id", rs.getLong("id"));
@@ -118,7 +147,7 @@ public class AttendanceScheduleCandidateRepository {
                 option.put("unit_name", safe(rs.getString("unit_name")));
                 return option;
             },
-            companyId
+            params.toArray()
         );
     }
 

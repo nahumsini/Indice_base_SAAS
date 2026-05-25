@@ -75,3 +75,21 @@ Feature: Tasks, projects, and agenda
     When the user changes reporting assignments
     Then the backend should persist the org chart state
     And the structure should not depend only on browser local storage
+
+  @implemented @access-control
+  Scenario: Internal Processes and Tasks APIs require module access
+    Given an authenticated user does not have the Processes and Tasks module assigned
+    When the user calls Agenda, Tasks, Projects, KPIs, or managed task-kiosk APIs directly
+    Then the backend should return forbidden
+
+  @implemented @access-control
+  Scenario: Shared org filter catalogs are scoped by operational territory
+    Given an authenticated user is assigned to a specific unit or business from the Users tab
+    When the frontend requests shared unit and business catalogs for Processes and Tasks filters
+    Then the backend should only return units and businesses inside the assigned operational scope
+
+  @implemented @access-control
+  Scenario: Tasks, projects, agenda, KPIs, and managed kiosks require the Processes and Tasks module
+    Given an authenticated user does not have the Processes and Tasks module assigned
+    When the user calls task, project, agenda, KPI, or managed kiosk APIs directly
+    Then the backend should return forbidden

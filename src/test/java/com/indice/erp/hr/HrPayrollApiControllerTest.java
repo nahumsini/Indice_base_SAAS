@@ -2,6 +2,7 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.payroll.HrPayrollApiController;
 import com.indice.erp.hr.payroll.HrPayrollService;
@@ -93,7 +94,7 @@ class HrPayrollApiControllerTest {
     void createRunsReturnsCreatedPayload() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrPayrollService.createRuns(eq(1L), eq(1L), anyMap())).willReturn(Map.of(
+        given(hrPayrollService.createRuns(eq(currentUser), anyMap())).willReturn(Map.of(
             "items", List.of(Map.of(
                 "id", 5,
                 "status", "draft",
@@ -124,7 +125,7 @@ class HrPayrollApiControllerTest {
     void createRunsReturnsBadRequestWhenNoHrUsersMatchSelectedFrequency() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrPayrollService.createRuns(eq(1L), eq(1L), anyMap()))
+        given(hrPayrollService.createRuns(eq(currentUser), anyMap()))
             .willThrow(new IllegalArgumentException("No active HR users are configured for the selected pay frequency."));
 
         mockMvc.perform(
@@ -141,5 +142,17 @@ class HrPayrollApiControllerTest {
         )
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("No active HR users are configured for the selected pay frequency."));
+    }
+
+    @Test
+    void runDetailReturnsForbiddenWhenPayrollRunIsOutsideOperationalScope() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrPayrollService.getRunDetail(currentUser, 9L))
+            .willThrow(new HrAccessDeniedException("Forbidden"));
+
+        mockMvc.perform(get("/api/v1/hr/payroll/runs/9"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 }

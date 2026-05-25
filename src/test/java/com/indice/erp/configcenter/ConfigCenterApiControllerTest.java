@@ -141,6 +141,33 @@ class ConfigCenterApiControllerTest {
     }
 
     @Test
+    void companyReturnsScopedPayloadForAuthenticatedSession() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(configCenterService.getEmpresa(currentUser)).willReturn(Map.of(
+            "id", 7L,
+            "nombre_empresa", "Empresa Demo Spring",
+            "colaboradores", 4,
+            "map", List.of(
+                Map.of(
+                    "name", "North Unit",
+                    "legacy_unit_id", 12L,
+                    "businesses", List.of(
+                        Map.of("name", "North Biz", "legacy_business_id", 21L)
+                    )
+                )
+            )
+        ));
+
+        mockMvc.perform(get("/api/v1/config-center/company"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nombre_empresa").value("Empresa Demo Spring"))
+            .andExpect(jsonPath("$.colaboradores").value(4))
+            .andExpect(jsonPath("$.map[0].legacy_unit_id").value(12))
+            .andExpect(jsonPath("$.map[0].businesses[0].legacy_business_id").value(21));
+    }
+
+    @Test
     void saveCurrentUserReturnsUpdatedUserPayload() throws Exception {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
         var savedUser = Map.<String, Object>ofEntries(

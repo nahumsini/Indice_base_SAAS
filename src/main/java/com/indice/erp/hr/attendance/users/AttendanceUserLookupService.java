@@ -3,9 +3,11 @@ package com.indice.erp.hr.attendance.users;
 import com.indice.erp.hr.attendance.application.AttendancePhotoService;
 import com.indice.erp.hr.attendance.models.AttendanceHrUser;
 import com.indice.erp.hr.attendance.models.AttendanceUser;
+import com.indice.erp.hr.HrOperationalScope;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -137,10 +139,22 @@ public class AttendanceUserLookupService {
     }
 
     public List<AttendanceHrUser> listAttendanceUsers(long companyId) {
+        return listAttendanceUsers(companyId, HrOperationalScope.corporateOffice());
+    }
+
+    public List<AttendanceHrUser> listAttendanceUsers(long companyId, HrOperationalScope scope) {
+        var normalizedScope = scope == null ? HrOperationalScope.corporateOffice() : scope;
+        var extraWhere = new StringBuilder("COALESCE(LOWER(e.status), 'active') <> 'terminated'");
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        if (!normalizedScope.isCorporateOffice()) {
+            extraWhere.append(normalizedScope.hrUserPredicate("e"));
+            parameters.addAll(normalizedScope.hrUserParameters());
+        }
         return jdbcTemplate.query(
-            attendanceUserSql("COALESCE(LOWER(e.status), 'active') <> 'terminated'") + " ORDER BY full_name ASC, e.id ASC",
+            attendanceUserSql(extraWhere.toString()) + " ORDER BY full_name ASC, e.id ASC",
             (rs, rowNum) -> mapAttendanceUser(rs),
-            companyId
+            parameters.toArray()
         );
     }
 

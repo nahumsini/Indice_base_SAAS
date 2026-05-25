@@ -1,7 +1,9 @@
 package com.indice.erp.hr.attendance.kiosk;
 
+import com.indice.erp.hr.HrOperationalScope;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,30 +23,46 @@ public class AttendanceKioskDeviceRepository {
     }
 
     public List<KioskDeviceRow> list(long companyId) {
+        return list(companyId, HrOperationalScope.corporateOffice());
+    }
+
+    public List<KioskDeviceRow> list(long companyId, HrOperationalScope scope) {
+        var normalizedScope = scope == null ? HrOperationalScope.corporateOffice() : scope;
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        var sql = """
+            SELECT d.id,
+                   d.company_id,
+                   d.unit_id,
+                   u.name AS unit_name,
+                   d.business_id,
+                   b.name AS business_name,
+                   d.location_id,
+                   l.name AS location_name,
+                   d.code,
+                   d.name,
+                   COALESCE(LOWER(d.status), 'active') AS status,
+                   d.public_access_token,
+                   d.metadata_json
+            FROM attendance_kiosk_devices d
+            LEFT JOIN units u ON u.id = d.unit_id
+            LEFT JOIN businesses b ON b.id = d.business_id
+            LEFT JOIN attendance_locations l ON l.id = d.location_id
+            WHERE d.company_id = ?
+            """;
+        if (!normalizedScope.isCorporateOffice()) {
+            sql += normalizedScope.assignmentPredicate(
+                "COALESCE(d.unit_id, l.unit_id)",
+                "COALESCE(d.business_id, l.business_id)",
+                "d.company_id"
+            );
+            parameters.addAll(normalizedScope.assignmentParameters());
+        }
+        sql += " ORDER BY CASE LOWER(COALESCE(d.status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, d.name ASC";
         return jdbcTemplate.query(
-            """
-                SELECT d.id,
-                       d.company_id,
-                       d.unit_id,
-                       u.name AS unit_name,
-                       d.business_id,
-                       b.name AS business_name,
-                       d.location_id,
-                       l.name AS location_name,
-                       d.code,
-                       d.name,
-                       COALESCE(LOWER(d.status), 'active') AS status,
-                       d.public_access_token,
-                       d.metadata_json
-                FROM attendance_kiosk_devices d
-                LEFT JOIN units u ON u.id = d.unit_id
-                LEFT JOIN businesses b ON b.id = d.business_id
-                LEFT JOIN attendance_locations l ON l.id = d.location_id
-                WHERE d.company_id = ?
-                ORDER BY CASE LOWER(COALESCE(d.status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, d.name ASC
-                """,
+            sql,
             (rs, rowNum) -> mapRow(rs),
-            companyId
+            parameters.toArray()
         );
     }
 

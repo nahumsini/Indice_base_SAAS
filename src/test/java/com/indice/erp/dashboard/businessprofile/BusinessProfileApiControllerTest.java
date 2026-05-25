@@ -11,9 +11,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.configcenter.ConfigCenterAccessService;
+import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -30,7 +33,15 @@ class BusinessProfileApiControllerTest {
     private SessionAuthService sessionAuthService;
 
     @MockBean
+    private ConfigCenterAccessService accessService;
+
+    @MockBean
     private BusinessProfileService businessProfileService;
+
+    @BeforeEach
+    void allowBusinessProfileAccessByDefault() {
+        given(accessService.canAccess(any(AuthSessionUser.class), any(ConfigCenterTab.class))).willReturn(true);
+    }
 
     @Test
     void getBusinessProfileReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
@@ -39,6 +50,17 @@ class BusinessProfileApiControllerTest {
         mockMvc.perform(get("/api/v1/dashboard/business-profile"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.message").value("Unauthorized"));
+    }
+
+    @Test
+    void getBusinessProfileReturnsForbiddenWhenBusinessProfileTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccess(currentUser, ConfigCenterTab.BUSINESS_PROFILE)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/dashboard/business-profile"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test

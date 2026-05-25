@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.usecases.schedule;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.attendance.models.CurrentScheduleAssignment;
 import com.indice.erp.hr.attendance.models.ScheduleRule;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
@@ -117,18 +118,33 @@ public abstract class HrAttendanceScheduleQuerySupport extends HrAttendanceSched
     }
 
     protected Map<Long, Integer> loadActiveAssignmentCountsByTemplate(long companyId) {
-        var rows = jdbcTemplate.query(
+        return loadActiveAssignmentCountsByTemplate(companyId, HrOperationalScope.corporateOffice());
+    }
+
+    protected Map<Long, Integer> loadActiveAssignmentCountsByTemplate(long companyId, HrOperationalScope scope) {
+        var normalizedScope = scope == null ? HrOperationalScope.corporateOffice() : scope;
+        var sql = new StringBuilder(
             """
                 SELECT a.template_id, COUNT(*) AS total_count
                 FROM user_schedule_assignments a
                 JOIN attendance_schedule_templates t ON t.id = a.template_id
+                JOIN hr_users e ON e.id = a.user_company_id
                 WHERE a.company_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
                   AND LOWER(COALESCE(t.status, 'active')) = 'active'
-                GROUP BY a.template_id
-                """,
+                """
+        );
+        var parameters = new java.util.ArrayList<Object>();
+        parameters.add(companyId);
+        if (!normalizedScope.isCorporateOffice()) {
+            sql.append(normalizedScope.hrUserPredicate("e"));
+            parameters.addAll(normalizedScope.hrUserParameters());
+        }
+        sql.append(" GROUP BY a.template_id");
+        var rows = jdbcTemplate.query(
+            sql.toString(),
             (rs, rowNum) -> Map.entry(rs.getLong("template_id"), rs.getInt("total_count")),
-            companyId
+            parameters.toArray()
         );
 
         var result = new HashMap<Long, Integer>();
