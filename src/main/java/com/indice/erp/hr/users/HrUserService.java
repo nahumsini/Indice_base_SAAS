@@ -1,5 +1,8 @@
 package com.indice.erp.hr.users;
 
+import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.HrOperationalScope;
+import com.indice.erp.hr.HrOperationalScopeService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -11,6 +14,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +42,7 @@ public class HrUserService {
 
     private final JdbcTemplate jdbcTemplate;
     private final HrAttendanceService hrAttendanceService;
+    private final HrOperationalScopeService hrOperationalScopeService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -45,16 +50,29 @@ public class HrUserService {
     public HrUserService(
         JdbcTemplate jdbcTemplate,
         HrAttendanceService hrAttendanceService,
+        HrOperationalScopeService hrOperationalScopeService,
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrAttendanceService = hrAttendanceService;
+        this.hrOperationalScopeService = hrOperationalScopeService;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
     }
 
     public Map<String, Object> listUsers(long companyId) {
+        return listUsers(companyId, HrOperationalScope.corporateOffice());
+    }
+
+    public Map<String, Object> listUsers(AuthSessionUser currentUser) {
+        return listUsers(currentUser.companyId(), hrOperationalScopeService.resolve(currentUser));
+    }
+
+    private Map<String, Object> listUsers(long companyId, HrOperationalScope scope) {
+        var userParams = new ArrayList<Object>();
+        userParams.add(companyId);
+        userParams.addAll(scope.hrUserParameters());
         var hrUsers = jdbcTemplate.query(
             """
                 SELECT e.id,
@@ -91,12 +109,18 @@ public class HrUserService {
                 LEFT JOIN businesses b ON b.id = e.business_id
                 WHERE e.company_id = ?
                   AND e.work_profile_id IS NOT NULL
+                """
+                + scope.hrUserPredicate("e")
+                + """
                 ORDER BY e.id DESC
                 """,
             (rs, rowNum) -> mapHrUserRow(rs),
-            companyId
+            userParams.toArray()
         );
 
+        var summaryParams = new ArrayList<Object>();
+        summaryParams.add(companyId);
+        summaryParams.addAll(scope.hrUserParameters());
         var summary = jdbcTemplate.queryForObject(
             """
                 SELECT COUNT(*) AS total_count,
@@ -109,9 +133,12 @@ public class HrUserService {
                                ELSE COALESCE(salary, 0) * 30
                            END
                        ), 0) AS total_payroll_amount_monthly
-                FROM hr_users
-                WHERE company_id = ?
-                  AND work_profile_id IS NOT NULL
+                FROM hr_users e
+                WHERE e.company_id = ?
+                  AND e.work_profile_id IS NOT NULL
+                """
+                + scope.hrUserPredicate("e")
+                + """
                 """,
             (rs, rowNum) -> {
                 var body = new LinkedHashMap<String, Object>();
@@ -122,7 +149,7 @@ public class HrUserService {
                 body.put("total_payroll_amount_monthly", rs.getBigDecimal("total_payroll_amount_monthly"));
                 return body;
             },
-            companyId
+            summaryParams.toArray()
         );
 
         var result = new LinkedHashMap<String, Object>();
@@ -136,12 +163,37 @@ public class HrUserService {
         return hrUserDetails(userCompanyId, companyId);
     }
 
+    public Map<String, Object> getUserDetails(AuthSessionUser currentUser, long userCompanyId) {
+        hrOperationalScopeService.requireUserInScope(currentUser, userCompanyId);
+        return getUserDetails(currentUser.companyId(), userCompanyId);
+    }
+
     @Transactional
     public Map<String, Object> createUser(long companyId, long createdBy, Map<String, Object> payload) {
+        return createUser(companyId, createdBy, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> createUser(AuthSessionUser currentUser, Map<String, Object> payload) {
+        return createUser(
+            currentUser.companyId(),
+            currentUser.userId(),
+            payload,
+            hrOperationalScopeService.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> createUser(
+        long companyId,
+        long createdBy,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         var userPayload = mergedSectionPayload(payload, "user");
         var profilePayload = mergedSectionPayload(payload, "profile");
 
         var draft = buildHrUserDraft(companyId, userPayload);
+        hrOperationalScopeService.requireAssignmentInScope(companyId, scope, draft.unitId(), draft.businessId());
         draft = draft.withUserCode(resolveUserCodeForCreate(companyId, draft.userCode()));
         var hrUserDraft = draft;
         var profileDraft = buildProfileDraft(profilePayload, ProfileDraft.empty());
@@ -154,17 +206,30 @@ public class HrUserService {
 
     @Transactional
     public Map<String, Object> updateUser(long companyId, Map<String, Object> payload) {
+        return updateUser(companyId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> updateUser(AuthSessionUser currentUser, long userCompanyId, Map<String, Object> payload) {
+        var scopedPayload = new LinkedHashMap<>(payload);
+        scopedPayload.put("id", userCompanyId);
+        return updateUser(currentUser.companyId(), scopedPayload, hrOperationalScopeService.resolve(currentUser));
+    }
+
+    private Map<String, Object> updateUser(long companyId, Map<String, Object> payload, HrOperationalScope scope) {
         var userCompanyId = parseLong(payload, "id", "user_company_id");
         if (userCompanyId == null || userCompanyId <= 0) {
             throw new IllegalArgumentException("id is required.");
         }
 
         requireHrUser(companyId, userCompanyId);
+        hrOperationalScopeService.requireUserInScope(companyId, scope, userCompanyId);
 
         var userPayload = mergedSectionPayload(payload, "user");
         var profilePayload = mergedSectionPayload(payload, "profile");
 
         var draft = buildHrUserDraft(companyId, userPayload);
+        hrOperationalScopeService.requireAssignmentInScope(companyId, scope, draft.unitId(), draft.businessId());
         draft = draft.withUserCode(resolveUserCodeForUpdate(companyId, userCompanyId, draft.userCode()));
         var currentProfile = loadProfileDraft(companyId, userCompanyId);
         var profileDraft = buildProfileDraft(profilePayload, currentProfile);
@@ -205,6 +270,12 @@ public class HrUserService {
             userCompanyId,
             companyId
         );
+    }
+
+    @Transactional
+    public void deleteUser(AuthSessionUser currentUser, long userCompanyId) {
+        hrOperationalScopeService.requireUserInScope(currentUser, userCompanyId);
+        deleteUser(currentUser.companyId(), userCompanyId);
     }
 
     @Transactional
@@ -260,6 +331,12 @@ public class HrUserService {
         return hrUserDetails(userCompanyId, companyId);
     }
 
+    @Transactional
+    public Map<String, Object> terminateUser(AuthSessionUser currentUser, long userCompanyId, Map<String, Object> payload) {
+        hrOperationalScopeService.requireUserInScope(currentUser, userCompanyId);
+        return terminateUser(currentUser.companyId(), userCompanyId, payload);
+    }
+
     public Map<String, Object> createDocumentUpload(long companyId, long userCompanyId, Map<String, Object> payload) {
         requireHrUser(companyId, userCompanyId);
 
@@ -293,6 +370,11 @@ public class HrUserService {
         body.put("expires_at", upload.expiresAt().toString());
         body.put("upload_headers", upload.uploadHeaders());
         return body;
+    }
+
+    public Map<String, Object> createDocumentUpload(AuthSessionUser currentUser, long userCompanyId, Map<String, Object> payload) {
+        hrOperationalScopeService.requireUserInScope(currentUser, userCompanyId);
+        return createDocumentUpload(currentUser.companyId(), userCompanyId, payload);
     }
 
     @Transactional
@@ -370,6 +452,16 @@ public class HrUserService {
     }
 
     @Transactional
+    public Map<String, Object> registerUserDocument(
+        AuthSessionUser currentUser,
+        long userCompanyId,
+        Map<String, Object> payload
+    ) {
+        hrOperationalScopeService.requireUserInScope(currentUser, userCompanyId);
+        return registerUserDocument(currentUser.companyId(), currentUser.userId(), userCompanyId, payload);
+    }
+
+    @Transactional
     public void deleteUserDocument(long companyId, long userCompanyId, long documentId) {
         requireHrUser(companyId, userCompanyId);
 
@@ -398,6 +490,12 @@ public class HrUserService {
         );
 
         deleteUserDocumentObjectQuietly(rows.getFirst());
+    }
+
+    @Transactional
+    public void deleteUserDocument(AuthSessionUser currentUser, long userCompanyId, long documentId) {
+        hrOperationalScopeService.requireUserInScope(currentUser, userCompanyId);
+        deleteUserDocument(currentUser.companyId(), userCompanyId, documentId);
     }
 
     private HrUserDraft buildHrUserDraft(long companyId, Map<String, Object> payload) {

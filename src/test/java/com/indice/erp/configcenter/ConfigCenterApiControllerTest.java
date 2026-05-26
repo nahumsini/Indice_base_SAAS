@@ -15,10 +15,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.config.AppWebProperties;
+import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -35,6 +37,9 @@ class ConfigCenterApiControllerTest {
     private SessionAuthService sessionAuthService;
 
     @MockBean
+    private ConfigCenterAccessService accessService;
+
+    @MockBean
     private ConfigCenterService configCenterService;
 
     @MockBean
@@ -45,6 +50,12 @@ class ConfigCenterApiControllerTest {
 
     @MockBean
     private AppWebProperties appWebProperties;
+
+    @BeforeEach
+    void allowConfigCenterAccessByDefault() {
+        given(accessService.canAccess(any(AuthSessionUser.class), any(ConfigCenterTab.class))).willReturn(true);
+        given(accessService.canAccessAny(any(AuthSessionUser.class), any(ConfigCenterTab[].class))).willReturn(true);
+    }
 
     @Test
     void currentUserReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
@@ -67,10 +78,12 @@ class ConfigCenterApiControllerTest {
                     "apellidos", "Demo",
                     "role", "admin",
                     "status", "active",
+                    "scope_type", "corporate_office",
                     "module_slugs", List.of("config_center")
                 )
             ),
             "catalog", Map.of(
+                "units", List.of(Map.of("id", 1L, "name", "Corporate office")),
                 "businesses", List.of(Map.of("id", 5L, "name", "Spring Biz A")),
                 "modules", List.of(Map.of("slug", "config_center", "name", "Panel Inicial"))
             )
@@ -82,8 +95,21 @@ class ConfigCenterApiControllerTest {
         mockMvc.perform(get("/api/v1/config-center/users"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.users[0].email").value("demo@example.com"))
+            .andExpect(jsonPath("$.catalog.units[0].name").value("Corporate office"))
             .andExpect(jsonPath("$.catalog.businesses[0].name").value("Spring Biz A"))
             .andExpect(jsonPath("$.catalog.modules[0].slug").value("config_center"));
+    }
+
+    @Test
+    void usersReturnsForbiddenForNormalUser() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 7L, "Usuario Demo", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccess(currentUser, ConfigCenterTab.USERS)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/config-center/users"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test
@@ -112,6 +138,33 @@ class ConfigCenterApiControllerTest {
             .andExpect(jsonPath("$.logo").isEmpty())
             .andExpect(jsonPath("$.data.nombre_empresa").value("Empresa Demo Spring"))
             .andExpect(jsonPath("$.message").value("Company data saved"));
+    }
+
+    @Test
+    void companyReturnsScopedPayloadForAuthenticatedSession() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(configCenterService.getEmpresa(currentUser)).willReturn(Map.of(
+            "id", 7L,
+            "nombre_empresa", "Empresa Demo Spring",
+            "colaboradores", 4,
+            "map", List.of(
+                Map.of(
+                    "name", "North Unit",
+                    "legacy_unit_id", 12L,
+                    "businesses", List.of(
+                        Map.of("name", "North Biz", "legacy_business_id", 21L)
+                    )
+                )
+            )
+        ));
+
+        mockMvc.perform(get("/api/v1/config-center/company"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nombre_empresa").value("Empresa Demo Spring"))
+            .andExpect(jsonPath("$.colaboradores").value(4))
+            .andExpect(jsonPath("$.map[0].legacy_unit_id").value(12))
+            .andExpect(jsonPath("$.map[0].businesses[0].legacy_business_id").value(21));
     }
 
     @Test
@@ -249,6 +302,61 @@ class ConfigCenterApiControllerTest {
             .andExpect(jsonPath("$.invite_link").value("http://localhost:5173/invite/abcdef123456"))
             .andExpect(jsonPath("$.email_sent").value(true))
             .andExpect(jsonPath("$.email_status").value("sent"));
+    }
+
+    @Test
+    void inviteUserReturnsForbiddenForNormalUser() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 7L, "Usuario Demo", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccess(currentUser, ConfigCenterTab.USERS)).willReturn(false);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/config-center/users/invite")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Pending Invite",
+                      "email": "invite@example.com",
+                      "role": "user"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void saveStructureReturnsForbiddenWhenBusinessStructureTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccess(currentUser, ConfigCenterTab.BUSINESS_STRUCTURE)).willReturn(false);
+
+        mockMvc.perform(put("/api/v1/config-center/business-structure")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "estructura": "multi",
+                      "map": []
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void companyReturnsForbiddenWhenCompanyTabsAreDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccessAny(
+            org.mockito.ArgumentMatchers.eq(currentUser),
+            org.mockito.ArgumentMatchers.eq(ConfigCenterTab.BUSINESS_STRUCTURE),
+            org.mockito.ArgumentMatchers.eq(ConfigCenterTab.BUSINESS_PROFILE)
+        )).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/config-center/company"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test

@@ -33,7 +33,7 @@ public class OrganizationApiController {
         }
 
         var user = currentUser.get();
-        return ResponseEntity.ok(organizationService.listModules(user.userId(), user.companyId()));
+        return ResponseEntity.ok(organizationService.listModules(user.userId(), user.companyId(), user.role()));
     }
 
     @GetMapping("/org/units")
@@ -43,7 +43,7 @@ public class OrganizationApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        var units = organizationService.listUnits(currentUser.get().companyId());
+        var units = organizationService.listUnits(currentUser.get());
         var body = new LinkedHashMap<String, Object>();
         body.put("ok", true);
         body.put("data", units);
@@ -58,7 +58,7 @@ public class OrganizationApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        var businesses = organizationService.listBusinesses(currentUser.get().companyId());
+        var businesses = organizationService.listBusinesses(currentUser.get());
         var body = new LinkedHashMap<String, Object>();
         body.put("ok", true);
         body.put("data", businesses);

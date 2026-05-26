@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import jakarta.servlet.http.HttpSession;
 import java.time.LocalDate;
@@ -19,9 +20,10 @@ public class HrAttendanceApiController extends AttendanceApiControllerSupport {
 
     public HrAttendanceApiController(
         SessionAuthService sessionAuthService,
-        HrAttendanceService hrAttendanceService
+        HrAttendanceService hrAttendanceService,
+        HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService);
+        super(sessionAuthService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/dashboard")
@@ -33,10 +35,13 @@ public class HrAttendanceApiController extends AttendanceApiControllerSupport {
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
-            return ResponseEntity.ok(hrAttendanceService.listDashboard(currentUser.get().companyId(), targetDate));
+            return ResponseEntity.ok(hrAttendanceService.listDashboard(currentUser.get(), targetDate));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -77,10 +82,13 @@ public class HrAttendanceApiController extends AttendanceApiControllerSupport {
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);
-            return ResponseEntity.ok(hrAttendanceService.controlOverview(currentUser.get().companyId(), targetDate));
+            return ResponseEntity.ok(hrAttendanceService.controlOverview(currentUser.get(), targetDate));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

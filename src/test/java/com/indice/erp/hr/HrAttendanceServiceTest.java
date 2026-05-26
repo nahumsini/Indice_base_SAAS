@@ -2,6 +2,7 @@ package com.indice.erp.hr;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.attendance.HrAttendanceScopeAccess;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.hr.attendance.access.AttendanceAccessService;
 import com.indice.erp.hr.attendance.application.AttendancePhotoService;
@@ -87,6 +88,7 @@ class HrAttendanceServiceTest {
         );
         return new HrAttendanceService(
             jdbcTemplate,
+            mock(HrAttendanceScopeAccess.class),
             attendanceAssignmentService,
             new AttendanceKioskTokenService(objectMapper, "test-kiosk-secret", 120),
             attendanceKioskPinThrottleService,

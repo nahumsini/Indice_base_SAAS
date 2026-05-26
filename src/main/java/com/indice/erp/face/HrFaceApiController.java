@@ -1,6 +1,7 @@
 package com.indice.erp.face;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -20,10 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class HrFaceApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final HrFaceAccessService hrFaceAccessService;
     private final HrFaceService hrFaceService;
 
-    public HrFaceApiController(SessionAuthService sessionAuthService, HrFaceService hrFaceService) {
+    public HrFaceApiController(
+        SessionAuthService sessionAuthService,
+        HrFaceAccessService hrFaceAccessService,
+        HrFaceService hrFaceService
+    ) {
         this.sessionAuthService = sessionAuthService;
+        this.hrFaceAccessService = hrFaceAccessService;
         this.hrFaceService = hrFaceService;
     }
 
@@ -35,9 +42,15 @@ public class HrFaceApiController {
         }
 
         try {
+            hrFaceAccessService.requireEnrollmentTargetInScope(
+                user.get(),
+                requiredUserCompanyId(payload)
+            );
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 hrFaceService.createEnrollmentSession(user.get().companyId(), user.get().userId(), payload)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -61,9 +74,12 @@ public class HrFaceApiController {
         }
 
         try {
+            hrFaceAccessService.requireEnrollmentSessionInScope(user.get(), enrollmentId);
             return ResponseEntity.ok(
                 hrFaceService.createEnrollmentCaptureUpload(user.get().companyId(), enrollmentId, payload)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -83,9 +99,12 @@ public class HrFaceApiController {
         }
 
         try {
+            hrFaceAccessService.requireEnrollmentSessionInScope(user.get(), enrollmentId);
             return ResponseEntity.ok(
                 hrFaceService.completeEnrollment(user.get().companyId(), user.get().userId(), enrollmentId)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -105,7 +124,10 @@ public class HrFaceApiController {
         }
 
         try {
+            hrFaceAccessService.requireEnrollmentTargetInScope(user.get(), userCompanyId);
             return ResponseEntity.ok(hrFaceService.getEnrollment(user.get().companyId(), userCompanyId));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -121,11 +143,41 @@ public class HrFaceApiController {
         }
 
         try {
+            hrFaceAccessService.requireEnrollmentTargetInScope(user.get(), userCompanyId);
             return ResponseEntity.ok(hrFaceService.deleteEnrollment(user.get().companyId(), userCompanyId));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private long requiredUserCompanyId(Map<String, Object> payload) {
+        if (payload == null) {
+            throw new IllegalArgumentException("user_company_id is required.");
+        }
+        var raw = payload.get("user_company_id");
+        if (raw instanceof Number number) {
+            var value = number.longValue();
+            if (value > 0) {
+                return value;
+            }
+        }
+        if (raw instanceof String text && !text.isBlank()) {
+            try {
+                var value = Long.parseLong(text.trim());
+                if (value > 0) {
+                    return value;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        throw new IllegalArgumentException("user_company_id is required.");
+    }
+
+    private ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }
 }

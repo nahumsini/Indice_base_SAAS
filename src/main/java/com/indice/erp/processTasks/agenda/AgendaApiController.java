@@ -1,6 +1,7 @@
 package com.indice.erp.processTasks.agenda;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.processTasks.ProcessTasksAccessService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -15,10 +16,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class AgendaApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final ProcessTasksAccessService accessService;
     private final AgendaService agendaService;
 
-    public AgendaApiController(SessionAuthService sessionAuthService, AgendaService agendaService) {
+    public AgendaApiController(
+        SessionAuthService sessionAuthService,
+        ProcessTasksAccessService accessService,
+        AgendaService agendaService
+    ) {
         this.sessionAuthService = sessionAuthService;
+        this.accessService = accessService;
         this.agendaService = agendaService;
     }
 
@@ -30,6 +37,9 @@ public class AgendaApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         try {

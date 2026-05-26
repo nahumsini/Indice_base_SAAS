@@ -2,6 +2,8 @@ package com.indice.erp.hr.permissions;
 
 import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.shared.HrPayloadUtils;
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
@@ -15,20 +17,22 @@ public class HrPermissionSecurityService {
 
     private static final Set<String> ADMIN_ROLES = Set.of("root", "superadmin", "admin", "owner", "dueno");
     private static final Set<String> MANAGER_ROLES = Set.of("manager", "approver");
-    private static final String HR_MODULE = "human_resources";
 
     private final SessionAuthService sessionAuthService;
     private final SessionCsrfService sessionCsrfService;
     private final JdbcTemplate jdbcTemplate;
+    private final HrAccessService hrAccessService;
 
     public HrPermissionSecurityService(
         SessionAuthService sessionAuthService,
         SessionCsrfService sessionCsrfService,
-        JdbcTemplate jdbcTemplate
+        JdbcTemplate jdbcTemplate,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
         this.jdbcTemplate = jdbcTemplate;
+        this.hrAccessService = hrAccessService;
     }
 
     public PermissionActor requireSelfActor(HttpSession session) {
@@ -43,10 +47,10 @@ public class HrPermissionSecurityService {
 
     public PermissionActor requireManagementActor(HttpSession session) {
         var actor = loadActor(session);
-        if (!hasHrModuleAccess(actor)) {
-            throw new HrPermissionApiException(HttpStatus.FORBIDDEN, "Forbidden");
-        }
-        if (ADMIN_ROLES.contains(actor.role()) || MANAGER_ROLES.contains(actor.role())) {
+        if (
+            (ADMIN_ROLES.contains(actor.role()) || MANAGER_ROLES.contains(actor.role()))
+                && hrAccessService.canAccessManagementTab(actor.userCompanyId(), actor.role(), HrTab.PERMISSIONS)
+        ) {
             return actor;
         }
         throw new HrPermissionApiException(HttpStatus.FORBIDDEN, "Forbidden");
@@ -104,10 +108,6 @@ public class HrPermissionSecurityService {
             (rs, rowNum) -> HrPayloadUtils.safe(rs.getString("module_slug")).toLowerCase(),
             userCompanyId
         );
-    }
-
-    private boolean hasHrModuleAccess(PermissionActor actor) {
-        return actor.moduleSlugs().contains(HR_MODULE) || (actor.moduleSlugs().isEmpty() && ADMIN_ROLES.contains(actor.role()));
     }
 
     private void requireCsrf(HttpSession session, String csrfToken) {

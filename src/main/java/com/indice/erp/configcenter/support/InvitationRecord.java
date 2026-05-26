@@ -10,6 +10,8 @@ public record InvitationRecord(
     String fullName,
     String role,
     List<String> moduleSlugs,
+    Long unitId,
+    Long businessId,
     String token,
     String status,
     LocalDateTime expiresAt,

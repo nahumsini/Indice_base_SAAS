@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,14 @@ class AuthApiControllerTest {
     @Test
     void loginReturnsSessionPayloadWhenCredentialsAreValid() throws Exception {
         var session = new AuthSessionResponse(
-            new AuthSessionResponse.UserInfo(1L, "Usuario Demo", "admin"),
+            new AuthSessionResponse.UserInfo(
+                1L,
+                "Usuario Demo",
+                "admin",
+                List.of("config_center"),
+                List.of("config_center.users"),
+                true
+            ),
             new AuthSessionResponse.CompanyInfo(1L)
         );
 
@@ -61,6 +69,9 @@ class AuthApiControllerTest {
             .andExpect(jsonPath("$.user.id").value(1))
             .andExpect(jsonPath("$.user.name").value("Usuario Demo"))
             .andExpect(jsonPath("$.user.role").value("admin"))
+            .andExpect(jsonPath("$.user.module_slugs[0]").value("config_center"))
+            .andExpect(jsonPath("$.user.tab_permission_keys[0]").value("config_center.users"))
+            .andExpect(jsonPath("$.user.tab_permissions_configured").value(true))
             .andExpect(jsonPath("$.company.id").value(1))
             .andExpect(jsonPath("$.csrfToken").value("csrf-token"));
     }

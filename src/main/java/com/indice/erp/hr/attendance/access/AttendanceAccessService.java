@@ -117,4 +117,12 @@ public class AttendanceAccessService extends AttendanceAccessKioskSupport {
         ensureDefaultAccessProfile(companyId, userCompanyId, userId);
         return repository.loadAccessProfileByUser(companyId, userCompanyId);
     }
+
+    public long loadAccessProfileUserCompanyId(long companyId, long profileId) {
+        return repository.loadAccessProfile(companyId, profileId).userCompanyId();
+    }
+
+    public long loadAccessMethodUserCompanyId(long companyId, long methodId) {
+        return repository.loadAccessMethod(companyId, methodId).userCompanyId();
+    }
 }

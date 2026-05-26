@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.locations;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.attendance.models.LocationRow;
 import com.indice.erp.hr.attendance.models.WorkSiteAssignmentRow;
 import com.indice.erp.hr.attendance.users.AttendanceUserLookupService;
@@ -7,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -62,20 +64,33 @@ public class AttendanceWorkSiteAssignmentRepository {
     }
 
     public Map<Long, WorkSiteAssignmentRow> loadActiveWorkSiteAssignments(long companyId, LocalDate date) {
+        return loadActiveWorkSiteAssignments(companyId, date, HrOperationalScope.corporateOffice());
+    }
+
+    public Map<Long, WorkSiteAssignmentRow> loadActiveWorkSiteAssignments(long companyId, LocalDate date, HrOperationalScope scope) {
+        var normalizedScope = scope == null ? HrOperationalScope.corporateOffice() : scope;
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        parameters.add(date);
+        parameters.add(date);
+        var sql = assignmentSelect()
+            + """
+            WHERE a.company_id = ?
+              AND LOWER(COALESCE(a.status, 'active')) = 'active'
+              AND LOWER(COALESCE(l.status, 'active')) = 'active'
+              AND a.effective_start_date <= ?
+              AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
+            """;
+        if (!normalizedScope.isCorporateOffice()) {
+            sql += normalizedScope.assignmentPredicate("l.unit_id", "l.business_id", "l.company_id");
+            parameters.addAll(normalizedScope.assignmentParameters());
+        }
+        sql += " ORDER BY a.user_company_id ASC, a.effective_start_date DESC, a.id DESC";
+
         var rows = jdbcTemplate.query(
-            assignmentSelect()
-                + """
-                WHERE a.company_id = ?
-                  AND LOWER(COALESCE(a.status, 'active')) = 'active'
-                  AND LOWER(COALESCE(l.status, 'active')) = 'active'
-                  AND a.effective_start_date <= ?
-                  AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
-                ORDER BY a.user_company_id ASC, a.effective_start_date DESC, a.id DESC
-                """,
+            sql,
             (rs, rowNum) -> mapWorkSiteAssignment(rs),
-            companyId,
-            date,
-            date
+            parameters.toArray()
         );
 
         var result = new HashMap<Long, WorkSiteAssignmentRow>();

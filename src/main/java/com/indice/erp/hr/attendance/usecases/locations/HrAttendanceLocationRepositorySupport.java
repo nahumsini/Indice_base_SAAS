@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.usecases.locations;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.attendance.kiosk.KioskDeviceRow;
 import com.indice.erp.hr.attendance.models.LocationRow;
 import com.indice.erp.hr.attendance.models.WorkSiteAssignmentRow;
@@ -27,12 +28,20 @@ public abstract class HrAttendanceLocationRepositorySupport extends HrAttendance
         return attendanceLocationRepository.listLocations(companyId);
     }
 
+    protected List<LocationRow> listLocations(long companyId, HrOperationalScope scope) {
+        return attendanceLocationRepository.listLocations(companyId, scope);
+    }
+
     protected Map<Long, List<LocationRow>> groupLocationsByBusiness(List<LocationRow> locations) {
         return attendanceLocationRepository.groupLocationsByBusiness(locations);
     }
 
     protected List<LocationRow> loadLocationRows(long companyId, boolean activeOnly) {
         return attendanceLocationRepository.loadLocationRows(companyId, activeOnly);
+    }
+
+    protected List<LocationRow> loadLocationRows(long companyId, boolean activeOnly, HrOperationalScope scope) {
+        return attendanceLocationRepository.loadLocationRows(companyId, activeOnly, scope);
     }
 
     protected LocationRow loadLocation(long companyId, Long locationId) {
@@ -63,6 +72,10 @@ public abstract class HrAttendanceLocationRepositorySupport extends HrAttendance
         return attendanceAllowedLocationRepository.loadAllowedLocationsByUser(companyId);
     }
 
+    protected Map<Long, List<LocationRow>> loadAllowedLocationsByUser(long companyId, HrOperationalScope scope) {
+        return attendanceAllowedLocationRepository.loadAllowedLocationsByUser(companyId, scope);
+    }
+
     protected void ensureHrUserAllowedLocation(long companyId, long userId, long userCompanyId, long locationId) {
         attendanceAllowedLocationRepository.ensureHrUserAllowedLocation(companyId, userId, userCompanyId, locationId);
     }
@@ -87,6 +100,14 @@ public abstract class HrAttendanceLocationRepositorySupport extends HrAttendance
 
     protected Map<Long, WorkSiteAssignmentRow> loadActiveWorkSiteAssignments(long companyId, LocalDate date) {
         return attendanceWorkSiteAssignmentRepository.loadActiveWorkSiteAssignments(companyId, date);
+    }
+
+    protected Map<Long, WorkSiteAssignmentRow> loadActiveWorkSiteAssignments(
+        long companyId,
+        LocalDate date,
+        HrOperationalScope scope
+    ) {
+        return attendanceWorkSiteAssignmentRepository.loadActiveWorkSiteAssignments(companyId, date, scope);
     }
 
     protected WorkSiteAssignmentRow loadActiveWorkSiteAssignment(long companyId, long userCompanyId, LocalDate date) {

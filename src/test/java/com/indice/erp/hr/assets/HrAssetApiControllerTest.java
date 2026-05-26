@@ -10,12 +10,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -34,6 +38,15 @@ class HrAssetApiControllerTest {
 
     @MockBean
     private HrAssetService hrAssetService;
+
+    @MockBean
+    private HrAccessService hrAccessService;
+
+    @BeforeEach
+    void allowHrAccessByDefault() {
+        given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
+    }
 
     @Test
     void listReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
@@ -70,7 +83,7 @@ class HrAssetApiControllerTest {
         ));
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAssetService.listAssets(anyLong(), any(Map.class))).willReturn(result);
+        given(hrAssetService.listAssets(any(AuthSessionUser.class), any(Map.class))).willReturn(result);
 
         mockMvc.perform(get("/api/v1/hr/assets"))
             .andExpect(status().isOk())
@@ -78,6 +91,19 @@ class HrAssetApiControllerTest {
             .andExpect(jsonPath("$.items[0].asset_code").value("LT-1001"))
             .andExpect(jsonPath("$.summary.assigned_count").value(1));
     }
+
+    @Test
+    void listReturnsForbiddenWhenAssetsTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.ASSETS)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/assets"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
 
     @Test
     void createReturnsCreatedAsset() throws Exception {
@@ -88,7 +114,7 @@ class HrAssetApiControllerTest {
         asset.put("status", "available");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAssetService.createAsset(anyLong(), anyLong(), any(Map.class)))
+        given(hrAssetService.createAsset(any(AuthSessionUser.class), any(Map.class)))
             .willReturn(Map.of("asset", asset));
 
         mockMvc.perform(post("/api/v1/hr/assets")
@@ -109,7 +135,7 @@ class HrAssetApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAssetService.changeStatus(anyLong(), anyLong(), anyLong(), any(Map.class)))
+        given(hrAssetService.changeStatus(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new IllegalArgumentException("status must be one of available, assigned, maintenance, custody, or inactive."));
 
         mockMvc.perform(post("/api/v1/hr/assets/8/status")
@@ -128,11 +154,24 @@ class HrAssetApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAssetService.assetHistory(anyLong(), anyLong()))
+        given(hrAssetService.assetHistory(any(AuthSessionUser.class), anyLong()))
             .willThrow(new NoSuchElementException("Asset not found."));
 
         mockMvc.perform(get("/api/v1/hr/assets/999/history"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.message").value("Asset not found."));
+    }
+
+    @Test
+    void detailsReturnsForbiddenWhenAssetIsOutsideOperationalScope() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Scoped Admin", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAssetService.assetDetails(currentUser, 44L))
+            .willThrow(new HrAccessDeniedException("Forbidden"));
+
+        mockMvc.perform(get("/api/v1/hr/assets/44"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 }

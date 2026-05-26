@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.locations;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.attendance.models.LocationRow;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +26,10 @@ public class AttendanceLocationRepository {
         return loadLocationRows(companyId, true);
     }
 
+    public List<LocationRow> listLocations(long companyId, HrOperationalScope scope) {
+        return loadLocationRows(companyId, true, scope);
+    }
+
     public Map<Long, List<LocationRow>> groupLocationsByBusiness(List<LocationRow> locations) {
         var grouped = new HashMap<Long, List<LocationRow>>();
         for (var location : locations) {
@@ -36,11 +41,22 @@ public class AttendanceLocationRepository {
     }
 
     public List<LocationRow> loadLocationRows(long companyId, boolean activeOnly) {
+        return loadLocationRows(companyId, activeOnly, HrOperationalScope.corporateOffice());
+    }
+
+    public List<LocationRow> loadLocationRows(long companyId, boolean activeOnly, HrOperationalScope scope) {
+        var normalizedScope = scope == null ? HrOperationalScope.corporateOffice() : scope;
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
         var sql = locationSelectWithAssignments()
             + " WHERE l.company_id = ?"
-            + (activeOnly ? " AND LOWER(COALESCE(l.status, 'active')) = 'active'" : "")
-            + " ORDER BY CASE LOWER(COALESCE(l.status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, l.name ASC";
-        return jdbcTemplate.query(sql, (rs, rowNum) -> mapper.mapWithAssignments(rs), companyId);
+            + (activeOnly ? " AND LOWER(COALESCE(l.status, 'active')) = 'active'" : "");
+        if (!normalizedScope.isCorporateOffice()) {
+            sql += normalizedScope.assignmentPredicate("l.unit_id", "l.business_id", "l.company_id");
+            parameters.addAll(normalizedScope.assignmentParameters());
+        }
+        sql += " ORDER BY CASE LOWER(COALESCE(l.status, 'active')) WHEN 'active' THEN 0 ELSE 1 END, l.name ASC";
+        return jdbcTemplate.query(sql, (rs, rowNum) -> mapper.mapWithAssignments(rs), parameters.toArray());
     }
 
     public LocationRow loadLocation(long companyId, Long locationId) {

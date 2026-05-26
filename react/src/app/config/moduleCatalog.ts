@@ -303,19 +303,23 @@ export function backendSlugForRoute(route: PageId): string | null {
 export function mergeDashboardModules(
   apiModules: DashboardModuleCard[],
   fallbackModules: DashboardModuleCard[],
+  options: { includeMissingFallbacks?: boolean } = {},
 ): DashboardModuleCard[] {
   const merged = new Map<string, DashboardModuleCard>();
   const fallbackOrder = new Map(
     fallbackModules.map((module, index) => [module.id, index] as const),
   );
+  const includeMissingFallbacks = options.includeMissingFallbacks ?? true;
 
   for (const module of apiModules) {
     merged.set(module.id, module);
   }
 
-  for (const fallback of fallbackModules) {
-    if (!merged.has(fallback.id)) {
-      merged.set(fallback.id, fallback);
+  if (includeMissingFallbacks) {
+    for (const fallback of fallbackModules) {
+      if (!merged.has(fallback.id)) {
+        merged.set(fallback.id, fallback);
+      }
     }
   }
 

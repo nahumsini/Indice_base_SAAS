@@ -16,6 +16,7 @@ public class AnnEditSvc {
     private final HrAnnouncementQueryService queryService;
     private final AnnDeliverSvc deliverSvc;
     private final AnnVisSvc visSvc;
+    private final HrAnnouncementScopeService scopeService;
 
     public AnnEditSvc(
         JdbcTemplate jdbcTemplate,
@@ -23,7 +24,8 @@ public class AnnEditSvc {
         HrAnnouncementTargetRepository targetRepository,
         HrAnnouncementQueryService queryService,
         AnnDeliverSvc deliverSvc,
-        AnnVisSvc visSvc
+        AnnVisSvc visSvc,
+        HrAnnouncementScopeService scopeService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.audienceService = audienceService;
@@ -31,6 +33,7 @@ public class AnnEditSvc {
         this.queryService = queryService;
         this.deliverSvc = deliverSvc;
         this.visSvc = visSvc;
+        this.scopeService = scopeService;
     }
 
     @Transactional
@@ -38,6 +41,8 @@ public class AnnEditSvc {
         visSvc.requireCompanyAnnouncement(actor.companyId(), announcementId);
         var announcement = HrAnnouncementPayload.from(payload);
         var targets = audienceService.normalizeTargets(actor.companyId(), announcement.audienceType(), payload);
+        scopeService.requireManageable(actor, announcementId);
+        scopeService.requireAudienceManageable(actor, announcement.audienceType(), targets);
         jdbcTemplate.update(
             """
                 UPDATE hr_announcements

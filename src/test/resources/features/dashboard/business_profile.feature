@@ -16,7 +16,7 @@ Feature: Business Profile
     Then the backend should normalize and store the section answers
     And the frontend should display the saved profile envelope
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: Normal user cannot manage Business Profile
     Given a normal user is authenticated
     When the user tries to open or save Business Profile

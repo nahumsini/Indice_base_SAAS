@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.schedule;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.attendance.assignment.AttendanceAssignmentService;
 import com.indice.erp.hr.attendance.records.AttendanceDailyRecordRepository;
 import java.time.LocalDate;
@@ -47,6 +48,32 @@ public class AttendanceScheduleCandidateService {
         Long businessId,
         boolean availableOnly
     ) {
+        return scheduleCandidates(
+            companyId,
+            HrOperationalScope.corporateOffice(),
+            startDate,
+            endDate,
+            page,
+            size,
+            search,
+            unitId,
+            businessId,
+            availableOnly
+        );
+    }
+
+    public Map<String, Object> scheduleCandidates(
+        long companyId,
+        HrOperationalScope scope,
+        LocalDate startDate,
+        LocalDate endDate,
+        int page,
+        int size,
+        String search,
+        Long unitId,
+        Long businessId,
+        boolean availableOnly
+    ) {
         if (endDate != null && endDate.isBefore(startDate)) {
             throw new IllegalArgumentException("effective_end_date must be on or after effective_start_date.");
         }
@@ -59,13 +86,14 @@ public class AttendanceScheduleCandidateService {
         var rangeEnd = attendanceAssignmentService.assignmentRangeEnd(endDate);
         var availableCount = candidateRepository.countAvailable(
             companyId,
+            scope,
             startDate,
             rangeEnd,
             normalizedSearch,
             normalizedUnitId,
             normalizedBusinessId
         );
-        var allFilteredCount = candidateRepository.countAll(companyId, normalizedSearch, normalizedUnitId, normalizedBusinessId);
+        var allFilteredCount = candidateRepository.countAll(companyId, scope, normalizedSearch, normalizedUnitId, normalizedBusinessId);
         var totalCount = availableOnly ? availableCount : allFilteredCount;
         var totalPages = Math.max(1, (int) Math.ceil((double) totalCount / safeSize));
         safePage = Math.min(safePage, totalPages);
@@ -73,6 +101,7 @@ public class AttendanceScheduleCandidateService {
 
         var pageUsers = candidateRepository.listUsers(
             companyId,
+            scope,
             startDate,
             rangeEnd,
             normalizedSearch,
@@ -115,8 +144,8 @@ public class AttendanceScheduleCandidateService {
         body.put("total_pages", totalPages);
         body.put("available_count", availableCount);
         body.put("busy_count", Math.max(0, allFilteredCount - availableCount));
-        body.put("unit_options", candidateRepository.listUnitOptions(companyId));
-        body.put("business_options", candidateRepository.listBusinessOptions(companyId));
+        body.put("unit_options", candidateRepository.listUnitOptions(companyId, scope));
+        body.put("business_options", candidateRepository.listBusinessOptions(companyId, scope));
         return body;
     }
 }

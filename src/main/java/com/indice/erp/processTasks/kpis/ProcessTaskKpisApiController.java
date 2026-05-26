@@ -1,6 +1,7 @@
 package com.indice.erp.processTasks.kpis;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.processTasks.ProcessTasksAccessService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -15,12 +16,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProcessTaskKpisApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final ProcessTasksAccessService accessService;
     private final ProcessTaskKpisService processTaskKpisService;
 
     public ProcessTaskKpisApiController(
             SessionAuthService sessionAuthService,
+            ProcessTasksAccessService accessService,
             ProcessTaskKpisService processTaskKpisService) {
         this.sessionAuthService = sessionAuthService;
+        this.accessService = accessService;
         this.processTaskKpisService = processTaskKpisService;
     }
 
@@ -37,6 +41,9 @@ public class ProcessTaskKpisApiController {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!accessService.canAccess(user.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
         try {

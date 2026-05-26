@@ -3,6 +3,9 @@ package com.indice.erp.hr.attendance.api;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.FaceVerificationIntegrationException;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.HrAccessDeniedException;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
@@ -23,15 +26,18 @@ public class AttendanceFaceVerificationApiController {
     private final SessionAuthService sessionAuthService;
     private final HrAttendanceService hrAttendanceService;
     private final HrFaceService hrFaceService;
+    private final HrAccessService hrAccessService;
 
     public AttendanceFaceVerificationApiController(
         SessionAuthService sessionAuthService,
         HrAttendanceService hrAttendanceService,
-        HrFaceService hrFaceService
+        HrFaceService hrFaceService,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.hrAttendanceService = hrAttendanceService;
         this.hrFaceService = hrFaceService;
+        this.hrAccessService = hrAccessService;
     }
 
     @PostMapping("/face-verification-sessions")
@@ -40,11 +46,16 @@ public class AttendanceFaceVerificationApiController {
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL)) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                hrFaceService.createVerificationSession(currentUser.get().companyId(), currentUser.get().userId(), payload)
+                hrAttendanceService.createFaceVerificationSession(currentUser.get(), payload)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -100,9 +111,12 @@ public class AttendanceFaceVerificationApiController {
         }
 
         try {
+            var managementAccess = hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL);
             return ResponseEntity.ok(
-                hrFaceService.createVerificationCaptureUpload(currentUser.get().companyId(), sessionId, payload)
+                hrAttendanceService.createFaceVerificationCaptureUpload(currentUser.get(), sessionId, payload, managementAccess)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -122,9 +136,12 @@ public class AttendanceFaceVerificationApiController {
         }
 
         try {
+            var managementAccess = hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL);
             return ResponseEntity.ok(
-                hrFaceService.completeVerificationSession(currentUser.get().companyId(), currentUser.get().userId(), sessionId)
+                hrAttendanceService.completeFaceVerificationSession(currentUser.get(), sessionId, managementAccess)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {
@@ -132,5 +149,9 @@ public class AttendanceFaceVerificationApiController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }
 }

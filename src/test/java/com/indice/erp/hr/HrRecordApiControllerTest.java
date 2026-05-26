@@ -2,6 +2,7 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.records.HrRecordApiController;
 import com.indice.erp.hr.records.HrRecordService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -38,6 +40,15 @@ class HrRecordApiControllerTest {
 
     @MockBean
     private HrRecordService hrRecordService;
+
+    @MockBean
+    private HrAccessService hrAccessService;
+
+    @BeforeEach
+    void allowHrAccessByDefault() {
+        given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
+    }
 
     @Test
     void listReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
@@ -71,7 +82,7 @@ class HrRecordApiControllerTest {
         ));
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrRecordService.listRecords(anyLong(), any(Map.class))).willReturn(serviceResult);
+        given(hrRecordService.listRecords(any(AuthSessionUser.class), any(Map.class))).willReturn(serviceResult);
 
         mockMvc.perform(get("/api/v1/hr/records"))
             .andExpect(status().isOk())
@@ -81,11 +92,24 @@ class HrRecordApiControllerTest {
     }
 
     @Test
+    void listReturnsForbiddenWhenRecordsTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/records"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+
+    @Test
     void updateReturnsNotFoundWhenRecordIsMissing() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrRecordService.updateRecord(anyLong(), anyLong(), anyLong(), any(Map.class)))
+        given(hrRecordService.updateRecord(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new NoSuchElementException("Record not found."));
 
         mockMvc.perform(put("/api/v1/hr/records/999")
@@ -115,7 +139,7 @@ class HrRecordApiControllerTest {
         ));
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrRecordService.getRecordDetails(1L, 12L)).willReturn(detailBody);
+        given(hrRecordService.getRecordDetails(currentUser, 12L)).willReturn(detailBody);
 
         mockMvc.perform(get("/api/v1/hr/records/12"))
             .andExpect(status().isOk())
@@ -129,7 +153,7 @@ class HrRecordApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrRecordService.createAttachmentUpload(anyLong(), anyLong(), any(Map.class)))
+        given(hrRecordService.createAttachmentUpload(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new ObjectStorageDisabledException("Object storage is not enabled."));
 
         mockMvc.perform(post("/api/v1/hr/records/12/attachments/presign-upload")
@@ -143,5 +167,18 @@ class HrRecordApiControllerTest {
                     """))
             .andExpect(status().isServiceUnavailable())
             .andExpect(jsonPath("$.message").value("Object storage is not enabled."));
+    }
+
+    @Test
+    void detailsReturnsForbiddenWhenRecordIsOutsideOperationalScope() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Scoped Admin", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrRecordService.getRecordDetails(currentUser, 44L))
+            .willThrow(new HrAccessDeniedException("Forbidden"));
+
+        mockMvc.perform(get("/api/v1/hr/records/44"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 }

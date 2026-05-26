@@ -28,7 +28,7 @@ Feature: Face enrollment
     When the user deletes the enrollment
     Then the backend should remove or deactivate it
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: Normal user cannot manage biometric enrollment
     Given a normal user is authenticated
     When the user tries to manage face enrollment

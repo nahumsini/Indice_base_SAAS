@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.usecases.schedule;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.attendance.models.ScheduleTemplateAccumulator;
 import com.indice.erp.hr.attendance.models.ScheduleTemplateDayDefinition;
 import com.indice.erp.hr.attendance.models.ScheduleTemplateDefinition;
@@ -22,7 +23,12 @@ public abstract class HrAttendanceScheduleTemplateRepositorySupport extends HrAt
     }
 
     protected List<ScheduleTemplateDefinition> loadScheduleTemplates(long companyId) {
-        var rows = jdbcTemplate.query(
+        return loadScheduleTemplates(companyId, HrOperationalScope.corporateOffice());
+    }
+
+    protected List<ScheduleTemplateDefinition> loadScheduleTemplates(long companyId, HrOperationalScope scope) {
+        var normalizedScope = scope == null ? HrOperationalScope.corporateOffice() : scope;
+        var sql = new StringBuilder(
             """
                 SELECT t.id AS template_id,
                        t.name AS template_name,
@@ -43,8 +49,19 @@ public abstract class HrAttendanceScheduleTemplateRepositorySupport extends HrAt
                 LEFT JOIN attendance_locations l ON l.id = t.location_id
                 LEFT JOIN attendance_schedule_template_days d ON d.template_id = t.id
                 WHERE t.company_id = ?
-                ORDER BY t.name ASC, t.id ASC, d.day_of_week ASC
-                """,
+                """
+        );
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        if (!normalizedScope.isCorporateOffice()) {
+            sql.append(" AND (t.location_id IS NULL");
+            sql.append(normalizedScope.assignmentPredicate("l.unit_id", "l.business_id", "l.company_id"));
+            sql.append(")");
+            parameters.addAll(normalizedScope.assignmentParameters());
+        }
+        sql.append(" ORDER BY t.name ASC, t.id ASC, d.day_of_week ASC");
+        var rows = jdbcTemplate.query(
+            sql.toString(),
             (rs, rowNum) -> new ScheduleTemplateJoinRow(
                 rs.getLong("template_id"),
                 safe(rs.getString("template_name")),
@@ -62,7 +79,7 @@ public abstract class HrAttendanceScheduleTemplateRepositorySupport extends HrAt
                 rs.getObject("late_after_minutes", Integer.class),
                 rs.getObject("is_rest_day", Boolean.class)
             ),
-            companyId
+            parameters.toArray()
         );
 
         var grouped = new LinkedHashMap<Long, ScheduleTemplateAccumulator>();
@@ -111,14 +128,22 @@ public abstract class HrAttendanceScheduleTemplateRepositorySupport extends HrAt
     }
 
     protected ScheduleTemplateDefinition loadExistingTemplate(long companyId, long templateId) {
-        return loadScheduleTemplates(companyId).stream()
+        return loadExistingTemplate(companyId, templateId, HrOperationalScope.corporateOffice());
+    }
+
+    protected ScheduleTemplateDefinition loadExistingTemplate(long companyId, long templateId, HrOperationalScope scope) {
+        return loadScheduleTemplates(companyId, scope).stream()
             .filter((template) -> template.templateId() == templateId)
             .findFirst()
             .orElseThrow(() -> new NoSuchElementException("Schedule template not found."));
     }
 
     protected Map<String, Object> loadScheduleTemplateMap(long companyId, long templateId) {
-        var template = loadExistingTemplate(companyId, templateId);
+        return loadScheduleTemplateMap(companyId, templateId, HrOperationalScope.corporateOffice());
+    }
+
+    protected Map<String, Object> loadScheduleTemplateMap(long companyId, long templateId, HrOperationalScope scope) {
+        var template = loadExistingTemplate(companyId, templateId, scope);
         var body = new LinkedHashMap<String, Object>();
         body.put("id", template.templateId());
         body.put("name", displayScheduleTemplateName(template.templateName()));
@@ -129,7 +154,7 @@ public abstract class HrAttendanceScheduleTemplateRepositorySupport extends HrAt
         body.put("location_id", template.locationId());
         body.put("location_name", template.locationName());
         body.put("days", template.days().stream().map(this::toTemplateDayMap).toList());
-        body.put("users_assigned_count", loadActiveAssignmentCountsByTemplate(companyId).getOrDefault(templateId, 0));
+        body.put("users_assigned_count", loadActiveAssignmentCountsByTemplate(companyId, scope).getOrDefault(templateId, 0));
         return body;
     }
 }

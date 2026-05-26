@@ -1,5 +1,7 @@
 package com.indice.erp.hr;
 
+import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.records.HrRecordScopeAccess;
 import com.indice.erp.hr.records.HrRecordService;
 import com.indice.erp.storage.DisabledObjectStorageService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
@@ -32,6 +34,60 @@ class HrRecordServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+
+    @Mock
+    private HrRecordScopeAccess hrRecordScopeAccess;
+
+    @Test
+    void listRecordsAppliesBusinessScopeForCurrentUser() throws Exception {
+        var service = createService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Scoped Admin", "admin");
+
+        when(hrRecordScopeAccess.resolve(currentUser))
+            .thenReturn(HrOperationalScope.businessOffice(4L, 9L));
+        when(hrRecordScopeAccess.recordPredicate(HrOperationalScope.businessOffice(4L, 9L)))
+            .thenReturn("AND r.user_business_id_snapshot = ?");
+        when(hrRecordScopeAccess.recordParameters(HrOperationalScope.businessOffice(4L, 9L)))
+            .thenReturn(List.of(9L));
+
+        when(jdbcTemplate.query(
+            org.mockito.ArgumentMatchers.contains("LIMIT ? OFFSET ?"),
+            any(RowMapper.class),
+            eq(1L),
+            eq(9L),
+            eq(50),
+            eq(0)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.queryForObject(
+            org.mockito.ArgumentMatchers.contains("r.user_business_id_snapshot = ?"),
+            eq(Long.class),
+            eq(1L),
+            eq(9L)
+        )).thenReturn(0L);
+        when(jdbcTemplate.query(
+            org.mockito.ArgumentMatchers.contains("high_severity_count"),
+            any(RowMapper.class),
+            eq(1L),
+            eq(9L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("total_count")).thenReturn(0L);
+            when(rs.getLong("pending_count")).thenReturn(0L);
+            when(rs.getLong("reviewed_count")).thenReturn(0L);
+            when(rs.getLong("resolved_count")).thenReturn(0L);
+            when(rs.getLong("high_severity_count")).thenReturn(0L);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var result = service.listRecords(currentUser, Map.of());
+
+        assertEquals(0L, result.get("total_count"));
+        @SuppressWarnings("unchecked")
+        var rows = (List<Map<String, Object>>) result.get("rows");
+        assertEquals(0, rows.size());
+    }
 
     @Test
     void createAttachmentUploadRejectsWhenStorageIsDisabled() {
@@ -98,7 +154,12 @@ class HrRecordServiceTest {
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties
     ) {
-        return new HrRecordService(jdbcTemplate, objectStorageService, objectStorageProperties);
+        return new HrRecordService(
+            jdbcTemplate,
+            hrRecordScopeAccess,
+            objectStorageService,
+            objectStorageProperties
+        );
     }
 
     private ObjectStorageProperties createStorageProperties() {

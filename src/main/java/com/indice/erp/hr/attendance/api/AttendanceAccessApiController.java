@@ -1,6 +1,8 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
+import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -22,9 +24,10 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
 
     public AttendanceAccessApiController(
         SessionAuthService sessionAuthService,
-        HrAttendanceService hrAttendanceService
+        HrAttendanceService hrAttendanceService,
+        HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService);
+        super(sessionAuthService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/access-profiles")
@@ -33,8 +36,11 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
-        return ResponseEntity.ok(hrAttendanceService.listAccessProfiles(currentUser.get().companyId()));
+        return ResponseEntity.ok(hrAttendanceService.listAccessProfiles(currentUser.get()));
     }
 
     @PostMapping("/access-profiles")
@@ -43,16 +49,20 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 hrAttendanceService.saveAccessProfile(
-                    currentUser.get().companyId(),
-                    currentUser.get().userId(),
+                    currentUser.get(),
                     null,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -70,16 +80,20 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(
                 hrAttendanceService.saveAccessProfile(
-                    currentUser.get().companyId(),
-                    currentUser.get().userId(),
+                    currentUser.get(),
                     profileId,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -93,8 +107,11 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
-        return ResponseEntity.ok(hrAttendanceService.listAccessMethods(currentUser.get().companyId()));
+        return ResponseEntity.ok(hrAttendanceService.listAccessMethods(currentUser.get()));
     }
 
     @PostMapping("/access-methods")
@@ -103,15 +120,20 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 hrAttendanceService.saveAccessMethod(
-                    currentUser.get().companyId(),
+                    currentUser.get(),
                     null,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -129,15 +151,20 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(
                 hrAttendanceService.saveAccessMethod(
-                    currentUser.get().companyId(),
+                    currentUser.get(),
                     methodId,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
