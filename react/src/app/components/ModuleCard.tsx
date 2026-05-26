@@ -9,7 +9,7 @@ interface ModuleCardProps {
   iconType?: string;
   emoji?: string;
   title: string;
-  color: 'aqua' | 'blue' | 'yellow' | 'orange' | 'green' | 'gray' | 'purple' | 'red' | 'gold';
+  color: 'aqua' | 'blue' | 'coral' | 'yellow' | 'orange' | 'green' | 'gray' | 'purple' | 'red' | 'gold';
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   onClick?: () => void;
@@ -27,22 +27,28 @@ const colorClasses = {
     shadow: 'shadow-emerald-200',
   },
   blue: {
-    border: 'border-[#143675]',
-    icon: 'text-[#143675]',
-    iconBg: 'bg-gradient-to-br from-blue-100 to-blue-200',
+    border: 'border-[#2563EB]',
+    icon: 'text-[#2563EB]',
+    iconBg: 'bg-gradient-to-br from-blue-50 to-blue-100',
     shadow: 'shadow-blue-200',
   },
+  coral: {
+    border: 'border-[#FF6B5E]',
+    icon: 'text-[#B63B32]',
+    iconBg: 'bg-gradient-to-br from-red-50 to-orange-100',
+    shadow: 'shadow-red-200',
+  },
   yellow: {
-    border: 'border-[#FFC300]',
-    icon: 'text-[#FFC300]',
+    border: 'border-[#F4C84A]',
+    icon: 'text-[#9A6B05]',
     iconBg: 'bg-gradient-to-br from-yellow-100 to-yellow-200',
     shadow: 'shadow-yellow-200',
   },
   orange: {
-    border: 'border-orange-500',
-    icon: 'text-orange-600',
-    iconBg: 'bg-gradient-to-br from-orange-100 to-orange-200',
-    shadow: 'shadow-orange-200',
+    border: 'border-[#FF6B5E]',
+    icon: 'text-[#B63B32]',
+    iconBg: 'bg-gradient-to-br from-red-50 to-orange-100',
+    shadow: 'shadow-red-200',
   },
   green: {
     border: 'border-[#147514]',
@@ -51,8 +57,8 @@ const colorClasses = {
     shadow: 'shadow-green-200',
   },
   gray: {
-    border: 'border-[#558DBD]',
-    icon: 'text-[#558DBD]',
+    border: 'border-slate-400',
+    icon: 'text-slate-500',
     iconBg: 'bg-gradient-to-br from-gray-100 to-gray-200',
     shadow: 'shadow-gray-200',
   },
@@ -69,9 +75,9 @@ const colorClasses = {
     shadow: 'shadow-red-200',
   },
   gold: {
-    border: 'border-yellow-500',
-    icon: 'text-yellow-700',
-    iconBg: 'bg-gradient-to-br from-yellow-100 via-amber-200 to-yellow-300',
+    border: 'border-[#F4C84A]',
+    icon: 'text-[#9A6B05]',
+    iconBg: 'bg-gradient-to-br from-yellow-100 via-yellow-200 to-amber-200',
     shadow: 'shadow-yellow-300',
   },
 };

@@ -40,7 +40,7 @@ export function KpiSection({
             📊 {title}
           </h2>
           {kpis.length > 0 && (
-            <span className="bg-[#558DBD] text-white text-sm font-medium px-3 py-1 rounded-full">
+            <span className="bg-[#2563EB] text-white text-sm font-medium px-3 py-1 rounded-full">
               {kpis.length}
             </span>
           )}
@@ -73,7 +73,7 @@ export function KpiSection({
           </p>
           <Button
             onClick={onOpenConfig}
-            className="bg-[#558DBD] hover:bg-[#4a7aa8] text-white"
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
           >
             <Settings className="h-4 w-4 mr-2" />
             {copy.kpiEmptyState.action}

@@ -39,6 +39,7 @@ import {
   weekdayOptions,
 } from '../processesData';
 import { defaultProcessesTranslations, type ProcessesTranslations } from '../translations';
+import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../../shared/assignmentScope';
 import type {
   ProcessBusinessOption,
   ProcessCollaboratorOption,
@@ -109,7 +110,7 @@ function RecurrenceChip({
       className={cn(
         'inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm font-semibold transition-colors',
         active
-          ? 'border-[rgb(250,204,21)] bg-[rgb(250,204,21)]/15 text-[rgb(113,63,18)] dark:border-[rgb(250,204,21)]/70 dark:bg-[rgb(250,204,21)]/20 dark:text-amber-200'
+          ? 'border-[#F4C84A] bg-[#F4C84A]/15 text-[#9A6B05] dark:border-[#F4C84A]/70 dark:bg-[#F4C84A]/20 dark:text-amber-200'
           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600',
       )}
     >
@@ -141,40 +142,6 @@ function normalizeText(value?: string | null) {
   return value?.trim().toLowerCase() ?? '';
 }
 
-function isHeadquarterUnitName(name?: string | null) {
-  const normalized = normalizeText(name).replace(/\s+/g, ' ');
-  return normalized === 'headquarter' || normalized === 'headquarters' || normalized === 'headquater';
-}
-
-function collaboratorMatchesScope(
-  collaborator: ProcessCollaboratorOption,
-  unitId?: number | null,
-  businessId?: number | null,
-) {
-  if (businessId != null) {
-    return collaborator.businessId === businessId;
-  }
-
-  if (unitId != null) {
-    return collaborator.unitId === unitId;
-  }
-
-  return true;
-}
-
-function collaboratorCanReceiveAssignment(
-  collaborator: ProcessCollaboratorOption,
-  unitId: number | null | undefined,
-  businessId: number | null | undefined,
-  headquarterUnitIds: ReadonlySet<number>,
-) {
-  if (collaborator.unitId != null && headquarterUnitIds.has(collaborator.unitId)) {
-    return true;
-  }
-
-  return collaboratorMatchesScope(collaborator, unitId, businessId);
-}
-
 export function ProcessFormDialog({
   businessOptions,
   collaboratorOptions,
@@ -195,10 +162,6 @@ export function ProcessFormDialog({
       setSpecificDateDraft('');
     }
   }, [open]);
-
-  const headquarterUnitIds = new Set(
-    unitOptions.filter((option) => isHeadquarterUnitName(option.name)).map((option) => option.id),
-  );
 
   const selectedUnitValue =
     form.unitId != null
@@ -268,7 +231,7 @@ export function ProcessFormDialog({
         ? legacyValue('responsible', form.responsible)
         : NONE_VALUE;
   const scopedCollaboratorOptions = collaboratorOptions.filter((option) =>
-    collaboratorCanReceiveAssignment(option, form.unitId, form.businessId, headquarterUnitIds),
+    canCollaboratorReceiveAssignment(option, form.unitId, form.businessId, businessOptions),
   );
   const collaboratorSelectOptions = [
     { value: NONE_VALUE, label: copy.common.unassigned },
@@ -324,7 +287,7 @@ export function ProcessFormDialog({
       );
       const responsibleBelongsToScope =
         !currentResponsible ||
-        collaboratorCanReceiveAssignment(currentResponsible, selectedUnit.id, nextBusinessId, headquarterUnitIds);
+        canCollaboratorReceiveAssignment(currentResponsible, selectedUnit.id, nextBusinessId, businessOptions);
 
       return {
         ...currentForm,
@@ -363,11 +326,11 @@ export function ProcessFormDialog({
       );
       const responsibleBelongsToScope =
         !currentResponsible ||
-        collaboratorCanReceiveAssignment(
+        canCollaboratorReceiveAssignment(
           currentResponsible,
           nextUnitId,
           selectedBusiness.id,
-          headquarterUnitIds,
+          businessOptions,
         );
 
       return {
@@ -657,7 +620,7 @@ export function ProcessFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-[860px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[860px] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
+        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
@@ -668,7 +631,7 @@ export function ProcessFormDialog({
             <DialogClose asChild>
               <button
                 type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[rgb(113,63,18)]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#9A6B05]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -822,7 +785,7 @@ export function ProcessFormDialog({
                             evidenceRequired: checked,
                           }))
                         }
-                        className="data-[state=checked]:bg-[rgb(250,204,21)]"
+                        className="data-[state=checked]:bg-[#F4C84A]"
                       />
                     </div>
                   </div>
@@ -940,7 +903,7 @@ export function ProcessFormDialog({
 
             <div className="space-y-4 rounded-[28px] border border-slate-200 bg-slate-50/70 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-2xl bg-[rgb(250,204,21)]/15 p-2 text-[rgb(113,63,18)] dark:bg-[rgb(250,204,21)]/20 dark:text-amber-200">
+                <div className="mt-0.5 rounded-2xl bg-[#F4C84A]/15 p-2 text-[#9A6B05] dark:bg-[#F4C84A]/20 dark:text-amber-200">
                   <CalendarDays className="h-4 w-4" />
                 </div>
                 <div className="space-y-1">

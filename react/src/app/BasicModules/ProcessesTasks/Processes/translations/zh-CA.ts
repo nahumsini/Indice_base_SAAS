@@ -86,8 +86,17 @@ export const zhCA: ProcessesTranslations = {
   fixedColumns: {
     actions: {
       label: '操作',
-      description: '用于运行、暂停、编辑、复制或删除流程的按钮。',
+      description: '用于更新任务、暂停、编辑、复制或删除流程的按钮。',
     },
+  },
+  columnsDialog: {
+    title: '管理列',
+    description: '选择流程工作区表格中保持可见的列。',
+    visibleCount: (visible: number, total: number) => `显示 ${visible}/${total} 列`,
+    selectAll: '全选',
+    minimumSet: '最小视图',
+    requiredColumn: '工作区必需列。',
+    optionalColumn: '可从表格中隐藏的可选列。',
   },
   table: {
     loading: '正在加载周期性流程...',
@@ -107,12 +116,21 @@ export const zhCA: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: '生成到期任务',
+    runEngine: '更新流程任务',
     pause: '暂停流程',
     activate: '激活流程',
     edit: '编辑流程',
     copy: '复制流程',
     delete: '删除流程',
+  },
+  bulk: {
+    selected: (count: number) => `已选择 ${count} 个`,
+    title: '批量操作',
+    applied: (count: number) => `已对 ${count} 个选中流程执行批量操作。`,
+    assignDescription: (count: number) => `将负责人应用到 ${count} 个选中流程。`,
+    itemName: (count: number) => `${count} 个流程`,
+    selectVisible: '选择可见流程',
+    selectRow: (folio: string) => `选择 ${folio}`,
   },
   messages: {
     loadProcesses: '无法加载流程。',
@@ -120,7 +138,7 @@ export const zhCA: ProcessesTranslations = {
     saveChanges: '无法保存流程更改。',
     deleteProcess: '无法删除流程。',
     duplicateProcess: '无法复制流程。',
-    runEngine: '无法生成到期任务。',
+    runEngine: '无法更新流程任务。',
     saveProcess: '无法保存流程。',
     titleRequired: '标题为必填项。',
     descriptionRequired: '描述为必填项。',
@@ -230,7 +248,7 @@ export const zhCA: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: '删除流程',
-    deleteDescription: '这会通过软删除将流程从活动目录中移除，并保留后端数据备份。',
+    deleteDescription: '这会将流程从活动目录中移除，并取消它生成的打开任务。已完成或已取消的任务会作为历史保留。',
     deleteConfirm: '删除流程',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

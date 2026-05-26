@@ -2,6 +2,7 @@ package com.indice.erp.processTasks.processes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentScopeService;
 import com.indice.erp.processTasks.tasks.ProcessTasksService;
 import com.indice.erp.processTasks.tasks.domain.UserCompanyReference;
 import java.sql.ResultSet;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -33,7 +35,9 @@ public class ProcessesService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final ProcessTaskAssignmentScopeService assignmentScopeService;
     private final ProcessTasksService processTasksService;
+    private static final long PROCESS_ENGINE_USER_ID = 0L;
     private static final String PROCESS_SELECT_COLUMNS = """
             SELECT proc.id,
                    proc.company_id,
@@ -116,23 +120,34 @@ public class ProcessesService {
             ) task_summary ON task_summary.process_id = proc.id
             """;
 
-    public ProcessesService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, ProcessTasksService processTasksService) {
+    public ProcessesService(
+            JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper,
+            ProcessTaskAssignmentScopeService assignmentScopeService,
+            ProcessTasksService processTasksService) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.assignmentScopeService = assignmentScopeService;
         this.processTasksService = processTasksService;
     }
 
-    public Map<String, Object> listProcesses(long companyId) {
+    public Map<String, Object> listProcesses(long companyId, long userId) {
+        var visibility = assignmentScopeService.taskVisibilityFilter(companyId, userId, "proc", "business");
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.add(companyId);
+        params.addAll(visibility.params());
+
         var rows = jdbcTemplate.query(
                 PROCESS_SELECT_COLUMNS +
                         """
                                 WHERE proc.company_id = ?
                                   AND proc.deleted_at IS NULL
+                                  AND %s
                                 ORDER BY proc.id DESC
-                                """,
+                                """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapProcessRow(rs),
-                companyId,
-                companyId);
+                params.toArray());
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);
@@ -151,6 +166,12 @@ public class ProcessesService {
         var frequency = normalizedOrFallback(optionalString(payload, "frequency"), "weekly");
         var priority = normalizedOrFallback(optionalString(payload, "priority"), "medium");
         var relationCommand = resolveProcessRelations(companyId, userId, userName, payload);
+        assignmentScopeService.requireCanAssign(
+                companyId,
+                userId,
+                relationCommand.unitId(),
+                relationCommand.businessId(),
+                relationCommand.responsibleUserCompanyId());
         var isActive = booleanValue(payload, "isActive", true);
         var startDate = optionalDate(payload, "startDate", "start_date");
         var endDate = optionalDate(payload, "endDate", "end_date");
@@ -209,8 +230,9 @@ public class ProcessesService {
     }
 
     @Transactional
-    public Map<String, Object> updateProcess(long companyId, long processId, Map<String, Object> payload) {
+    public Map<String, Object> updateProcess(long companyId, long userId, long processId, Map<String, Object> payload) {
         requireProcess(companyId, processId);
+        var previousResponsible = processResponsible(companyId, processId);
         var title = requiredString(payload, "title");
         var description = requiredString(payload, "description");
         var taskTitleTemplate = normalizedOrFallback(optionalString(payload, "taskTitleTemplate"), title);
@@ -219,6 +241,12 @@ public class ProcessesService {
         var frequency = normalizedOrFallback(optionalString(payload, "frequency"), "weekly");
         var priority = normalizedOrFallback(optionalString(payload, "priority"), "medium");
         var relationCommand = resolveProcessRelations(companyId, null, null, payload);
+        assignmentScopeService.requireCanAssign(
+                companyId,
+                userId,
+                relationCommand.unitId(),
+                relationCommand.businessId(),
+                relationCommand.responsibleUserCompanyId());
         var isActive = booleanValue(payload, "isActive", true);
         var startDate = optionalDate(payload, "startDate", "start_date");
         var endDate = optionalDate(payload, "endDate", "end_date");
@@ -281,13 +309,23 @@ public class ProcessesService {
             return statement;
         });
 
+        if (responsibleChanged(previousResponsible, relationCommand)) {
+            reassignOpenGeneratedTasks(
+                    companyId,
+                    processId,
+                    relationCommand.responsibleUserCompanyId(),
+                    relationCommand.responsibleUserId(),
+                    relationCommand.responsibleName());
+        }
+
         materializeProcess(companyId, processId);
         return getProcess(companyId, processId);
     }
 
     @Transactional
-    public void deleteProcess(long companyId, long processId) {
-        requireProcess(companyId, processId);
+    public void deleteProcess(long companyId, long userId, long processId) {
+        requireProcessManageAccess(companyId, userId, processId);
+        cancelOpenGeneratedTasks(companyId, processId);
 
         jdbcTemplate.update(
                 """
@@ -296,10 +334,61 @@ public class ProcessesService {
                         WHERE company_id = ?
                           AND id = ?
                           AND deleted_at IS NULL
-                        FOR UPDATE
                         """,
                 companyId,
                 processId);
+    }
+
+    private void cancelOpenGeneratedTasks(long companyId, long processId) {
+        jdbcTemplate.update(
+                """
+                        UPDATE process_tasks
+                        SET status = 'cancelled',
+                            cancelled_at = CURRENT_TIMESTAMP,
+                            completed_at = NULL,
+                            completed_by_user_id = NULL,
+                            completed_by_user_company_id = NULL,
+                            completion_notes = NULL
+                        WHERE company_id = ?
+                          AND process_id = ?
+                          AND deleted_at IS NULL
+                          AND status NOT IN ('completed', 'cancelled')
+                        """,
+                companyId,
+                processId);
+    }
+
+    private void reassignOpenGeneratedTasks(
+            long companyId,
+            long processId,
+            Long responsibleUserCompanyId,
+            Long responsibleUserId,
+            String responsibleName) {
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                    """
+                            UPDATE process_tasks
+                            SET assigned_user_company_id = ?,
+                                assigned_user_id = ?,
+                                assigned_name = ?
+                            WHERE company_id = ?
+                              AND process_id = ?
+                              AND deleted_at IS NULL
+                              AND status NOT IN ('completed', 'cancelled')
+                            """);
+
+            setNullableLong(statement, 1, responsibleUserCompanyId);
+            setNullableLong(statement, 2, responsibleUserId);
+            setNullableString(statement, 3, responsibleName);
+            statement.setLong(4, companyId);
+            statement.setLong(5, processId);
+            return statement;
+        });
+    }
+
+    public Map<String, Object> materializeProcess(long companyId, long userId, long processId) {
+        requireProcessManageAccess(companyId, userId, processId);
+        return materializeProcess(companyId, processId);
     }
 
     public Map<String, Object> getProcess(long companyId, long processId) {
@@ -338,6 +427,62 @@ public class ProcessesService {
         if (count == null || count == 0) {
             throw new NoSuchElementException("Process not found.");
         }
+    }
+
+    private void requireProcessManageAccess(long companyId, long userId, long processId) {
+        var scope = processScope(companyId, processId);
+        assignmentScopeService.requireCanAssign(companyId, userId, scope.unitId(), scope.businessId(), null);
+    }
+
+    private ProcessResponsibleSnapshot processResponsible(long companyId, long processId) {
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT responsible_user_company_id, responsible_name
+                        FROM processes
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        LIMIT 1
+                        """,
+                (rs, rowNum) -> new ProcessResponsibleSnapshot(
+                        rs.getObject("responsible_user_company_id", Long.class),
+                        normalizedOrFallback(rs.getString("responsible_name"), null)),
+                companyId,
+                processId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Process not found.");
+        }
+
+        return rows.getFirst();
+    }
+
+    private boolean responsibleChanged(ProcessResponsibleSnapshot previousResponsible, ProcessRelationCommand nextRelation) {
+        return !Objects.equals(previousResponsible.responsibleUserCompanyId(), nextRelation.responsibleUserCompanyId())
+                || !Objects.equals(previousResponsible.responsibleName(), nextRelation.responsibleName());
+    }
+
+    private ProcessScope processScope(long companyId, long processId) {
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT unit_id, business_id
+                        FROM processes
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        LIMIT 1
+                        """,
+                (rs, rowNum) -> new ProcessScope(
+                        rs.getObject("unit_id", Long.class),
+                        rs.getObject("business_id", Long.class)),
+                companyId,
+                processId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Process not found.");
+        }
+
+        return rows.getFirst();
     }
 
     private String nextProcessFolio(long companyId) {
@@ -603,6 +748,7 @@ public class ProcessesService {
         var resolvedResponsibleName = responsibleUserCompany != null
                 ? userCompanyDisplayName(companyId, responsibleUserCompany.id(), responsibleNameInput)
                 : responsibleNameInput;
+        var responsibleUserId = responsibleUserCompany != null ? responsibleUserCompany.userId() : null;
 
         return new ProcessRelationCommand(
                 unitId,
@@ -612,6 +758,7 @@ public class ProcessesService {
                 creatorUserCompanyId,
                 resolvedCreatorName,
                 responsibleUserCompanyId,
+                responsibleUserId,
                 resolvedResponsibleName);
     }
 
@@ -922,7 +1069,7 @@ public class ProcessesService {
             return;
         }
 
-        var actorUserId = process.creatorUserId() != null ? process.creatorUserId() : resolveProcessCreatorUserId(process.companyId(), process.processId());
+        var actorUserId = PROCESS_ENGINE_USER_ID;
         var today = LocalDate.now();
         var rangeStart = process.startDate() != null && process.startDate().isAfter(today)
                 ? process.startDate()
@@ -967,22 +1114,6 @@ public class ProcessesService {
 
         var nextOccurrence = nextOccurrenceDate(process, today);
         updateProcessGenerationState(process, lastGeneratedForDate, nextOccurrence, rangeEnd);
-    }
-
-    private long resolveProcessCreatorUserId(long companyId, long processId) {
-        Long userId = jdbcTemplate.queryForObject(
-                """
-                        SELECT creator_user_id
-                        FROM processes
-                        WHERE company_id = ?
-                          AND id = ?
-                          AND deleted_at IS NULL
-                        """,
-                Long.class,
-                companyId,
-                processId);
-
-        return userId != null ? userId : 0L;
     }
 
     private ProcessMaterializationRecord loadProcessForMaterialization(long companyId, long processId) {
@@ -1092,7 +1223,6 @@ public class ProcessesService {
                         WHERE company_id = ?
                           AND process_id = ?
                           AND (start_date = ? OR (start_date IS NULL AND due_date = ?))
-                          AND deleted_at IS NULL
                         """,
                 Integer.class,
                 companyId,
@@ -1352,6 +1482,17 @@ public class ProcessesService {
             Long creatorUserCompanyId,
             String creatorName,
             Long responsibleUserCompanyId,
+            Long responsibleUserId,
             String responsibleName) {
+    }
+
+    private record ProcessResponsibleSnapshot(
+            Long responsibleUserCompanyId,
+            String responsibleName) {
+    }
+
+    private record ProcessScope(
+            Long unitId,
+            Long businessId) {
     }
 }

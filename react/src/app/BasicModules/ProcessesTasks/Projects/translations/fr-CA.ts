@@ -208,6 +208,17 @@ export const frCA: ProjectsTranslations = {
       loading: 'Chargement des taches du projet...',
       empty: 'Ce projet n a pas encore de taches correspondant aux filtres actuels.',
     },
+    bulk: {
+      selectedLabel: (count: number) => `${count} selectionnee${count === 1 ? '' : 's'}`,
+      actionsLabel: 'Actions de masse',
+      selectAllVisibleLabel: 'Selectionner les taches visibles',
+      selectTaskLabel: (folio: string) => `Selectionner ${folio}`,
+      applied: (count: number) => `Action de masse appliquee a ${count} tache${count === 1 ? '' : 's'}.`,
+      assignDescription: (count: number) =>
+        `Appliquer un responsable a ${count} tache${count === 1 ? '' : 's'} selectionnee${count === 1 ? '' : 's'}.`,
+      selectedItemName: (count: number) => `${count} tache${count === 1 ? '' : 's'}`,
+      completeDescription: 'Ferme les taches selectionnees avec le flux de fermeture existant.',
+    },
     messages: {
       loadTasks: 'Impossible de charger les taches du projet.',
       saveTask: 'Impossible d enregistrer la tache.',

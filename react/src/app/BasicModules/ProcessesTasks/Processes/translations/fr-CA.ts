@@ -85,8 +85,17 @@ export const frCA: ProcessesTranslations = {
   fixedColumns: {
     actions: {
       label: 'Actions',
-      description: 'Boutons pour executer, mettre en pause, modifier, copier ou supprimer le processus.',
+      description: 'Boutons pour mettre a jour les taches, mettre en pause, modifier, copier ou supprimer le processus.',
     },
+  },
+  columnsDialog: {
+    title: 'Gerer les colonnes',
+    description: 'Choisissez les colonnes du tableau qui restent visibles dans l espace Processus.',
+    visibleCount: (visible: number, total: number) => `${visible} sur ${total} colonnes visibles`,
+    selectAll: 'Tout selectionner',
+    minimumSet: 'Vue minimale',
+    requiredColumn: 'Colonne requise pour l espace de travail.',
+    optionalColumn: 'Colonne optionnelle pouvant etre masquee dans le tableau.',
   },
   table: {
     loading: 'Chargement des processus recurrents...',
@@ -106,12 +115,22 @@ export const frCA: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: 'Generer les taches dues',
+    runEngine: 'Mettre a jour les taches du processus',
     pause: 'Mettre en pause',
     activate: 'Activer le processus',
     edit: 'Modifier le processus',
     copy: 'Copier le processus',
     delete: 'Supprimer le processus',
+  },
+  bulk: {
+    selected: (count: number) => `${count} selectionnes`,
+    title: 'Actions de masse',
+    applied: (count: number) => `Action de masse appliquee a ${count} processus selectionne${count === 1 ? '' : 's'}.`,
+    assignDescription: (count: number) =>
+      `Appliquer un responsable a ${count} processus selectionne${count === 1 ? '' : 's'}.`,
+    itemName: (count: number) => `${count} processus`,
+    selectVisible: 'Selectionner les processus visibles',
+    selectRow: (folio: string) => `Selectionner ${folio}`,
   },
   messages: {
     loadProcesses: 'Impossible de charger les processus.',
@@ -119,7 +138,7 @@ export const frCA: ProcessesTranslations = {
     saveChanges: 'Impossible d enregistrer les changements du processus.',
     deleteProcess: 'Impossible de supprimer le processus.',
     duplicateProcess: 'Impossible de copier le processus.',
-    runEngine: 'Impossible de generer les taches dues.',
+    runEngine: 'Impossible de mettre a jour les taches du processus.',
     saveProcess: 'Impossible d enregistrer le processus.',
     titleRequired: 'Le titre est obligatoire.',
     descriptionRequired: 'La description est obligatoire.',
@@ -229,7 +248,7 @@ export const frCA: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: 'Supprimer le processus',
-    deleteDescription: 'Cela retire le processus du catalogue actif avec suppression logique et conserve la sauvegarde des donnees backend.',
+    deleteDescription: 'Cela retire le processus du catalogue actif et annule les taches ouvertes qu il a generees. Les taches terminees ou deja annulees restent dans l historique.',
     deleteConfirm: 'Supprimer le processus',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

@@ -130,7 +130,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
                   key={tab.id}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm ${
                     activeSubTab === tab.id
-                      ? 'bg-blue-600 text-white shadow-md'
+                      ? 'bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
                   onClick={() => handleTabClick(tab.id as PanelInicialGuidanceTabId)}

@@ -64,6 +64,7 @@ import { createProcess, deleteProcess, listProcesses, materializeProcess, update
 import { ProcessFormDialog } from './components/ProcessFormDialog';
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
 import { useRowSelection } from '../shared/useRowSelection';
+import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../shared/assignmentScope';
 import type {
   Option,
   ProcessBusinessOption,
@@ -319,9 +320,9 @@ function ProcessKpiStrip({
 
       <ProcessStatusBar segments={statusSegments} />
 
-      <div className="rounded-lg border border-[rgb(250,204,21)]/20 bg-[rgb(250,204,21)]/10 px-4 py-3 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
+      <div className="rounded-lg border border-[#F4C84A]/20 bg-[#F4C84A]/10 px-4 py-3 dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15">
         <div className="flex items-start gap-3">
-          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
+          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[#9A6B05]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
             {metrics.activeCount} {copy.labels.active} · {metrics.openTaskCount} {copy.labels.open} · {metrics.overdueTaskCount} {copy.labels.overdue} · {metrics.linkedTaskCount} {copy.labels.tasks}
           </p>
@@ -449,42 +450,10 @@ function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOp
     name,
     email: user.email,
     unitId: user.unit_id ?? null,
+    unitName: compactText(user.unit_name),
     businessId: user.business_id ?? null,
+    businessName: compactText(user.business_name),
   };
-}
-
-function isHeadquarterUnitName(name?: string | null) {
-  const normalized = compactText(name).toLowerCase().replace(/\s+/g, ' ');
-  return normalized === 'headquarter' || normalized === 'headquarters' || normalized === 'headquater';
-}
-
-function collaboratorMatchesScope(
-  collaborator: ProcessCollaboratorOption,
-  unitId?: number | null,
-  businessId?: number | null,
-) {
-  if (businessId != null) {
-    return collaborator.businessId === businessId;
-  }
-
-  if (unitId != null) {
-    return collaborator.unitId === unitId;
-  }
-
-  return true;
-}
-
-function collaboratorCanReceiveAssignment(
-  collaborator: ProcessCollaboratorOption,
-  unitId: number | null | undefined,
-  businessId: number | null | undefined,
-  headquarterUnitIds: ReadonlySet<number>,
-) {
-  if (collaborator.unitId != null && headquarterUnitIds.has(collaborator.unitId)) {
-    return true;
-  }
-
-  return collaboratorMatchesScope(collaborator, unitId, businessId);
 }
 
 function responsibleStillMatchesScope(
@@ -492,7 +461,7 @@ function responsibleStillMatchesScope(
   responsibleUserCompanyId: number | null | undefined,
   unitId?: number | null,
   businessId?: number | null,
-  headquarterUnitIds: ReadonlySet<number> = new Set(),
+  businessOptions: ProcessBusinessOption[] = [],
 ) {
   if (responsibleUserCompanyId == null) {
     return true;
@@ -502,7 +471,7 @@ function responsibleStillMatchesScope(
     (collaborator) => collaborator.userCompanyId === responsibleUserCompanyId,
   );
 
-  return !responsible || collaboratorCanReceiveAssignment(responsible, unitId, businessId, headquarterUnitIds);
+  return !responsible || canCollaboratorReceiveAssignment(responsible, unitId, businessId, businessOptions);
 }
 
 function createDefaultProcessFormFromCatalog(
@@ -513,9 +482,6 @@ function createDefaultProcessFormFromCatalog(
   fallbackBusinessNames: string[],
   fallbackCollaboratorNames: string[],
 ): ProcessFormState {
-  const headquarterUnitIds = new Set(
-    unitOptions.filter((unit) => isHeadquarterUnitName(unit.name)).map((unit) => unit.id),
-  );
   const firstUnit = unitOptions[0] ?? null;
   const firstBusiness =
     (firstUnit
@@ -525,7 +491,7 @@ function createDefaultProcessFormFromCatalog(
   const defaultBusinessId = firstBusiness?.id ?? null;
   const firstCollaborator =
     collaboratorOptions.find((collaborator) =>
-      collaboratorCanReceiveAssignment(collaborator, defaultUnitId, defaultBusinessId, headquarterUnitIds),
+      canCollaboratorReceiveAssignment(collaborator, defaultUnitId, defaultBusinessId, businessOptions),
     ) ?? null;
 
   if (!firstUnit && !firstBusiness && !firstCollaborator) {
@@ -844,11 +810,6 @@ export default function Processes() {
       collaboratorOptions,
     ),
   );
-  const headquarterUnitIds = useMemo(
-    () => new Set(catalogUnits.filter((unit) => isHeadquarterUnitName(unit.name)).map((unit) => unit.id)),
-    [catalogUnits],
-  );
-
   const loadProcesses = async () => {
     setIsLoadingProcesses(true);
     setProcessesError(null);
@@ -1047,6 +1008,11 @@ export default function Processes() {
   const visibleRecordIds = sortedRecords.map((record) => record.id);
   const visibleRecordSelection = rowSelection.visibleSelectionState(visibleRecordIds);
   const selectedRecords = records.filter((record) => rowSelection.selectedIds.has(record.id));
+  const bulkAssignableCollaborators = catalogCollaborators.filter((collaborator) =>
+    selectedRecords.every((record) =>
+      canCollaboratorReceiveAssignment(collaborator, record.unitId, record.businessId, catalogBusinesses),
+    ),
+  );
 
   useEffect(() => {
     rowSelection.pruneSelection(records.map((record) => record.id));
@@ -1320,7 +1286,7 @@ export default function Processes() {
       setBulkConfirmation(null);
       setIsBulkAssignOpen(false);
       setBulkResponsibleValue(UNASSIGNED_RESPONSIBLE_VALUE);
-      setProcessesNotice(`Accion masiva aplicada a ${selectedRecords.length} proceso${selectedRecords.length === 1 ? '' : 's'}.`);
+      setProcessesNotice(processCopy.bulk.applied(selectedRecords.length));
     } catch (error) {
       if (import.meta.env.DEV) {
         console.warn('Process bulk action failed.', { action, error, selectedRecordIds });
@@ -1337,9 +1303,14 @@ export default function Processes() {
     const collaborator =
       bulkResponsibleValue === UNASSIGNED_RESPONSIBLE_VALUE
         ? null
-        : catalogCollaborators.find(
+        : bulkAssignableCollaborators.find(
             (currentCollaborator) => currentCollaborator.userCompanyId === Number(bulkResponsibleValue),
           ) ?? null;
+
+    if (bulkResponsibleValue !== UNASSIGNED_RESPONSIBLE_VALUE && !collaborator) {
+      setProcessesError(processCopy.messages.saveChanges);
+      return;
+    }
 
     void runBulkProcessAction('assign', { collaborator });
   };
@@ -1472,7 +1443,7 @@ export default function Processes() {
                   currentRecord.responsibleUserCompanyId,
                   nextUnitId,
                   nextBusinessId,
-                  headquarterUnitIds,
+                  catalogBusinesses,
                 );
 
                 return {
@@ -1531,7 +1502,7 @@ export default function Processes() {
                   currentRecord.responsibleUserCompanyId,
                   nextUnitId,
                   nextBusinessId,
-                  headquarterUnitIds,
+                  catalogBusinesses,
                 );
 
                 return {
@@ -1684,11 +1655,11 @@ export default function Processes() {
       case 'responsible':
         {
           const scopedResponsibleOptions = catalogCollaborators.filter((collaborator) =>
-            collaboratorCanReceiveAssignment(
+            canCollaboratorReceiveAssignment(
               collaborator,
               record.unitId,
               record.businessId,
-              headquarterUnitIds,
+              catalogBusinesses,
             ),
           );
           const responsibleOptions: Option<string>[] = [
@@ -1763,7 +1734,7 @@ export default function Processes() {
                 {headerCopy.subtitle}
               </p>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]">
+            <Badge variant="outline" className="w-fit rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]">
               {sortedRecords.length} {headerCopy.title.toLowerCase()}
             </Badge>
           </div>
@@ -1808,7 +1779,7 @@ export default function Processes() {
                     className={cn(
                       'grid min-h-[94px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
                       !record.isActive && 'bg-slate-50/80 dark:bg-slate-900/40',
-                      rowSelection.isSelected(record.id) && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
+                      rowSelection.isSelected(record.id) && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                     )}
                     style={{ gridTemplateColumns: 'minmax(320px, 380px) 1fr minmax(130px, 160px)' }}
                   >
@@ -1843,7 +1814,7 @@ export default function Processes() {
                           className={cn(
                             'pointer-events-none absolute inset-y-4 rounded-xl border px-3 py-2',
                             record.isActive
-                              ? 'border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25'
+                              ? 'border-[#F4C84A]/40 bg-[#F4C84A]/20 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/25'
                               : 'border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-700/50',
                           )}
                           style={{
@@ -1887,7 +1858,7 @@ export default function Processes() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
+      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -1905,7 +1876,7 @@ export default function Processes() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'table'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
+                    ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('table')}
@@ -1918,7 +1889,7 @@ export default function Processes() {
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   viewMode === 'diagram'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
+                    ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setViewMode('diagram')}
@@ -1930,7 +1901,7 @@ export default function Processes() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsDialogOpen(true)}
               disabled={isLoadingProcesses}
             >
@@ -2029,13 +2000,13 @@ export default function Processes() {
       <ProcessKpiStrip copy={processCopy.kpis} isLoading={isLoadingProcesses} metrics={processKpiMetrics} />
 
       {rowSelection.selectedCount > 0 ? (
-        <section className="mb-4 rounded-2xl border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-4 py-3 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
+        <section className="mb-4 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 py-3 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-white px-3 py-1 text-[rgb(113,63,18)] dark:bg-slate-800 dark:text-[rgb(254,240,138)]">
-                {rowSelection.selectedCount} seleccionados
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05] dark:bg-slate-800 dark:text-[#FEF3C7]">
+                {processCopy.bulk.selected(rowSelection.selectedCount)}
               </Badge>
-              <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
+              <span className="text-slate-500 dark:text-slate-400">{processCopy.bulk.title}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -2108,7 +2079,7 @@ export default function Processes() {
             <TableRow className="border-slate-200 dark:border-slate-700">
               <TableHead className="px-5 py-5" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                 <Checkbox
-                  aria-label="Seleccionar procesos visibles"
+                  aria-label={processCopy.bulk.selectVisible}
                   checked={
                     visibleRecordSelection.allVisibleSelected
                       ? true
@@ -2117,7 +2088,7 @@ export default function Processes() {
                         : false
                   }
                   onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleRecordIds, checked === true)}
-                  className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
+                  className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                 />
               </TableHead>
               {visibleColumns.map((column) => {
@@ -2129,13 +2100,13 @@ export default function Processes() {
                     <button
                       type="button"
                       onClick={() => handleSort(column.id)}
-                      className="flex min-h-8 items-center gap-2 rounded-md text-left text-sm font-semibold tracking-tight text-slate-500 transition hover:text-[rgb(113,63,18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(250,204,21)] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-slate-100 dark:focus-visible:ring-offset-slate-800"
+                      className="flex min-h-8 items-center gap-2 rounded-md text-left text-sm font-semibold tracking-tight text-slate-500 transition hover:text-[#9A6B05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-slate-100 dark:focus-visible:ring-offset-slate-800"
                     >
                       <span>{column.label}</span>
                       <SortIcon
                         className={cn(
                           'h-4 w-4',
-                          isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400',
+                          isActiveSort ? 'text-[#9A6B05]' : 'text-slate-400',
                         )}
                       />
                     </button>
@@ -2154,16 +2125,16 @@ export default function Processes() {
                 className={cn(
                   'border-slate-200 dark:border-slate-700',
                   !record.isActive && 'bg-slate-50/80 dark:bg-slate-900/40',
-                  rowSelection.isSelected(record.id) && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
+                  rowSelection.isSelected(record.id) && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                 )}
               >
                 <TableCell className="px-5 py-6 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                   <Checkbox
-                    aria-label={`Seleccionar ${record.folio}`}
+                    aria-label={processCopy.bulk.selectRow(record.folio)}
                     checked={rowSelection.isSelected(record.id)}
                     disabled={isRecordPending(record.id)}
                     onCheckedChange={(checked) => rowSelection.toggleSelection(record.id, checked === true)}
-                    className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
+                    className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                   />
                 </TableCell>
                 {visibleColumns.map((column) => (
@@ -2185,7 +2156,7 @@ export default function Processes() {
                         void handleMaterialize(record);
                       }}
                       disabled={isRecordPending(record.id)}
-                      className="border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 text-[rgb(113,63,18)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)] dark:hover:bg-[rgb(250,204,21)] dark:hover:text-slate-950"
+                      className="border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
                       icon={<CalendarPlus className="h-4 w-4" />}
                     />
                     <ProcessActionButton
@@ -2269,10 +2240,10 @@ export default function Processes() {
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[rgb(250,204,21)] px-5 py-4">
+          <div className="bg-[#F4C84A] px-5 py-4">
             <DialogTitle className="text-lg font-bold text-slate-950">{processCopy.form.labels.responsible}</DialogTitle>
             <DialogDescription className="mt-1 text-sm text-slate-800/85">
-              Aplicar responsable a {rowSelection.selectedCount} proceso{rowSelection.selectedCount === 1 ? '' : 's'} seleccionado{rowSelection.selectedCount === 1 ? '' : 's'}.
+              {processCopy.bulk.assignDescription(rowSelection.selectedCount)}
             </DialogDescription>
           </div>
           <div className="space-y-3 px-5 py-5">
@@ -2282,7 +2253,7 @@ export default function Processes() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{processCopy.common.unassigned}</SelectItem>
-                {catalogCollaborators.map((collaborator) => (
+                {bulkAssignableCollaborators.map((collaborator) => (
                   <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
                     {collaborator.name}
                   </SelectItem>
@@ -2315,7 +2286,7 @@ export default function Processes() {
       <ConfirmDeleteDialog
         isVisible={bulkConfirmation === 'delete'}
         title={processCopy.confirmation.deleteTitle}
-        itemName={`${rowSelection.selectedCount} proceso${rowSelection.selectedCount === 1 ? '' : 's'}`}
+        itemName={processCopy.bulk.itemName(rowSelection.selectedCount)}
         description={processCopy.confirmation.deleteDescription}
         confirmLabel={processCopy.confirmation.deleteConfirm}
         cancelLabel={processCopy.common.cancel}

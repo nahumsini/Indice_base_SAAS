@@ -52,7 +52,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="bg-[#558DBD] p-6 flex items-center justify-between">
+        <div className="bg-[#2563EB] p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2"><Bell className="h-6 w-6 text-white" /></div>
             <div>

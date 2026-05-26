@@ -86,8 +86,17 @@ export const koCA: ProcessesTranslations = {
   fixedColumns: {
     actions: {
       label: '작업',
-      description: '프로세스 실행, 일시 중지, 편집, 복사 또는 삭제 버튼입니다.',
+      description: '작업 업데이트, 프로세스 일시 중지, 편집, 복사 또는 삭제 버튼입니다.',
     },
+  },
+  columnsDialog: {
+    title: '열 관리',
+    description: '프로세스 작업 공간의 표에 계속 표시할 열을 선택합니다.',
+    visibleCount: (visible: number, total: number) => `${total}개 중 ${visible}개 열 표시`,
+    selectAll: '모두 선택',
+    minimumSet: '최소 보기',
+    requiredColumn: '작업 공간에 필요한 열입니다.',
+    optionalColumn: '표에서 숨길 수 있는 선택 열입니다.',
   },
   table: {
     loading: '반복 프로세스를 불러오는 중...',
@@ -107,12 +116,21 @@ export const koCA: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: '기한 작업 생성',
+    runEngine: '프로세스 작업 업데이트',
     pause: '프로세스 일시 중지',
     activate: '프로세스 활성화',
     edit: '프로세스 편집',
     copy: '프로세스 복사',
     delete: '프로세스 삭제',
+  },
+  bulk: {
+    selected: (count: number) => `${count}개 선택됨`,
+    title: '일괄 작업',
+    applied: (count: number) => `선택한 프로세스 ${count}개에 일괄 작업을 적용했습니다.`,
+    assignDescription: (count: number) => `선택한 프로세스 ${count}개에 담당자를 적용합니다.`,
+    itemName: (count: number) => `프로세스 ${count}개`,
+    selectVisible: '보이는 프로세스 선택',
+    selectRow: (folio: string) => `${folio} 선택`,
   },
   messages: {
     loadProcesses: '프로세스를 불러올 수 없습니다.',
@@ -120,7 +138,7 @@ export const koCA: ProcessesTranslations = {
     saveChanges: '프로세스 변경 사항을 저장할 수 없습니다.',
     deleteProcess: '프로세스를 삭제할 수 없습니다.',
     duplicateProcess: '프로세스를 복사할 수 없습니다.',
-    runEngine: '기한 작업을 생성할 수 없습니다.',
+    runEngine: '프로세스 작업을 업데이트할 수 없습니다.',
     saveProcess: '프로세스를 저장할 수 없습니다.',
     titleRequired: '제목은 필수입니다.',
     descriptionRequired: '설명은 필수입니다.',
@@ -230,7 +248,7 @@ export const koCA: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: '프로세스 삭제',
-    deleteDescription: '프로세스를 활성 카탈로그에서 소프트 삭제하고 백엔드 데이터 백업은 유지합니다.',
+    deleteDescription: '프로세스를 활성 카탈로그에서 제거하고 이 프로세스가 생성한 열린 작업을 취소합니다. 완료되었거나 이미 취소된 작업은 기록으로 유지됩니다.',
     deleteConfirm: '프로세스 삭제',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

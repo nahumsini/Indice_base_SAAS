@@ -42,6 +42,7 @@ public class ProcessTaskKpisApiController {
         try {
             return ResponseEntity.ok(processTaskKpisService.getDashboard(
                     user.get().companyId(),
+                    user.get().userId(),
                     from,
                     to,
                     includeOverdueBacklog,

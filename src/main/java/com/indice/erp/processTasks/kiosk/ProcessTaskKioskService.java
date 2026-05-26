@@ -3,6 +3,7 @@ package com.indice.erp.processTasks.kiosk;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskTokenService;
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentScopeService;
 import com.indice.erp.processTasks.tasks.ProcessTasksService;
 import java.security.SecureRandom;
 import java.sql.ResultSet;
@@ -10,11 +11,13 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,6 +36,7 @@ public class ProcessTaskKioskService {
     private final ObjectMapper objectMapper;
     private final AttendanceKioskTokenService tokenService;
     private final ProcessTasksService processTasksService;
+    private final ProcessTaskAssignmentScopeService assignmentScopeService;
     private final BCryptPasswordEncoder passwordEncoder;
     private final ConcurrentHashMap<String, PinFailureWindow> pinFailures = new ConcurrentHashMap<>();
 
@@ -41,12 +45,14 @@ public class ProcessTaskKioskService {
         ObjectMapper objectMapper,
         AttendanceKioskTokenService tokenService,
         ProcessTasksService processTasksService,
+        ProcessTaskAssignmentScopeService assignmentScopeService,
         BCryptPasswordEncoder passwordEncoder
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.tokenService = tokenService;
         this.processTasksService = processTasksService;
+        this.assignmentScopeService = assignmentScopeService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -198,26 +204,117 @@ public class ProcessTaskKioskService {
         body.put("user", toEmployeeMap(employee));
         body.put("identification_token", identificationToken);
         body.put("expires_at", Instant.ofEpochSecond(expiresAtEpochSeconds).toString());
-        body.put("tasks", listPublicTasks(kiosk, employee.userCompanyId()));
+        body.put("tasks", listPublicTasks(kiosk, employee));
+        body.put("assignment_options", publicAssignmentOptions(kiosk.companyId(), employee.userId()));
         return body;
     }
 
     public Map<String, Object> publicTasks(String deviceToken, Map<String, Object> payload) {
         var context = requirePublicContext(deviceToken, payload);
-        return Map.of("items", listPublicTasks(context.kiosk(), context.employee().userCompanyId()));
+        return Map.of("items", listPublicTasks(context.kiosk(), context.employee()));
+    }
+
+    @Transactional
+    public Map<String, Object> publicCreateTask(String deviceToken, Map<String, Object> payload) {
+        var context = requirePublicContext(deviceToken, payload);
+        var taskPayload = publicCreateTaskPayload(context, payload == null ? Map.of() : payload);
+        var createdTask = processTasksService.createTask(
+            context.kiosk().companyId(),
+            context.employee().userId(),
+            taskPayload
+        );
+        var taskId = numberValue(createdTask.get("id"));
+        var publicTask = taskId != null
+            ? getVisiblePublicTask(context.kiosk(), context.employee(), taskId)
+            : createdTask;
+        return Map.of(
+            "task", publicTask,
+            "items", listPublicTasks(context.kiosk(), context.employee())
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> publicAssignTaskResponsible(String deviceToken, long taskId, Map<String, Object> payload) {
+        var context = requirePublicContext(deviceToken, payload);
+        var normalizedPayload = payload == null ? Map.<String, Object>of() : payload;
+        var task = getVisiblePublicTask(context.kiosk(), context.employee(), taskId);
+        var status = String.valueOf(task.getOrDefault("status", ""));
+        if (!List.of("pending", "in_progress", "paused").contains(status)) {
+            throw new IllegalArgumentException("Only open tasks can be reassigned from the kiosk.");
+        }
+
+        var assignedUserCompanyId = normalizeOptionalId(longValue(
+            normalizedPayload,
+            "assignedUserCompanyId",
+            "assigned_user_company_id"
+        ));
+        if (assignedUserCompanyId == null) {
+            throw new IllegalArgumentException("assignedUserCompanyId is required.");
+        }
+
+        var unitId = numberValue(task.get("unit_id"));
+        var businessId = numberValue(task.get("business_id"));
+        assignmentScopeService.requireCanAssign(
+            context.kiosk().companyId(),
+            context.employee().userId(),
+            unitId,
+            businessId,
+            assignedUserCompanyId
+        );
+        var assignedEmployee = loadEmployee(context.kiosk().companyId(), assignedUserCompanyId);
+        var assignedName = fallback(assignedEmployee.fullName(), "User " + assignedEmployee.userCompanyId());
+
+        jdbcTemplate.update(
+            """
+                UPDATE process_tasks
+                SET assigned_user_id = ?,
+                    assigned_user_company_id = ?,
+                    assigned_name = ?
+                WHERE company_id = ?
+                  AND id = ?
+                  AND deleted_at IS NULL
+                  AND status IN ('pending', 'in_progress', 'paused')
+                """,
+            assignedEmployee.userId(),
+            assignedEmployee.userCompanyId(),
+            assignedName,
+            context.kiosk().companyId(),
+            taskId
+        );
+
+        var items = listPublicTasks(context.kiosk(), context.employee());
+        var updatedTask = items.stream()
+            .filter((item) -> Objects.equals(numberValue(item.get("id")), taskId))
+            .findFirst()
+            .orElseGet(() -> {
+                var detachedTask = new LinkedHashMap<>(task);
+                detachedTask.put("assigned_user_company_id", assignedEmployee.userCompanyId());
+                detachedTask.put("assigned_name", assignedName);
+                detachedTask.put(
+                    "is_assigned_to_current_user",
+                    Objects.equals(assignedEmployee.userCompanyId(), context.employee().userCompanyId())
+                );
+                detachedTask.put("can_complete", false);
+                return detachedTask;
+            });
+
+        return Map.of(
+            "task", updatedTask,
+            "items", items
+        );
     }
 
     @Transactional
     public Map<String, Object> publicCreateAttachmentUpload(String deviceToken, long taskId, Map<String, Object> payload) {
         var context = requirePublicContext(deviceToken, payload);
-        getPublicTask(context.kiosk(), context.employee().userCompanyId(), taskId);
+        getCompletablePublicTask(context.kiosk(), context.employee(), taskId);
         return processTasksService.createAttachmentUpload(context.kiosk().companyId(), taskId, payload);
     }
 
     @Transactional
     public Map<String, Object> publicRegisterAttachment(String deviceToken, long taskId, Map<String, Object> payload) {
         var context = requirePublicContext(deviceToken, payload);
-        getPublicTask(context.kiosk(), context.employee().userCompanyId(), taskId);
+        getCompletablePublicTask(context.kiosk(), context.employee(), taskId);
         return processTasksService.registerAttachment(
             context.kiosk().companyId(),
             context.employee().userId(),
@@ -229,7 +326,7 @@ public class ProcessTaskKioskService {
     @Transactional
     public Map<String, Object> publicCompleteTask(String deviceToken, long taskId, Map<String, Object> payload) {
         var context = requirePublicContext(deviceToken, payload);
-        var taskBeforeCompletion = getPublicTask(context.kiosk(), context.employee().userCompanyId(), taskId);
+        var taskBeforeCompletion = getCompletablePublicTask(context.kiosk(), context.employee(), taskId);
         var normalizedPayload = payload == null ? Map.<String, Object>of() : payload;
         var completionNotes = stringValue(normalizedPayload, "completion_notes", "completionNotes", "notes");
         var completionPercent = integerValue(normalizedPayload, "completion_percent", "completionPercent", "completion");
@@ -268,7 +365,7 @@ public class ProcessTaskKioskService {
 
         return Map.of(
             "task", completedTask,
-            "items", listPublicTasks(context.kiosk(), context.employee().userCompanyId())
+            "items", listPublicTasks(context.kiosk(), context.employee())
         );
     }
 
@@ -281,25 +378,37 @@ public class ProcessTaskKioskService {
         return new PublicKioskContext(kiosk, employee);
     }
 
-    private List<Map<String, Object>> listPublicTasks(ProcessTaskKioskRow kiosk, long userCompanyId) {
-        var params = new java.util.ArrayList<Object>();
+    private List<Map<String, Object>> listPublicTasks(ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee) {
+        var params = new ArrayList<Object>();
         params.add(kiosk.companyId());
-        params.add(userCompanyId);
+        params.add(employee.userCompanyId());
+        params.add(employee.userId());
+        params.add(employee.userCompanyId());
         return jdbcTemplate.query(
-            publicTaskSql("") + " ORDER BY COALESCE(task.due_date, CURRENT_DATE) ASC, task.id DESC",
-            (rs, rowNum) -> mapPublicTask(rs),
+            publicTaskSql(
+                "(task.assigned_user_company_id = ? OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
+                "AND task.status IN ('pending', 'in_progress', 'paused', 'completed')",
+                ""
+            ) + " ORDER BY CASE WHEN task.status = 'completed' THEN 1 ELSE 0 END, COALESCE(task.due_date, CURRENT_DATE) ASC, task.id DESC",
+            (rs, rowNum) -> mapPublicTask(rs, employee),
             params.toArray()
         );
     }
 
-    private Map<String, Object> getPublicTask(ProcessTaskKioskRow kiosk, long userCompanyId, long taskId) {
-        var params = new java.util.ArrayList<Object>();
+    private Map<String, Object> getVisiblePublicTask(ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee, long taskId) {
+        var params = new ArrayList<Object>();
         params.add(kiosk.companyId());
-        params.add(userCompanyId);
+        params.add(employee.userCompanyId());
+        params.add(employee.userId());
+        params.add(employee.userCompanyId());
         params.add(taskId);
         var rows = jdbcTemplate.query(
-            publicTaskSql("AND task.id = ?\n"),
-            (rs, rowNum) -> mapPublicTask(rs),
+            publicTaskSql(
+                "(task.assigned_user_company_id = ? OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
+                "AND task.status IN ('pending', 'in_progress', 'paused', 'completed')",
+                "AND task.id = ?\n"
+            ),
+            (rs, rowNum) -> mapPublicTask(rs, employee),
             params.toArray()
         );
         if (rows.isEmpty()) {
@@ -308,7 +417,27 @@ public class ProcessTaskKioskService {
         return rows.getFirst();
     }
 
-    private String publicTaskSql(String extraWhere) {
+    private Map<String, Object> getCompletablePublicTask(ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee, long taskId) {
+        var params = new ArrayList<Object>();
+        params.add(kiosk.companyId());
+        params.add(employee.userCompanyId());
+        params.add(taskId);
+        var rows = jdbcTemplate.query(
+            publicTaskSql(
+                "task.assigned_user_company_id = ?",
+                "AND task.status IN ('pending', 'in_progress', 'paused')",
+                "AND task.id = ?\n"
+            ),
+            (rs, rowNum) -> mapPublicTask(rs, employee),
+            params.toArray()
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Task not found for this kiosk.");
+        }
+        return rows.getFirst();
+    }
+
+    private String publicTaskSql(String visibilityCondition, String statusCondition, String extraWhere) {
         return """
             SELECT task.id,
                    task.folio,
@@ -318,8 +447,16 @@ public class ProcessTaskKioskService {
                    task.priority,
                    task.start_date,
                    task.due_date,
+                   task.completed_at,
                    task.completion_percent,
                    task.notes,
+                   task.assigned_user_company_id,
+                   COALESCE(
+                       NULLIF(task.assigned_name, ''),
+                       NULLIF(TRIM(assigned_user.full_name), ''),
+                       NULLIF(TRIM(assigned_user.email), ''),
+                       NULL
+                   ) AS assigned_name,
                    task.unit_id,
                    unit.name AS unit_name,
                    task.business_id,
@@ -328,6 +465,13 @@ public class ProcessTaskKioskService {
                    process.title AS process_title,
                    task.project_id,
                    project.name AS project_name,
+                   task.created_by,
+                   COALESCE(
+                       NULLIF(TRIM(created_user.full_name), ''),
+                       NULLIF(TRIM(created_user.email), ''),
+                       NULL
+                   ) AS created_by_name,
+                   task.completed_by_user_company_id,
                    task.created_at,
                    (
                        SELECT COUNT(*)
@@ -337,6 +481,10 @@ public class ProcessTaskKioskService {
                          AND attachment.deleted_at IS NULL
                    ) AS attachments
             FROM process_tasks task
+            LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = task.assigned_user_company_id
+                AND assigned_user_company.company_id = task.company_id
+            LEFT JOIN users assigned_user ON assigned_user.id = assigned_user_company.user_id
+            LEFT JOIN users created_user ON created_user.id = task.created_by
             LEFT JOIN units unit ON unit.id = task.unit_id
                 AND (unit.company_id = task.company_id OR unit.company_id IS NULL)
             LEFT JOIN businesses business ON business.id = task.business_id
@@ -348,15 +496,21 @@ public class ProcessTaskKioskService {
                 AND project.company_id = task.company_id
                 AND project.deleted_at IS NULL
             WHERE task.company_id = ?
-              AND task.assigned_user_company_id = ?
+              AND %s
               AND task.deleted_at IS NULL
-              AND task.status IN ('pending', 'in_progress', 'paused')
+              %s
             %s
-            """.formatted(extraWhere);
+            """.formatted(visibilityCondition, statusCondition, extraWhere);
     }
 
-    private Map<String, Object> mapPublicTask(ResultSet rs) throws SQLException {
+    private Map<String, Object> mapPublicTask(ResultSet rs, ProcessTaskKioskEmployee employee) throws SQLException {
         var dueDate = rs.getDate("due_date") == null ? null : rs.getDate("due_date").toLocalDate();
+        var assignedUserCompanyId = rs.getObject("assigned_user_company_id", Long.class);
+        var createdBy = rs.getObject("created_by", Long.class);
+        var completedByUserCompanyId = rs.getObject("completed_by_user_company_id", Long.class);
+        var isAssignedToCurrentUser = Objects.equals(assignedUserCompanyId, employee.userCompanyId());
+        var isCreatedByCurrentUser = Objects.equals(createdBy, employee.userId());
+        var isCompletedByCurrentUser = Objects.equals(completedByUserCompanyId, employee.userCompanyId());
         var row = new LinkedHashMap<String, Object>();
         row.put("id", rs.getLong("id"));
         row.put("task_id", rs.getLong("id"));
@@ -368,8 +522,11 @@ public class ProcessTaskKioskService {
         row.put("priority", fallback(rs.getString("priority"), "medium"));
         row.put("start_date", toDateString(rs, "start_date"));
         row.put("due_date", dueDate == null ? null : dueDate.toString());
+        row.put("completed_at", toDateTimeString(rs, "completed_at"));
         row.put("completion_percent", rs.getInt("completion_percent"));
         row.put("notes", rs.getString("notes"));
+        row.put("assigned_user_company_id", assignedUserCompanyId);
+        row.put("assigned_name", rs.getString("assigned_name"));
         row.put("unit_id", rs.getObject("unit_id", Long.class));
         row.put("unit_name", rs.getString("unit_name"));
         row.put("business_id", rs.getObject("business_id", Long.class));
@@ -378,9 +535,16 @@ public class ProcessTaskKioskService {
         row.put("process_title", rs.getString("process_title"));
         row.put("project_id", rs.getObject("project_id", Long.class));
         row.put("project_name", rs.getString("project_name"));
+        row.put("created_by", createdBy);
+        row.put("created_by_name", rs.getString("created_by_name"));
+        row.put("completed_by_user_company_id", completedByUserCompanyId);
         row.put("created_at", toDateTimeString(rs, "created_at"));
         row.put("attachments", rs.getInt("attachments"));
         row.put("is_overdue", dueDate != null && dueDate.isBefore(LocalDate.now()));
+        row.put("can_complete", isAssignedToCurrentUser && !"completed".equals(rs.getString("status")));
+        row.put("is_assigned_to_current_user", isAssignedToCurrentUser);
+        row.put("is_created_by_current_user", isCreatedByCurrentUser);
+        row.put("is_completed_by_current_user", isCompletedByCurrentUser);
         return row;
     }
 
@@ -653,9 +817,224 @@ public class ProcessTaskKioskService {
     }
 
     private void validateEmployeeScope(ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee) {
-        // Public task kiosks are assignment-driven: the PIN identifies the worker, and every public
-        // task query/mutation below still requires task.assigned_user_company_id to match that worker.
-        // Kiosk unit/business values remain operational context for labels and administration.
+        // Public task kiosks are worker-driven: the PIN identifies the operator. The public list can
+        // show assigned, created, and completed work, while completion/evidence mutations remain
+        // restricted to tasks assigned to that operator.
+    }
+
+    private Map<String, Object> publicCreateTaskPayload(PublicKioskContext context, Map<String, Object> payload) {
+        var actorScope = assignmentScopeService.actorScope(context.kiosk().companyId(), context.employee().userId());
+        var unitId = normalizeOptionalId(longValue(payload, "unitId", "unit_id"));
+        var businessId = normalizeOptionalId(longValue(payload, "businessId", "business_id"));
+        var assignedUserCompanyId = normalizeOptionalId(longValue(
+            payload,
+            "assignedUserCompanyId",
+            "assigned_user_company_id"
+        ));
+        var title = stringValue(payload, "title");
+        if (title.isBlank()) {
+            throw new IllegalArgumentException("title is required.");
+        }
+
+        if (unitId == null && actorScope.unitId() != null) {
+            unitId = actorScope.unitId();
+        }
+        if (businessId == null && actorScope.businessId() != null) {
+            businessId = actorScope.businessId();
+        }
+        if (assignedUserCompanyId == null) {
+            assignedUserCompanyId = context.employee().userCompanyId();
+        }
+
+        var assignedName = stringValue(payload, "assignedName", "assigned_name");
+        if (assignedName.isBlank() && Objects.equals(assignedUserCompanyId, context.employee().userCompanyId())) {
+            assignedName = context.employee().fullName();
+        }
+
+        var dueDate = nullableString(payload, "dueDate", "due_date");
+        if (dueDate == null || dueDate.isBlank()) {
+            dueDate = LocalDate.now().toString();
+        }
+
+        var taskPayload = new LinkedHashMap<String, Object>();
+        taskPayload.put("title", title);
+        taskPayload.put("description", nullableString(payload, "description"));
+        taskPayload.put("processId", null);
+        taskPayload.put("projectId", null);
+        taskPayload.put("assignedUserCompanyId", assignedUserCompanyId);
+        taskPayload.put("assignedName", assignedName.isBlank() ? null : assignedName);
+        taskPayload.put("status", "pending");
+        taskPayload.put("priority", fallback(stringValue(payload, "priority"), "medium"));
+        taskPayload.put("startDate", nullableString(payload, "startDate", "start_date"));
+        taskPayload.put("dueDate", dueDate);
+        taskPayload.put("notes", nullableString(payload, "notes"));
+        taskPayload.put("completionPercent", 0);
+        taskPayload.put("weighting", null);
+        taskPayload.put("audited", false);
+        taskPayload.put("auditNotes", null);
+        taskPayload.put("businessId", businessId);
+        taskPayload.put("unitId", unitId);
+        return taskPayload;
+    }
+
+    private Map<String, Object> publicAssignmentOptions(long companyId, long userId) {
+        var scope = assignmentScopeService.actorScope(companyId, userId);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("default_unit_id", scope.unitId());
+        body.put("default_business_id", scope.businessId());
+        body.put("units", loadAssignableUnits(companyId, scope));
+        body.put("businesses", loadAssignableBusinesses(companyId, scope));
+        body.put("collaborators", loadAssignableCollaborators(companyId, scope));
+        return body;
+    }
+
+    private List<Map<String, Object>> loadAssignableUnits(
+        long companyId,
+        ProcessTaskAssignmentScopeService.AssignmentScope scope
+    ) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        var scopeWhere = "";
+
+        if (scope.level() != ProcessTaskAssignmentScopeService.ScopeLevel.CORPORATE) {
+            if (scope.unitId() == null) {
+                return List.of();
+            }
+            scopeWhere = "AND unit.id = ?";
+            params.add(scope.unitId());
+        }
+
+        return jdbcTemplate.query(
+            """
+                SELECT unit.id,
+                       unit.name
+                FROM units unit
+                WHERE (unit.company_id = ? OR unit.company_id IS NULL)
+                  %s
+                ORDER BY unit.name ASC
+                """.formatted(scopeWhere),
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("name", fallback(rs.getString("name"), "Unit " + rs.getLong("id")));
+                return row;
+            },
+            params.toArray()
+        );
+    }
+
+    private List<Map<String, Object>> loadAssignableBusinesses(
+        long companyId,
+        ProcessTaskAssignmentScopeService.AssignmentScope scope
+    ) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        var scopeWhere = "";
+
+        if (scope.level() == ProcessTaskAssignmentScopeService.ScopeLevel.UNIT) {
+            if (scope.unitId() == null) {
+                return List.of();
+            }
+            scopeWhere = "AND business.unit_id = ?";
+            params.add(scope.unitId());
+        } else if (scope.level() == ProcessTaskAssignmentScopeService.ScopeLevel.BUSINESS) {
+            if (scope.businessId() == null) {
+                return List.of();
+            }
+            scopeWhere = "AND business.id = ?";
+            params.add(scope.businessId());
+        }
+
+        return jdbcTemplate.query(
+            """
+                SELECT business.id,
+                       business.name,
+                       business.unit_id,
+                       unit.name AS unit_name
+                FROM businesses business
+                LEFT JOIN units unit ON unit.id = business.unit_id
+                  AND (unit.company_id = business.company_id OR unit.company_id IS NULL)
+                WHERE (business.company_id = ? OR business.company_id IS NULL)
+                  %s
+                ORDER BY unit.name ASC, business.name ASC
+                """.formatted(scopeWhere),
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("name", fallback(rs.getString("name"), "Business " + rs.getLong("id")));
+                row.put("unit_id", rs.getObject("unit_id", Long.class));
+                row.put("unit_name", rs.getString("unit_name"));
+                return row;
+            },
+            params.toArray()
+        );
+    }
+
+    private List<Map<String, Object>> loadAssignableCollaborators(
+        long companyId,
+        ProcessTaskAssignmentScopeService.AssignmentScope scope
+    ) {
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        var scopeWhere = "";
+
+        if (scope.level() == ProcessTaskAssignmentScopeService.ScopeLevel.UNIT) {
+            if (scope.unitId() == null) {
+                return List.of();
+            }
+            scopeWhere = "AND (wp.unit_id = ? OR business.unit_id = ?)";
+            params.add(scope.unitId());
+            params.add(scope.unitId());
+        } else if (scope.level() == ProcessTaskAssignmentScopeService.ScopeLevel.BUSINESS) {
+            if (scope.businessId() == null) {
+                return List.of();
+            }
+            scopeWhere = "AND wp.business_id = ?";
+            params.add(scope.businessId());
+        }
+
+        return jdbcTemplate.query(
+            """
+                SELECT e.id AS user_company_id,
+                       uc.user_id,
+                       TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
+                       COALESCE(e.position, '') AS position_title,
+                       COALESCE(e.department, '') AS department,
+                       wp.unit_id,
+                       unit.name AS unit_name,
+                       wp.business_id,
+                       business.name AS business_name
+                FROM hr_users e
+                JOIN user_companies uc ON uc.id = e.id
+                  AND uc.company_id = e.company_id
+                LEFT JOIN user_work_profiles wp ON wp.company_id = e.company_id
+                  AND wp.user_company_id = e.id
+                LEFT JOIN units unit ON unit.id = wp.unit_id
+                  AND (unit.company_id = e.company_id OR unit.company_id IS NULL)
+                LEFT JOIN businesses business ON business.id = wp.business_id
+                  AND (business.company_id = e.company_id OR business.company_id IS NULL)
+                WHERE e.company_id = ?
+                  AND LOWER(COALESCE(e.status, 'active')) IN ('active', 'activo')
+                  AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
+                  %s
+                ORDER BY full_name ASC, e.id ASC
+                """.formatted(scopeWhere),
+            (rs, rowNum) -> {
+                var fullName = fallback(rs.getString("full_name"), "User " + rs.getLong("user_company_id"));
+                var row = new LinkedHashMap<String, Object>();
+                row.put("user_company_id", rs.getLong("user_company_id"));
+                row.put("user_id", rs.getLong("user_id"));
+                row.put("full_name", fullName);
+                row.put("position_title", rs.getString("position_title"));
+                row.put("department", rs.getString("department"));
+                row.put("unit_id", rs.getObject("unit_id", Long.class));
+                row.put("unit_name", rs.getString("unit_name"));
+                row.put("business_id", rs.getObject("business_id", Long.class));
+                row.put("business_name", rs.getString("business_name"));
+                return row;
+            },
+            params.toArray()
+        );
     }
 
     private void validateScope(long companyId, Long unitId, Long businessId) {
@@ -824,13 +1203,32 @@ public class ProcessTaskKioskService {
         return value == null || value <= 0 ? null : value;
     }
 
-    private Long longValue(Map<String, Object> payload, String key) {
-        var value = payload.get(key);
-        if (value == null) {
+    private Long longValue(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
             return null;
         }
+        for (var key : keys) {
+            var value = payload.get(key);
+            if (value == null) {
+                continue;
+            }
+            if (value instanceof Number number) {
+                return number.longValue();
+            }
+            var text = String.valueOf(value).trim();
+            if (!text.isBlank()) {
+                return Long.parseLong(text);
+            }
+        }
+        return null;
+    }
+
+    private Long numberValue(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
+        }
+        if (value == null) {
+            return null;
         }
         var text = String.valueOf(value).trim();
         if (text.isBlank()) {
@@ -867,6 +1265,11 @@ public class ProcessTaskKioskService {
             }
         }
         return "";
+    }
+
+    private String nullableString(Map<String, Object> payload, String... keys) {
+        var value = stringValue(payload, keys);
+        return value.isBlank() ? null : value;
     }
 
     private String fallback(String value, String fallback) {

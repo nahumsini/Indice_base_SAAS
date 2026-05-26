@@ -36,7 +36,7 @@ public class ProcessesApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
 
-        return ResponseEntity.ok(processesService.listProcesses(user.get().companyId()));
+        return ResponseEntity.ok(processesService.listProcesses(user.get().companyId(), user.get().userId()));
     }
 
     @PostMapping
@@ -71,7 +71,7 @@ public class ProcessesApiController {
 
         try {
             return ResponseEntity.ok(
-                    processesService.updateProcess(user.get().companyId(), processId, payload));
+                    processesService.updateProcess(user.get().companyId(), user.get().userId(), processId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -87,7 +87,7 @@ public class ProcessesApiController {
         }
 
         try {
-            processesService.deleteProcess(user.get().companyId(), processId);
+            processesService.deleteProcess(user.get().companyId(), user.get().userId(), processId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -102,7 +102,8 @@ public class ProcessesApiController {
         }
 
         try {
-            return ResponseEntity.ok(processesService.materializeProcess(user.get().companyId(), processId));
+            return ResponseEntity.ok(
+                    processesService.materializeProcess(user.get().companyId(), user.get().userId(), processId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

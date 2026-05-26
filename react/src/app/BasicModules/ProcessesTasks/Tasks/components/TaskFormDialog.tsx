@@ -21,6 +21,12 @@ import { Textarea } from '../../../../components/ui/textarea';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { accentButtonClass } from '../../Processes/processesData';
 import { ProgressSlider } from '../../shared/ProgressSlider';
+import {
+  collaboratorCanReceiveAssignment,
+  filterBusinessesForActor,
+  filterUnitsForActor,
+  resolveCollaboratorAssignmentScope,
+} from '../../shared/assignmentScope';
 import type {
   ProcessBusinessOption,
   ProcessCollaboratorOption,
@@ -65,6 +71,7 @@ interface TaskFormDialogProps {
   projects: ProjectRecord[];
   setForm: Dispatch<SetStateAction<TaskFormValues>>;
   unitOptions: ProcessUnitOption[];
+  currentUserCollaborator?: ProcessCollaboratorOption | null;
 }
 
 const statusOptionValues: TaskStatus[] = ['pending', 'in_progress', 'paused', 'completed', 'cancelled'];
@@ -87,40 +94,6 @@ function numericFormValue(value: string) {
 
 function normalizeText(value?: string | null) {
   return value?.trim().toLowerCase() ?? '';
-}
-
-function isHeadquarterUnitName(name?: string | null) {
-  const normalized = normalizeText(name).replace(/\s+/g, ' ');
-  return normalized === 'headquarter' || normalized === 'headquarters' || normalized === 'headquater';
-}
-
-function collaboratorMatchesScope(
-  collaborator: ProcessCollaboratorOption,
-  unitId?: number | null,
-  businessId?: number | null,
-) {
-  if (businessId != null) {
-    return collaborator.businessId === businessId;
-  }
-
-  if (unitId != null) {
-    return collaborator.unitId === unitId;
-  }
-
-  return true;
-}
-
-function collaboratorCanReceiveAssignment(
-  collaborator: ProcessCollaboratorOption,
-  unitId: number | null | undefined,
-  businessId: number | null | undefined,
-  headquarterUnitIds: ReadonlySet<number>,
-) {
-  if (collaborator.unitId != null && headquarterUnitIds.has(collaborator.unitId)) {
-    return true;
-  }
-
-  return collaboratorMatchesScope(collaborator, unitId, businessId);
 }
 
 function SelectField<T extends string>({
@@ -168,6 +141,7 @@ export function TaskFormDialog({
   projects,
   setForm,
   unitOptions,
+  currentUserCollaborator = null,
 }: TaskFormDialogProps) {
   const formCopy = copy.form;
   const title = formCopy.titles[mode];
@@ -180,19 +154,21 @@ export function TaskFormDialog({
   const selectedUnitId = numericFormValue(form.unitId);
   const selectedBusinessId = numericFormValue(form.businessId);
   const selectedAssignedUserCompanyId = numericFormValue(form.assignedUserCompanyId);
-  const headquarterUnitIds = new Set(
-    unitOptions.filter((option) => isHeadquarterUnitName(option.name)).map((option) => option.id),
-  );
+  const actorScope = resolveCollaboratorAssignmentScope(currentUserCollaborator);
+  const scopedUnitOptions = filterUnitsForActor(unitOptions, businessOptions, actorScope);
+  const actorBusinessOptions = filterBusinessesForActor(businessOptions, actorScope);
+  const canUseCompanyWideScope = !actorScope || actorScope.level === 'corporate';
+  const canUseUnitOnlyScope = !actorScope || actorScope.level !== 'business';
 
   const selectedUnitValue = selectedUnitId != null ? entityValue('unit', selectedUnitId) : NONE_VALUE;
   const unitSelectOptions = [
-    { value: NONE_VALUE, label: formCopy.empty.unit },
-    ...unitOptions.map((option) => ({
+    ...(canUseCompanyWideScope ? [{ value: NONE_VALUE, label: formCopy.empty.unit }] : []),
+    ...scopedUnitOptions.map((option) => ({
       value: entityValue('unit', option.id),
       label: option.name,
     })),
   ];
-  if (selectedUnitId != null && !unitOptions.some((option) => option.id === selectedUnitId)) {
+  if (selectedUnitId != null && !scopedUnitOptions.some((option) => option.id === selectedUnitId)) {
     unitSelectOptions.push({
       value: entityValue('unit', selectedUnitId),
       label: `${formCopy.labels.unit} #${selectedUnitId} (${copy.common.legacy})`,
@@ -203,10 +179,10 @@ export function TaskFormDialog({
     selectedBusinessId != null ? entityValue('business', selectedBusinessId) : NONE_VALUE;
   const filteredBusinessOptions =
     selectedUnitId != null
-      ? businessOptions.filter((option) => option.unitId == null || option.unitId === selectedUnitId)
-      : businessOptions;
+      ? actorBusinessOptions.filter((option) => option.unitId == null || option.unitId === selectedUnitId)
+      : actorBusinessOptions;
   const businessSelectOptions = [
-    { value: NONE_VALUE, label: formCopy.empty.business },
+    ...(canUseUnitOnlyScope ? [{ value: NONE_VALUE, label: formCopy.empty.business }] : []),
     ...filteredBusinessOptions.map((option) => ({
       value: entityValue('business', option.id),
       label: option.name,
@@ -229,7 +205,7 @@ export function TaskFormDialog({
         ? legacyValue('assigned', form.assignedName)
         : NONE_VALUE;
   const scopedCollaboratorOptions = collaboratorOptions.filter((option) =>
-    collaboratorCanReceiveAssignment(option, selectedUnitId, selectedBusinessId, headquarterUnitIds),
+    collaboratorCanReceiveAssignment(option, selectedUnitId, selectedBusinessId, businessOptions),
   );
   const collaboratorSelectOptions = [
     { value: NONE_VALUE, label: formCopy.empty.responsible },
@@ -269,13 +245,13 @@ export function TaskFormDialog({
       }
 
       const unitId = Number(value.replace('unit:', ''));
-      const selectedUnit = unitOptions.find((option) => option.id === unitId);
+      const selectedUnit = scopedUnitOptions.find((option) => option.id === unitId);
       if (!selectedUnit) {
         return currentForm;
       }
 
       const currentBusinessId = numericFormValue(currentForm.businessId);
-      const currentBusiness = businessOptions.find((option) => option.id === currentBusinessId);
+      const currentBusiness = actorBusinessOptions.find((option) => option.id === currentBusinessId);
       const businessBelongsToUnit =
         !currentBusiness || currentBusiness.unitId == null || currentBusiness.unitId === selectedUnit.id;
       const nextBusinessId = businessBelongsToUnit ? currentBusinessId : null;
@@ -285,7 +261,7 @@ export function TaskFormDialog({
       );
       const assignedBelongsToScope =
         !currentAssignedUser ||
-        collaboratorCanReceiveAssignment(currentAssignedUser, selectedUnit.id, nextBusinessId, headquarterUnitIds);
+        collaboratorCanReceiveAssignment(currentAssignedUser, selectedUnit.id, nextBusinessId, businessOptions);
 
       return {
         ...currentForm,
@@ -307,7 +283,7 @@ export function TaskFormDialog({
         );
         const assignedBelongsToScope =
           !currentAssignedUser ||
-          collaboratorCanReceiveAssignment(currentAssignedUser, currentUnitId, null, headquarterUnitIds);
+          collaboratorCanReceiveAssignment(currentAssignedUser, currentUnitId, null, businessOptions);
 
         return {
           ...currentForm,
@@ -318,13 +294,13 @@ export function TaskFormDialog({
       }
 
       const businessId = Number(value.replace('business:', ''));
-      const selectedBusiness = businessOptions.find((option) => option.id === businessId);
+      const selectedBusiness = actorBusinessOptions.find((option) => option.id === businessId);
       if (!selectedBusiness) {
         return currentForm;
       }
 
       const owningUnit = selectedBusiness.unitId
-        ? unitOptions.find((option) => option.id === selectedBusiness.unitId)
+        ? scopedUnitOptions.find((option) => option.id === selectedBusiness.unitId)
         : null;
       const nextUnitId = owningUnit?.id ?? numericFormValue(currentForm.unitId);
       const currentAssignedUserCompanyId = numericFormValue(currentForm.assignedUserCompanyId);
@@ -333,7 +309,7 @@ export function TaskFormDialog({
       );
       const assignedBelongsToScope =
         !currentAssignedUser ||
-        collaboratorCanReceiveAssignment(currentAssignedUser, nextUnitId, selectedBusiness.id, headquarterUnitIds);
+        collaboratorCanReceiveAssignment(currentAssignedUser, nextUnitId, selectedBusiness.id, businessOptions);
 
       return {
         ...currentForm,
@@ -377,7 +353,7 @@ export function TaskFormDialog({
         hideCloseButton
         className={`!flex ${isQuickCreate ? 'h-[min(82vh,720px)] !max-w-[760px] sm:!max-w-[760px]' : 'h-[min(88vh,820px)] !max-w-[820px] sm:!max-w-[820px]'} w-[calc(100vw-2rem)] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800`}
       >
-        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
+        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
@@ -389,7 +365,7 @@ export function TaskFormDialog({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
+                className="h-9 rounded-2xl border-[#9A6B05]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 disabled={isSubmitting}
               >
                 {copy.common.close}

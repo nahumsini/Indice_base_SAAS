@@ -81,6 +81,35 @@ export const ptBR: KpisTranslations = {
         `A produtividade estimada e ${score}%. Vale revisar progresso, fechamentos e evidencia para elevar o desempenho.`,
     },
   },
+  signals: {
+    title: 'Sinais operacionais',
+    subtitle: 'Movimento do periodo, lacunas de atribuicao, idade das vencidas e fila de auditoria.',
+    comparison: {
+      title: 'Movimento do periodo',
+      previousRange: (from: string, to: string) => `Periodo anterior: ${from} - ${to}`,
+      unavailable: 'A comparacao nao esta disponivel para este filtro.',
+      completion: 'Fechamento',
+      overdue: 'Vencidas',
+      total: 'Volume',
+    },
+    unassigned: {
+      title: 'Abertas sem responsavel',
+      description: (open: number, overdue: number) => `${open} tarefas abertas nao tem responsavel; ${overdue} ja estao vencidas.`,
+      action: 'Revisar sem responsavel',
+    },
+    overdueAging: {
+      title: 'Idade das vencidas',
+      oneToThree: '1-3 dias',
+      fourToSeven: '4-7 dias',
+      eightPlus: '8+ dias',
+      action: 'Abrir vencidas',
+    },
+    pendingAudit: {
+      title: 'Fila de auditoria',
+      description: (pending: number, closed: number) => `${pending} de ${closed} tarefas fechadas ainda precisam de auditoria.`,
+      action: 'Revisar auditorias',
+    },
+  },
   cards: {
     productivity: {
       title: 'Produtividade operacional',
@@ -129,6 +158,22 @@ export const ptBR: KpisTranslations = {
     processTasks: 'Tarefas de processos',
     projectTasks: 'Tarefas de projetos',
     quality: 'Qualidade',
+  },
+  pdf: {
+    print: 'Imprimir PDF',
+    fileName: 'indice-kpis-operacionais.pdf',
+    title: 'Relatorio de KPIs operacionais',
+    generatedAt: (value: string) => `Gerado ${value}`,
+    delta: 'Variacao',
+    noComparison: 'Sem comparacao anterior',
+    noData: 'Sem dados para o filtro selecionado.',
+    signals: 'Sinais operacionais',
+    page: (current: number, total: number) => `Pagina ${current} de ${total}`,
+    columns: {
+      metric: 'Metrica',
+      value: 'Valor',
+      detail: 'Detalhe',
+    },
   },
   collaboratorsTable: {
     title: 'Desempenho dos colaboradores',
@@ -189,6 +234,7 @@ export const ptBR: KpisTranslations = {
   messages: {
     loadCatalogs: 'Nao foi possivel carregar os catalogos.',
     loadKpis: 'Nao foi possivel carregar os KPIs.',
+    printKpis: 'Nao foi possivel imprimir o PDF de KPIs.',
     empty: 'Nao ha informacao de KPIs para mostrar.',
     noInsight: 'Nao ha leitura operacional disponivel para o filtro atual.',
   },

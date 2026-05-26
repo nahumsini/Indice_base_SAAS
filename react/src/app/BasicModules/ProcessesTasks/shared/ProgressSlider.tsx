@@ -66,7 +66,7 @@ export function ProgressSlider({
         )}
       >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[rgb(250,204,21)]"
+          className="absolute inset-y-0 left-0 rounded-full bg-[#F4C84A]"
           style={{ width: `${draftValue}%` }}
         />
         <input

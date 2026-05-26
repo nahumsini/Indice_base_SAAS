@@ -236,9 +236,9 @@ public class ProjectsService {
         return getProject(companyId, projectId);
     }
 
-    public Map<String, Object> listProjectTasks(long companyId, long projectId) {
+    public Map<String, Object> listProjectTasks(long companyId, long userId, long projectId) {
         requireProject(companyId, projectId);
-        return processTasksService.listTasksForProject(companyId, projectId);
+        return processTasksService.listTasksForProject(companyId, userId, projectId);
     }
 
     public Map<String, Object> getProject(long companyId, long projectId) {

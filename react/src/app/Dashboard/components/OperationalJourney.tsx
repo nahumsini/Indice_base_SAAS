@@ -52,21 +52,22 @@ const statusIcons: Record<OperationalJourneyStageStatus, LucideIcon> = {
 
 const statusClasses: Record<OperationalJourneyStageStatus, string> = {
   completed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
-  active: 'border-[#558DBD]/50 bg-[#558DBD]/10 text-[#143675] ring-2 ring-[#558DBD]/10 dark:border-[#558DBD]/45 dark:bg-[#558DBD]/15 dark:text-[#b7d6ed]',
+  active: 'border-[#2563EB]/50 bg-[#2563EB]/10 text-[#2563EB] ring-2 ring-[#2563EB]/10 dark:border-[#2563EB]/45 dark:bg-[#2563EB]/15 dark:text-[#93C5FD]',
   pending: 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400',
   locked: 'border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500',
 };
 
 const moduleButtonClasses: Record<DashboardModuleColor, string> = {
   aqua: 'border-[#59C3A5]/35 bg-[#59C3A5]/10 text-[#257B68] hover:border-[#59C3A5] hover:bg-[#59C3A5] hover:text-white dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]',
-  blue: 'border-[#143675]/30 bg-[#143675]/10 text-[#143675] hover:border-[#143675] hover:bg-[#143675] hover:text-white dark:border-[#558DBD]/35 dark:bg-[#558DBD]/10 dark:text-[#b7d6ed]',
-  yellow: 'border-[#FFC300]/45 bg-[#FFC300]/10 text-[#8a6a00] hover:border-[#FFC300] hover:bg-[#FFC300] hover:text-[#3b2b00] dark:border-[#FFC300]/35 dark:bg-[#FFC300]/10 dark:text-[#ffd966]',
-  orange: 'border-orange-300 bg-orange-50 text-orange-700 hover:border-orange-500 hover:bg-orange-500 hover:text-white dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300',
+  blue: 'border-[#2563EB]/30 bg-[#2563EB]/10 text-[#2563EB] hover:border-[#2563EB] hover:bg-[#2563EB] hover:text-white dark:border-[#2563EB]/35 dark:bg-[#2563EB]/10 dark:text-[#93C5FD]',
+  coral: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32] hover:border-[#FF6B5E] hover:bg-[#FF6B5E] hover:text-white dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/10 dark:text-[#FFB0AA]',
+  yellow: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9A6B05] hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-[#222831] dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/10 dark:text-[#FEF3C7]',
+  orange: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32] hover:border-[#FF6B5E] hover:bg-[#FF6B5E] hover:text-white dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/10 dark:text-[#FFB0AA]',
   green: 'border-[#147514]/25 bg-emerald-50 text-[#147514] hover:border-[#147514] hover:bg-[#147514] hover:text-white dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
-  gray: 'border-[#558DBD]/30 bg-[#558DBD]/10 text-[#2b5d86] hover:border-[#558DBD] hover:bg-[#558DBD] hover:text-white dark:border-[#558DBD]/35 dark:bg-[#558DBD]/10 dark:text-[#b7d6ed]',
+  gray: 'border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-500 hover:bg-slate-600 hover:text-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300',
   purple: 'border-purple-300 bg-purple-50 text-purple-700 hover:border-purple-600 hover:bg-purple-600 hover:text-white dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300',
   red: 'border-red-300 bg-red-50 text-red-700 hover:border-red-500 hover:bg-red-500 hover:text-white dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300',
-  gold: 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500 hover:bg-amber-500 hover:text-white dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300',
+  gold: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9A6B05] hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-[#222831] dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/10 dark:text-[#FEF3C7]',
 };
 
 export function OperationalJourney({
@@ -84,11 +85,11 @@ export function OperationalJourney({
 
   return (
     <section aria-labelledby="operational-journey-title">
-      <Card className="overflow-hidden rounded-xl border border-[#558DBD]/25 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:border-[#558DBD]/25 dark:bg-slate-950/85">
+      <Card className="overflow-hidden rounded-xl border border-[#2563EB]/25 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:border-[#2563EB]/25 dark:bg-slate-950/85">
         <div className="flex flex-col gap-5 p-5 lg:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#558DBD]/25 bg-[#558DBD]/5 px-3 py-1 text-xs font-semibold text-[#143675] dark:border-[#558DBD]/30 dark:bg-[#558DBD]/10 dark:text-[#b7d6ed]">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#2563EB]/25 bg-[#2563EB]/5 px-3 py-1 text-xs font-semibold text-[#2563EB] dark:border-[#2563EB]/30 dark:bg-[#2563EB]/10 dark:text-[#93C5FD]">
                 <Check className="h-3.5 w-3.5" />
                 {copy.eyebrow}
               </div>
@@ -108,7 +109,7 @@ export function OperationalJourney({
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   <div
-                    className="h-full rounded-full bg-[#558DBD] transition-all duration-500"
+                    className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -141,7 +142,7 @@ export function OperationalJourney({
                   key={stage.id}
                   onMouseEnter={() => onStagePreview(stage.id)}
                   onFocusCapture={() => onStagePreview(stage.id)}
-                  className={`flex min-h-[168px] flex-col justify-between rounded-xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${statusClasses[stage.status]} ${isActive ? 'shadow-[0_14px_36px_rgba(85,141,189,0.16)]' : 'shadow-sm'}`}
+                  className={`flex min-h-[168px] flex-col justify-between rounded-xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${statusClasses[stage.status]} ${isActive ? 'shadow-[0_14px_36px_rgba(37,99,235,0.16)]' : 'shadow-sm'}`}
                 >
                   <button
                     type="button"
