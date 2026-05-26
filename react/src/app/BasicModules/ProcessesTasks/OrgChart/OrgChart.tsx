@@ -479,7 +479,7 @@ export default function OrgChart() {
 
   return (
     <>
-      <div className="bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15 rounded-lg p-6 mb-6 border border-[rgb(250,204,21)]/30 dark:border-[rgb(250,204,21)]/40">
+      <div className="bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15 rounded-lg p-6 mb-6 border border-[#F4C84A]/30 dark:border-[#F4C84A]/40">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
@@ -505,7 +505,7 @@ export default function OrgChart() {
                 {assignedCount} en organigrama · {availableCount} disponibles
               </p>
             </div>
-            <div className="rounded-full bg-[rgb(250,204,21)]/15 text-[rgb(113,63,18)] px-3 py-1 text-xs font-medium">
+            <div className="rounded-full bg-[#F4C84A]/15 text-[#9A6B05] px-3 py-1 text-xs font-medium">
               Drag & drop
             </div>
           </div>
@@ -534,12 +534,12 @@ export default function OrgChart() {
                   onClick={() => setSelectedNodeId(collaborator.id)}
                   className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${
                     isSelected
-                      ? 'border-[rgb(250,204,21)] bg-[rgb(250,204,21)]/10 ring-2 ring-[rgb(250,204,21)]/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-[rgb(250,204,21)]/50 hover:bg-gray-50 dark:hover:bg-gray-700/40'
+                      ? 'border-[#F4C84A] bg-[#F4C84A]/10 ring-2 ring-[#F4C84A]/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-[#F4C84A]/50 hover:bg-gray-50 dark:hover:bg-gray-700/40'
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-full bg-[rgb(250,204,21)]/15 text-[rgb(113,63,18)] flex items-center justify-center text-sm font-semibold shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-[#F4C84A]/15 text-[#9A6B05] flex items-center justify-center text-sm font-semibold shrink-0">
                       {getInitials(collaborator.name)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -581,7 +581,7 @@ export default function OrgChart() {
                     {selectedCollaborator.role} · {selectedCollaborator.title}
                   </p>
                 </div>
-                <Building2 className="h-5 w-5 text-[rgb(113,63,18)] shrink-0" />
+                <Building2 className="h-5 w-5 text-[#9A6B05] shrink-0" />
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm mb-4">
@@ -696,7 +696,7 @@ export default function OrgChart() {
               </Button>
               <Button
                 onClick={handleSave}
-                className="bg-[rgb(250,204,21)] hover:bg-[rgb(234,179,8)] text-slate-950 gap-2"
+                className="bg-[#F4C84A] hover:bg-[#E5B835] text-slate-950 gap-2"
               >
                 <Save className="h-4 w-4" />
                 Guardar
@@ -784,8 +784,8 @@ export default function OrgChart() {
                       onDrop={(event) => handleNodeDrop(event, assignment.collaboratorId)}
                       className={`absolute rounded-2xl border bg-white dark:bg-gray-900 px-4 py-3 text-left shadow-sm transition-all ${
                         selectedNodeId === assignment.collaboratorId
-                          ? 'border-[rgb(250,204,21)] ring-2 ring-[rgb(250,204,21)]/20 shadow-lg'
-                          : 'border-[rgb(250,204,21)]/80 hover:shadow-md'
+                          ? 'border-[#F4C84A] ring-2 ring-[#F4C84A]/20 shadow-lg'
+                          : 'border-[#F4C84A]/80 hover:shadow-md'
                       }`}
                       style={{
                         left: `${position.x}px`,
@@ -802,7 +802,7 @@ export default function OrgChart() {
                         {collaborator.title}
                       </p>
                       {reportCount > 0 && (
-                        <span className="absolute right-3 top-3 inline-flex items-center rounded-full bg-[rgb(250,204,21)]/15 px-2 py-0.5 text-[11px] font-medium text-[rgb(113,63,18)]">
+                        <span className="absolute right-3 top-3 inline-flex items-center rounded-full bg-[#F4C84A]/15 px-2 py-0.5 text-[11px] font-medium text-[#9A6B05]">
                           {reportCount}
                         </span>
                       )}

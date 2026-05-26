@@ -10,6 +10,7 @@ import type {
   PersonalPerformanceEngineReport,
 } from '../personalPerformanceEngine';
 import type { PersonalPerformancePdfCopy } from '../translations';
+import { IndiceEditorialBrand } from '../../BusinessProfile/BusinessDiagnosisPdf/IndiceEditorialBrand';
 
 import '../../BusinessProfile/BusinessDiagnosisPdf/businessDiagnosisPdf.css';
 
@@ -241,10 +242,7 @@ export function PersonalPerformancePdfDocument({
         <div className="bdpdf-page-card bdpdf-page-card--cover">
           <div className="bdpdf-editorial-cover">
             <header className="bdpdf-cover-document-header">
-              <div>
-                <strong>{editorial.indice}</strong>
-                <span>{editorial.humanCapacity}</span>
-              </div>
+              <IndiceEditorialBrand brand={editorial.indice} descriptor={editorial.humanCapacity} />
               <p>{reportId}</p>
             </header>
 
@@ -304,7 +302,7 @@ export function PersonalPerformancePdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorial.indice}</span>
+              <IndiceEditorialBrand brand={editorial.indice} compact />
               <span>{editorial.humanCapacity}</span>
             </header>
 
@@ -342,7 +340,7 @@ export function PersonalPerformancePdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorial.indice}</span>
+              <IndiceEditorialBrand brand={editorial.indice} compact />
               <span>{formattedDate}</span>
             </header>
 
@@ -404,7 +402,7 @@ export function PersonalPerformancePdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorial.indice}</span>
+              <IndiceEditorialBrand brand={editorial.indice} compact />
               <span>{editorial.humanCapacity}</span>
             </header>
 
@@ -459,7 +457,7 @@ export function PersonalPerformancePdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorial.indice}</span>
+              <IndiceEditorialBrand brand={editorial.indice} compact />
               <span>{formattedDate}</span>
             </header>
 
@@ -508,7 +506,7 @@ export function PersonalPerformancePdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorial.indice}</span>
+              <IndiceEditorialBrand brand={editorial.indice} compact />
               <span>{reportId}</span>
             </header>
 

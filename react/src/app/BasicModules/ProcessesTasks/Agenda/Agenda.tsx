@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router';
 import {
   ArrowDown,
   ArrowUp,
@@ -97,12 +98,22 @@ import {
 } from '../Kiosk/processTaskKioskApi';
 import { ProgressSlider } from '../shared/ProgressSlider';
 import { useRowSelection } from '../shared/useRowSelection';
+import {
+  collaboratorCanReceiveAssignment,
+  defaultTaskScopeForActor,
+  filterBusinessesForActor,
+  filterUnitsForActor,
+  resolveCollaboratorAssignmentScope,
+} from '../shared/assignmentScope';
 
 type PeriodFilter = 'mine' | 'team' | 'week' | 'month' | 'overdue' | 'custom';
 type DisplayTaskStatus = TaskStatus | 'overdue' | 'audited';
-type StatusFilter = 'all' | DisplayTaskStatus;
+type OpenStatusFilter = 'open';
+type AuditPendingStatusFilter = 'pending_audit';
+type StatusFilter = 'all' | DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter;
 type OptionFilter = 'all' | string;
 type AgendaViewMode = 'table' | 'kanban' | 'diagram';
+type AgendaScheduleViewMode = 'day' | 'week' | 'list';
 type AgendaColumnId =
   | 'folio'
   | 'type'
@@ -127,6 +138,11 @@ type AgendaFixedColumnId = 'actions';
 type AgendaTableColumnId = AgendaColumnId | AgendaFixedColumnId;
 type AgendaSortDirection = 'asc' | 'desc';
 type AgendaSortValue = string | number | null;
+type AgendaSchedulePlacement = {
+  date: string;
+  hour: string | null;
+};
+type AgendaSchedulePlacements = Record<string, AgendaSchedulePlacement>;
 type AgendaKanbanColumnId =
   | 'overdue'
   | 'pending'
@@ -180,6 +196,19 @@ const agendaDisplayStatusClasses: Record<DisplayTaskStatus, string> = {
     'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300',
 };
 
+const agendaPeriodFilterValues: PeriodFilter[] = ['mine', 'team', 'week', 'month', 'overdue', 'custom'];
+const agendaStatusFilterValues: Array<DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter> = [
+  'open',
+  'pending',
+  'in_progress',
+  'paused',
+  'completed',
+  'pending_audit',
+  'audited',
+  'overdue',
+  'cancelled',
+];
+
 const allPastStartDate = '1970-01-01';
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
@@ -187,14 +216,46 @@ const UNASSIGNED_RESPONSIBLE_VALUE = '__unassigned__';
 const NO_PROJECT_VALUE = '__no_project__';
 const agendaColumnsStorageKey = 'processes-tasks-agenda-columns-v2';
 const agendaColumnWidthsStorageKey = 'processes-tasks-agenda-column-widths-v2';
+const agendaScheduleStorageKey = 'processes-tasks-agenda-schedule-v1';
 const agendaSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
 const maximumAuditWeighting = 5;
+
+function isAgendaPeriodFilter(value: string | null): value is PeriodFilter {
+  return agendaPeriodFilterValues.includes(value as PeriodFilter);
+}
+
+function isAgendaStatusFilter(value: string | null): value is StatusFilter {
+  return value === 'all' || agendaStatusFilterValues.includes(value as DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter);
+}
+
+function isDateInputValue(value: string | null) {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function agendaDeepLinkFilters(search: string) {
+  const params = new URLSearchParams(search);
+  const period = params.get('period');
+  const status = params.get('status');
+  const from = params.get('from');
+  const to = params.get('to');
+
+  return {
+    period: isAgendaPeriodFilter(period) ? period : null,
+    status: isAgendaStatusFilter(status) ? status : null,
+    unit: params.get('unit'),
+    business: params.get('business'),
+    collaborator: params.get('collaborator'),
+    from: isDateInputValue(from) ? from : null,
+    to: isDateInputValue(to) ? to : null,
+  };
+}
 const selectionColumnWidth = 64;
 const agendaPrioritySortRank: Record<TaskPriority, number> = {
   high: 3,
   medium: 2,
   low: 1,
 };
+const agendaScheduleHours = Array.from({ length: 13 }, (_, index) => `${String(index + 8).padStart(2, '0')}:00`);
 type AgendaKanbanColumn = {
   id: AgendaKanbanColumnId;
   label: string;
@@ -398,6 +459,39 @@ function getInitialAgendaColumnWidths() {
   }
 }
 
+function getInitialAgendaSchedulePlacements(): AgendaSchedulePlacements {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  try {
+    const rawPlacements = window.localStorage.getItem(agendaScheduleStorageKey);
+    if (!rawPlacements) {
+      return {};
+    }
+
+    const parsedPlacements = JSON.parse(rawPlacements) as Record<string, Partial<AgendaSchedulePlacement>>;
+    const restoredPlacements: AgendaSchedulePlacements = {};
+
+    Object.entries(parsedPlacements).forEach(([taskId, placement]) => {
+      if (!placement?.date || typeof placement.date !== 'string') {
+        return;
+      }
+
+      restoredPlacements[taskId] = {
+        date: placement.date,
+        hour: typeof placement.hour === 'string' && agendaScheduleHours.includes(placement.hour)
+          ? placement.hour
+          : null,
+      };
+    });
+
+    return restoredPlacements;
+  } catch {
+    return {};
+  }
+}
+
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
@@ -491,6 +585,22 @@ function getTaskDisplayStatus(task: AgendaTaskItem): DisplayTaskStatus {
   }
 
   return isTaskOverdue(task) ? 'overdue' : task.status;
+}
+
+function taskMatchesStatusFilter(task: AgendaTaskItem, filter: StatusFilter) {
+  if (filter === 'all') {
+    return task.status !== 'cancelled';
+  }
+
+  if (filter === 'open') {
+    return task.status === 'pending' || task.status === 'in_progress' || task.status === 'paused';
+  }
+
+  if (filter === 'pending_audit') {
+    return task.status === 'completed' && !task.audited;
+  }
+
+  return getTaskDisplayStatus(task) === filter;
 }
 
 function getTaskKanbanColumnId(task: AgendaTaskItem): AgendaKanbanColumnId {
@@ -777,7 +887,9 @@ function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOp
     name,
     email: user.email,
     unitId: user.unit_id ?? null,
+    unitName: compactText(user.unit_name),
     businessId: user.business_id ?? null,
+    businessName: compactText(user.business_name),
   };
 }
 
@@ -851,8 +963,9 @@ function addParticipantFilterOption(
   });
 }
 
-function agendaParticipantOptions(tasks: AgendaTaskItem[]) {
+function agendaParticipantOptions(tasks: AgendaTaskItem[], unassignedLabel: string) {
   const optionMap = new Map<string, AgendaParticipantFilterOption>();
+  let hasUnassignedResponsible = false;
 
   tasks.forEach((task) => {
     addParticipantFilterOption(optionMap, {
@@ -864,12 +977,30 @@ function agendaParticipantOptions(tasks: AgendaTaskItem[]) {
       userId: task.assignedUserId,
       userCompanyId: task.assignedUserCompanyId,
     });
+
+    if (task.assignedUserCompanyId == null) {
+      hasUnassignedResponsible = true;
+    }
   });
+
+  if (hasUnassignedResponsible) {
+    optionMap.set(UNASSIGNED_RESPONSIBLE_VALUE, {
+      value: UNASSIGNED_RESPONSIBLE_VALUE,
+      label: unassignedLabel,
+      userId: null,
+      userCompanyId: null,
+      normalizedName: '',
+    });
+  }
 
   return Array.from(optionMap.values()).sort((left, right) => left.label.localeCompare(right.label));
 }
 
 function taskMatchesParticipantFilter(task: AgendaTaskItem, option: AgendaParticipantFilterOption) {
+  if (option.value === UNASSIGNED_RESPONSIBLE_VALUE) {
+    return task.assignedUserCompanyId == null;
+  }
+
   if (option.userId != null) {
     return task.createdBy === option.userId || task.assignedUserId === option.userId;
   }
@@ -951,11 +1082,11 @@ function AgendaColumnResizeHandle({
       aria-label={resizeLabel}
       onMouseDown={(event) => onResizeStart(event, columnId)}
       className={cn(
-        'absolute bottom-0 right-0 top-0 flex w-3 cursor-col-resize items-center justify-center opacity-0 transition-opacity hover:bg-[rgb(250,204,21)]/20 group-hover:opacity-100',
-        resizingColumn === columnId && 'bg-[rgb(250,204,21)]/25 opacity-100',
+        'absolute bottom-0 right-0 top-0 flex w-3 cursor-col-resize items-center justify-center opacity-0 transition-opacity hover:bg-[#F4C84A]/20 group-hover:opacity-100',
+        resizingColumn === columnId && 'bg-[#F4C84A]/25 opacity-100',
       )}
     >
-      <GripVertical className="h-4 w-4 text-[rgb(113,63,18)]" />
+      <GripVertical className="h-4 w-4 text-[#9A6B05]" />
     </button>
   );
 }
@@ -991,14 +1122,14 @@ function AgendaSortableTableHead({
       <div className="flex min-w-0 items-center justify-between gap-3 pr-2">
         <button
           type="button"
-          className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(113,63,18)] dark:text-slate-400"
+          className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
           onClick={() => onSort(columnId)}
         >
           <span className="truncate">{column.label}</span>
           <SortIcon
             className={cn(
               'h-4 w-4 shrink-0',
-              isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400',
+              isActiveSort ? 'text-[#9A6B05]' : 'text-slate-400',
             )}
           />
         </button>
@@ -1212,43 +1343,8 @@ function buildAgendaOptimisticPatch(
   };
 }
 
-function isHeadquarterUnitName(name: string) {
-  const normalizedName = name.trim().toLowerCase();
-  return (
-    normalizedName === 'headquarter' ||
-    normalizedName === 'headquarters' ||
-    normalizedName === 'headquater' ||
-    normalizedName.includes('headquarter')
-  );
-}
-
 function businessMatchesUnit(business: ProcessBusinessOption, unitId: number | null) {
   return unitId == null || business.unitId == null || business.unitId === unitId;
-}
-
-function collaboratorCanReceiveAssignment(
-  collaborator: ProcessCollaboratorOption,
-  unitId: number | null,
-  businessId: number | null,
-  headquarterUnitIds: Set<number>,
-) {
-  if (collaborator.unitId != null && headquarterUnitIds.has(collaborator.unitId)) {
-    return true;
-  }
-
-  if (unitId == null && businessId == null) {
-    return true;
-  }
-
-  if (businessId != null && collaborator.businessId != null) {
-    return collaborator.businessId === businessId;
-  }
-
-  if (unitId != null && collaborator.unitId != null) {
-    return collaborator.unitId === unitId;
-  }
-
-  return false;
 }
 
 function projectLabel(project: ProjectRecord) {
@@ -1310,37 +1406,60 @@ function dateFromTimelineValue(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function daysBetweenDates(start: Date, end: Date) {
-  const startAtMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-  const endAtMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-  const millisecondsPerDay = 24 * 60 * 60 * 1000;
-  return Math.round((endAtMidnight.getTime() - startAtMidnight.getTime()) / millisecondsPerDay);
+function scheduleDateKeyFromValue(value: string | null | undefined) {
+  const date = dateFromTimelineValue(value);
+  return date ? toDateInputValue(date) : null;
 }
 
-function buildTimelineDays(start: Date, end: Date, maxDays = 31) {
-  const span = Math.max(0, Math.min(maxDays - 1, daysBetweenDates(start, end)));
-  return Array.from({ length: span + 1 }, (_, index) => addDays(start, index));
+function getTaskScheduleDateKey(task: AgendaTaskItem) {
+  return scheduleDateKeyFromValue(task.dueDate ?? task.agendaDate ?? task.startDate ?? task.createdAt);
 }
 
-function getTaskTimelineRange(task: AgendaTaskItem, timelineStart: Date, timelineEnd: Date, dayCount: number) {
-  const startDate = dateFromTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate);
-  const endDate = dateFromTimelineValue(task.dueDate ?? task.agendaDate ?? task.startDate);
+function scheduleCellKey(dateKey: string, hour: string) {
+  return `${dateKey}-${hour}`;
+}
 
-  if (!startDate && !endDate) {
+function dateInputValueToDate(value: string) {
+  return new Date(`${value}T00:00:00`);
+}
+
+function getWeekDateKeys(dateKey: string) {
+  const weekStart = startOfWeek(dateInputValueToDate(dateKey));
+  return Array.from({ length: 7 }, (_, index) => toDateInputValue(addDays(weekStart, index)));
+}
+
+function formatScheduleDayLabel(dateKey: string, format: 'short' | 'long' = 'short') {
+  return new Intl.DateTimeFormat('es-MX', {
+    weekday: format === 'short' ? 'short' : 'long',
+    day: 'numeric',
+    month: 'short',
+  }).format(dateInputValueToDate(dateKey));
+}
+
+function formatScheduleWeekRange(dateKeys: string[]) {
+  const firstDate = dateKeys[0];
+  const lastDate = dateKeys[dateKeys.length - 1];
+
+  if (!firstDate || !lastDate) {
+    return '';
+  }
+
+  return `${formatScheduleDayLabel(firstDate)} - ${formatScheduleDayLabel(lastDate)}`;
+}
+
+function normalizeScheduleHourInput(value: string) {
+  if (!value) {
     return null;
   }
 
-  const rawStart = startDate ?? endDate!;
-  const rawEnd = endDate ?? startDate!;
-  const normalizedStart = rawStart > timelineEnd ? timelineEnd : rawStart < timelineStart ? timelineStart : rawStart;
-  const normalizedEnd = rawEnd < timelineStart ? timelineStart : rawEnd > timelineEnd ? timelineEnd : rawEnd;
-  const startOffset = Math.max(0, daysBetweenDates(timelineStart, normalizedStart));
-  const endOffset = Math.max(startOffset, daysBetweenDates(timelineStart, normalizedEnd));
+  const [rawHour] = value.split(':');
+  const hour = Number(rawHour);
 
-  return {
-    startOffset,
-    span: Math.max(1, Math.min(dayCount - startOffset, endOffset - startOffset + 1)),
-  };
+  if (!Number.isFinite(hour)) {
+    return null;
+  }
+
+  return `${String(Math.max(0, Math.min(23, hour))).padStart(2, '0')}:00`;
 }
 
 function reportValue(value: string | number | null | undefined, fallback: string) {
@@ -1379,6 +1498,8 @@ function taskReportRows(task: AgendaTaskItem, copy: AgendaTranslations) {
 }
 
 export default function Agenda() {
+  const location = useLocation();
+  const initialDeepLinkFilters = agendaDeepLinkFilters(location.search);
   const agendaCopy = useAgendaTranslations();
   const headerCopy = agendaCopy.header;
   const periodLabels = agendaCopy.periods;
@@ -1396,10 +1517,12 @@ export default function Agenda() {
     [agendaCopy],
   );
   const agendaKanbanColumns = useMemo(() => createAgendaKanbanColumns(agendaCopy), [agendaCopy]);
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('mine');
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(initialDeepLinkFilters.period ?? 'mine');
   const [viewMode, setViewMode] = useState<AgendaViewMode>('table');
-  const [customDateFrom, setCustomDateFrom] = useState(() => toDateInputValue(new Date()));
-  const [customDateTo, setCustomDateTo] = useState(() => toDateInputValue(new Date()));
+  const [scheduleViewMode, setScheduleViewMode] = useState<AgendaScheduleViewMode>('day');
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState(() => toDateInputValue(new Date()));
+  const [customDateFrom, setCustomDateFrom] = useState(() => initialDeepLinkFilters.from ?? toDateInputValue(new Date()));
+  const [customDateTo, setCustomDateTo] = useState(() => initialDeepLinkFilters.to ?? toDateInputValue(new Date()));
   const [tasks, setTasks] = useState<AgendaTaskItem[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState(true);
@@ -1421,11 +1544,15 @@ export default function Agenda() {
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [unitFilter, setUnitFilter] = useState<OptionFilter>('all');
-  const [businessFilter, setBusinessFilter] = useState<OptionFilter>('all');
+  const [scheduleDraggingTaskId, setScheduleDraggingTaskId] = useState<number | null>(null);
+  const [agendaSchedulePlacements, setAgendaSchedulePlacements] = useState<AgendaSchedulePlacements>(() =>
+    getInitialAgendaSchedulePlacements(),
+  );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialDeepLinkFilters.status ?? 'all');
+  const [unitFilter, setUnitFilter] = useState<OptionFilter>(initialDeepLinkFilters.unit ?? 'all');
+  const [businessFilter, setBusinessFilter] = useState<OptionFilter>(initialDeepLinkFilters.business ?? 'all');
   const [projectFilter, setProjectFilter] = useState<OptionFilter>('all');
-  const [collaboratorFilter, setCollaboratorFilter] = useState<OptionFilter>('all');
+  const [collaboratorFilter, setCollaboratorFilter] = useState<OptionFilter>(initialDeepLinkFilters.collaborator ?? 'all');
   const [processes, setProcesses] = useState<ProcessRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [catalogUnits, setCatalogUnits] = useState<ProcessUnitOption[]>([]);
@@ -1459,6 +1586,32 @@ export default function Agenda() {
     () => periodRange(periodFilter, customDateFrom, customDateTo),
     [customDateFrom, customDateTo, periodFilter],
   );
+
+  useEffect(() => {
+    const filters = agendaDeepLinkFilters(location.search);
+
+    if (filters.period) {
+      setPeriodFilter(filters.period);
+    }
+    if (filters.from) {
+      setCustomDateFrom(filters.from);
+    }
+    if (filters.to) {
+      setCustomDateTo(filters.to);
+    }
+    if (filters.status) {
+      setStatusFilter(filters.status);
+    }
+    if (filters.unit) {
+      setUnitFilter(filters.unit);
+    }
+    if (filters.business) {
+      setBusinessFilter(filters.business);
+    }
+    if (filters.collaborator) {
+      setCollaboratorFilter(filters.collaborator);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1559,19 +1712,6 @@ export default function Agenda() {
     }
   };
 
-  const handleRotateTaskKiosk = async (kiosk: ProcessTaskKiosk) => {
-    setIsTaskKioskSaving(true);
-    setAgendaError(null);
-    try {
-      await processTaskKioskApi.rotateToken(kiosk.id);
-      await loadTaskKiosks();
-    } catch (error) {
-      setAgendaError(getErrorMessage(error, 'Could not reset task access link.'));
-    } finally {
-      setIsTaskKioskSaving(false);
-    }
-  };
-
   const handleCopyTaskKiosk = (kiosk: ProcessTaskKiosk) => {
     const url = publicTaskKioskUrl(kiosk);
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -1606,6 +1746,14 @@ export default function Agenda() {
 
     window.localStorage.setItem(agendaColumnWidthsStorageKey, JSON.stringify(agendaColumnWidths));
   }, [agendaColumnWidths]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(agendaScheduleStorageKey, JSON.stringify(agendaSchedulePlacements));
+  }, [agendaSchedulePlacements]);
 
   useEffect(() => {
     if (!resizingColumn) {
@@ -1722,36 +1870,13 @@ export default function Agenda() {
     [projectFilter, tasksMatchingSelectedBusiness],
   );
   const collaboratorOptions = useMemo(
-    () => agendaParticipantOptions(tasksMatchingSelectedProject),
-    [tasksMatchingSelectedProject],
+    () => agendaParticipantOptions(tasksMatchingSelectedProject, agendaCopy.common.unassigned),
+    [agendaCopy.common.unassigned, tasksMatchingSelectedProject],
   );
   const collaboratorOptionMap = useMemo(
     () => new Map(collaboratorOptions.map((option) => [option.value, option])),
     [collaboratorOptions],
   );
-  const headquarterUnitIds = useMemo(
-    () =>
-      new Set(
-        catalogUnits
-          .filter((unit) => isHeadquarterUnitName(unit.name))
-          .map((unit) => unit.id),
-      ),
-    [catalogUnits],
-  );
-
-  const businessOptionsForUnit = useCallback(
-    (unitId: number | null) => catalogBusinesses.filter((business) => businessMatchesUnit(business, unitId)),
-    [catalogBusinesses],
-  );
-
-  const collaboratorOptionsForScope = useCallback(
-    (unitId: number | null, businessId: number | null) =>
-      catalogCollaborators.filter((collaborator) =>
-        collaboratorCanReceiveAssignment(collaborator, unitId, businessId, headquarterUnitIds),
-      ),
-    [catalogCollaborators, headquarterUnitIds],
-  );
-
   const currentUserCollaborator = useMemo(
     () =>
       currentUserId == null
@@ -1759,9 +1884,34 @@ export default function Agenda() {
         : catalogCollaborators.find((collaborator) => collaborator.userId === currentUserId) ?? null,
     [catalogCollaborators, currentUserId],
   );
+  const currentAssignmentScope = useMemo(
+    () => resolveCollaboratorAssignmentScope(currentUserCollaborator),
+    [currentUserCollaborator],
+  );
+  const scopedCatalogUnits = useMemo(
+    () => filterUnitsForActor(catalogUnits, catalogBusinesses, currentAssignmentScope),
+    [catalogBusinesses, catalogUnits, currentAssignmentScope],
+  );
+  const scopedCatalogBusinesses = useMemo(
+    () => filterBusinessesForActor(catalogBusinesses, currentAssignmentScope),
+    [catalogBusinesses, currentAssignmentScope],
+  );
+  const businessOptionsForUnit = useCallback(
+    (unitId: number | null) => scopedCatalogBusinesses.filter((business) => businessMatchesUnit(business, unitId)),
+    [scopedCatalogBusinesses],
+  );
+
+  const collaboratorOptionsForScope = useCallback(
+    (unitId: number | null, businessId: number | null) =>
+      catalogCollaborators.filter((collaborator) =>
+        collaboratorCanReceiveAssignment(collaborator, unitId, businessId, catalogBusinesses),
+      ),
+    [catalogBusinesses, catalogCollaborators],
+  );
 
   const createDefaultTaskFormForCurrentUser = () => {
     const defaultForm = createDefaultTaskForm();
+    const defaultScope = defaultTaskScopeForActor(currentUserCollaborator);
 
     if (!currentUserCollaborator) {
       return defaultForm;
@@ -1771,6 +1921,8 @@ export default function Agenda() {
       ...defaultForm,
       assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
       assignedName: currentUserCollaborator.name,
+      unitId: defaultScope.unitId?.toString() ?? '',
+      businessId: defaultScope.businessId?.toString() ?? '',
     };
   };
 
@@ -1788,33 +1940,48 @@ export default function Agenda() {
         ...currentForm,
         assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
         assignedName: currentUserCollaborator.name,
+        unitId: currentForm.unitId || defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() || '',
+        businessId:
+          currentForm.businessId || defaultTaskScopeForActor(currentUserCollaborator).businessId?.toString() || '',
       };
     });
   }, [currentUserCollaborator, isTaskDialogOpen, taskDialogMode]);
 
   useEffect(() => {
+    if (isLoadingTasks) {
+      return;
+    }
     if (unitFilter !== 'all' && !unitOptions.includes(unitFilter)) {
       setUnitFilter('all');
     }
-  }, [unitFilter, unitOptions]);
+  }, [isLoadingTasks, unitFilter, unitOptions]);
 
   useEffect(() => {
+    if (isLoadingTasks) {
+      return;
+    }
     if (businessFilter !== 'all' && !businessOptions.includes(businessFilter)) {
       setBusinessFilter('all');
     }
-  }, [businessFilter, businessOptions]);
+  }, [businessFilter, businessOptions, isLoadingTasks]);
 
   useEffect(() => {
+    if (isLoadingTasks) {
+      return;
+    }
     if (collaboratorFilter !== 'all' && !collaboratorOptionMap.has(collaboratorFilter)) {
       setCollaboratorFilter('all');
     }
-  }, [collaboratorFilter, collaboratorOptionMap]);
+  }, [collaboratorFilter, collaboratorOptionMap, isLoadingTasks]);
 
   useEffect(() => {
+    if (isLoadingTasks) {
+      return;
+    }
     if (projectFilter !== 'all' && !projectOptionMap.has(projectFilter)) {
       setProjectFilter('all');
     }
-  }, [projectFilter, projectOptionMap]);
+  }, [isLoadingTasks, projectFilter, projectOptionMap]);
 
   const resetTaskForm = () => {
     setTaskForm(createDefaultTaskForm());
@@ -1997,7 +2164,7 @@ export default function Agenda() {
 
     if (
       !currentCollaborator ||
-      collaboratorCanReceiveAssignment(currentCollaborator, unitId, businessId, headquarterUnitIds)
+      collaboratorCanReceiveAssignment(currentCollaborator, unitId, businessId, catalogBusinesses)
     ) {
       return {};
     }
@@ -2014,7 +2181,7 @@ export default function Agenda() {
       typeof parsedUnitId === 'number' && Number.isFinite(parsedUnitId) ? parsedUnitId : null;
     const currentBusiness =
       task.businessId != null
-        ? catalogBusinesses.find((business) => business.id === task.businessId)
+        ? scopedCatalogBusinesses.find((business) => business.id === task.businessId)
         : undefined;
     const nextBusinessId =
       currentBusiness && businessMatchesUnit(currentBusiness, nextUnitId) ? task.businessId : null;
@@ -2030,7 +2197,7 @@ export default function Agenda() {
     const selectedBusiness =
       value === NO_BUSINESS_VALUE
         ? null
-        : catalogBusinesses.find((business) => business.id === Number(value)) ?? null;
+        : scopedCatalogBusinesses.find((business) => business.id === Number(value)) ?? null;
     const nextBusinessId = selectedBusiness?.id ?? null;
     const nextUnitId = selectedBusiness?.unitId ?? task.unitId ?? null;
 
@@ -2382,7 +2549,7 @@ export default function Agenda() {
     return tasksMatchingSelectedProject.filter((task) => {
       const matchesCollaborator =
         selectedCollaborator == null || taskMatchesParticipantFilter(task, selectedCollaborator);
-      const matchesStatus = statusFilter === 'all' || getTaskDisplayStatus(task) === statusFilter;
+      const matchesStatus = taskMatchesStatusFilter(task, statusFilter);
 
       return matchesCollaborator && matchesStatus;
     });
@@ -2402,36 +2569,74 @@ export default function Agenda() {
       })
       .map(({ task }) => task);
   }, [agendaCopy, filteredTasks, sortState.columnId, sortState.direction]);
-  const agendaTimeline = useMemo(() => {
-    const taskDates = sortedTasks.flatMap((task) => [
-      dateFromTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate),
-      dateFromTimelineValue(task.dueDate ?? task.agendaDate ?? task.startDate),
-    ]).filter((date): date is Date => date !== null);
-    const today = new Date();
-    const fallbackStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const earliestDate = taskDates.length > 0
-      ? new Date(Math.min(...taskDates.map((date) => date.getTime())))
-      : fallbackStart;
-    const latestDate = taskDates.length > 0
-      ? new Date(Math.max(...taskDates.map((date) => date.getTime())))
-      : addDays(fallbackStart, 13);
-    const timelineStart = earliestDate;
-    const timelineEnd = daysBetweenDates(earliestDate, latestDate) > 30 ? addDays(earliestDate, 30) : latestDate;
-    const days = buildTimelineDays(timelineStart, timelineEnd);
-
-    return {
-      days,
-      start: timelineStart,
-      end: timelineEnd,
-    };
-  }, [sortedTasks]);
-
+  const sortedTaskMap = useMemo(
+    () => new Map(sortedTasks.map((task) => [task.taskId, task])),
+    [sortedTasks],
+  );
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => task.taskId), [sortedTasks]);
   const visibleTaskSelection = rowSelection.visibleSelectionState(visibleTaskIds);
   const selectedTasks = useMemo(
     () => tasks.filter((task) => rowSelection.selectedIds.has(task.taskId)),
     [rowSelection.selectedIds, tasks],
   );
+  const scheduleTaskPlacement = useCallback(
+    (dateKey: string, hour: string | null) => {
+      if (scheduleDraggingTaskId == null) {
+        return;
+      }
+
+      setAgendaSchedulePlacements((currentPlacements) => ({
+        ...currentPlacements,
+        [String(scheduleDraggingTaskId)]: { date: dateKey, hour },
+      }));
+      setScheduleDraggingTaskId(null);
+    },
+    [scheduleDraggingTaskId],
+  );
+
+  const scheduleTaskDatePlacement = useCallback(
+    (dateKey: string) => {
+      if (scheduleDraggingTaskId == null) {
+        return;
+      }
+
+      const currentPlacement = agendaSchedulePlacements[String(scheduleDraggingTaskId)];
+
+      setAgendaSchedulePlacements((currentPlacements) => ({
+        ...currentPlacements,
+        [String(scheduleDraggingTaskId)]: { date: dateKey, hour: currentPlacement?.hour ?? null },
+      }));
+      setScheduleDraggingTaskId(null);
+    },
+    [agendaSchedulePlacements, scheduleDraggingTaskId],
+  );
+
+  const updateTaskSchedulePlacement = useCallback((taskId: number, dateKey: string, hour: string | null) => {
+    setAgendaSchedulePlacements((currentPlacements) => ({
+      ...currentPlacements,
+      [String(taskId)]: { date: dateKey, hour },
+    }));
+  }, []);
+
+  const unscheduleDraggedTask = useCallback((dateKeyOverride?: string) => {
+    if (scheduleDraggingTaskId == null) {
+      return;
+    }
+
+    const draggedTask = sortedTaskMap.get(scheduleDraggingTaskId);
+    const currentPlacement = agendaSchedulePlacements[String(scheduleDraggingTaskId)];
+    const dateKey =
+      dateKeyOverride ??
+      currentPlacement?.date ??
+      (draggedTask ? getTaskScheduleDateKey(draggedTask) : null) ??
+      todayAgendaValue;
+
+    setAgendaSchedulePlacements((currentPlacements) => ({
+      ...currentPlacements,
+      [String(scheduleDraggingTaskId)]: { date: dateKey, hour: null },
+    }));
+    setScheduleDraggingTaskId(null);
+  }, [agendaSchedulePlacements, scheduleDraggingTaskId, sortedTaskMap, todayAgendaValue]);
 
   useEffect(() => {
     rowSelection.pruneSelection(tasks.map((task) => task.taskId));
@@ -2653,7 +2858,7 @@ export default function Agenda() {
         );
       case 'unit': {
         const unitSelectValue = task.unitId != null ? String(task.unitId) : NO_UNIT_VALUE;
-        const currentUnitMissing = task.unitId != null && !catalogUnits.some((unit) => unit.id === task.unitId);
+        const currentUnitMissing = task.unitId != null && !scopedCatalogUnits.some((unit) => unit.id === task.unitId);
 
         return (
           <Select
@@ -2671,7 +2876,7 @@ export default function Agenda() {
                   {task.unitName ?? `${agendaCopy.form.labels.unit} #${task.unitId}`}
                 </SelectItem>
               ) : null}
-              {catalogUnits.map((unit) => (
+              {scopedCatalogUnits.map((unit) => (
                 <SelectItem key={unit.id} value={String(unit.id)}>
                   {unit.name}
                 </SelectItem>
@@ -2883,7 +3088,7 @@ export default function Agenda() {
             title={agendaCopy.actions.files}
             disabled={pending}
             onClick={() => setAttachmentsTask(task)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 px-3 py-2 text-sm font-semibold text-[rgb(113,63,18)] transition-colors hover:border-[rgb(250,204,21)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)] dark:hover:bg-[rgb(250,204,21)] dark:hover:text-slate-950"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-sm font-semibold text-[#9A6B05] transition-colors hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
           >
             <FolderOpen className="h-4 w-4" />
             {task.attachments}
@@ -3029,7 +3234,7 @@ export default function Agenda() {
           </div>
           <Badge
             variant="outline"
-            className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]"
+            className="w-fit rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]"
           >
             {agendaCopy.kanban.filteredBadge}
           </Badge>
@@ -3057,7 +3262,7 @@ export default function Agenda() {
                   className={cn(
                     'flex min-h-[520px] flex-col rounded-2xl border p-3 transition-colors',
                     column.accentClassName,
-                    draggedTaskIsActive && 'ring-2 ring-[rgb(250,204,21)]/25',
+                    draggedTaskIsActive && 'ring-2 ring-[#F4C84A]/25',
                   )}
                   onDragOver={(event) => {
                     if (column.acceptsDrop) {
@@ -3156,7 +3361,7 @@ export default function Agenda() {
                             </div>
                             <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                               <div
-                                className="h-full rounded-full bg-[rgb(250,204,21)]"
+                                className="h-full rounded-full bg-[#F4C84A]"
                                 style={{ width: `${clampPercent(task.completionPercent)}%` }}
                               />
                             </div>
@@ -3189,7 +3394,7 @@ export default function Agenda() {
                               label={agendaCopy.actions.files}
                               onClick={() => setAttachmentsTask(task)}
                               disabled={pending}
-                              className="border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 text-[rgb(113,63,18)] hover:bg-[rgb(250,204,21)] hover:text-slate-950"
+                              className="border-[#F4C84A]/30 bg-[#F4C84A]/10 text-[#9A6B05] hover:bg-[#F4C84A] hover:text-slate-950"
                               icon={<FolderOpen className="h-4 w-4" />}
                             />
                             <TableActionButton
@@ -3221,120 +3426,460 @@ export default function Agenda() {
   );
 
   const renderAgendaDiagram = () => {
-    const dayCount = Math.max(agendaTimeline.days.length, 1);
+    const scheduleCopy = agendaCopy.schedule;
+    const weekDateKeys = getWeekDateKeys(selectedScheduleDate);
+    const scheduleDateKeys = scheduleViewMode === 'day' ? [selectedScheduleDate] : weekDateKeys;
+    const scheduleDayKeySet = new Set(scheduleDateKeys);
+    const todayDateKey = todayAgendaValue;
+    const weekRangeLabel = formatScheduleWeekRange(weekDateKeys);
+    const taskScheduleMap = new Map<number, AgendaSchedulePlacement>();
+    const scheduledTasksByCell = new Map<string, AgendaTaskItem[]>();
+    const visibleScheduleTasks: AgendaTaskItem[] = [];
 
-    return (
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{headerCopy.actions.diagram}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {agendaCopy.kanban.visibleTasks(sortedTasks.length)}
+    sortedTasks.forEach((task) => {
+      const storedPlacement = agendaSchedulePlacements[String(task.taskId)];
+      const dateKey = storedPlacement?.date ?? getTaskScheduleDateKey(task) ?? selectedScheduleDate;
+      const hour = storedPlacement?.hour && agendaScheduleHours.includes(storedPlacement.hour)
+        ? storedPlacement.hour
+        : null;
+
+      taskScheduleMap.set(task.taskId, { date: dateKey, hour });
+
+      if (!scheduleDayKeySet.has(dateKey)) {
+        return;
+      }
+
+      visibleScheduleTasks.push(task);
+
+      if (hour) {
+        const cellKey = scheduleCellKey(dateKey, hour);
+        const cellTasks = scheduledTasksByCell.get(cellKey) ?? [];
+        cellTasks.push(task);
+        scheduledTasksByCell.set(cellKey, cellTasks);
+      }
+    });
+
+    const dayTasks = visibleScheduleTasks.filter((task) => taskScheduleMap.get(task.taskId)?.date === selectedScheduleDate);
+    const dayUnscheduledTasks = dayTasks.filter((task) => !taskScheduleMap.get(task.taskId)?.hour);
+    const visibleScheduledCount = visibleScheduleTasks.filter((task) => Boolean(taskScheduleMap.get(task.taskId)?.hour)).length;
+    const visibleCount = scheduleViewMode === 'day' ? dayTasks.length : visibleScheduleTasks.length;
+
+    const moveScheduleWindow = (direction: -1 | 1) => {
+      setSelectedScheduleDate((currentDate) => {
+        const offset = scheduleViewMode === 'day' ? direction : direction * 7;
+        return toDateInputValue(addDays(dateInputValueToDate(currentDate), offset));
+      });
+    };
+
+    const tasksForDate = (dateKey: string) =>
+      visibleScheduleTasks
+        .filter((task) => taskScheduleMap.get(task.taskId)?.date === dateKey)
+        .sort((left, right) => agendaSortCollator.compare(taskScheduleMap.get(left.taskId)?.hour ?? '99:99', taskScheduleMap.get(right.taskId)?.hour ?? '99:99'));
+
+    const tasksForDateAndHour = (dateKey: string, hour: string) =>
+      scheduledTasksByCell.get(scheduleCellKey(dateKey, hour)) ?? [];
+
+    const renderScheduleTaskCard = (
+      task: AgendaTaskItem,
+      options: { compact?: boolean; dateKey?: string } = {},
+    ) => {
+      const displayStatus = getTaskDisplayStatus(task);
+      const schedule = taskScheduleMap.get(task.taskId) ?? {
+        date: options.dateKey ?? selectedScheduleDate,
+        hour: null,
+      };
+      const dueLabel = schedule.date ? formatDate(schedule.date) : task.dueDate ? formatDate(task.dueDate) : agendaCopy.common.noDate;
+      const pending = isTaskPending(task.taskId);
+
+      return (
+        <article
+          key={task.taskId}
+          draggable
+          onDragStart={() => setScheduleDraggingTaskId(task.taskId)}
+          onDragEnd={() => setScheduleDraggingTaskId(null)}
+          className={cn(
+            'cursor-grab rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:border-[#F4C84A]/60 hover:shadow-md active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800',
+            scheduleDraggingTaskId === task.taskId && 'opacity-50',
+            options.compact ? 'space-y-2' : 'space-y-3',
+          )}
+        >
+          <div className={cn('flex gap-3', options.compact ? 'flex-col' : 'flex-col xl:flex-row xl:items-start xl:justify-between')}>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className={cn('font-bold leading-5 text-slate-900 dark:text-white', options.compact ? 'line-clamp-2 text-xs' : 'line-clamp-2 text-sm')}>
+                  {task.title}
+                </h4>
+                {options.compact ? null : (
+                  <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', agendaDisplayStatusClasses[displayStatus])}>
+                    {agendaCopy.statuses[displayStatus]}
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
+                {task.assignedName ?? agendaCopy.common.unassigned}
+              </p>
+              <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {task.projectName ?? task.businessName ?? task.unitName ?? agendaCopy.common.noRecord}
               </p>
             </div>
-            <Badge
-              variant="outline"
-              className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]"
-            >
-              {agendaCopy.kanban.filteredBadge}
-            </Badge>
-          </div>
-        </div>
 
-        {isAgendaViewLoading ? (
-          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-            {agendaCopy.kanban.loading}
+            {!options.compact ? (
+              <div className="grid shrink-0 gap-2 sm:grid-cols-2 xl:w-[260px]">
+                <Input
+                  type="date"
+                  value={schedule.date}
+                  onChange={(event) => updateTaskSchedulePlacement(task.taskId, event.target.value || selectedScheduleDate, schedule.hour)}
+                  className="h-9 rounded-lg border-slate-200 bg-slate-50 text-xs font-semibold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900"
+                />
+                <Input
+                  type="time"
+                  step={3600}
+                  value={schedule.hour ?? ''}
+                  onChange={(event) => updateTaskSchedulePlacement(task.taskId, schedule.date || selectedScheduleDate, normalizeScheduleHourInput(event.target.value))}
+                  className="h-9 rounded-lg border-slate-200 bg-slate-50 text-xs font-semibold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900"
+                />
+              </div>
+            ) : null}
           </div>
-        ) : sortedTasks.length === 0 ? (
-          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-            {agendaCopy.table.empty}
+
+          <div className="flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <span>{dueLabel}</span>
+            <span>{clampPercent(task.completionPercent)}%</span>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[980px]">
-              <div className="grid border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50" style={{ gridTemplateColumns: 'minmax(260px, 320px) 1fr' }}>
-                <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  {agendaCopy.columns.title.label}
-                </div>
-                <div
-                  className="grid"
-                  style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}
-                >
-                  {agendaTimeline.days.map((day) => (
-                    <div
-                      key={day.toISOString()}
-                      className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700"
-                    >
-                      <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
-                        {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 dark:border-slate-700">
+            <Select
+              value={task.status}
+              disabled={pending}
+              onValueChange={(value) => void persistTaskChange(task, { status: value as TaskStatus })}
+            >
+              <SelectTrigger
+                className={cn(
+                  'h-8 w-[126px] shrink-0 rounded-full px-3 text-xs font-semibold shadow-none',
+                  agendaDisplayStatusClasses[displayStatus],
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(['pending', 'in_progress', 'paused', 'completed', 'cancelled'] as TaskStatus[]).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {agendaCopy.statuses[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <TableActionButton
+              label={agendaCopy.actions.closeTask}
+              onClick={() => handleCloseTask(task)}
+              disabled={pending || task.status === 'completed' || task.status === 'cancelled'}
+              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <TableActionButton
+              label={agendaCopy.actions.files}
+              onClick={() => setAttachmentsTask(task)}
+              disabled={pending}
+              className="border-[#F4C84A]/30 bg-[#F4C84A]/10 text-[#9A6B05] hover:bg-[#F4C84A] hover:text-slate-950 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+              icon={<FolderOpen className="h-4 w-4" />}
+            />
+            <TableActionButton
+              label={agendaCopy.actions.editTask}
+              onClick={() => handleEditTask(task)}
+              disabled={pending}
+              className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+              icon={<Pencil className="h-4 w-4" />}
+            />
+            <TableActionButton
+              label={agendaCopy.actions.deleteTask}
+              onClick={() => setDeleteTask(task)}
+              disabled={pending}
+              className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60"
+              icon={<Trash2 className="h-4 w-4" />}
+            />
+          </div>
+        </article>
+      );
+    };
+
+    const renderDayView = () => (
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="grid border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400" style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}>
+            <div className="px-4 py-3">{scheduleCopy.hourColumn}</div>
+            <div className="px-4 py-3">{scheduleCopy.planColumn}</div>
+          </div>
+
+          {agendaScheduleHours.map((hour) => {
+            const hourTasks = tasksForDateAndHour(selectedScheduleDate, hour);
+
+            return (
+              <div
+                key={hour}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  scheduleTaskPlacement(selectedScheduleDate, hour);
+                }}
+                className="grid min-h-[104px] border-b border-slate-100 transition-colors last:border-b-0 hover:bg-[#F4C84A]/5 dark:border-slate-700 dark:hover:bg-[#F4C84A]/10"
+                style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}
+              >
+                <div className="border-r border-slate-100 bg-slate-50/60 px-4 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">{hour}</div>
+                <div className="space-y-3 px-4 py-4">
+                  {hourTasks.length > 0 ? hourTasks.map((task) => renderScheduleTaskCard(task, { dateKey: selectedScheduleDate })) : (
+                    <div className="flex h-full min-h-[72px] items-center rounded-lg border border-dashed border-slate-200 px-4 text-sm font-medium text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                      {scheduleCopy.dayDropPlaceholder}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
+            );
+          })}
+        </div>
 
-              {sortedTasks.map((task) => {
-                const range = getTaskTimelineRange(task, agendaTimeline.start, agendaTimeline.end, dayCount);
-                const displayStatus = getTaskDisplayStatus(task);
+        <aside
+          className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            unscheduleDraggedTask(selectedScheduleDate);
+          }}
+        >
+          <div className="mb-4">
+            <h4 className="text-base font-bold text-slate-950 dark:text-white">{scheduleCopy.unscheduledTitle}</h4>
+            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-400">{scheduleCopy.unscheduledDescription}</p>
+          </div>
+
+          <div className="space-y-3">
+            {dayUnscheduledTasks.length > 0 ? (
+              dayUnscheduledTasks.map((task) => renderScheduleTaskCard(task, { dateKey: selectedScheduleDate }))
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm font-medium text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                {scheduleCopy.emptyUnscheduled}
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+    );
+
+    const renderWeekView = () => (
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div
+          className="grid min-w-[1120px] border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400"
+          style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
+        >
+          <div className="border-r border-slate-200 px-3 py-3 dark:border-slate-700">{scheduleCopy.hourColumn}</div>
+          {weekDateKeys.map((dateKey) => {
+            const dateTasks = tasksForDate(dateKey);
+            const isToday = dateKey === todayDateKey;
+
+            return (
+              <div
+                key={dateKey}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  scheduleTaskDatePlacement(dateKey);
+                }}
+                className={cn(
+                  'border-r border-slate-200 px-3 py-3 last:border-r-0 dark:border-slate-700',
+                  isToday && 'bg-[#2563EB]/[0.06]',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold capitalize tracking-normal text-slate-950 dark:text-white">{formatScheduleDayLabel(dateKey)}</p>
+                    <p className="mt-1 text-[11px] font-semibold normal-case tracking-normal text-slate-500 dark:text-slate-400">{scheduleCopy.tasksCount(dateTasks.length)}</p>
+                  </div>
+                  {isToday ? (
+                    <span className="shrink-0 rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-[#2563EB]">{scheduleCopy.today}</span>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="max-h-[68vh] min-w-[1120px] overflow-auto">
+          {agendaScheduleHours.map((hour) => (
+            <div
+              key={hour}
+              className="grid min-h-[118px] border-b border-slate-100 last:border-b-0 dark:border-slate-700"
+              style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
+            >
+              <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">{hour}</div>
+              {weekDateKeys.map((dateKey) => {
+                const cellTasks = tasksForDateAndHour(dateKey, hour);
 
                 return (
                   <div
-                    key={task.taskId}
-                    className="grid min-h-[86px] border-b border-slate-200 last:border-b-0 dark:border-slate-700"
-                    style={{ gridTemplateColumns: 'minmax(260px, 320px) 1fr' }}
+                    key={`${dateKey}-${hour}`}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      scheduleTaskPlacement(dateKey, hour);
+                    }}
+                    className="min-h-[118px] space-y-2 border-r border-slate-100 bg-white p-2 transition-colors last:border-r-0 hover:bg-[#F4C84A]/5 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-[#F4C84A]/10"
                   >
-                    <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                          {task.folio}
-                        </Badge>
-                        <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', agendaDisplayStatusClasses[displayStatus])}>
-                          {agendaCopy.statuses[displayStatus]}
-                        </Badge>
+                    {cellTasks.length > 0 ? cellTasks.map((task) => renderScheduleTaskCard(task, { compact: true, dateKey })) : (
+                      <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-600">
+                        {scheduleCopy.emptySlot}
                       </div>
-                      <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{task.title}</p>
-                      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                        {task.assignedName ?? agendaCopy.common.unassigned} · {task.dueDate ? formatDate(task.dueDate) : agendaCopy.common.noDate}
-                      </p>
-                    </div>
-                    <div className="relative grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
-                      {agendaTimeline.days.map((day) => (
-                        <div key={`${task.taskId}-${day.toISOString()}`} className="border-r border-slate-200 last:border-r-0 dark:border-slate-700" />
-                      ))}
-                      {range ? (
-                        <div
-                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 px-3 py-2 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25"
-                          style={{
-                            left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
-                            width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
-                          }}
-                        >
-                          <div className="flex h-full items-center justify-between gap-3">
-                            <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{task.title}</span>
-                            <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">{clampPercent(task.completionPercent)}%</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="absolute inset-y-0 left-4 flex items-center text-xs font-medium text-slate-400 dark:text-slate-500">
-                          {agendaCopy.common.noDate}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 );
               })}
             </div>
+          ))}
+
+          {visibleScheduleTasks.some((task) => !taskScheduleMap.get(task.taskId)?.hour) ? (
+            <div
+              className="grid min-h-[118px]"
+              style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
+            >
+              <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">{scheduleCopy.noHourLabel}</div>
+              {weekDateKeys.map((dateKey) => {
+                const dateTasksWithoutTime = tasksForDate(dateKey).filter((task) => !taskScheduleMap.get(task.taskId)?.hour);
+
+                return (
+                  <div
+                    key={`${dateKey}-unscheduled-time`}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      scheduleTaskPlacement(dateKey, null);
+                    }}
+                    className="min-h-[118px] space-y-2 border-r border-slate-100 bg-white p-2 transition-colors last:border-r-0 hover:bg-[#F4C84A]/5 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-[#F4C84A]/10"
+                  >
+                    {dateTasksWithoutTime.length > 0 ? dateTasksWithoutTime.map((task) => renderScheduleTaskCard(task, { compact: true, dateKey })) : (
+                      <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-600">
+                        {scheduleCopy.noHourLabel}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+
+    const renderListView = () => (
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        {weekDateKeys.map((dateKey) => {
+          const dateTasks = tasksForDate(dateKey);
+
+          return (
+            <div
+              key={dateKey}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                scheduleTaskDatePlacement(dateKey);
+              }}
+              className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/45"
+            >
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold capitalize text-slate-950 dark:text-white">{formatScheduleDayLabel(dateKey, 'long')}</p>
+                <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  {scheduleCopy.tasksCount(dateTasks.length)}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                {dateTasks.length > 0 ? dateTasks.map((task) => renderScheduleTaskCard(task, { dateKey })) : (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
+                    {scheduleCopy.emptyListDay}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+    );
+
+    return (
+      <section className="space-y-5">
+        <div className="rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-slate-950 dark:text-white">
+                {scheduleViewMode === 'day' ? scheduleCopy.dayTitle : scheduleViewMode === 'week' ? scheduleCopy.weekTitle : scheduleCopy.listTitle}
+              </h3>
+              <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
+                {scheduleViewMode === 'day' ? scheduleCopy.daySubtitle : scheduleCopy.weekSubtitle}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                {([
+                  { value: 'day', label: scheduleCopy.viewDay },
+                  { value: 'week', label: scheduleCopy.viewWeek },
+                  { value: 'list', label: scheduleCopy.viewList },
+                ] as Array<{ value: AgendaScheduleViewMode; label: string }>).map((viewOption) => (
+                  <button
+                    key={viewOption.value}
+                    type="button"
+                    className={cn(
+                      'h-8 rounded-md px-3 text-sm font-bold transition-colors',
+                      scheduleViewMode === viewOption.value
+                        ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white',
+                    )}
+                    onClick={() => setScheduleViewMode(viewOption.value)}
+                  >
+                    {viewOption.label}
+                  </button>
+                ))}
+              </div>
+              <Input
+                type="date"
+                value={selectedScheduleDate}
+                onChange={(event) => setSelectedScheduleDate(event.target.value || todayAgendaValue)}
+                className="h-10 w-[168px] rounded-lg border-slate-200 bg-white font-bold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-800"
+              />
+              <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-3 font-bold shadow-none dark:border-slate-700 dark:bg-slate-800" onClick={() => moveScheduleWindow(-1)}>
+                <ArrowUp className="h-4 w-4 -rotate-90" />
+              </Button>
+              <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-4 font-bold shadow-none dark:border-slate-700 dark:bg-slate-800" onClick={() => setSelectedScheduleDate(todayAgendaValue)}>
+                {scheduleCopy.today}
+              </Button>
+              <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-3 font-bold shadow-none dark:border-slate-700 dark:bg-slate-800" onClick={() => moveScheduleWindow(1)}>
+                <ArrowUp className="h-4 w-4 rotate-90" />
+              </Button>
+              <Badge variant="outline" className="rounded-full border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-2 text-sm font-bold text-[#2563EB]">
+                {scheduleViewMode === 'day' ? scheduleCopy.dayBadge(visibleCount) : scheduleCopy.weekBadge(visibleCount)}
+              </Badge>
+              <Badge variant="outline" className="rounded-full border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-2 text-sm font-bold text-[#177d66]">
+                {scheduleCopy.plannedBadge(visibleScheduledCount)}
+              </Badge>
+              {scheduleViewMode !== 'day' ? (
+                <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  {weekRangeLabel}
+                </Badge>
+              ) : null}
+            </div>
           </div>
-        )}
+        </div>
+
+        {isAgendaViewLoading ? (
+          <div className="rounded-lg border border-slate-200 bg-white px-6 py-16 text-center text-base text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+            {agendaCopy.kanban.loading}
+          </div>
+        ) : sortedTasks.length === 0 ? (
+          <div className="rounded-lg border border-slate-200 bg-white px-6 py-16 text-center text-base text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+            {agendaCopy.table.empty}
+          </div>
+        ) : scheduleViewMode === 'day' ? renderDayView() : scheduleViewMode === 'week' ? renderWeekView() : renderListView()}
       </section>
     );
   };
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
+      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -3346,64 +3891,22 @@ export default function Agenda() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-                  viewMode === 'table'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
-                )}
-                onClick={() => setViewMode('table')}
-              >
-                <ListChecks className="h-4 w-4" />
-                {headerCopy.actions.table}
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-                  viewMode === 'kanban'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
-                )}
-                onClick={() => setViewMode('kanban')}
-              >
-                <Columns3 className="h-4 w-4" />
-                {headerCopy.actions.kanban}
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-                  viewMode === 'diagram'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
-                )}
-                onClick={() => setViewMode('diagram')}
-              >
-                <CalendarRange className="h-4 w-4" />
-                {headerCopy.actions.diagram}
-              </button>
-            </div>
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              onClick={handleOpenTaskKiosks}
-            >
-              <MonitorSmartphone className="h-4 w-4" />
-              Task access
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
               {headerCopy.actions.columns}
+            </Button>
+            <Button
+              type="button"
+              className="h-11 gap-2 rounded-xl border border-[#F4C84A]/50 bg-[#F4C84A] px-5 text-sm font-bold text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835]"
+              onClick={handleOpenTaskKiosks}
+            >
+              <MonitorSmartphone className="h-5 w-5" />
+              {headerCopy.actions.kiosk}
             </Button>
             <Button
               type="button"
@@ -3414,6 +3917,50 @@ export default function Agenda() {
               {headerCopy.actions.create}
             </Button>
           </div>
+        </div>
+      </section>
+
+      <section className="mb-5 flex items-center">
+        <div className="inline-flex w-full rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:w-auto">
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors sm:flex-none',
+              viewMode === 'table'
+                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+            )}
+            onClick={() => setViewMode('table')}
+          >
+            <ListChecks className="h-4 w-4" />
+            {headerCopy.actions.table}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors sm:flex-none',
+              viewMode === 'kanban'
+                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+            )}
+            onClick={() => setViewMode('kanban')}
+          >
+            <Columns3 className="h-4 w-4" />
+            {headerCopy.actions.kanban}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors sm:flex-none',
+              viewMode === 'diagram'
+                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+            )}
+            onClick={() => setViewMode('diagram')}
+          >
+            <CalendarRange className="h-4 w-4" />
+            {headerCopy.actions.diagram}
+          </button>
         </div>
       </section>
 
@@ -3565,9 +4112,9 @@ export default function Agenda() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{agendaCopy.common.all}</SelectItem>
-                {Object.entries(agendaCopy.statuses).map(([value, label]) => (
+                {agendaStatusFilterValues.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {label}
+                    {agendaCopy.statuses[value]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -3579,10 +4126,10 @@ export default function Agenda() {
       <AgendaKpiStrip copy={agendaCopy.kpiStrip} isLoading={isAgendaViewLoading} metrics={agendaKpiMetrics} />
 
       {viewMode === 'table' && rowSelection.selectedCount > 0 ? (
-        <section className="mb-4 rounded-2xl border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-4 py-3 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
+        <section className="mb-4 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 py-3 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-white px-3 py-1 text-[rgb(113,63,18)] dark:bg-slate-800 dark:text-[rgb(254,240,138)]">
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05] dark:bg-slate-800 dark:text-[#FEF3C7]">
                 {rowSelection.selectedCount} seleccionadas
               </Badge>
               <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
@@ -3680,7 +4227,7 @@ export default function Agenda() {
                           : false
                     }
                     onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
-                    className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
+                    className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                   />
                 </TableHead>
                 {visibleAgendaColumns.map((column) => (
@@ -3721,7 +4268,7 @@ export default function Agenda() {
                   key={task.taskId}
                   className={cn(
                     'border-slate-200 dark:border-slate-700',
-                    selected && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
+                    selected && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                   )}
                 >
                   <TableCell
@@ -3733,7 +4280,7 @@ export default function Agenda() {
                       checked={selected}
                       disabled={isTaskPending(task.taskId)}
                       onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
-                      className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
+                      className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                     />
                   </TableCell>
                   {visibleAgendaColumns.map((column) => {
@@ -3822,7 +4369,6 @@ export default function Agenda() {
         onClose={() => setIsTaskKioskModalOpen(false)}
         onSave={handleSaveTaskKiosk}
         onDelete={handleDeleteTaskKiosk}
-        onRotate={handleRotateTaskKiosk}
         onCopy={handleCopyTaskKiosk}
         onOpen={handleOpenTaskKiosk}
       />
@@ -3841,6 +4387,7 @@ export default function Agenda() {
         unitOptions={catalogUnits}
         businessOptions={catalogBusinesses}
         collaboratorOptions={catalogCollaborators}
+        currentUserCollaborator={currentUserCollaborator}
         setForm={setTaskForm}
       />
 
@@ -3899,7 +4446,7 @@ export default function Agenda() {
           hideCloseButton
           className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-[920px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[920px] dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
+          <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="pr-4">
                 <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
@@ -3911,7 +4458,7 @@ export default function Agenda() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
+                  className="h-9 rounded-2xl border-[#9A6B05]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 >
                   {agendaCopy.common.close}
                 </Button>
@@ -4041,7 +4588,7 @@ export default function Agenda() {
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[rgb(250,204,21)] px-5 py-4">
+          <div className="bg-[#F4C84A] px-5 py-4">
             <DialogTitle className="text-lg font-bold text-slate-950">{agendaCopy.form.labels.responsible}</DialogTitle>
             <DialogDescription className="mt-1 text-sm text-slate-800/85">
               Aplicar responsable a {rowSelection.selectedCount} tarea{rowSelection.selectedCount === 1 ? '' : 's'} seleccionada{rowSelection.selectedCount === 1 ? '' : 's'}.

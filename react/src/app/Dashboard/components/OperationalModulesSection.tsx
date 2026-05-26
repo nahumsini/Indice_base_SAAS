@@ -48,7 +48,7 @@ export function OperationalModulesSection({
               key={group.stage.id}
               className={`rounded-xl border bg-white/90 p-4 shadow-sm transition-colors dark:bg-slate-950/70 ${
                 isActive
-                  ? 'border-[#558DBD]/50 shadow-[0_16px_42px_rgba(85,141,189,0.14)] dark:border-[#558DBD]/45'
+                  ? 'border-[#2563EB]/50 shadow-[0_16px_42px_rgba(37,99,235,0.14)] dark:border-[#2563EB]/45'
                   : 'border-slate-200/80 dark:border-slate-800'
               }`}
             >

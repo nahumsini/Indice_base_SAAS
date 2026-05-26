@@ -9,10 +9,12 @@ import {
   DialogFooter,
   DialogTitle,
 } from '../../../../components/ui/dialog';
+import { defaultProcessesTranslations, type ProcessesTranslations } from '../translations';
 import type { ProcessColumnConfig } from '../types';
 
 interface ProcessColumnsDialogProps {
   columns: ProcessColumnConfig[];
+  copy?: ProcessesTranslations;
   onColumnsChange: (columns: ProcessColumnConfig[]) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -22,10 +24,13 @@ const cloneColumns = (columns: ProcessColumnConfig[]) => columns.map((column) =>
 
 export function ProcessColumnsDialog({
   columns,
+  copy = defaultProcessesTranslations,
   onColumnsChange,
   onOpenChange,
   open,
 }: ProcessColumnsDialogProps) {
+  const dialogCopy = copy.columnsDialog;
+
   const showAllColumns = () => {
     onColumnsChange(
       columns.map((column) => ({
@@ -62,18 +67,18 @@ export function ProcessColumnsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[640px] overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className="bg-[rgb(250,204,21)] px-6 py-4">
+        <div className="bg-[#F4C84A] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950">
                 <Columns3 className="h-5 w-5" />
-                Manage Columns
+                {dialogCopy.title}
               </DialogTitle>
             </div>
             <DialogClose asChild>
               <button
                 type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[rgb(113,63,18)]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#9A6B05]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -84,10 +89,10 @@ export function ProcessColumnsDialog({
         <div className="space-y-6 px-6 py-5">
           <div className="space-y-2">
             <DialogDescription className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-              Choose which table columns stay visible in the Processes workspace.
+              {dialogCopy.description}
             </DialogDescription>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              {visibleCount} of {columns.length} columns visible
+              {dialogCopy.visibleCount(visibleCount, columns.length)}
             </p>
           </div>
 
@@ -99,7 +104,7 @@ export function ProcessColumnsDialog({
               className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             >
               <Eye className="mr-2 h-4 w-4" />
-              Select all
+              {dialogCopy.selectAll}
             </Button>
             <Button
               type="button"
@@ -108,7 +113,7 @@ export function ProcessColumnsDialog({
               className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             >
               <EyeOff className="mr-2 h-4 w-4" />
-              Minimum set
+              {dialogCopy.minimumSet}
             </Button>
           </div>
 
@@ -127,7 +132,7 @@ export function ProcessColumnsDialog({
                 <div className="space-y-1">
                   <p className="font-semibold text-slate-900 dark:text-white">{column.label}</p>
                   <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    {column.locked ? 'Required column for the workspace.' : 'Optional column that can be hidden from the table.'}
+                    {column.locked ? dialogCopy.requiredColumn : dialogCopy.optionalColumn}
                   </p>
                 </div>
               </label>
@@ -142,7 +147,7 @@ export function ProcessColumnsDialog({
               variant="outline"
               className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             >
-              Close
+              {copy.common.close}
             </Button>
           </DialogClose>
         </DialogFooter>

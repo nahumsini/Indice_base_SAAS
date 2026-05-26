@@ -26,7 +26,7 @@ export function NotificationItemCard({
 
   return (
     <div
-      className={`group relative rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md hover:border-[#558DBD] ${
+      className={`group relative rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md hover:border-[#2563EB] ${
         notification.is_unread
           ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
           : 'bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'

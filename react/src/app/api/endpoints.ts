@@ -88,4 +88,7 @@ export const endpoints = {
     payrollPreferences: '/api/v1/hr/payroll/preferences',
     payrollRuns: '/api/v1/hr/payroll/runs',
   },
+  sales: {
+    context: '/api/v1/sales/context',
+  },
 } as const;

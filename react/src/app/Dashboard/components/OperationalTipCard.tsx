@@ -46,7 +46,7 @@ const tipIcons: Record<OperationalTipIcon, LucideIcon> = {
 };
 
 const categoryClasses: Record<OperationalTipCategory, string> = {
-  header: 'border-[#558DBD]/25 bg-[#558DBD]/5 text-[#143675] dark:border-[#558DBD]/30 dark:bg-[#558DBD]/10 dark:text-[#b7d6ed]',
+  header: 'border-[#2563EB]/25 bg-[#2563EB]/5 text-[#143675] dark:border-[#2563EB]/30 dark:bg-[#2563EB]/10 dark:text-[#93C5FD]',
   stage: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300',
   module: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300',
   workflow: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300',

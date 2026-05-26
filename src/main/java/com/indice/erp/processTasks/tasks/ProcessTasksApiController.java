@@ -44,7 +44,7 @@ public class ProcessTasksApiController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
         }
 
-        return ResponseEntity.ok(processTasksService.listTasks(user.get().companyId()));
+        return ResponseEntity.ok(processTasksService.listTasks(user.get().companyId(), user.get().userId()));
     }
 
     @PostMapping
@@ -102,7 +102,7 @@ public class ProcessTasksApiController {
         }
 
         try {
-            processTasksService.deleteTask(user.get().companyId(), taskId);
+            processTasksService.deleteTask(user.get().companyId(), user.get().userId(), taskId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -172,7 +172,7 @@ public class ProcessTasksApiController {
         }
 
         try {
-            return ResponseEntity.ok(processTasksService.cancelTask(user.get().companyId(), taskId));
+            return ResponseEntity.ok(processTasksService.cancelTask(user.get().companyId(), user.get().userId(), taskId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -189,7 +189,7 @@ public class ProcessTasksApiController {
         }
 
         try {
-            return ResponseEntity.ok(processTasksService.listAttachments(user.get().companyId(), taskId));
+            return ResponseEntity.ok(processTasksService.listAttachments(user.get().companyId(), user.get().userId(), taskId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -209,7 +209,11 @@ public class ProcessTasksApiController {
         }
 
         try {
-            return ResponseEntity.ok(processTasksService.createAttachmentUpload(user.get().companyId(), taskId, payload));
+            return ResponseEntity.ok(processTasksService.createAttachmentUpload(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    taskId,
+                    payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -262,7 +266,7 @@ public class ProcessTasksApiController {
         }
 
         try {
-            processTasksService.deleteAttachment(user.get().companyId(), taskId, attachmentId);
+            processTasksService.deleteAttachment(user.get().companyId(), user.get().userId(), taskId, attachmentId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));

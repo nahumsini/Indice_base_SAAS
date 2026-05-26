@@ -208,6 +208,17 @@ export const ptBR: ProjectsTranslations = {
       loading: 'Carregando tarefas do projeto...',
       empty: 'Este projeto ainda não tem tarefas que correspondam aos filtros atuais.',
     },
+    bulk: {
+      selectedLabel: (count: number) => `${count} selecionada${count === 1 ? '' : 's'}`,
+      actionsLabel: 'Ações em massa',
+      selectAllVisibleLabel: 'Selecionar tarefas visíveis',
+      selectTaskLabel: (folio: string) => `Selecionar ${folio}`,
+      applied: (count: number) => `Ação em massa aplicada a ${count} tarefa${count === 1 ? '' : 's'}.`,
+      assignDescription: (count: number) =>
+        `Aplicar responsável a ${count} tarefa${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}.`,
+      selectedItemName: (count: number) => `${count} tarefa${count === 1 ? '' : 's'}`,
+      completeDescription: 'Fecha as tarefas selecionadas usando o fluxo de fechamento existente.',
+    },
     messages: {
       loadTasks: 'Não foi possível carregar as tarefas do projeto.',
       saveTask: 'Não foi possível salvar a tarefa.',

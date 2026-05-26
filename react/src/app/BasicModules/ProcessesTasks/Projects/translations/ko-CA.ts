@@ -209,6 +209,16 @@ export const koCA: ProjectsTranslations = {
       loading: '프로젝트 작업을 불러오는 중...',
       empty: '이 프로젝트에는 현재 필터와 일치하는 작업이 없습니다.',
     },
+    bulk: {
+      selectedLabel: (count: number) => `${count}개 선택됨`,
+      actionsLabel: '일괄 작업',
+      selectAllVisibleLabel: '표시된 작업 선택',
+      selectTaskLabel: (folio: string) => `${folio} 선택`,
+      applied: (count: number) => `${count}개 작업에 일괄 작업을 적용했습니다.`,
+      assignDescription: (count: number) => `선택한 작업 ${count}개에 담당자를 적용합니다.`,
+      selectedItemName: (count: number) => `${count}개 작업`,
+      completeDescription: '기존 완료 흐름으로 선택한 작업을 닫습니다.',
+    },
     messages: {
       loadTasks: '프로젝트 작업을 불러올 수 없습니다.',
       saveTask: '작업을 저장할 수 없습니다.',

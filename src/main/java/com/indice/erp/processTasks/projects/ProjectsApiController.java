@@ -153,7 +153,10 @@ public class ProjectsApiController {
         }
 
         try {
-            return ResponseEntity.ok(projectsService.listProjectTasks(user.get().companyId(), projectId));
+            return ResponseEntity.ok(projectsService.listProjectTasks(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    projectId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }

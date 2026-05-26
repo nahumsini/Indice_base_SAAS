@@ -5,6 +5,7 @@ export type DashboardModuleCategory = 'basic' | 'complementary' | 'ai';
 export type DashboardModuleColor =
   | 'aqua'
   | 'blue'
+  | 'coral'
   | 'yellow'
   | 'orange'
   | 'green'
@@ -74,14 +75,14 @@ const moduleMetaBySlug: Record<
   crm: {
     route: 'sales',
     emoji: '💵',
-    color: 'orange',
+    color: 'coral',
     category: 'basic',
     title: (t) => t.modules.ventas,
   },
   sales: {
     route: 'sales',
     emoji: '💵',
-    color: 'orange',
+    color: 'coral',
     category: 'basic',
     title: (t) => t.modules.ventas,
   },

@@ -80,6 +80,35 @@ export const koCA: KpisTranslations = {
         `예상 생산성은 ${score}%입니다. 성과를 높이려면 진행률, 마감, 증빙을 검토하세요.`,
     },
   },
+  signals: {
+    title: '운영 신호',
+    subtitle: '기간 변화, 담당자 공백, 기한 초과 경과 기간, 감사 대기열입니다.',
+    comparison: {
+      title: '기간 변화',
+      previousRange: (from: string, to: string) => `이전 기간: ${from} - ${to}`,
+      unavailable: '이 필터에서는 비교를 사용할 수 없습니다.',
+      completion: '마감',
+      overdue: '기한 초과',
+      total: '볼륨',
+    },
+    unassigned: {
+      title: '담당자 없는 열린 작업',
+      description: (open: number, overdue: number) => `${open}개의 열린 작업에 담당자가 없으며 ${overdue}개는 이미 기한 초과입니다.`,
+      action: '미배정 검토',
+    },
+    overdueAging: {
+      title: '기한 초과 경과',
+      oneToThree: '1-3일',
+      fourToSeven: '4-7일',
+      eightPlus: '8일+',
+      action: '기한 초과 열기',
+    },
+    pendingAudit: {
+      title: '감사 대기열',
+      description: (pending: number, closed: number) => `닫힌 작업 ${closed}개 중 ${pending}개가 아직 감사 대기 중입니다.`,
+      action: '감사 검토',
+    },
+  },
   cards: {
     productivity: {
       title: '운영 생산성',
@@ -128,6 +157,22 @@ export const koCA: KpisTranslations = {
     processTasks: '프로세스 작업',
     projectTasks: '프로젝트 작업',
     quality: '품질',
+  },
+  pdf: {
+    print: 'PDF 인쇄',
+    fileName: 'indice-operational-kpis.pdf',
+    title: '운영 KPI 보고서',
+    generatedAt: (value: string) => `${value} 생성`,
+    delta: '변화',
+    noComparison: '이전 비교 없음',
+    noData: '선택한 필터에 데이터가 없습니다.',
+    signals: '운영 신호',
+    page: (current: number, total: number) => `${current}/${total} 페이지`,
+    columns: {
+      metric: '지표',
+      value: '값',
+      detail: '세부 정보',
+    },
   },
   collaboratorsTable: {
     title: '담당자 성과',
@@ -188,6 +233,7 @@ export const koCA: KpisTranslations = {
   messages: {
     loadCatalogs: '카탈로그를 불러올 수 없습니다.',
     loadKpis: 'KPI를 불러올 수 없습니다.',
+    printKpis: 'KPI PDF를 인쇄할 수 없습니다.',
     empty: '표시할 KPI 정보가 없습니다.',
     noInsight: '현재 필터에 사용할 수 있는 운영 해석이 없습니다.',
   },

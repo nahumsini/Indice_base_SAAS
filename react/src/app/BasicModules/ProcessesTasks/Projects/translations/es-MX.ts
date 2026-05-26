@@ -206,6 +206,17 @@ export const esMX: ProjectsTranslations = {
       loading: 'Cargando tareas del proyecto...',
       empty: 'Este proyecto todavia no tiene tareas con los filtros actuales.',
     },
+    bulk: {
+      selectedLabel: (count: number) => `${count} seleccionada${count === 1 ? '' : 's'}`,
+      actionsLabel: 'Acciones masivas',
+      selectAllVisibleLabel: 'Seleccionar tareas visibles',
+      selectTaskLabel: (folio: string) => `Seleccionar ${folio}`,
+      applied: (count: number) => `Accion masiva aplicada a ${count} tarea${count === 1 ? '' : 's'}.`,
+      assignDescription: (count: number) =>
+        `Aplicar responsable a ${count} tarea${count === 1 ? '' : 's'} seleccionada${count === 1 ? '' : 's'}.`,
+      selectedItemName: (count: number) => `${count} tarea${count === 1 ? '' : 's'}`,
+      completeDescription: 'Cierra las tareas seleccionadas usando el flujo existente de cierre.',
+    },
     messages: {
       loadTasks: 'No se pudieron cargar las tareas del proyecto.',
       saveTask: 'No se pudo guardar la tarea.',

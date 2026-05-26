@@ -209,6 +209,16 @@ export const zhCA: ProjectsTranslations = {
       loading: '正在加载项目任务...',
       empty: '该项目当前没有符合筛选条件的任务。',
     },
+    bulk: {
+      selectedLabel: (count: number) => `已选择 ${count} 个`,
+      actionsLabel: '批量操作',
+      selectAllVisibleLabel: '选择可见任务',
+      selectTaskLabel: (folio: string) => `选择 ${folio}`,
+      applied: (count: number) => `已对 ${count} 个任务应用批量操作。`,
+      assignDescription: (count: number) => `为 ${count} 个已选择任务应用负责人。`,
+      selectedItemName: (count: number) => `${count} 个任务`,
+      completeDescription: '使用现有关闭流程关闭已选择任务。',
+    },
     messages: {
       loadTasks: '无法加载项目任务。',
       saveTask: '无法保存任务。',

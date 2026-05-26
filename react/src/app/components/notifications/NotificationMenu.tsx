@@ -52,7 +52,7 @@ export function NotificationMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-96">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#558DBD]">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#2563EB]">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-base text-white">{t.header.notifications}</h3>
             {unreadCount > 0 && (

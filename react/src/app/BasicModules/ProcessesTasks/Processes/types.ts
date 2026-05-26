@@ -131,7 +131,9 @@ export interface ProcessCollaboratorOption {
   name: string;
   email?: string | null;
   unitId?: number | null;
+  unitName?: string | null;
   businessId?: number | null;
+  businessName?: string | null;
 }
 
 export interface Option<T extends string> {

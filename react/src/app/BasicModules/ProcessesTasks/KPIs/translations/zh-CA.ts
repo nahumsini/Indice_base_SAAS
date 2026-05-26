@@ -80,6 +80,35 @@ export const zhCA: KpisTranslations = {
         `预估生产力为 ${score}%。建议检查进度、关闭和证据以提升表现。`,
     },
   },
+  signals: {
+    title: '运营信号',
+    subtitle: '期间变化、负责人空缺、逾期时间和审核队列。',
+    comparison: {
+      title: '期间变化',
+      previousRange: (from: string, to: string) => `上一期间：${from} - ${to}`,
+      unavailable: '此筛选条件下无法比较。',
+      completion: '关闭',
+      overdue: '逾期',
+      total: '数量',
+    },
+    unassigned: {
+      title: '未分配的打开任务',
+      description: (open: number, overdue: number) => `${open} 个打开任务没有负责人；${overdue} 个已经逾期。`,
+      action: '查看未分配',
+    },
+    overdueAging: {
+      title: '逾期时间',
+      oneToThree: '1-3 天',
+      fourToSeven: '4-7 天',
+      eightPlus: '8+ 天',
+      action: '打开逾期',
+    },
+    pendingAudit: {
+      title: '审核队列',
+      description: (pending: number, closed: number) => `${closed} 个已关闭任务中还有 ${pending} 个待审核。`,
+      action: '查看审核',
+    },
+  },
   cards: {
     productivity: {
       title: '运营生产力',
@@ -128,6 +157,22 @@ export const zhCA: KpisTranslations = {
     processTasks: '流程任务',
     projectTasks: '项目任务',
     quality: '质量',
+  },
+  pdf: {
+    print: '打印 PDF',
+    fileName: 'indice-operational-kpis.pdf',
+    title: '运营 KPI 报告',
+    generatedAt: (value: string) => `生成于 ${value}`,
+    delta: '变化',
+    noComparison: '没有上一期间比较',
+    noData: '所选筛选条件下没有数据。',
+    signals: '运营信号',
+    page: (current: number, total: number) => `第 ${current} 页，共 ${total} 页`,
+    columns: {
+      metric: '指标',
+      value: '值',
+      detail: '详情',
+    },
   },
   collaboratorsTable: {
     title: '协作者绩效',
@@ -188,6 +233,7 @@ export const zhCA: KpisTranslations = {
   messages: {
     loadCatalogs: '无法加载目录。',
     loadKpis: '无法加载 KPI。',
+    printKpis: '无法打印 KPI PDF。',
     empty: '没有可显示的 KPI 信息。',
     noInsight: '当前筛选没有可用的运营解读。',
   },

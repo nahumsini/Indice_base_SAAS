@@ -27,6 +27,7 @@ import java.sql.SQLException;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -52,6 +53,7 @@ public class ProcessTasksService {
     private static final long MAX_ATTACHMENT_SIZE_BYTES = 10L * 1024L * 1024L;
 
     private final JdbcTemplate jdbcTemplate;
+    private final ProcessTaskAssignmentScopeService assignmentScopeService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private static final String TASK_SELECT_COLUMNS = """
@@ -136,24 +138,32 @@ public class ProcessTasksService {
 
     public ProcessTasksService(
         JdbcTemplate jdbcTemplate,
+        ProcessTaskAssignmentScopeService assignmentScopeService,
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties
     ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.assignmentScopeService = assignmentScopeService;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
     }
 
-    public Map<String, Object> listTasks(long companyId) {
+    public Map<String, Object> listTasks(long companyId, long userId) {
+        var visibility = assignmentScopeService.taskVisibilityFilter(companyId, userId, "pt", "business");
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.addAll(visibility.params());
+
         var rows = jdbcTemplate.query(
                 TASK_SELECT_COLUMNS +
                         """
                                 WHERE pt.company_id = ?
                                   AND pt.deleted_at IS NULL
+                                  AND %s
                                 ORDER BY pt.id DESC
-                                """,
+                                """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapTaskRow(rs),
-                companyId);
+                params.toArray());
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);
@@ -161,18 +171,24 @@ public class ProcessTasksService {
         return body;
     }
 
-    public Map<String, Object> listTasksForProject(long companyId, long projectId) {
+    public Map<String, Object> listTasksForProject(long companyId, long userId, long projectId) {
+        var visibility = assignmentScopeService.taskVisibilityFilter(companyId, userId, "pt", "business");
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.add(projectId);
+        params.addAll(visibility.params());
+
         var rows = jdbcTemplate.query(
                 TASK_SELECT_COLUMNS +
                         """
                                 WHERE pt.company_id = ?
                                   AND pt.deleted_at IS NULL
                                   AND pt.project_id = ?
+                                  AND %s
                                 ORDER BY pt.id DESC
-                                """,
+                                """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapTaskRow(rs),
-                companyId,
-                projectId);
+                params.toArray());
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);
@@ -192,6 +208,12 @@ public class ProcessTasksService {
                 companyId,
                 assignedUserCompanyId,
                 "Assigned user not found.");
+        assignmentScopeService.requireCanAssign(
+                companyId,
+                userId,
+                command.unitId(),
+                command.businessId(),
+                assignedUserCompanyId);
 
         var lifecycle = lifecycleForCreate(command.status(), userId, currentUserCompanyId);
         var audited = Boolean.TRUE.equals(command.audited());
@@ -260,6 +282,12 @@ public class ProcessTasksService {
                 command.assignedUserCompanyId(),
                 "Assigned user not found.");
         var currentUserCompanyId = currentUserCompanyId(companyId, userId);
+        assignmentScopeService.requireCanAssign(
+                companyId,
+                userId,
+                command.unitId(),
+                command.businessId(),
+                command.assignedUserCompanyId());
         var lifecycle = lifecycleForStatus(existingTask, command.status(), userId, currentUserCompanyId);
         var startDate = payload.containsKey("startDate") ? command.startDate() : existingTask.startDate();
         var notes = payload.containsKey("notes") ? command.notes() : existingTask.notes();
@@ -344,8 +372,8 @@ public class ProcessTasksService {
     }
 
     @Transactional
-    public void deleteTask(long companyId, long taskId) {
-        requireTask(companyId, taskId);
+    public void deleteTask(long companyId, long userId, long taskId) {
+        requireTaskAccess(companyId, userId, taskId);
 
         jdbcTemplate.update(
                 """
@@ -361,7 +389,7 @@ public class ProcessTasksService {
 
     @Transactional
     public Map<String, Object> completeTask(long companyId, long userId, long taskId, Map<String, Object> payload) {
-        requireTask(companyId, taskId);
+        requireTaskAccess(companyId, userId, taskId);
         var completionNotes = optionalString(payload, "completionNotes");
         var completionPercent = optionalInteger(payload, "completionPercent", "completion");
         var userCompanyId = currentUserCompanyId(companyId, userId);
@@ -397,6 +425,7 @@ public class ProcessTasksService {
 
     @Transactional
     public Map<String, Object> auditTask(long companyId, long userId, long taskId, Map<String, Object> payload) {
+        requireTaskAccess(companyId, userId, taskId);
         var existingTask = requireTaskForMutation(companyId, taskId);
         if (!"completed".equals(existingTask.status())) {
             throw new IllegalArgumentException("Task must be completed before audit.");
@@ -439,8 +468,8 @@ public class ProcessTasksService {
     }
 
     @Transactional
-    public Map<String, Object> cancelTask(long companyId, long taskId) {
-        requireTask(companyId, taskId);
+    public Map<String, Object> cancelTask(long companyId, long userId, long taskId) {
+        requireTaskAccess(companyId, userId, taskId);
 
         jdbcTemplate.update(
                 """
@@ -461,8 +490,8 @@ public class ProcessTasksService {
         return getTask(companyId, taskId);
     }
 
-    public Map<String, Object> listAttachments(long companyId, long taskId) {
-        requireTask(companyId, taskId);
+    public Map<String, Object> listAttachments(long companyId, long userId, long taskId) {
+        requireTaskAccess(companyId, userId, taskId);
 
         var rows = loadAttachments(companyId, taskId);
         var body = new LinkedHashMap<String, Object>();
@@ -474,6 +503,20 @@ public class ProcessTasksService {
     @Transactional
     public Map<String, Object> createAttachmentUpload(long companyId, long taskId, Map<String, Object> payload) {
         requireTask(companyId, taskId);
+        return createAttachmentUploadUnchecked(companyId, taskId, payload);
+    }
+
+    @Transactional
+    public Map<String, Object> createAttachmentUpload(
+            long companyId,
+            long userId,
+            long taskId,
+            Map<String, Object> payload) {
+        requireTaskAccess(companyId, userId, taskId);
+        return createAttachmentUploadUnchecked(companyId, taskId, payload);
+    }
+
+    private Map<String, Object> createAttachmentUploadUnchecked(long companyId, long taskId, Map<String, Object> payload) {
         if (!objectStorageService.isEnabled()) {
             throw new ObjectStorageDisabledException("Object storage is not enabled.");
         }
@@ -505,7 +548,7 @@ public class ProcessTasksService {
             long actorUserId,
             long taskId,
             Map<String, Object> payload) {
-        requireTask(companyId, taskId);
+        requireTaskAccess(companyId, actorUserId, taskId);
         if (!objectStorageService.isEnabled()) {
             throw new ObjectStorageDisabledException("Object storage is not enabled.");
         }
@@ -550,8 +593,8 @@ public class ProcessTasksService {
     }
 
     @Transactional
-    public void deleteAttachment(long companyId, long taskId, long attachmentId) {
-        requireTask(companyId, taskId);
+    public void deleteAttachment(long companyId, long userId, long taskId, long attachmentId) {
+        requireTaskAccess(companyId, userId, taskId);
 
         var rows = jdbcTemplate.query(
                 """
@@ -678,6 +721,10 @@ public class ProcessTasksService {
         if (count == null || count == 0) {
             throw new NoSuchElementException("Task not found.");
         }
+    }
+
+    private void requireTaskAccess(long companyId, long userId, long taskId) {
+        assignmentScopeService.requireTaskAccess(companyId, userId, taskId);
     }
 
     private void validateReferences(long companyId, TaskCommand command) {

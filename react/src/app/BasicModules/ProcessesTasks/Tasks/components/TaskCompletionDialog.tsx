@@ -53,7 +53,7 @@ export function TaskCompletionDialog({
         hideCloseButton
         className="!flex max-h-[calc(100vh-3rem)] max-w-[560px] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
+        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
           <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950">
             <CheckCircle2 className="h-5 w-5" />
             {copy.title}
