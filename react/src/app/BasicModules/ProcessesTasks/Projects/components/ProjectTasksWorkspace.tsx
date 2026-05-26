@@ -84,11 +84,19 @@ import {
 } from '../../Tasks/tasksApi';
 import { ProgressSlider } from '../../shared/ProgressSlider';
 import { useRowSelection } from '../../shared/useRowSelection';
+import {
+  collaboratorCanReceiveAssignment,
+  defaultTaskScopeForActor,
+  filterBusinessesForActor,
+  filterUnitsForActor,
+  resolveCollaboratorAssignmentScope,
+} from '../../shared/assignmentScope';
 import { listProjectTasks, type ProjectRecord } from '../projectsApi';
 import type { ProjectsTranslations } from '../translations';
 
 type DisplayTaskStatus = TaskStatus | 'overdue';
-type StatusFilter = 'all' | DisplayTaskStatus;
+type AuditPendingStatusFilter = 'pending_audit';
+type StatusFilter = 'all' | DisplayTaskStatus | AuditPendingStatusFilter;
 type OptionFilter = 'all' | string;
 type WorkspaceViewMode = 'table' | 'diagram';
 type ProjectTaskColumnId =
@@ -168,7 +176,15 @@ const prioritySortRank: Record<TaskPriority, number> = {
 };
 const taskPriorityValues: TaskPriority[] = ['low', 'medium', 'high'];
 const editableStatusValues: TaskStatus[] = ['pending', 'in_progress', 'completed', 'cancelled', 'paused'];
-const displayStatusValues: DisplayTaskStatus[] = [...editableStatusValues, 'overdue'];
+const projectTaskStatusFilterValues: Array<DisplayTaskStatus | AuditPendingStatusFilter> = [
+  'pending',
+  'in_progress',
+  'paused',
+  'completed',
+  'pending_audit',
+  'overdue',
+  'cancelled',
+];
 
 const tableInputClass =
   'h-10 min-w-0 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100';
@@ -281,6 +297,18 @@ function isTaskOverdue(task: AgendaTaskItem) {
 
 function getTaskDisplayStatus(task: AgendaTaskItem): DisplayTaskStatus {
   return isTaskOverdue(task) ? 'overdue' : task.status;
+}
+
+function taskMatchesStatusFilter(task: AgendaTaskItem, filter: StatusFilter) {
+  if (filter === 'all') {
+    return true;
+  }
+
+  if (filter === 'pending_audit') {
+    return task.status === 'completed' && !task.audited;
+  }
+
+  return getTaskDisplayStatus(task) === filter;
 }
 
 function sortableDateValue(value: string | null) {
@@ -552,43 +580,8 @@ function buildTaskPayloadFromRecord(task: AgendaTaskItem, patch: Partial<TaskPay
   };
 }
 
-function isHeadquarterUnitName(name: string) {
-  const normalizedName = name.trim().toLowerCase();
-  return (
-    normalizedName === 'headquarter' ||
-    normalizedName === 'headquarters' ||
-    normalizedName === 'headquater' ||
-    normalizedName.includes('headquarter')
-  );
-}
-
 function businessMatchesUnit(business: ProcessBusinessOption, unitId: number | null) {
   return unitId == null || business.unitId == null || business.unitId === unitId;
-}
-
-function collaboratorCanReceiveAssignment(
-  collaborator: ProcessCollaboratorOption,
-  unitId: number | null,
-  businessId: number | null,
-  headquarterUnitIds: Set<number>,
-) {
-  if (collaborator.unitId != null && headquarterUnitIds.has(collaborator.unitId)) {
-    return true;
-  }
-
-  if (unitId == null && businessId == null) {
-    return true;
-  }
-
-  if (businessId != null && collaborator.businessId != null) {
-    return collaborator.businessId === businessId;
-  }
-
-  if (unitId != null && collaborator.unitId != null) {
-    return collaborator.unitId === unitId;
-  }
-
-  return false;
 }
 
 function normalizeProjectTask(task: TaskRecord, project: ProjectRecord): AgendaTaskItem {
@@ -732,12 +725,12 @@ function SortableHead({
     <TableHead className="px-5 py-5">
       <button
         type="button"
-        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(113,63,18)] dark:text-slate-400"
+        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
         onClick={() => onSort(columnId)}
       >
         <span className="truncate">{column.label}</span>
         <SortIcon
-          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400')}
+          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[#9A6B05]' : 'text-slate-400')}
         />
       </button>
     </TableHead>
@@ -1055,24 +1048,6 @@ export function ProjectTasksWorkspace({
     );
   }, [defaultColumns]);
 
-  const headquarterUnitIds = useMemo(
-    () => new Set(unitOptions.filter((unit) => isHeadquarterUnitName(unit.name)).map((unit) => unit.id)),
-    [unitOptions],
-  );
-
-  const businessOptionsForUnit = useCallback(
-    (unitId: number | null) => businessOptions.filter((business) => businessMatchesUnit(business, unitId)),
-    [businessOptions],
-  );
-
-  const collaboratorOptionsForScope = useCallback(
-    (unitId: number | null, businessId: number | null) =>
-      collaboratorOptions.filter((collaborator) =>
-        collaboratorCanReceiveAssignment(collaborator, unitId, businessId, headquarterUnitIds),
-      ),
-    [collaboratorOptions, headquarterUnitIds],
-  );
-
   const currentUserCollaborator = useMemo(
     () =>
       currentUserId == null
@@ -1080,12 +1055,40 @@ export function ProjectTasksWorkspace({
         : collaboratorOptions.find((collaborator) => collaborator.userId === currentUserId) ?? null,
     [collaboratorOptions, currentUserId],
   );
+  const currentAssignmentScope = useMemo(
+    () => resolveCollaboratorAssignmentScope(currentUserCollaborator),
+    [currentUserCollaborator],
+  );
+  const scopedUnitOptions = useMemo(
+    () => filterUnitsForActor(unitOptions, businessOptions, currentAssignmentScope),
+    [businessOptions, currentAssignmentScope, unitOptions],
+  );
+  const scopedBusinessOptions = useMemo(
+    () => filterBusinessesForActor(businessOptions, currentAssignmentScope),
+    [businessOptions, currentAssignmentScope],
+  );
+
+  const businessOptionsForUnit = useCallback(
+    (unitId: number | null) => scopedBusinessOptions.filter((business) => businessMatchesUnit(business, unitId)),
+    [scopedBusinessOptions],
+  );
+
+  const collaboratorOptionsForScope = useCallback(
+    (unitId: number | null, businessId: number | null) =>
+      collaboratorOptions.filter((collaborator) =>
+        collaboratorCanReceiveAssignment(collaborator, unitId, businessId, businessOptions),
+      ),
+    [businessOptions, collaboratorOptions],
+  );
 
   const createDefaultTaskFormForCurrentUser = () => {
+    const defaultScope = defaultTaskScopeForActor(currentUserCollaborator);
     const defaultForm = {
       ...createDefaultTaskForm(project),
       assignedUserCompanyId: '',
       assignedName: '',
+      unitId: defaultScope.unitId?.toString() ?? project.unitId?.toString() ?? '',
+      businessId: defaultScope.businessId?.toString() ?? project.businessId?.toString() ?? '',
     };
 
     if (!currentUserCollaborator) {
@@ -1119,6 +1122,9 @@ export function ProjectTasksWorkspace({
         ...currentForm,
         assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
         assignedName: currentUserCollaborator.name,
+        unitId: currentForm.unitId || defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() || '',
+        businessId:
+          currentForm.businessId || defaultTaskScopeForActor(currentUserCollaborator).businessId?.toString() || '',
       };
     });
   }, [currentUserCollaborator, isTaskDialogOpen, project.ownerName, project.ownerUserCompanyId, taskDialogMode]);
@@ -1147,7 +1153,7 @@ export function ProjectTasksWorkspace({
         task.title.toLowerCase().includes(normalizedSearch) ||
         (task.description ?? '').toLowerCase().includes(normalizedSearch) ||
         (task.assignedName ?? '').toLowerCase().includes(normalizedSearch);
-      const matchesStatus = statusFilter === 'all' || getTaskDisplayStatus(task) === statusFilter;
+      const matchesStatus = taskMatchesStatusFilter(task, statusFilter);
       const matchesResponsible = responsibleFilter === 'all' || task.assignedName === responsibleFilter;
 
       return matchesSearch && matchesStatus && matchesResponsible;
@@ -1198,10 +1204,36 @@ export function ProjectTasksWorkspace({
     () => tasks.filter((task) => rowSelection.selectedIds.has(task.taskId)),
     [rowSelection.selectedIds, tasks],
   );
+  const bulkAssignableCollaborators = useMemo(() => {
+    if (selectedTasks.length === 0) {
+      return collaboratorOptions;
+    }
+
+    return collaboratorOptions.filter((collaborator) =>
+      selectedTasks.every((task) =>
+        collaboratorCanReceiveAssignment(collaborator, task.unitId, task.businessId, businessOptions),
+      ),
+    );
+  }, [businessOptions, collaboratorOptions, selectedTasks]);
 
   useEffect(() => {
     rowSelection.pruneSelection(tasks.map((task) => task.taskId));
   }, [rowSelection.pruneSelection, tasks]);
+
+  useEffect(() => {
+    if (bulkResponsibleValue === UNASSIGNED_RESPONSIBLE_VALUE) {
+      return;
+    }
+
+    const selectedUserCompanyId = Number(bulkResponsibleValue);
+    const optionIsAvailable = bulkAssignableCollaborators.some(
+      (collaborator) => collaborator.userCompanyId === selectedUserCompanyId,
+    );
+
+    if (!optionIsAvailable) {
+      setBulkResponsibleValue(UNASSIGNED_RESPONSIBLE_VALUE);
+    }
+  }, [bulkAssignableCollaborators, bulkResponsibleValue]);
 
   const metrics = useMemo(() => {
     const total = filteredTasks.length;
@@ -1351,7 +1383,7 @@ export function ProjectTasksWorkspace({
 
     if (
       !currentCollaborator ||
-      collaboratorCanReceiveAssignment(currentCollaborator, unitId, businessId, headquarterUnitIds)
+      collaboratorCanReceiveAssignment(currentCollaborator, unitId, businessId, businessOptions)
     ) {
       return {};
     }
@@ -1365,7 +1397,7 @@ export function ProjectTasksWorkspace({
   const handleUnitCellChange = (task: AgendaTaskItem, value: string) => {
     const nextUnitId = value === NO_UNIT_VALUE ? null : Number(value);
     const currentBusiness =
-      task.businessId != null ? businessOptions.find((business) => business.id === task.businessId) : undefined;
+      task.businessId != null ? scopedBusinessOptions.find((business) => business.id === task.businessId) : undefined;
     const nextBusinessId =
       currentBusiness && businessMatchesUnit(currentBusiness, nextUnitId) ? task.businessId : null;
 
@@ -1380,7 +1412,7 @@ export function ProjectTasksWorkspace({
     const selectedBusiness =
       value === NO_BUSINESS_VALUE
         ? null
-        : businessOptions.find((business) => business.id === Number(value)) ?? null;
+        : scopedBusinessOptions.find((business) => business.id === Number(value)) ?? null;
     const nextBusinessId = selectedBusiness?.id ?? null;
     const nextUnitId = selectedBusiness?.unitId ?? task.unitId ?? null;
 
@@ -1552,7 +1584,7 @@ export function ProjectTasksWorkspace({
       setBulkConfirmation(null);
       setIsBulkAssignOpen(false);
       setBulkResponsibleValue(UNASSIGNED_RESPONSIBLE_VALUE);
-      setTasksNotice(`Accion masiva aplicada a ${selectedTasks.length} tarea${selectedTasks.length === 1 ? '' : 's'}.`);
+      setTasksNotice(copy.bulk.applied(selectedTasks.length));
       await reloadEverything();
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -1753,7 +1785,7 @@ export function ProjectTasksWorkspace({
         );
       case 'unit': {
         const unitSelectValue = task.unitId != null ? String(task.unitId) : NO_UNIT_VALUE;
-        const currentUnitMissing = task.unitId != null && !unitOptions.some((unit) => unit.id === task.unitId);
+        const currentUnitMissing = task.unitId != null && !scopedUnitOptions.some((unit) => unit.id === task.unitId);
 
         return (
           <Select value={unitSelectValue} disabled={pending} onValueChange={(value) => handleUnitCellChange(task, value)}>
@@ -1765,7 +1797,7 @@ export function ProjectTasksWorkspace({
               {currentUnitMissing ? (
                 <SelectItem value={String(task.unitId)}>{task.unitName ?? `${taskCopy.form.labels.unit} #${task.unitId}`}</SelectItem>
               ) : null}
-              {unitOptions.map((unit) => (
+              {scopedUnitOptions.map((unit) => (
                 <SelectItem key={unit.id} value={String(unit.id)}>
                   {unit.name}
                 </SelectItem>
@@ -1937,7 +1969,7 @@ export function ProjectTasksWorkspace({
             title={taskCopy.actions.files}
             disabled={pending}
             onClick={() => setAttachmentsTask(task)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 px-3 py-2 text-sm font-semibold text-[rgb(113,63,18)] transition-colors hover:border-[rgb(250,204,21)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)] dark:hover:bg-[rgb(250,204,21)] dark:hover:text-slate-950"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-sm font-semibold text-[#9A6B05] transition-colors hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
           >
             <FolderOpen className="h-4 w-4" />
             {task.attachments}
@@ -2061,7 +2093,7 @@ export function ProjectTasksWorkspace({
                 key={task.taskId}
                 className={cn(
                   'grid min-h-[88px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
-                  rowSelection.isSelected(task.taskId) && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
+                  rowSelection.isSelected(task.taskId) && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                 )}
                 style={{ gridTemplateColumns: 'minmax(280px, 340px) 1fr' }}
               >
@@ -2085,7 +2117,7 @@ export function ProjectTasksWorkspace({
                   ))}
                   {range ? (
                     <div
-                      className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 px-3 py-2 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25"
+                      className="pointer-events-none absolute inset-y-4 rounded-xl border border-[#F4C84A]/40 bg-[#F4C84A]/20 px-3 py-2 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/25"
                       style={{
                         left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
                         width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
@@ -2116,7 +2148,7 @@ export function ProjectTasksWorkspace({
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]">
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]">
                 {project.folio}
               </Badge>
               <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -2135,7 +2167,7 @@ export function ProjectTasksWorkspace({
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   workspaceViewMode === 'table'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
+                    ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setWorkspaceViewMode('table')}
@@ -2148,7 +2180,7 @@ export function ProjectTasksWorkspace({
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   workspaceViewMode === 'diagram'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
+                    ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
                 )}
                 onClick={() => setWorkspaceViewMode('diagram')}
@@ -2168,7 +2200,7 @@ export function ProjectTasksWorkspace({
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
@@ -2199,7 +2231,7 @@ export function ProjectTasksWorkspace({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{taskCopy.common.all}</SelectItem>
-                {displayStatusValues.map((value) => (
+                {projectTaskStatusFilterValues.map((value) => (
                   <SelectItem key={value} value={value}>
                     {taskCopy.statuses[value]}
                   </SelectItem>
@@ -2284,13 +2316,13 @@ export function ProjectTasksWorkspace({
       ) : null}
 
       {rowSelection.selectedCount > 0 ? (
-        <div className="border-b border-[rgb(250,204,21)]/25 bg-[rgb(250,204,21)]/10 px-5 py-3 dark:bg-[rgb(250,204,21)]/15">
+        <div className="border-b border-[#F4C84A]/25 bg-[#F4C84A]/10 px-5 py-3 dark:bg-[#F4C84A]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              <Badge variant="outline" className="rounded-full border-[rgb(250,204,21)]/40 bg-white px-3 py-1 text-[rgb(113,63,18)] dark:bg-slate-800 dark:text-[rgb(254,240,138)]">
-                {rowSelection.selectedCount} seleccionadas
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05] dark:bg-slate-800 dark:text-[#FEF3C7]">
+                {copy.bulk.selectedLabel(rowSelection.selectedCount)}
               </Badge>
-              <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
+              <span className="text-slate-500 dark:text-slate-400">{copy.bulk.actionsLabel}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -2372,7 +2404,7 @@ export function ProjectTasksWorkspace({
             <TableRow className="border-slate-200 dark:border-slate-700">
               <TableHead className="px-5 py-5" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                 <Checkbox
-                  aria-label="Seleccionar tareas visibles"
+                  aria-label={copy.bulk.selectAllVisibleLabel}
                   checked={
                     visibleTaskSelection.allVisibleSelected
                       ? true
@@ -2381,7 +2413,7 @@ export function ProjectTasksWorkspace({
                         : false
                   }
                   onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
-                  className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
+                  className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                 />
               </TableHead>
               {visibleColumns.map((column) => (
@@ -2401,16 +2433,16 @@ export function ProjectTasksWorkspace({
                 key={task.taskId}
                 className={cn(
                   'border-slate-200 dark:border-slate-700',
-                  selected && 'bg-[rgb(250,204,21)]/10 dark:bg-[rgb(250,204,21)]/15',
+                  selected && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                 )}
               >
                 <TableCell className="px-5 py-5 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                   <Checkbox
-                    aria-label={`Seleccionar ${task.folio}`}
+                    aria-label={copy.bulk.selectTaskLabel(task.folio)}
                     checked={selected}
                     disabled={isTaskPending(task.taskId)}
                     onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
-                    className="border-slate-300 data-[state=checked]:border-[rgb(250,204,21)] data-[state=checked]:bg-[rgb(250,204,21)]"
+                    className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                   />
                 </TableCell>
                 {visibleColumns.map((column) => {
@@ -2472,6 +2504,7 @@ export function ProjectTasksWorkspace({
         unitOptions={unitOptions}
         businessOptions={businessOptions}
         collaboratorOptions={collaboratorOptions}
+        currentUserCollaborator={currentUserCollaborator}
         setForm={setTaskForm}
       />
 
@@ -2530,7 +2563,7 @@ export function ProjectTasksWorkspace({
           hideCloseButton
           className="!flex h-[min(88vh,760px)] w-[calc(100vw-2rem)] !max-w-[900px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[900px] dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
+          <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
                 <FileText className="h-5 w-5" />
@@ -2540,7 +2573,7 @@ export function ProjectTasksWorkspace({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
+                  className="h-9 rounded-2xl border-[#9A6B05]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 >
                   {taskCopy.common.close}
                 </Button>
@@ -2637,10 +2670,10 @@ export function ProjectTasksWorkspace({
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[rgb(250,204,21)] px-5 py-4">
+          <div className="bg-[#F4C84A] px-5 py-4">
             <DialogTitle className="text-lg font-bold text-slate-950">{taskCopy.form.labels.responsible}</DialogTitle>
             <DialogDescription className="mt-1 text-sm text-slate-800/85">
-              Aplicar responsable a {rowSelection.selectedCount} tarea{rowSelection.selectedCount === 1 ? '' : 's'} seleccionada{rowSelection.selectedCount === 1 ? '' : 's'}.
+              {copy.bulk.assignDescription(rowSelection.selectedCount)}
             </DialogDescription>
           </div>
           <div className="space-y-3 px-5 py-5">
@@ -2650,7 +2683,7 @@ export function ProjectTasksWorkspace({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{taskCopy.common.unassigned}</SelectItem>
-                {collaboratorOptions.map((collaborator) => (
+                {bulkAssignableCollaborators.map((collaborator) => (
                   <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
                     {collaborator.name}
                   </SelectItem>
@@ -2683,7 +2716,7 @@ export function ProjectTasksWorkspace({
       <ConfirmDeleteDialog
         isVisible={bulkConfirmation === 'delete'}
         title={copy.deleteTask.title}
-        itemName={`${rowSelection.selectedCount} tarea${rowSelection.selectedCount === 1 ? '' : 's'}`}
+        itemName={copy.bulk.selectedItemName(rowSelection.selectedCount)}
         description={copy.deleteTask.description}
         confirmLabel={copy.deleteTask.confirm}
         cancelLabel={taskCopy.common.cancel}
@@ -2697,8 +2730,8 @@ export function ProjectTasksWorkspace({
       <ConfirmDeleteDialog
         isVisible={bulkConfirmation === 'complete'}
         title={taskCopy.actions.closeTask}
-        itemName={`${rowSelection.selectedCount} tarea${rowSelection.selectedCount === 1 ? '' : 's'}`}
-        description="Cierra las tareas seleccionadas usando el flujo existente de cierre."
+        itemName={copy.bulk.selectedItemName(rowSelection.selectedCount)}
+        description={copy.bulk.completeDescription}
         confirmLabel={taskCopy.actions.closeTask}
         cancelLabel={taskCopy.common.cancel}
         confirmDisabled={isBulkActionRunning}

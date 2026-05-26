@@ -8,6 +8,7 @@ import {
   getBusinessDiagnosisPdfTranslations,
   type BusinessDiagnosisPdfTranslations,
 } from './translations';
+import { IndiceEditorialBrand } from './IndiceEditorialBrand';
 
 import './businessDiagnosisPdf.css';
 
@@ -349,10 +350,7 @@ export function BusinessDiagnosisPdfDocument({
         <div className="bdpdf-page-card bdpdf-page-card--cover">
           <div className="bdpdf-editorial-cover">
             <header className="bdpdf-cover-document-header">
-              <div>
-                <strong>{editorialLabels.brand}</strong>
-                <span>{editorialLabels.businessDiagnosis}</span>
-              </div>
+              <IndiceEditorialBrand brand={editorialLabels.brand} descriptor={editorialLabels.businessDiagnosis} />
               <p>{reportId}</p>
             </header>
 
@@ -412,7 +410,7 @@ export function BusinessDiagnosisPdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorialLabels.brand}</span>
+              <IndiceEditorialBrand brand={editorialLabels.brand} compact />
               <span>{editorialLabels.businessDiagnosis}</span>
             </header>
 
@@ -452,7 +450,7 @@ export function BusinessDiagnosisPdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorialLabels.brand}</span>
+              <IndiceEditorialBrand brand={editorialLabels.brand} compact />
               <span>{formattedDate}</span>
             </header>
 
@@ -514,7 +512,7 @@ export function BusinessDiagnosisPdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorialLabels.brand}</span>
+              <IndiceEditorialBrand brand={editorialLabels.brand} compact />
               <span>{editorialLabels.businessDiagnosis}</span>
             </header>
 
@@ -570,7 +568,7 @@ export function BusinessDiagnosisPdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorialLabels.brand}</span>
+              <IndiceEditorialBrand brand={editorialLabels.brand} compact />
               <span>{formattedDate}</span>
             </header>
 
@@ -622,7 +620,7 @@ export function BusinessDiagnosisPdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-editorial-page">
             <header className="bdpdf-editorial-page-header">
-              <span>{editorialLabels.brand}</span>
+              <IndiceEditorialBrand brand={editorialLabels.brand} compact />
               <span>{reportId}</span>
             </header>
 

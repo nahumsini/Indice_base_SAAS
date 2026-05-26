@@ -58,6 +58,17 @@ public class PublicProcessTaskKioskApiController {
         }
     }
 
+    @PostMapping("/tasks/create")
+    public ResponseEntity<?> createTask(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(kioskService.publicCreateTask(deviceToken, payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/tasks/{taskId}/complete")
     public ResponseEntity<?> complete(
         @PathVariable String deviceToken,
@@ -66,6 +77,21 @@ public class PublicProcessTaskKioskApiController {
     ) {
         try {
             return ResponseEntity.ok(kioskService.publicCompleteTask(deviceToken, taskId, payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/tasks/{taskId}/responsible")
+    public ResponseEntity<?> assignResponsible(
+        @PathVariable String deviceToken,
+        @PathVariable long taskId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            return ResponseEntity.ok(kioskService.publicAssignTaskResponsible(deviceToken, taskId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

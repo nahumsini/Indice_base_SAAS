@@ -297,7 +297,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-0">
                 {/* Profile header */}
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#558DBD]">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#2563EB]">
                   <div className="flex items-center gap-3">
                     {currentUserAvatarUrl ? (
                       <img

@@ -1,19 +1,27 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
   CheckCircle2,
+  Clock3,
   ClipboardCheck,
+  ExternalLink,
   Eye,
   FileCheck2,
   FolderKanban,
   Gauge,
   ListChecks,
+  Printer,
   Repeat2,
   Search,
   Timer,
   Trophy,
   Users,
+  UserX,
 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router';
 import {
   Bar,
   BarChart,
@@ -25,6 +33,7 @@ import {
 } from 'recharts';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
+import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -52,6 +61,7 @@ import {
   type ProcessTaskKpiStatus,
   type ProjectPerformanceRow,
 } from './kpisApi';
+import { printKpisDashboardPdf } from './kpisPdf';
 import { useKpisTranslations, type KpisTranslations } from './translations';
 
 type PeriodFilter = 'day' | 'week' | 'month' | 'overdue' | 'custom';
@@ -72,10 +82,13 @@ interface CollaboratorOption {
   name: string;
   email?: string | null;
   unitId?: number | null;
+  unitName?: string | null;
   businessId?: number | null;
+  businessName?: string | null;
 }
 
 const allValue = 'all';
+const agendaUnassignedFilterValue = '__unassigned__';
 
 const statusClasses: Record<ProcessTaskKpiStatus, string> = {
   healthy:
@@ -88,7 +101,7 @@ const statusClasses: Record<ProcessTaskKpiStatus, string> = {
 
 const scoreBarClasses: Record<ProcessTaskKpiStatus, string> = {
   healthy: 'bg-emerald-500',
-  watch: 'bg-[rgb(250,204,21)]',
+  watch: 'bg-[#F4C84A]',
   critical: 'bg-rose-500',
 };
 
@@ -195,7 +208,9 @@ function normalizeCollaborator(user: BackendHrUser): CollaboratorOption | null {
     name,
     email: user.email,
     unitId: user.unit_id ?? null,
+    unitName: compactText(user.unit_name),
     businessId: user.business_id ?? null,
+    businessName: compactText(user.business_name),
   };
 }
 
@@ -232,6 +247,33 @@ function formatDate(value: string | null | undefined, noDateLabel: string, local
 
 function formatWeighting(value: number | null, notApplicableLabel: string) {
   return value == null ? notApplicableLabel : `${value}/5`;
+}
+
+function formatSignedValue(value: number, suffix = '') {
+  if (value === 0) {
+    return `0${suffix}`;
+  }
+
+  return `${value > 0 ? '+' : ''}${value}${suffix}`;
+}
+
+function agendaPeriodParams(period: PeriodFilter, range: ProcessTaskKpiDashboard['range']) {
+  const params = new URLSearchParams();
+
+  if (period === 'week' || period === 'month' || period === 'overdue') {
+    params.set('period', period);
+    return params;
+  }
+
+  if (period === 'custom') {
+    params.set('period', 'custom');
+    params.set('from', range.from);
+    params.set('to', range.to);
+    return params;
+  }
+
+  params.set('period', 'team');
+  return params;
 }
 
 function buildKpiInsight(summary: ProcessTaskKpiDashboard['summary'], copy: KpisTranslations) {
@@ -361,6 +403,215 @@ function KpiCard({ card, copy }: { card: ProcessTaskKpiCard; copy: KpisTranslati
   );
 }
 
+function DeltaPill({
+  value,
+  suffix = '',
+  positiveIsGood = true,
+}: {
+  value: number;
+  suffix?: string;
+  positiveIsGood?: boolean;
+}) {
+  const isFlat = value === 0;
+  const isGood = positiveIsGood ? value > 0 : value < 0;
+  const isBad = positiveIsGood ? value < 0 : value > 0;
+  const Icon = isFlat ? ArrowRight : value > 0 ? ArrowUpRight : ArrowDownRight;
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold',
+        isGood && 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300',
+        isBad && 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300',
+        isFlat && 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300',
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {formatSignedValue(value, suffix)}
+    </span>
+  );
+}
+
+function SignalAction({
+  disabled,
+  label,
+  onClick,
+}: {
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:bg-slate-700"
+    >
+      <ExternalLink className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
+}
+
+function OperationalSignals({
+  copy,
+  dashboard,
+  onOpenOverdue,
+  onOpenPendingAudit,
+  onOpenUnassigned,
+}: {
+  copy: KpisTranslations;
+  dashboard: ProcessTaskKpiDashboard;
+  onOpenOverdue: () => void;
+  onOpenPendingAudit: () => void;
+  onOpenUnassigned: () => void;
+}) {
+  const { comparison, summary } = dashboard;
+  const overdueBuckets = [
+    {
+      label: copy.signals.overdueAging.oneToThree,
+      value: summary.overdue1To3Days,
+      className: 'bg-amber-400',
+    },
+    {
+      label: copy.signals.overdueAging.fourToSeven,
+      value: summary.overdue4To7Days,
+      className: 'bg-orange-500',
+    },
+    {
+      label: copy.signals.overdueAging.eightPlus,
+      value: summary.overdue8PlusDays,
+      className: 'bg-rose-500',
+    },
+  ];
+  const overdueTotal = overdueBuckets.reduce((sum, bucket) => sum + bucket.value, 0);
+
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.signals.title}</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-300">{copy.signals.subtitle}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.comparison.title}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
+                {comparison.available ? `${comparison.productivityScore}%` : copy.common.notApplicable}
+              </p>
+            </div>
+            {comparison.available ? <DeltaPill value={comparison.productivityDelta} suffix=" pts" /> : null}
+          </div>
+          <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {comparison.available && comparison.from && comparison.to
+              ? copy.signals.comparison.previousRange(
+                  formatDate(comparison.from, copy.common.noDate, copy.locale),
+                  formatDate(comparison.to, copy.common.noDate, copy.locale),
+                )
+              : copy.signals.comparison.unavailable}
+          </p>
+          {comparison.available ? (
+            <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <p className="text-slate-500 dark:text-slate-400">{copy.signals.comparison.completion}</p>
+                <div className="mt-1 flex items-center gap-1">
+                  <span className="font-semibold text-slate-900 dark:text-white">{comparison.completionRate}%</span>
+                  <DeltaPill value={comparison.completionDelta} suffix=" pts" />
+                </div>
+              </div>
+              <div>
+                <p className="text-slate-500 dark:text-slate-400">{copy.signals.comparison.overdue}</p>
+                <div className="mt-1 flex items-center gap-1">
+                  <span className="font-semibold text-slate-900 dark:text-white">{comparison.overdueTasks}</span>
+                  <DeltaPill value={comparison.overdueDelta} positiveIsGood={false} />
+                </div>
+              </div>
+              <div>
+                <p className="text-slate-500 dark:text-slate-400">{copy.signals.comparison.total}</p>
+                <div className="mt-1 flex items-center gap-1">
+                  <span className="font-semibold text-slate-900 dark:text-white">{comparison.totalTasks}</span>
+                  <DeltaPill value={comparison.totalDelta} positiveIsGood />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.unassigned.title}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{summary.unassignedOpenTasks}</p>
+            </div>
+            <UserX className="h-5 w-5 text-rose-500" />
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            {copy.signals.unassigned.description(summary.unassignedOpenTasks, summary.unassignedOverdueTasks)}
+          </p>
+          <SignalAction
+            disabled={summary.unassignedOpenTasks === 0}
+            label={copy.signals.unassigned.action}
+            onClick={onOpenUnassigned}
+          />
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.overdueAging.title}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{summary.overdueTasks}</p>
+            </div>
+            <Clock3 className="h-5 w-5 text-orange-500" />
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+            <div className="flex h-full">
+              {overdueBuckets.map((bucket) => (
+                <div
+                  key={bucket.label}
+                  className={bucket.className}
+                  style={{ width: overdueTotal > 0 ? `${(bucket.value / overdueTotal) * 100}%` : '0%' }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+            {overdueBuckets.map((bucket) => (
+              <div key={bucket.label}>
+                <p className="font-semibold text-slate-900 dark:text-white">{bucket.value}</p>
+                <p className="text-slate-500 dark:text-slate-400">{bucket.label}</p>
+              </div>
+            ))}
+          </div>
+          <SignalAction disabled={summary.overdueTasks === 0} label={copy.signals.overdueAging.action} onClick={onOpenOverdue} />
+        </article>
+
+        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.pendingAudit.title}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{summary.pendingAuditTasks}</p>
+            </div>
+            <ListChecks className="h-5 w-5 text-violet-500" />
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            {copy.signals.pendingAudit.description(summary.pendingAuditTasks, summary.completedTasks)}
+          </p>
+          <SignalAction
+            disabled={summary.pendingAuditTasks === 0}
+            label={copy.signals.pendingAudit.action}
+            onClick={onOpenPendingAudit}
+          />
+        </article>
+      </div>
+    </section>
+  );
+}
+
 function KpiSkeleton() {
   return (
     <div className="space-y-6">
@@ -425,7 +676,7 @@ function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: 
             icon={<FileCheck2 className="h-4 w-4" />}
             label={copy.summary.labels.withEvidence}
             value={`${summary.evidenceRate}%`}
-            valueClassName="text-[rgb(113,63,18)]"
+            valueClassName="text-[#9A6B05]"
           />
         </div>
 
@@ -451,9 +702,9 @@ function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: 
         </div>
       </div>
 
-      <div className="rounded-lg border border-[rgb(250,204,21)]/20 bg-[rgb(250,204,21)]/10 px-4 py-3 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
+      <div className="rounded-lg border border-[#F4C84A]/20 bg-[#F4C84A]/10 px-4 py-3 dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15">
         <div className="flex items-start gap-3">
-          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
+          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[#9A6B05]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildKpiInsight(summary, copy)}</p>
         </div>
       </div>
@@ -684,11 +935,14 @@ function ProjectsTable({ copy, rows }: { copy: KpisTranslations; rows: ProjectPe
 }
 
 export default function KPIs() {
+  const navigate = useNavigate();
+  const { pageId } = useParams();
   const copy = useKpisTranslations();
   const headerCopy = copy.header;
   const periodLabels = copy.periods;
   const [dashboard, setDashboard] = useState<ProcessTaskKpiDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPrintingPdf, setIsPrintingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodFilter>('day');
   const [customFrom, setCustomFrom] = useState(localDateString(new Date()));
@@ -725,7 +979,43 @@ export default function KPIs() {
     [collaborators, selectedBusinessId, selectedUnitId],
   );
 
+  const selectedUnitName = useMemo(
+    () => (selectedUnitId == null ? null : units.find((unit) => unit.id === selectedUnitId)?.name ?? null),
+    [selectedUnitId, units],
+  );
+
+  const selectedBusinessName = useMemo(
+    () =>
+      selectedBusinessId == null
+        ? null
+        : businesses.find((business) => business.id === selectedBusinessId)?.name ?? null,
+    [businesses, selectedBusinessId],
+  );
+
   const range = useMemo(() => dateRangeForPeriod(period, customFrom, customTo), [customFrom, customTo, period]);
+
+  const openAgendaDrilldown = useCallback(
+    (params: Record<string, string>) => {
+      const nextParams = agendaPeriodParams(period, range);
+
+      if (selectedUnitName) {
+        nextParams.set('unit', selectedUnitName);
+      }
+      if (selectedBusinessName) {
+        nextParams.set('business', selectedBusinessName);
+      }
+      if (selectedCollaboratorId != null) {
+        nextParams.set('collaborator', `user-company:${selectedCollaboratorId}`);
+      }
+
+      Object.entries(params).forEach(([key, value]) => {
+        nextParams.set(key, value);
+      });
+
+      navigate(`/${pageId ?? 'processes-tasks'}/calendar?${nextParams.toString()}`);
+    },
+    [navigate, pageId, period, range, selectedBusinessName, selectedCollaboratorId, selectedUnitName],
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -851,9 +1141,37 @@ export default function KPIs() {
     setCollaboratorFilter(allValue);
   };
 
+  const handlePrintPdf = () => {
+    if (!dashboard) {
+      return;
+    }
+
+    setIsPrintingPdf(true);
+    setError(null);
+
+    try {
+      printKpisDashboardPdf({
+        dashboard,
+        copy,
+        periodLabel: periodLabels[period],
+        rangeLabel: `${formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} - ${formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}`,
+        unitLabel: selectedUnitName ?? copy.common.allFemale,
+        businessLabel: selectedBusinessName ?? copy.common.all,
+        collaboratorLabel:
+          selectedCollaboratorId == null
+            ? copy.common.all
+            : collaborators.find((collaborator) => collaborator.userCompanyId === selectedCollaboratorId)?.name ?? copy.common.unassigned,
+      });
+    } catch (printError) {
+      setError(getErrorMessage(printError, copy.messages.printKpis));
+    } finally {
+      setIsPrintingPdf(false);
+    }
+  };
+
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
+      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -864,14 +1182,27 @@ export default function KPIs() {
               {headerCopy.subtitle}
             </p>
           </div>
-          {dashboard ? (
-            <div className="rounded-xl border border-white/80 bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              <p className="font-semibold text-slate-900 dark:text-white">{periodLabels[period]}</p>
-              <p>
-                {formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} - {formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}
-              </p>
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!dashboard || isPrintingPdf}
+              title={copy.pdf.print}
+              onClick={handlePrintPdf}
+              className="h-11 gap-2 rounded-lg border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-sm hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+            >
+              <Printer className="h-4 w-4" />
+              {copy.pdf.print}
+            </Button>
+            {dashboard ? (
+              <div className="rounded-xl border border-white/80 bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <p className="font-semibold text-slate-900 dark:text-white">{periodLabels[period]}</p>
+                <p>
+                  {formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} - {formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -963,6 +1294,19 @@ export default function KPIs() {
         <>
           <SummaryStrip copy={copy} dashboard={dashboard} />
 
+          <OperationalSignals
+            copy={copy}
+            dashboard={dashboard}
+            onOpenOverdue={() => openAgendaDrilldown({ status: 'overdue' })}
+            onOpenPendingAudit={() => openAgendaDrilldown({ status: 'pending_audit' })}
+            onOpenUnassigned={() =>
+              openAgendaDrilldown({
+                collaborator: agendaUnassignedFilterValue,
+                status: 'open',
+              })
+            }
+          />
+
           <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {dashboard.cards.map((card) => (
               <KpiCard key={card.id} card={localizeKpiCard(card, dashboard, copy)} copy={copy} />
@@ -1027,7 +1371,7 @@ export default function KPIs() {
               <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{dashboard.summary.projectTasks}</p>
             </article>
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <Trophy className="mb-4 h-5 w-5 text-[rgb(113,63,18)]" />
+              <Trophy className="mb-4 h-5 w-5 text-[#9A6B05]" />
               <p className="text-sm text-slate-500 dark:text-slate-400">{copy.snapshots.quality}</p>
               <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{formatWeighting(dashboard.summary.averageWeighting, copy.common.notApplicable)}</p>
             </article>

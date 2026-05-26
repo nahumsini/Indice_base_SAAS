@@ -77,6 +77,35 @@ export const esMX: KpisTranslations = {
         `La productividad estimada es ${score}%. Conviene revisar avance, cierres y evidencia para subir el desempeno.`,
     },
   },
+  signals: {
+    title: 'Senales operativas',
+    subtitle: 'Movimiento del periodo, huecos de asignacion, antiguedad de vencidas y cola de auditoria.',
+    comparison: {
+      title: 'Movimiento del periodo',
+      previousRange: (from: string, to: string) => `Periodo anterior: ${from} - ${to}`,
+      unavailable: 'La comparacion no esta disponible para este filtro.',
+      completion: 'Cierre',
+      overdue: 'Vencidas',
+      total: 'Volumen',
+    },
+    unassigned: {
+      title: 'Abiertas sin responsable',
+      description: (open: number, overdue: number) => `${open} tareas abiertas no tienen responsable; ${overdue} ya estan vencidas.`,
+      action: 'Revisar sin responsable',
+    },
+    overdueAging: {
+      title: 'Antiguedad de vencidas',
+      oneToThree: '1-3 dias',
+      fourToSeven: '4-7 dias',
+      eightPlus: '8+ dias',
+      action: 'Abrir vencidas',
+    },
+    pendingAudit: {
+      title: 'Cola de auditoria',
+      description: (pending: number, closed: number) => `${pending} de ${closed} tareas cerradas siguen por auditar.`,
+      action: 'Revisar auditorias',
+    },
+  },
   cards: {
     productivity: {
       title: 'Productividad operativa',
@@ -125,6 +154,22 @@ export const esMX: KpisTranslations = {
     processTasks: 'Tareas de procesos',
     projectTasks: 'Tareas de proyectos',
     quality: 'Calidad',
+  },
+  pdf: {
+    print: 'Imprimir PDF',
+    fileName: 'indice-kpis-operativos.pdf',
+    title: 'Reporte de KPIs operativos',
+    generatedAt: (value: string) => `Generado ${value}`,
+    delta: 'Cambio',
+    noComparison: 'Sin comparacion previa',
+    noData: 'Sin datos para el filtro seleccionado.',
+    signals: 'Senales operativas',
+    page: (current: number, total: number) => `Pagina ${current} de ${total}`,
+    columns: {
+      metric: 'Metrica',
+      value: 'Valor',
+      detail: 'Detalle',
+    },
   },
   collaboratorsTable: {
     title: 'Rendimiento de colaboradores',
@@ -185,6 +230,7 @@ export const esMX: KpisTranslations = {
   messages: {
     loadCatalogs: 'No se pudieron cargar los catalogos.',
     loadKpis: 'No se pudieron cargar los KPIs.',
+    printKpis: 'No se pudo imprimir el PDF de KPIs.',
     empty: 'No hay informacion de KPIs para mostrar.',
     noInsight: 'No hay lectura operativa disponible para el filtro actual.',
   },

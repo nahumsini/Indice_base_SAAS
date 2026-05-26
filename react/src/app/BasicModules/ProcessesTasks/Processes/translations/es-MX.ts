@@ -83,8 +83,17 @@ export const esMX: ProcessesTranslations = {
   fixedColumns: {
     actions: {
       label: 'Acciones',
-      description: 'Botones para ejecutar, pausar, editar, copiar o eliminar el proceso.',
+      description: 'Botones para actualizar tareas, pausar, editar, copiar o eliminar el proceso.',
     },
+  },
+  columnsDialog: {
+    title: 'Gestionar columnas',
+    description: 'Elige que columnas de la tabla permanecen visibles en el espacio de Procesos.',
+    visibleCount: (visible: number, total: number) => `${visible} de ${total} columnas visibles`,
+    selectAll: 'Seleccionar todas',
+    minimumSet: 'Vista minima',
+    requiredColumn: 'Columna requerida para el espacio de trabajo.',
+    optionalColumn: 'Columna opcional que puede ocultarse de la tabla.',
   },
   table: {
     loading: 'Cargando procesos recurrentes...',
@@ -104,12 +113,22 @@ export const esMX: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: 'Generar tareas vencidas',
+    runEngine: 'Actualizar tareas del proceso',
     pause: 'Pausar proceso',
     activate: 'Activar proceso',
     edit: 'Editar proceso',
     copy: 'Copiar proceso',
     delete: 'Eliminar proceso',
+  },
+  bulk: {
+    selected: (count: number) => `${count} seleccionados`,
+    title: 'Acciones masivas',
+    applied: (count: number) => `Accion masiva aplicada a ${count} proceso${count === 1 ? '' : 's'} seleccionado${count === 1 ? '' : 's'}.`,
+    assignDescription: (count: number) =>
+      `Aplicar responsable a ${count} proceso${count === 1 ? '' : 's'} seleccionado${count === 1 ? '' : 's'}.`,
+    itemName: (count: number) => `${count} proceso${count === 1 ? '' : 's'}`,
+    selectVisible: 'Seleccionar procesos visibles',
+    selectRow: (folio: string) => `Seleccionar ${folio}`,
   },
   messages: {
     loadProcesses: 'No se pudieron cargar los procesos.',
@@ -117,7 +136,7 @@ export const esMX: ProcessesTranslations = {
     saveChanges: 'No se pudieron guardar los cambios del proceso.',
     deleteProcess: 'No se pudo eliminar el proceso.',
     duplicateProcess: 'No se pudo copiar el proceso.',
-    runEngine: 'No se pudieron generar las tareas vencidas.',
+    runEngine: 'No se pudieron actualizar las tareas del proceso.',
     saveProcess: 'No se pudo guardar el proceso.',
     titleRequired: 'El titulo es obligatorio.',
     descriptionRequired: 'La descripcion es obligatoria.',
@@ -227,7 +246,7 @@ export const esMX: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: 'Eliminar proceso',
-    deleteDescription: 'Esto elimina el proceso del catalogo activo con soft delete y conserva el respaldo de datos en backend.',
+    deleteDescription: 'Esto elimina el proceso del catalogo activo y cancela las tareas abiertas que genero. Las tareas completadas o ya canceladas permanecen como historial.',
     deleteConfirm: 'Eliminar proceso',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

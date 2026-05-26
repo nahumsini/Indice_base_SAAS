@@ -1,11 +1,13 @@
 package com.indice.erp.processTasks.agenda;
 
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentScopeService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,13 +17,21 @@ import org.springframework.stereotype.Service;
 public class AgendaService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final ProcessTaskAssignmentScopeService assignmentScopeService;
 
-    public AgendaService(JdbcTemplate jdbcTemplate) {
+    public AgendaService(JdbcTemplate jdbcTemplate, ProcessTaskAssignmentScopeService assignmentScopeService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.assignmentScopeService = assignmentScopeService;
     }
 
-    public Map<String, Object> listAgendaTasks(long companyId, String fromValue, String toValue) {
+    public Map<String, Object> listAgendaTasks(long companyId, long userId, String fromValue, String toValue) {
         var range = parseRange(fromValue, toValue);
+        var visibility = assignmentScopeService.taskVisibilityFilter(companyId, userId, "task", "business");
+        var params = new ArrayList<Object>();
+        params.add(companyId);
+        params.add(java.sql.Date.valueOf(range.from()));
+        params.add(java.sql.Date.valueOf(range.to()));
+        params.addAll(visibility.params());
 
         var rows = jdbcTemplate.query(
                 """
@@ -116,12 +126,11 @@ public class AgendaService {
                           AND task.deleted_at IS NULL
                           AND task.due_date IS NOT NULL
                           AND task.due_date BETWEEN ? AND ?
+                          AND %s
                         ORDER BY task.due_date ASC, task.id DESC
-                        """,
+                        """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapAgendaRow(rs),
-                companyId,
-                java.sql.Date.valueOf(range.from()),
-                java.sql.Date.valueOf(range.to()));
+                params.toArray());
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);

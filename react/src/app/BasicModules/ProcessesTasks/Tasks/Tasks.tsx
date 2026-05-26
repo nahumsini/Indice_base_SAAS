@@ -34,6 +34,7 @@ import type {
 import { listProjects, type ProjectRecord } from '../Projects/projectsApi';
 import { TaskCompletionDialog } from './components/TaskCompletionDialog';
 import { TaskFormDialog, type TaskFormValues } from './components/TaskFormDialog';
+import { defaultTaskScopeForActor } from '../shared/assignmentScope';
 import {
   cancelProcessTask,
   completeProcessTask,
@@ -189,7 +190,9 @@ function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOp
     name,
     email: user.email,
     unitId: user.unit_id ?? null,
+    unitName: compactText(user.unit_name),
     businessId: user.business_id ?? null,
+    businessName: compactText(user.business_name),
   };
 }
 
@@ -403,6 +406,8 @@ export default function Tasks() {
       ...defaultForm,
       assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
       assignedName: currentUserCollaborator.name,
+      unitId: defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() ?? '',
+      businessId: defaultTaskScopeForActor(currentUserCollaborator).businessId?.toString() ?? '',
     };
   };
 
@@ -420,6 +425,9 @@ export default function Tasks() {
         ...currentForm,
         assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
         assignedName: currentUserCollaborator.name,
+        unitId: currentForm.unitId || defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() || '',
+        businessId:
+          currentForm.businessId || defaultTaskScopeForActor(currentUserCollaborator).businessId?.toString() || '',
       };
     });
   }, [currentUserCollaborator, dialogMode, isDialogOpen]);
@@ -601,7 +609,7 @@ export default function Tasks() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
+      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-white">Execution queue</h2>
@@ -682,7 +690,7 @@ export default function Tasks() {
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-[rgb(113,63,18)]">{averageCompletion}%</span> avg completion
+          <span className="font-medium text-[#9A6B05]">{averageCompletion}%</span> avg completion
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
@@ -694,7 +702,7 @@ export default function Tasks() {
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-[rgb(113,63,18)]">{filteredTasks.length}</span> visible
+          <span className="font-medium text-[#9A6B05]">{filteredTasks.length}</span> visible
         </span>
       </div>
 
@@ -773,7 +781,7 @@ export default function Tasks() {
                         {clampPercent(task.completionPercent)}%
                       </span>
                       {task.audited ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[rgb(113,63,18)]">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#9A6B05]">
                           <ClipboardCheck className="h-3.5 w-3.5" />
                           Audited
                         </span>
@@ -781,7 +789,7 @@ export default function Tasks() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                       <div
-                        className="h-full rounded-full bg-[rgb(250,204,21)]"
+                        className="h-full rounded-full bg-[#F4C84A]"
                         style={{ width: `${clampPercent(task.completionPercent)}%` }}
                       />
                     </div>
@@ -882,6 +890,7 @@ export default function Tasks() {
         unitOptions={catalogUnits}
         businessOptions={catalogBusinesses}
         collaboratorOptions={catalogCollaborators}
+        currentUserCollaborator={currentUserCollaborator}
         setForm={setForm}
       />
 

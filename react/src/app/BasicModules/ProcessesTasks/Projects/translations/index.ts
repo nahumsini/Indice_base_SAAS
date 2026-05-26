@@ -23,7 +23,7 @@ export const projectsTranslations: Record<ProjectsLocale, ProjectsTranslations> 
   'zh-CA': zhCA,
 };
 
-export const defaultProjectsTranslations = esMX;
+export const defaultProjectsTranslations = enCA;
 
 export function resolveProjectsLocale(locale?: string | null): ProjectsLocale {
   if (locale && Object.prototype.hasOwnProperty.call(projectsTranslations, locale)) {

@@ -57,6 +57,86 @@
   padding-bottom: 14px;
 }
 
+.bdpdf-indice-brand {
+  align-items: center;
+  display: inline-flex;
+  gap: 11px;
+  min-width: 0;
+}
+
+.bdpdf-indice-brand--compact {
+  gap: 8px;
+}
+
+.bdpdf-indice-mark {
+  align-items: end;
+  display: inline-grid;
+  flex: 0 0 auto;
+  gap: 2px;
+  grid-template-columns: repeat(4, 5px);
+  height: 18px;
+}
+
+.bdpdf-indice-mark span {
+  border-radius: 5px 5px 2px 2px;
+  display: block;
+  width: 5px;
+}
+
+.bdpdf-indice-mark span:nth-child(1) {
+  background: #ff6b5e;
+  height: 8px;
+}
+
+.bdpdf-indice-mark span:nth-child(2) {
+  background: #f4c84a;
+  height: 11px;
+}
+
+.bdpdf-indice-mark span:nth-child(3) {
+  background: #59c3a5;
+  height: 14px;
+}
+
+.bdpdf-indice-mark span:nth-child(4) {
+  background: #2563eb;
+  height: 18px;
+}
+
+.bdpdf-cover-document-header .bdpdf-indice-mark {
+  gap: 3px;
+  grid-template-columns: repeat(4, 7px);
+  height: 25px;
+}
+
+.bdpdf-cover-document-header .bdpdf-indice-mark span {
+  border-radius: 7px 7px 3px 3px;
+  width: 7px;
+}
+
+.bdpdf-cover-document-header .bdpdf-indice-mark span:nth-child(1) {
+  height: 11px;
+}
+
+.bdpdf-cover-document-header .bdpdf-indice-mark span:nth-child(2) {
+  height: 15px;
+}
+
+.bdpdf-cover-document-header .bdpdf-indice-mark span:nth-child(3) {
+  height: 20px;
+}
+
+.bdpdf-cover-document-header .bdpdf-indice-mark span:nth-child(4) {
+  height: 25px;
+}
+
+.bdpdf-indice-brand-text {
+  align-items: baseline;
+  display: inline-flex;
+  gap: 12px;
+  min-width: 0;
+}
+
 .bdpdf-cover-document-header div {
   align-items: baseline;
   display: flex;
@@ -85,6 +165,22 @@
 .bdpdf-cover-title-block {
   margin-top: 80px;
   max-width: 610px;
+}
+
+.bdpdf-cover-title-block::after {
+  background:
+    linear-gradient(
+      90deg,
+      #ff6b5e 0 25%,
+      #f4c84a 25% 50%,
+      #59c3a5 50% 75%,
+      #2563eb 75% 100%
+    );
+  content: "";
+  display: block;
+  height: 3px;
+  margin-top: 26px;
+  width: 96px;
 }
 
 .bdpdf-editorial-kicker {
@@ -664,6 +760,22 @@
   .bdpdf-cover-insight,
   .bdpdf-cover-next-move {
     border-left-color: #1f3a5f !important;
+  }
+
+  .bdpdf-indice-mark span:nth-child(1) {
+    background: #ff6b5e !important;
+  }
+
+  .bdpdf-indice-mark span:nth-child(2) {
+    background: #f4c84a !important;
+  }
+
+  .bdpdf-indice-mark span:nth-child(3) {
+    background: #59c3a5 !important;
+  }
+
+  .bdpdf-indice-mark span:nth-child(4) {
+    background: #2563eb !important;
   }
 
   .bdpdf-cover-next-move,

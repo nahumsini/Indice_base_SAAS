@@ -204,6 +204,17 @@ export const enCA = {
       loading: 'Loading project tasks...',
       empty: 'This project does not have tasks matching the current filters yet.',
     },
+    bulk: {
+      selectedLabel: (count: number) => `${count} selected`,
+      actionsLabel: 'Bulk actions',
+      selectAllVisibleLabel: 'Select visible tasks',
+      selectTaskLabel: (folio: string) => `Select ${folio}`,
+      applied: (count: number) => `Bulk action applied to ${count} task${count === 1 ? '' : 's'}.`,
+      assignDescription: (count: number) =>
+        `Apply a responsible user to ${count} selected task${count === 1 ? '' : 's'}.`,
+      selectedItemName: (count: number) => `${count} task${count === 1 ? '' : 's'}`,
+      completeDescription: 'Close the selected tasks using the existing closure flow.',
+    },
     messages: {
       loadTasks: 'Unable to load project tasks.',
       saveTask: 'Unable to save task.',

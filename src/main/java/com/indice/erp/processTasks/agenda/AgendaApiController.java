@@ -33,7 +33,11 @@ public class AgendaApiController {
         }
 
         try {
-            return ResponseEntity.ok(agendaService.listAgendaTasks(user.get().companyId(), from, to));
+            return ResponseEntity.ok(agendaService.listAgendaTasks(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    from,
+                    to));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

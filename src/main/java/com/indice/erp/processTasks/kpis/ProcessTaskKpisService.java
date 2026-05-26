@@ -1,10 +1,12 @@
 package com.indice.erp.processTasks.kpis;
 
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentScopeService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -17,13 +19,18 @@ import org.springframework.stereotype.Service;
 public class ProcessTaskKpisService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final ProcessTaskAssignmentScopeService assignmentScopeService;
 
-    public ProcessTaskKpisService(JdbcTemplate jdbcTemplate) {
+    public ProcessTaskKpisService(
+            JdbcTemplate jdbcTemplate,
+            ProcessTaskAssignmentScopeService assignmentScopeService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.assignmentScopeService = assignmentScopeService;
     }
 
     public Map<String, Object> getDashboard(
             long companyId,
+            long userId,
             String fromValue,
             String toValue,
             Boolean includeOverdueBacklog,
@@ -33,6 +40,7 @@ public class ProcessTaskKpisService {
             Long collaboratorId) {
         var scope = parseScope(
                 companyId,
+                userId,
                 fromValue,
                 toValue,
                 Boolean.TRUE.equals(includeOverdueBacklog),
@@ -58,6 +66,7 @@ public class ProcessTaskKpisService {
                 "businessId", nullable(scope.businessId()),
                 "collaboratorId", nullable(scope.collaboratorId())));
         body.put("summary", summary);
+        body.put("comparison", buildComparison(scope, summary));
         body.put("cards", buildCards(summary, collaborators, processes, projects));
         body.put("collaborators", collaborators);
         body.put("processes", processes);
@@ -69,6 +78,7 @@ public class ProcessTaskKpisService {
 
     private KpiScope parseScope(
             long companyId,
+            long userId,
             String fromValue,
             String toValue,
             boolean includeOverdueBacklog,
@@ -92,7 +102,8 @@ public class ProcessTaskKpisService {
                 overdueOnly,
                 positiveOrNull(unitId),
                 positiveOrNull(businessId),
-                positiveOrNull(collaboratorId));
+                positiveOrNull(collaboratorId),
+                assignmentScopeService.taskVisibilityFilter(companyId, userId, "pt", "business"));
     }
 
     private Map<String, Object> loadSummary(KpiScope scope) {
@@ -108,11 +119,41 @@ public class ProcessTaskKpisService {
                            END) AS active_on_track_task_count,
                        SUM(CASE WHEN pt.status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
                        SUM(CASE WHEN pt.status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_task_count,
+                       SUM(CASE WHEN pt.assigned_user_company_id IS NULL THEN 1 ELSE 0 END) AS unassigned_task_count,
+                       SUM(CASE
+                             WHEN pt.assigned_user_company_id IS NULL
+                              AND pt.status IN ('pending', 'in_progress', 'paused')
+                             THEN 1 ELSE 0
+                           END) AS unassigned_open_task_count,
+                       SUM(CASE
+                             WHEN pt.assigned_user_company_id IS NULL
+                              AND pt.due_date < CURRENT_DATE
+                              AND pt.status NOT IN ('completed', 'cancelled')
+                             THEN 1 ELSE 0
+                           END) AS unassigned_overdue_task_count,
                        SUM(CASE
                              WHEN pt.due_date < CURRENT_DATE
                               AND pt.status NOT IN ('completed', 'cancelled')
                              THEN 1 ELSE 0
                            END) AS overdue_task_count,
+                       SUM(CASE
+                             WHEN pt.due_date < CURRENT_DATE
+                              AND pt.status NOT IN ('completed', 'cancelled')
+                              AND DATEDIFF(CURRENT_DATE, pt.due_date) BETWEEN 1 AND 3
+                             THEN 1 ELSE 0
+                           END) AS overdue_1_to_3_day_count,
+                       SUM(CASE
+                             WHEN pt.due_date < CURRENT_DATE
+                              AND pt.status NOT IN ('completed', 'cancelled')
+                              AND DATEDIFF(CURRENT_DATE, pt.due_date) BETWEEN 4 AND 7
+                             THEN 1 ELSE 0
+                           END) AS overdue_4_to_7_day_count,
+                       SUM(CASE
+                             WHEN pt.due_date < CURRENT_DATE
+                              AND pt.status NOT IN ('completed', 'cancelled')
+                              AND DATEDIFF(CURRENT_DATE, pt.due_date) >= 8
+                             THEN 1 ELSE 0
+                           END) AS overdue_8_plus_day_count,
                        SUM(CASE
                              WHEN pt.status = 'completed'
                               AND COALESCE(pt.audited, 0) = 0
@@ -141,6 +182,8 @@ public class ProcessTaskKpisService {
                     GROUP BY company_id, task_id
                 ) attachment_summary ON attachment_summary.company_id = pt.company_id
                     AND attachment_summary.task_id = pt.id
+                LEFT JOIN businesses business ON business.id = pt.business_id
+                    AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
                 """ + filter.sql();
 
@@ -199,6 +242,8 @@ public class ProcessTaskKpisService {
                 LEFT JOIN units hr_unit ON hr_unit.id = hr_user.unit_id
                 LEFT JOIN businesses task_business ON task_business.id = pt.business_id
                 LEFT JOIN businesses hr_business ON hr_business.id = hr_user.business_id
+                LEFT JOIN businesses business ON business.id = pt.business_id
+                    AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 LEFT JOIN (
                     SELECT company_id, task_id, COUNT(*) AS attachments
                     FROM process_task_attachments
@@ -272,6 +317,8 @@ public class ProcessTaskKpisService {
                     GROUP BY company_id, task_id
                 ) attachment_summary ON attachment_summary.company_id = pt.company_id
                     AND attachment_summary.task_id = pt.id
+                LEFT JOIN businesses business ON business.id = pt.business_id
+                    AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
                 """ + filter.sql() + """
                   AND pt.process_id IS NOT NULL
@@ -332,6 +379,8 @@ public class ProcessTaskKpisService {
                     GROUP BY company_id, task_id
                 ) attachment_summary ON attachment_summary.company_id = pt.company_id
                     AND attachment_summary.task_id = pt.id
+                LEFT JOIN businesses business ON business.id = pt.business_id
+                    AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
                 """ + filter.sql() + """
                   AND pt.project_id IS NOT NULL
@@ -359,6 +408,8 @@ public class ProcessTaskKpisService {
                            END) AS overdue_task_count,
                        SUM(CASE WHEN COALESCE(pt.audited, 0) = 1 THEN 1 ELSE 0 END) AS audited_task_count
                 FROM process_tasks pt
+                LEFT JOIN businesses business ON business.id = pt.business_id
+                    AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
                 """ + filter.sql() + """
                 GROUP BY pt.due_date
@@ -381,6 +432,42 @@ public class ProcessTaskKpisService {
         addComputedScores(row);
         row.put("insight", buildInsight(row));
         return row;
+    }
+
+    private Map<String, Object> buildComparison(KpiScope scope, Map<String, Object> summary) {
+        var comparison = new LinkedHashMap<String, Object>();
+        comparison.put("available", !scope.overdueOnly());
+
+        if (scope.overdueOnly()) {
+            comparison.put("from", null);
+            comparison.put("to", null);
+            comparison.put("productivityScore", 0);
+            comparison.put("productivityDelta", 0);
+            comparison.put("completionRate", 0);
+            comparison.put("completionDelta", 0);
+            comparison.put("overdueTasks", 0);
+            comparison.put("overdueDelta", 0);
+            comparison.put("totalTasks", 0);
+            comparison.put("totalDelta", 0);
+            return comparison;
+        }
+
+        var days = ChronoUnit.DAYS.between(scope.from(), scope.to()) + 1;
+        var previousTo = scope.from().minusDays(1);
+        var previousFrom = previousTo.minusDays(Math.max(0, days - 1));
+        var previousSummary = loadSummary(scope.withRange(previousFrom, previousTo));
+
+        comparison.put("from", previousFrom.toString());
+        comparison.put("to", previousTo.toString());
+        comparison.put("productivityScore", intFrom(summary, "productivityScore"));
+        comparison.put("productivityDelta", intFrom(summary, "productivityScore") - intFrom(previousSummary, "productivityScore"));
+        comparison.put("completionRate", intFrom(summary, "completionRate"));
+        comparison.put("completionDelta", intFrom(summary, "completionRate") - intFrom(previousSummary, "completionRate"));
+        comparison.put("overdueTasks", intFrom(summary, "overdueTasks"));
+        comparison.put("overdueDelta", intFrom(summary, "overdueTasks") - intFrom(previousSummary, "overdueTasks"));
+        comparison.put("totalTasks", intFrom(summary, "totalTasks"));
+        comparison.put("totalDelta", intFrom(summary, "totalTasks") - intFrom(previousSummary, "totalTasks"));
+        return comparison;
     }
 
     private Map<String, Object> mapCollaboratorRow(ResultSet rs, int rowNum) throws SQLException {
@@ -452,6 +539,24 @@ public class ProcessTaskKpisService {
         }
         if (hasColumn(rs, "cancelled_task_count")) {
             row.put("cancelledTasks", intValue(rs, "cancelled_task_count"));
+        }
+        if (hasColumn(rs, "unassigned_task_count")) {
+            row.put("unassignedTasks", intValue(rs, "unassigned_task_count"));
+        }
+        if (hasColumn(rs, "unassigned_open_task_count")) {
+            row.put("unassignedOpenTasks", intValue(rs, "unassigned_open_task_count"));
+        }
+        if (hasColumn(rs, "unassigned_overdue_task_count")) {
+            row.put("unassignedOverdueTasks", intValue(rs, "unassigned_overdue_task_count"));
+        }
+        if (hasColumn(rs, "overdue_1_to_3_day_count")) {
+            row.put("overdue1To3Days", intValue(rs, "overdue_1_to_3_day_count"));
+        }
+        if (hasColumn(rs, "overdue_4_to_7_day_count")) {
+            row.put("overdue4To7Days", intValue(rs, "overdue_4_to_7_day_count"));
+        }
+        if (hasColumn(rs, "overdue_8_plus_day_count")) {
+            row.put("overdue8PlusDays", intValue(rs, "overdue_8_plus_day_count"));
         }
         if (hasColumn(rs, "process_task_count")) {
             row.put("processTasks", intValue(rs, "process_task_count"));
@@ -635,6 +740,8 @@ public class ProcessTaskKpisService {
             sql.append(" AND ").append(alias).append(".assigned_user_company_id = ?");
             params.add(scope.collaboratorId());
         }
+        sql.append(" AND ").append(scope.visibility().condition());
+        params.addAll(scope.visibility().params());
 
         return new SqlFragment(sql.toString(), params);
     }
@@ -715,6 +822,14 @@ public class ProcessTaskKpisService {
         return value != null && value > 0 ? value : null;
     }
 
+    private int intFrom(Map<String, Object> row, String key) {
+        var value = row.get(key);
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return 0;
+    }
+
     private Object nullable(Object value) {
         return value == null ? "" : value;
     }
@@ -731,7 +846,21 @@ public class ProcessTaskKpisService {
             boolean overdueOnly,
             Long unitId,
             Long businessId,
-            Long collaboratorId) {
+            Long collaboratorId,
+            ProcessTaskAssignmentScopeService.TaskVisibilityFilter visibility) {
+
+        KpiScope withRange(LocalDate nextFrom, LocalDate nextTo) {
+            return new KpiScope(
+                    companyId,
+                    nextFrom,
+                    nextTo,
+                    includeOverdueBacklog,
+                    overdueOnly,
+                    unitId,
+                    businessId,
+                    collaboratorId,
+                    visibility);
+        }
     }
 
     private record SqlFragment(String sql, List<Object> params) {

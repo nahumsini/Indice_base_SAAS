@@ -42,7 +42,7 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
-import { accentButtonClass, priorityClasses } from '../Processes/processesData';
+import { priorityClasses } from '../Processes/processesData';
 import { listProcesses } from '../Processes/processesApi';
 import type {
   ProcessBusinessOption,
@@ -50,6 +50,7 @@ import type {
   ProcessRecord,
   ProcessUnitOption,
 } from '../Processes/types';
+import { collaboratorCanOwnScopedRecord } from '../shared/assignmentScope';
 import { ProjectFormDialog, type ProjectFormValues } from './components/ProjectFormDialog';
 import { ProjectTasksWorkspace } from './components/ProjectTasksWorkspace';
 import {
@@ -93,18 +94,18 @@ interface ProjectSortState {
 
 const statusClasses: Record<ProjectStatus, string> = {
   active:
-    'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300',
+    'border-[#F4C84A]/30 bg-[#F4C84A]/10 text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]',
   paused:
-    'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300',
+    'border-[#F4C84A]/40 bg-[#F4C84A]/15 text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/20 dark:text-[#FEF3C7]',
   completed:
-    'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300',
+    'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177D66] dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15 dark:text-emerald-200',
   cancelled:
-    'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300',
+    'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
 };
 
 const actionButtonBaseClass =
-  'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors disabled:cursor-not-allowed disabled:opacity-50';
-const progressTrackClass = 'h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700';
+  'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50';
+const progressTrackClass = 'h-2 w-full overflow-hidden rounded-full bg-[#F4C84A]/12 ring-1 ring-[#F4C84A]/20 dark:bg-slate-700 dark:ring-slate-600';
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
 const UNASSIGNED_OWNER_VALUE = '__unassigned_owner__';
@@ -461,7 +462,9 @@ function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOp
     name,
     email: user.email,
     unitId: user.unit_id ?? null,
+    unitName: compactText(user.unit_name),
     businessId: user.business_id ?? null,
+    businessName: compactText(user.business_name),
   };
 }
 
@@ -472,31 +475,6 @@ function isHeadquarterUnitName(name?: string | null) {
 
 function businessMatchesUnit(business: ProcessBusinessOption, unitId: number | null) {
   return unitId == null || business.unitId == null || business.unitId === unitId;
-}
-
-function collaboratorCanOwnProject(
-  collaborator: ProcessCollaboratorOption,
-  unitId: number | null,
-  businessId: number | null,
-  headquarterUnitIds: ReadonlySet<number>,
-) {
-  if (collaborator.unitId != null && headquarterUnitIds.has(collaborator.unitId)) {
-    return true;
-  }
-
-  if (unitId == null && businessId == null) {
-    return true;
-  }
-
-  if (businessId != null && collaborator.businessId != null) {
-    return collaborator.businessId === businessId;
-  }
-
-  if (unitId != null && collaborator.unitId != null) {
-    return collaborator.unitId === unitId;
-  }
-
-  return false;
 }
 
 interface ProjectKpiMetrics {
@@ -528,7 +506,7 @@ function ProjectKpiMetric({
 }) {
   return (
     <div className="flex min-w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#9A6B05] shadow-sm ring-1 ring-[#F4C84A]/30 dark:bg-slate-800 dark:text-[#FEF3C7] dark:ring-[#F4C84A]/35">
         {icon}
       </span>
       <span className={cn('font-semibold', valueClassName)}>{value}</span>
@@ -547,17 +525,17 @@ function segmentWidth(count: number, total: number) {
 
 function ProjectStatusBar({ copy, metrics }: { copy: ProjectsTranslations['kpis']; metrics: ProjectKpiMetrics }) {
   const segments = [
-    { className: 'bg-blue-500', count: metrics.activeCount, label: copy.segments.active },
+    { className: 'bg-[#F4C84A]', count: metrics.activeCount, label: copy.segments.active },
     { className: 'bg-slate-400', count: metrics.pausedCount, label: copy.segments.paused },
-    { className: 'bg-emerald-500', count: metrics.completedCount, label: copy.segments.completed },
+    { className: 'bg-[#59C3A5]', count: metrics.completedCount, label: copy.segments.completed },
     { className: 'bg-violet-500', count: metrics.auditedTaskCount, label: copy.segments.auditedTasks },
-    { className: 'bg-rose-500', count: metrics.atRiskCount, label: copy.segments.atRisk },
+    { className: 'bg-[#FF2D5E]', count: metrics.atRiskCount, label: copy.segments.atRisk },
   ];
   const total = segments.reduce((sum, segment) => sum + segment.count, 0);
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200/70 dark:bg-slate-700 dark:ring-slate-600">
         <div className="flex h-full">
           {segments.map((segment) => (
             <div
@@ -626,13 +604,13 @@ function ProjectKpiStrip({
 
   const healthTone =
     metrics.healthScore >= 85
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
+      ? 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177D66] dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15 dark:text-emerald-200'
       : metrics.healthScore >= 65
-        ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
-        : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300';
+        ? 'border-[#F4C84A]/40 bg-[#F4C84A]/15 text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/20 dark:text-[#FEF3C7]'
+        : 'border-[#FF2D5E]/30 bg-[#FF2D5E]/10 text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200';
 
   return (
-    <div className="mb-6 space-y-4">
+    <div className="mb-6 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <ProjectKpiMetric icon={<Eye className="h-4 w-4" />} label={copy.labels.visible} value={metrics.totalCount} />
@@ -641,7 +619,7 @@ function ProjectKpiStrip({
             icon={<FolderKanban className="h-4 w-4" />}
             label={copy.labels.active}
             value={metrics.activeCount}
-            valueClassName="text-blue-600 dark:text-blue-300"
+            valueClassName="text-[#9A6B05] dark:text-[#FEF3C7]"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProjectKpiMetric
@@ -654,21 +632,21 @@ function ProjectKpiStrip({
             icon={<CheckCircle2 className="h-4 w-4" />}
             label={copy.labels.closed}
             value={metrics.completedTaskCount}
-            valueClassName="text-emerald-600 dark:text-emerald-400"
+            valueClassName="text-[#177D66] dark:text-emerald-200"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProjectKpiMetric
             icon={<AlertTriangle className="h-4 w-4" />}
             label={copy.labels.overdue}
             value={metrics.overdueTaskCount}
-            valueClassName="text-rose-600 dark:text-rose-300"
+            valueClassName="text-[#C60037] dark:text-pink-200"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProjectKpiMetric
             icon={<ListChecks className="h-4 w-4" />}
             label={copy.labels.averageProgress}
             value={`${metrics.averageProgress}%`}
-            valueClassName="text-[rgb(113,63,18)]"
+            valueClassName="text-[#9A6B05] dark:text-[#FEF3C7]"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProjectKpiMetric icon={<Gauge className="h-4 w-4" />} label={copy.labels.tasks} value={metrics.linkedTaskCount} />
@@ -676,17 +654,17 @@ function ProjectKpiStrip({
 
         <div className="flex flex-wrap items-center gap-2">
           {metrics.atRiskCount > 0 ? (
-            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+            <span className="rounded-full border border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-3 py-1 text-xs font-semibold text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">
               {copy.badges.atRisk(metrics.atRiskCount)}
             </span>
           ) : null}
           {metrics.pausedCount > 0 ? (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
+            <span className="rounded-full border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-1 text-xs font-semibold text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
               {copy.badges.paused(metrics.pausedCount)}
             </span>
           ) : null}
           {metrics.cancelledCount > 0 ? (
-            <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+            <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
               {copy.badges.cancelled(metrics.cancelledCount)}
             </span>
           ) : null}
@@ -698,9 +676,9 @@ function ProjectKpiStrip({
 
       <ProjectStatusBar copy={copy} metrics={metrics} />
 
-      <div className="rounded-lg border border-[rgb(250,204,21)]/20 bg-[rgb(250,204,21)]/10 px-4 py-3 dark:border-[rgb(250,204,21)]/30 dark:bg-[rgb(250,204,21)]/15">
+      <div className="rounded-lg border border-[#F4C84A]/20 bg-[#F4C84A]/10 px-4 py-3 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15">
         <div className="flex items-start gap-3">
-          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(113,63,18)]" />
+          <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[#9A6B05] dark:text-[#FEF3C7]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildProjectInsight(metrics, copy.insights)}</p>
         </div>
       </div>
@@ -752,12 +730,12 @@ function SortableTableHead({
     <TableHead className="px-5 py-5">
       <button
         type="button"
-        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[rgb(113,63,18)] dark:text-slate-400"
+        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
         onClick={() => onSort(columnId)}
       >
         <span className="truncate">{column.label}</span>
         <SortIcon
-          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[rgb(113,63,18)]' : 'text-slate-400')}
+          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[#9A6B05]' : 'text-slate-400')}
         />
       </button>
     </TableHead>
@@ -935,14 +913,17 @@ export default function Projects() {
     catalogCollaborators.forEach((collaborator) => optionMap.set(String(collaborator.userCompanyId), collaborator.name));
     projects.forEach((project) => {
       if (project.ownerUserCompanyId != null) {
-        optionMap.set(String(project.ownerUserCompanyId), project.ownerName ?? `Usuario #${project.ownerUserCompanyId}`);
+        optionMap.set(
+          String(project.ownerUserCompanyId),
+          project.ownerName ?? `${projectCopy.form.labels.owner} #${project.ownerUserCompanyId}`,
+        );
       }
     });
 
     return Array.from(optionMap, ([value, label]) => ({ value, label })).sort((left, right) =>
       left.label.localeCompare(right.label),
     );
-  }, [catalogCollaborators, projects]);
+  }, [catalogCollaborators, projectCopy.form.labels.owner, projects]);
 
   useEffect(() => {
     if (unitFilter !== 'all' && !unitOptions.some((option) => option.value === unitFilter)) {
@@ -1082,9 +1063,9 @@ export default function Projects() {
   const ownerOptionsForProject = useCallback(
     (unitId: number | null, businessId: number | null) =>
       catalogCollaborators.filter((collaborator) =>
-        collaboratorCanOwnProject(collaborator, unitId, businessId, headquarterUnitIds),
+        collaboratorCanOwnScopedRecord(collaborator, unitId, businessId, headquarterUnitIds, catalogBusinesses),
       ),
-    [catalogCollaborators, headquarterUnitIds],
+    [catalogBusinesses, catalogCollaborators, headquarterUnitIds],
   );
 
   const setProjectPendingState = (projectId: number, isPending: boolean) => {
@@ -1201,7 +1182,10 @@ export default function Projects() {
       (collaborator) => collaborator.userCompanyId === project.ownerUserCompanyId,
     );
 
-    if (!currentOwner || collaboratorCanOwnProject(currentOwner, unitId, businessId, headquarterUnitIds)) {
+    if (
+      !currentOwner ||
+      collaboratorCanOwnScopedRecord(currentOwner, unitId, businessId, headquarterUnitIds, catalogBusinesses)
+    ) {
       return {};
     }
 
@@ -1333,14 +1317,14 @@ export default function Projects() {
     const isSelected = selectedProjectId === project.id;
 
     return (
-      <div className="flex w-full min-w-[265px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="flex w-full min-w-[265px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
         <ProjectActionButton
           label={isSelected ? projectCopy.actions.closeTasks : projectCopy.actions.openTasks}
           onClick={() => setSelectedProjectId(isSelected ? null : project.id)}
           disabled={pending}
           className={cn(
-            'border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 text-[rgb(113,63,18)] hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15 dark:text-[rgb(254,240,138)]',
-            isSelected && 'bg-[rgb(250,204,21)] text-slate-950',
+            'border-[#F4C84A]/35 bg-[#F4C84A]/10 text-[#9A6B05] hover:bg-[#F4C84A] hover:text-slate-950 dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]',
+            isSelected && 'bg-[#F4C84A] text-slate-950',
           )}
           icon={<FolderKanban className="h-4 w-4" />}
         />
@@ -1348,7 +1332,7 @@ export default function Projects() {
           label={projectCopy.actions.edit}
           onClick={() => openEditDialog(project)}
           disabled={pending}
-          className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+          className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:border-[#2563EB]/40 dark:bg-[#2563EB]/15 dark:text-blue-200"
           icon={<Pencil className="h-4 w-4" />}
         />
         <ProjectActionButton
@@ -1357,21 +1341,21 @@ export default function Projects() {
             void handleComplete(project);
           }}
           disabled={pending || project.status === 'completed' || project.status === 'cancelled'}
-          className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+          className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177D66] hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15 dark:text-emerald-200"
           icon={<CheckCircle2 className="h-4 w-4" />}
         />
         <ProjectActionButton
           label={projectCopy.actions.cancel}
           onClick={() => handleCancel(project)}
           disabled={pending || project.status === 'cancelled'}
-          className="border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+          className="border-[#F4C84A]/40 bg-[#F4C84A]/15 text-[#9A6B05] hover:bg-[#F4C84A]/25 dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]"
           icon={<CircleSlash className="h-4 w-4" />}
         />
         <ProjectActionButton
           label={projectCopy.actions.delete}
           onClick={() => handleDelete(project)}
           disabled={pending}
-          className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60"
+          className="border-[#FF2D5E]/30 bg-[#FF2D5E]/10 text-[#C60037] hover:bg-[#FF2D5E]/20 dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200"
           icon={<Trash2 className="h-4 w-4" />}
         />
       </div>
@@ -1404,7 +1388,7 @@ export default function Projects() {
               disabled={isProjectPending(project.id)}
               onValueChange={(value) => handleProjectUnitChange(project, value)}
             >
-              <SelectTrigger className="h-10 min-w-[170px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-10 min-w-[170px] rounded-lg border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1436,7 +1420,7 @@ export default function Projects() {
               disabled={isProjectPending(project.id)}
               onValueChange={(value) => handleProjectBusinessChange(project, value)}
             >
-              <SelectTrigger className="h-10 min-w-[190px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-10 min-w-[190px] rounded-lg border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1470,7 +1454,7 @@ export default function Projects() {
               disabled={isProjectPending(project.id)}
               onValueChange={(value) => handleProjectOwnerChange(project, value)}
             >
-              <SelectTrigger className="h-10 min-w-[220px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-10 min-w-[220px] rounded-lg border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1497,7 +1481,7 @@ export default function Projects() {
               disabled={isProjectPending(project.id)}
               onValueChange={(value) => void persistProjectChange(project, { status: value as ProjectStatus })}
             >
-              <SelectTrigger className={cn('h-10 rounded-xl border text-sm font-semibold shadow-none', statusClasses[project.status])}>
+              <SelectTrigger className={cn('h-10 rounded-lg border text-sm font-semibold shadow-none focus:ring-[#F4C84A]/20', statusClasses[project.status])}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1509,7 +1493,7 @@ export default function Projects() {
               </SelectContent>
             </Select>
             {isProjectAtRisk(project) ? (
-              <Badge variant="outline" className="rounded-full border-red-200 bg-red-50 px-3 py-1 font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+              <Badge variant="outline" className="rounded-full border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-3 py-1 font-semibold text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">
                 {projectCopy.common.atRisk}
               </Badge>
             ) : null}
@@ -1528,7 +1512,7 @@ export default function Projects() {
           >
             <SelectTrigger
               className={cn(
-                'h-10 min-w-[140px] rounded-xl border bg-white text-sm font-semibold shadow-none dark:bg-slate-700',
+                'h-10 min-w-[140px] rounded-lg border bg-white text-sm font-semibold shadow-none focus:ring-[#F4C84A]/20 dark:bg-slate-700',
                 project.priority
                   ? priorityClasses[project.priority]
                   : 'border-slate-200 text-slate-500 dark:border-slate-600 dark:text-slate-300',
@@ -1552,7 +1536,7 @@ export default function Projects() {
             type="date"
             value={project.startDate ?? ''}
             disabled={isProjectPending(project.id)}
-            className="h-10 min-w-[150px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+            className="h-10 min-w-[150px] rounded-lg border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             onChange={(event) => void persistProjectChange(project, { startDate: event.target.value || null })}
           />
         );
@@ -1562,7 +1546,7 @@ export default function Projects() {
             type="date"
             value={project.dueDate ?? ''}
             disabled={isProjectPending(project.id)}
-            className="h-10 min-w-[150px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+            className="h-10 min-w-[150px] rounded-lg border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             onChange={(event) => void persistProjectChange(project, { dueDate: event.target.value || null })}
           />
         );
@@ -1574,7 +1558,7 @@ export default function Projects() {
               <span className="font-semibold text-slate-900 dark:text-white">{clampPercent(project.completionPercent)}%</span>
             </div>
             <div className={progressTrackClass}>
-              <div className="h-full rounded-full bg-[rgb(250,204,21)]" style={{ width: `${clampPercent(project.completionPercent)}%` }} />
+              <div className="h-full rounded-full bg-[#F4C84A]" style={{ width: `${clampPercent(project.completionPercent)}%` }} />
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {project.completedTaskCount} {projectCopy.table.taskCounts.closed.toLowerCase()} / {project.openTaskCount}{' '}
@@ -1592,7 +1576,7 @@ export default function Projects() {
             <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
               <span>{projectCopy.table.taskCounts.open} {project.openTaskCount}</span>
               <span>{projectCopy.table.taskCounts.closed} {project.completedTaskCount}</span>
-              {project.overdueTaskCount > 0 ? <span className="text-red-600 dark:text-red-300">{projectCopy.table.taskCounts.overdue} {project.overdueTaskCount}</span> : null}
+              {project.overdueTaskCount > 0 ? <span className="text-[#C60037] dark:text-pink-200">{projectCopy.table.taskCounts.overdue} {project.overdueTaskCount}</span> : null}
               {project.auditedTaskCount > 0 ? <span>{projectCopy.table.taskCounts.audited} {project.auditedTaskCount}</span> : null}
             </div>
           </div>
@@ -1606,7 +1590,7 @@ export default function Projects() {
     const dayCount = Math.max(projectTimeline.days.length, 1);
 
     return (
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="border-b border-slate-200 px-5 py-5 dark:border-slate-700">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div>
@@ -1615,7 +1599,7 @@ export default function Projects() {
                 {headerCopy.subtitle}
               </p>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 px-3 py-1 font-semibold text-[rgb(113,63,18)]">
+            <Badge variant="outline" className="w-fit rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
               {sortedProjects.length} {headerCopy.title.toLowerCase()}
             </Badge>
           </div>
@@ -1659,7 +1643,7 @@ export default function Projects() {
                     key={project.id}
                     className={cn(
                       'grid min-h-[92px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
-                      selectedProjectId === project.id && 'bg-[rgb(250,204,21)]/5',
+                      selectedProjectId === project.id && 'bg-[#F4C84A]/5',
                     )}
                     style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr minmax(120px, 150px)' }}
                   >
@@ -1683,7 +1667,7 @@ export default function Projects() {
                       ))}
                       {range ? (
                         <div
-                          className="pointer-events-none absolute inset-y-4 rounded-xl border border-[rgb(250,204,21)]/40 bg-[rgb(250,204,21)]/20 px-3 py-2 dark:border-[rgb(250,204,21)]/35 dark:bg-[rgb(250,204,21)]/25"
+                          className="pointer-events-none absolute inset-y-4 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/20 px-3 py-2 dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/20"
                           style={{
                             left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
                             width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
@@ -1704,7 +1688,7 @@ export default function Projects() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-9 w-full gap-2 rounded-xl border-[rgb(250,204,21)]/35 bg-[rgb(250,204,21)]/10 px-3 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950"
+                        className="h-9 w-full gap-2 rounded-lg border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]"
                         onClick={() => setSelectedProjectId(selectedProjectId === project.id ? null : project.id)}
                         disabled={isProjectPending(project.id)}
                       >
@@ -1724,7 +1708,7 @@ export default function Projects() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[rgb(250,204,21)]/30 bg-[rgb(250,204,21)]/10 p-6 shadow-sm dark:border-[rgb(250,204,21)]/40 dark:bg-[rgb(250,204,21)]/15">
+      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
@@ -1736,44 +1720,16 @@ export default function Projects() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-                  viewMode === 'table'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
-                )}
-                onClick={() => setViewMode('table')}
-              >
-                <ListChecks className="h-4 w-4" />
-                {headerCopy.actions.table}
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-                  viewMode === 'diagram'
-                    ? 'bg-[rgb(250,204,21)] text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
-                )}
-                onClick={() => setViewMode('diagram')}
-              >
-                <CalendarRange className="h-4 w-4" />
-                {headerCopy.actions.diagram}
-              </button>
-            </div>
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[rgb(113,63,18)] shadow-none hover:bg-[rgb(250,204,21)] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-lg border-[#F4C84A]/25 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A]/10 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
               {headerCopy.actions.columns}
             </Button>
-            <Button className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)} onClick={openCreateDialog}>
+            <Button className="h-10 gap-2 rounded-lg bg-[#F4C84A] px-4 text-sm font-semibold text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835]" onClick={openCreateDialog}>
               <Plus className="h-4 w-4" />
               {headerCopy.actions.create}
             </Button>
@@ -1781,14 +1737,45 @@ export default function Projects() {
         </div>
       </section>
 
+      <section className="mb-5 flex items-center">
+        <div className="inline-flex w-full rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:w-auto">
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors sm:flex-none',
+              viewMode === 'table'
+                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+            )}
+            onClick={() => setViewMode('table')}
+          >
+            <ListChecks className="h-4 w-4" />
+            {headerCopy.actions.table}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors sm:flex-none',
+              viewMode === 'diagram'
+                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
+            )}
+            onClick={() => setViewMode('diagram')}
+          >
+            <CalendarRange className="h-4 w-4" />
+            {headerCopy.actions.diagram}
+          </button>
+        </div>
+      </section>
+
       {projectsError ? (
-        <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+        <section className="mb-6 rounded-lg border border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-5 py-4 text-sm text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>{projectsError}</span>
             <Button
               type="button"
               variant="outline"
-              className="h-9 rounded-xl border-red-200 bg-white px-4 text-red-700 shadow-none dark:border-red-900/60 dark:bg-slate-800 dark:text-red-200"
+              className="h-9 rounded-lg border-[#FF2D5E]/30 bg-white px-4 text-[#C60037] shadow-none hover:bg-[#FF2D5E]/10 dark:border-[#FF2D5E]/45 dark:bg-slate-800 dark:text-pink-200"
               onClick={() => {
                 void loadProjects();
               }}
@@ -1799,7 +1786,7 @@ export default function Projects() {
         </section>
       ) : null}
 
-      <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <h3 className="mb-5 text-base font-bold text-slate-800 dark:text-white">{projectCopy.filters.title}</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div className="space-y-2 xl:col-span-1">
@@ -1810,14 +1797,14 @@ export default function Projects() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={projectCopy.filters.searchPlaceholder}
-                className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.unit}</label>
             <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1833,7 +1820,7 @@ export default function Projects() {
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.business}</label>
             <Select value={businessFilter} onValueChange={setBusinessFilter}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1849,7 +1836,7 @@ export default function Projects() {
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.owner}</label>
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1865,7 +1852,7 @@ export default function Projects() {
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.status}</label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1885,7 +1872,7 @@ export default function Projects() {
       <ProjectKpiStrip copy={projectCopy.kpis} isLoading={isLoadingProjects} metrics={metrics} />
 
       {viewMode === 'table' ? (
-        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="overflow-x-auto">
             <Table style={{ minWidth: tableMinWidth }}>
             <TableHeader>
@@ -1900,7 +1887,7 @@ export default function Projects() {
             </TableHeader>
             <TableBody>
               {sortedProjects.map((project) => (
-                <TableRow key={project.id} className={cn('border-slate-200 dark:border-slate-700', selectedProjectId === project.id && 'bg-[rgb(250,204,21)]/5')}>
+                <TableRow key={project.id} className={cn('border-slate-200 dark:border-slate-700', selectedProjectId === project.id && 'bg-[#F4C84A]/5')}>
                   {visibleColumns.map((column) => {
                     const columnId = column.id as ProjectColumnId;
 

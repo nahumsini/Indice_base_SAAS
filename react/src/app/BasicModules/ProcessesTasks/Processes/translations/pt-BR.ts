@@ -130,8 +130,17 @@ export const ptBR: ProcessesTranslations = {
   fixedColumns: {
     actions: {
       label: 'Acoes',
-      description: 'Botoes para executar, pausar, editar, copiar ou excluir o processo.',
+      description: 'Botoes para atualizar tarefas, pausar, editar, copiar ou excluir o processo.',
     },
+  },
+  columnsDialog: {
+    title: 'Gerenciar colunas',
+    description: 'Escolha quais colunas da tabela permanecem visiveis no espaco de Processos.',
+    visibleCount: (visible: number, total: number) => `${visible} de ${total} colunas visiveis`,
+    selectAll: 'Selecionar todas',
+    minimumSet: 'Vista minima',
+    requiredColumn: 'Coluna obrigatoria para o espaco de trabalho.',
+    optionalColumn: 'Coluna opcional que pode ser ocultada da tabela.',
   },
   table: {
     loading: 'Carregando processos recorrentes...',
@@ -151,12 +160,22 @@ export const ptBR: ProcessesTranslations = {
     },
   },
   actions: {
-    runEngine: 'Gerar tarefas vencidas',
+    runEngine: 'Atualizar tarefas do processo',
     pause: 'Pausar processo',
     activate: 'Ativar processo',
     edit: 'Editar processo',
     copy: 'Copiar processo',
     delete: 'Excluir processo',
+  },
+  bulk: {
+    selected: (count: number) => `${count} selecionados`,
+    title: 'Acoes em massa',
+    applied: (count: number) => `Acao em massa aplicada a ${count} processo${count === 1 ? '' : 's'} selecionado${count === 1 ? '' : 's'}.`,
+    assignDescription: (count: number) =>
+      `Aplicar responsavel a ${count} processo${count === 1 ? '' : 's'} selecionado${count === 1 ? '' : 's'}.`,
+    itemName: (count: number) => `${count} processo${count === 1 ? '' : 's'}`,
+    selectVisible: 'Selecionar processos visiveis',
+    selectRow: (folio: string) => `Selecionar ${folio}`,
   },
   messages: {
     loadProcesses: 'Nao foi possivel carregar os processos.',
@@ -164,7 +183,7 @@ export const ptBR: ProcessesTranslations = {
     saveChanges: 'Nao foi possivel salvar as alteracoes do processo.',
     deleteProcess: 'Nao foi possivel excluir o processo.',
     duplicateProcess: 'Nao foi possivel copiar o processo.',
-    runEngine: 'Nao foi possivel gerar as tarefas vencidas.',
+    runEngine: 'Nao foi possivel atualizar as tarefas do processo.',
     saveProcess: 'Nao foi possivel salvar o processo.',
     titleRequired: 'O titulo e obrigatorio.',
     descriptionRequired: 'A descricao e obrigatoria.',
@@ -274,7 +293,7 @@ export const ptBR: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: 'Excluir processo',
-    deleteDescription: 'Isso remove o processo do catalogo ativo com soft delete e conserva o backup dos dados no backend.',
+    deleteDescription: 'Isso remove o processo do catalogo ativo e cancela as tarefas abertas que ele gerou. Tarefas concluidas ou ja canceladas permanecem no historico.',
     deleteConfirm: 'Excluir processo',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

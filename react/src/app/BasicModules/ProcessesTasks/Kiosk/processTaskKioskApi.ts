@@ -49,8 +49,11 @@ export interface PublicTaskKioskTask {
   priority: 'low' | 'medium' | 'high';
   start_date: string | null;
   due_date: string | null;
+  completed_at: string | null;
   completion_percent: number;
   notes: string | null;
+  assigned_user_company_id: number | null;
+  assigned_name: string | null;
   unit_id: number | null;
   unit_name: string | null;
   business_id: number | null;
@@ -59,9 +62,62 @@ export interface PublicTaskKioskTask {
   process_title: string | null;
   project_id: number | null;
   project_name: string | null;
+  created_by: number | null;
+  created_by_name: string | null;
+  completed_by_user_company_id: number | null;
   created_at: string | null;
   attachments: number;
   is_overdue: boolean;
+  can_complete: boolean;
+  is_assigned_to_current_user: boolean;
+  is_created_by_current_user: boolean;
+  is_completed_by_current_user: boolean;
+}
+
+export interface PublicTaskKioskAssignmentOption {
+  default_unit_id: number | null;
+  default_business_id: number | null;
+  units: Array<{
+    id: number;
+    name: string;
+  }>;
+  businesses: Array<{
+    id: number;
+    name: string;
+    unit_id: number | null;
+    unit_name: string | null;
+  }>;
+  collaborators: Array<{
+    user_company_id: number;
+    user_id: number;
+    full_name: string;
+    position_title?: string;
+    department?: string;
+    unit_id: number | null;
+    unit_name: string | null;
+    business_id: number | null;
+    business_name: string | null;
+  }>;
+}
+
+export interface PublicTaskKioskCreateTaskPayload {
+  identification_token: string;
+  title: string;
+  description?: string | null;
+  priority: 'low' | 'medium' | 'high';
+  startDate?: string | null;
+  dueDate?: string | null;
+  unitId?: number | null;
+  businessId?: number | null;
+  assignedUserCompanyId?: number | null;
+  assignedName?: string | null;
+  notes?: string | null;
+}
+
+export interface PublicTaskKioskAssignResponsiblePayload {
+  identification_token: string;
+  assignedUserCompanyId: number;
+  assignedName?: string | null;
 }
 
 export interface PublicTaskKioskIdentifyResponse {
@@ -77,6 +133,7 @@ export interface PublicTaskKioskIdentifyResponse {
   identification_token: string;
   expires_at: string;
   tasks: PublicTaskKioskTask[];
+  assignment_options: PublicTaskKioskAssignmentOption;
 }
 
 const basePath = '/api/v1/process-tasks/kiosks';
@@ -135,6 +192,32 @@ export const processTaskKioskApi = {
         identification_token: identificationToken,
       }),
     });
+  },
+
+  createPublicTask(deviceToken: string, payload: PublicTaskKioskCreateTaskPayload) {
+    return apiClient<{ task: PublicTaskKioskTask; items: PublicTaskKioskTask[] }>(
+      `${publicBasePath}/${deviceToken}/tasks/create`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  assignPublicTaskResponsible(
+    deviceToken: string,
+    taskId: number,
+    payload: PublicTaskKioskAssignResponsiblePayload,
+    init: Pick<RequestInit, 'signal'> = {},
+  ) {
+    return apiClient<{ task: PublicTaskKioskTask; items: PublicTaskKioskTask[] }>(
+      `${publicBasePath}/${deviceToken}/tasks/${taskId}/responsible`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        signal: init.signal,
+      },
+    );
   },
 
   completePublicTask(

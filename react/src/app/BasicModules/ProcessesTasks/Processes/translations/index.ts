@@ -23,7 +23,7 @@ export const processesTranslations: Record<ProcessesLocale, ProcessesTranslation
   'zh-CA': zhCA,
 };
 
-export const defaultProcessesTranslations = esMX;
+export const defaultProcessesTranslations = enCA;
 
 export function resolveProcessesLocale(locale?: string | null): ProcessesLocale {
   if (locale && Object.prototype.hasOwnProperty.call(processesTranslations, locale)) {

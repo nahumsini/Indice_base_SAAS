@@ -417,13 +417,14 @@ export default function Users() {
   const getModuleColorClasses = (color: AvailableModule['color']) => {
     const styles: Record<AvailableModule['color'], string> = {
       aqua: 'border-[#59C3A5]/35 bg-[#59C3A5]/10 dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/20',
-      blue: 'border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20',
-      yellow: 'border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20',
-      orange: 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20',
+      blue: 'border-[#2563EB]/25 bg-[#2563EB]/10 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/20',
+      coral: 'border-[#FF6B5E]/25 bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/20',
+      yellow: 'border-[#F4C84A]/35 bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/20',
+      orange: 'border-[#FF6B5E]/25 bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/20',
       green: 'border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20',
       purple: 'border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20',
       gray: 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20',
-      gold: 'border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20',
+      gold: 'border-[#F4C84A]/35 bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/20',
       red: 'border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20',
     };
 

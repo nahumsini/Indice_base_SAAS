@@ -73,13 +73,14 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
   const getModuleColorClasses = (color: string) => {
     const colorMap: Record<string, { bg: string; text: string; border: string }> = {
       aqua: { bg: 'bg-[#59C3A5]/10 dark:bg-[#59C3A5]/20', text: 'text-[#257B68] dark:text-[#8FE0CA]', border: 'border-[#59C3A5]/30 dark:border-[#59C3A5]/35' },
-      blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700' },
-      yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700' },
+      blue: { bg: 'bg-[#2563EB]/10 dark:bg-[#2563EB]/20', text: 'text-[#2563EB] dark:text-[#93C5FD]', border: 'border-[#2563EB]/25 dark:border-[#2563EB]/35' },
+      coral: { bg: 'bg-[#FF6B5E]/10 dark:bg-[#FF6B5E]/20', text: 'text-[#B63B32] dark:text-[#FFB0AA]', border: 'border-[#FF6B5E]/25 dark:border-[#FF6B5E]/35' },
+      yellow: { bg: 'bg-[#F4C84A]/15 dark:bg-[#F4C84A]/20', text: 'text-[#9A6B05] dark:text-[#FEF3C7]', border: 'border-[#F4C84A]/35 dark:border-[#F4C84A]/40' },
       green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700' },
       red: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', border: 'border-red-200 dark:border-red-700' },
-      orange: { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-700' },
+      orange: { bg: 'bg-[#FF6B5E]/10 dark:bg-[#FF6B5E]/20', text: 'text-[#B63B32] dark:text-[#FFB0AA]', border: 'border-[#FF6B5E]/25 dark:border-[#FF6B5E]/35' },
       purple: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-700' },
-      gold: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-700' },
+      gold: { bg: 'bg-[#F4C84A]/15 dark:bg-[#F4C84A]/20', text: 'text-[#9A6B05] dark:text-[#FEF3C7]', border: 'border-[#F4C84A]/35 dark:border-[#F4C84A]/40' },
       gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', text: 'text-gray-700 dark:text-gray-300', border: 'border-gray-200 dark:border-gray-700' },
     };
     return colorMap[color] || colorMap.blue;
@@ -97,11 +98,11 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
       className={`
         flex items-center gap-3 p-3 rounded-lg border-2 bg-white dark:bg-gray-800
         ${isDragging ? 'opacity-50 border-blue-400' : 'border-gray-200 dark:border-gray-700'}
-        hover:border-[#558DBD] transition-all cursor-move relative
+        hover:border-[#2563EB] transition-all cursor-move relative
       `}
     >
       {/* Display order indicator */}
-      <div className="bg-[#558DBD] text-white text-xs font-bold px-2 py-1 rounded">
+      <div className="bg-[#2563EB] text-white text-xs font-bold px-2 py-1 rounded">
         #{index + 1}
       </div>
       <GripVertical className="h-5 w-5 text-gray-400" />
@@ -277,13 +278,14 @@ export function KPIConfiguration({
   const getModuleColorClasses = (color: string) => {
     const colorMap: Record<string, { bg: string; text: string; border: string }> = {
       aqua: { bg: 'bg-[#59C3A5]/10 dark:bg-[#59C3A5]/20', text: 'text-[#257B68] dark:text-[#8FE0CA]', border: 'border-[#59C3A5]/30 dark:border-[#59C3A5]/35' },
-      blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700' },
-      yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700' },
+      blue: { bg: 'bg-[#2563EB]/10 dark:bg-[#2563EB]/20', text: 'text-[#2563EB] dark:text-[#93C5FD]', border: 'border-[#2563EB]/25 dark:border-[#2563EB]/35' },
+      coral: { bg: 'bg-[#FF6B5E]/10 dark:bg-[#FF6B5E]/20', text: 'text-[#B63B32] dark:text-[#FFB0AA]', border: 'border-[#FF6B5E]/25 dark:border-[#FF6B5E]/35' },
+      yellow: { bg: 'bg-[#F4C84A]/15 dark:bg-[#F4C84A]/20', text: 'text-[#9A6B05] dark:text-[#FEF3C7]', border: 'border-[#F4C84A]/35 dark:border-[#F4C84A]/40' },
       green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700' },
       red: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', border: 'border-red-200 dark:border-red-700' },
-      orange: { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-700' },
+      orange: { bg: 'bg-[#FF6B5E]/10 dark:bg-[#FF6B5E]/20', text: 'text-[#B63B32] dark:text-[#FFB0AA]', border: 'border-[#FF6B5E]/25 dark:border-[#FF6B5E]/35' },
       purple: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-700' },
-      gold: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-700' },
+      gold: { bg: 'bg-[#F4C84A]/15 dark:bg-[#F4C84A]/20', text: 'text-[#9A6B05] dark:text-[#FEF3C7]', border: 'border-[#F4C84A]/35 dark:border-[#F4C84A]/40' },
       gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', text: 'text-gray-700 dark:text-gray-300', border: 'border-gray-200 dark:border-gray-700' },
     };
     return colorMap[color] || colorMap.blue;
@@ -303,7 +305,7 @@ export function KPIConfiguration({
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
               {/* Header */}
-              <div className="bg-[#558DBD] p-6 flex items-center justify-between">
+              <div className="bg-[#2563EB] p-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
                     <Eye className="h-6 w-6 text-white" />
@@ -352,7 +354,7 @@ export function KPIConfiguration({
                         return (
                           <div
                             key={kpi.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-[#558DBD] transition-all bg-white dark:bg-gray-800/50"
+                            className="flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-[#2563EB] transition-all bg-white dark:bg-gray-800/50"
                           >
                             <Checkbox
                               id={kpi.id}
@@ -438,7 +440,7 @@ export function KPIConfiguration({
                   <Button variant="outline" onClick={onClose}>
                     {resolvedCopy.cancel}
                   </Button>
-                  <Button onClick={handleSave} className="bg-[#558DBD] hover:bg-[#4a7aa8] text-white">
+                  <Button onClick={handleSave} className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white">
                     <Save className="h-4 w-4 mr-2" />
                     {resolvedCopy.save}
                   </Button>

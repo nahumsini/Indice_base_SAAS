@@ -75,6 +75,35 @@ export const enCA = {
         `Estimated productivity is ${score}%. Review progress, closures, and evidence to improve performance.`,
     },
   },
+  signals: {
+    title: 'Operating signals',
+    subtitle: 'Period movement, assignment gaps, overdue age, and audit backlog.',
+    comparison: {
+      title: 'Period movement',
+      previousRange: (from: string, to: string) => `Previous period: ${from} - ${to}`,
+      unavailable: 'Comparison is not available for this filter.',
+      completion: 'Closure',
+      overdue: 'Overdue',
+      total: 'Volume',
+    },
+    unassigned: {
+      title: 'Open without owner',
+      description: (open: number, overdue: number) => `${open} open tasks have no owner; ${overdue} are already overdue.`,
+      action: 'Review unassigned',
+    },
+    overdueAging: {
+      title: 'Overdue age',
+      oneToThree: '1-3 days',
+      fourToSeven: '4-7 days',
+      eightPlus: '8+ days',
+      action: 'Open overdue',
+    },
+    pendingAudit: {
+      title: 'Audit queue',
+      description: (pending: number, closed: number) => `${pending} of ${closed} closed tasks still need audit.`,
+      action: 'Review audits',
+    },
+  },
   cards: {
     productivity: {
       title: 'Operational productivity',
@@ -123,6 +152,22 @@ export const enCA = {
     processTasks: 'Process tasks',
     projectTasks: 'Project tasks',
     quality: 'Quality',
+  },
+  pdf: {
+    print: 'Print PDF',
+    fileName: 'indice-operational-kpis.pdf',
+    title: 'Operational KPI Report',
+    generatedAt: (value: string) => `Generated ${value}`,
+    delta: 'Delta',
+    noComparison: 'No previous comparison',
+    noData: 'No data for the selected filter.',
+    signals: 'Operating signals',
+    page: (current: number, total: number) => `Page ${current} of ${total}`,
+    columns: {
+      metric: 'Metric',
+      value: 'Value',
+      detail: 'Detail',
+    },
   },
   collaboratorsTable: {
     title: 'Collaborator performance',
@@ -183,6 +228,7 @@ export const enCA = {
   messages: {
     loadCatalogs: 'Unable to load catalogs.',
     loadKpis: 'Unable to load KPIs.',
+    printKpis: 'Unable to print KPIs PDF.',
     empty: 'There is no KPI information to show.',
     noInsight: 'No operational reading is available for the current filter.',
   },

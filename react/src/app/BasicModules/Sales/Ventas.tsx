@@ -1,11 +1,19 @@
 import { lazy, Suspense } from 'react';
+import { Home } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useVentasTranslations } from '../../hooks/useVentasTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import {
+  salesModuleTabs,
+  salesTabIds,
+  type SalesTabId,
+} from './salesIdentity';
+import { SalesCrmProvider } from './salesCrmContext';
 
 const Prospectos = lazy(() => import('./Prospectos'));
+const Contactos = lazy(() => import('./Contactos'));
 const Cotizacion = lazy(() => import('./Cotizacion'));
 const Productos = lazy(() => import('./Productos'));
 const Postventa = lazy(() => import('./Postventa'));
@@ -16,19 +24,9 @@ interface VentasProps {
   onNavigate: (page?: string) => void;
 }
 
-const salesTabIds = [
-  'leads',
-  'quotes',
-  'products',
-  'after-sales',
-  'contracts',
-  'kpis',
-] as const;
-
-type SalesTabId = (typeof salesTabIds)[number];
-
 const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
   prospectos: 'leads',
+  contactos: 'contacts',
   cotizacion: 'quotes',
   productos: 'products',
   postventa: 'after-sales',
@@ -43,90 +41,85 @@ export default function Ventas({ onNavigate }: VentasProps) {
     legacySalesTabAliases,
   );
 
-  const tabs = [
-    { id: 'leads', label: t.tabs.prospectos, emoji: '🎯', component: Prospectos },
-    { id: 'quotes', label: t.tabs.cotizacion, emoji: '💰', component: Cotizacion },
-    { id: 'products', label: t.tabs.productos, emoji: '📦', component: Productos },
-    { id: 'after-sales', label: t.tabs.postventa, emoji: '🔧', component: Postventa },
-    { id: 'contracts', label: t.tabs.contrato, emoji: '✍️', component: Contrato },
-    { id: 'kpis', label: t.tabs.kpis, emoji: '📊', component: KPIs },
-  ];
-
-  // Get the active component
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Prospectos;
+  const tabComponents = {
+    leads: Prospectos,
+    contacts: Contactos,
+    quotes: Cotizacion,
+    products: Productos,
+    'after-sales': Postventa,
+    contracts: Contrato,
+    kpis: KPIs,
+  };
+  const ActiveComponent = tabComponents[activeTab] || Prospectos;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 text-slate-950 dark:bg-gray-900 dark:text-white">
       <LoadingBarOverlay
         isVisible={isTabLoading}
-        title="Loading sales tab"
-        description="Opening the selected sales workspace."
+        title={t.loadingTitle}
+        description={t.loadingDescription}
       />
 
-      {/* Header del módulo */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
-        <div className="max-w-[1600px] mx-auto">
-          {/* Barra de Favoritos */}
-          <FavoritesBar 
+      <header className="border-b border-gray-200 bg-white px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
+        <div className="mx-auto max-w-[1600px]">
+          <FavoritesBar
             onNavigate={(page) => {
               if (page === 'sales') return;
               onNavigate(page);
-            }} 
-            currentModule="sales" 
+            }}
+            currentModule="sales"
           />
-          
-          <div className="flex items-start justify-between">
+
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {t.title}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {t.subtitle}
-              </p>
+              <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">{t.title}</h1>
+              <p className="text-gray-600 dark:text-gray-400">{t.subtitle}</p>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => onNavigate()}
-              className="text-sm gap-2"
-            >
-              <span className="text-lg">🏠</span> {t.back}
+            <Button variant="outline" onClick={() => onNavigate()} className="h-11 gap-2 rounded-lg px-4 text-sm">
+              <Home className="h-4 w-4" aria-hidden="true" />
+              {t.back}
             </Button>
           </div>
 
-          {/* Pestañas */}
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as SalesTabId)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-orange-500 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                <span>{tab.emoji}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+          <nav className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
+            {salesModuleTabs.map((tab) => {
+              const active = activeTab === tab.id;
 
-      {/* Contenido del tab activo */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <Suspense
-          fallback={(
-            <LoadingBarOverlay
-              isVisible
-              title="Loading sales tab"
-              description="Downloading only the selected sales workspace."
-            />
-          )}
-        >
-          <ActiveComponent />
-        </Suspense>
-      </div>
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    active
+                      ? 'bg-[#FF6B5E] text-white shadow-md shadow-[#FF6B5E]/20'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <span className="text-base leading-none" aria-hidden="true">{tab.emoji}</span>
+                  <span>{t.tabs[tab.translationKey]}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[1600px] px-8 py-6">
+        <SalesCrmProvider>
+          <Suspense
+            fallback={(
+              <LoadingBarOverlay
+                isVisible
+                title={t.loadingFallbackTitle}
+                description={t.loadingFallbackDescription}
+              />
+            )}
+          >
+            <ActiveComponent />
+          </Suspense>
+        </SalesCrmProvider>
+      </main>
     </div>
   );
 }

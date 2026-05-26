@@ -81,6 +81,35 @@ export const frCA: KpisTranslations = {
         `La productivite estimee est de ${score}%. Revisez l avancement, les fermetures et les preuves pour ameliorer le rendement.`,
     },
   },
+  signals: {
+    title: 'Signaux operationnels',
+    subtitle: 'Mouvement de periode, ecarts d assignation, age des retards et file d audit.',
+    comparison: {
+      title: 'Mouvement de periode',
+      previousRange: (from: string, to: string) => `Periode precedente: ${from} - ${to}`,
+      unavailable: 'La comparaison n est pas disponible pour ce filtre.',
+      completion: 'Fermeture',
+      overdue: 'En retard',
+      total: 'Volume',
+    },
+    unassigned: {
+      title: 'Ouvertes sans responsable',
+      description: (open: number, overdue: number) => `${open} taches ouvertes n ont pas de responsable; ${overdue} sont deja en retard.`,
+      action: 'Reviser sans responsable',
+    },
+    overdueAging: {
+      title: 'Age des retards',
+      oneToThree: '1-3 jours',
+      fourToSeven: '4-7 jours',
+      eightPlus: '8+ jours',
+      action: 'Ouvrir retards',
+    },
+    pendingAudit: {
+      title: 'File d audit',
+      description: (pending: number, closed: number) => `${pending} de ${closed} taches fermees restent a auditer.`,
+      action: 'Reviser audits',
+    },
+  },
   cards: {
     productivity: {
       title: 'Productivite operationnelle',
@@ -129,6 +158,22 @@ export const frCA: KpisTranslations = {
     processTasks: 'Taches de processus',
     projectTasks: 'Taches de projets',
     quality: 'Qualite',
+  },
+  pdf: {
+    print: 'Imprimer PDF',
+    fileName: 'indice-kpis-operationnels.pdf',
+    title: 'Rapport KPIs operationnels',
+    generatedAt: (value: string) => `Genere ${value}`,
+    delta: 'Variation',
+    noComparison: 'Aucune comparaison precedente',
+    noData: 'Aucune donnee pour le filtre selectionne.',
+    signals: 'Signaux operationnels',
+    page: (current: number, total: number) => `Page ${current} de ${total}`,
+    columns: {
+      metric: 'Metrique',
+      value: 'Valeur',
+      detail: 'Detail',
+    },
   },
   collaboratorsTable: {
     title: 'Rendement des collaborateurs',
@@ -189,6 +234,7 @@ export const frCA: KpisTranslations = {
   messages: {
     loadCatalogs: 'Impossible de charger les catalogues.',
     loadKpis: 'Impossible de charger les KPI.',
+    printKpis: 'Impossible d imprimer le PDF des KPIs.',
     empty: 'Aucune information KPI a afficher.',
     noInsight: 'Aucune lecture operationnelle disponible pour le filtre actuel.',
   },

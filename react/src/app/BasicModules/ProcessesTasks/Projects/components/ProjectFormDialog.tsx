@@ -24,6 +24,7 @@ import type {
   ProcessCollaboratorOption,
   ProcessUnitOption,
 } from '../../Processes/types';
+import { collaboratorCanOwnScopedRecord } from '../../shared/assignmentScope';
 import type { ProjectPriority, ProjectStatus } from '../projectsApi';
 import { defaultProjectsTranslations, type ProjectsTranslations } from '../translations';
 
@@ -79,35 +80,6 @@ function normalizeText(value?: string | null) {
 function isHeadquarterUnitName(name?: string | null) {
   const normalized = normalizeText(name).replace(/\s+/g, ' ');
   return normalized === 'headquarter' || normalized === 'headquarters' || normalized === 'headquater';
-}
-
-function collaboratorMatchesScope(
-  collaborator: ProcessCollaboratorOption,
-  unitId?: number | null,
-  businessId?: number | null,
-) {
-  if (businessId != null) {
-    return collaborator.businessId === businessId;
-  }
-
-  if (unitId != null) {
-    return collaborator.unitId === unitId;
-  }
-
-  return true;
-}
-
-function collaboratorCanOwnProject(
-  collaborator: ProcessCollaboratorOption,
-  unitId: number | null | undefined,
-  businessId: number | null | undefined,
-  headquarterUnitIds: ReadonlySet<number>,
-) {
-  if (collaborator.unitId != null && headquarterUnitIds.has(collaborator.unitId)) {
-    return true;
-  }
-
-  return collaboratorMatchesScope(collaborator, unitId, businessId);
 }
 
 function SelectField<T extends string>({
@@ -214,7 +186,7 @@ export function ProjectFormDialog({
         ? legacyValue('owner', form.ownerName)
         : NONE_VALUE;
   const scopedCollaboratorOptions = collaboratorOptions.filter((option) =>
-    collaboratorCanOwnProject(option, selectedUnitId, selectedBusinessId, headquarterUnitIds),
+    collaboratorCanOwnScopedRecord(option, selectedUnitId, selectedBusinessId, headquarterUnitIds, businessOptions),
   );
   const ownerSelectOptions = [
     { value: NONE_VALUE, label: formCopy.empty.owner },
@@ -267,7 +239,14 @@ export function ProjectFormDialog({
       const currentOwnerUserCompanyId = numericFormValue(currentForm.ownerUserCompanyId);
       const currentOwner = collaboratorOptions.find((option) => option.userCompanyId === currentOwnerUserCompanyId);
       const ownerBelongsToScope =
-        !currentOwner || collaboratorCanOwnProject(currentOwner, selectedUnit.id, nextBusinessId, headquarterUnitIds);
+        !currentOwner ||
+        collaboratorCanOwnScopedRecord(
+          currentOwner,
+          selectedUnit.id,
+          nextBusinessId,
+          headquarterUnitIds,
+          businessOptions,
+        );
 
       return {
         ...currentForm,
@@ -286,7 +265,8 @@ export function ProjectFormDialog({
         const currentOwnerUserCompanyId = numericFormValue(currentForm.ownerUserCompanyId);
         const currentOwner = collaboratorOptions.find((option) => option.userCompanyId === currentOwnerUserCompanyId);
         const ownerBelongsToScope =
-          !currentOwner || collaboratorCanOwnProject(currentOwner, currentUnitId, null, headquarterUnitIds);
+          !currentOwner ||
+          collaboratorCanOwnScopedRecord(currentOwner, currentUnitId, null, headquarterUnitIds, businessOptions);
 
         return {
           ...currentForm,
@@ -306,7 +286,14 @@ export function ProjectFormDialog({
       const currentOwnerUserCompanyId = numericFormValue(currentForm.ownerUserCompanyId);
       const currentOwner = collaboratorOptions.find((option) => option.userCompanyId === currentOwnerUserCompanyId);
       const ownerBelongsToScope =
-        !currentOwner || collaboratorCanOwnProject(currentOwner, nextUnitId, selectedBusiness.id, headquarterUnitIds);
+        !currentOwner ||
+        collaboratorCanOwnScopedRecord(
+          currentOwner,
+          nextUnitId,
+          selectedBusiness.id,
+          headquarterUnitIds,
+          businessOptions,
+        );
 
       return {
         ...currentForm,
@@ -350,7 +337,7 @@ export function ProjectFormDialog({
         hideCloseButton
         className="!flex h-[min(88vh,780px)] w-[calc(100vw-2rem)] !max-w-[820px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[820px] dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[rgb(250,204,21)] px-6 py-4">
+        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
               {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
@@ -360,7 +347,7 @@ export function ProjectFormDialog({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-2xl border-[rgb(113,63,18)]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
+                className="h-9 rounded-2xl border-[#9A6B05]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
                 disabled={isSubmitting}
               >
                 {copy.common.close}

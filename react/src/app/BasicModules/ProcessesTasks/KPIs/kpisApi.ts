@@ -18,7 +18,13 @@ export interface ProcessTaskKpiSummary {
   openTasks: number;
   completedTasks: number;
   cancelledTasks: number;
+  unassignedTasks: number;
+  unassignedOpenTasks: number;
+  unassignedOverdueTasks: number;
   overdueTasks: number;
+  overdue1To3Days: number;
+  overdue4To7Days: number;
+  overdue8PlusDays: number;
   pendingAuditTasks: number;
   auditedTasks: number;
   averageCompletion: number;
@@ -33,6 +39,20 @@ export interface ProcessTaskKpiSummary {
   evidenceRate: number;
   productivityScore: number;
   insight: string;
+}
+
+export interface ProcessTaskKpiComparison {
+  available: boolean;
+  from: string | null;
+  to: string | null;
+  productivityScore: number;
+  productivityDelta: number;
+  completionRate: number;
+  completionDelta: number;
+  overdueTasks: number;
+  overdueDelta: number;
+  totalTasks: number;
+  totalDelta: number;
 }
 
 export interface CollaboratorPerformanceRow {
@@ -121,6 +141,7 @@ export interface ProcessTaskKpiDashboard {
     overdueOnly: boolean;
   };
   summary: ProcessTaskKpiSummary;
+  comparison: ProcessTaskKpiComparison;
   cards: ProcessTaskKpiCard[];
   collaborators: CollaboratorPerformanceRow[];
   processes: ProcessPerformanceRow[];
@@ -171,7 +192,13 @@ function normalizeSummary(record: BackendRecord): ProcessTaskKpiSummary {
     openTasks: asNumber(record.openTasks),
     completedTasks: asNumber(record.completedTasks),
     cancelledTasks: asNumber(record.cancelledTasks),
+    unassignedTasks: asNumber(record.unassignedTasks),
+    unassignedOpenTasks: asNumber(record.unassignedOpenTasks),
+    unassignedOverdueTasks: asNumber(record.unassignedOverdueTasks),
     overdueTasks: asNumber(record.overdueTasks),
+    overdue1To3Days: asNumber(record.overdue1To3Days),
+    overdue4To7Days: asNumber(record.overdue4To7Days),
+    overdue8PlusDays: asNumber(record.overdue8PlusDays),
     pendingAuditTasks: asNumber(record.pendingAuditTasks),
     auditedTasks: asNumber(record.auditedTasks),
     averageCompletion: asNumber(record.averageCompletion),
@@ -189,6 +216,22 @@ function normalizeSummary(record: BackendRecord): ProcessTaskKpiSummary {
       typeof record.insight === 'string'
         ? record.insight
         : 'No hay lectura operativa disponible para el filtro actual.',
+  };
+}
+
+function normalizeComparison(record: BackendRecord): ProcessTaskKpiComparison {
+  return {
+    available: Boolean(record.available),
+    from: asStringOrNull(record.from),
+    to: asStringOrNull(record.to),
+    productivityScore: asNumber(record.productivityScore),
+    productivityDelta: asNumber(record.productivityDelta),
+    completionRate: asNumber(record.completionRate),
+    completionDelta: asNumber(record.completionDelta),
+    overdueTasks: asNumber(record.overdueTasks),
+    overdueDelta: asNumber(record.overdueDelta),
+    totalTasks: asNumber(record.totalTasks),
+    totalDelta: asNumber(record.totalDelta),
   };
 }
 
@@ -321,6 +364,7 @@ export async function listProcessTaskKpis(params: ProcessTaskKpiParams) {
       overdueOnly: Boolean(range.overdueOnly),
     },
     summary: normalizeSummary((response.summary ?? {}) as BackendRecord),
+    comparison: normalizeComparison((response.comparison ?? {}) as BackendRecord),
     cards: Array.isArray(response.cards) ? response.cards.map((item) => normalizeCard(item as BackendRecord)) : [],
     collaborators: Array.isArray(response.collaborators)
       ? response.collaborators.map((item) => normalizeCollaborator(item as BackendRecord))
