@@ -26,7 +26,15 @@ class HrAnnouncementTestFixtures {
     }
 
     TestUser createNormalUser(long suffix, Long unitId) {
-        var email = "announcement.user." + suffix + "@example.com";
+        return createUser(suffix, "announcement.user.", "user", unitId);
+    }
+
+    TestUser createManagerUser(long suffix, Long unitId) {
+        return createUser(suffix, "announcement.manager.", "admin", unitId);
+    }
+
+    private TestUser createUser(long suffix, String emailPrefix, String role, Long unitId) {
+        var email = emailPrefix + suffix + "@example.com";
         jdbcTemplate.update(
             "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)",
             email,
@@ -36,8 +44,9 @@ class HrAnnouncementTestFixtures {
         var userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
         userIds.add(userId);
         jdbcTemplate.update(
-            "INSERT INTO user_companies (user_id, company_id, role, status, visibility) VALUES (?, 1, 'user', 'active', 'all')",
-            userId
+            "INSERT INTO user_companies (user_id, company_id, role, status, visibility) VALUES (?, 1, ?, 'active', 'all')",
+            userId,
+            role
         );
         var userCompanyId = jdbcTemplate.queryForObject("SELECT id FROM user_companies WHERE user_id = ?", Long.class, userId);
         userCompanyIds.add(userCompanyId);
@@ -96,6 +105,10 @@ class HrAnnouncementTestFixtures {
 
     MockHttpSession userSession(TestUser user) {
         return session(user.userId(), "Announcement User", "user");
+    }
+
+    MockHttpSession managerSession(TestUser user) {
+        return session(user.userId(), "Announcement Manager", "admin");
     }
 
     private MockHttpSession session(long userId, String name, String role) {

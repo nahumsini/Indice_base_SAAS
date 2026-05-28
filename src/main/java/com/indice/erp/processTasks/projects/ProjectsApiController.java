@@ -1,6 +1,6 @@
 package com.indice.erp.processTasks.projects;
 
-import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.processTasks.ProcessTasksRequestGuard;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,35 +20,35 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/projects")
 public class ProjectsApiController {
 
-    private final SessionAuthService sessionAuthService;
+    private final ProcessTasksRequestGuard guard;
     private final ProjectsService projectsService;
 
-    public ProjectsApiController(SessionAuthService sessionAuthService, ProjectsService projectsService) {
-        this.sessionAuthService = sessionAuthService;
+    public ProjectsApiController(ProcessTasksRequestGuard guard, ProjectsService projectsService) {
+        this.guard = guard;
         this.projectsService = projectsService;
     }
 
     @GetMapping
     public ResponseEntity<?> list(HttpSession session) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
         }
-
-        return ResponseEntity.ok(projectsService.listProjects(user.get().companyId()));
+        return ResponseEntity.ok(projectsService.listProjects(access.user().companyId()));
     }
 
     @PostMapping
-    public ResponseEntity<?> create(HttpSession session, @RequestBody Map<String, Object> payload) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> create(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-
         try {
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(projectsService.createProject(user.get().companyId(), user.get().userId(), payload));
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    projectsService.createProject(access.user().companyId(), access.user().userId(), payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -58,15 +59,16 @@ public class ProjectsApiController {
     @PutMapping("/{projectId}")
     public ResponseEntity<?> update(
             HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long projectId,
             @RequestBody Map<String, Object> payload) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-
         try {
-            return ResponseEntity.ok(projectsService.updateProject(user.get().companyId(), projectId, payload));
+            return ResponseEntity.ok(projectsService.updateProject(
+                    access.user().companyId(), projectId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -75,14 +77,16 @@ public class ProjectsApiController {
     }
 
     @DeleteMapping("/{projectId}")
-    public ResponseEntity<?> delete(HttpSession session, @PathVariable long projectId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> delete(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long projectId) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-
         try {
-            projectsService.deleteProject(user.get().companyId(), projectId);
+            projectsService.deleteProject(access.user().companyId(), projectId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -90,28 +94,32 @@ public class ProjectsApiController {
     }
 
     @PostMapping("/{projectId}/complete")
-    public ResponseEntity<?> complete(HttpSession session, @PathVariable long projectId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> complete(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long projectId) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-
         try {
-            return ResponseEntity.ok(projectsService.completeProject(user.get().companyId(), projectId));
+            return ResponseEntity.ok(projectsService.completeProject(access.user().companyId(), projectId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
     }
 
     @PostMapping("/{projectId}/cancel")
-    public ResponseEntity<?> cancel(HttpSession session, @PathVariable long projectId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> cancel(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long projectId) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-
         try {
-            return ResponseEntity.ok(projectsService.cancelProject(user.get().companyId(), projectId));
+            return ResponseEntity.ok(projectsService.cancelProject(access.user().companyId(), projectId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -119,16 +127,13 @@ public class ProjectsApiController {
 
     @GetMapping("/{projectId}/tasks")
     public ResponseEntity<?> tasks(HttpSession session, @PathVariable long projectId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
         }
-
         try {
             return ResponseEntity.ok(projectsService.listProjectTasks(
-                    user.get().companyId(),
-                    user.get().userId(),
-                    projectId));
+                    access.user().companyId(), access.user().userId(), projectId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }

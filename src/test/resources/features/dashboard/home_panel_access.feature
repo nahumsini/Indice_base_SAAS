@@ -14,7 +14,7 @@ Feature: Home Panel access control
     Then each selected tab should render inside the Home Panel shell
     And the active tab should be reflected in the route
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: Owner or admin user sees company setup tabs
     Given an owner or admin user is authenticated
     When the user opens the Home Panel
@@ -23,7 +23,7 @@ Feature: Home Panel access control
     And the Business Profile tab should be visible
     And the Users tab should be visible
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: Normal user sees only personal areas in Home Panel
     Given a normal user is authenticated
     When the user opens the Home Panel
@@ -33,9 +33,29 @@ Feature: Home Panel access control
     And the Business Profile tab should not be visible
     And the Users tab should not be visible
 
-  @planned @access-control
+  @implemented @access-control
+  Scenario: Configured tab permissions filter Home Panel tabs
+    Given a user has explicit Home Panel tab permissions from the Users tab
+    When the user opens the Home Panel
+    Then only the allowed Home Panel tabs should be visible
+    And direct navigation to a denied Home Panel tab should move the user to an allowed tab
+
+  @implemented @access-control
   Scenario: Normal user cannot open hidden Home Panel routes directly
     Given a normal user is authenticated
     When the user navigates directly to a restricted Home Panel tab URL
     Then the frontend should redirect the user to an allowed tab
-    And the backend should reject restricted company setup API requests when applicable
+    And the backend should reject restricted Users, Business Structure, and Business Profile API requests when applicable
+
+  @implemented @access-control
+  Scenario: Home Panel backend APIs enforce configured tab permissions
+    Given an admin user has Config Center module access with explicit tab permissions
+    When the user calls a Home Panel backend API for a denied tab
+    Then the backend should return forbidden
+    And the backend should not run the denied Config Center use case
+
+  @implemented @access-control
+  Scenario: Shared organization catalogs are scoped by operational territory
+    Given an authenticated setup user is assigned to a specific unit or business from the Users tab
+    When the frontend requests shared unit or business catalogs
+    Then the backend should return only units and businesses inside the assigned operational scope

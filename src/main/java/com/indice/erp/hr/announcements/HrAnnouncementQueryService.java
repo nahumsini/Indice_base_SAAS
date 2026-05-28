@@ -12,20 +12,25 @@ public class HrAnnouncementQueryService {
     private final JdbcTemplate jdbcTemplate;
     private final HrAnnouncementPublisher publisher;
     private final HrAnnouncementResponseFactory responseFactory;
+    private final HrAnnouncementScopeService scopeService;
 
     public HrAnnouncementQueryService(
         JdbcTemplate jdbcTemplate,
         HrAnnouncementPublisher publisher,
-        HrAnnouncementResponseFactory responseFactory
+        HrAnnouncementResponseFactory responseFactory,
+        HrAnnouncementScopeService scopeService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.publisher = publisher;
         this.responseFactory = responseFactory;
+        this.scopeService = scopeService;
     }
 
     public Map<String, Object> list(HrAnnouncementActor actor) {
         publisher.publishDueAnnouncements();
-        var rows = actor.managementAccess() ? loadAll(actor.companyId()) : loadVisible(actor);
+        var rows = actor.managementAccess()
+            ? scopeService.filterManageable(actor, loadAll(actor.companyId()))
+            : loadVisible(actor);
         return responseFactory.listBody(actor.companyId(), rows, actor);
     }
 

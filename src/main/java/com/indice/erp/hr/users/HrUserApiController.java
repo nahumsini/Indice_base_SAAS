@@ -1,6 +1,10 @@
 package com.indice.erp.hr.users;
 
+import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
 import java.util.LinkedHashMap;
@@ -23,13 +27,16 @@ public class HrUserApiController {
 
     private final SessionAuthService sessionAuthService;
     private final HrUserService hrUserService;
+    private final HrAccessService hrAccessService;
 
     public HrUserApiController(
         SessionAuthService sessionAuthService,
-        HrUserService hrUserService
+        HrUserService hrUserService,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.hrUserService = hrUserService;
+        this.hrAccessService = hrAccessService;
     }
 
     @GetMapping
@@ -38,8 +45,11 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
-        var result = hrUserService.listUsers(user.get().companyId());
+        var result = hrUserService.listUsers(user.get());
         var body = new LinkedHashMap<String, Object>();
         body.put("items", result.get("rows"));
         body.put("count", ((java.util.List<?>) result.get("rows")).size());
@@ -53,9 +63,14 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
-            return ResponseEntity.ok(hrUserService.getUserDetails(user.get().companyId(), userCompanyId));
+            return ResponseEntity.ok(hrUserService.getUserDetails(user.get(), userCompanyId));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -67,10 +82,15 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
-            var result = hrUserService.createUser(user.get().companyId(), user.get().userId(), payload);
+            var result = hrUserService.createUser(user.get(), payload);
             return ResponseEntity.status(HttpStatus.CREATED).body(result.get("user"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -84,11 +104,15 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
-            payload.put("id", userCompanyId);
-            var result = hrUserService.updateUser(user.get().companyId(), payload);
+            var result = hrUserService.updateUser(user.get(), userCompanyId, payload);
             return ResponseEntity.ok(result.get("user"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -106,11 +130,16 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.ok(
-                hrUserService.createDocumentUpload(user.get().companyId(), userCompanyId, payload)
+                hrUserService.createDocumentUpload(user.get(), userCompanyId, payload)
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -130,16 +159,20 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 hrUserService.registerUserDocument(
-                    user.get().companyId(),
-                    user.get().userId(),
+                    user.get(),
                     userCompanyId,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -159,10 +192,15 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
-            hrUserService.deleteUserDocument(user.get().companyId(), userCompanyId, documentId);
+            hrUserService.deleteUserDocument(user.get(), userCompanyId, documentId);
             return ResponseEntity.ok(Map.of("success", true));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -178,14 +216,19 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
             var result = hrUserService.terminateUser(
-                user.get().companyId(),
+                user.get(),
                 userCompanyId,
                 payload == null ? Map.of() : payload
             );
             return ResponseEntity.ok(result.get("user"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -199,12 +242,25 @@ public class HrUserApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
 
         try {
-            hrUserService.deleteUser(user.get().companyId(), userCompanyId);
+            hrUserService.deleteUser(user.get(), userCompanyId);
             return ResponseEntity.ok(Map.of("success", true));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private boolean canAccessCollaborators(AuthSessionUser user) {
+        return hrAccessService.canAccessManagementTab(user, HrTab.COLLABORATORS);
+    }
+
+    private ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }
 }

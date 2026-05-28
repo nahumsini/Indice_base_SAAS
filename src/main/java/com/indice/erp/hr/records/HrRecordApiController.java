@@ -1,6 +1,10 @@
 package com.indice.erp.hr.records;
 
+import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessDeniedException;
+import com.indice.erp.hr.HrAccessService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
 import java.util.LinkedHashMap;
@@ -24,13 +28,16 @@ public class HrRecordApiController {
 
     private final SessionAuthService sessionAuthService;
     private final HrRecordService hrRecordService;
+    private final HrAccessService hrAccessService;
 
     public HrRecordApiController(
         SessionAuthService sessionAuthService,
-        HrRecordService hrRecordService
+        HrRecordService hrRecordService,
+        HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.hrRecordService = hrRecordService;
+        this.hrAccessService = hrAccessService;
     }
 
     @GetMapping
@@ -39,10 +46,13 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
             var filters = new LinkedHashMap<String, Object>(requestParams);
-            var result = hrRecordService.listRecords(user.get().companyId(), filters);
+            var result = hrRecordService.listRecords(user.get(), filters);
             var body = new LinkedHashMap<String, Object>();
             body.put("items", result.get("rows"));
             body.put("count", ((java.util.List<?>) result.get("rows")).size());
@@ -52,6 +62,8 @@ public class HrRecordApiController {
             body.put("total_pages", result.get("total_pages"));
             body.put("summary", result.get("summary"));
             return ResponseEntity.ok(body);
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -63,9 +75,14 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
-            return ResponseEntity.ok(hrRecordService.getRecordDetails(user.get().companyId(), recordId));
+            return ResponseEntity.ok(hrRecordService.getRecordDetails(user.get(), recordId));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -77,10 +94,15 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
-            var result = hrRecordService.createRecord(user.get().companyId(), user.get().userId(), payload);
+            var result = hrRecordService.createRecord(user.get(), payload);
             return ResponseEntity.status(HttpStatus.CREATED).body(result.get("record"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -94,10 +116,15 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
-            var result = hrRecordService.updateRecord(user.get().companyId(), user.get().userId(), recordId, payload);
+            var result = hrRecordService.updateRecord(user.get(), recordId, payload);
             return ResponseEntity.ok(result.get("record"));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -111,10 +138,15 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
-            hrRecordService.deleteRecord(user.get().companyId(), user.get().userId(), recordId);
+            hrRecordService.deleteRecord(user.get(), recordId);
             return ResponseEntity.ok(Map.of("success", true));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
@@ -130,9 +162,14 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
-            return ResponseEntity.ok(hrRecordService.createAttachmentUpload(user.get().companyId(), recordId, payload));
+            return ResponseEntity.ok(hrRecordService.createAttachmentUpload(user.get(), recordId, payload));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -152,16 +189,20 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 hrRecordService.registerAttachment(
-                    user.get().companyId(),
-                    user.get().userId(),
+                    user.get(),
                     recordId,
                     payload
                 )
             );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -181,12 +222,25 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canAccessRecords(user.get())) {
+            return forbidden();
+        }
 
         try {
-            hrRecordService.deleteAttachment(user.get().companyId(), user.get().userId(), recordId, attachmentId);
+            hrRecordService.deleteAttachment(user.get(), recordId, attachmentId);
             return ResponseEntity.ok(Map.of("success", true));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private boolean canAccessRecords(AuthSessionUser user) {
+        return hrAccessService.canAccessManagementTab(user, HrTab.RECORDS);
+    }
+
+    private ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }
 }

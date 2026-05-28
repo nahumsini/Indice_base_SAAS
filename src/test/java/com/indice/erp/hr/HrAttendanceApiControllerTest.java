@@ -3,6 +3,8 @@ package com.indice.erp.hr;
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.face.HrFaceService;
+import com.indice.erp.hr.attendance.api.AttendanceFaceVerificationApiController;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.hr.attendance.api.AttendanceAccessApiController;
 import com.indice.erp.hr.attendance.api.AttendanceCalendarEventApiController;
@@ -16,6 +18,7 @@ import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -39,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     AttendanceAccessApiController.class,
     AttendanceCalendarEventApiController.class,
     AttendanceDailyRecordApiController.class,
+    AttendanceFaceVerificationApiController.class,
     AttendanceKioskDeviceApiController.class,
     AttendanceLocationApiController.class,
     AttendanceScheduleApiController.class,
@@ -58,6 +62,15 @@ class HrAttendanceApiControllerTest {
     @MockBean
     private HrFaceService hrFaceService;
 
+    @MockBean
+    private HrAccessService hrAccessService;
+
+    @BeforeEach
+    void allowHrAccessByDefault() {
+        given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
+    }
+
     @Test
     void controlOverviewRequiresAuthentication() throws Exception {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.empty());
@@ -71,7 +84,7 @@ class HrAttendanceApiControllerTest {
     void controlOverviewReturnsPayloadForAuthenticatedUser() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.controlOverview(eq(1L), any())).willReturn(Map.of(
+        given(hrAttendanceService.controlOverview(eq(currentUser), any())).willReturn(Map.of(
             "date", "2026-04-07",
             "summary", Map.of(
                 "users_count", 1,
@@ -89,6 +102,36 @@ class HrAttendanceApiControllerTest {
             .andExpect(jsonPath("$.templates[0].name").value("Spring Default Schedule"))
             .andExpect(jsonPath("$.assignments[0].user_name").value("Second Empleado"));
     }
+
+    @Test
+    void dashboardReturnsScopedPayloadForAuthenticatedUser() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAttendanceService.listDashboard(eq(currentUser), any())).willReturn(Map.of(
+            "date", "2026-04-07",
+            "summary", Map.of("total_users", 1, "locations_count", 1),
+            "items", java.util.List.of(Map.of("user_company_id", 12, "user_name", "Second Empleado")),
+            "users", java.util.List.of(Map.of("id", 12, "full_name", "Second Empleado")),
+            "locations", java.util.List.of(Map.of("id", 4, "name", "North Gate"))
+        ));
+
+        mockMvc.perform(get("/api/v1/hr/attendance/dashboard").param("date", "2026-04-07"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.summary.total_users").value(1))
+            .andExpect(jsonPath("$.items[0].user_name").value("Second Empleado"));
+    }
+
+    @Test
+    void controlOverviewReturnsForbiddenWhenControlTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.CONTROL)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/attendance/control-overview").param("date", "2026-04-07"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
 
     @Test
     void myDashboardReturnsPayloadForAuthenticatedUser() throws Exception {
@@ -112,7 +155,7 @@ class HrAttendanceApiControllerTest {
     void createLocationReturnsCreatedPayloadForAuthenticatedUser() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.saveLocation(eq(1L), eq(1L), eq(null), anyMap())).willReturn(Map.of(
+        given(hrAttendanceService.saveLocation(eq(currentUser), eq(null), anyMap())).willReturn(Map.of(
             "location", Map.of(
                 "id", 9,
                 "name", "North Gate",
@@ -142,7 +185,7 @@ class HrAttendanceApiControllerTest {
     void updateScheduleTemplateReturnsBadRequestWhenValidationFails() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.saveScheduleTemplate(eq(1L), eq(1L), eq(3L), anyMap()))
+        given(hrAttendanceService.saveScheduleTemplate(eq(currentUser), eq(3L), anyMap()))
             .willThrow(new IllegalArgumentException("Schedule template name must be unique."));
 
         mockMvc.perform(
@@ -164,7 +207,7 @@ class HrAttendanceApiControllerTest {
     void bulkAssignReturnsPayloadForAuthenticatedUser() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.bulkAssignScheduleTemplate(eq(1L), eq(1L), anyMap())).willReturn(Map.of(
+        given(hrAttendanceService.bulkAssignScheduleTemplate(eq(currentUser), anyMap())).willReturn(Map.of(
             "assigned_count", 1,
             "template_name", "Late Shift",
             "assignments", java.util.List.of(Map.of("user_company_id", 2, "user_name", "Second Empleado"))
@@ -191,7 +234,7 @@ class HrAttendanceApiControllerTest {
     void kioskDevicesReturnsPayloadForAuthenticatedUser() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.listKioskDevices(eq(1L))).willReturn(Map.of(
+        given(hrAttendanceService.listKioskDevices(eq(currentUser))).willReturn(Map.of(
             "items", java.util.List.of(Map.of("id", 1, "code", "spring-front-kiosk", "name", "Spring Front Kiosk"))
         ));
 
@@ -281,7 +324,7 @@ class HrAttendanceApiControllerTest {
     void createAccessProfileReturnsCreatedPayload() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.saveAccessProfile(eq(1L), eq(1L), eq(null), anyMap())).willReturn(Map.of(
+        given(hrAttendanceService.saveAccessProfile(eq(currentUser), eq(null), anyMap())).willReturn(Map.of(
             "access_profile", Map.of("id", 7, "user_company_id", 2, "default_method", "manual_override")
         ));
 
@@ -305,7 +348,7 @@ class HrAttendanceApiControllerTest {
     void updateAccessMethodReturnsPayload() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.saveAccessMethod(eq(1L), eq(8L), anyMap())).willReturn(Map.of(
+        given(hrAttendanceService.saveAccessMethod(eq(currentUser), eq(8L), anyMap())).willReturn(Map.of(
             "access_method", Map.of("id", 8, "method_type", "pin", "status", "active")
         ));
 
@@ -349,7 +392,7 @@ class HrAttendanceApiControllerTest {
     void presignUploadReturnsPayloadForAuthenticatedUser() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.createPhotoUpload(eq(1L), anyMap())).willReturn(Map.of(
+        given(hrAttendanceService.createPhotoUpload(eq(currentUser), anyMap())).willReturn(Map.of(
             "object_key", "hr/attendance/1/2/2026/04/07/check_in-demo.jpg",
             "upload_url", "http://127.0.0.1:9000/upload",
             "expires_at", "2026-04-07T16:00:00Z",
@@ -377,7 +420,7 @@ class HrAttendanceApiControllerTest {
     void presignUploadReturnsServiceUnavailableWhenStorageIsDisabled() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrAttendanceService.createPhotoUpload(eq(1L), anyMap()))
+        given(hrAttendanceService.createPhotoUpload(eq(currentUser), anyMap()))
             .willThrow(new ObjectStorageDisabledException("Object storage is not enabled."));
 
         mockMvc.perform(
@@ -392,6 +435,43 @@ class HrAttendanceApiControllerTest {
         )
             .andExpect(status().isServiceUnavailable())
             .andExpect(jsonPath("$.message").value("Object storage is not enabled."));
+    }
+
+    @Test
+    void createFaceVerificationSessionReturnsCreatedPayload() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAttendanceService.createFaceVerificationSession(eq(currentUser), anyMap())).willReturn(Map.of(
+            "id", 55,
+            "user_company_id", 12,
+            "status", "pending"
+        ));
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/face-verification-sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "user_company_id": 12
+                    }
+                    """)
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(55))
+            .andExpect(jsonPath("$.user_company_id").value(12));
+    }
+
+    @Test
+    void completeFaceVerificationSessionReturnsForbiddenWhenScopeCheckFails() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.CONTROL)).willReturn(false);
+        given(hrAttendanceService.completeFaceVerificationSession(eq(currentUser), eq(44L), eq(false)))
+            .willThrow(new HrAccessDeniedException("Forbidden"));
+
+        mockMvc.perform(post("/api/v1/hr/attendance/face-verification-sessions/44/complete"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test

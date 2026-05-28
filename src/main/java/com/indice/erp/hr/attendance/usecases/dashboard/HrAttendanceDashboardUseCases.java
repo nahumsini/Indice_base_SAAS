@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.usecases.dashboard;
 
 import com.indice.erp.hr.attendance.models.AttendanceHrUser;
+import com.indice.erp.hr.attendance.models.LocationRow;
 import com.indice.erp.hr.attendance.support.AttendanceLocationPresentation;
 import com.indice.erp.hr.attendance.usecases.kiosk.HrAttendancePublicKioskDaySupport;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
@@ -25,13 +26,26 @@ public abstract class HrAttendanceDashboardUseCases extends HrAttendancePublicKi
     }
 
     public Map<String, Object> listDashboard(long companyId, LocalDate date) {
-        return buildDashboard(companyId, date, attendanceUserLookupService.listAttendanceUsers(companyId));
+        return buildDashboard(
+            companyId,
+            date,
+            attendanceUserLookupService.listAttendanceUsers(companyId),
+            listLocations(companyId)
+        );
     }
 
     protected Map<String, Object> buildDashboard(long companyId, LocalDate date, List<AttendanceHrUser> users) {
+        return buildDashboard(companyId, date, users, listLocations(companyId));
+    }
+
+    protected Map<String, Object> buildDashboard(
+        long companyId,
+        LocalDate date,
+        List<AttendanceHrUser> users,
+        List<LocationRow> locations
+    ) {
         var dailyRecordsByUser = attendanceDailyRecordRepository.loadDailyRecords(companyId, date);
         var scheduleRulesByUser = loadScheduleRules(companyId, date);
-        var locations = listLocations(companyId);
 
         var items = new ArrayList<Map<String, Object>>();
         var usersPayload = new ArrayList<Map<String, Object>>();

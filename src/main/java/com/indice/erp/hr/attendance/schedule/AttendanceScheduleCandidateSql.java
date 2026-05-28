@@ -1,5 +1,6 @@
 package com.indice.erp.hr.attendance.schedule;
 
+import com.indice.erp.hr.HrOperationalScope;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +13,7 @@ final class AttendanceScheduleCandidateSql {
     private AttendanceScheduleCandidateSql() {
     }
 
-    static CandidateSql all(long companyId, String search, Long unitId, Long businessId) {
+    static CandidateSql all(long companyId, HrOperationalScope scope, String search, Long unitId, Long businessId) {
         var where = new StringBuilder(
             """
             e.company_id = ?
@@ -21,12 +22,14 @@ final class AttendanceScheduleCandidateSql {
         );
         var params = new ArrayList<Object>();
         params.add(companyId);
+        appendScope(where, params, scope);
         appendFilters(where, params, search, unitId, businessId);
         return new CandidateSql(where.toString(), params);
     }
 
     static CandidateSql available(
         long companyId,
+        HrOperationalScope scope,
         LocalDate startDate,
         LocalDate rangeEnd,
         String search,
@@ -42,8 +45,17 @@ final class AttendanceScheduleCandidateSql {
         params.add(rangeEnd);
         params.add(startDate);
         params.add(rangeEnd);
+        appendScope(where, params, scope);
         appendFilters(where, params, search, unitId, businessId);
         return new CandidateSql(where.toString(), params);
+    }
+
+    private static void appendScope(StringBuilder where, List<Object> params, HrOperationalScope scope) {
+        if (scope == null || scope.isCorporateOffice()) {
+            return;
+        }
+        where.append(scope.hrUserPredicate("e"));
+        params.addAll(scope.hrUserParameters());
     }
 
     private static void appendFilters(StringBuilder where, List<Object> params, String search, Long unitId, Long businessId) {

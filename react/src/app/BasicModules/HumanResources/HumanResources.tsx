@@ -1,13 +1,14 @@
-import { lazy, Suspense, useRef } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import { useHumanResourcesTranslations } from './hooks/useHumanResourcesTranslations';
+import { useHRLanguage } from './HRLanguage';
+import { authApi } from '../../api/auth';
 import {
-  OperationalModuleGuide,
-  useHumanResourcesGuidanceTranslations,
-} from './operationalGuidance';
+  canAccessHumanResourcesTab,
+  type HumanResourcesTabId,
+} from '../../access/accessRules';
 
 const Employees = lazy(() => import('./Employees'));
 const Attendance = lazy(() => import('./Attendance/Attendance'));
@@ -21,7 +22,6 @@ const Incentives = lazy(() => import('./Incentives'));
 const KPIs = lazy(() => import('./KPIs'));
 
 interface HumanResourcesProps {
-  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -38,8 +38,6 @@ const humanResourcesTabIds = [
   'kpis',
 ] as const;
 
-type HumanResourcesTabId = (typeof humanResourcesTabIds)[number];
-
 const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId>> = {
   colaboradores: 'collaborators',
   asistencia: 'attendance',
@@ -51,50 +49,117 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
   incentivos: 'incentives',
 };
 
-export default function HumanResources({ learningModeActive = false, onNavigate }: HumanResourcesProps) {
-  const copy = useHumanResourcesTranslations();
-  const guidanceCopy = useHumanResourcesGuidanceTranslations();
-  const mainContentRef = useRef<HTMLDivElement | null>(null);
+export default function HumanResources({ onNavigate }: HumanResourcesProps) {
+  const t = useHRLanguage();
+  const [sessionAccess, setSessionAccess] = useState<{
+    role: string | null;
+    tabPermissionKeys: string[];
+    tabPermissionsConfigured: boolean;
+  }>({
+    role: null,
+    tabPermissionKeys: [],
+    tabPermissionsConfigured: false,
+  });
+  const [isAccessLoaded, setIsAccessLoaded] = useState(false);
   const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
     'collaborators',
     humanResourcesTabIds,
     legacyHumanResourcesTabAliases,
   );
 
-  const tabs = [
-    { id: 'collaborators', label: copy.tabs.collaborators, emoji: '👥', component: Employees },
-    { id: 'attendance', label: copy.tabs.attendance, emoji: '📅', component: Attendance },
-    { id: 'control', label: copy.tabs.control, emoji: '⏱️', component: Control },
-    { id: 'payroll', label: copy.tabs.payroll, emoji: '💰', component: Payroll },
-    { id: 'announcements', label: copy.tabs.announcements, emoji: '📢', component: Announcements },
-    { id: 'assets', label: copy.tabs.assets, emoji: '💼', component: Assets },
-    { id: 'records', label: copy.tabs.records, emoji: '📋', component: Records },
-    { id: 'permissions', label: copy.tabs.permissions, emoji: '✅', component: Permissions },
-    { id: 'incentives', label: copy.tabs.incentives, emoji: '🎁', component: Incentives },
-    { id: 'kpis', label: copy.tabs.kpis, emoji: '📊', component: KPIs },
-  ];
+  const allTabs = [
+    { id: 'collaborators', label: t.shell.tabs.collaborators, emoji: '👥', component: Employees },
+    { id: 'attendance', label: t.shell.tabs.attendance, emoji: '📅', component: Attendance },
+    { id: 'control', label: t.shell.tabs.control, emoji: '⏱️', component: Control },
+    { id: 'payroll', label: t.shell.tabs.payroll, emoji: '💰', component: Payroll },
+    { id: 'announcements', label: t.shell.tabs.announcements, emoji: '📢', component: Announcements },
+    { id: 'assets', label: t.shell.tabs.assets, emoji: '💼', component: Assets },
+    { id: 'records', label: t.shell.tabs.records, emoji: '📋', component: Records },
+    { id: 'permissions', label: t.shell.tabs.permissions, emoji: '✅', component: Permissions },
+    { id: 'incentives', label: t.shell.tabs.incentives, emoji: '🎁', component: Incentives },
+    { id: 'kpis', label: t.shell.tabs.kpis, emoji: '📊', component: KPIs },
+  ] satisfies Array<{
+    id: HumanResourcesTabId;
+    label: string;
+    emoji: string;
+    component: typeof Employees;
+  }>;
 
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Employees;
+  const canAccessTab = (tabId: HumanResourcesTabId) => canAccessHumanResourcesTab(
+    sessionAccess.role,
+    tabId,
+    sessionAccess.tabPermissionKeys,
+    sessionAccess.tabPermissionsConfigured,
+  );
+
+  const tabs = isAccessLoaded
+    ? allTabs.filter((tab) => canAccessTab(tab.id))
+    : [];
+
+  // Get the active component
+  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component ?? null;
+
+  useEffect(() => {
+    let active = true;
+
+    authApi.getSessionOrNull()
+      .then((session) => {
+        if (!active) {
+          return;
+        }
+        setSessionAccess({
+          role: session?.user.role ?? null,
+          tabPermissionKeys: session?.user.tab_permission_keys ?? [],
+          tabPermissionsConfigured: Boolean(session?.user.tab_permissions_configured),
+        });
+      })
+      .catch(() => {
+        if (active) {
+          setSessionAccess({
+            role: null,
+            tabPermissionKeys: [],
+            tabPermissionsConfigured: false,
+          });
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsAccessLoaded(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAccessLoaded || canAccessTab(activeTab)) {
+      return;
+    }
+
+    if (tabs[0]) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [activeTab, isAccessLoaded, sessionAccess, setActiveTab, tabs]);
 
   const handleTabClick = (tabId: HumanResourcesTabId) => {
     if (tabId === activeTab) {
+      return;
+    }
+    if (!canAccessTab(tabId)) {
       return;
     }
 
     setActiveTab(tabId);
   };
 
-  const handleGuidePrimaryAction = () => {
-    mainContentRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header del módulo */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
         <div className="max-w-[1600px] mx-auto">
+          {/* Barra de Favoritos */}
           <FavoritesBar 
             onNavigate={(page) => {
               if (page === 'human-resources') return;
@@ -106,10 +171,10 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {copy.title}
+                {t.shell.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {copy.subtitle}
+                {t.shell.subtitle}
               </p>
             </div>
             <Button 
@@ -117,28 +182,19 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
               onClick={() => onNavigate()}
               className="text-sm gap-2"
             >
-              <span className="text-lg">🏠</span> {copy.back}
+              <span className="text-lg">🏠</span> {t.shell.back}
             </Button>
           </div>
 
-          {learningModeActive ? (
-            <div className="mt-5">
-              <OperationalModuleGuide
-                copy={guidanceCopy}
-                activeTabId={activeTab}
-                onPrimaryAction={handleGuidePrimaryAction}
-              />
-            </div>
-          ) : null}
-
+          {/* Pestañas */}
           <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => handleTabClick(tab.id as HumanResourcesTabId)}
+                onClick={() => handleTabClick(tab.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'bg-[#59C3A5] text-white shadow-md shadow-[#59C3A5]/20'
+                    ? 'bg-blue-600 text-white shadow-md'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
@@ -150,17 +206,30 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
         </div>
       </div>
 
-      <div ref={mainContentRef} className="max-w-[1600px] mx-auto px-8 py-6">
+      {/* Contenido del tab activo */}
+      <div className="max-w-[1600px] mx-auto px-8 py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
               isVisible
-              title={copy.loading.title}
-              description={copy.loading.description}
+              title="Loading HR tab"
+              description="Downloading only the selected human resources workspace."
             />
           )}
         >
-          <ActiveComponent />
+          {isAccessLoaded && ActiveComponent ? (
+            <ActiveComponent />
+          ) : isAccessLoaded ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+              No Human Resources tabs are available for this user.
+            </div>
+          ) : (
+            <LoadingBarOverlay
+              isVisible
+              title="Loading HR access"
+              description="Checking which workspaces are available."
+            />
+          )}
         </Suspense>
       </div>
     </div>

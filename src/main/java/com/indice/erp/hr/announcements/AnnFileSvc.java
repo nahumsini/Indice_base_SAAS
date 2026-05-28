@@ -20,23 +20,27 @@ public class AnnFileSvc {
     private final ObjectStorageProperties storageProperties;
     private final AnnVisSvc visSvc;
     private final HrAnnouncementQueryService queryService;
+    private final HrAnnouncementScopeService scopeService;
 
     public AnnFileSvc(
         JdbcTemplate jdbcTemplate,
         ObjectStorageService storageService,
         ObjectStorageProperties storageProperties,
         AnnVisSvc visSvc,
-        HrAnnouncementQueryService queryService
+        HrAnnouncementQueryService queryService,
+        HrAnnouncementScopeService scopeService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.storageService = storageService;
         this.storageProperties = storageProperties;
         this.visSvc = visSvc;
         this.queryService = queryService;
+        this.scopeService = scopeService;
     }
 
     public Map<String, Object> presign(HrAnnouncementActor actor, long announcementId, Map<String, Object> payload) {
         visSvc.requireCompanyAnnouncement(actor.companyId(), announcementId);
+        scopeService.requireManageable(actor, announcementId);
         requireStorage();
         var draft = AnnFileSupport.draft(payload);
         var objectKey = AnnFileSupport.objectKey(actor.companyId(), announcementId, draft.fileName(), LocalDate.now());
@@ -52,6 +56,7 @@ public class AnnFileSvc {
     @Transactional
     public Map<String, Object> register(HrAnnouncementActor actor, long announcementId, Map<String, Object> payload) {
         visSvc.requireCompanyAnnouncement(actor.companyId(), announcementId);
+        scopeService.requireManageable(actor, announcementId);
         requireStorage();
         var draft = AnnFileSupport.draft(payload);
         var objectKey = AnnFileSupport.normalizeKey(
@@ -69,6 +74,7 @@ public class AnnFileSvc {
     @Transactional
     public Map<String, Object> delete(HrAnnouncementActor actor, long announcementId, long attachmentId) {
         visSvc.requireCompanyAnnouncement(actor.companyId(), announcementId);
+        scopeService.requireManageable(actor, announcementId);
         var updated = jdbcTemplate.update(
             """
                 UPDATE hr_announcement_attachments

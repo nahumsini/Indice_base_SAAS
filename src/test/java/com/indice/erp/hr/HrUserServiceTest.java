@@ -1,5 +1,6 @@
 package com.indice.erp.hr;
 
+import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.hr.attendance.HrAttendanceService;
 import com.indice.erp.hr.users.HrUserService;
 import com.indice.erp.storage.DisabledObjectStorageService;
@@ -40,6 +41,9 @@ class HrUserServiceTest {
     @Mock
     private HrAttendanceService hrAttendanceService;
 
+    @Mock
+    private HrOperationalScopeService hrOperationalScopeService;
+
     @Test
     void listUsersAllowsNullOptionalColumns() throws Exception {
         var service = createService();
@@ -75,6 +79,50 @@ class HrUserServiceTest {
         assertEquals("", rows.getFirst().get("phone"));
         assertNull(rows.getFirst().get("hire_date"));
         assertEquals(new BigDecimal("6500.00"), rows.getFirst().get("salary"));
+    }
+
+    @Test
+    void listUsersAppliesBusinessScopeForCurrentUser() throws Exception {
+        var service = createService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Scoped Admin", "admin");
+
+        when(hrOperationalScopeService.resolve(currentUser))
+            .thenReturn(HrOperationalScope.businessOffice(4L, 9L));
+        when(jdbcTemplate.query(
+            org.mockito.ArgumentMatchers.contains("e.business_id = ?"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L),
+            eq(9L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = hrUserResultSet();
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        when(jdbcTemplate.queryForObject(
+            org.mockito.ArgumentMatchers.contains("e.business_id = ?"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L),
+            eq(9L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getInt("total_count")).thenReturn(1);
+            when(rs.getInt("active_count")).thenReturn(1);
+            when(rs.getInt("inactive_count")).thenReturn(0);
+            when(rs.getInt("terminated_count")).thenReturn(0);
+            when(rs.getBigDecimal("total_payroll_amount_monthly")).thenReturn(new BigDecimal("6500.00"));
+            return rowMapper.mapRow(rs, 0);
+        });
+
+        var result = service.listUsers(currentUser);
+
+        @SuppressWarnings("unchecked")
+        var rows = (List<Map<String, Object>>) result.get("rows");
+        assertEquals(1, rows.size());
+        assertEquals("Second Empleado", rows.getFirst().get("full_name"));
     }
 
     @Test
@@ -214,7 +262,13 @@ class HrUserServiceTest {
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties
     ) {
-        return new HrUserService(jdbcTemplate, hrAttendanceService, objectStorageService, objectStorageProperties);
+        return new HrUserService(
+            jdbcTemplate,
+            hrAttendanceService,
+            hrOperationalScopeService,
+            objectStorageService,
+            objectStorageProperties
+        );
     }
 
     private ObjectStorageProperties createStorageProperties() {

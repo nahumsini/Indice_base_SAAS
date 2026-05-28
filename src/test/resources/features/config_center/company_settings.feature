@@ -9,6 +9,13 @@ Feature: Company settings
     Then the backend should return the company settings envelope
     And the response should include saved configuration values when they exist
 
+  @implemented @access-control
+  Scenario: Scoped setup user only sees in-scope company structure payloads
+    Given an authenticated setup user is assigned to a specific unit or business from the Users tab
+    When the frontend requests the shared company profile
+    Then the backend should scope territorial map data and collaborator counts to the assigned operational scope
+    And company-global profile fields may remain shared when they are not safely scopeable by territory
+
   @implemented
   Scenario: User saves company settings
     Given an authenticated admin user edits company settings

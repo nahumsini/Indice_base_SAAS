@@ -1,6 +1,6 @@
 import { useLanguage } from '../shared/context';
 import { useFavorites } from '../shared/context';
-import { buildDefaultModuleCatalog } from '../config/moduleCatalog';
+import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
 import { resolvePageId } from '../config/navigation';
 
 interface FavoritesBarProps {
@@ -20,8 +20,22 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
   const { t } = useLanguage();
   const { getFavoriteModules } = useFavorites();
 
-  const allModules = buildDefaultModuleCatalog(t);
-  const visibleModules: FavoriteBarModule[] = getFavoriteModules(allModules);
+  const allModules = useAccessibleModuleCatalog(t);
+  const coreModuleFlow = [
+    'home-panel',
+    'human-resources',
+    'processes-tasks',
+    'expenses',
+    'petty-cash',
+  ] as const;
+  const moduleById = new Map(allModules.map((module) => [module.id, module] as const));
+  const pinnedModules = coreModuleFlow
+    .map((moduleId) => moduleById.get(moduleId))
+    .filter(Boolean) as FavoriteBarModule[];
+  const extraFavoriteModules: FavoriteBarModule[] = getFavoriteModules(allModules).filter(
+    (module) => !coreModuleFlow.includes(module.id as (typeof coreModuleFlow)[number]),
+  );
+  const visibleModules: FavoriteBarModule[] = [...pinnedModules, ...extraFavoriteModules];
   const activeModule = resolvePageId(currentModule) ?? currentModule;
 
   const handleModuleClick = (module: FavoriteBarModule) => {
@@ -72,7 +86,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
     <div className="mb-6">
       <div className="-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0">
         <div className="flex min-w-max items-center gap-2 sm:min-w-0 sm:flex-wrap">
-          {/* Dashboard is always pinned as the fixed entry point. */}
+          {/* Botón Dashboard - Siempre fijo */}
           <button
             onClick={() => onNavigate('dashboard')}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -81,7 +95,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
             <span>Dashboard</span>
           </button>
 
-          {/* Favorite modules selected from the Dashboard. */}
+          {/* Módulos Favoritos */}
           {visibleModules.map((module) => {
             const route = resolvePageId(module.route) ?? module.route;
             const moduleColor = getResolvedModuleColor(module);

@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.indice.erp.auth.AuthSessionUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.storage.DisabledObjectStorageService;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -35,6 +36,9 @@ class ConfigCenterServiceTest {
 
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Mock
+    private ConfigCenterScopeAccess scopeAccess;
 
     @Test
     void deleteUserRejectsCurrentUserBeforeQueryingDatabase() {
@@ -118,6 +122,46 @@ class ConfigCenterServiceTest {
         @SuppressWarnings("unchecked")
         var businesses = (List<Map<String, Object>>) map.getFirst().get("businesses");
         assertEquals(9L, businesses.getFirst().get("legacy_business_id"));
+    }
+
+    @Test
+    void actorAwareGetEmpresaDelegatesToScopeAccess() {
+        var service = newService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Scoped User", "admin");
+        var scopedEmpresa = Map.<String, Object>of("nombre_empresa", "Empresa Demo Spring", "colaboradores", 4);
+
+        when(jdbcTemplate.query(
+            eq("SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(1L);
+            when(rs.getString("name")).thenReturn("Empresa Demo Spring");
+            when(rs.getString("logo_url")).thenReturn(null);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("""
+            {
+              "config_center": {
+                "estructura": "multi",
+                "colaboradores": 19,
+                "map": []
+              }
+            }
+            """));
+        when(scopeAccess.scopeEmpresa(eq(currentUser), org.mockito.ArgumentMatchers.anyMap())).thenReturn(scopedEmpresa);
+
+        var result = service.getEmpresa(currentUser);
+
+        assertEquals(scopedEmpresa, result);
+        verify(scopeAccess).scopeEmpresa(eq(currentUser), org.mockito.ArgumentMatchers.anyMap());
     }
 
     @Test
@@ -583,7 +627,8 @@ class ConfigCenterServiceTest {
             new ObjectMapper(),
             passwordEncoder,
             new DisabledObjectStorageService(),
-            new ObjectStorageProperties()
+            new ObjectStorageProperties(),
+            scopeAccess
         );
     }
 }

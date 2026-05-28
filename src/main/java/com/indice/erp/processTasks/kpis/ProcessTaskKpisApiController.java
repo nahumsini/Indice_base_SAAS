@@ -1,9 +1,8 @@
 package com.indice.erp.processTasks.kpis;
 
-import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.processTasks.ProcessTasksRequestGuard;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,13 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/process-task-kpis")
 public class ProcessTaskKpisApiController {
 
-    private final SessionAuthService sessionAuthService;
+    private final ProcessTasksRequestGuard guard;
     private final ProcessTaskKpisService processTaskKpisService;
 
     public ProcessTaskKpisApiController(
-            SessionAuthService sessionAuthService,
+            ProcessTasksRequestGuard guard,
             ProcessTaskKpisService processTaskKpisService) {
-        this.sessionAuthService = sessionAuthService;
+        this.guard = guard;
         this.processTaskKpisService = processTaskKpisService;
     }
 
@@ -34,15 +33,15 @@ public class ProcessTaskKpisApiController {
             @RequestParam(required = false) Long unitId,
             @RequestParam(required = false) Long businessId,
             @RequestParam(required = false) Long collaboratorId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
         }
 
         try {
             return ResponseEntity.ok(processTaskKpisService.getDashboard(
-                    user.get().companyId(),
-                    user.get().userId(),
+                    access.user().companyId(),
+                    access.user().userId(),
                     from,
                     to,
                     includeOverdueBacklog,

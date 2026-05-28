@@ -1,6 +1,6 @@
 package com.indice.erp.processTasks.processes;
 
-import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.processTasks.ProcessTasksRequestGuard;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,40 +20,43 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/processes")
 public class ProcessesApiController {
 
-    private final SessionAuthService sessionAuthService;
+    private final ProcessTasksRequestGuard guard;
     private final ProcessesService processesService;
 
     public ProcessesApiController(
-            SessionAuthService sessionAuthService,
+            ProcessTasksRequestGuard guard,
             ProcessesService processesService) {
-        this.sessionAuthService = sessionAuthService;
+        this.guard = guard;
         this.processesService = processesService;
     }
 
     @GetMapping
     public ResponseEntity<?> list(HttpSession session) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
         }
 
-        return ResponseEntity.ok(processesService.listProcesses(user.get().companyId(), user.get().userId()));
+        return ResponseEntity.ok(processesService.listProcesses(access.user().companyId(), access.user().userId()));
     }
 
     @PostMapping
-    public ResponseEntity<?> create(HttpSession session, @RequestBody Map<String, Object> payload) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> create(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
 
         try {
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(processesService.createProcess(
-                            user.get().companyId(),
-                            user.get().userId(),
-                            user.get().userName(),
+                            access.user().companyId(),
+                            access.user().userId(),
+                            access.user().userName(),
                             payload));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
@@ -62,16 +66,17 @@ public class ProcessesApiController {
     @PutMapping("/{processId}")
     public ResponseEntity<?> update(
             HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long processId,
             @RequestBody Map<String, Object> payload) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
 
         try {
             return ResponseEntity.ok(
-                    processesService.updateProcess(user.get().companyId(), user.get().userId(), processId, payload));
+                    processesService.updateProcess(access.user().companyId(), access.user().userId(), processId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -80,14 +85,17 @@ public class ProcessesApiController {
     }
 
     @DeleteMapping("/{processId}")
-    public ResponseEntity<?> delete(HttpSession session, @PathVariable long processId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> delete(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long processId) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
 
         try {
-            processesService.deleteProcess(user.get().companyId(), user.get().userId(), processId);
+            processesService.deleteProcess(access.user().companyId(), access.user().userId(), processId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -95,15 +103,18 @@ public class ProcessesApiController {
     }
 
     @PostMapping("/{processId}/materialize")
-    public ResponseEntity<?> materialize(HttpSession session, @PathVariable long processId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> materialize(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long processId) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
 
         try {
             return ResponseEntity.ok(
-                    processesService.materializeProcess(user.get().companyId(), user.get().userId(), processId));
+                    processesService.materializeProcess(access.user().companyId(), access.user().userId(), processId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

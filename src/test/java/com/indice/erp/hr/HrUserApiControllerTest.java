@@ -2,6 +2,7 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.users.HrUserApiController;
 import com.indice.erp.hr.users.HrUserService;
 import com.indice.erp.storage.ObjectStorageDisabledException;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -39,6 +41,15 @@ class HrUserApiControllerTest {
 
     @MockitoBean
     private HrUserService hrUserService;
+
+    @MockitoBean
+    private HrAccessService hrAccessService;
+
+    @BeforeEach
+    void allowHrAccessByDefault() {
+        given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
+    }
 
     @Test
     void listReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
@@ -72,7 +83,7 @@ class HrUserApiControllerTest {
         ));
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrUserService.listUsers(1L)).willReturn(serviceResult);
+        given(hrUserService.listUsers(currentUser)).willReturn(serviceResult);
 
         mockMvc.perform(get("/api/v1/hr/users"))
             .andExpect(status().isOk())
@@ -82,11 +93,24 @@ class HrUserApiControllerTest {
     }
 
     @Test
+    void listReturnsForbiddenWhenCollaboratorsTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.COLLABORATORS)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/users"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+
+    @Test
     void updateReturnsNotFoundWhenHrUserIsMissing() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrUserService.updateUser(anyLong(), any(Map.class)))
+        given(hrUserService.updateUser(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new NoSuchElementException("HR user not found."));
 
         mockMvc.perform(put("/api/v1/hr/users/999")
@@ -117,7 +141,7 @@ class HrUserApiControllerTest {
         detailBody.put("documents", List.of());
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrUserService.getUserDetails(1L, 12L)).willReturn(detailBody);
+        given(hrUserService.getUserDetails(currentUser, 12L)).willReturn(detailBody);
 
         mockMvc.perform(get("/api/v1/hr/users/12"))
             .andExpect(status().isOk())
@@ -133,7 +157,7 @@ class HrUserApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrUserService.createDocumentUpload(anyLong(), anyLong(), any(Map.class)))
+        given(hrUserService.createDocumentUpload(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new ObjectStorageDisabledException("Object storage is not enabled."));
 
         mockMvc.perform(post("/api/v1/hr/users/12/documents/presign-upload")
@@ -148,5 +172,18 @@ class HrUserApiControllerTest {
                     """))
             .andExpect(status().isServiceUnavailable())
             .andExpect(jsonPath("$.message").value("Object storage is not enabled."));
+    }
+
+    @Test
+    void detailsReturnsForbiddenWhenTargetIsOutsideOperationalScope() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Scoped Admin", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrUserService.getUserDetails(currentUser, 77L))
+            .willThrow(new HrAccessDeniedException("Forbidden"));
+
+        mockMvc.perform(get("/api/v1/hr/users/77"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 }

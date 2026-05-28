@@ -1,5 +1,7 @@
 package com.indice.erp.hr.assets;
 
+import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.HrOperationalScope;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -38,16 +40,31 @@ public class HrAssetService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final JdbcTemplate jdbcTemplate;
+    private final HrAssetScopeAccess hrAssetScopeAccess;
 
-    public HrAssetService(JdbcTemplate jdbcTemplate) {
+    public HrAssetService(JdbcTemplate jdbcTemplate, HrAssetScopeAccess hrAssetScopeAccess) {
         this.jdbcTemplate = jdbcTemplate;
+        this.hrAssetScopeAccess = hrAssetScopeAccess;
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> listAssets(long companyId, Map<String, Object> filters) {
+        return listAssets(companyId, filters, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> listAssets(AuthSessionUser currentUser, Map<String, Object> filters) {
+        return listAssets(currentUser.companyId(), filters, hrAssetScopeAccess.resolve(currentUser));
+    }
+
+    private Map<String, Object> listAssets(
+        long companyId,
+        Map<String, Object> filters,
+        HrOperationalScope scope
+    ) {
         var page = parsePage(filters);
         var size = parseSize(filters);
-        var query = buildListQuery(companyId, filters);
+        var query = buildListQuery(companyId, filters, scope);
         var offset = (page - 1) * size;
 
         var rows = jdbcTemplate.query(
@@ -112,7 +129,12 @@ public class HrAssetService {
         );
 
         var totalCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM user_assets a " + query.whereClause(),
+            """
+                SELECT COUNT(*)
+                FROM user_assets a
+                LEFT JOIN hr_users e ON e.id = a.responsible_user_company_id
+                """
+                + query.whereClause(),
             Long.class,
             query.params().toArray()
         );
@@ -127,6 +149,7 @@ public class HrAssetService {
                        SUM(CASE WHEN a.status = 'inactive' THEN 1 ELSE 0 END) AS inactive_count,
                        COALESCE(SUM(a.value_amount), 0) AS total_value_amount
                 FROM user_assets a
+                LEFT JOIN hr_users e ON e.id = a.responsible_user_company_id
                 """
                 + query.whereClause(),
             (rs, rowNum) -> {
@@ -166,9 +189,36 @@ public class HrAssetService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> assetDetails(AuthSessionUser currentUser, long assetId) {
+        var scope = hrAssetScopeAccess.resolve(currentUser);
+        hrAssetScopeAccess.requireAssetInScope(currentUser.companyId(), scope, assetId);
+        return assetDetails(currentUser.companyId(), assetId);
+    }
+
     @Transactional
     public Map<String, Object> createAsset(long companyId, long actorUserId, Map<String, Object> payload) {
+        return createAsset(companyId, actorUserId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> createAsset(AuthSessionUser currentUser, Map<String, Object> payload) {
+        return createAsset(
+            currentUser.companyId(),
+            currentUser.userId(),
+            payload,
+            hrAssetScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> createAsset(
+        long companyId,
+        long actorUserId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         var draft = normalizeCreatePayload(companyId, payload);
+        hrAssetScopeAccess.requireTargetInScope(companyId, scope, draft.unitId(), draft.responsibleUserCompanyId());
         ensureUniqueAssetCode(companyId, draft.assetCode(), null);
         ensureUniqueSerialNumber(companyId, draft.serialNumber(), null);
 
@@ -240,8 +290,34 @@ public class HrAssetService {
 
     @Transactional
     public Map<String, Object> updateAsset(long companyId, long actorUserId, long assetId, Map<String, Object> payload) {
+        return updateAsset(companyId, actorUserId, assetId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> updateAsset(
+        AuthSessionUser currentUser,
+        long assetId,
+        Map<String, Object> payload
+    ) {
+        return updateAsset(
+            currentUser.companyId(),
+            currentUser.userId(),
+            assetId,
+            payload,
+            hrAssetScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> updateAsset(
+        long companyId,
+        long actorUserId,
+        long assetId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         rejectLifecycleFields(payload);
         var current = requireAssetState(companyId, assetId);
+        hrAssetScopeAccess.requireAssetInScope(companyId, scope, assetId);
 
         var assetCode = current.assetCode();
         if (hasAnyKey(payload, "asset_code", "assetCode", "id")) {
@@ -276,6 +352,7 @@ public class HrAssetService {
             }
             unitId = requestedUnitId;
         }
+        hrAssetScopeAccess.requireTargetInScope(companyId, scope, unitId, current.responsibleUserCompanyId());
 
         var valueAmount = current.valueAmount();
         if (hasAnyKey(payload, "value", "value_amount", "valueAmount")) {
@@ -326,19 +403,73 @@ public class HrAssetService {
 
     @Transactional
     public Map<String, Object> reassignAsset(long companyId, long actorUserId, long assetId, Map<String, Object> payload) {
+        return reassignAsset(companyId, actorUserId, assetId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> reassignAsset(
+        AuthSessionUser currentUser,
+        long assetId,
+        Map<String, Object> payload
+    ) {
+        return reassignAsset(
+            currentUser.companyId(),
+            currentUser.userId(),
+            assetId,
+            payload,
+            hrAssetScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> reassignAsset(
+        long companyId,
+        long actorUserId,
+        long assetId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         prevalidateAssignmentStatus(payload, "assigned");
         var current = requireAssetState(companyId, assetId);
+        hrAssetScopeAccess.requireAssetInScope(companyId, scope, assetId);
         var command = normalizeAssignmentCommand(companyId, payload, current.unitId(), "assigned");
+        hrAssetScopeAccess.requireTargetInScope(companyId, scope, command.unitId(), command.responsibleUserCompanyId());
         return applyAssignmentChange(companyId, actorUserId, current, command);
     }
 
     @Transactional
     public Map<String, Object> changeStatus(long companyId, long actorUserId, long assetId, Map<String, Object> payload) {
+        return changeStatus(companyId, actorUserId, assetId, payload, HrOperationalScope.corporateOffice());
+    }
+
+    @Transactional
+    public Map<String, Object> changeStatus(
+        AuthSessionUser currentUser,
+        long assetId,
+        Map<String, Object> payload
+    ) {
+        return changeStatus(
+            currentUser.companyId(),
+            currentUser.userId(),
+            assetId,
+            payload,
+            hrAssetScopeAccess.resolve(currentUser)
+        );
+    }
+
+    private Map<String, Object> changeStatus(
+        long companyId,
+        long actorUserId,
+        long assetId,
+        Map<String, Object> payload,
+        HrOperationalScope scope
+    ) {
         var current = requireAssetState(companyId, assetId);
+        hrAssetScopeAccess.requireAssetInScope(companyId, scope, assetId);
         var targetStatus = normalizeStatus(requiredString(payload, "status", "to_status", "toStatus"));
 
         if (ASSIGNABLE_STATUSES.contains(targetStatus)) {
             var command = normalizeAssignmentCommand(companyId, payload, current.unitId(), targetStatus);
+            hrAssetScopeAccess.requireTargetInScope(companyId, scope, command.unitId(), command.responsibleUserCompanyId());
             return applyAssignmentChange(companyId, actorUserId, current, command);
         }
 
@@ -353,6 +484,7 @@ public class HrAssetService {
         var effectiveUnitId = hasAnyKey(payload, "unit_id", "unitId", "unit")
             ? resolveUnitId(companyId, payload)
             : current.unitId();
+        hrAssetScopeAccess.requireTargetInScope(companyId, scope, effectiveUnitId, null);
         var changedAt = parseDateTime(payload, "changed_at", "changedAt", "effective_at", "effectiveAt");
         if (changedAt == null) {
             changedAt = LocalDateTime.now();
@@ -508,6 +640,13 @@ public class HrAssetService {
         result.put("status_history", statusHistory);
         result.put("timeline", timeline.stream().map(TimelineEntry::payload).toList());
         return result;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> assetHistory(AuthSessionUser currentUser, long assetId) {
+        var scope = hrAssetScopeAccess.resolve(currentUser);
+        hrAssetScopeAccess.requireAssetInScope(currentUser.companyId(), scope, assetId);
+        return assetHistory(currentUser.companyId(), assetId);
     }
 
     private Map<String, Object> applyAssignmentChange(
@@ -1089,11 +1228,20 @@ public class HrAssetService {
         return ((Number) rows.getFirst().get("id")).longValue();
     }
 
-    private AssetQuery buildListQuery(long companyId, Map<String, Object> filters) {
+    private AssetQuery buildListQuery(
+        long companyId,
+        Map<String, Object> filters,
+        HrOperationalScope scope
+    ) {
         var conditions = new ArrayList<String>();
         var params = new ArrayList<Object>();
         conditions.add("a.company_id = ?");
         params.add(companyId);
+        var scopeCondition = hrAssetScopeAccess.assetCondition(scope);
+        if (!scopeCondition.isBlank()) {
+            conditions.add(scopeCondition);
+            params.addAll(hrAssetScopeAccess.assetParameters(scope));
+        }
 
         var search = stringValue(filters, "search");
         if (!search.isBlank()) {

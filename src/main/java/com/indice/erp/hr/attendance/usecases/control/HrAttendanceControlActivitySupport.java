@@ -4,6 +4,9 @@ import com.indice.erp.hr.attendance.models.ControlActivityRow;
 import com.indice.erp.hr.attendance.usecases.events.HrAttendanceEventTransitionSupport;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,72 +44,94 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
     }
 
     protected List<ControlActivityRow> loadRecentControlActivity(long companyId, LocalDate date, int limit) {
+        return loadRecentControlActivity(companyId, date, limit, null);
+    }
+
+    protected List<ControlActivityRow> loadRecentControlActivity(
+        long companyId,
+        LocalDate date,
+        int limit,
+        Collection<Long> userCompanyIds
+    ) {
+        if (userCompanyIds != null && userCompanyIds.isEmpty()) {
+            return List.of();
+        }
+
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        parameters.add(date);
+        var sql = """
+            SELECT e.id,
+                   e.user_company_id,
+                   COALESCE(emp.user_code, '') AS user_code,
+                   TRIM(CONCAT_WS(' ', COALESCE(emp.first_name, ''), COALESCE(emp.last_name, ''))) AS user_name,
+                   e.kiosk_device_id,
+                   COALESCE(d.name, '') AS kiosk_device_name,
+                   e.location_id,
+                   COALESCE(l.name, '') AS location_name,
+                   COALESCE(e.event_type, '') AS event_type,
+                   COALESCE(e.event_kind, e.event_type, '') AS event_kind,
+                   COALESCE(e.auth_method, '') AS auth_method,
+                   COALESCE(e.result_status, '') AS result_status,
+                   e.event_timestamp,
+                   COALESCE(e.photo_url, '') AS photo_object_key,
+                   COALESCE(e.notes, '') AS notes,
+                   COALESCE(CAST(e.metadata_json AS CHAR), '') AS metadata_json
+            FROM user_attendance_events e
+            JOIN hr_users emp ON emp.id = e.user_company_id
+            LEFT JOIN attendance_kiosk_devices d ON d.id = e.kiosk_device_id
+            LEFT JOIN attendance_locations l ON l.id = e.location_id
+            WHERE e.company_id = ?
+              AND e.attendance_date = ?
+            """;
+        if (userCompanyIds != null) {
+            sql += " AND e.user_company_id IN (" + placeholders(userCompanyIds.size()) + ")";
+            parameters.addAll(userCompanyIds);
+        }
+        sql += " ORDER BY e.event_timestamp DESC, e.id DESC LIMIT ?";
+        parameters.add(limit);
         return jdbcTemplate.query(
-            """
-                SELECT e.id,
-                       e.user_company_id,
-                       COALESCE(emp.user_code, '') AS user_code,
-                       TRIM(CONCAT_WS(' ', COALESCE(emp.first_name, ''), COALESCE(emp.last_name, ''))) AS user_name,
-                       e.kiosk_device_id,
-                       COALESCE(d.name, '') AS kiosk_device_name,
-                       e.location_id,
-                       COALESCE(l.name, '') AS location_name,
-                       COALESCE(e.event_type, '') AS event_type,
-                       COALESCE(e.event_kind, e.event_type, '') AS event_kind,
-                       COALESCE(e.auth_method, '') AS auth_method,
-                       COALESCE(e.result_status, '') AS result_status,
-                       e.event_timestamp,
-                       COALESCE(e.photo_url, '') AS photo_object_key,
-                       COALESCE(e.notes, '') AS notes,
-                       COALESCE(CAST(e.metadata_json AS CHAR), '') AS metadata_json
-                FROM user_attendance_events e
-                JOIN hr_users emp ON emp.id = e.user_company_id
-                LEFT JOIN attendance_kiosk_devices d ON d.id = e.kiosk_device_id
-                LEFT JOIN attendance_locations l ON l.id = e.location_id
-                WHERE e.company_id = ?
-                  AND e.attendance_date = ?
-                ORDER BY e.event_timestamp DESC, e.id DESC
-                LIMIT ?
-                """,
-            (rs, rowNum) -> new ControlActivityRow(
-                rs.getLong("id"),
-                rs.getLong("user_company_id"),
-                safe(rs.getString("user_code")),
-                safe(rs.getString("user_name")),
-                getNullableLong(rs, "kiosk_device_id"),
-                safe(rs.getString("kiosk_device_name")),
-                getNullableLong(rs, "location_id"),
-                safe(rs.getString("location_name")),
-                safe(rs.getString("event_type")),
-                safe(rs.getString("event_kind")),
-                safe(rs.getString("auth_method")),
-                safe(rs.getString("result_status")),
-                toLocalDateTime(rs.getTimestamp("event_timestamp")),
-                safe(rs.getString("photo_object_key")),
-                safe(rs.getString("notes")),
-                safe(rs.getString("metadata_json"))
-            ),
-            companyId,
-            date,
-            limit
+            sql,
+            (rs, rowNum) -> mapControlActivityRow(rs),
+            parameters.toArray()
         );
     }
 
     protected Map<Long, Map<String, String>> loadControlPhotoObjectKeysByUser(long companyId, LocalDate date) {
+        return loadControlPhotoObjectKeysByUser(companyId, date, null);
+    }
+
+    protected Map<Long, Map<String, String>> loadControlPhotoObjectKeysByUser(
+        long companyId,
+        LocalDate date,
+        Collection<Long> userCompanyIds
+    ) {
+        if (userCompanyIds != null && userCompanyIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
         var photosByUser = new HashMap<Long, Map<String, String>>();
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        parameters.add(date);
+        var sql = """
+            SELECT e.user_company_id,
+                   COALESCE(e.event_type, '') AS event_type,
+                   COALESCE(e.photo_url, '') AS photo_object_key
+            FROM user_attendance_events e
+            WHERE e.company_id = ?
+              AND e.attendance_date = ?
+              AND e.event_type IN ('check_in', 'check_out')
+              AND COALESCE(TRIM(e.photo_url), '') <> ''
+              AND COALESCE(e.result_status, 'success') IN ('success', 'overridden')
+            """;
+        if (userCompanyIds != null) {
+            sql += " AND e.user_company_id IN (" + placeholders(userCompanyIds.size()) + ")";
+            parameters.addAll(userCompanyIds);
+        }
+        sql += " ORDER BY e.event_timestamp ASC, e.id ASC";
         jdbcTemplate.query(
-            """
-                SELECT e.user_company_id,
-                       COALESCE(e.event_type, '') AS event_type,
-                       COALESCE(e.photo_url, '') AS photo_object_key
-                FROM user_attendance_events e
-                WHERE e.company_id = ?
-                  AND e.attendance_date = ?
-                  AND e.event_type IN ('check_in', 'check_out')
-                  AND COALESCE(TRIM(e.photo_url), '') <> ''
-                  AND COALESCE(e.result_status, 'success') IN ('success', 'overridden')
-                ORDER BY e.event_timestamp ASC, e.id ASC
-                """,
+            sql,
             rs -> {
                 var userCompanyId = rs.getLong("user_company_id");
                 var eventType = safe(rs.getString("event_type"));
@@ -119,9 +144,33 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
                     userPhotos.put("last_check_out", photoObjectKey);
                 }
             },
-            companyId,
-            date
+            parameters.toArray()
         );
         return photosByUser;
+    }
+
+    private ControlActivityRow mapControlActivityRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new ControlActivityRow(
+            rs.getLong("id"),
+            rs.getLong("user_company_id"),
+            safe(rs.getString("user_code")),
+            safe(rs.getString("user_name")),
+            getNullableLong(rs, "kiosk_device_id"),
+            safe(rs.getString("kiosk_device_name")),
+            getNullableLong(rs, "location_id"),
+            safe(rs.getString("location_name")),
+            safe(rs.getString("event_type")),
+            safe(rs.getString("event_kind")),
+            safe(rs.getString("auth_method")),
+            safe(rs.getString("result_status")),
+            toLocalDateTime(rs.getTimestamp("event_timestamp")),
+            safe(rs.getString("photo_object_key")),
+            safe(rs.getString("notes")),
+            safe(rs.getString("metadata_json"))
+        );
+    }
+
+    private String placeholders(int count) {
+        return String.join(", ", Collections.nCopies(count, "?"));
     }
 }

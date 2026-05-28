@@ -6,6 +6,7 @@ import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -54,7 +55,13 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var email = normalizeEmail(value(payload, "email"));
         var role = normalizeRole(value(payload, "role"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
+        var membership = resolveInvitationMembership(companyId, payload);
         ensureModuleSlugsExist(moduleSlugs);
+        var shouldPersistTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
+        var tabPermissionKeys = shouldPersistTabPermissions
+            ? tabPermissionAccess.normalizeTabPermissionKeys(payload)
+            : List.<String>of();
+        tabPermissionAccess.ensureTabPermissionKeysValid(tabPermissionKeys, moduleSlugs);
 
         if (fullName.isBlank() || email.isBlank()) {
             throw new IllegalArgumentException("Name and email are required.");
@@ -68,18 +75,28 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
 
         jdbcTemplate.update(
             """
-                INSERT INTO user_invitations (company_id, email, full_name, role, module_slugs_json, token, status, invited_by, expires_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                INSERT INTO user_invitations
+                    (company_id, email, full_name, role, module_slugs_json, unit_id, business_id, token, status, invited_by, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
                 """,
             companyId,
             email,
             fullName,
             role,
             serializeModuleSlugs(moduleSlugs),
+            membership.unitId(),
+            membership.businessId(),
             token,
             invitedByUserId,
             expiresAt
         );
+        var invitationId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        if (invitationId == null) {
+            throw new IllegalStateException("Unable to create invitation.");
+        }
+        if (shouldPersistTabPermissions) {
+            tabPermissionAccess.replaceInvitationTabPermissions(invitationId, tabPermissionKeys, moduleSlugs);
+        }
 
         var result = new LinkedHashMap<String, Object>();
         result.put("email", email);
@@ -154,7 +171,14 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         if (userCompanyId == null) {
             throw new IllegalStateException("Unable to create invited user company access.");
         }
-        ensureHrWorkProfileForCompanyAccess(invitation.companyId(), userCompanyId, userId, "active", null);
+        upsertUserMembership(
+            invitation.companyId(),
+            userCompanyId,
+            userId,
+            "active",
+            new UserMembership(invitation.unitId(), invitation.businessId()),
+            null
+        );
 
         for (var slug : existingModuleSlugs(invitation.moduleSlugs())) {
             jdbcTemplate.update(
@@ -163,6 +187,9 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
                 slug
             );
         }
+        var invitationTabPermissions = tabPermissionAccess.listInvitationTabPermissionKeys(invitation.id());
+        tabPermissionAccess.ensureTabPermissionKeysValid(invitationTabPermissions, invitation.moduleSlugs());
+        tabPermissionAccess.copyInvitationTabPermissionsToUserCompany(invitation.id(), userCompanyId);
 
         jdbcTemplate.update(
             "UPDATE user_invitations SET status = 'accepted' WHERE id = ?",

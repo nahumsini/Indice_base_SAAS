@@ -1,4 +1,4 @@
-import { getCachedCsrfToken, setCachedAuthSession } from '../api/authSessionStore';
+import { getCachedCsrfToken, setCachedAuthSession, setCachedCsrfToken } from '../api/authSessionStore';
 import type { AuthSessionResponse } from '../api/auth.types';
 
 export class ApiClientError extends Error {
@@ -86,6 +86,15 @@ const codeFromPayload = (payload: unknown) => (
     : undefined
 );
 
+const cacheCsrfTokenFromPayload = (payload: unknown) => {
+  const csrfToken = typeof payload === 'object' && payload !== null
+    ? (payload as { csrfToken?: unknown }).csrfToken
+    : null;
+  if (typeof csrfToken === 'string') {
+    setCachedCsrfToken(csrfToken);
+  }
+};
+
 const isInvalidCsrfError = (status: number, payload: unknown) => (
   status === 403 && /csrf/i.test(messageFromPayload(payload))
 );
@@ -141,6 +150,7 @@ export async function apiClient<T = unknown>(
     throw new ApiClientError(message || 'Request failed', response.status, code, payload);
   }
 
+  cacheCsrfTokenFromPayload(payload);
   return payload as T;
 }
 

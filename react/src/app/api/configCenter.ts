@@ -60,8 +60,14 @@ export interface ConfigCenterUser {
   department?: string | null;
   status: string;
   created_at?: string | null;
+  scope_type?: 'corporate_office' | 'unit_headquarters' | 'business_office';
+  unit_id?: number | null;
+  unit_name?: string | null;
   business_id?: number | null;
+  business_name?: string | null;
   module_slugs: string[];
+  tab_permission_keys?: string[];
+  tab_permissions_configured?: boolean;
   is_protected: boolean;
   source: string;
 }
@@ -70,6 +76,9 @@ export interface UpdateConfigCenterUserPayload {
   role: string;
   status: string;
   module_slugs: string[];
+  tab_permission_keys?: string[];
+  unit_id?: number | null;
+  business_id?: number | null;
 }
 
 export interface InviteConfigCenterUserPayload {
@@ -77,6 +86,9 @@ export interface InviteConfigCenterUserPayload {
   email: string;
   role: string;
   module_slugs?: string[];
+  tab_permission_keys?: string[];
+  unit_id?: number | null;
+  business_id?: number | null;
 }
 
 export interface ConfigCenterInviteResponse {
@@ -118,8 +130,21 @@ export interface ConfigCenterCatalogModule {
   name: string;
 }
 
+export interface ConfigCenterCatalogTab {
+  module_slug: string;
+  tab_key: string;
+  permission_key: string;
+  name: string;
+}
+
+export interface ConfigCenterCatalogUnit {
+  id: number;
+  name: string;
+}
+
 export interface ConfigCenterCatalogBusiness {
   id: number;
+  unit_id?: number | null;
   name: string;
 }
 
@@ -216,8 +241,10 @@ interface UsersResponse {
   ok: boolean;
   users: ConfigCenterUser[];
   catalog: {
+    units: ConfigCenterCatalogUnit[];
     businesses: ConfigCenterCatalogBusiness[];
     modules: ConfigCenterCatalogModule[];
+    tabs?: ConfigCenterCatalogTab[];
   };
 }
 
@@ -366,13 +393,7 @@ export const configCenterApi = {
   },
 
   getUsers() {
-    return apiClient<{
-      users: ConfigCenterUser[];
-      catalog: {
-        businesses: ConfigCenterCatalogBusiness[];
-        modules: ConfigCenterCatalogModule[];
-      };
-    }>(endpoints.configCenter.users);
+    return apiClient<UsersResponse>(endpoints.configCenter.users);
   },
 
   updateUser(id: number, payload: UpdateConfigCenterUserPayload) {

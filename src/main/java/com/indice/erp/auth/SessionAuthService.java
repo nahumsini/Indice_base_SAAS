@@ -143,10 +143,20 @@ public class SessionAuthService {
     }
 
     public Optional<AuthSessionResponse> currentSession(HttpSession session) {
-        return currentUser(session).map(user -> new AuthSessionResponse(
-            new AuthSessionResponse.UserInfo(user.userId(), user.userName(), user.role()),
-            new AuthSessionResponse.CompanyInfo(user.companyId())
-        ));
+        return currentUser(session).map(user -> {
+            var access = loadSessionAccess(user.userId(), user.companyId());
+            return new AuthSessionResponse(
+                new AuthSessionResponse.UserInfo(
+                    user.userId(),
+                    user.userName(),
+                    user.role(),
+                    access.moduleSlugs(),
+                    access.tabPermissionKeys(),
+                    access.tabPermissionsConfigured()
+                ),
+                new AuthSessionResponse.CompanyInfo(user.companyId())
+            );
+        });
     }
 
     public void logout(HttpSession session) {
@@ -173,6 +183,60 @@ public class SessionAuthService {
         return value == null ? null : value.trim().toLowerCase();
     }
 
+    private SessionAccess loadSessionAccess(long userId, long companyId) {
+        var userCompanyIds = jdbcTemplate.query(
+            """
+                SELECT id
+                FROM user_companies
+                WHERE user_id = ?
+                  AND company_id = ?
+                  AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            userId,
+            companyId
+        );
+
+        if (userCompanyIds.isEmpty()) {
+            return new SessionAccess(List.of(), List.of(), false);
+        }
+
+        var userCompanyId = userCompanyIds.getFirst();
+        var moduleSlugs = jdbcTemplate.query(
+            """
+                SELECT DISTINCT module_slug
+                FROM user_company_module_roles
+                WHERE user_company_id = ?
+                ORDER BY module_slug ASC
+                """,
+            (rs, rowNum) -> rs.getString("module_slug"),
+            userCompanyId
+        );
+        var tabPermissionKeys = jdbcTemplate.query(
+            """
+                SELECT module_slug, tab_key
+                FROM user_company_tab_permissions
+                WHERE user_company_id = ?
+                  AND can_view = 1
+                ORDER BY module_slug ASC, tab_key ASC
+                """,
+            (rs, rowNum) -> rs.getString("module_slug") + "." + rs.getString("tab_key"),
+            userCompanyId
+        );
+        var tabPermissionRowCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM user_company_tab_permissions WHERE user_company_id = ?",
+            Long.class,
+            userCompanyId
+        );
+
+        return new SessionAccess(
+            moduleSlugs,
+            tabPermissionKeys,
+            tabPermissionRowCount != null && tabPermissionRowCount > 0
+        );
+    }
+
     private record DbUser(
         Long id,
         String email,
@@ -184,6 +248,13 @@ public class SessionAuthService {
     private record CompanyRole(
         Long companyId,
         String role
+    ) {
+    }
+
+    private record SessionAccess(
+        List<String> moduleSlugs,
+        List<String> tabPermissionKeys,
+        boolean tabPermissionsConfigured
     ) {
     }
 }

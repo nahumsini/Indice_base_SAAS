@@ -2,6 +2,7 @@ package com.indice.erp.configcenter;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.config.AppWebProperties;
+import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +28,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class ConfigCenterApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final ConfigCenterAccessService accessService;
     private final ConfigCenterService configCenterService;
     private final GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
     private final InvitationEmailService invitationEmailService;
@@ -34,12 +36,14 @@ public class ConfigCenterApiController {
 
     public ConfigCenterApiController(
         SessionAuthService sessionAuthService,
+        ConfigCenterAccessService accessService,
         ConfigCenterService configCenterService,
         GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
         InvitationEmailService invitationEmailService,
         AppWebProperties appWebProperties
     ) {
         this.sessionAuthService = sessionAuthService;
+        this.accessService = accessService;
         this.configCenterService = configCenterService;
         this.googleMapsCoordinateExtractor = googleMapsCoordinateExtractor;
         this.invitationEmailService = invitationEmailService;
@@ -106,6 +110,9 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
         return ResponseEntity.ok(configCenterService.getUsers(current.get().companyId()));
     }
@@ -119,6 +126,9 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {
@@ -135,6 +145,9 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {
@@ -160,6 +173,9 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
         try {
             var result = configCenterService.inviteUser(current.get().companyId(), current.get().userId(), payload);
@@ -181,6 +197,9 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
         try {
             return ResponseEntity.ok(configCenterService.deleteInvitation(current.get().companyId(), invitationId));
@@ -201,6 +220,9 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {
@@ -226,8 +248,15 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!accessService.canAccessAny(
+            current.get(),
+            ConfigCenterTab.BUSINESS_STRUCTURE,
+            ConfigCenterTab.BUSINESS_PROFILE
+        )) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
-        return ResponseEntity.ok(configCenterService.getEmpresa(current.get().companyId()));
+        return ResponseEntity.ok(configCenterService.getEmpresa(current.get()));
     }
 
     @GetMapping("/config")
@@ -236,8 +265,11 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
-        return ResponseEntity.ok(configCenterService.getConfig(current.get().companyId()));
+        return ResponseEntity.ok(configCenterService.getConfig(current.get()));
     }
 
     @PutMapping("/business-structure")
@@ -245,6 +277,9 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {
@@ -260,6 +295,9 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
 
         try {
             return ResponseEntity.ok(googleMapsCoordinateExtractor.extractCoordinatesFromMapLink(payload));
@@ -273,6 +311,13 @@ public class ConfigCenterApiController {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!accessService.canAccessAny(
+            current.get(),
+            ConfigCenterTab.BUSINESS_STRUCTURE,
+            ConfigCenterTab.BUSINESS_PROFILE
+        )) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
         try {

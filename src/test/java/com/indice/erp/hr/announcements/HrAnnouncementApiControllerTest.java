@@ -126,6 +126,55 @@ class HrAnnouncementApiControllerTest {
         );
     }
 
+    @Test
+    void scopedManagerAnnouncementListIsLimitedToManageableAudience() throws Exception {
+        var suffix = System.currentTimeMillis();
+        var unitId = jdbcTemplate.queryForObject(
+            "SELECT id FROM units WHERE company_id = 1 AND LOWER(status) = 'active' LIMIT 1",
+            Long.class
+        );
+        var manager = fixtures.createManagerUser(suffix, unitId);
+        var visibleUnit = fixtures.createAnnouncement("Scoped unit " + suffix, "units", "draft");
+        fixtures.addTarget(visibleUnit, "unit", String.valueOf(unitId));
+        fixtures.createAnnouncement("Hidden all " + suffix, "all", "draft");
+        var hiddenDepartment = fixtures.createAnnouncement("Hidden department " + suffix, "departments", "draft");
+        fixtures.addTarget(hiddenDepartment, "department", manager.department());
+
+        var response = mockMvc.perform(get("/api/v1/hr/announcements").session(fixtures.managerSession(manager)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        var titles = itemTitles(response.getResponse().getContentAsString());
+        assertThat(titles).contains("Scoped unit " + suffix);
+        assertThat(titles).doesNotContain("Hidden all " + suffix, "Hidden department " + suffix);
+    }
+
+    @Test
+    void scopedManagerCannotCreateGlobalAnnouncement() throws Exception {
+        var suffix = System.currentTimeMillis();
+        var unitId = jdbcTemplate.queryForObject(
+            "SELECT id FROM units WHERE company_id = 1 AND LOWER(status) = 'active' LIMIT 1",
+            Long.class
+        );
+        var manager = fixtures.createManagerUser(suffix, unitId);
+        var session = fixtures.managerSession(manager);
+
+        mockMvc.perform(
+            post("/api/v1/hr/announcements")
+                .session(session)
+                .header("X-CSRF-Token", fixtures.csrf(session))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "title", "Forbidden global " + suffix,
+                    "type", "general",
+                    "content", "Body",
+                    "audience_type", "all",
+                    "status", "published"
+                )))
+        )
+            .andExpect(status().isForbidden());
+    }
+
     private List<String> itemTitles(String body) throws Exception {
         var parsed = objectMapper.readValue(body, new TypeReference<Map<String, Object>>() {});
         @SuppressWarnings("unchecked")
