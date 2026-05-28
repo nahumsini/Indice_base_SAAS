@@ -2,6 +2,7 @@ package com.indice.erp.processTasks;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.processTasks.agenda.AgendaApiController;
 import com.indice.erp.processTasks.agenda.AgendaService;
 import com.indice.erp.processTasks.kiosk.ProcessTaskKioskApiController;
@@ -12,6 +13,7 @@ import com.indice.erp.processTasks.processes.ProcessesApiController;
 import com.indice.erp.processTasks.processes.ProcessesService;
 import com.indice.erp.processTasks.projects.ProjectsApiController;
 import com.indice.erp.processTasks.projects.ProjectsService;
+import com.indice.erp.processTasks.tasks.ProcessTaskAttachmentsApiController;
 import com.indice.erp.processTasks.tasks.ProcessTasksApiController;
 import com.indice.erp.processTasks.tasks.ProcessTasksService;
 import java.util.Map;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,11 +39,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest({
     ProcessesApiController.class,
     ProcessTasksApiController.class,
+    ProcessTaskAttachmentsApiController.class,
     ProjectsApiController.class,
     AgendaApiController.class,
     ProcessTaskKpisApiController.class,
     ProcessTaskKioskApiController.class
 })
+@Import(ProcessTasksRequestGuard.class)
 class ProcessTasksApiControllerTest {
 
     @Autowired
@@ -48,6 +53,9 @@ class ProcessTasksApiControllerTest {
 
     @MockBean
     private SessionAuthService sessionAuthService;
+
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
 
     @MockBean
     private ProcessTasksAccessService processTasksAccessService;
@@ -99,7 +107,7 @@ class ProcessTasksApiControllerTest {
     void processesListReturnsPayloadWhenModuleIsAllowed() throws Exception {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(processesService.listProcesses(7L)).willReturn(Map.of(
+        given(processesService.listProcesses(7L, 1L)).willReturn(Map.of(
             "items", java.util.List.of(Map.of("id", 11, "title", "Weekly Audit")),
             "count", 1
         ));

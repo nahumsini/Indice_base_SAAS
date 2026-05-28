@@ -1,6 +1,7 @@
-package com.indice.erp.processTasks.kiosk;
+package com.indice.erp.processTasks.tasks;
 
 import com.indice.erp.processTasks.ProcessTasksRequestGuard;
+import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -10,100 +11,97 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/process-tasks/kiosks")
-public class ProcessTaskKioskApiController {
+@RequestMapping("/api/v1/process-tasks")
+public class ProcessTaskAttachmentsApiController {
 
     private final ProcessTasksRequestGuard guard;
-    private final ProcessTaskKioskService kioskService;
+    private final ProcessTasksService processTasksService;
 
-    public ProcessTaskKioskApiController(ProcessTasksRequestGuard guard, ProcessTaskKioskService kioskService) {
+    public ProcessTaskAttachmentsApiController(
+            ProcessTasksRequestGuard guard,
+            ProcessTasksService processTasksService) {
         this.guard = guard;
-        this.kioskService = kioskService;
+        this.processTasksService = processTasksService;
     }
 
-    @GetMapping
-    public ResponseEntity<?> list(HttpSession session) {
+    @GetMapping("/{taskId}/attachments")
+    public ResponseEntity<?> listAttachments(HttpSession session, @PathVariable long taskId) {
         var access = guard.requireRead(session);
         if (access.denied()) {
             return access.error();
         }
-        return ResponseEntity.ok(kioskService.listKiosks(access.user().companyId()));
+        try {
+            return ResponseEntity.ok(processTasksService.listAttachments(
+                    access.user().companyId(), access.user().userId(), taskId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
     }
 
-    @PostMapping
-    public ResponseEntity<?> create(
+    @PostMapping("/{taskId}/attachments/presign-upload")
+    public ResponseEntity<?> createAttachmentUpload(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
         if (access.denied()) {
             return access.error();
         }
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(
-                    kioskService.saveKiosk(access.user().companyId(), access.user().userId(), null, payload));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.ok(processTasksService.createAttachmentUpload(
+                    access.user().companyId(), access.user().userId(), taskId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 
-    @PutMapping("/{kioskId}")
-    public ResponseEntity<?> update(
+    @PostMapping("/{taskId}/attachments")
+    public ResponseEntity<?> registerAttachment(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
-            @PathVariable long kioskId,
+            @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
         if (access.denied()) {
             return access.error();
         }
         try {
-            return ResponseEntity.ok(kioskService.saveKiosk(
-                    access.user().companyId(), access.user().userId(), kioskId, payload));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.CREATED).body(processTasksService.registerAttachment(
+                    access.user().companyId(), access.user().userId(), taskId, payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (ObjectStorageDisabledException ex) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 
-    @DeleteMapping("/{kioskId}")
-    public ResponseEntity<?> delete(
+    @DeleteMapping("/{taskId}/attachments/{attachmentId}")
+    public ResponseEntity<?> deleteAttachment(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
-            @PathVariable long kioskId) {
+            @PathVariable long taskId,
+            @PathVariable long attachmentId) {
         var access = guard.requireWrite(session, csrfToken);
         if (access.denied()) {
             return access.error();
         }
         try {
-            kioskService.deleteKiosk(access.user().companyId(), kioskId);
+            processTasksService.deleteAttachment(
+                    access.user().companyId(), access.user().userId(), taskId, attachmentId);
             return ResponseEntity.ok(Map.of("success", true));
-        } catch (NoSuchElementException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-        }
-    }
-
-    @PostMapping("/{kioskId}/rotate-public-access-token")
-    public ResponseEntity<?> rotatePublicAccessToken(
-            HttpSession session,
-            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
-            @PathVariable long kioskId) {
-        var access = guard.requireWrite(session, csrfToken);
-        if (access.denied()) {
-            return access.error();
-        }
-        try {
-            return ResponseEntity.ok(kioskService.rotatePublicAccessToken(access.user().companyId(), kioskId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
