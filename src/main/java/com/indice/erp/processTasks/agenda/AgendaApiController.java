@@ -1,10 +1,8 @@
 package com.indice.erp.processTasks.agenda;
 
-import com.indice.erp.auth.SessionAuthService;
-import com.indice.erp.processTasks.ProcessTasksAccessService;
+import com.indice.erp.processTasks.ProcessTasksRequestGuard;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,17 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/agenda")
 public class AgendaApiController {
 
-    private final SessionAuthService sessionAuthService;
-    private final ProcessTasksAccessService accessService;
+    private final ProcessTasksRequestGuard guard;
     private final AgendaService agendaService;
 
     public AgendaApiController(
-        SessionAuthService sessionAuthService,
-        ProcessTasksAccessService accessService,
+        ProcessTasksRequestGuard guard,
         AgendaService agendaService
     ) {
-        this.sessionAuthService = sessionAuthService;
-        this.accessService = accessService;
+        this.guard = guard;
         this.agendaService = agendaService;
     }
 
@@ -34,18 +29,15 @@ public class AgendaApiController {
             HttpSession session,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
-        }
-        if (!accessService.canAccess(user.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
         }
 
         try {
             return ResponseEntity.ok(agendaService.listAgendaTasks(
-                    user.get().companyId(),
-                    user.get().userId(),
+                    access.user().companyId(),
+                    access.user().userId(),
                     from,
                     to));
         } catch (IllegalArgumentException ex) {
