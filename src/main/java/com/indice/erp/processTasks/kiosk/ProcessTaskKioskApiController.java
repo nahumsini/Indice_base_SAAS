@@ -1,7 +1,6 @@
 package com.indice.erp.processTasks.kiosk;
 
-import com.indice.erp.auth.SessionAuthService;
-import com.indice.erp.processTasks.ProcessTasksAccessService;
+import com.indice.erp.processTasks.ProcessTasksRequestGuard;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,46 +20,35 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/process-tasks/kiosks")
 public class ProcessTaskKioskApiController {
 
-    private final SessionAuthService sessionAuthService;
-    private final ProcessTasksAccessService accessService;
+    private final ProcessTasksRequestGuard guard;
     private final ProcessTaskKioskService kioskService;
 
-    public ProcessTaskKioskApiController(
-        SessionAuthService sessionAuthService,
-        ProcessTasksAccessService accessService,
-        ProcessTaskKioskService kioskService
-    ) {
-        this.sessionAuthService = sessionAuthService;
-        this.accessService = accessService;
+    public ProcessTaskKioskApiController(ProcessTasksRequestGuard guard, ProcessTaskKioskService kioskService) {
+        this.guard = guard;
         this.kioskService = kioskService;
     }
 
     @GetMapping
     public ResponseEntity<?> list(HttpSession session) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
         }
-        if (!accessService.canAccess(user.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
-        }
-        return ResponseEntity.ok(kioskService.listKiosks(user.get().companyId()));
+        return ResponseEntity.ok(kioskService.listKiosks(access.user().companyId()));
     }
 
     @PostMapping
-    public ResponseEntity<?> create(HttpSession session, @RequestBody Map<String, Object> payload) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> create(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-        if (!accessService.canAccess(user.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
-        }
-
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                kioskService.saveKiosk(user.get().companyId(), user.get().userId(), null, payload)
-            );
+                    kioskService.saveKiosk(access.user().companyId(), access.user().userId(), null, payload));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {
@@ -69,20 +58,17 @@ public class ProcessTaskKioskApiController {
 
     @PutMapping("/{kioskId}")
     public ResponseEntity<?> update(
-        HttpSession session,
-        @PathVariable long kioskId,
-        @RequestBody Map<String, Object> payload
-    ) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long kioskId,
+            @RequestBody Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-        if (!accessService.canAccess(user.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
-        }
-
         try {
-            return ResponseEntity.ok(kioskService.saveKiosk(user.get().companyId(), user.get().userId(), kioskId, payload));
+            return ResponseEntity.ok(kioskService.saveKiosk(
+                    access.user().companyId(), access.user().userId(), kioskId, payload));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {
@@ -91,17 +77,16 @@ public class ProcessTaskKioskApiController {
     }
 
     @DeleteMapping("/{kioskId}")
-    public ResponseEntity<?> delete(HttpSession session, @PathVariable long kioskId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> delete(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long kioskId) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-        if (!accessService.canAccess(user.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
-        }
-
         try {
-            kioskService.deleteKiosk(user.get().companyId(), kioskId);
+            kioskService.deleteKiosk(access.user().companyId(), kioskId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -109,17 +94,16 @@ public class ProcessTaskKioskApiController {
     }
 
     @PostMapping("/{kioskId}/rotate-public-access-token")
-    public ResponseEntity<?> rotatePublicAccessToken(HttpSession session, @PathVariable long kioskId) {
-        var user = sessionAuthService.currentUser(session);
-        if (user.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+    public ResponseEntity<?> rotatePublicAccessToken(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long kioskId) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
         }
-        if (!accessService.canAccess(user.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
-        }
-
         try {
-            return ResponseEntity.ok(kioskService.rotatePublicAccessToken(user.get().companyId(), kioskId));
+            return ResponseEntity.ok(kioskService.rotatePublicAccessToken(access.user().companyId(), kioskId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         }
