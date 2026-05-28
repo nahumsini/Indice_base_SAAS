@@ -743,7 +743,7 @@ public class ProcessTaskKpisService {
         sql.append(" AND ").append(scope.visibility().condition());
         params.addAll(scope.visibility().params());
 
-        return new SqlFragment(sql.toString(), params);
+        return new SqlFragment(sql.append(System.lineSeparator()).toString(), params);
     }
 
     private LocalDate parseDateOrDefault(String value, LocalDate fallback, String fieldName) {
