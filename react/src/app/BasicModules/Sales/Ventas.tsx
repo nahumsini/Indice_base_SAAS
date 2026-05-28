@@ -16,6 +16,7 @@ const Prospectos = lazy(() => import('./Prospectos'));
 const Contactos = lazy(() => import('./Contactos'));
 const Cotizacion = lazy(() => import('./Cotizacion'));
 const Productos = lazy(() => import('./Productos'));
+const Inventory = lazy(() => import('./Inventory'));
 const Postventa = lazy(() => import('./Postventa'));
 const Contrato = lazy(() => import('./Contrato'));
 const KPIs = lazy(() => import('./KPIs'));
@@ -29,6 +30,7 @@ const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
   contactos: 'contacts',
   cotizacion: 'quotes',
   productos: 'products',
+  inventario: 'inventory',
   postventa: 'after-sales',
   contrato: 'contracts',
 };
@@ -46,6 +48,7 @@ export default function Ventas({ onNavigate }: VentasProps) {
     contacts: Contactos,
     quotes: Cotizacion,
     products: Productos,
+    inventory: Inventory,
     'after-sales': Postventa,
     contracts: Contrato,
     kpis: KPIs,

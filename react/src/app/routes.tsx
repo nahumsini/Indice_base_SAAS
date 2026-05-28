@@ -4,9 +4,11 @@ import App from './App';
 import { InviteAcceptPage, LoginPage, ResetPasswordPage } from './Auth';
 import { authApi } from './api/auth';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
+import { SalesCrmProvider } from './BasicModules/Sales/salesCrmContext';
 
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
+const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
 
 function KioskRoute() {
   return (
@@ -36,6 +38,16 @@ function TaskKioskRoute() {
       )}
     >
       <ProcessTasksKiosk />
+    </Suspense>
+  );
+}
+
+function PublicCatalogRoute() {
+  return (
+    <Suspense fallback={null}>
+      <SalesCrmProvider>
+        <PublicCatalogPage />
+      </SalesCrmProvider>
     </Suspense>
   );
 }
@@ -90,6 +102,10 @@ export const router = createBrowserRouter([
   {
     path: '/task-kiosk/:deviceToken',
     element: <TaskKioskRoute />,
+  },
+  {
+    path: '/public-catalog/:publicAccessToken',
+    element: <PublicCatalogRoute />,
   },
   {
     path: '/:pageId/*',

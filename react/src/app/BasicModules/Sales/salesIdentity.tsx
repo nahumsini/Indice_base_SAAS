@@ -13,6 +13,7 @@ import {
   Target,
   TrendingUp,
   UsersRound,
+  Warehouse,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { cn } from '../../components/ui/utils';
@@ -23,6 +24,7 @@ export const salesTabIds = [
   'contacts',
   'quotes',
   'products',
+  'inventory',
   'after-sales',
   'contracts',
   'kpis',
@@ -30,7 +32,7 @@ export const salesTabIds = [
 
 export type SalesTabId = (typeof salesTabIds)[number];
 
-type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'productos' | 'postventa' | 'contrato' | 'kpis';
+type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'productos' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
 
 type SalesTone = 'blue' | 'aqua' | 'yellow' | 'coral' | 'graphite';
 
@@ -85,6 +87,7 @@ export const salesModuleTabs: Array<{
   { id: 'contacts', translationKey: 'contactos', icon: UsersRound, emoji: '👥', tone: 'aqua' },
   { id: 'quotes', translationKey: 'cotizacion', icon: Quote, emoji: '💬', tone: 'yellow' },
   { id: 'products', translationKey: 'productos', icon: PackageCheck, emoji: '📦', tone: 'aqua' },
+  { id: 'inventory', translationKey: 'inventario', icon: Warehouse, emoji: '🏬', tone: 'coral' },
   { id: 'after-sales', translationKey: 'postventa', icon: Handshake, emoji: '🤝', tone: 'coral' },
   { id: 'contracts', translationKey: 'contrato', icon: FileSignature, emoji: '📝', tone: 'graphite' },
   { id: 'kpis', translationKey: 'kpis', icon: BarChart3, emoji: '📊', tone: 'blue' },
@@ -137,7 +140,7 @@ const toneClasses: Record<SalesTone, {
 const salesCopyEs: SalesWorkspaceCopy = {
   badge: 'Indice Sales OS',
   overviewTitle: 'Control comercial',
-  overviewSubtitle: 'Prospectos, cotizaciones, productos, postventa, contratos y KPIs dentro de un flujo comercial claro.',
+  overviewSubtitle: 'Prospectos, cotizaciones, productos, inventario, postventa, contratos y KPIs dentro de un flujo comercial claro.',
   primaryAction: 'Crear oportunidad',
   secondaryAction: 'Revisar embudo',
   controlLabel: 'Lectura comercial',
@@ -235,6 +238,26 @@ const salesCopyEs: SalesWorkspaceCopy = {
       signalTitle: 'Claridad de oferta',
       signals: ['Separar producto y servicio', 'Alinear precio con margen', 'Marcar disponibilidad comercial'],
     },
+    inventory: {
+      eyebrow: 'Control de stock',
+      title: 'Inventario',
+      description: 'Capa preparada para ubicar stock, revisar mínimos y registrar movimientos sin mezclar el catálogo comercial.',
+      primaryAction: 'Nuevo movimiento',
+      secondaryAction: 'Ver columnas',
+      metrics: [
+        { label: 'Items rastreados', value: '2', detail: 'con control de inventario' },
+        { label: 'Stock bajo', value: '1', detail: 'requiere atención' },
+        { label: 'Valor estimado', value: '$32K', detail: 'stock local' },
+      ],
+      lanes: [
+        { label: 'Saludable', value: '1', detail: 'Sobre mínimo' },
+        { label: 'Bajo', value: '1', detail: 'Reordenar pronto' },
+        { label: 'Agotado', value: '1', detail: 'Validar antes de POS' },
+        { label: 'Sin rastreo', value: '3', detail: 'Servicios o internos' },
+      ],
+      signalTitle: 'Señales de inventario',
+      signals: ['Separar catálogo de existencias', 'Registrar movimientos con responsable', 'Preparar ubicaciones para POS futuro'],
+    },
     'after-sales': {
       eyebrow: 'Relación posterior',
       title: 'Gestión postventa',
@@ -302,7 +325,7 @@ const salesCopyEn: SalesWorkspaceCopy = {
   ...salesCopyEs,
   badge: 'Indice Sales OS',
   overviewTitle: 'Commercial control',
-  overviewSubtitle: 'Leads, quotes, products, after-sales, contracts, and KPIs inside a clear commercial flow.',
+  overviewSubtitle: 'Leads, quotes, products, inventory, after-sales, contracts, and KPIs inside a clear commercial flow.',
   primaryAction: 'New opportunity',
   secondaryAction: 'Review pipeline',
   controlLabel: 'Commercial reading',

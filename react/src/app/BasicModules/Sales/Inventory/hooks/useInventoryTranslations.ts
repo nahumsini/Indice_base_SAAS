@@ -1,0 +1,1 @@
+export { useInventoryTranslations } from '../translations';
