@@ -7,13 +7,11 @@ import {
   Eye,
   FileText,
   Link2,
-  PackagePlus,
   Paperclip,
   PencilLine,
   Plus,
   Search,
   Send,
-  Trash2,
 } from 'lucide-react';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
@@ -43,7 +41,6 @@ import {
   TableHeader,
   TableRow,
 } from '../../../components/ui/table';
-import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
 import { salesApi } from '../salesApi';
 import {
@@ -69,36 +66,28 @@ import {
   FilterSelect,
   QuoteAction,
   QuotePipelineMetric,
-  QuoteProductCard,
   QuoteSellerSelect,
   QuoteSortableHeader,
   type QuoteSortColumn,
   type QuoteSortState,
 } from './components/QuoteUi';
 import { QuotePreviewModal } from './components/QuotePreviewModal';
+import { QuoteBuilderModal } from './modals/QuoteBuilderModal';
 import { useQuotesTranslations } from './translations';
+import type { QuoteFormState } from './types/quoteBuilderTypes';
+import { getProductMargin } from './utils/quoteCatalogAdapters';
+import { calculateQuoteBuilderTotals } from './utils/quotePricing';
+import {
+  getDefaultTaxPresetForJurisdiction,
+  type QuoteTaxJurisdiction,
+} from './utils/quoteTaxCatalog';
 
 type FilterValue = 'all' | string;
-type ClientMode = 'contact' | 'temporary';
 
 const quoteModalStyles = getSalesModalStyles('coral');
 const coralFieldClassName = 'border-slate-200 bg-white shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20';
 const quoteSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
-
-type QuoteFormState = {
-  clientMode: ClientMode;
-  clientId: string;
-  temporaryClient: string;
-  contactPerson: string;
-  opportunityId: string;
-  status: QuoteStatus;
-  createdDate: string;
-  expirationDate: string;
-  assignedSellerValue: string;
-  assignedSeller: string;
-  notes: string;
-  terms: string;
-};
+const defaultQuoteTaxJurisdiction: QuoteTaxJurisdiction = 'mx';
 
 const statusClasses: Record<QuoteStatus, string> = {
   Draft: 'border-slate-200 bg-slate-50 text-slate-600',
@@ -132,41 +121,23 @@ function getFutureIsoDate(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function stripQuoteBuilderOnlyItemFields(items: SalesQuoteItem[]): SalesQuoteItem[] {
+  return items.map((item) => {
+    const payloadItem = { ...item };
+    delete payloadItem.taxCode;
+    delete payloadItem.taxLabel;
+    delete payloadItem.taxJurisdiction;
+    delete payloadItem.taxIsCustom;
+    return payloadItem;
+  });
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
     maximumFractionDigits: 0,
   }).format(value);
-}
-
-function calculateQuoteTotals(items: SalesQuoteItem[]) {
-  return items.reduce((totals, item) => {
-    const lineSubtotal = item.quantity * item.unitPrice;
-    const lineDiscount = lineSubtotal * (item.discountPercent / 100);
-    const taxableAmount = lineSubtotal - lineDiscount;
-    const lineTax = taxableAmount * (item.taxPercent / 100);
-
-    return {
-      subtotal: totals.subtotal + lineSubtotal,
-      discountTotal: totals.discountTotal + lineDiscount,
-      taxTotal: totals.taxTotal + lineTax,
-      total: totals.total + taxableAmount + lineTax,
-    };
-  }, {
-    subtotal: 0,
-    discountTotal: 0,
-    taxTotal: 0,
-    total: 0,
-  });
-}
-
-function getProductMargin(product: SalesCatalogItem) {
-  if (product.price <= 0) {
-    return 0;
-  }
-
-  return Math.round(((product.price - product.cost) / product.price) * 100);
 }
 
 function getQuoteSellerSelectValue(quote: SalesQuote, ownerOptions: SalesOwnerOption[]) {
@@ -180,7 +151,7 @@ function getQuoteSellerSelectValue(quote: SalesQuote, ownerOptions: SalesOwnerOp
 
 function formatTemplate(template: string, values: Record<string, string | number>) {
   return Object.entries(values).reduce(
-    (message, [key, value]) => message.replaceAll(`{${key}}`, String(value)),
+    (message, [key, value]) => message.split(`{${key}}`).join(String(value)),
     template,
   );
 }
@@ -232,12 +203,16 @@ export default function Cotizacion() {
     expirationDate: getFutureIsoDate(15),
     assignedSellerValue: defaultFallbackSellerValue,
     assignedSeller: salesOwners[0],
+    taxJurisdiction: defaultQuoteTaxJurisdiction,
+    customJurisdictionName: '',
+    customTaxLabel: '',
+    customTaxRate: '0',
     notes: '',
     terms: '',
   }));
   const [items, setItems] = useState<SalesQuoteItem[]>([]);
 
-  const quoteTotals = useMemo(() => calculateQuoteTotals(items), [items]);
+  const quoteTotals = useMemo(() => calculateQuoteBuilderTotals(items, products), [items, products]);
 
   useEffect(() => {
     let isMounted = true;
@@ -423,6 +398,9 @@ export default function Cotizacion() {
   ];
 
   const selectedContact = contacts.find((contact) => contact.id === form.clientId);
+  const selectedBuilderOpportunity = form.opportunityId === 'none'
+    ? null
+    : opportunities.find((opportunity) => opportunity.id === form.opportunityId) ?? null;
   const getQuoteContact = (quote?: SalesQuote | null) => {
     if (!quote) {
       return null;
@@ -447,6 +425,8 @@ export default function Cotizacion() {
   const assignmentOpportunities = getAssignmentOpportunities(pendingAssignmentQuote);
 
   const addProductToQuote = (product: SalesCatalogItem) => {
+    const defaultTaxPreset = getDefaultTaxPresetForJurisdiction(form.taxJurisdiction);
+
     setItems((current) => [
       ...current,
       {
@@ -458,7 +438,11 @@ export default function Cotizacion() {
         quantity: 1,
         unitPrice: product.price,
         discountPercent: 0,
-        taxPercent: 16,
+        taxPercent: defaultTaxPreset.defaultRate,
+        taxCode: defaultTaxPreset.id,
+        taxLabel: defaultTaxPreset.label,
+        taxJurisdiction: form.taxJurisdiction,
+        taxIsCustom: defaultTaxPreset.rateEditable,
         notes: '',
       },
     ]);
@@ -486,6 +470,10 @@ export default function Cotizacion() {
       expirationDate: getFutureIsoDate(15),
       assignedSellerValue: defaultSellerValue,
       assignedSeller: getSellerPayloadFromValue(defaultSellerValue).assignedSeller,
+      taxJurisdiction: defaultQuoteTaxJurisdiction,
+      customJurisdictionName: '',
+      customTaxLabel: '',
+      customTaxRate: '0',
       notes: '',
       terms: '',
     });
@@ -516,6 +504,10 @@ export default function Cotizacion() {
       expirationDate: quote.expirationDate,
       assignedSellerValue: sellerValue,
       assignedSeller: quote.assignedSeller,
+      taxJurisdiction: defaultQuoteTaxJurisdiction,
+      customJurisdictionName: '',
+      customTaxLabel: '',
+      customTaxRate: '0',
       notes: quote.notes,
       terms: quote.terms,
     });
@@ -548,7 +540,7 @@ export default function Cotizacion() {
       expirationDate: form.expirationDate,
       assignedSellerUserCompanyId: sellerPayload.assignedSellerUserCompanyId,
       assignedSeller: sellerPayload.assignedSeller,
-      items,
+      items: stripQuoteBuilderOnlyItemFields(items),
       subtotal: quoteTotals.subtotal,
       discountTotal: quoteTotals.discountTotal,
       taxTotal: quoteTotals.taxTotal,
@@ -845,201 +837,37 @@ export default function Cotizacion() {
         </div>
       </div>
 
-      <Dialog open={isBuilderOpen} onOpenChange={(open) => (open ? setIsBuilderOpen(true) : closeQuoteBuilder())}>
-        <DialogContent
-          className={cn(
-            quoteModalStyles.content,
-            'grid h-[92vh] max-h-[900px] w-[calc(100vw-3rem)] max-w-[1280px] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-[1280px]',
-          )}
-          closeButtonClassName={quoteModalStyles.close}
-        >
-          <DialogHeader className={quoteModalStyles.header}>
-            <DialogTitle className={quoteModalStyles.title}>
-              <FileText className={cn('h-5 w-5', quoteModalStyles.icon)} />
-              {editingQuote ? t.actions.edit : t.sections.builderTitle}
-            </DialogTitle>
-            <DialogDescription className={quoteModalStyles.description}>{t.sections.builderDescription}</DialogDescription>
-          </DialogHeader>
-
-          <div className={cn(quoteModalStyles.body, 'grid min-h-0 max-h-none gap-5 xl:grid-cols-[minmax(360px,0.85fr)_minmax(620px,1.35fr)]')}>
-            <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="grid grid-cols-2 gap-2 rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-200">
-                <Button
-                  type="button"
-                  variant={form.clientMode === 'contact' ? 'default' : 'ghost'}
-                  className={cn('rounded-lg', form.clientMode === 'contact' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
-                  onClick={() => setForm((current) => ({ ...current, clientMode: 'contact' }))}
-                >
-                  {t.builder.modeContact}
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.clientMode === 'temporary' ? 'default' : 'ghost'}
-                  className={cn('rounded-lg', form.clientMode === 'temporary' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
-                  onClick={() => setForm((current) => ({ ...current, clientMode: 'temporary' }))}
-                >
-                  {t.builder.modeTemporary}
-                </Button>
-              </div>
-
-              {form.clientMode === 'contact' ? (
-                <FilterSelect
-                  label={t.labels.client}
-                  value={form.clientId}
-                  onValueChange={(value) => setForm((current) => ({ ...current, clientId: value }))}
-                  options={contacts.map((contact) => ({ value: contact.id, label: `${contact.company} · ${contact.contactPerson}` }))}
-                />
-              ) : (
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">{t.labels.temporaryClient}</label>
-                    <Input className={coralFieldClassName} value={form.temporaryClient} onChange={(event) => setForm((current) => ({ ...current, temporaryClient: event.target.value }))} placeholder={t.builder.temporaryClientPlaceholder} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">{t.labels.contact}</label>
-                    <Input className={coralFieldClassName} value={form.contactPerson} onChange={(event) => setForm((current) => ({ ...current, contactPerson: event.target.value }))} placeholder={t.builder.contactPlaceholder} />
-                  </div>
-                </div>
-              )}
-
-              <FilterSelect label={t.labels.opportunity} value={form.opportunityId} onValueChange={(value) => setForm((current) => ({ ...current, opportunityId: value }))} options={opportunityOptions.filter((option) => option.value !== 'all')} />
-              <FilterSelect label={t.labels.status} value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as QuoteStatus }))} options={quoteStatuses.map((status) => ({ value: status, label: t.statusLabels[status] }))} />
-              <FilterSelect
-                label={t.labels.seller}
-                value={form.assignedSellerValue}
-                onValueChange={(value) => {
-                  const sellerPayload = getSellerPayloadFromValue(value);
-                  setForm((current) => ({
-                    ...current,
-                    assignedSellerValue: value,
-                    assignedSeller: sellerPayload.assignedSeller,
-                  }));
-                }}
-                options={formSellerOptions}
-              />
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">{t.labels.createdDate}</label>
-                  <Input className={coralFieldClassName} type="date" value={form.createdDate} onChange={(event) => setForm((current) => ({ ...current, createdDate: event.target.value }))} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">{t.labels.expirationDate}</label>
-                  <Input className={coralFieldClassName} type="date" value={form.expirationDate} onChange={(event) => setForm((current) => ({ ...current, expirationDate: event.target.value }))} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">{t.labels.notes}</label>
-                <Textarea className={coralFieldClassName} value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.builder.notesPlaceholder} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">{t.labels.terms}</label>
-                <Textarea className={coralFieldClassName} value={form.terms} onChange={(event) => setForm((current) => ({ ...current, terms: event.target.value }))} placeholder={t.builder.termsPlaceholder} />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <PackagePlus className="h-5 w-5 text-[#FF6B5E]" />
-                  <h3 className="text-lg font-black text-slate-950">{t.sections.catalogTitle}</h3>
-                </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {products.map((product) => (
-                    <QuoteProductCard
-                      key={product.id}
-                      product={product}
-                      label={t.builder.addProduct}
-                      typeLabel={t.productTypeLabels[product.type]}
-                      priceLabel={formatCurrency(product.price)}
-                      onAdd={() => addProductToQuote(product)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 p-4">
-                  <h3 className="text-lg font-black text-slate-950">{t.sections.builderTitle}</h3>
-                </div>
-                <div className="space-y-3 p-4">
-                  {items.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
-                      {t.builder.emptyItems}
-                    </div>
-                  ) : items.map((item) => (
-                    <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0">
-                          <p className="font-black text-slate-950">{item.productName}</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">{item.sku}</p>
-                        </div>
-                        <Button variant="ghost" size="sm" className="w-fit text-[#b63b32] hover:bg-[#FF6B5E]/10 hover:text-[#b63b32]" onClick={() => removeItem(item.id)}>
-                          <Trash2 className="h-4 w-4" />
-                          {t.builder.removeItem}
-                        </Button>
-                      </div>
-                      <div className="mt-3 grid gap-3 md:grid-cols-5">
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-500">{t.labels.section}</label>
-                          <Input className={coralFieldClassName} value={item.section} onChange={(event) => updateItem(item.id, { section: event.target.value })} placeholder={t.builder.sectionPlaceholder} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-500">{t.labels.quantity}</label>
-                          <Input className={coralFieldClassName} type="number" min={1} value={item.quantity} onChange={(event) => updateItem(item.id, { quantity: Number(event.target.value) || 1 })} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-500">{t.labels.unitPrice}</label>
-                          <Input className={coralFieldClassName} type="number" min={0} value={item.unitPrice} onChange={(event) => updateItem(item.id, { unitPrice: Number(event.target.value) || 0 })} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-500">{t.labels.discount}</label>
-                          <Input className={coralFieldClassName} type="number" min={0} max={100} value={item.discountPercent} onChange={(event) => updateItem(item.id, { discountPercent: Number(event.target.value) || 0 })} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-500">{t.labels.tax}</label>
-                          <Input className={coralFieldClassName} type="number" min={0} max={100} value={item.taxPercent} onChange={(event) => updateItem(item.id, { taxPercent: Number(event.target.value) || 0 })} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4">
-                <h3 className="text-lg font-black text-slate-950">{t.sections.totalsTitle}</h3>
-                <div className="mt-3 grid gap-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-600">{t.labels.subtotal}</span>
-                    <span className="font-black text-slate-950">{formatCurrency(quoteTotals.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-600">{t.labels.discountTotal}</span>
-                    <span className="font-black text-slate-950">{formatCurrency(quoteTotals.discountTotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-600">{t.labels.taxTotal}</span>
-                    <span className="font-black text-slate-950">{formatCurrency(quoteTotals.taxTotal)}</span>
-                  </div>
-                  <div className="mt-2 flex justify-between border-t border-[#FF6B5E]/25 pt-3 text-lg">
-                    <span className="font-black text-slate-950">{t.labels.total}</span>
-                    <span className="font-black text-[#B63B32]">{formatCurrency(quoteTotals.total)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className={quoteModalStyles.footer}>
-            <Button variant="outline" className={quoteModalStyles.secondaryButton} onClick={closeQuoteBuilder}>{t.common.cancel}</Button>
-            <Button className={quoteModalStyles.primaryButton} onClick={handleSaveQuote}>
-              <Plus className="h-4 w-4" />
-              {editingQuote ? t.common.save : t.builder.submit}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <QuoteBuilderModal
+        open={isBuilderOpen}
+        isEditMode={Boolean(editingQuote)}
+        form={form}
+        items={items}
+        contacts={contacts}
+        products={products}
+        selectedContact={selectedContact}
+        selectedOpportunity={selectedBuilderOpportunity}
+        totals={quoteTotals}
+        t={t}
+        opportunityOptions={opportunityOptions}
+        quoteStatusOptions={quoteStatuses.map((status) => ({ value: status, label: t.statusLabels[status] }))}
+        sellerOptions={formSellerOptions}
+        formatCurrency={formatCurrency}
+        onOpenChange={setIsBuilderOpen}
+        onClose={closeQuoteBuilder}
+        onFormChange={setForm}
+        onSellerChange={(value) => {
+          const sellerPayload = getSellerPayloadFromValue(value);
+          setForm((current) => ({
+            ...current,
+            assignedSellerValue: value,
+            assignedSeller: sellerPayload.assignedSeller,
+          }));
+        }}
+        onAddProduct={addProductToQuote}
+        onUpdateItem={updateItem}
+        onRemoveItem={removeItem}
+        onSubmit={handleSaveQuote}
+      />
 
       <QuotePreviewModal
         quote={previewQuote}

@@ -45,6 +45,9 @@ export type {
   SalesCrmContextValue,
   SalesOpportunity,
   SalesPostSaleCase,
+  SalesProductBaseUnit,
+  SalesProductPricingMode,
+  SalesProductSaleUnit,
   SalesProductCategory,
   SalesProductStatus,
   SalesProductTaxCategory,
@@ -54,6 +57,7 @@ export type {
   SalesQuoteItem,
   UpdateContactInput,
   UpdateOpportunityInput,
+  UpdateProductInput,
   UpdateQuoteInput,
 } from './types';
 
@@ -70,7 +74,10 @@ export {
   postSaleRiskLevels,
   postSaleStatuses,
   postSaleTypes,
+  productBaseUnits,
   productCategories,
+  productPricingModes,
+  productSaleUnits,
   productStatuses,
   productTaxCategories,
   productTypes,
@@ -143,6 +150,13 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
 
       setProducts((current) => [createdProduct, ...current]);
       return createdProduct;
+    },
+    updateProduct: (productId, patch) => {
+      setProducts((current) => current.map((product) => (
+        product.id === productId
+          ? { ...product, ...patch, lastUpdated: getTodayIsoDate() }
+          : product
+      )));
     },
     addQuote: (quote) => {
       const nextIndex = quotes.length + 1;

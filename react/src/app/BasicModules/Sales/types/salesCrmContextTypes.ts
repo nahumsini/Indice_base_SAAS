@@ -16,6 +16,7 @@ export type UpdateContactInput = Partial<Omit<SalesContact, 'id'>>;
 export type CreateOpportunityInput = Omit<SalesOpportunity, 'id'>;
 export type UpdateOpportunityInput = Partial<Omit<SalesOpportunity, 'id'>>;
 export type CreateProductInput = Omit<SalesCatalogItem, 'id' | 'lastUpdated'> & { lastUpdated?: string };
+export type UpdateProductInput = Partial<Omit<SalesCatalogItem, 'id'>>;
 export type CreateQuoteInput = Omit<SalesQuote, 'id' | 'quoteNumber' | 'lastUpdated'> & {
   quoteNumber?: string;
   lastUpdated?: string;
@@ -37,6 +38,7 @@ export type SalesCrmContextValue = {
   updateOpportunity: (opportunityId: string, patch: UpdateOpportunityInput) => void;
   deleteOpportunity: (opportunityId: string) => void;
   addProduct: (product: CreateProductInput) => SalesCatalogItem;
+  updateProduct: (productId: string, patch: UpdateProductInput) => void;
   addQuote: (quote: CreateQuoteInput) => SalesQuote;
   updateQuote: (quoteId: string, patch: UpdateQuoteInput) => void;
   addPostSaleCase: (postSaleCase: CreatePostSaleCaseInput) => SalesPostSaleCase;

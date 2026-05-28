@@ -10,6 +10,10 @@ export type SalesQuoteItem = {
   unitPrice: number;
   discountPercent: number;
   taxPercent: number;
+  taxCode?: string;
+  taxLabel?: string;
+  taxJurisdiction?: string;
+  taxIsCustom?: boolean;
   notes: string;
 };
 

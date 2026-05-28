@@ -126,7 +126,7 @@ export const mockNodes: LogisticsNode[] = [
   },
 ];
 
-export const mockLocations = mockNodes.map((node, index) => ({
+const legacyMockLocations = mockNodes.map((node, index) => ({
   id: node.id,
   code: `LOC-${String(index + 1).padStart(3, '0')}`,
   name: node.name,
@@ -417,7 +417,7 @@ export const mockStockItems: StockItem[] = [
   },
 ];
 
-export const mockInventoryLocations = mockStockItems.flatMap((item) =>
+const legacyMockInventoryLocations = mockStockItems.flatMap((item) =>
   item.stockByNode.map((stockNode) => {
     const reserved = stockNode.nodeId === item.stockByNode[0]?.nodeId ? item.reserved : 0;
     const inTransit = stockNode.nodeId === item.stockByNode[0]?.nodeId ? item.inTransit : 0;
@@ -823,7 +823,7 @@ export const mockInventoryLocations = mockStockItems.flatMap((item) =>
   })
 );
 
-export const mockCounts = [
+const legacyMockCounts = [
   {
     id: 'cnt-1',
     folio: 'CNT-2026-001',
@@ -883,7 +883,7 @@ const alertPriorityToLegacyPriority: Record<Alert['priority'], string> = {
   low: 'baja',
 };
 
-export const mockIncidents = mockAlerts.map((alert, index) => ({
+const legacyMockIncidents = mockAlerts.map((alert, index) => ({
   id: alert.id,
   folio: `INC-2026-${String(index + 1).padStart(3, '0')}`,
   title: alert.title,

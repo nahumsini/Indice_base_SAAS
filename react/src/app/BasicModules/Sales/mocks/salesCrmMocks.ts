@@ -1,6 +1,7 @@
 import { digitalContractTemplateRegistry } from '../Contrato/templates/contractTemplateRegistry';
 import type { DigitalContract } from '../Contrato/types/digitalContractTypes';
 import type { SalesContact, SalesOpportunity, SalesPostSaleCase, SalesCatalogItem, SalesQuote } from '../types';
+import { departmentStoreProductSeeds } from './departmentStoreProductSeeds';
 
 export const initialContacts: SalesContact[] = [
   {
@@ -157,6 +158,20 @@ export const initialProducts: SalesCatalogItem[] = [
     taxCategory: 'Service tax',
     status: 'Active',
     visibility: 'Commercial',
+    imageUrl: 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Commercial dashboard implementation workspace',
+    gallery: [
+      {
+        id: 'PRD-001-GAL-001',
+        url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80',
+        alt: 'Sales enablement workshop',
+      },
+      {
+        id: 'PRD-001-GAL-002',
+        url: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=80',
+        alt: 'Operational planning dashboard',
+      },
+    ],
     thumbnailTone: 'blue',
     stockPrepared: false,
     warehousePrepared: false,
@@ -176,6 +191,15 @@ export const initialProducts: SalesCatalogItem[] = [
     taxCategory: 'Standard VAT',
     status: 'Active',
     visibility: 'Commercial',
+    imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'CRM analytics dashboard',
+    gallery: [
+      {
+        id: 'PRD-002-GAL-001',
+        url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
+        alt: 'Commercial metrics dashboard',
+      },
+    ],
     thumbnailTone: 'aqua',
     stockPrepared: false,
     warehousePrepared: false,
@@ -195,6 +219,8 @@ export const initialProducts: SalesCatalogItem[] = [
     taxCategory: 'Service tax',
     status: 'Active',
     visibility: 'Quote only',
+    imageUrl: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Executive consulting meeting',
     thumbnailTone: 'yellow',
     stockPrepared: false,
     warehousePrepared: false,
@@ -212,8 +238,17 @@ export const initialProducts: SalesCatalogItem[] = [
     price: 14800,
     cost: 8100,
     taxCategory: 'Standard VAT',
-    status: 'Review',
+    status: 'Inactive',
     visibility: 'POS ready',
+    imageUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Point of sale checkout kit',
+    gallery: [
+      {
+        id: 'PRD-004-GAL-001',
+        url: 'https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1200&q=80',
+        alt: 'Retail POS terminal',
+      },
+    ],
     thumbnailTone: 'coral',
     stockPrepared: true,
     warehousePrepared: true,
@@ -231,7 +266,7 @@ export const initialProducts: SalesCatalogItem[] = [
     price: 9600,
     cost: 5200,
     taxCategory: 'Reduced VAT',
-    status: 'Draft',
+    status: 'Inactive',
     visibility: 'Internal',
     thumbnailTone: 'graphite',
     stockPrepared: true,
@@ -240,6 +275,7 @@ export const initialProducts: SalesCatalogItem[] = [
     variantsPrepared: false,
     lastUpdated: '2026-05-17',
   },
+  ...departmentStoreProductSeeds,
 ];
 
 export const initialQuotes: SalesQuote[] = [

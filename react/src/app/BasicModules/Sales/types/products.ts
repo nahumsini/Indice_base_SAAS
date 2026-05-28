@@ -7,10 +7,62 @@ export type SalesProductCategory =
   | 'Hospitality'
   | 'Marketing'
   | 'Software'
+  | 'Operations'
+  | 'Finance'
+  | 'Human Resources'
+  | 'Sales'
+  | 'Training'
+  | 'Maintenance'
+  | 'Logistics'
+  | 'Food and beverage'
+  | 'Retail'
+  | 'Health'
+  | 'Education'
+  | 'Construction'
+  | 'Real estate'
+  | 'Legal'
+  | 'Design'
+  | 'Security'
+  | 'Equipment'
+  | 'Supplies'
+  | 'Licenses'
+  | 'Memberships'
   | 'Other';
 export type SalesProductTaxCategory = 'Standard VAT' | 'Reduced VAT' | 'Zero rated' | 'Exempt' | 'Service tax';
-export type SalesProductStatus = 'Active' | 'Draft' | 'Review' | 'Archived';
+export type SalesProductStatus = 'Active' | 'Inactive' | 'Draft';
 export type SalesProductVisibility = 'Internal' | 'Commercial' | 'POS ready' | 'Quote only';
+export type SalesProductBaseUnit = 'Piece' | 'Kilogram' | 'Liter' | 'Meter' | 'Hour' | 'Service' | 'Set';
+export type SalesProductSaleUnit = 'Unit' | 'Box' | 'Package' | 'Lot' | 'Kit' | 'Pallet';
+export type SalesProductPricingMode = 'Per base unit' | 'Per sale unit' | 'Per lot';
+
+export type SalesProductImage = {
+  id: string;
+  url: string;
+  alt?: string;
+};
+
+export type SalesProductBundleItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: SalesProductBaseUnit;
+  notes?: string;
+};
+
+export type SalesProductPackaging = {
+  baseUnit: SalesProductBaseUnit;
+  saleUnit: SalesProductSaleUnit;
+  unitsPerSaleUnit: number;
+  pricingMode: SalesProductPricingMode;
+  saleUnitPrice?: number;
+  minimumSaleQuantity?: number;
+  saleIncrement?: number;
+  wholesalePrice?: number;
+  wholesaleMinimumQuantity?: number;
+  barcode?: string;
+  notes?: string;
+  bundleItems?: SalesProductBundleItem[];
+};
 
 export type SalesCatalogItem = {
   id: string;
@@ -24,6 +76,12 @@ export type SalesCatalogItem = {
   taxCategory: SalesProductTaxCategory;
   status: SalesProductStatus;
   visibility: SalesProductVisibility;
+  barcode?: string;
+  generatedLabels?: string[];
+  imageUrl?: string;
+  imageAlt?: string;
+  gallery?: SalesProductImage[];
+  packaging?: SalesProductPackaging;
   thumbnailTone: 'blue' | 'aqua' | 'yellow' | 'coral' | 'graphite';
   stockPrepared: boolean;
   warehousePrepared: boolean;
@@ -41,8 +99,31 @@ export const productCategories: SalesProductCategory[] = [
   'Hospitality',
   'Marketing',
   'Software',
+  'Operations',
+  'Finance',
+  'Human Resources',
+  'Sales',
+  'Training',
+  'Maintenance',
+  'Logistics',
+  'Food and beverage',
+  'Retail',
+  'Health',
+  'Education',
+  'Construction',
+  'Real estate',
+  'Legal',
+  'Design',
+  'Security',
+  'Equipment',
+  'Supplies',
+  'Licenses',
+  'Memberships',
   'Other',
 ];
 export const productTaxCategories: SalesProductTaxCategory[] = ['Standard VAT', 'Reduced VAT', 'Zero rated', 'Exempt', 'Service tax'];
-export const productStatuses: SalesProductStatus[] = ['Active', 'Draft', 'Review', 'Archived'];
+export const productStatuses: SalesProductStatus[] = ['Active', 'Inactive', 'Draft'];
 export const productVisibilities: SalesProductVisibility[] = ['Internal', 'Commercial', 'POS ready', 'Quote only'];
+export const productBaseUnits: SalesProductBaseUnit[] = ['Piece', 'Kilogram', 'Liter', 'Meter', 'Hour', 'Service', 'Set'];
+export const productSaleUnits: SalesProductSaleUnit[] = ['Unit', 'Box', 'Package', 'Lot', 'Kit', 'Pallet'];
+export const productPricingModes: SalesProductPricingMode[] = ['Per base unit', 'Per sale unit', 'Per lot'];
