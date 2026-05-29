@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   Trash2,
+  UploadCloud,
   UsersRound,
 } from 'lucide-react';
 import { authApi } from '../../../api/auth';
@@ -59,7 +60,12 @@ import {
   ownerOptionValue,
   type SalesOwnerOption,
 } from '../utils/salesOwnerOptions';
-import { compactText, normalizeTextKey } from '../utils/salesTextUtils';
+import { normalizeTextKey } from '../utils/salesTextUtils';
+import { ContactFiscalBadge } from './components/ContactFiscalBadge';
+import { ImportContactsModal } from './components/ImportContactsModal';
+import { ContactRelationshipSignal } from './components/ContactRelationshipSignal';
+import { getContactFiscalSignal, getContactRelationshipSignal } from './utils/contactTableSignals';
+import type { ImportedContactDraft } from './utils/contactImportUtils';
 
 type ContactSortColumn = 'contact' | 'company' | 'phone' | 'email' | 'source' | 'owner' | 'notes';
 type ContactSortDirection = 'asc' | 'desc';
@@ -240,25 +246,32 @@ function SortIcon({ columnId, sortState }: { columnId: ContactSortColumn; sortSt
     : <ArrowDown className="h-3.5 w-3.5 text-[#B63B32]" />;
 }
 
+function normalizePhoneImportKey(phone: string) {
+  return phone.replace(/\D/g, '');
+}
+
 function ContactActionButton({
   label,
   icon,
   className,
   href,
   onClick,
+  disabled,
 }: {
   label: string;
   icon: ReactNode;
   className: string;
   href?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   const controlClassName = cn(
     'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20',
     className,
+    disabled && 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60 hover:bg-slate-100',
   );
 
-  if (href) {
+  if (href && !disabled) {
     return (
       <a
         href={href}
@@ -274,16 +287,17 @@ function ContactActionButton({
   }
 
   return (
-    <button type="button" title={label} aria-label={label} className={controlClassName} onClick={onClick}>
+    <button type="button" title={label} aria-label={label} className={controlClassName} onClick={onClick} disabled={disabled}>
       {icon}
     </button>
   );
 }
 
 export default function Contactos() {
-  const { contacts, addContact, updateContact, deleteContact } = useSalesCrm();
+  const { contacts, opportunities, quotes, addContact, updateContact, deleteContact } = useSalesCrm();
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<SalesContact | null>(null);
   const [form, setForm] = useState<ContactFormState>(initialContactForm);
   const [sortState, setSortState] = useState<ContactSortState>({ columnId: 'contact', direction: 'asc' });
@@ -506,6 +520,75 @@ export default function Contactos() {
     }));
   };
 
+  const handleImportContacts = (drafts: ImportedContactDraft[]) => {
+    const ownerPayload = getOwnerPayloadFromValue(defaultOwnerValue);
+    const knownContactKeys = new Set<string>();
+    let skipped = 0;
+
+    contacts.forEach((contact) => {
+      if (contact.email.trim()) {
+        knownContactKeys.add(`email:${normalizeTextKey(contact.email)}`);
+      }
+
+      const phoneKey = normalizePhoneImportKey(contact.phone);
+      if (phoneKey) {
+        knownContactKeys.add(`phone:${phoneKey}`);
+      }
+    });
+
+    drafts.forEach((draft) => {
+      const emailKey = draft.email.trim() ? `email:${normalizeTextKey(draft.email)}` : '';
+      const phoneKey = normalizePhoneImportKey(draft.phone);
+      const normalizedPhoneKey = phoneKey ? `phone:${phoneKey}` : '';
+      const isDuplicate = Boolean(
+        (emailKey && knownContactKeys.has(emailKey))
+        || (normalizedPhoneKey && knownContactKeys.has(normalizedPhoneKey)),
+      );
+
+      if (isDuplicate) {
+        skipped += 1;
+        return;
+      }
+
+      if (emailKey) {
+        knownContactKeys.add(emailKey);
+      }
+      if (normalizedPhoneKey) {
+        knownContactKeys.add(normalizedPhoneKey);
+      }
+
+      addContact({
+        company: draft.company.trim() || 'Contacto importado',
+        contactPerson: draft.contactPerson.trim() || draft.company.trim() || 'Contacto importado',
+        role: draft.role.trim() || 'Contacto comercial',
+        phone: draft.phone.trim(),
+        email: draft.email.trim(),
+        source: 'Manual',
+        ownerUserCompanyId: ownerPayload.ownerUserCompanyId,
+        owner: ownerPayload.owner,
+        tags: ['Importado'],
+        notes: draft.notes.trim() || 'Importado desde contactos del teléfono o archivo.',
+        fiscalCountry: fallbackFiscalCountry.value,
+        fiscalLegalName: '',
+        fiscalTaxId: '',
+        fiscalRegistryId: '',
+        fiscalAddressLine1: '',
+        fiscalAddressLine2: '',
+        fiscalCity: '',
+        fiscalState: '',
+        fiscalPostalCode: '',
+        fiscalEmail: '',
+        fiscalRegime: '',
+        fiscalNotes: '',
+      });
+    });
+
+    return {
+      imported: drafts.length - skipped,
+      skipped,
+    };
+  };
+
   const handleSaveContact = () => {
     if (!form.company.trim() || !form.contactPerson.trim()) return;
 
@@ -559,14 +642,25 @@ export default function Contactos() {
               Directorio comercial base para ligar clientes, datos fiscales y oportunidades de venta.
             </p>
           </div>
-          <Button
-            type="button"
-            className="h-10 gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
-            onClick={handleOpenCreateContact}
-          >
-            <Plus className="h-4 w-4" />
-            Agregar contacto
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-4 text-sm font-semibold text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10"
+              onClick={() => setIsImportModalOpen(true)}
+            >
+              <UploadCloud className="h-4 w-4" />
+              Importar contactos
+            </Button>
+            <Button
+              type="button"
+              className="h-10 gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
+              onClick={handleOpenCreateContact}
+            >
+              <Plus className="h-4 w-4" />
+              Agregar contacto
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -589,7 +683,7 @@ export default function Contactos() {
       </section>
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <Table className="min-w-[1380px]">
+        <Table className="min-w-[1660px]">
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50">
               {renderSortableHead('contact', 'Contacto')}
@@ -598,16 +692,33 @@ export default function Contactos() {
               {renderSortableHead('email', 'Email')}
               {renderSortableHead('source', 'Origen')}
               {renderSortableHead('owner', 'Responsable')}
+              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Relación</TableHead>
+              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Fiscal</TableHead>
               {renderSortableHead('notes', 'Notas')}
               <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedContacts.map((contact) => {
+            {sortedContacts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="px-5 py-12 text-center">
+                  <div className="mx-auto max-w-md space-y-2">
+                    <p className="text-sm font-bold text-slate-900">No contacts found</p>
+                    <p className="text-sm text-slate-500">
+                      Try another search or add a new contact to start building the commercial directory.
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : sortedContacts.map((contact) => {
               const ownerValue = getContactOwnerSelectValue(contact, ownerOptions);
               const rowOwnerOptions = ownerSelectOptions.some((owner) => owner.value === ownerValue)
                 ? ownerSelectOptions
                 : [{ value: ownerValue, label: contact.owner || 'Sin responsable' }, ...ownerSelectOptions];
+              const hasPhone = Boolean(contact.phone.trim());
+              const hasEmail = Boolean(contact.email.trim());
+              const fiscalSignal = getContactFiscalSignal(contact);
+              const relationshipSignal = getContactRelationshipSignal({ contact, opportunities, quotes });
 
               return (
                 <TableRow key={contact.id} className="border-slate-200 hover:bg-slate-50/80">
@@ -620,14 +731,18 @@ export default function Contactos() {
                   </TableCell>
                   <TableCell className="px-5 py-5 text-sm font-semibold text-slate-900">
                     <div className="min-w-[180px]">
-                      <p>{contact.company}</p>
+                      <p className={cn(!contact.company && 'text-slate-400')}>{contact.company || 'No company'}</p>
                       {contact.fiscalTaxId ? (
                         <p className="mt-1 text-xs font-medium text-slate-500">{contact.fiscalTaxId}</p>
                       ) : null}
                     </div>
                   </TableCell>
-                  <TableCell className="px-5 py-5 text-sm text-slate-700">{contact.phone || 'Sin teléfono'}</TableCell>
-                  <TableCell className="px-5 py-5 text-sm text-slate-700">{contact.email || 'Sin email'}</TableCell>
+                  <TableCell className="px-5 py-5 text-sm text-slate-700">
+                    <span className={cn(!hasPhone && 'font-medium text-slate-400')}>{hasPhone ? contact.phone : 'No phone'}</span>
+                  </TableCell>
+                  <TableCell className="px-5 py-5 text-sm text-slate-700">
+                    <span className={cn(!hasEmail && 'font-medium text-slate-400')}>{hasEmail ? contact.email : 'No email'}</span>
+                  </TableCell>
                   <TableCell className="px-5 py-5">
                     <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">
                       {contact.source}
@@ -646,6 +761,12 @@ export default function Contactos() {
                     </Select>
                   </TableCell>
                   <TableCell className="px-5 py-5">
+                    <ContactRelationshipSignal signal={relationshipSignal} />
+                  </TableCell>
+                  <TableCell className="px-5 py-5">
+                    <ContactFiscalBadge signal={fiscalSignal} />
+                  </TableCell>
+                  <TableCell className="px-5 py-5">
                     <Textarea
                       value={contact.notes}
                       onChange={(event) => updateContact(contact.id, { notes: event.target.value })}
@@ -655,9 +776,9 @@ export default function Contactos() {
                   </TableCell>
                   <TableCell className="px-5 py-5">
                     <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
-                      <ContactActionButton label={`Llamar a ${contact.contactPerson}`} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" href={getPhoneHref(contact.phone)} />
-                      <ContactActionButton label={`WhatsApp a ${contact.contactPerson}`} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" href={getWhatsAppHref(contact.phone)} />
-                      <ContactActionButton label={`Email a ${contact.contactPerson}`} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" href={`mailto:${contact.email}`} />
+                      <ContactActionButton label={hasPhone ? `Llamar a ${contact.contactPerson}` : 'No phone available'} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" href={hasPhone ? getPhoneHref(contact.phone) : undefined} disabled={!hasPhone} />
+                      <ContactActionButton label={hasPhone ? `WhatsApp a ${contact.contactPerson}` : 'No phone available'} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" href={hasPhone ? getWhatsAppHref(contact.phone) : undefined} disabled={!hasPhone} />
+                      <ContactActionButton label={hasEmail ? `Email a ${contact.contactPerson}` : 'No email available'} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" href={hasEmail ? `mailto:${contact.email}` : undefined} disabled={!hasEmail} />
                       <ContactActionButton
                         label={`Editar ${contact.contactPerson}`}
                         icon={<PencilLine className="h-4 w-4" />}
@@ -680,8 +801,8 @@ export default function Contactos() {
       </section>
 
       <Dialog open={isContactModalOpen} onOpenChange={handleContactModalOpenChange}>
-        <DialogContent className={cn(contactModalStyles.content, 'max-h-[90vh] max-w-4xl')} closeButtonClassName={contactModalStyles.close}>
-          <DialogHeader className={contactModalStyles.header}>
+        <DialogContent className={cn(contactModalStyles.content, '!flex max-h-[90vh] max-w-4xl flex-col !gap-0')} closeButtonClassName={contactModalStyles.close}>
+          <DialogHeader className={cn(contactModalStyles.header, 'shrink-0')}>
             <DialogTitle className={contactModalStyles.title}>
               <UsersRound className="h-6 w-6" />
               {editingContact ? 'Editar contacto' : 'Agregar contacto'}
@@ -691,7 +812,7 @@ export default function Contactos() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className={cn(contactModalStyles.body, 'space-y-6')}>
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
             <section className="space-y-4">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Información comercial</h3>
@@ -786,7 +907,7 @@ export default function Contactos() {
             </section>
           </div>
 
-          <DialogFooter className={contactModalStyles.footer}>
+          <DialogFooter className={cn(contactModalStyles.footer, 'shrink-0')}>
             <Button variant="outline" className={contactModalStyles.secondaryButton} onClick={() => handleContactModalOpenChange(false)}>Cancelar</Button>
             <Button className={contactModalStyles.primaryButton} onClick={handleSaveContact}>
               {editingContact ? 'Guardar cambios' : 'Guardar contacto'}
@@ -794,6 +915,12 @@ export default function Contactos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportContactsModal
+        isOpen={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        onImportContacts={handleImportContacts}
+      />
     </section>
   );
 }

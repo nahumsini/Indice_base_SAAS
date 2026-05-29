@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
-import type { SalesOpportunity } from '../../salesCrmContext';
+import type { SalesOpportunity, SalesQuote } from '../../salesCrmContext';
 import type { OpportunityColumnId, OpportunitySortState } from '../types/prospectosTypes';
 import { ProspectosTableRow } from './ProspectosTableRow';
 
@@ -40,6 +40,7 @@ function OpportunitySortableHeader({
 
 export function ProspectosTable({
   opportunities,
+  quotes,
   visibleColumns,
   tableMinWidth,
   sortState,
@@ -55,6 +56,7 @@ export function ProspectosTable({
   onScheduleChange,
 }: {
   opportunities: SalesOpportunity[];
+  quotes: SalesQuote[];
   visibleColumns: ColumnConfig[];
   tableMinWidth: number;
   sortState: OpportunitySortState;
@@ -87,6 +89,7 @@ export function ProspectosTable({
             <ProspectosTableRow
               key={opportunity.id}
               opportunity={opportunity}
+              quotes={quotes}
               visibleColumns={visibleColumns}
               ownerSelectOptions={ownerSelectOptions}
               resolveOpportunityOwnerValue={resolveOpportunityOwnerValue}
@@ -112,4 +115,3 @@ export function ProspectosTable({
     </section>
   );
 }
-

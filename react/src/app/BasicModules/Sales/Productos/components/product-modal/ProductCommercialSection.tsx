@@ -64,6 +64,9 @@ export function ProductCommercialSection({
           {t.priceBuilder.title}
         </h3>
         <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">{t.priceBuilder.description}</p>
+        <p className="mt-2 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/15 px-3 py-2 text-xs font-bold leading-5 text-[#7A5404]">
+          {t.priceBuilder.temporaryValuesNote}
+        </p>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">

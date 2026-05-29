@@ -234,7 +234,7 @@ export const esMX = {
   },
   operational: {
     badge: 'Índice Sales OS',
-    title: 'Inventory control',
+    title: 'Inventory Control',
     subtitle: 'Track stock, warehouses, and inventory movements across your business.',
     actions: {
       addInventory: 'Add inventory',
@@ -249,7 +249,7 @@ export const esMX = {
       adjust: 'Adjust stock',
       viewMovements: 'View movements',
       documents: 'Documents',
-      track: 'Track',
+      track: 'Trazabilidad',
       edit: 'Edit',
       print: 'Print',
       cancelMovement: 'Cancel movement',
@@ -266,7 +266,8 @@ export const esMX = {
     },
     filtersTitle: 'Filters',
     movementsTitle: 'Inventory Movements',
-    movementsSubtitle: 'Track inventory flow, transfers, receipts, adjustments and warehouse activity.',
+    movementsSubtitle: 'Track inventory flow, transfers, receipts, adjustments, and warehouse activity.',
+    cancelledReturnMessage: 'Cancelled · Stock returned to inventory',
     movementViewModes: {
       table: 'Table',
       kanban: 'Kanban',
@@ -306,10 +307,17 @@ export const esMX = {
     },
     movementStatuses: {
       draft: 'Draft',
-      inTransit: 'In Transit',
+      inTransit: 'In transit',
       received: 'Received',
       completed: 'Completed',
       cancelled: 'Cancelled',
+    },
+    kanbanColumns: {
+      draft: 'Eventos de inventario pendientes',
+      inTransit: 'Stock moviéndose entre ubicaciones',
+      received: 'Recepciones pendientes de cierre',
+      completed: 'Flujo de inventario terminado',
+      cancelled: 'Cancelado y devuelto al inventario',
     },
     columns: {
       photo: 'Photo',
@@ -418,8 +426,8 @@ export const esMX = {
       movementDocumentSubtitle: 'Review the inventory movement before printing.',
       printDocument: 'Print document',
       cancelMovementTitle: 'Cancel movement',
-      cancelMovementDescription: 'This will cancel the movement and return stock to its previous location when possible.',
-      confirmCancelMovement: 'Cancel movement',
+      cancelMovementDescription: 'Cancelar este movimiento devolverá la mercancía al inventario.',
+      confirmCancelMovement: 'Cancelar movimiento',
       createWarehouseTitle: 'Create warehouse',
       movementType: 'Movement type',
       product: 'Product',

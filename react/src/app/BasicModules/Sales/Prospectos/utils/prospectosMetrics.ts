@@ -1,6 +1,7 @@
 import {
   opportunityStages,
   opportunityTemperatures,
+  type SalesQuote,
   type SalesOpportunity,
 } from '../../salesCrmContext';
 import type {
@@ -10,9 +11,10 @@ import type {
   OpportunitySortValue,
 } from '../types/prospectosTypes';
 import { formatCurrencyAmount, getOpportunitySchedule, parseMoney, parsePercentage } from './prospectosFormatters';
+import { getOpportunityQuoteSignal } from './prospectosQuoteSignals';
 import { opportunitySortCollator, stageLabels } from './prospectosStatus';
 
-export function getOpportunitySortValue(opportunity: SalesOpportunity, columnId: OpportunityColumnId): OpportunitySortValue {
+export function getOpportunitySortValue(opportunity: SalesOpportunity, columnId: OpportunityColumnId, quotes: SalesQuote[] = []): OpportunitySortValue {
   switch (columnId) {
     case 'opportunity':
       return `${opportunity.opportunityName} ${opportunity.company} ${opportunity.id}`;
@@ -34,6 +36,8 @@ export function getOpportunitySortValue(opportunity: SalesOpportunity, columnId:
       return parseMoney(opportunity.estimatedValue);
     case 'probability':
       return parsePercentage(opportunity.probability);
+    case 'quoteSignal':
+      return getOpportunityQuoteSignal(opportunity, quotes).totalQuotedValue;
     case 'expectedCloseDate':
       return opportunity.expectedCloseDate || null;
     case 'nextAction':
@@ -53,10 +57,10 @@ export function getOpportunitySortValue(opportunity: SalesOpportunity, columnId:
   }
 }
 
-export function sortOpportunities(opportunities: SalesOpportunity[], sortState: OpportunitySortState) {
+export function sortOpportunities(opportunities: SalesOpportunity[], sortState: OpportunitySortState, quotes: SalesQuote[] = []) {
   return [...opportunities].sort((left, right) => {
-    const leftValue = getOpportunitySortValue(left, sortState.columnId);
-    const rightValue = getOpportunitySortValue(right, sortState.columnId);
+    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes);
+    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes);
 
     if (leftValue === null && rightValue === null) {
       return 0;
@@ -144,4 +148,3 @@ export function calculateProspectosMetrics(opportunities: SalesOpportunity[]) {
     stageCounts,
   };
 }
-

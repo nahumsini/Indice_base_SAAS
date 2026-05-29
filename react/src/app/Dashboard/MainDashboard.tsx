@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
-import type { DashboardModuleCard } from '../config/moduleCatalog';
+import {
+  sortBasicModulesForOperationalLauncher,
+  type DashboardModuleCard,
+} from '../config/moduleCatalog';
 import type { PageId } from '../config/navigation';
 import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
@@ -78,9 +81,23 @@ export function MainDashboard({
     [copy, t],
   );
 
-  const mainModules = availableModules.filter((module) => module.category === 'basic');
-  const complementaryModules = availableModules.filter((module) => module.category === 'complementary');
-  const aiModules = availableModules.filter((module) => module.category === 'ai');
+  const mainModules = useMemo(
+    () => availableModules.filter((module) => module.category === 'basic'),
+    [availableModules],
+  );
+  const operationalLauncherModules = useMemo(
+    () => sortBasicModulesForOperationalLauncher(mainModules),
+    [mainModules],
+  );
+  const standardBasicModules = learningModeActive ? mainModules : operationalLauncherModules;
+  const complementaryModules = useMemo(
+    () => availableModules.filter((module) => module.category === 'complementary'),
+    [availableModules],
+  );
+  const aiModules = useMemo(
+    () => availableModules.filter((module) => module.category === 'ai'),
+    [availableModules],
+  );
 
   const favoriteModules = getFavoriteModules(availableModules);
   const safeLearningStep = clampOperationalJourneyStep(learningStep);
@@ -178,7 +195,7 @@ export function MainDashboard({
           icon="🏢"
           title={copy.sections.basicModules}
           label={copy.sections.main}
-          modules={mainModules}
+          modules={standardBasicModules}
           favoriteIds={favorites}
           onToggleFavorite={toggleFavorite}
           onModuleClick={handleModuleClick}

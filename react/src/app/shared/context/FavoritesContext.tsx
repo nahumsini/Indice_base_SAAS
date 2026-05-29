@@ -26,8 +26,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   );
 
   const toggleFavorite = (moduleId: string) => {
-    setFavorites(prev => 
-      prev.includes(moduleId) 
+    setFavorites(prev =>
+      prev.includes(moduleId)
         ? prev.filter(id => id !== moduleId)
         : [...prev, moduleId]
     );
@@ -38,7 +38,24 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   };
 
   const getFavoriteModules = (allModules: Module[]) => {
-    return allModules.filter(module => favorites.includes(module.id));
+    const moduleById = new Map(allModules.map((module) => [module.id, module] as const));
+    const visibleFavorites: Module[] = [];
+    const seenFavoriteIds = new Set<string>();
+
+    for (const favoriteId of favorites) {
+      if (seenFavoriteIds.has(favoriteId)) {
+        continue;
+      }
+
+      const module = moduleById.get(favoriteId);
+
+      if (module) {
+        visibleFavorites.push(module);
+        seenFavoriteIds.add(favoriteId);
+      }
+    }
+
+    return visibleFavorites;
   };
 
   return (

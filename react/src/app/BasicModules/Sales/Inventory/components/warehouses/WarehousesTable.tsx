@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Ban, ChevronDown, ChevronUp, Eye, History, PackagePlus, Pencil } from 'lucide-react';
+import { ArrowRightLeft, Ban, ChevronDown, ChevronUp, History, PackagePlus } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../../components/ui/table';
 import type { InventoryOperationalColumnId, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
@@ -56,14 +56,16 @@ export function WarehousesTable({
   t,
   onAddStock,
   onTransferStock,
+  onViewMovements,
   onDisableWarehouse,
 }: {
   warehouses: InventoryWarehouse[];
   rows: InventoryStockRow[];
   visibleColumns: InventoryOperationalColumnId[];
   t: Translations;
-  onAddStock: () => void;
-  onTransferStock: () => void;
+  onAddStock: (warehouse: InventoryWarehouse) => void;
+  onTransferStock: (warehouse: InventoryWarehouse) => void;
+  onViewMovements: (warehouse: InventoryWarehouse) => void;
   onDisableWarehouse: (warehouseId: string) => void;
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(warehouses[0]?.id ? [warehouses[0].id] : []));
@@ -158,11 +160,9 @@ export function WarehousesTable({
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
                       <div className="flex justify-end gap-2 rounded-2xl border border-slate-200 bg-white p-2">
-                        <ActionButton className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" title={t.operational.actions.viewDetail} icon={<Eye className="h-4 w-4" />} />
-                        <ActionButton className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title={t.operational.actions.addStock} icon={<PackagePlus className="h-4 w-4" />} onClick={onAddStock} />
-                        <ActionButton className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100" title={t.operational.actions.transferStock} icon={<ArrowRightLeft className="h-4 w-4" />} onClick={onTransferStock} />
-                        <ActionButton className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} />
-                        <ActionButton className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100" title={t.operational.actions.edit} icon={<Pencil className="h-4 w-4" />} />
+                        <ActionButton className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title={t.operational.actions.addStock} icon={<PackagePlus className="h-4 w-4" />} onClick={() => onAddStock(warehouse)} />
+                        <ActionButton className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100" title={t.operational.actions.transferStock} icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => onTransferStock(warehouse)} />
+                        <ActionButton className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} onClick={() => onViewMovements(warehouse)} />
                         <ActionButton className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100" title={t.operational.actions.disable} icon={<Ban className="h-4 w-4" />} onClick={() => onDisableWarehouse(warehouse.id)} />
                       </div>
                     </TableCell>

@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useDeferredTabChange } from './useDeferredTabChange';
+import { useLocalStorageState } from './useLocalStorageState';
+
+const LAST_ACTIVE_MODULE_TABS_STORAGE_KEY = 'indice.moduleTabs.lastActiveTab';
 
 interface RoutedModuleTabOptions {
   minimumLoadingDurationMs?: number;
@@ -16,11 +19,18 @@ export function useRoutedModuleTab<T extends string>(
   const params = useParams();
   const pageId = params.pageId;
   const wildcardPath = params['*'];
+  const [lastActiveTabs, setLastActiveTabs] = useLocalStorageState<Record<string, string>>(
+    LAST_ACTIVE_MODULE_TABS_STORAGE_KEY,
+    {},
+  );
   const requestedTab = wildcardPath?.split('/').filter(Boolean)[0];
   const resolvedTab = requestedTab ? (legacyTabAliases[requestedTab] ?? requestedTab) : undefined;
-  const isValidTab = validTabs.includes(resolvedTab as T);
-  const activeTab = isValidTab ? (resolvedTab as T) : defaultTab;
-  const shouldRedirect = !requestedTab || !isValidTab || requestedTab !== activeTab;
+  const isRequestedTabValid = validTabs.includes(resolvedTab as T);
+  const storedTab = pageId ? lastActiveTabs[pageId] : undefined;
+  const resolvedStoredTab = storedTab ? (legacyTabAliases[storedTab] ?? storedTab) : undefined;
+  const fallbackTab = validTabs.includes(resolvedStoredTab as T) ? (resolvedStoredTab as T) : defaultTab;
+  const activeTab = isRequestedTabValid ? (resolvedTab as T) : fallbackTab;
+  const shouldRedirect = !requestedTab || !isRequestedTabValid || requestedTab !== activeTab;
   const { changeTab, isTabLoading } = useDeferredTabChange(
     activeTab,
     (nextTab) => {
@@ -30,6 +40,23 @@ export function useRoutedModuleTab<T extends string>(
     },
     options.minimumLoadingDurationMs,
   );
+
+  useEffect(() => {
+    if (!pageId) {
+      return;
+    }
+
+    setLastActiveTabs((currentTabs) => {
+      if (currentTabs[pageId] === activeTab) {
+        return currentTabs;
+      }
+
+      return {
+        ...currentTabs,
+        [pageId]: activeTab,
+      };
+    });
+  }, [activeTab, pageId, setLastActiveTabs]);
 
   useEffect(() => {
     if (!pageId || !shouldRedirect) {

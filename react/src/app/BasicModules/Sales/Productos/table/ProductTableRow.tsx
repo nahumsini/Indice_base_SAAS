@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Copy, Eye, PencilLine, Power, Trash2 } from 'lucide-react';
+import { Copy, Images, PencilLine, Power, Trash2 } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import {
   TableCell,
@@ -10,11 +10,13 @@ import type { SalesCatalogItem } from '../../types';
 import { ProductHealthIndicators } from '../components/ProductHealthIndicators';
 import { ProductOperationalChips } from '../components/ProductOperationalChips';
 import { ProductThumbnail } from '../components/ProductThumbnail';
+import { ProductVisibilityBadge } from '../components/ProductVisibilityBadge';
 import type { ProductsTranslations } from '../translations';
 import type { ProductTableColumnId } from './ProductsColumnsModal';
 import { formatProductCurrency, getProductMargin } from '../utils/productFormatters';
 import { getProductProfit } from '../utils/productOperationalStatus';
-import { ProductInlineCategorySelect, type ProductCategoryOption } from './ProductInlineCategorySelect';
+import type { ProductCategoryOption } from '../utils/productCategories';
+import { ProductInlineCategorySelect } from './ProductInlineCategorySelect';
 import { ProductInlineStatusSelect } from './ProductInlineStatusSelect';
 
 type ProductTableRowProps = {
@@ -30,7 +32,7 @@ type ProductTableRowProps = {
   onDeleteProduct: (product: SalesCatalogItem) => void;
   onToggleProductStatus: (product: SalesCatalogItem) => void;
   onUpdateProductCategory: (product: SalesCatalogItem, category: string) => void;
-  onUpdateProductStatus: (product: SalesCatalogItem, status: 'Active' | 'Inactive') => void;
+  onUpdateProductStatus: (product: SalesCatalogItem, status: SalesCatalogItem['status']) => void;
 };
 
 function CatalogAction({
@@ -140,6 +142,11 @@ export function ProductTableRow({
           />
         </TableCell>
       ) : null}
+      {visibleColumns.includes('visibility') ? (
+        <TableCell className="px-5 py-4 align-middle">
+          <ProductVisibilityBadge visibility={product.visibility} t={t} compact />
+        </TableCell>
+      ) : null}
       {visibleColumns.includes('availableIn') ? (
         <TableCell className="px-5 py-4 align-middle">
           <ProductOperationalChips product={product} t={t} compact />
@@ -150,7 +157,7 @@ export function ProductTableRow({
       ) : null}
       <TableCell className="px-5 py-4 align-middle">
         <div className="flex items-center justify-end gap-2">
-          <CatalogAction label={t.actions.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" onClick={() => onViewProduct(product)} />
+          <CatalogAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" onClick={() => onViewProduct(product)} />
           <CatalogAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50" onClick={() => onEditProduct(product)} />
           <CatalogAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20" onClick={() => onDuplicateProduct(product)} />
           <CatalogAction label={product.status === 'Active' ? t.actions.deactivate : t.actions.activate} icon={<Power className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15" onClick={() => onToggleProductStatus(product)} />

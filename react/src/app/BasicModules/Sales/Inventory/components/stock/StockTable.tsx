@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, Eye, History, PackagePlus, SlidersHorizontal } from 'lucide-react';
+import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, History, PackagePlus, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Checkbox } from '../../../../../components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
@@ -29,7 +29,6 @@ const statusTone = {
 const headerClass = 'h-10 whitespace-nowrap px-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500';
 const numberClass = 'text-right font-black tabular-nums text-slate-900';
 const actionButtonClasses = [
-  'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15',
   'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
   'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20',
   'border-[#F4C84A]/35 bg-[#F4C84A]/15 text-[#9a6b05] hover:bg-[#F4C84A]/25',
@@ -102,6 +101,7 @@ export function StockTable({
   onToggleAll,
   onAddStock,
   onTransfer,
+  onAdjust,
   onViewMovements,
   onCategoryChange,
 }: {
@@ -117,6 +117,7 @@ export function StockTable({
   onToggleAll: (checked: boolean) => void;
   onAddStock: (row: InventoryStockRow) => void;
   onTransfer: (row: InventoryStockRow) => void;
+  onAdjust: (row: InventoryStockRow) => void;
   onViewMovements: (row: InventoryStockRow) => void;
   onCategoryChange: (row: InventoryStockRow, category: InventoryStockRow['category']) => void;
 }) {
@@ -206,11 +207,10 @@ export function StockTable({
                   {canShow('lastMovement') ? <TableCell className="px-3 py-2 text-sm font-semibold text-slate-600">{row.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}
                   <TableCell className="px-3 py-2">
                     <div className="flex justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[0]}`} title={t.operational.actions.viewDetail}><Eye className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[1]}`} title={t.operational.actions.addStock} onClick={() => onAddStock(row)}><PackagePlus className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[2]}`} title={t.operational.actions.transfer} onClick={() => onTransfer(row)}><ArrowRightLeft className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[3]}`} title={t.operational.actions.adjust}><SlidersHorizontal className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[4]}`} title={t.operational.actions.viewMovements} onClick={() => onViewMovements(row)}><History className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[0]}`} title={t.operational.actions.addStock} onClick={() => onAddStock(row)}><PackagePlus className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[1]}`} title={t.operational.actions.transfer} onClick={() => onTransfer(row)}><ArrowRightLeft className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[2]}`} title={t.operational.actions.adjust} onClick={() => onAdjust(row)}><SlidersHorizontal className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[3]}`} title={t.operational.actions.viewMovements} onClick={() => onViewMovements(row)}><History className="h-4 w-4" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>

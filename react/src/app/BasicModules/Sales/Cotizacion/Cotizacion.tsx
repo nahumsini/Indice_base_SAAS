@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -71,12 +72,16 @@ import {
   type QuoteSortColumn,
   type QuoteSortState,
 } from './components/QuoteUi';
+import { QuoteExpirationBadge } from './components/QuoteExpirationBadge';
+import { QuoteMarginBadge } from './components/QuoteMarginBadge';
 import { QuotePreviewModal } from './components/QuotePreviewModal';
+import { QuoteReadinessBadge } from './components/QuoteReadinessBadge';
 import { QuoteBuilderModal } from './modals/QuoteBuilderModal';
 import { useQuotesTranslations } from './translations';
 import type { QuoteFormState } from './types/quoteBuilderTypes';
 import { getProductMargin } from './utils/quoteCatalogAdapters';
 import { calculateQuoteBuilderTotals } from './utils/quotePricing';
+import { getQuoteTableSignals } from './utils/quoteTableSignals';
 import {
   getDefaultTaxPresetForJurisdiction,
   type QuoteTaxJurisdiction,
@@ -163,6 +168,7 @@ function getDaysUntil(dateValue: string) {
 }
 
 export default function Cotizacion() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const t = useQuotesTranslations();
   const {
     contacts,
@@ -331,6 +337,8 @@ export default function Cotizacion() {
         return t.statusLabels[quote.status] ?? quote.status;
       case 'amount':
         return quote.total;
+      case 'margin':
+        return calculateQuoteBuilderTotals(quote.items, products).estimatedMargin;
       case 'created':
         return quote.createdDate;
       case 'expiration':
@@ -355,7 +363,7 @@ export default function Cotizacion() {
     }
 
     return quoteSortCollator.compare(String(leftValue), String(rightValue)) * directionMultiplier;
-  }), [filteredQuotes, opportunityNameById, sortState, t.statusLabels]);
+  }), [filteredQuotes, opportunityNameById, products, sortState, t.statusLabels]);
   const handleSort = (columnId: QuoteSortColumn) => {
     setSortState((current) => (
       current.columnId === columnId
@@ -485,6 +493,17 @@ export default function Cotizacion() {
     resetBuilder();
     setIsBuilderOpen(true);
   };
+
+  useEffect(() => {
+    if (searchParams.get('create') !== 'quote') {
+      return;
+    }
+
+    openCreateQuoteBuilder();
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('create');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const openEditQuoteBuilder = (quote: SalesQuote) => {
     const contact = quote.clientId
@@ -738,16 +757,18 @@ export default function Cotizacion() {
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="min-w-[1580px]">
+          <Table className="min-w-[1780px]">
             <TableHeader>
               <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50">
                 <TableHead className="min-w-[140px] px-5 py-5"><QuoteSortableHeader columnId="number" label={t.table.columns.number} sortState={sortState} onSort={handleSort} /></TableHead>
                 <TableHead className="min-w-[220px] px-5 py-5"><QuoteSortableHeader columnId="client" label={t.table.columns.client} sortState={sortState} onSort={handleSort} /></TableHead>
                 <TableHead className="min-w-[240px] px-5 py-5"><QuoteSortableHeader columnId="opportunity" label={t.table.columns.opportunity} sortState={sortState} onSort={handleSort} /></TableHead>
                 <TableHead className="min-w-[180px] px-5 py-5"><QuoteSortableHeader columnId="status" label={t.table.columns.status} sortState={sortState} onSort={handleSort} /></TableHead>
+                <TableHead className="min-w-[170px] px-5 py-5 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.readiness}</TableHead>
                 <TableHead className="min-w-[140px] px-5 py-5"><QuoteSortableHeader columnId="amount" label={t.table.columns.amount} sortState={sortState} onSort={handleSort} /></TableHead>
+                <TableHead className="min-w-[130px] px-5 py-5"><QuoteSortableHeader columnId="margin" label={t.table.columns.margin} sortState={sortState} onSort={handleSort} /></TableHead>
                 <TableHead className="min-w-[130px] px-5 py-5"><QuoteSortableHeader columnId="created" label={t.table.columns.created} sortState={sortState} onSort={handleSort} /></TableHead>
-                <TableHead className="min-w-[130px] px-5 py-5"><QuoteSortableHeader columnId="expiration" label={t.table.columns.expiration} sortState={sortState} onSort={handleSort} /></TableHead>
+                <TableHead className="min-w-[150px] px-5 py-5"><QuoteSortableHeader columnId="expiration" label={t.table.columns.expiration} sortState={sortState} onSort={handleSort} /></TableHead>
                 <TableHead className="min-w-[220px] px-5 py-5"><QuoteSortableHeader columnId="seller" label={t.table.columns.seller} sortState={sortState} onSort={handleSort} /></TableHead>
                 <TableHead className="min-w-[130px] px-5 py-5"><QuoteSortableHeader columnId="updated" label={t.table.columns.updated} sortState={sortState} onSort={handleSort} /></TableHead>
                 <TableHead className="min-w-[110px] px-5 py-5"><QuoteSortableHeader columnId="files" label={t.table.columns.files} sortState={sortState} onSort={handleSort} /></TableHead>
@@ -757,13 +778,19 @@ export default function Cotizacion() {
             <TableBody>
               {sortedQuotes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
+                  <TableCell colSpan={13} className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
                     {t.table.empty}
                   </TableCell>
                 </TableRow>
               ) : sortedQuotes.map((quote) => {
                 const opportunity = opportunities.find((item) => item.id === quote.opportunityId);
                 const sellerValue = resolveQuoteSellerValue(quote);
+                const quoteContact = getQuoteContact(quote);
+                const tableSignals = getQuoteTableSignals({
+                  quote,
+                  products,
+                  contact: quoteContact,
+                });
 
                 return (
                   <TableRow key={quote.id} className="border-slate-200 align-top hover:bg-slate-50/80">
@@ -795,9 +822,17 @@ export default function Cotizacion() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell className="px-5 py-5">
+                      <QuoteReadinessBadge signal={tableSignals.readiness} t={t} />
+                    </TableCell>
                     <TableCell className="px-5 py-5 font-black text-slate-950">{formatCurrency(quote.total)}</TableCell>
+                    <TableCell className="px-5 py-5">
+                      <QuoteMarginBadge signal={tableSignals.margin} t={t} />
+                    </TableCell>
                     <TableCell className="px-5 py-5 font-semibold text-slate-600">{quote.createdDate}</TableCell>
-                    <TableCell className="px-5 py-5 font-semibold text-slate-600">{quote.expirationDate}</TableCell>
+                    <TableCell className="px-5 py-5">
+                      <QuoteExpirationBadge expirationDate={quote.expirationDate} signal={tableSignals.expiration} t={t} />
+                    </TableCell>
                     <TableCell className="px-5 py-5">
                       <QuoteSellerSelect
                         value={sellerValue}

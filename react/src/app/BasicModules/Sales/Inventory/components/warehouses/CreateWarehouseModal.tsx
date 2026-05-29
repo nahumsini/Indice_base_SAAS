@@ -9,6 +9,14 @@ import type { InventoryTranslations } from '../../translations';
 
 export type CreateWarehouseDraft = Omit<InventoryWarehouse, 'id' | 'lastMovementAt'>;
 
+const warehouseTypes: InventoryWarehouse['type'][] = [
+  'corporateWarehouse',
+  'businessUnitWarehouse',
+  'businessWarehouse',
+  'temporaryStorage',
+  'vehicleStorage',
+];
+
 export function CreateWarehouseModal({
   open,
   businessUnits,
@@ -39,7 +47,7 @@ export function CreateWarehouseModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden rounded-[30px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:max-w-[560px] [&>button]:hidden">
+      <DialogContent className="overflow-hidden rounded-[30px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:max-w-[720px] [&>button]:hidden">
         <DialogHeader className="bg-[#FF6B5E] px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
@@ -67,6 +75,7 @@ export function CreateWarehouseModal({
         <div className="bg-slate-50/70 px-6 py-5">
           <div className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
             <InputField label={t.operational.modals.warehouseName} value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
+            <SelectField label={t.operational.modals.warehouseType} value={draft.type} options={warehouseTypes.map((type) => ({ value: type, label: t.operational.warehouseTypes[type] }))} onValueChange={(type) => setDraft({ ...draft, type: type as InventoryWarehouse['type'] })} />
             <SelectField label={t.operational.modals.businessUnit} value={draft.businessUnitId ?? ''} options={businessUnits.map((unit) => ({ value: unit.id, label: unit.name }))} onValueChange={(businessUnitId) => {
               const unit = businessUnits.find((item) => item.id === businessUnitId);
               setDraft({
@@ -87,6 +96,9 @@ export function CreateWarehouseModal({
                 jurisdiction: business?.city ? `${business.city}, ${business.country ?? ''}` : draft.jurisdiction,
               });
             }} />
+            <InputField label={t.operational.modals.responsiblePerson} value={draft.responsibleName} onChange={(responsibleName) => setDraft({ ...draft, responsibleName })} />
+            <InputField label={t.operational.columns.jurisdiction} value={draft.jurisdiction} onChange={(jurisdiction) => setDraft({ ...draft, jurisdiction })} />
+            <InputField label={t.operational.modals.addressNote} value={draft.addressNote ?? ''} onChange={(addressNote) => setDraft({ ...draft, addressNote })} />
             <SelectField label={t.operational.modals.status} value={draft.status} options={[{ value: 'active', label: t.filters.active }, { value: 'inactive', label: t.filters.inactive }]} onValueChange={(status) => setDraft({ ...draft, status: status as InventoryWarehouse['status'] })} />
           </div>
         </div>

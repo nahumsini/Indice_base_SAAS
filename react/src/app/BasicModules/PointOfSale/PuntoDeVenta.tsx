@@ -78,10 +78,10 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
           {/* Barra de Favoritos */}
           <FavoritesBar 
             onNavigate={(page) => {
-              if (page === 'punto-de-venta') return; // Ya estamos aquí
+              if (page === 'point-of-sale') return;
               onNavigate(page);
             }} 
-            currentModule="punto-de-venta" 
+            currentModule="point-of-sale" 
           />
           
           <div className="flex items-start justify-between">

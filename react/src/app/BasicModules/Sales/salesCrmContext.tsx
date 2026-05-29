@@ -104,12 +104,19 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
     postSaleCases,
     contracts,
     addContact: (contact) => {
-      const createdContact = {
+      let createdContact: SalesContact = {
         ...contact,
         id: createSequentialId('CNT', contacts.length + 1),
       };
 
-      setContacts((current) => [createdContact, ...current]);
+      setContacts((current) => {
+        createdContact = {
+          ...contact,
+          id: createSequentialId('CNT', current.length + 1),
+        };
+
+        return [createdContact, ...current];
+      });
       return createdContact;
     },
     updateContact: (contactId, patch) => {

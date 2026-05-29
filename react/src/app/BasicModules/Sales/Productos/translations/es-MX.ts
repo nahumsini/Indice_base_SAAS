@@ -69,6 +69,7 @@ export const esMX: ProductsTranslations = {
       margin: 'Margen',
       profit: 'Utilidad',
       status: 'Estado',
+      visibility: 'Visibilidad',
       availableIn: 'Disponible en',
       updated: 'Actualizado',
       actions: 'Acciones',
@@ -106,6 +107,7 @@ export const esMX: ProductsTranslations = {
   },
   actions: {
     view: 'Ver item',
+    viewImages: 'Ver imágenes',
     edit: 'Editar item',
     duplicate: 'Duplicar item',
     delete: 'Eliminar item',
@@ -173,6 +175,10 @@ export const esMX: ProductsTranslations = {
         label: 'Estado',
         description: 'Estado editable activo o inactivo para cada fila.',
       },
+      visibility: {
+        label: 'Visibilidad',
+        description: 'Visibilidad comercial controlada por uso y preparación.',
+      },
       availableIn: {
         label: 'Disponible en',
         description: 'Disponibilidad operativa en ventas, POS e inventario.',
@@ -188,6 +194,12 @@ export const esMX: ProductsTranslations = {
     pos: 'POS',
     inventory: 'Inventario',
     internal: 'Interno',
+  },
+  visibilityLabels: {
+    Internal: 'Interno',
+    Commercial: 'Comercial',
+    'POS ready': 'POS listo',
+    'Quote only': 'Solo cotización',
   },
   healthWarnings: {
     missingCategory: 'Falta categoría',
@@ -252,6 +264,7 @@ export const esMX: ProductsTranslations = {
     applySuggestedPrice: 'Usar precio sugerido',
     finalSalePrice: 'Precio final de venta',
     estimatedMargin: 'Margen estimado',
+    temporaryValuesNote: 'Los valores del constructor de precio calculan el precio sugerido y no se guardan como campos del producto.',
     taxesInQuoteNote: 'Los impuestos se configuran después dentro de la cotización según cliente, país y contexto de la transacción.',
   },
   marginGuidance: {

@@ -72,7 +72,7 @@ export default function Productos() {
       {catalog.activeView === 'table' ? (
         <ProductsCatalogTable
           products={catalog.sortedProducts}
-          categories={catalog.managedCategories}
+          categories={catalog.catalogCategories}
           t={t}
           sortState={catalog.sortState}
           onSort={catalog.handleSort}
@@ -105,7 +105,7 @@ export default function Productos() {
         t={t}
         mode={catalog.editingProductId ? 'edit' : 'create'}
         catalogItems={catalog.products}
-        categories={catalog.managedCategories}
+        categories={catalog.catalogCategories}
         onOpenChange={catalog.handleProductModalOpenChange}
         onFormChange={catalog.setForm}
         onSubmit={catalog.handleSaveProduct}

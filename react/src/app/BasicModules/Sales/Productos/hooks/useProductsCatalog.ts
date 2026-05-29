@@ -9,7 +9,11 @@ import { defaultProductTableVisibleColumns, type ProductTableColumnId } from '..
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig } from '../types/productCategoryTypes';
 import type { ProductFormState, ProductSortColumn, ProductSortState, ProductView } from '../types/productosTypes';
-import { createProductCategory, getCategoryLabel } from '../utils/productCategories';
+import {
+  buildCatalogProductCategories,
+  buildProductCategoryOptions,
+  createProductCategory,
+} from '../utils/productCategories';
 import { buildProductForm, buildProductInput, initialProductForm } from '../utils/productForm';
 import { sortProducts } from '../utils/productFormatters';
 import { getProductAvailability, getProductInventoryValue, getProductProfit } from '../utils/productOperationalStatus';
@@ -70,12 +74,22 @@ export function useProductsCatalog(t: ProductsTranslations) {
     count: filteredProducts.filter((product) => product.type === type).length,
   }));
   const editingProduct = editingProductId ? availableProducts.find((product) => product.id === editingProductId) ?? null : null;
+  const existingCategoryValues = useMemo(
+    () => availableProducts.map((product) => product.category),
+    [availableProducts],
+  );
+  const catalogCategories = useMemo(
+    () => buildCatalogProductCategories({
+      t,
+      managedCategories,
+      extraValues: existingCategoryValues,
+    }),
+    [existingCategoryValues, managedCategories, t],
+  );
 
   const categoryOptions = [
     { value: 'all', label: t.filters.allCategories },
-    ...managedCategories
-      .filter((category) => category.isActive)
-      .map((category) => ({ value: category.value, label: getCategoryLabel(category.value, t) })),
+    ...buildProductCategoryOptions(catalogCategories, t),
   ];
   const typeOptions = [
     { value: 'all', label: t.filters.allTypes },
@@ -147,7 +161,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
     });
   };
 
-  const handleUpdateProductStatus = (product: SalesCatalogItem, status: 'Active' | 'Inactive') => {
+  const handleUpdateProductStatus = (product: SalesCatalogItem, status: SalesCatalogItem['status']) => {
     updateProduct(product.id, { status });
   };
 
@@ -177,7 +191,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
       return;
     }
 
-    const existingCategory = managedCategories.find((category) => (
+    const existingCategory = catalogCategories.find((category) => (
       category.value.toLowerCase() === normalizedName.toLowerCase() || category.name.toLowerCase() === normalizedName.toLowerCase()
     ));
 
@@ -212,6 +226,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
     activeView,
     availableProducts,
     carouselProduct,
+    catalogCategories,
     categoryFilter,
     categoryOptions,
     editingProductId,

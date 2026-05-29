@@ -21,21 +21,7 @@ export function FavoritesBar({ onNavigate, currentModule }: FavoritesBarProps) {
   const { getFavoriteModules } = useFavorites();
 
   const allModules = useAccessibleModuleCatalog(t);
-  const coreModuleFlow = [
-    'home-panel',
-    'human-resources',
-    'processes-tasks',
-    'expenses',
-    'petty-cash',
-  ] as const;
-  const moduleById = new Map(allModules.map((module) => [module.id, module] as const));
-  const pinnedModules = coreModuleFlow
-    .map((moduleId) => moduleById.get(moduleId))
-    .filter(Boolean) as FavoriteBarModule[];
-  const extraFavoriteModules: FavoriteBarModule[] = getFavoriteModules(allModules).filter(
-    (module) => !coreModuleFlow.includes(module.id as (typeof coreModuleFlow)[number]),
-  );
-  const visibleModules: FavoriteBarModule[] = [...pinnedModules, ...extraFavoriteModules];
+  const visibleModules: FavoriteBarModule[] = getFavoriteModules(allModules);
   const activeModule = resolvePageId(currentModule) ?? currentModule;
 
   const handleModuleClick = (module: FavoriteBarModule) => {

@@ -8,7 +8,6 @@ import { InventoryInsightBar } from './components/InventoryInsightBar';
 import { InventoryKpiStrip } from './components/InventoryKpiStrip';
 import { InventoryViewSwitcher } from './components/InventoryViewSwitcher';
 import { AddInventoryModal, type AddInventoryDraft } from './components/movements/AddInventoryModal';
-import { MovementEditModal } from './components/movements/MovementEditModal';
 import { MovementPrintModal } from './components/movements/MovementPrintModal';
 import { MovementsKanban } from './components/movements/MovementsKanban';
 import { MovementsTable } from './components/movements/MovementsTable';
@@ -26,11 +25,23 @@ import type {
   InventoryOperationalMovement,
   InventoryOperationalMovementFiltersState,
   InventoryOperationalView,
+  InventoryMovementEntryType,
   InventoryStockRow,
   InventoryWarehouse,
 } from './types/inventoryTypes';
 import { getMovementMetrics, getStockMetrics, getWarehouseInventoryEntries, getWarehouseMetrics } from './utils/inventoryCalculations';
-import { SUPPLIER_SOURCE_ID, applyMovementEntryToStockRows, createInventoryMovementEntries, isSupplierSource, reverseInventoryMovement } from './utils/inventoryMovementEntries';
+import {
+  SUPPLIER_SOURCE_ID,
+  applyMovementEntryToStockRows,
+  createInventoryMovementEntries,
+  isSupplierSource,
+  reverseInventoryMovement,
+} from './utils/inventoryMovementEntries';
+import {
+  getOperationalMovementGroupId,
+  getOperationalMovementGroupLines,
+  updateMovementGroupFromDraft,
+} from './utils/inventoryMovementEditing';
 import {
   defaultMovementFilters,
   defaultOperationalColumns,
@@ -54,6 +65,8 @@ export default function Inventory() {
   const [editingMovement, setEditingMovement] = useState<InventoryOperationalMovement | null>(null);
   const [printingMovement, setPrintingMovement] = useState<InventoryOperationalMovement | null>(null);
   const [initialProductId, setInitialProductId] = useState<string | undefined>();
+  const [initialWarehouseId, setInitialWarehouseId] = useState<string | undefined>();
+  const [initialMovementType, setInitialMovementType] = useState<InventoryMovementEntryType>('transfer');
   const [stockFilters, setStockFilters] = useState<InventoryOperationalFiltersState>(defaultStockFilters);
   const [movementFilters, setMovementFilters] = useState<InventoryOperationalMovementFiltersState>(defaultMovementFilters);
   const selection = useInventorySelection<string>();
@@ -111,6 +124,9 @@ export default function Inventory() {
   const movementResponsibleOptions = useMemo(() => Array.from(new Set(
     movements.map((movement) => movement.responsibleName).filter(Boolean),
   )).sort((first, second) => first.localeCompare(second)), [movements]);
+  const editingMovementLines = useMemo(() => {
+    return getOperationalMovementGroupLines(movements, editingMovement);
+  }, [editingMovement, movements]);
 
   const activeMetrics = useMemo(() => (
     activeView === 'stock'
@@ -171,57 +187,59 @@ export default function Inventory() {
     setIsWarehouseOpen(false);
   };
 
-  const handleCreateAdjustment = () => {
-    const row = filteredStockRows[0] ?? stockRows[0];
-    if (!row) return;
-
-    setMovements((current) => [{
-      id: `ADJ-${String(1300 + current.length).padStart(6, '0')}`,
-      movementNumber: `ADJ-${String(1300 + current.length).padStart(6, '0')}`,
-      productId: row.productId,
-      productName: row.name,
-      productSku: row.sku,
-      productImageUrl: row.thumbnailUrl,
-      productImageAlt: row.thumbnailAlt,
-      movementType: 'adjustment',
-      quantity: -1,
-      unitCost: row.averageCost,
-      fromWarehouseName: 'System',
-      toWarehouseName: 'Inventory correction',
-      businessUnitId: row.businessUnitId,
-      businessUnitName: row.businessUnitName,
-      businessId: row.businessId,
-      businessName: row.businessName,
-      reason: 'Inventory adjustment draft.',
-      reference: `ADJ-${String(current.length + 1).padStart(5, '0')}`,
-      responsibleName: 'Nahum Pena',
-      movementDate: new Date().toISOString().slice(0, 10),
-      status: 'draft',
-    }, ...current]);
-    setActiveView('movements');
+  const openAddInventoryModal = (productId?: string, warehouseId?: string) => {
+    setInitialProductId(productId);
+    setInitialWarehouseId(warehouseId);
+    setIsAddInventoryOpen(true);
   };
 
-  const handleSaveMovementEdit = (movementId: string, patch: Pick<InventoryOperationalMovement, 'movementDate' | 'reference' | 'reason' | 'responsibleName' | 'status'>) => {
-    setMovements((current) => {
-      const target = current.find((movement) => movement.id === movementId);
-      const targetGroupId = target?.groupId ?? target?.movementNumber ?? target?.id;
-      return current.map((movement) => (
-        targetGroupId && (movement.groupId ?? movement.movementNumber ?? movement.id) === targetGroupId
-          ? { ...movement, ...patch }
-          : movement
-      ));
-    });
+  const openMovementEntryModal = (movementType: InventoryMovementEntryType, productId?: string, warehouseId?: string) => {
+    setInitialMovementType(movementType);
+    setInitialProductId(productId);
+    setInitialWarehouseId(warehouseId);
+    setIsTransferOpen(true);
+  };
+
+  const handleSaveMovementEdit = (movementId: string, draft: TransferStockDraft) => {
+    setMovements((current) => updateMovementGroupFromDraft({
+      movements: current,
+      movementId,
+      draft,
+      warehouses,
+      stockRows,
+    }));
     setEditingMovement(null);
+  };
+
+  const handleMovementStatusChange = (
+    movement: InventoryOperationalMovement,
+    status: InventoryOperationalMovement['status'],
+  ) => {
+    if (movement.status === status || movement.status === 'cancelled') {
+      return;
+    }
+
+    if (status === 'cancelled') {
+      handleCancelMovement(movement);
+      return;
+    }
+
+    const movementGroupId = getOperationalMovementGroupId(movement);
+    setMovements((current) => current.map((item) => (
+      getOperationalMovementGroupId(item) === movementGroupId
+        ? { ...item, status }
+        : item
+    )));
   };
 
   const handleCancelMovement = (movement: InventoryOperationalMovement) => {
     if (movement.status === 'cancelled') return;
-    const movementGroupId = movement.groupId ?? movement.movementNumber ?? movement.id;
-    const movementLines = movements.filter((item) => (item.groupId ?? item.movementNumber ?? item.id) === movementGroupId);
+    const movementGroupId = getOperationalMovementGroupId(movement);
+    const movementLines = movements.filter((item) => getOperationalMovementGroupId(item) === movementGroupId);
     setStockRows((current) => movementLines.reduce((nextRows, item) => reverseInventoryMovement(nextRows, item, warehouses), current));
     setMovements((current) => current.map((item) => (
-      (item.groupId ?? item.movementNumber ?? item.id) === movementGroupId
-        ? { ...item, status: 'cancelled', reason: `${item.reason} Cancelled and reversed locally.` }
+      getOperationalMovementGroupId(item) === movementGroupId
+        ? { ...item, status: 'cancelled', reason: `${item.reason} ${t.operational.cancelledReturnMessage}` }
         : item
     )));
   };
@@ -231,10 +249,10 @@ export default function Inventory() {
       <InventoryHeader
         t={t}
         isMovementsView={activeView === 'movements'}
-        onAddInventory={() => { setInitialProductId(undefined); setIsAddInventoryOpen(true); }}
-        onTransferStock={() => { setInitialProductId(undefined); setIsTransferOpen(true); }}
+        onAddInventory={() => openAddInventoryModal()}
+        onTransferStock={() => openMovementEntryModal('transfer')}
         onCreateWarehouse={() => setIsWarehouseOpen(true)}
-        onInventoryAdjustment={handleCreateAdjustment}
+        onInventoryAdjustment={() => openMovementEntryModal('adjustment')}
         onOpenColumns={() => setIsColumnsOpen(true)}
       />
 
@@ -276,8 +294,9 @@ export default function Inventory() {
               t={t}
               onToggleRow={selection.toggleSelection}
               onToggleAll={(checked) => selection.toggleAllVisible(visibleIds, checked)}
-              onAddStock={(row) => { setInitialProductId(row.productId); setIsAddInventoryOpen(true); }}
-              onTransfer={(row) => { setInitialProductId(row.productId); setIsTransferOpen(true); }}
+              onAddStock={(row) => openAddInventoryModal(row.productId)}
+              onTransfer={(row) => openMovementEntryModal('transfer', row.productId)}
+              onAdjust={(row) => openMovementEntryModal('adjustment', row.productId)}
               onViewMovements={(row) => { setMovementFilters({ ...defaultMovementFilters, productId: row.productId, search: row.name }); setActiveView('movements'); }}
               onCategoryChange={(row, category) => setStockRows((current) => current.map((item) => item.id === row.id ? { ...item, category } : item))}
             />
@@ -292,8 +311,9 @@ export default function Inventory() {
             rows={filteredWarehouseRows}
             visibleColumns={visibleColumns}
             t={t}
-            onAddStock={() => setIsAddInventoryOpen(true)}
-            onTransferStock={() => setIsTransferOpen(true)}
+            onAddStock={(warehouse) => openAddInventoryModal(undefined, warehouse.id)}
+            onTransferStock={(warehouse) => openMovementEntryModal('transfer', undefined, warehouse.id)}
+            onViewMovements={(warehouse) => { setMovementFilters({ ...defaultMovementFilters, search: warehouse.name }); setActiveView('movements'); }}
             onDisableWarehouse={(warehouseId) => setWarehouses((current) => current.map((warehouse) => warehouse.id === warehouseId ? { ...warehouse, status: 'inactive' } : warehouse))}
           />
         )
@@ -305,7 +325,7 @@ export default function Inventory() {
           {filteredMovements.length === 0 ? (
             <EmptyState title={t.operational.emptyStates.movementsTitle} description={t.operational.emptyStates.movementsDescription} />
           ) : movementViewMode === 'kanban' ? (
-            <MovementsKanban movements={filteredMovements} t={t} />
+            <MovementsKanban movements={filteredMovements} t={t} onStatusChange={handleMovementStatusChange} onCancel={handleCancelMovement} />
           ) : (
             <MovementsTable
               movements={filteredMovements}
@@ -314,19 +334,55 @@ export default function Inventory() {
               onPrint={setPrintingMovement}
               onTrack={(movement) => setMovementFilters({ ...defaultMovementFilters, search: movement.movementNumber ?? movement.id })}
               onCancel={handleCancelMovement}
+              onStatusChange={handleMovementStatusChange}
             />
           )}
         </>
       ) : null}
 
       <InventoryColumnsModal open={isColumnsOpen} visibleColumns={visibleColumns} t={t} onOpenChange={setIsColumnsOpen} onVisibleColumnsChange={setVisibleColumns} />
-      <AddInventoryModal open={isAddInventoryOpen} rows={stockRows} warehouses={warehouses} businessUnits={inventoryBusinessUnits} businesses={inventoryBusinesses} t={t} initialProductId={initialProductId} onOpenChange={setIsAddInventoryOpen} onSubmit={handleAddInventory} />
-      <TransferStockModal open={isTransferOpen} rows={stockRows} warehouses={warehouses} t={t} initialProductId={initialProductId} onOpenChange={setIsTransferOpen} onSubmit={handleTransferStock} />
+      <AddInventoryModal
+        open={isAddInventoryOpen}
+        rows={stockRows}
+        warehouses={warehouses}
+        businessUnits={inventoryBusinessUnits}
+        businesses={inventoryBusinesses}
+        t={t}
+        initialProductId={initialProductId}
+        initialWarehouseId={initialWarehouseId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsAddInventoryOpen(false);
+            setInitialWarehouseId(undefined);
+          }
+        }}
+        onSubmit={handleAddInventory}
+      />
+      <TransferStockModal
+        open={isTransferOpen || Boolean(editingMovement)}
+        rows={stockRows}
+        warehouses={warehouses}
+        t={t}
+        initialProductId={initialProductId}
+        initialMovementType={initialMovementType}
+        initialWarehouseId={initialWarehouseId}
+        editingMovement={editingMovement}
+        editingMovementLines={editingMovementLines}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsTransferOpen(false);
+            setEditingMovement(null);
+            setInitialMovementType('transfer');
+            setInitialWarehouseId(undefined);
+          }
+        }}
+        onSubmit={handleTransferStock}
+        onSaveEdit={handleSaveMovementEdit}
+      />
       <CreateWarehouseModal open={isWarehouseOpen} businessUnits={inventoryBusinessUnits} businesses={inventoryBusinesses} t={t} onOpenChange={setIsWarehouseOpen} onSubmit={handleCreateWarehouse} />
-      <MovementEditModal movement={editingMovement} t={t} onClose={() => setEditingMovement(null)} onSave={handleSaveMovementEdit} />
       <MovementPrintModal
         movement={printingMovement}
-        movementLines={printingMovement ? movements.filter((movement) => (movement.groupId ?? movement.movementNumber ?? movement.id) === (printingMovement.groupId ?? printingMovement.movementNumber ?? printingMovement.id)) : []}
+        movementLines={getOperationalMovementGroupLines(movements, printingMovement)}
         t={t}
         onClose={() => setPrintingMovement(null)}
       />

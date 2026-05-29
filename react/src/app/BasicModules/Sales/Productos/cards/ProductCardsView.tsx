@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Copy, Eye, Images, PencilLine, Power, Trash2 } from 'lucide-react';
+import { Copy, Images, PencilLine, Power, Trash2 } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesCatalogItem } from '../../types';
@@ -8,6 +8,7 @@ import { ProductHealthIndicators } from '../components/ProductHealthIndicators';
 import { ProductImageCarouselModal } from '../components/ProductImageCarouselModal';
 import { ProductOperationalChips } from '../components/ProductOperationalChips';
 import { ProductThumbnail } from '../components/ProductThumbnail';
+import { ProductVisibilityBadge } from '../components/ProductVisibilityBadge';
 import { formatProductCurrency, getProductMargin } from '../utils/productFormatters';
 import { getCategoryLabel } from '../utils/productCategories';
 import { getProductGalleryImages } from '../utils/productImages';
@@ -126,11 +127,14 @@ export function ProductCardsView({
                       </div>
                     </div>
 
-                    <ProductOperationalChips product={product} t={t} />
+                    <div className="space-y-2">
+                      <ProductVisibilityBadge visibility={product.visibility} t={t} compact />
+                      <ProductOperationalChips product={product} t={t} />
+                    </div>
                     <ProductHealthIndicators product={product} t={t} />
 
                     <div className="flex items-center justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
-                      <ProductCardAction label={t.actions.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" onClick={() => openCarousel(product)} />
+                      <ProductCardAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" onClick={() => openCarousel(product)} />
                       <ProductCardAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50" onClick={() => onEditProduct?.(product)} />
                       <ProductCardAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20" onClick={() => onDuplicateProduct?.(product)} />
                       <ProductCardAction label={product.status === 'Active' ? t.actions.deactivate : t.actions.activate} icon={<Power className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15" onClick={() => onToggleProductStatus?.(product)} />
