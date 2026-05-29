@@ -11,6 +11,7 @@ import { KPIConfiguration } from './components/KPIConfiguration';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 import { SuccessToast } from './components/SuccessToast';
 import { Button } from './components/ui/button';
+import { MainDashboard } from './Dashboard';
 import { useLanguage } from './shared/context';
 import { useFavorites } from './shared/context';
 import {
@@ -580,7 +581,7 @@ export default function App() {
 
   const pageContent =
     currentPage === 'dashboard' ? (
-      <Dashboard
+      <MainDashboard
         learningModeActive={learningModeActive}
         learningModeVisible={learningModeVisible}
         setLearningModeVisible={setLearningModeVisible}

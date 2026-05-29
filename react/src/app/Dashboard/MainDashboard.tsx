@@ -1,12 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { dashboardApi } from '../api/dashboard';
-import {
-  buildDefaultModuleCatalog,
-  mapBackendModuleToCard,
-  mergeDashboardModules,
-  type DashboardModuleCard,
-} from '../config/moduleCatalog';
+import { useMemo, useState } from 'react';
+import type { DashboardModuleCard } from '../config/moduleCatalog';
 import type { PageId } from '../config/navigation';
+import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useFavorites, useLanguage } from '../shared/context';
 import { FavoritesSection } from './components/FavoritesSection';
@@ -47,7 +42,7 @@ export function MainDashboard({
   const copy = useMainDashboardTranslations();
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
-  const [availableModules, setAvailableModules] = useState<DashboardModuleCard[]>(() => buildDefaultModuleCatalog(t));
+  const availableModules = useAccessibleModuleCatalog(t);
   const [guidanceStageId, setGuidanceStageId] = useState<OperationalJourneyStageId | undefined>();
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>(
     'indice.dashboard.selectedKpis',
@@ -61,40 +56,6 @@ export function MainDashboard({
   const handleModuleClick = (moduleRoute: PageId) => {
     onNavigate(moduleRoute);
   };
-
-  useEffect(() => {
-    let active = true;
-
-    const defaultModules = buildDefaultModuleCatalog(t);
-    setAvailableModules(defaultModules);
-
-    dashboardApi.listModules()
-      .then((backendModules) => {
-        if (!active) {
-          return;
-        }
-
-        const mappedModules = backendModules
-          .map((module) => mapBackendModuleToCard(module, t))
-          .filter((module): module is DashboardModuleCard => module !== null);
-
-        if (mappedModules.length === 0) {
-          setAvailableModules(defaultModules);
-          return;
-        }
-
-        setAvailableModules(mergeDashboardModules(mappedModules, defaultModules));
-      })
-      .catch(() => {
-        if (active) {
-          setAvailableModules(defaultModules);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [t]);
 
   const kpiDataMap = useMemo(() => buildDashboardKpiDataMap(copy), [copy]);
   const kpiData = useMemo(
