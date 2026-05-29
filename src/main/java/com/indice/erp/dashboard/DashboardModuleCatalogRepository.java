@@ -1,5 +1,6 @@
 package com.indice.erp.dashboard;
 
+import com.indice.erp.access.ModuleSlugNormalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +45,7 @@ class DashboardModuleCatalogRepository {
 
         var favorites = Set.copyOf(jdbcTemplate.query(
             "SELECT module_slug FROM user_module_favorites WHERE user_id = ?",
-            (rs, rowNum) -> rs.getString(1),
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString(1)),
             userId
         ));
 

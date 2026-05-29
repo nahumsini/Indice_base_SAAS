@@ -16,6 +16,7 @@ Feature: Users and invitations
     When the user updates a target user's type, status, membership, module access, or tab permissions
     Then the backend should persist the user's type, membership, module access, and tab permission changes
     And the backend should keep the user's profile aligned with the selected user type
+    And supported basic modules such as Petty Cash and KPIs should be accepted as valid module assignments
 
   @implemented
   Scenario: User configures tab permissions from module assignments

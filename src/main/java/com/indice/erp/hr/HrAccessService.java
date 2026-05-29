@@ -1,5 +1,6 @@
 package com.indice.erp.hr;
 
+import com.indice.erp.access.ModuleSlugNormalizer;
 import com.indice.erp.auth.AuthSessionUser;
 import java.util.Arrays;
 import java.util.Locale;
@@ -136,7 +137,7 @@ public class HrAccessService {
     }
 
     private String normalizeModuleSlug(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return ModuleSlugNormalizer.normalize(value);
     }
 
     public enum HrTab {

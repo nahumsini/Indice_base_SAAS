@@ -1,5 +1,6 @@
 package com.indice.erp.configcenter;
 
+import com.indice.erp.access.ModuleSlugNormalizer;
 import com.indice.erp.auth.AuthSessionUser;
 import java.util.Arrays;
 import java.util.Locale;
@@ -81,7 +82,7 @@ public class ConfigCenterAccessService {
                 WHERE user_company_id = ?
                 ORDER BY module_slug ASC
                 """,
-            (rs, rowNum) -> rs.getString("module_slug"),
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
             userCompanyId
         );
         if (moduleSlugs.isEmpty()) {

@@ -1,5 +1,6 @@
 package com.indice.erp.processTasks;
 
+import com.indice.erp.access.ModuleSlugNormalizer;
 import com.indice.erp.auth.AuthSessionUser;
 import java.util.LinkedHashSet;
 import java.util.Locale;
@@ -88,6 +89,6 @@ public class ProcessTasksAccessService {
     }
 
     private String normalizeModuleSlug(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return ModuleSlugNormalizer.normalize(value);
     }
 }

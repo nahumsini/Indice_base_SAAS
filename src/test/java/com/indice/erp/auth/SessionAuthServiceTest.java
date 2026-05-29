@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,12 +48,26 @@ class SessionAuthServiceTest {
             contains("FROM user_company_module_roles"),
             ArgumentMatchers.<RowMapper<String>>any(),
             eq(11L)
-        )).thenReturn(List.of("config_center", "human_resources"));
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<String>) invocation.getArgument(1);
+            var rows = new ArrayList<String>();
+            rows.add(mapStringRow(rowMapper, "home-panel"));
+            rows.add(mapStringRow(rowMapper, "human-resources"));
+            return rows;
+        });
         when(jdbcTemplate.query(
             contains("FROM user_company_tab_permissions"),
             ArgumentMatchers.<RowMapper<String>>any(),
             eq(11L)
-        )).thenReturn(List.of("config_center.profile", "human_resources.attendance"));
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<String>) invocation.getArgument(1);
+            var rows = new ArrayList<String>();
+            rows.add(mapTabPermissionRow(rowMapper, "home-panel", "profile"));
+            rows.add(mapTabPermissionRow(rowMapper, "human-resources", "attendance"));
+            return rows;
+        });
         when(jdbcTemplate.queryForObject(
             contains("COUNT(*) FROM user_company_tab_permissions"),
             eq(Long.class),
@@ -63,5 +80,18 @@ class SessionAuthServiceTest {
         assertEquals(List.of("config_center", "human_resources"), current.get().user().module_slugs());
         assertEquals(List.of("config_center.profile", "human_resources.attendance"), current.get().user().tab_permission_keys());
         assertTrue(current.get().user().tab_permissions_configured());
+    }
+
+    private String mapStringRow(RowMapper<String> rowMapper, String moduleSlug) throws Exception {
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.getString("module_slug")).thenReturn(moduleSlug);
+        return rowMapper.mapRow(rs, 0);
+    }
+
+    private String mapTabPermissionRow(RowMapper<String> rowMapper, String moduleSlug, String tabKey) throws Exception {
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.getString("module_slug")).thenReturn(moduleSlug);
+        when(rs.getString("tab_key")).thenReturn(tabKey);
+        return rowMapper.mapRow(rs, 0);
     }
 }

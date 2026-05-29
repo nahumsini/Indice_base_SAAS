@@ -50,7 +50,7 @@ public record HrOperationalScope(Type type, Long unitId, Long businessId) {
                    )
                  )
                 """.formatted(unitExpression, businessExpression, companyExpression);
-            case BUSINESS_OFFICE -> " AND " + businessExpression + " = ?";
+            case BUSINESS_OFFICE -> " AND " + businessExpression + " = ?\n";
         };
     }
 

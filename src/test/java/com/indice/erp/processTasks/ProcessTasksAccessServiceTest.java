@@ -49,6 +49,27 @@ class ProcessTasksAccessServiceTest {
     }
 
     @Test
+    void canAccessReturnsTrueWhenLegacyProcessesAliasExists() {
+        var service = new ProcessTasksAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "Scoped User", "user");
+
+        stubUserCompanyId(33L);
+        when(jdbcTemplate.query(
+            contains("FROM user_company_module_roles"),
+            ArgumentMatchers.<RowMapper<String>>any(),
+            eq(33L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<String>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getString("module_slug")).thenReturn("processes-tasks");
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        assertTrue(service.canAccess(currentUser));
+    }
+
+    @Test
     void canAccessReturnsTrueForLegacyAdminWithoutExplicitModuleRows() {
         var service = new ProcessTasksAccessService(jdbcTemplate);
         var currentUser = new AuthSessionUser(1L, 7L, "Admin User", "admin");
