@@ -1,6 +1,7 @@
 package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,11 @@ public class HrOperationalScopeService {
     }
 
     public HrOperationalScope resolve(AuthSessionUser currentUser) {
+        var role = normalizeRole(currentUser.role());
+        if ("root".equals(role) || "superadmin".equals(role)) {
+            return HrOperationalScope.corporateOffice();
+        }
+
         var rows = jdbcTemplate.query(
             """
                 SELECT wp.unit_id,
@@ -120,6 +126,15 @@ public class HrOperationalScopeService {
     private Long getNullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
         var value = rs.getLong(column);
         return rs.wasNull() ? null : value;
+    }
+
+    private String normalizeRole(String value) {
+        var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "super admin" -> "superadmin";
+            case "dueño" -> "dueno";
+            default -> normalized;
+        };
     }
 
     private record Assignment(Long unitId, Long businessId) {

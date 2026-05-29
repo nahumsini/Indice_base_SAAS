@@ -1,5 +1,6 @@
 package com.indice.erp.dashboard;
 
+import com.indice.erp.access.ModuleSlugNormalizer;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -89,7 +90,7 @@ class DashboardModuleAccessRepository {
     }
 
     private String normalizeModuleSlug(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return ModuleSlugNormalizer.normalize(value);
     }
 
     private record UserCompanyAccess(long userCompanyId, String role) {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.indice.erp.access.ModuleSlugNormalizer;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
@@ -226,7 +227,7 @@ public abstract class ConfigCenterSupport {
         var result = new LinkedHashSet<String>();
         if (rawValue instanceof List<?> rawList) {
             for (var entry : rawList) {
-                var slug = safe(objectString(entry)).trim().toLowerCase(Locale.ROOT);
+                var slug = ModuleSlugNormalizer.normalize(objectString(entry));
                 if (!slug.isBlank()) {
                     result.add(slug);
                 }
@@ -248,7 +249,7 @@ public abstract class ConfigCenterSupport {
 
             var result = new LinkedHashSet<String>();
             for (var item : node) {
-                var slug = item.asText("").trim().toLowerCase(Locale.ROOT);
+                var slug = ModuleSlugNormalizer.normalize(item.asText(""));
                 if (!slug.isBlank()) {
                     result.add(slug);
                 }
@@ -307,7 +308,7 @@ public abstract class ConfigCenterSupport {
     protected List<String> listModuleSlugs(long userCompanyId) {
         return jdbcTemplate.query(
             "SELECT DISTINCT module_slug FROM user_company_module_roles WHERE user_company_id = ? ORDER BY module_slug ASC",
-            (rs, rowNum) -> safe(rs.getString("module_slug")),
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
             userCompanyId
         );
     }

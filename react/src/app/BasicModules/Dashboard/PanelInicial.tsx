@@ -15,11 +15,14 @@ const BusinessStructure = lazy(() => import('./BusinessStructure'));
 const BusinessProfile = lazy(() => import('./BusinessProfile'));
 const PersonalPerformance = lazy(() => import('./PersonalPerformance'));
 const Users = lazy(() => import('./Users'));
+const Plan = lazy(() => import('./Plan'));
 
 interface PanelInicialProps {
   learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
+
+type PanelInicialTabId = PanelInicialGuidanceTabId | 'plan';
 
 const subTabIds = [
   'profile',
@@ -27,6 +30,7 @@ const subTabIds = [
   'business-profile',
   'personal-performance',
   'users',
+  'plan',
 ] as const;
 
 const legacySubTabAliases: Partial<Record<string, PanelInicialGuidanceTabId>> = {
@@ -40,11 +44,12 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
   const { t } = useLanguage();
   const guidanceCopy = usePanelInicialGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
-  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialGuidanceTabId>(
+  const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
     'profile',
     subTabIds,
     legacySubTabAliases,
   );
+  const isGuidedTab = activeSubTab !== 'plan';
 
   const subTabs = [
     { id: 'profile', label: t.panelInicial.tabs.profile, emoji: '👤', component: Profile },
@@ -52,12 +57,13 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, emoji: '📊', component: BusinessProfile },
     { id: 'personal-performance', label: t.panelInicial.tabs.personalPerformance, emoji: '📈', component: PersonalPerformance },
     { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
+    { id: 'plan', label: t.panelInicial.tabs.plan, emoji: '💳', component: Plan },
   ];
 
   // Get the active component
   const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
 
-  const handleTabClick = (tabId: PanelInicialGuidanceTabId) => {
+  const handleTabClick = (tabId: PanelInicialTabId) => {
     if (tabId === activeSubTab) {
       return;
     }
@@ -112,7 +118,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
             </Button>
           </div>
 
-          {learningModeActive ? (
+          {learningModeActive && isGuidedTab ? (
             <div className="mt-5">
               <OperationalModuleGuide
                 copy={guidanceCopy}
@@ -133,7 +139,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
                       ? 'bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
-                  onClick={() => handleTabClick(tab.id as PanelInicialGuidanceTabId)}
+                  onClick={() => handleTabClick(tab.id as PanelInicialTabId)}
                 >
                   <span>{tab.emoji}</span>
                   <span>{tab.label}</span>

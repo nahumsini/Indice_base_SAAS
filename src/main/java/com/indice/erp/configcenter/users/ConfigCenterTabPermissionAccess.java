@@ -1,5 +1,6 @@
 package com.indice.erp.configcenter.users;
 
+import com.indice.erp.access.ModuleSlugNormalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -254,11 +255,7 @@ public class ConfigCenterTabPermissionAccess {
     }
 
     private String normalizeModuleSlug(String rawValue) {
-        var normalized = rawValue.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        return switch (normalized) {
-            case "home_panel", "panel_inicial" -> ConfigCenterTabPermissionCatalog.CONFIG_CENTER_MODULE;
-            default -> normalized;
-        };
+        return ModuleSlugNormalizer.normalize(rawValue);
     }
 
     private String normalizeTabKey(String rawValue) {

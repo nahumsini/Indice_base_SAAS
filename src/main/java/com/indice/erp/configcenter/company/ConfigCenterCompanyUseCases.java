@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.indice.erp.access.ModuleSlugNormalizer;
 import com.indice.erp.configcenter.invitations.ConfigCenterInvitationUseCases;
 import com.indice.erp.configcenter.support.BusinessInput;
 import com.indice.erp.configcenter.support.CoordinateInput;
@@ -219,7 +220,7 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
     protected List<String> listModuleSlugs(long userCompanyId) {
         return jdbcTemplate.query(
             "SELECT DISTINCT module_slug FROM user_company_module_roles WHERE user_company_id = ? ORDER BY module_slug ASC",
-            (rs, rowNum) -> safe(rs.getString("module_slug")),
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
             userCompanyId
         );
     }

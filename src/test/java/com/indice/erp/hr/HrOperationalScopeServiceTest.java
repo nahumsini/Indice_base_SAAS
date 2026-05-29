@@ -14,11 +14,13 @@ import org.springframework.jdbc.core.RowMapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +28,19 @@ class HrOperationalScopeServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void resolvesCorporateOfficeForSuperadminWithoutDatabaseLookup() {
+        var service = new HrOperationalScopeService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(7L, 1L, "Super Admin", "superadmin");
+
+        var scope = service.resolve(currentUser);
+
+        assertEquals(HrOperationalScope.Type.CORPORATE_OFFICE, scope.type());
+        assertNull(scope.unitId());
+        assertNull(scope.businessId());
+        verifyNoInteractions(jdbcTemplate);
+    }
 
     @Test
     void resolvesBusinessOfficeFromCurrentUsersWorkProfile() throws Exception {

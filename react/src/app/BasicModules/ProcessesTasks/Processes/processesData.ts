@@ -67,6 +67,90 @@ export const priorityOptions: Option<ProcessPriority>[] = [
   { value: 'low', label: priorityLabels.low },
 ];
 
+const weekdayValues = new Set<Weekday>(weekdayOptions.map((option) => option.value));
+
+function isWeekday(value: unknown): value is Weekday {
+  return typeof value === 'string' && weekdayValues.has(value as Weekday);
+}
+
+function recurrenceRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+function stringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return stringList(parsed);
+      }
+    } catch {
+      // Fall back to comma-delimited legacy values.
+    }
+
+    return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+
+  return [];
+}
+
+function weekdayList(value: unknown, fallback: Weekday[]): Weekday[] {
+  const days = stringList(value).filter(isWeekday);
+  return days.length > 0 ? Array.from(new Set(days)) : fallback;
+}
+
+function monthlyDayList(value: unknown, fallback: number[]): number[] {
+  const values = Array.isArray(value) ? value : stringList(value).length > 0 ? stringList(value) : [value];
+  const days = values
+    .map((item) => Number(item))
+    .filter((day) => Number.isInteger(day) && day >= 1 && day <= 31);
+
+  return days.length > 0 ? Array.from(new Set(days)).sort((left, right) => left - right) : fallback;
+}
+
+function recurrenceDate(value: unknown, fallback: string) {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function coerceRecurrenceConfig(recurrence: unknown): ProcessRecurrenceConfig {
+  const source = recurrenceRecord(recurrence);
+  const weeklyDay = isWeekday(source.weeklyDay) ? source.weeklyDay : 'monday';
+
+  return {
+    weeklyDay,
+    biWeeklyDays: weekdayList(source.biWeeklyDays, ['monday']),
+    biWeeklyAnchorDate: recurrenceDate(source.biWeeklyAnchorDate, getTodayIsoDate()),
+    monthlyDays: monthlyDayList(source.monthlyDays, [1]),
+    specificDates: Array.from(new Set(stringList(source.specificDates))).sort((left, right) => left.localeCompare(right)),
+  };
+}
+
 export const defaultColumns: ProcessColumnConfig[] = [
   { id: 'folio', label: 'Folio', visible: true, locked: true, description: 'Identificador operativo del proceso.' },
   { id: 'unit', label: 'Unidad', visible: true, description: 'Unidad relacionada con el proceso.' },
@@ -274,14 +358,16 @@ function getTodayIsoDate() {
 }
 
 export function cloneRecurrenceConfig(
-  recurrence: ProcessRecurrenceConfig,
+  recurrence: unknown,
 ): ProcessRecurrenceConfig {
+  const normalized = coerceRecurrenceConfig(recurrence);
+
   return {
-    weeklyDay: recurrence.weeklyDay,
-    biWeeklyDays: [...recurrence.biWeeklyDays],
-    biWeeklyAnchorDate: recurrence.biWeeklyAnchorDate,
-    monthlyDays: [...recurrence.monthlyDays],
-    specificDates: [...recurrence.specificDates],
+    weeklyDay: normalized.weeklyDay,
+    biWeeklyDays: [...normalized.biWeeklyDays],
+    biWeeklyAnchorDate: normalized.biWeeklyAnchorDate,
+    monthlyDays: [...normalized.monthlyDays],
+    specificDates: [...normalized.specificDates],
   };
 }
 
@@ -297,7 +383,7 @@ export function createDefaultRecurrenceConfig(): ProcessRecurrenceConfig {
 
 export function normalizeRecurrenceConfig(
   frequency: ProcessFrequency,
-  recurrence: ProcessRecurrenceConfig,
+  recurrence: unknown,
 ): ProcessRecurrenceConfig {
   const nextRecurrence = cloneRecurrenceConfig(recurrence);
 

@@ -1,5 +1,6 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, CircleAlert, Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { Camera, CheckCircle2, CircleAlert, CreditCard, Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../../../api/configCenter';
 import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { languages, useLanguage } from '../../../shared/context';
@@ -267,6 +268,8 @@ const areProfileFormValuesEqual = (
 
 export default function Profile() {
   const { currentLanguage, t } = useLanguage();
+  const navigate = useNavigate();
+  const { pageId } = useParams();
   const profileCopy = t.panelInicial.profile;
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarPreviewRef = useRef('');
@@ -388,6 +391,10 @@ export default function Profile() {
         || trimmedNewPassword !== trimmedPasswordConfirmation
       )
     );
+
+  const handleViewPlans = () => {
+    navigate(`/${pageId ?? 'home-panel'}/plan`);
+  };
 
   const updateFormValue = <Key extends keyof ProfileFormValues>(
     field: Key,
@@ -649,17 +656,27 @@ export default function Profile() {
     <>
       <div>
         <div className="bg-blue-50 dark:bg-blue-900/10 mb-6 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
-              <span className="text-2xl">👤</span>
-              {t.panelInicial.profile.title}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t.panelInicial.profile.subtitle}
-            </p>
-            <p className="mt-2 text-sm text-blue-700 dark:text-blue-200">
-              {profileCopy.helper}
-            </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
+                <span className="text-2xl">👤</span>
+                {t.panelInicial.profile.title}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t.panelInicial.profile.subtitle}
+              </p>
+              <p className="mt-2 text-sm text-blue-700 dark:text-blue-200">
+                {profileCopy.helper}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleViewPlans}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-700/40 dark:bg-gray-800 dark:text-blue-200 dark:hover:bg-blue-900/20 sm:w-auto"
+            >
+              <CreditCard className="h-4 w-4" />
+              {t.panelInicial.tabs.plan}
+            </button>
           </div>
         </div>
 

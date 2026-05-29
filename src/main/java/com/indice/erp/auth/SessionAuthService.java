@@ -1,6 +1,9 @@
 package com.indice.erp.auth;
 
+import com.indice.erp.access.ModuleSlugNormalizer;
 import jakarta.servlet.http.HttpSession;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -203,17 +206,17 @@ public class SessionAuthService {
         }
 
         var userCompanyId = userCompanyIds.getFirst();
-        var moduleSlugs = jdbcTemplate.query(
+        var moduleSlugs = new ArrayList<>(new LinkedHashSet<>(jdbcTemplate.query(
             """
                 SELECT DISTINCT module_slug
                 FROM user_company_module_roles
                 WHERE user_company_id = ?
                 ORDER BY module_slug ASC
                 """,
-            (rs, rowNum) -> rs.getString("module_slug"),
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
             userCompanyId
-        );
-        var tabPermissionKeys = jdbcTemplate.query(
+        )));
+        var tabPermissionKeys = new ArrayList<>(new LinkedHashSet<>(jdbcTemplate.query(
             """
                 SELECT module_slug, tab_key
                 FROM user_company_tab_permissions
@@ -221,9 +224,9 @@ public class SessionAuthService {
                   AND can_view = 1
                 ORDER BY module_slug ASC, tab_key ASC
                 """,
-            (rs, rowNum) -> rs.getString("module_slug") + "." + rs.getString("tab_key"),
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")) + "." + rs.getString("tab_key"),
             userCompanyId
-        );
+        )));
         var tabPermissionRowCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM user_company_tab_permissions WHERE user_company_id = ?",
             Long.class,

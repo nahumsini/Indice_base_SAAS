@@ -62,6 +62,12 @@ Feature: Human Resources access control
     And direct access to collaborators outside that scope should be rejected
 
   @implemented @access-control
+  Scenario: Root and superadmin keep company-wide HR scope
+    Given a root or superadmin user is authenticated
+    When the user opens Collaborators or calls an HR management endpoint directly
+    Then the backend should treat the actor as corporate scope even if the user has a stored HR unit or business assignment
+
+  @implemented @access-control
   Scenario: HR records are filtered by operational scope
     Given an HR management user is assigned to a specific unit or business from the Users tab
     When the user opens HR Records or calls an HR records endpoint directly
