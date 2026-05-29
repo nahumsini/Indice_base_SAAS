@@ -135,7 +135,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     minute: '2-digit' 
   });
 
-  const unreadCount = notifications.summary.unread_count;
+  const unreadCount = notifications.summary?.unread_count ?? 0;
   const currentUserInitials = currentUserName
     .split(/\s+/)
     .filter(Boolean)

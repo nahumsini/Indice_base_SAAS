@@ -73,6 +73,7 @@ import {
   type QuoteSortState,
 } from './components/QuoteUi';
 import { QuoteExpirationBadge } from './components/QuoteExpirationBadge';
+import { QuoteLearningGuide } from './components/QuoteLearningGuide';
 import { QuoteMarginBadge } from './components/QuoteMarginBadge';
 import { QuotePreviewModal } from './components/QuotePreviewModal';
 import { QuoteReadinessBadge } from './components/QuoteReadinessBadge';
@@ -88,6 +89,10 @@ import {
 } from './utils/quoteTaxCatalog';
 
 type FilterValue = 'all' | string;
+
+interface CotizacionProps {
+  learningModeActive?: boolean;
+}
 
 const quoteModalStyles = getSalesModalStyles('coral');
 const coralFieldClassName = 'border-slate-200 bg-white shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20';
@@ -167,7 +172,7 @@ function getDaysUntil(dateValue: string) {
   return Math.ceil((expirationTime - now) / 86400000);
 }
 
-export default function Cotizacion() {
+export default function Cotizacion({ learningModeActive = false }: CotizacionProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const t = useQuotesTranslations();
   const {
@@ -694,6 +699,8 @@ export default function Cotizacion() {
           </div>
         </div>
       </div>
+
+      {learningModeActive ? <QuoteLearningGuide copy={t.learningMode} /> : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="mb-4 text-lg font-bold text-slate-950">{t.filters.title}</h3>

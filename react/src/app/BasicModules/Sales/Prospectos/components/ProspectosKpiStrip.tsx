@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { CheckCircle2, Clock3, Gauge, ListChecks, TrendingUp } from 'lucide-react';
 import { opportunityStages, type OpportunityStage } from '../../salesCrmContext';
 import { cn } from '../../../../components/ui/utils';
-import { stageLabels, stageProgressStyles } from '../utils/prospectosStatus';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import { stageProgressStyles } from '../utils/prospectosStatus';
 
 function PipelineMetric({
   icon,
@@ -29,6 +30,7 @@ function PipelineMetric({
 }
 
 export function ProspectosKpiStrip({
+  copy,
   visibleCount,
   openCount,
   weightedProbability,
@@ -36,6 +38,7 @@ export function ProspectosKpiStrip({
   formattedPipelineValue,
   stageCounts,
 }: {
+  copy: ProspectosCopy;
   visibleCount: number;
   openCount: number;
   weightedProbability: number;
@@ -47,11 +50,11 @@ export function ProspectosKpiStrip({
     <section className="space-y-4">
       <div className="grid grid-cols-1 gap-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-sm text-slate-600">
-          <PipelineMetric icon={<TrendingUp className="h-4 w-4" />} value={visibleCount} label="oportunidades" />
-          <PipelineMetric icon={<ListChecks className="h-4 w-4" />} value={openCount} label="activas" valueClassName="text-[#2563EB]" />
-          <PipelineMetric icon={<Gauge className="h-4 w-4" />} value={`${weightedProbability}%`} label="probabilidad prom." valueClassName="text-[#9a6b05]" />
-          <PipelineMetric icon={<CheckCircle2 className="h-4 w-4" />} value={proposalCount} label="en propuesta" valueClassName="text-[#177d66]" />
-          <PipelineMetric icon={<Clock3 className="h-4 w-4" />} value={formattedPipelineValue} label="pipeline" valueClassName="text-[#9a6b05]" />
+          <PipelineMetric icon={<TrendingUp className="h-4 w-4" />} value={visibleCount} label={copy.kpis.opportunities} />
+          <PipelineMetric icon={<ListChecks className="h-4 w-4" />} value={openCount} label={copy.kpis.active} valueClassName="text-[#2563EB]" />
+          <PipelineMetric icon={<Gauge className="h-4 w-4" />} value={`${weightedProbability}%`} label={copy.kpis.averageProbability} valueClassName="text-[#9a6b05]" />
+          <PipelineMetric icon={<CheckCircle2 className="h-4 w-4" />} value={proposalCount} label={copy.kpis.inProposal} valueClassName="text-[#177d66]" />
+          <PipelineMetric icon={<Clock3 className="h-4 w-4" />} value={formattedPipelineValue} label={copy.kpis.pipeline} valueClassName="text-[#9a6b05]" />
         </div>
       </div>
 
@@ -66,7 +69,7 @@ export function ProspectosKpiStrip({
           {opportunityStages.map((stage) => (
             <span key={stage} className="inline-flex items-center gap-2">
               <span className={cn('h-2.5 w-2.5 rounded-full', stageProgressStyles[stage])} />
-              {stageLabels[stage]}
+              {copy.options.stages[stage]}
             </span>
           ))}
         </div>
@@ -74,4 +77,3 @@ export function ProspectosKpiStrip({
     </section>
   );
 }
-

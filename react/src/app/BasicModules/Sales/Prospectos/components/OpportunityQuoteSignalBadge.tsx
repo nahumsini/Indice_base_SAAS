@@ -1,5 +1,7 @@
 import { Badge } from '../../../../components/ui/badge';
 import { cn } from '../../../../components/ui/utils';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import { formatCurrencyAmount } from '../utils/prospectosFormatters';
 import type { OpportunityQuoteSignal } from '../utils/prospectosQuoteSignals';
 
 const quoteSignalClassNames: Record<OpportunityQuoteSignal['state'], string> = {
@@ -11,16 +13,26 @@ const quoteSignalClassNames: Record<OpportunityQuoteSignal['state'], string> = {
   none: 'border-slate-200 bg-white text-slate-500',
 };
 
-export function OpportunityQuoteSignalBadge({ signal }: { signal: OpportunityQuoteSignal }) {
+export function OpportunityQuoteSignalBadge({
+  signal,
+  copy,
+}: {
+  signal: OpportunityQuoteSignal;
+  copy: ProspectosCopy['quoteSignal'];
+}) {
+  const detail = signal.quoteCount > 0
+    ? copy.countDetail(signal.quoteCount, formatCurrencyAmount(signal.totalQuotedValue))
+    : copy.noDocument;
+
   return (
     <div className="min-w-[170px] space-y-1">
       <Badge
         variant="outline"
         className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', quoteSignalClassNames[signal.state])}
       >
-        {signal.label}
+        {copy.labels[signal.state]}
       </Badge>
-      <p className="text-xs font-medium text-slate-500">{signal.detail}</p>
+      <p className="text-xs font-medium text-slate-500">{detail}</p>
     </div>
   );
 }

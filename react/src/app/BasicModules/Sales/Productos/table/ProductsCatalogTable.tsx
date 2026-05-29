@@ -106,7 +106,7 @@ export function ProductsCatalogTable({
         onClearSelection={rowSelection.clearSelection}
       />
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <Table className="min-w-[1680px] table-fixed">
             <TableHeader>

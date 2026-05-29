@@ -72,7 +72,7 @@ export function ProductTableHeader({
         <Checkbox
           aria-label={t.table.selection.selectVisible}
           checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
-          className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
+          className="border-slate-300 data-[state=checked]:border-[#FF6B5E] data-[state=checked]:bg-[#FF6B5E]"
           onCheckedChange={(checked) => onToggleAllVisible(checked === true)}
         />
       </TableHead>

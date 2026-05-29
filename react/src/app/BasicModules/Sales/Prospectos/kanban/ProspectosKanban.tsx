@@ -1,13 +1,16 @@
 import { opportunityStages, type OpportunityStage, type SalesOpportunity } from '../../salesCrmContext';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import { ProspectosKanbanColumn } from './ProspectosKanbanColumn';
 
 export function ProspectosKanban({
+  copy,
   opportunities,
   onOpenFiles,
   onOpenHistory,
   onEdit,
   onStageChange,
 }: {
+  copy: ProspectosCopy;
   opportunities: SalesOpportunity[];
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
@@ -19,6 +22,7 @@ export function ProspectosKanban({
       <div className="grid min-w-[1540px] grid-cols-7 gap-4">
         {opportunityStages.map((stage) => (
           <ProspectosKanbanColumn
+            copy={copy}
             key={stage}
             stage={stage}
             opportunities={opportunities.filter((opportunity) => opportunity.stage === stage)}
@@ -33,4 +37,3 @@ export function ProspectosKanban({
     </section>
   );
 }
-

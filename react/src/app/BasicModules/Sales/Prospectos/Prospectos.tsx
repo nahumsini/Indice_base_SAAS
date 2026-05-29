@@ -21,6 +21,7 @@ import { ProspectosHeader } from './components/ProspectosHeader';
 import { ProspectosFilters } from './components/ProspectosFilters';
 import { ProspectosInsightBar } from './components/ProspectosInsightBar';
 import { ProspectosKpiStrip } from './components/ProspectosKpiStrip';
+import { ProspectosLearningGuide } from './components/ProspectosLearningGuide';
 import { ProspectosViewTabs } from './components/ProspectosViewTabs';
 import { useProspectosFilters } from './hooks/useProspectosFilters';
 import { useProspectosMetrics } from './hooks/useProspectosMetrics';
@@ -32,7 +33,7 @@ import { OpportunityDetailModal } from './modals/OpportunityDetailModal';
 import { OpportunityFilesModal } from './modals/OpportunityFilesModal';
 import { ProspectosColumnsModal } from './table/ProspectosColumnsModal';
 import { ProspectosTable } from './table/ProspectosTable';
-import type { OpportunityFormState } from './types/prospectosTypes';
+import type { OpportunityColumnId, OpportunityFormState } from './types/prospectosTypes';
 import { canViewAllOpportunities, getContactById, getOwnerSelectValue } from './utils/prospectosFilters';
 import {
   formatOpportunitySchedule,
@@ -42,8 +43,16 @@ import {
 } from './utils/prospectosFormatters';
 import { sortOpportunities } from './utils/prospectosMetrics';
 import { initialOpportunityForm } from './utils/prospectosStatus';
+import { useProspectosLearningCopy } from './translations/prospectosLearning';
+import { useProspectosTranslations } from './translations/prospectosTranslations';
 
-export default function Prospectos() {
+interface ProspectosProps {
+  learningModeActive?: boolean;
+}
+
+export default function Prospectos({ learningModeActive = false }: ProspectosProps) {
+  const t = useProspectosTranslations();
+  const learningCopy = useProspectosLearningCopy();
   const { contacts, opportunities, quotes, addOpportunity, updateOpportunity, deleteOpportunity } = useSalesCrm();
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -147,10 +156,26 @@ export default function Prospectos() {
   const formOwnerSelectOptions = useMemo(
     () => (
       form.ownerValue && form.owner && !ownerSelectOptions.some((owner) => owner.value === form.ownerValue)
-        ? [{ value: form.ownerValue, label: `${form.owner} (sin vincular)` }, ...ownerSelectOptions]
+        ? [{ value: form.ownerValue, label: `${form.owner} (${t.table.unlinkedOwner})` }, ...ownerSelectOptions]
         : ownerSelectOptions
     ),
-    [form.owner, form.ownerValue, ownerSelectOptions],
+    [form.owner, form.ownerValue, ownerSelectOptions, t.table.unlinkedOwner],
+  );
+
+  const localizedColumns = useMemo(
+    () => columns.map((column) => {
+      const columnCopy = t.columns[column.id as OpportunityColumnId];
+      return columnCopy ? { ...column, label: columnCopy.label, description: columnCopy.description } : column;
+    }),
+    [columns, t.columns],
+  );
+
+  const localizedVisibleColumns = useMemo(
+    () => visibleColumns.map((column) => {
+      const columnCopy = t.columns[column.id as OpportunityColumnId];
+      return columnCopy ? { ...column, label: columnCopy.label, description: columnCopy.description } : column;
+    }),
+    [t.columns, visibleColumns],
   );
 
   const currentUserCompanyId = useMemo(
@@ -292,8 +317,8 @@ export default function Prospectos() {
     const linkedQuotesCount = quotes.filter((quote) => quote.opportunityId === opportunity.id).length;
     const shouldDelete = window.confirm(
       linkedQuotesCount > 0
-        ? `¿Eliminar la oportunidad ${opportunity.opportunityName}? Tiene ${linkedQuotesCount} cotización(es) ligada(s).`
-        : `¿Eliminar la oportunidad ${opportunity.opportunityName}?`,
+        ? t.deleteConfirm.withQuotes(opportunity.opportunityName, linkedQuotesCount)
+        : t.deleteConfirm.simple(opportunity.opportunityName),
     );
     if (!shouldDelete) {
       return;
@@ -371,14 +396,18 @@ export default function Prospectos() {
   return (
     <section className="space-y-5">
       <ProspectosHeader
+        copy={t.header}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
         onCreateQuote={handleOpenCreateQuote}
         onCreateOpportunity={handleOpenCreateOpportunity}
       />
 
-      <ProspectosViewTabs activeView={activeView} onViewChange={setActiveView} />
+      {learningModeActive ? <ProspectosLearningGuide copy={learningCopy} /> : null}
+
+      <ProspectosViewTabs labels={t.views} activeView={activeView} onViewChange={setActiveView} />
 
       <ProspectosFilters
+        copy={t}
         searchQuery={searchQuery}
         stageFilter={stageFilter}
         ownerFilter={ownerFilter}
@@ -395,6 +424,7 @@ export default function Prospectos() {
       />
 
       <ProspectosKpiStrip
+        copy={t}
         visibleCount={metrics.visibleCount}
         openCount={metrics.openCount}
         weightedProbability={metrics.weightedProbability}
@@ -404,6 +434,7 @@ export default function Prospectos() {
       />
 
       <ProspectosInsightBar
+        copy={t.insight}
         hotCount={metrics.hotCount}
         formattedPipelineValue={metrics.formattedPipelineValue}
         weightedProbability={metrics.weightedProbability}
@@ -411,9 +442,10 @@ export default function Prospectos() {
 
       {activeView === 'table' ? (
         <ProspectosTable
+          copy={t}
           opportunities={tableOpportunities}
           quotes={quotes}
-          visibleColumns={visibleColumns}
+          visibleColumns={localizedVisibleColumns}
           tableMinWidth={tableMinWidth}
           sortState={sortState}
           ownerSelectOptions={ownerSelectOptions}
@@ -431,6 +463,7 @@ export default function Prospectos() {
 
       {activeView === 'kanban' ? (
         <ProspectosKanban
+          copy={t}
           opportunities={filteredOpportunities}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
@@ -441,6 +474,7 @@ export default function Prospectos() {
 
       {activeView === 'agenda' ? (
         <ProspectosAgenda
+          copy={t}
           opportunities={filteredOpportunities}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
@@ -450,18 +484,21 @@ export default function Prospectos() {
       ) : null}
 
       <ProspectosColumnsModal
+        copy={t}
         isOpen={isColumnsModalOpen}
-        columns={columns}
+        columns={localizedColumns}
         onClose={() => setIsColumnsModalOpen(false)}
         onSave={setColumns}
       />
 
       <OpportunityDetailModal
+        copy={t.detailModal}
         opportunity={historyOpportunity}
         onClose={() => setHistoryOpportunity(null)}
       />
 
       <CreateOpportunityModal
+        copy={{ ...t.modal, options: t.options }}
         isOpen={isCreateOpen}
         editingOpportunity={editingOpportunity}
         form={form}
@@ -476,6 +513,7 @@ export default function Prospectos() {
       />
 
       <OpportunityFilesModal
+        copy={t.filesModal}
         opportunity={filesOpportunity}
         onClose={() => setFilesOpportunity(null)}
       />

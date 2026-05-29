@@ -3,10 +3,12 @@ import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import { formatCurrencyAmount, parseMoney, setOpportunityDragData } from '../utils/prospectosFormatters';
-import { stageClasses, stageLabels, temperatureClasses } from '../utils/prospectosStatus';
+import { stageClasses, temperatureClasses } from '../utils/prospectosStatus';
 
 export function ProspectosAgendaItem({
+  copy,
   opportunity,
   schedule,
   compact = false,
@@ -15,6 +17,7 @@ export function ProspectosAgendaItem({
   onOpenHistory,
   onEdit,
 }: {
+  copy: ProspectosCopy;
   opportunity: SalesOpportunity;
   schedule: { date: string; time: string };
   compact?: boolean;
@@ -35,10 +38,10 @@ export function ProspectosAgendaItem({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-bold text-slate-950">{opportunity.opportunityName}</p>
             <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-semibold', temperatureClasses[opportunity.temperature])}>
-              {opportunity.temperature}
+              {copy.options.temperatures[opportunity.temperature]}
             </Badge>
             <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-semibold', stageClasses[opportunity.stage])}>
-              {stageLabels[opportunity.stage]}
+              {copy.options.stages[opportunity.stage]}
             </Badge>
           </div>
           <p className="mt-1 text-sm text-slate-600">{opportunity.company} · {opportunity.contactPerson}</p>
@@ -65,22 +68,24 @@ export function ProspectosAgendaItem({
 
       <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
         <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-2">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#B63B32]">Siguiente acción</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{opportunity.nextAction}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#B63B32]">{copy.agenda.nextAction}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{copy.options.nextActions[opportunity.nextAction]}</p>
         </div>
-        <ProspectosQuickActions opportunity={opportunity} onOpenFiles={onOpenFiles} onOpenHistory={onOpenHistory} onEdit={onEdit} />
+        <ProspectosQuickActions copy={copy.quickActions} opportunity={opportunity} onOpenFiles={onOpenFiles} onOpenHistory={onOpenHistory} onEdit={onEdit} />
       </div>
     </article>
   );
 }
 
 export function ProspectosWeeklyAgendaItem({
+  copy,
   opportunity,
   schedule,
   onOpenFiles,
   onOpenHistory,
   onEdit,
 }: {
+  copy: ProspectosCopy;
   opportunity: SalesOpportunity;
   schedule: { date: string; time: string };
   onOpenFiles: (opportunity: SalesOpportunity) => void;
@@ -99,12 +104,12 @@ export function ProspectosWeeklyAgendaItem({
           {schedule.time || '--:--'}
         </span>
         <Badge variant="outline" className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', temperatureClasses[opportunity.temperature])}>
-          {opportunity.temperature}
+          {copy.options.temperatures[opportunity.temperature]}
         </Badge>
       </div>
       <p className="mt-2 line-clamp-2 text-sm font-bold leading-5 text-slate-950">{opportunity.opportunityName}</p>
       <p className="mt-1 truncate text-xs font-semibold text-[#2563EB]">{opportunity.company}</p>
-      <p className="mt-2 truncate text-xs text-slate-500">{opportunity.nextAction} · {opportunity.owner}</p>
+      <p className="mt-2 truncate text-xs text-slate-500">{copy.options.nextActions[opportunity.nextAction]} · {opportunity.owner}</p>
     </article>
   );
 }

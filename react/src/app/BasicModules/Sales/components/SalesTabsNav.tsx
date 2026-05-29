@@ -1,4 +1,4 @@
-import { salesModuleTabs, type SalesTabId } from '../salesIdentity';
+import { visibleSalesModuleTabs, type SalesTabId } from '../salesIdentity';
 import type { SalesTranslations } from '../translations';
 
 interface SalesTabsNavProps {
@@ -14,7 +14,7 @@ export function SalesTabsNav({
 }: SalesTabsNavProps) {
   return (
     <nav className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
-      {salesModuleTabs.map((tab) => {
+      {visibleSalesModuleTabs.map((tab) => {
         const active = activeTab === tab.id;
 
         return (

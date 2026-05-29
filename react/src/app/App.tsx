@@ -602,7 +602,7 @@ export default function App() {
     ) : currentPage === 'point-of-sale' ? (
       <PuntoVenta onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales' ? (
-      <Ventas onNavigate={handleModuleNavigation} />
+      <Ventas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
       <Kpis onNavigate={handleModuleNavigation} />
     ) : currentPage === 'affiliate-management' ? (

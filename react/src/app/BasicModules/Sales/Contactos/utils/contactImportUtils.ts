@@ -80,9 +80,9 @@ function buildImportedContact(draft: Partial<ImportedContactDraft>): ImportedCon
   }
 
   return {
-    company: company || contactPerson || 'Contacto importado',
-    contactPerson: contactPerson || company || phone || email || 'Contacto importado',
-    role: cleanValue(draft.role) || 'Contacto comercial',
+    company: company || contactPerson,
+    contactPerson: contactPerson || company || phone || email,
+    role: cleanValue(draft.role),
     phone,
     email,
     notes: cleanValue(draft.notes),
@@ -167,7 +167,7 @@ export async function pickNativeContacts(navigatorRef: ContactImportNavigator): 
       contactPerson: contact.name?.[0] ?? '',
       phone: contact.tel?.[0] ?? '',
       email: contact.email?.[0] ?? '',
-      notes: 'Importado desde el dispositivo.',
+      notes: '',
     }))
     .filter(Boolean) as ImportedContactDraft[];
 }

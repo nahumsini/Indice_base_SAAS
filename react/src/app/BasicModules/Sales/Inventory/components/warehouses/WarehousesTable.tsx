@@ -87,7 +87,7 @@ export function WarehousesTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <Table className="min-w-[1160px]">
           <TableHeader className="bg-slate-50/90">
@@ -159,7 +159,7 @@ export function WarehousesTable({
                       {summary.lastMovement ?? t.common.notAvailable}
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
-                      <div className="flex justify-end gap-2 rounded-2xl border border-slate-200 bg-white p-2">
+                      <div className="flex justify-end gap-2 rounded-lg border border-slate-200 bg-white p-2">
                         <ActionButton className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title={t.operational.actions.addStock} icon={<PackagePlus className="h-4 w-4" />} onClick={() => onAddStock(warehouse)} />
                         <ActionButton className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100" title={t.operational.actions.transferStock} icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => onTransferStock(warehouse)} />
                         <ActionButton className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} onClick={() => onViewMovements(warehouse)} />

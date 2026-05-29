@@ -1,6 +1,6 @@
 export type OpportunityStage = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Won' | 'Lost';
 export type OpportunityTemperature = 'Hot' | 'Warm' | 'Cold';
-export type OpportunitySource = 'Manual' | 'Website' | 'Referral' | 'Campaign' | 'Social media' | 'WhatsApp' | 'Existing customer' | 'Other';
+export type OpportunitySource = 'Manual' | 'Website' | 'Referral' | 'Campaign' | 'Social media' | 'WhatsApp' | 'Existing customer' | 'Post Sale Opportunity' | 'Other';
 export type OpportunityStatus = 'Active' | 'Pending follow-up' | 'Overdue' | 'On hold' | 'Closed';
 export type OpportunityNextAction = 'Call' | 'WhatsApp' | 'Email' | 'Meeting' | 'Send proposal' | 'Follow up' | 'Review documents' | 'Close deal';
 export type OpportunityProbability = '10%' | '25%' | '50%' | '75%' | '90%' | '100%';
@@ -40,7 +40,7 @@ export const opportunityStages: OpportunityStage[] = [
 ];
 
 export const opportunityTemperatures: OpportunityTemperature[] = ['Hot', 'Warm', 'Cold'];
-export const opportunitySources: OpportunitySource[] = ['Manual', 'Website', 'Referral', 'Campaign', 'Social media', 'WhatsApp', 'Existing customer', 'Other'];
+export const opportunitySources: OpportunitySource[] = ['Manual', 'Website', 'Referral', 'Campaign', 'Social media', 'WhatsApp', 'Existing customer', 'Post Sale Opportunity', 'Other'];
 export const opportunityStatuses: OpportunityStatus[] = ['Active', 'Pending follow-up', 'Overdue', 'On hold', 'Closed'];
 export const opportunityNextActions: OpportunityNextAction[] = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Send proposal', 'Follow up', 'Review documents', 'Close deal'];
 export const opportunityProbabilities: OpportunityProbability[] = ['10%', '25%', '50%', '75%', '90%', '100%'];

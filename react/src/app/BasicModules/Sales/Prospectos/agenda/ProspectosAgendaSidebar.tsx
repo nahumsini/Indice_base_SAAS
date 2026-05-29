@@ -3,15 +3,18 @@ import { Badge } from '../../../../components/ui/badge';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import { setOpportunityDragData } from '../utils/prospectosFormatters';
 import { temperatureClasses } from '../utils/prospectosStatus';
 
 export function ProspectosAgendaSidebar({
+  copy,
   unscheduledOpportunities,
   opportunitySchedules,
   onDraftChange,
   onScheduleDrop,
 }: {
+  copy: ProspectosCopy;
   unscheduledOpportunities: SalesOpportunity[];
   opportunitySchedules: Map<string, { date: string; time: string }>;
   onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void;
@@ -24,8 +27,8 @@ export function ProspectosAgendaSidebar({
       onDrop={(event) => onScheduleDrop(event, '', '')}
     >
       <div className="mb-4">
-        <h4 className="text-base font-bold text-slate-950">Por programar</h4>
-        <p className="mt-1 text-sm text-slate-600">Asigna día y hora para ordenar el trabajo comercial.</p>
+        <h4 className="text-base font-bold text-slate-950">{copy.agenda.unscheduledTitle}</h4>
+        <p className="mt-1 text-sm text-slate-600">{copy.agenda.unscheduledDescription}</p>
       </div>
 
       <div className="space-y-3">
@@ -39,10 +42,10 @@ export function ProspectosAgendaSidebar({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-bold text-slate-950">{opportunity.opportunityName}</p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{opportunity.company} · {opportunity.nextAction}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">{opportunity.company} · {copy.options.nextActions[opportunity.nextAction]}</p>
               </div>
               <Badge variant="outline" className={cn('rounded-full px-2 py-0.5 text-xs font-bold', temperatureClasses[opportunity.temperature])}>
-                {opportunity.temperature}
+                {copy.options.temperatures[opportunity.temperature]}
               </Badge>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -62,7 +65,7 @@ export function ProspectosAgendaSidebar({
           </article>
         )) : (
           <div className="rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm font-medium text-slate-400">
-            Todas las oportunidades visibles tienen seguimiento programado.
+            {copy.agenda.allScheduled}
           </div>
         )}
       </div>

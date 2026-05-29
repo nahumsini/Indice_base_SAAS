@@ -1,5 +1,6 @@
 import { Badge } from '../../../../components/ui/badge';
 import { cn } from '../../../../components/ui/utils';
+import type { ContactCopy } from '../translations/contactTranslations';
 import type { ContactRelationshipSignal as ContactRelationshipSignalModel } from '../utils/contactTableSignals';
 
 const relationshipStateClassNames: Record<ContactRelationshipSignalModel['state'], string> = {
@@ -10,16 +11,24 @@ const relationshipStateClassNames: Record<ContactRelationshipSignalModel['state'
   noActivity: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
-export function ContactRelationshipSignal({ signal }: { signal: ContactRelationshipSignalModel }) {
+export function ContactRelationshipSignal({
+  copy,
+  signal,
+}: {
+  copy: ContactCopy['signals']['relationship'];
+  signal: ContactRelationshipSignalModel;
+}) {
   return (
     <div className="min-w-[170px] space-y-1">
       <Badge
         variant="outline"
         className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', relationshipStateClassNames[signal.state])}
       >
-        {signal.label}
+        {copy.labels[signal.state]}
       </Badge>
-      <p className="text-xs font-medium text-slate-500">{signal.detail}</p>
+      <p className="text-xs font-medium text-slate-500">
+        {copy.details[signal.state](signal.opportunityCount, signal.quoteCount)}
+      </p>
     </div>
   );
 }

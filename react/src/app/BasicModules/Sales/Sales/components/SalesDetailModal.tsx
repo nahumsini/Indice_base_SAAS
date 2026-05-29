@@ -11,11 +11,18 @@ import {
 } from '../../../../components/ui/dialog';
 import { cn } from '../../../../components/ui/utils';
 import { getSalesModalStyles } from '../../salesModalStyles';
-import type { SalesQuote } from '../../types';
+import {
+  createSaleFromQuote,
+  validateSaleDraftForBackendReadiness,
+} from '../../services/salesWorkflowBridge';
+import type { SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuote } from '../../types';
+import type { SalesWorkflowValidationCode } from '../../types/salesWorkflow';
 import { salesBusinessOptions, salesBusinessUnitOptions } from '../data/salesBusinessOptions';
 import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
-import type { SaleRecord, SaleRecordDraft } from '../types/salesTypes';
+import type { CommissionRecord } from '../types/commissions';
+import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft } from '../types/salesTypes';
+import { formatCommissionType } from '../utils/commissionRules';
 import { calculateCommissionAmount, formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { SalesCreateForm } from './SalesCreateForm';
 import { SaleSummaryPreviewModal } from './SaleSummaryPreviewModal';
@@ -44,6 +51,10 @@ function getDefaultBusinessScope() {
 function getInitialDraft(record?: SaleRecord | null): SaleRecordDraft {
   return record ?? {
     ...getDefaultBusinessScope(),
+    prospectId: undefined,
+    contactId: undefined,
+    customerId: undefined,
+    sellerId: undefined,
     quoteId: undefined,
     quoteReference: '',
     saleDocumentReference: '',
@@ -51,6 +62,10 @@ function getInitialDraft(record?: SaleRecord | null): SaleRecordDraft {
     sellerName: '',
     saleDate: getTodayIsoDate(),
     totalAmount: 0,
+    subtotal: 0,
+    discountTotal: 0,
+    taxTotal: 0,
+    marginTotal: 0,
     currency: 'MXN',
     paymentMethod: '',
     paymentReference: '',
@@ -64,30 +79,53 @@ function getInitialDraft(record?: SaleRecord | null): SaleRecordDraft {
     inventoryMovementReference: '',
     commissionRate: 0,
     commissionNotes: '',
+    saleLines: [],
     notes: '',
   };
+}
+
+function withBusinessScope(lines: SaleLine[], businessUnitId: string, businessId: string, warehouseId: string) {
+  return lines.map((line) => ({
+    ...line,
+    businessUnitId,
+    businessId,
+    warehouseId,
+  }));
 }
 
 export function SalesDetailModal({
   open,
   record,
   quotes,
+  products,
+  contacts,
+  opportunities,
+  lifecycle,
+  commissionRecords = [],
   t,
   onOpenChange,
   onCreate,
   onUpdate,
+  onQuoteConverted,
 }: {
   open: boolean;
   record: SaleRecord | null;
   quotes: SalesQuote[];
+  products: SalesCatalogItem[];
+  contacts: SalesContact[];
+  opportunities: SalesOpportunity[];
+  lifecycle?: SaleLifecycleSignals;
+  commissionRecords?: CommissionRecord[];
   t: SalesRecordsTranslations;
   onOpenChange: (open: boolean) => void;
   onCreate: (draft: SaleRecordDraft) => void;
   onUpdate: (saleId: string, patch: Partial<SaleRecord>) => void;
+  onQuoteConverted: (quoteId: string, opportunityId?: string) => void;
 }) {
   const isCreateMode = !record;
   const [form, setForm] = useState<SaleRecordDraft>(() => getInitialDraft(record));
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<SalesWorkflowValidationCode[]>([]);
 
   const acceptedQuotes = useMemo(
     () => quotes.filter((quote) => quote.status === 'Approved' || quote.status === 'Closed Won'),
@@ -111,6 +149,7 @@ export function SalesDetailModal({
   useEffect(() => {
     if (open) {
       setForm(getInitialDraft(record));
+      setValidationErrors([]);
     }
   }, [open, record]);
 
@@ -125,19 +164,33 @@ export function SalesDetailModal({
 
     setForm((current) => {
       const context = getSalesOperationalContext(current.businessId);
+      const contact = contacts.find((item) => item.id === quote.clientId);
+      const prospect = opportunities.find((item) => item.id === quote.opportunityId);
+      const conversion = createSaleFromQuote({
+        quote,
+        products,
+        contact,
+        prospect,
+        businessScope: {
+          businessUnitId: current.businessUnitId ?? '',
+          businessUnitName: current.businessUnitName,
+          businessId: current.businessId ?? '',
+          businessName: current.businessName,
+          warehouseId: context.defaultWarehouse,
+        },
+        saleId: `DRAFT-${quote.id}`,
+        saleDate: current.saleDate || getTodayIsoDate(),
+        currency: context.currency,
+        commissionRate: current.commissionRate,
+      });
 
       return {
         ...current,
-        quoteId: quote.id,
-        quoteReference: quote.quoteNumber,
-        customerName: quote.clientName,
-        sellerName: quote.assignedSeller,
-        totalAmount: quote.total,
-        currency: context.currency,
-        commercialStatus: quote.status === 'Approved' || quote.status === 'Closed Won' ? 'approved' : 'pending_validation',
-        notes: quote.notes ? `Generated from ${quote.quoteNumber}. ${quote.notes}` : `Generated from ${quote.quoteNumber}.`,
+        ...conversion.saleDraft,
+        notes: t.modal.generatedFromQuote(quote.quoteNumber, quote.notes),
       };
     });
+    setValidationErrors([]);
   };
 
   const handleBusinessUnitSelection = (businessUnitId: string) => {
@@ -152,7 +205,14 @@ export function SalesDetailModal({
       businessId: firstBusiness?.id ?? '',
       businessName: firstBusiness?.name ?? '',
       currency: context.currency,
+      saleLines: withBusinessScope(
+        current.saleLines,
+        businessUnitId,
+        firstBusiness?.id ?? '',
+        context.defaultWarehouse,
+      ),
     }));
+    setValidationErrors([]);
   };
 
   const handleBusinessSelection = (businessId: string) => {
@@ -166,7 +226,14 @@ export function SalesDetailModal({
       businessUnitId: business?.businessUnitId ?? current.businessUnitId,
       businessUnitName: business?.businessUnitName ?? current.businessUnitName,
       currency: context.currency,
+      saleLines: withBusinessScope(
+        current.saleLines,
+        business?.businessUnitId ?? current.businessUnitId ?? '',
+        businessId,
+        context.defaultWarehouse,
+      ),
     }));
+    setValidationErrors([]);
   };
 
   const handleStatusChange = (patch: Partial<SaleRecord>) => {
@@ -176,7 +243,16 @@ export function SalesDetailModal({
   };
 
   const handleCreate = () => {
-    if (!form.quoteReference.trim() || !form.customerName.trim() || !form.sellerName.trim()) return;
+    const validation = validateSaleDraftForBackendReadiness(form);
+    const quoteIsConvertible = !selectedQuote || selectedQuote.status === 'Approved' || selectedQuote.status === 'Closed Won';
+    const errors = quoteIsConvertible
+      ? validation.errors
+      : [...validation.errors, 'quoteNotApproved' as const];
+
+    if (errors.length) {
+      setValidationErrors(Array.from(new Set(errors)));
+      return;
+    }
 
     onCreate({
       ...form,
@@ -195,6 +271,9 @@ export function SalesDetailModal({
       notes: form.notes.trim(),
       commissionAmount: calculatedCommissionAmount,
     });
+    if (form.quoteId) {
+      onQuoteConverted(form.quoteId, form.prospectId);
+    }
     onOpenChange(false);
   };
 
@@ -214,6 +293,15 @@ export function SalesDetailModal({
             {t.modal.quoteHelper}
           </div>
 
+          {validationErrors.length ? (
+            <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-semibold text-[#B63B32]">
+              <p className="mb-2 font-black">{t.modal.validationTitle}</p>
+              <ul className="space-y-1">
+                {validationErrors.map((error) => <li key={error}>{t.modal.validationErrors[error]}</li>)}
+              </ul>
+            </div>
+          ) : null}
+
           {isCreateMode ? (
             <SalesCreateForm
               form={form}
@@ -221,7 +309,10 @@ export function SalesDetailModal({
               quoteOptions={quoteOptions}
               businessOptions={businessOptions}
               t={t}
-              onFormChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
+              onFormChange={(patch) => {
+                setForm((current) => ({ ...current, ...patch }));
+                setValidationErrors([]);
+              }}
               onQuoteSelection={handleQuoteSelection}
               onBusinessUnitSelection={handleBusinessUnitSelection}
               onBusinessSelection={handleBusinessSelection}
@@ -256,6 +347,38 @@ export function SalesDetailModal({
                   <DetailField label={t.modal.fields.inventoryMovementStatus} value={t.statuses.movement[form.inventoryMovementStatus]} />
                   <DetailField label={t.modal.fields.inventoryMovementReference} value={form.inventoryMovementReference || t.common.notAvailable} />
                 </section>
+              </SectionCard>
+
+              <SectionCard title={t.modal.sections.postSaleSnapshot} description={t.modal.postSaleSnapshotHelper}>
+                <section className="grid gap-4 md:grid-cols-2">
+                  <DetailField label={t.modal.fields.customerHealth} value={lifecycle ? t.lifecycle.health[lifecycle.health] : t.common.notAvailable} />
+                  <DetailField label={t.modal.fields.relationship} value={lifecycle ? t.lifecycle.relationship[lifecycle.relationship] : t.common.notAvailable} />
+                  <DetailField label={t.modal.fields.nextFollowUpDate} value={lifecycle?.nextFollowUpDate ?? t.common.notAvailable} />
+                  <DetailField label={t.modal.fields.renewalDate} value={lifecycle?.renewalDate ?? t.common.notAvailable} />
+                  <DetailField label={t.modal.fields.openCases} value={String(lifecycle?.openCases ?? 0)} />
+                  <DetailField label={t.modal.fields.postSaleStatus} value={lifecycle?.postSaleStatus ?? t.lifecycle.noPostSaleStatus} />
+                </section>
+              </SectionCard>
+
+              <SectionCard title={t.modal.sections.commissionBreakdown} description={t.modal.commissionBreakdownHelper}>
+                {commissionRecords.length ? (
+                  <section className="space-y-3">
+                    {commissionRecords.map((commission) => (
+                      <div key={commission.id} className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
+                        <DetailField label={t.commissions.detail.fields.salesRep} value={commission.salesRepName} />
+                        <DetailField label={t.commissions.detail.fields.product} value={commission.productName} />
+                        <DetailField label={t.commissions.detail.fields.ruleName} value={commission.commissionRuleName} />
+                        <DetailField label={t.commissions.detail.fields.commissionType} value={formatCommissionType(commission.commissionType)} />
+                        <DetailField label={t.commissions.detail.fields.commissionAmount} value={formatSalesCurrency(commission.commissionAmount)} />
+                        <DetailField label={t.commissions.detail.fields.status} value={t.commissions.statuses[commission.status]} />
+                      </div>
+                    ))}
+                  </section>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                    {t.commissions.detail.noCommissionRecords}
+                  </div>
+                )}
               </SectionCard>
 
               <SectionCard title={t.modal.sections.notes}>

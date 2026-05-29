@@ -1,13 +1,18 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   CalendarClock,
-  CheckCircle2,
+  CalendarPlus,
+  ChevronDown,
+  ChevronRight,
   Clock3,
+  Eye,
   FileText,
   History,
   Link2,
-  PencilLine,
+  Mail,
+  MessageCircle,
+  Phone,
   Plus,
   RefreshCw,
   Search,
@@ -45,13 +50,10 @@ import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
 import {
   customerRelationTypes,
-  lostReasons,
-  postSaleRiskLevels,
   postSaleStatuses,
   postSaleTypes,
   salesOwners,
   type CustomerRelationType,
-  type LostReason,
   type PostSaleRiskLevel,
   type PostSaleStatus,
   type PostSaleType,
@@ -59,10 +61,20 @@ import {
   useSalesCrm,
 } from '../salesCrmContext';
 import { getSalesModalStyles } from '../salesModalStyles';
+import type { SaleRecord } from '../Sales/types/salesTypes';
+import {
+  getCustomerLifecycleSignals,
+  type CustomerHealthStatus,
+  type CustomerLifecycleSignals,
+  type CustomerRelationshipStatus,
+} from '../utils/customerLifecycle';
+import { getPhoneHref, getWhatsAppHref } from '../utils/salesCommunicationUtils';
 import { usePostSalesTranslations } from './translations';
+import { openSaleSummaryPdf } from './utils/postSalePdf';
 
 type ViewMode = 'table' | 'followUp';
 type FilterValue = 'all' | string;
+type OpportunityAutomationDelay = '30' | '60' | '90' | '180' | 'custom';
 const postSaleModalStyles = getSalesModalStyles('coral');
 const futureOpportunityModalStyles = getSalesModalStyles('aqua');
 
@@ -83,11 +95,12 @@ type PostSaleFormState = {
   files: string;
 };
 
-type LostFollowUpFormState = {
+type OpportunityAutomationFormState = {
   clientId: string;
-  relatedOpportunityId: string;
-  lostReason: LostReason;
-  nextFollowUpDate: string;
+  delay: OpportunityAutomationDelay;
+  scheduledDate: string;
+  opportunityName: string;
+  expectedCloseDate: string;
   owner: string;
   notes: string;
 };
@@ -97,6 +110,28 @@ type FutureOpportunityFormState = {
   expectedCloseDate: string;
   nextActionDate: string;
   notes: string;
+};
+
+type CustomerHistory = {
+  id: string;
+  clientId?: string;
+  clientName: string;
+  contactPerson: string;
+  phone?: string;
+  email?: string;
+  owner: string;
+  relationType: CustomerRelationType;
+  postSaleType: PostSaleType;
+  status: PostSaleStatus;
+  riskLevel: PostSaleRiskLevel;
+  lastPurchaseDate?: string;
+  nextFollowUpDate?: string;
+  renewalDate?: string;
+  lifetimeValue: number;
+  notes: string;
+  files: string[];
+  sales: SaleRecord[];
+  postSaleCase?: SalesPostSaleCase;
 };
 
 const statusClasses: Record<PostSaleStatus, string> = {
@@ -124,12 +159,49 @@ const riskClasses: Record<PostSaleRiskLevel, string> = {
   High: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
 };
 
+const healthClasses: Record<CustomerHealthStatus, string> = {
+  healthy: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
+  attention: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
+  at_risk: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32]',
+  lost: 'border-slate-300 bg-slate-100 text-slate-500',
+};
+
+const relationshipClasses: Record<CustomerRelationshipStatus, string> = {
+  first_purchase: 'border-slate-200 bg-slate-50 text-slate-700',
+  recurring: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
+  renewal: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
+  recovered: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
+  dormant: 'border-slate-300 bg-slate-100 text-slate-500',
+};
+
+const statusProgressClasses: Record<PostSaleStatus, string> = {
+  Active: 'bg-[#59C3A5]',
+  'Pending follow-up': 'bg-[#F4C84A]',
+  'In service': 'bg-[#2563EB]',
+  'Renewal soon': 'bg-violet-500',
+  Recurrent: 'bg-[#177d66]',
+  'At risk': 'bg-[#FF6B5E]',
+  Completed: 'bg-emerald-500',
+  Closed: 'bg-slate-400',
+};
+
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
 function getFutureIsoDate(days: number) {
   const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getIsoDateAfter(baseDate: string | undefined, days: number) {
+  const date = baseDate ? new Date(baseDate) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return getFutureIsoDate(days);
+  }
+
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
 }
@@ -156,29 +228,60 @@ function parseFiles(value: string) {
   return value.split(',').map((file) => file.trim()).filter(Boolean);
 }
 
-function MetricCard({
+function normalizeKey(value?: string) {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function getEmailHref(email: string, subject: string) {
+  return `mailto:${email.trim()}?subject=${encodeURIComponent(subject)}`;
+}
+
+function getLatestDate(values: Array<string | undefined>) {
+  return values
+    .filter(Boolean)
+    .sort((left, right) => new Date(right as string).getTime() - new Date(left as string).getTime())[0];
+}
+
+function getHistoryRelationType(salesCount: number, postSaleCase?: SalesPostSaleCase): CustomerRelationType {
+  if (postSaleCase) return postSaleCase.relationType;
+  if (salesCount > 1) return 'Recurrent customer';
+  if (salesCount === 1) return 'One-time customer';
+  return 'Dormant customer';
+}
+
+function getHistoryStatus(salesCount: number, postSaleCase?: SalesPostSaleCase): PostSaleStatus {
+  if (postSaleCase) return postSaleCase.status;
+  return salesCount > 0 ? 'Active' : 'Pending follow-up';
+}
+
+function getHistoryRisk(history: Pick<CustomerHistory, 'sales' | 'postSaleCase' | 'nextFollowUpDate'>): PostSaleRiskLevel {
+  if (history.postSaleCase) return history.postSaleCase.riskLevel;
+  const days = getDaysUntil(history.nextFollowUpDate);
+  if (days < 0) return 'High';
+  return history.sales.length > 0 ? 'Low' : 'Medium';
+}
+
+function KpiMetric({
   icon,
   value,
   label,
-  className,
+  valueClassName = 'text-slate-950',
 }: {
   icon: ReactNode;
   value: string | number;
   label: string;
-  className?: string;
+  valueClassName?: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <span className={cn('flex h-10 w-10 items-center justify-center rounded-lg border bg-white shadow-sm', className)}>
-          {icon}
-        </span>
-        <div>
-          <p className="text-2xl font-black leading-none text-slate-950">{value}</p>
-          <p className="mt-1 text-sm font-semibold text-slate-500">{label}</p>
-        </div>
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-3">
+      <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+        {icon}
+      </span>
+      <span className="text-base font-semibold">
+        <span className={cn('mr-2 font-bold', valueClassName)}>{value}</span>
+        <span className="text-slate-600">{label}</span>
+      </span>
+    </span>
   );
 }
 
@@ -217,20 +320,23 @@ function ActionButton({
   icon,
   className,
   onClick,
+  disabled = false,
 }: {
   label: string;
   icon: ReactNode;
   className: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       title={label}
       aria-label={label}
-      onClick={onClick}
+      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20',
+        'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20 disabled:cursor-not-allowed disabled:opacity-40',
         className,
       )}
     >
@@ -287,6 +393,7 @@ export default function Postventa() {
     contacts,
     opportunities,
     quotes,
+    salesRecords,
     postSaleCases,
     addPostSaleCase,
     addOpportunity,
@@ -295,17 +402,15 @@ export default function Postventa() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [isCaseModalOpen, setIsCaseModalOpen] = useState(false);
-  const [isLostModalOpen, setIsLostModalOpen] = useState(false);
+  const [automationCase, setAutomationCase] = useState<CustomerHistory | null>(null);
   const [selectedFilesCase, setSelectedFilesCase] = useState<SalesPostSaleCase | null>(null);
-  const [futureOpportunityCase, setFutureOpportunityCase] = useState<SalesPostSaleCase | null>(null);
+  const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
+  const [expandedCustomerIds, setExpandedCustomerIds] = useState<string[]>([]);
+  const [futureOpportunityCase, setFutureOpportunityCase] = useState<CustomerHistory | null>(null);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
-  const [relationFilter, setRelationFilter] = useState<FilterValue>('all');
   const [typeFilter, setTypeFilter] = useState<FilterValue>('all');
   const [ownerFilter, setOwnerFilter] = useState<FilterValue>('all');
-  const [renewalFilter, setRenewalFilter] = useState<FilterValue>('all');
-  const [followUpFilter, setFollowUpFilter] = useState<FilterValue>('all');
-  const [riskFilter, setRiskFilter] = useState<FilterValue>('all');
+  const [healthFilter, setHealthFilter] = useState<FilterValue>('all');
   const [caseForm, setCaseForm] = useState<PostSaleFormState>(() => ({
     clientId: contacts[0]?.id ?? '',
     relatedOpportunityId: 'none',
@@ -322,11 +427,12 @@ export default function Postventa() {
     notes: '',
     files: '',
   }));
-  const [lostForm, setLostForm] = useState<LostFollowUpFormState>(() => ({
+  const [automationForm, setAutomationForm] = useState<OpportunityAutomationFormState>(() => ({
     clientId: contacts[0]?.id ?? '',
-    relatedOpportunityId: 'none',
-    lostReason: 'Timing',
-    nextFollowUpDate: getFutureIsoDate(30),
+    delay: '30',
+    scheduledDate: getFutureIsoDate(30),
+    opportunityName: '',
+    expectedCloseDate: getFutureIsoDate(60),
     owner: salesOwners[0],
     notes: '',
   }));
@@ -337,14 +443,6 @@ export default function Postventa() {
     notes: '',
   }));
 
-  const statusOptions = [
-    { value: 'all', label: t.filters.allStatuses },
-    ...postSaleStatuses.map((status) => ({ value: status, label: t.statusLabels[status] })),
-  ];
-  const relationOptions = [
-    { value: 'all', label: t.filters.allRelationTypes },
-    ...customerRelationTypes.map((relationType) => ({ value: relationType, label: t.relationTypeLabels[relationType] })),
-  ];
   const postSaleTypeOptions = [
     { value: 'all', label: t.filters.allPostSaleTypes },
     ...postSaleTypes.map((postSaleType) => ({ value: postSaleType, label: t.postSaleTypeLabels[postSaleType] })),
@@ -353,11 +451,134 @@ export default function Postventa() {
     { value: 'all', label: t.filters.allOwners },
     ...salesOwners.map((owner) => ({ value: owner, label: owner })),
   ];
-  const riskOptions = [
-    { value: 'all', label: t.filters.allRisk },
-    { value: 'high', label: t.filters.highRisk },
-    ...postSaleRiskLevels.map((risk) => ({ value: risk, label: t.riskLabels[risk] })),
+  const healthOptions: Array<{ value: FilterValue; label: string }> = [
+    { value: 'all', label: t.filters.allHealth },
+    { value: 'healthy', label: t.lifecycle.health.healthy },
+    { value: 'attention', label: t.lifecycle.health.attention },
+    { value: 'at_risk', label: t.lifecycle.health.at_risk },
+    { value: 'lost', label: t.lifecycle.health.lost },
   ];
+
+  const customerHistories = useMemo<CustomerHistory[]>(() => {
+    const histories = new Map<string, CustomerHistory>();
+
+    salesRecords.forEach((sale) => {
+      const contact = contacts.find((item) => item.id === sale.contactId || item.id === sale.customerId)
+        ?? contacts.find((item) => normalizeKey(item.company) === normalizeKey(sale.customerName));
+      const key = contact?.id ?? `sale-${normalizeKey(sale.customerName)}`;
+      const existing = histories.get(key);
+
+      histories.set(key, {
+        id: key,
+        clientId: contact?.id ?? sale.contactId ?? sale.customerId,
+        clientName: contact?.company ?? sale.customerName,
+        contactPerson: contact?.contactPerson ?? sale.customerName,
+        phone: existing?.phone ?? contact?.phone ?? '',
+        email: existing?.email ?? contact?.email ?? '',
+        owner: existing?.owner ?? contact?.owner ?? sale.sellerName,
+        relationType: existing?.relationType ?? 'One-time customer',
+        postSaleType: existing?.postSaleType ?? 'Standard post-sale',
+        status: existing?.status ?? 'Active',
+        riskLevel: existing?.riskLevel ?? 'Low',
+        lastPurchaseDate: getLatestDate([existing?.lastPurchaseDate, sale.saleDate]),
+        nextFollowUpDate: existing?.nextFollowUpDate,
+        renewalDate: existing?.renewalDate,
+        lifetimeValue: (existing?.lifetimeValue ?? 0) + sale.totalAmount,
+        notes: existing?.notes ?? sale.notes,
+        files: existing?.files ?? [],
+        sales: [...(existing?.sales ?? []), sale].sort((left, right) => new Date(right.saleDate).getTime() - new Date(left.saleDate).getTime()),
+        postSaleCase: existing?.postSaleCase,
+      });
+    });
+
+    postSaleCases.forEach((postSaleCase) => {
+      const contact = contacts.find((item) => item.id === postSaleCase.clientId)
+        ?? contacts.find((item) => normalizeKey(item.company) === normalizeKey(postSaleCase.clientName));
+      const key = contact?.id ?? postSaleCase.clientId ?? `case-${normalizeKey(postSaleCase.clientName)}`;
+      const existing = histories.get(key);
+
+      if (!existing) {
+        return;
+      }
+
+      histories.set(key, {
+        id: key,
+        clientId: contact?.id ?? postSaleCase.clientId,
+        clientName: postSaleCase.clientName,
+        contactPerson: postSaleCase.contactPerson,
+        phone: existing?.phone ?? contact?.phone ?? '',
+        email: existing?.email ?? contact?.email ?? '',
+        owner: postSaleCase.owner,
+        relationType: postSaleCase.relationType,
+        postSaleType: postSaleCase.postSaleType,
+        status: postSaleCase.status,
+        riskLevel: postSaleCase.riskLevel,
+        lastPurchaseDate: getLatestDate([existing?.lastPurchaseDate, postSaleCase.lastPurchaseDate]),
+        nextFollowUpDate: postSaleCase.nextFollowUpDate,
+        renewalDate: postSaleCase.renewalDate,
+        lifetimeValue: Math.max(existing?.lifetimeValue ?? 0, postSaleCase.lifetimeValue),
+        notes: postSaleCase.notes || existing?.notes || '',
+        files: Array.from(new Set([...(existing?.files ?? []), ...postSaleCase.files])),
+        sales: existing?.sales ?? [],
+        postSaleCase,
+      });
+    });
+
+    return Array.from(histories.values())
+      .map((history) => {
+        const relationType = getHistoryRelationType(history.sales.length, history.postSaleCase);
+        const status = getHistoryStatus(history.sales.length, history.postSaleCase);
+        const riskLevel = getHistoryRisk(history);
+
+        return {
+          ...history,
+          relationType,
+          status,
+          riskLevel,
+          lifetimeValue: history.lifetimeValue || history.sales.reduce((total, sale) => total + sale.totalAmount, 0),
+        };
+      })
+      .sort((left, right) => new Date(right.lastPurchaseDate ?? '1900-01-01').getTime() - new Date(left.lastPurchaseDate ?? '1900-01-01').getTime());
+  }, [contacts, postSaleCases, salesRecords]);
+
+  const lifecycleByHistoryId = useMemo<Record<string, CustomerLifecycleSignals>>(() => (
+    Object.fromEntries(customerHistories.map((history) => {
+      const fallbackSale = {
+        customerName: history.clientName,
+        contactId: history.clientId,
+        saleDate: history.lastPurchaseDate,
+        totalAmount: history.lifetimeValue,
+      };
+      const primarySale = history.sales[0] ?? fallbackSale;
+      const customerSales = history.sales.length ? history.sales : [fallbackSale];
+
+      return [
+        history.id,
+        getCustomerLifecycleSignals({
+          sale: primarySale,
+          sales: customerSales,
+          postSaleRecords: history.postSaleCase ? [history.postSaleCase] : [],
+        }),
+      ];
+    }))
+  ), [customerHistories]);
+
+  const filteredCustomerHistories = useMemo(() => customerHistories.filter((history) => {
+    const lifecycle = lifecycleByHistoryId[history.id];
+    const normalizedSearch = search.trim().toLowerCase();
+    const matchesSearch = !normalizedSearch || [
+      history.clientName,
+      history.contactPerson,
+      history.owner,
+      history.notes,
+      ...history.sales.flatMap((sale) => [sale.saleNumber, sale.quoteReference, sale.paymentReference, sale.notes]),
+    ].some((value) => value.toLowerCase().includes(normalizedSearch));
+    const matchesType = typeFilter === 'all' || history.postSaleType === typeFilter;
+    const matchesOwner = ownerFilter === 'all' || history.owner === ownerFilter;
+    const matchesHealth = healthFilter === 'all' || lifecycle?.health === healthFilter;
+
+    return matchesSearch && matchesType && matchesOwner && matchesHealth;
+  }), [customerHistories, healthFilter, lifecycleByHistoryId, ownerFilter, search, typeFilter]);
 
   const filteredCases = useMemo(() => postSaleCases.filter((postSaleCase) => {
     const opportunity = opportunities.find((item) => item.id === postSaleCase.relatedOpportunityId);
@@ -372,33 +593,25 @@ export default function Postventa() {
       opportunity?.opportunityName ?? '',
       quote?.quoteNumber ?? '',
     ].some((value) => value.toLowerCase().includes(normalizedSearch));
-    const matchesStatus = statusFilter === 'all' || postSaleCase.status === statusFilter;
-    const matchesRelation = relationFilter === 'all' || postSaleCase.relationType === relationFilter;
     const matchesType = typeFilter === 'all' || postSaleCase.postSaleType === typeFilter;
     const matchesOwner = ownerFilter === 'all' || postSaleCase.owner === ownerFilter;
-    const renewalDays = getDaysUntil(postSaleCase.renewalDate);
-    const followUpDays = getDaysUntil(postSaleCase.nextFollowUpDate);
-    const matchesRenewal = renewalFilter === 'all'
-      || (renewalFilter === 'next30' && renewalDays >= 0 && renewalDays <= 30)
-      || (renewalFilter === 'missing' && !postSaleCase.renewalDate);
-    const matchesFollowUp = followUpFilter === 'all'
-      || (followUpFilter === 'next7' && followUpDays >= 0 && followUpDays <= 7)
-      || (followUpFilter === 'overdue' && followUpDays < 0);
-    const matchesRisk = riskFilter === 'all'
-      || (riskFilter === 'high' && postSaleCase.riskLevel === 'High')
-      || postSaleCase.riskLevel === riskFilter;
 
-    return matchesSearch && matchesStatus && matchesRelation && matchesType && matchesOwner && matchesRenewal && matchesFollowUp && matchesRisk;
-  }), [followUpFilter, opportunities, ownerFilter, postSaleCases, quotes, relationFilter, renewalFilter, riskFilter, search, statusFilter, typeFilter]);
+    return matchesSearch && matchesType && matchesOwner;
+  }), [opportunities, ownerFilter, postSaleCases, quotes, search, typeFilter]);
 
-  const activePostSales = postSaleCases.filter((postSaleCase) => !['Completed', 'Closed'].includes(postSaleCase.status)).length;
-  const recurrentCustomers = postSaleCases.filter((postSaleCase) => postSaleCase.relationType === 'Recurrent customer' || postSaleCase.postSaleType === 'Recurrent post-sale').length;
-  const renewalsSoon = postSaleCases.filter((postSaleCase) => {
-    const days = getDaysUntil(postSaleCase.renewalDate);
-    return days >= 0 && days <= 30;
-  }).length;
-  const atRiskClients = postSaleCases.filter((postSaleCase) => postSaleCase.status === 'At risk' || postSaleCase.riskLevel === 'High').length;
-  const futureFollowUps = postSaleCases.filter((postSaleCase) => getDaysUntil(postSaleCase.nextFollowUpDate) >= 0).length;
+  const activePostSales = filteredCustomerHistories.length;
+  const renewalsSoon = filteredCustomerHistories.filter((history) => lifecycleByHistoryId[history.id]?.renewalDueThisMonth).length;
+  const revenueAtRisk = filteredCustomerHistories.reduce((total, history) => total + (lifecycleByHistoryId[history.id]?.revenueAtRisk ?? 0), 0);
+  const recoveredCustomers = filteredCustomerHistories.filter((history) => lifecycleByHistoryId[history.id]?.relationship === 'recovered').length;
+  const futureOpportunities = filteredCustomerHistories.filter((history) => getDaysUntil(history.nextFollowUpDate) >= 0).length;
+  const recurringRevenue = filteredCustomerHistories
+    .filter((history) => ['recurring', 'renewal'].includes(lifecycleByHistoryId[history.id]?.relationship ?? ''))
+    .reduce((total, history) => total + history.sales.reduce((sum, sale) => sum + sale.totalAmount, 0), 0);
+  const atRiskClients = filteredCustomerHistories.filter((history) => ['at_risk', 'lost'].includes(lifecycleByHistoryId[history.id]?.health ?? '')).length;
+  const statusDistribution = postSaleStatuses.map((status) => ({
+    status,
+    count: filteredCustomerHistories.filter((history) => history.status === status).length,
+  }));
 
   const upcomingContacts = filteredCases
     .filter((postSaleCase) => {
@@ -448,45 +661,132 @@ export default function Postventa() {
     setIsCaseModalOpen(false);
   };
 
-  const handleCreateLostFollowUp = () => {
-    const contact = contacts.find((item) => item.id === lostForm.clientId);
+  const openFutureOpportunityModal = (history: CustomerHistory) => {
+    setFutureOpportunityCase(history);
+    setFutureForm({
+      opportunityName: `${history.clientName} ${t.forms.opportunity.defaultSuffix}`,
+      expectedCloseDate: history.renewalDate ?? getFutureIsoDate(30),
+      nextActionDate: history.nextFollowUpDate ?? getFutureIsoDate(7),
+      notes: history.notes,
+    });
+  };
 
-    if (!contact) {
+  const openFollowUpModal = (history: CustomerHistory) => {
+    if (!history.clientId) {
       return;
     }
 
-    addPostSaleCase({
-      clientId: contact.id,
-      clientName: contact.company,
-      contactPerson: contact.contactPerson,
-      relatedOpportunityId: lostForm.relatedOpportunityId === 'none' ? undefined : lostForm.relatedOpportunityId,
-      lastQuoteId: undefined,
-      relationType: 'Lost prospect',
-      postSaleType: 'Standard post-sale',
-      status: 'Pending follow-up',
-      owner: lostForm.owner,
-      lastPurchaseDate: undefined,
-      nextFollowUpDate: lostForm.nextFollowUpDate,
-      renewalDate: undefined,
-      lifetimeValue: 0,
-      notes: lostForm.notes,
-      files: [],
-      lostReason: lostForm.lostReason,
-      nextAction: t.forms.lost.submit,
-      riskLevel: 'Medium',
-      commercialHistory: [t.relationTypeLabels['Lost prospect'], t.lostReasonLabels[lostForm.lostReason], lostForm.nextFollowUpDate],
+    const scheduledDate = getIsoDateAfter(history.lastPurchaseDate, 30);
+    const expectedCloseDate = getIsoDateAfter(scheduledDate, 30);
+
+    setAutomationCase(history);
+    setAutomationForm({
+      clientId: history.clientId,
+      delay: '30',
+      scheduledDate,
+      opportunityName: `${history.clientName} ${t.forms.opportunity.defaultSuffix}`,
+      expectedCloseDate,
+      owner: history.owner,
+      notes: history.notes,
     });
-    setIsLostModalOpen(false);
   };
 
-  const openFutureOpportunityModal = (postSaleCase: SalesPostSaleCase) => {
-    setFutureOpportunityCase(postSaleCase);
-    setFutureForm({
-      opportunityName: `${postSaleCase.clientName} ${t.forms.opportunity.defaultSuffix}`,
-      expectedCloseDate: postSaleCase.renewalDate ?? getFutureIsoDate(30),
-      nextActionDate: postSaleCase.nextFollowUpDate,
-      notes: postSaleCase.notes,
+  const handleAutomationDelayChange = (value: string) => {
+    const delay = value as OpportunityAutomationDelay;
+    setAutomationForm((current) => {
+      if (delay === 'custom') {
+        return { ...current, delay };
+      }
+
+      const days = Number(delay);
+      const scheduledDate = getIsoDateAfter(automationCase?.lastPurchaseDate, days);
+
+      return {
+        ...current,
+        delay,
+        scheduledDate,
+        expectedCloseDate: getIsoDateAfter(scheduledDate, 30),
+      };
     });
+  };
+
+  const handleCreateAutomatedOpportunity = () => {
+    if (!automationCase || !automationForm.opportunityName.trim() || !automationForm.scheduledDate || !automationForm.expectedCloseDate) {
+      return;
+    }
+
+    const contact = contacts.find((item) => item.id === automationForm.clientId);
+    const latestSale = automationCase.sales[0];
+    const opportunityNote = [
+      automationForm.notes,
+      t.forms.lost.generatedNote,
+      `${t.table.columns.lastPurchase}: ${automationCase.lastPurchaseDate ?? t.common.notAvailable}`,
+      latestSale ? `${t.saleDetail.saleReference}: ${latestSale.saleNumber}` : '',
+    ].filter(Boolean).join('\n');
+
+    addOpportunity({
+      opportunityName: automationForm.opportunityName.trim(),
+      contactId: contact?.id ?? automationCase.clientId ?? '',
+      company: automationCase.clientName,
+      contactPerson: automationCase.contactPerson,
+      phone: contact?.phone ?? automationCase.phone ?? '',
+      email: contact?.email ?? automationCase.email ?? '',
+      source: 'Post Sale Opportunity',
+      stage: 'New',
+      temperature: automationCase.riskLevel === 'High' ? 'Warm' : 'Hot',
+      owner: automationForm.owner,
+      estimatedValue: formatCurrency(Math.max(latestSale?.totalAmount ?? automationCase.lifetimeValue, 1)),
+      probability: '25%',
+      expectedCloseDate: automationForm.expectedCloseDate,
+      nextAction: 'Follow up',
+      nextActionDate: automationForm.scheduledDate,
+      lastContact: automationCase.lastPurchaseDate ?? getTodayIsoDate(),
+      files: automationCase.files,
+      status: 'Active',
+      notes: opportunityNote,
+    });
+
+    addPostSaleCase({
+      clientId: contact?.id ?? automationCase.clientId,
+      clientName: automationCase.clientName,
+      contactPerson: automationCase.contactPerson,
+      relatedOpportunityId: undefined,
+      lastQuoteId: latestSale?.quoteId,
+      relationType: automationCase.relationType,
+      postSaleType: automationCase.postSaleType,
+      status: 'Pending follow-up',
+      owner: automationForm.owner,
+      lastPurchaseDate: automationCase.lastPurchaseDate,
+      nextFollowUpDate: automationForm.scheduledDate,
+      renewalDate: automationCase.renewalDate,
+      lifetimeValue: automationCase.lifetimeValue,
+      notes: opportunityNote,
+      files: automationCase.files,
+      nextAction: t.forms.lost.nextAction,
+      riskLevel: automationCase.riskLevel === 'High' ? 'High' : 'Medium',
+      commercialHistory: [
+        automationCase.clientName,
+        latestSale?.saleNumber ?? t.common.notAvailable,
+        automationForm.scheduledDate,
+      ],
+    });
+
+    setAutomationCase(null);
+  };
+
+  const openPhoneCall = (phone?: string) => {
+    if (!phone) return;
+    window.location.href = getPhoneHref(phone);
+  };
+
+  const openWhatsApp = (phone?: string) => {
+    if (!phone) return;
+    window.open(getWhatsAppHref(phone), '_blank', 'noopener,noreferrer');
+  };
+
+  const openEmail = (email?: string, clientName?: string) => {
+    if (!email) return;
+    window.location.href = getEmailHref(email, `${t.header.title} · ${clientName ?? ''}`);
   };
 
   const handleCreateFutureOpportunity = () => {
@@ -503,7 +803,7 @@ export default function Postventa() {
       contactPerson: futureOpportunityCase.contactPerson,
       phone: contact?.phone ?? '',
       email: contact?.email ?? '',
-      source: contact?.source ?? 'Existing customer',
+      source: 'Post Sale Opportunity',
       stage: 'New',
       temperature: futureOpportunityCase.riskLevel === 'High' ? 'Warm' : 'Hot',
       owner: futureOpportunityCase.owner,
@@ -522,38 +822,45 @@ export default function Postventa() {
 
   return (
     <section className="space-y-5">
-      <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-6 shadow-sm">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white text-2xl shadow-sm ring-1 ring-[#FF6B5E]/20">
-              <span aria-hidden="true">{t.header.emoji}</span>
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-950">{t.header.title}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{t.header.subtitle}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button className="h-11 rounded-lg bg-[#FF6B5E] px-4 text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E8564B]" onClick={() => setIsCaseModalOpen(true)}>
-              <Plus className="h-4 w-4" />
-              {t.header.createCase}
-            </Button>
-            <Button variant="outline" className="h-11 rounded-lg border-slate-200 bg-white px-4 text-slate-800 hover:bg-slate-50" onClick={() => setIsLostModalOpen(true)}>
-              <RefreshCw className="h-4 w-4" />
-              {t.header.lostFollowUp}
-            </Button>
-          </div>
+      <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-6 shadow-sm">
+        <div>
+          <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900">
+            <span className="text-2xl leading-none" aria-hidden="true">{t.header.emoji}</span>
+            {t.header.title}
+          </h2>
+          <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600">{t.header.subtitle}</p>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard icon={<ShieldCheck className="h-5 w-5" />} value={activePostSales} label={t.metrics.activePostSales} className="text-[#2563EB]" />
-        <MetricCard icon={<RefreshCw className="h-5 w-5" />} value={recurrentCustomers} label={t.metrics.recurrentCustomers} className="text-[#177d66]" />
-        <MetricCard icon={<CalendarClock className="h-5 w-5" />} value={renewalsSoon} label={t.metrics.renewalsSoon} className="text-violet-600" />
-        <MetricCard icon={<AlertTriangle className="h-5 w-5" />} value={atRiskClients} label={t.metrics.atRiskClients} className="text-[#b63b32]" />
-        <MetricCard icon={<Clock3 className="h-5 w-5" />} value={futureFollowUps} label={t.metrics.futureFollowUps} className="text-[#9a6b05]" />
-      </div>
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-sm text-slate-600">
+          <KpiMetric icon={<ShieldCheck className="h-4 w-4" />} value={activePostSales} label={t.metrics.activeCustomers} valueClassName="text-[#177d66]" />
+          <KpiMetric icon={<CalendarClock className="h-4 w-4" />} value={renewalsSoon} label={t.metrics.renewalsThisMonth} valueClassName="text-violet-600" />
+          <KpiMetric icon={<AlertTriangle className="h-4 w-4" />} value={formatCurrency(revenueAtRisk)} label={t.metrics.revenueAtRisk} valueClassName="text-[#b63b32]" />
+          <KpiMetric icon={<RefreshCw className="h-4 w-4" />} value={recoveredCustomers} label={t.metrics.recoveredCustomers} valueClassName="text-[#2563EB]" />
+          <KpiMetric icon={<Sparkles className="h-4 w-4" />} value={futureOpportunities} label={t.metrics.futureOpportunities} valueClassName="text-[#B63B32]" />
+          <KpiMetric icon={<Clock3 className="h-4 w-4" />} value={formatCurrency(recurringRevenue)} label={t.metrics.recurringRevenue} valueClassName="text-[#177d66]" />
+        </div>
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+          <div className="flex h-3 overflow-hidden rounded-full bg-slate-200">
+            {statusDistribution.map(({ status, count }) => {
+              const width = filteredCustomerHistories.length > 0 ? (count / filteredCustomerHistories.length) * 100 : 0;
+              return <div key={status} className={cn('h-full', statusProgressClasses[status])} style={{ width: `${width}%` }} aria-hidden="true" />;
+            })}
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold text-slate-500">
+            {postSaleStatuses.map((status) => (
+              <span key={status} className="inline-flex items-center gap-2">
+                <span className={cn('h-2.5 w-2.5 rounded-full', statusProgressClasses[status])} />
+                {t.statusLabels[status]}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-semibold leading-6 text-[#B63B32]">
+          {t.insight.summary(formatCurrency(recurringRevenue), atRiskClients, renewalsSoon)}
+        </div>
+      </section>
 
       <div className="flex w-fit rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
         {(['table', 'followUp'] as ViewMode[]).map((view) => (
@@ -561,7 +868,7 @@ export default function Postventa() {
             key={view}
             type="button"
             variant={viewMode === view ? 'default' : 'ghost'}
-            className={cn('h-10 rounded-lg px-4', viewMode === view && 'bg-[#F4C84A] text-[#222831] hover:bg-[#e5b835]')}
+            className={cn('h-10 rounded-lg px-4', viewMode === view && 'bg-[#FF6B5E] text-white hover:bg-[#E8564B]')}
             onClick={() => setViewMode(view)}
           >
             {view === 'table' ? <UsersRound className="h-4 w-4" /> : <CalendarClock className="h-4 w-4" />}
@@ -571,11 +878,8 @@ export default function Postventa() {
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Search className="h-5 w-5 text-[#2563EB]" />
-          <h3 className="text-lg font-bold text-slate-950">{t.filters.title}</h3>
-        </div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1.6fr_repeat(4,minmax(0,1fr))]">
+        <h3 className="mb-4 text-lg font-bold text-slate-950">{t.filters.title}</h3>
+        <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">{t.filters.search}</label>
             <div className="relative">
@@ -584,149 +888,205 @@ export default function Postventa() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t.filters.searchPlaceholder}
-                className="h-11 rounded-lg border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none"
+                className="h-11 rounded-lg border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
               />
             </div>
           </div>
-          <FilterSelect label={t.filters.status} value={statusFilter} onValueChange={setStatusFilter} options={statusOptions} />
-          <FilterSelect label={t.filters.relationType} value={relationFilter} onValueChange={setRelationFilter} options={relationOptions} />
           <FilterSelect label={t.filters.postSaleType} value={typeFilter} onValueChange={setTypeFilter} options={postSaleTypeOptions} />
           <FilterSelect label={t.filters.owner} value={ownerFilter} onValueChange={setOwnerFilter} options={ownerOptions} />
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <FilterSelect
-            label={t.filters.renewal}
-            value={renewalFilter}
-            onValueChange={setRenewalFilter}
-            options={[
-              { value: 'all', label: t.filters.allRenewals },
-              { value: 'next30', label: t.filters.renewalNext30 },
-              { value: 'missing', label: t.filters.renewalMissing },
-            ]}
-          />
-          <FilterSelect
-            label={t.filters.followUp}
-            value={followUpFilter}
-            onValueChange={setFollowUpFilter}
-            options={[
-              { value: 'all', label: t.filters.allFollowUps },
-              { value: 'next7', label: t.filters.followUpNext7 },
-              { value: 'overdue', label: t.filters.followUpOverdue },
-            ]}
-          />
-          <FilterSelect label={t.filters.risk} value={riskFilter} onValueChange={setRiskFilter} options={riskOptions} />
+          <FilterSelect label={t.filters.customerHealth} value={healthFilter} onValueChange={setHealthFilter} options={healthOptions} />
         </div>
       </div>
 
       {viewMode === 'table' ? (
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 p-5">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="text-xl font-black text-slate-950">{t.sections.tableTitle}</h3>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-500">{t.sections.tableDescription}</p>
-          </div>
-
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead className="min-w-[220px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.client}</TableHead>
-                  <TableHead className="min-w-[220px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.opportunity}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.quote}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.relationType}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.postSaleType}</TableHead>
+                  <TableHead className="min-w-[280px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.client}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.customerHealth}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.salesHistory}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.lastPurchase}</TableHead>
+                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.lifetimeValue}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.revenueAtRisk}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.nextFollowUp}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.futureOpportunities}</TableHead>
                   <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.status}</TableHead>
                   <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.owner}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.lastPurchase}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.nextFollowUp}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.renewalDate}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.lifetimeValue}</TableHead>
-                  <TableHead className="min-w-[260px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.notes}</TableHead>
-                  <TableHead className="min-w-[100px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.files}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.actions}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCases.length === 0 ? (
+                {filteredCustomerHistories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
+                    <TableCell colSpan={11} className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
                       {t.table.empty}
                     </TableCell>
                   </TableRow>
-                ) : filteredCases.map((postSaleCase) => {
-                  const opportunity = opportunities.find((item) => item.id === postSaleCase.relatedOpportunityId);
-                  const quote = quotes.find((item) => item.id === postSaleCase.lastQuoteId);
+                ) : filteredCustomerHistories.map((history) => {
+                  const isExpanded = expandedCustomerIds.includes(history.id);
+                  const lifecycle = lifecycleByHistoryId[history.id];
+                  const health = lifecycle?.health ?? 'healthy';
+                  const relationship = lifecycle?.relationship ?? 'first_purchase';
+                  const revenueAtRiskAmount = lifecycle?.revenueAtRisk ?? 0;
+                  const hasFutureOpportunity = getDaysUntil(history.nextFollowUpDate) >= 0;
 
                   return (
-                    <TableRow key={postSaleCase.id} className="align-top hover:bg-slate-50/70">
-                      <TableCell className="px-5 py-4">
-                        <p className="font-black text-slate-950">{postSaleCase.clientName}</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">{postSaleCase.contactPerson}</p>
-                        <Badge className={cn('mt-2 rounded-full border px-2 py-1 text-xs font-bold', riskClasses[postSaleCase.riskLevel])}>
-                          {t.riskLabels[postSaleCase.riskLevel]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        {opportunity ? (
-                          <Badge className="rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2 py-1 text-xs font-bold text-[#1D4ED8]">
-                            {opportunity.opportunityName}
-                          </Badge>
-                        ) : <span className="text-sm font-semibold text-slate-400">{t.common.unassigned}</span>}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-700">{quote?.quoteNumber ?? t.common.notAvailable}</TableCell>
-                      <TableCell className="px-5 py-4">
-                        <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', relationClasses[postSaleCase.relationType])}>
-                          {t.relationTypeLabels[postSaleCase.relationType]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-700">{t.postSaleTypeLabels[postSaleCase.postSaleType]}</TableCell>
-                      <TableCell className="px-5 py-4">
-                        <Select value={postSaleCase.status} onValueChange={(value) => updatePostSaleCaseStatus(postSaleCase.id, value as PostSaleStatus)}>
-                          <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-black shadow-none', statusClasses[postSaleCase.status])}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {postSaleStatuses.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {t.statusLabels[status]}
-                              </SelectItem>
+                    <Fragment key={history.id}>
+                      <TableRow className="align-top hover:bg-slate-50/70">
+                        <TableCell className="px-5 py-4">
+                          <div className="flex gap-3">
+                            <button
+                              type="button"
+                              className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+                              onClick={() => setExpandedCustomerIds((current) => (
+                                current.includes(history.id)
+                                  ? current.filter((id) => id !== history.id)
+                                  : [...current, history.id]
+                              ))}
+                              aria-label={isExpanded ? t.actions.collapseHistory : t.actions.expandHistory}
+                            >
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </button>
+                            <div>
+                              <p className="font-black text-slate-950">{history.clientName}</p>
+                              <p className="mt-1 text-sm font-semibold text-slate-500">{history.contactPerson}</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', relationClasses[history.relationType])}>
+                                  {t.relationTypeLabels[history.relationType]}
+                                </Badge>
+                                <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', riskClasses[history.riskLevel])}>
+                                  {t.riskLabels[history.riskLevel]}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-4">
+                          <div className="space-y-2">
+                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', healthClasses[health])}>
+                              {t.lifecycle.health[health]}
+                            </Badge>
+                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', relationshipClasses[relationship])}>
+                              {t.lifecycle.relationship[relationship]}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-4">
+                          <p className="text-sm font-black text-slate-950">{history.sales.length} {history.sales.length === 1 ? t.saleHistory.sale : t.saleHistory.sales}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {history.sales.slice(0, 3).map((sale) => (
+                              <button
+                                key={sale.id}
+                                type="button"
+                                className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-2 py-1 text-xs font-black text-[#B63B32] hover:bg-[#FF6B5E]/15"
+                                onClick={() => setSelectedSale(sale)}
+                              >
+                                {sale.saleNumber}
+                              </button>
                             ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-700">{postSaleCase.owner}</TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-600">{postSaleCase.lastPurchaseDate ?? t.common.notAvailable}</TableCell>
-                      <TableCell className="px-5 py-4 font-black text-slate-950">{postSaleCase.nextFollowUpDate}</TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-600">{postSaleCase.renewalDate ?? t.common.notAvailable}</TableCell>
-                      <TableCell className="px-5 py-4 font-black text-slate-950">{formatCurrency(postSaleCase.lifetimeValue)}</TableCell>
-                      <TableCell className="px-5 py-4">
-                        <p className="max-w-[300px] text-sm leading-6 text-slate-600">{postSaleCase.notes}</p>
-                        {postSaleCase.lostReason ? (
-                          <Badge className="mt-2 rounded-full border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 px-2 py-1 text-xs font-bold text-[#b63b32]">
-                            {t.lostReasonLabels[postSaleCase.lostReason]}
+                            {history.sales.length > 3 ? <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-600">+{history.sales.length - 3}</Badge> : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-600">{history.lastPurchaseDate ?? t.common.notAvailable}</TableCell>
+                        <TableCell className="px-5 py-4 font-black text-slate-950">{formatCurrency(history.lifetimeValue)}</TableCell>
+                        <TableCell className="px-5 py-4 font-black text-[#B63B32]">
+                          {revenueAtRiskAmount > 0 ? formatCurrency(revenueAtRiskAmount) : t.common.notAvailable}
+                        </TableCell>
+                        <TableCell className="px-5 py-4">
+                          <p className="font-black text-slate-950">{history.nextFollowUpDate ?? t.common.notAvailable}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">{history.renewalDate ? `${t.table.columns.renewalDate}: ${history.renewalDate}` : t.filters.renewalMissing}</p>
+                        </TableCell>
+                        <TableCell className="px-5 py-4">
+                          <Badge className={cn(
+                            'rounded-full border px-2 py-1 text-xs font-bold',
+                            hasFutureOpportunity
+                              ? 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]'
+                              : 'border-slate-200 bg-slate-50 text-slate-500',
+                          )}>
+                            {hasFutureOpportunity ? t.table.futureOpportunityScheduled : t.common.notAvailable}
                           </Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-                          onClick={() => setSelectedFilesCase(postSaleCase)}
-                        >
-                          <FileText className="h-4 w-4 text-[#2563EB]" />
-                          {postSaleCase.files.length}
-                        </button>
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <div className="flex gap-2">
-                          <ActionButton label={t.actions.files} icon={<FileText className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" onClick={() => setSelectedFilesCase(postSaleCase)} />
-                          <ActionButton label={t.actions.futureOpportunity} icon={<Sparkles className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20" onClick={() => openFutureOpportunityModal(postSaleCase)} />
-                          <ActionButton label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50" />
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell className="px-5 py-4">
+                          {history.postSaleCase ? (
+                            <Select value={history.status} onValueChange={(value) => updatePostSaleCaseStatus(history.postSaleCase?.id ?? '', value as PostSaleStatus)}>
+                              <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-black shadow-none', statusClasses[history.status])}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {postSaleStatuses.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {t.statusLabels[status]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', statusClasses[history.status])}>
+                              {t.statusLabels[history.status]}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{history.owner}</TableCell>
+                        <TableCell className="px-5 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            <ActionButton label={t.actions.call} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" disabled={!history.phone} onClick={() => openPhoneCall(history.phone)} />
+                            <ActionButton label={t.actions.whatsapp} icon={<MessageCircle className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20" disabled={!history.phone} onClick={() => openWhatsApp(history.phone)} />
+                            <ActionButton label={t.actions.email} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" disabled={!history.email} onClick={() => openEmail(history.email, history.clientName)} />
+                            <ActionButton label={t.actions.followUp} icon={<CalendarPlus className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" disabled={!history.clientId} onClick={() => openFollowUpModal(history)} />
+                            <ActionButton label={t.actions.futureOpportunity} icon={<Sparkles className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" onClick={() => openFutureOpportunityModal(history)} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded ? (
+                        <TableRow key={`${history.id}-history`} className="bg-slate-50/70">
+                          <TableCell colSpan={11} className="px-8 py-5">
+                            <div className="rounded-lg border border-slate-200 bg-white">
+                              <div className="border-b border-slate-100 px-5 py-4">
+                                <p className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.saleHistory.title}</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-600">{t.saleHistory.description}</p>
+                              </div>
+                              {history.sales.length ? (
+                                <div className="divide-y divide-slate-100">
+                                  {history.sales.map((sale) => (
+                                    <button
+                                      key={sale.id}
+                                      type="button"
+                                      className="grid w-full gap-4 px-5 py-4 text-left hover:bg-slate-50 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto]"
+                                      onClick={() => setSelectedSale(sale)}
+                                    >
+                                      <div>
+                                        <p className="font-black text-slate-950">{sale.saleNumber}</p>
+                                        <p className="mt-1 text-xs font-semibold text-slate-500">{sale.quoteReference}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.date}</p>
+                                        <p className="mt-1 font-semibold text-slate-700">{sale.saleDate}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.total}</p>
+                                        <p className="mt-1 font-black text-slate-950">{formatCurrency(sale.totalAmount)}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.products}</p>
+                                        <p className="mt-1 font-semibold text-slate-700">{sale.saleLines.length}</p>
+                                      </div>
+                                      <span className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-3 text-sm font-black text-[#B63B32]">
+                                        <Eye className="h-4 w-4" />
+                                        {t.actions.viewSale}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="px-5 py-8 text-center text-sm font-semibold text-slate-500">{t.saleHistory.empty}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -749,6 +1109,83 @@ export default function Postventa() {
           </div>
         </div>
       )}
+
+      <Dialog open={Boolean(selectedSale)} onOpenChange={(open) => !open && setSelectedSale(null)}>
+        <DialogContent className={cn(postSaleModalStyles.content, 'max-h-[90vh] max-w-4xl')} closeButtonClassName={postSaleModalStyles.close}>
+          <DialogHeader className={postSaleModalStyles.header}>
+            <DialogTitle className={postSaleModalStyles.title}>
+              <History className={cn('h-5 w-5', postSaleModalStyles.icon)} />
+              {t.saleDetail.title}
+            </DialogTitle>
+            <DialogDescription className={postSaleModalStyles.description}>{t.saleDetail.description}</DialogDescription>
+          </DialogHeader>
+          <div className={cn(postSaleModalStyles.body, 'space-y-5')}>
+            <section className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.saleReference}</p>
+                <p className="mt-2 font-black text-slate-950">{selectedSale?.saleNumber}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.quoteReference}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.total}</p>
+                <p className="mt-2 font-black text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0)}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.currency}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.status}</p>
+                <p className="mt-2 font-black text-slate-950">{selectedSale?.commercialStatus}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.financeStatus} · {selectedSale?.inventoryStatus}</p>
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <p className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.lines}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.product}</TableHead>
+                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.quantity}</TableHead>
+                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.unitPrice}</TableHead>
+                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.margin}</TableHead>
+                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.warehouse}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedSale?.saleLines.map((line) => (
+                      <TableRow key={line.id}>
+                        <TableCell className="px-5 py-4">
+                          <p className="font-black text-slate-950">{line.productName}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">{line.sku}</p>
+                        </TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.quantity}</TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.unitPrice)}</TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.marginAmount)}</TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.warehouseId}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4 text-sm font-semibold leading-6 text-[#B63B32]">
+              {selectedSale?.notes || t.common.notAvailable}
+            </section>
+          </div>
+          <DialogFooter className={postSaleModalStyles.footer}>
+            {selectedSale ? (
+              <Button variant="outline" className={postSaleModalStyles.secondaryButton} onClick={() => openSaleSummaryPdf(selectedSale, t)}>
+                <FileText className="h-4 w-4" />
+                {t.saleDetail.viewPdf}
+              </Button>
+            ) : null}
+            <Button className={postSaleModalStyles.primaryButton} onClick={() => setSelectedSale(null)}>{t.common.close}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isCaseModalOpen} onOpenChange={setIsCaseModalOpen}>
         <DialogContent className={cn(postSaleModalStyles.content, 'max-h-[90vh] max-w-5xl')} closeButtonClassName={postSaleModalStyles.close}>
@@ -808,33 +1245,71 @@ export default function Postventa() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isLostModalOpen} onOpenChange={setIsLostModalOpen}>
+      <Dialog open={Boolean(automationCase)} onOpenChange={(open) => !open && setAutomationCase(null)}>
         <DialogContent className={cn(postSaleModalStyles.content, 'max-w-3xl')} closeButtonClassName={postSaleModalStyles.close}>
           <DialogHeader className={postSaleModalStyles.header}>
             <DialogTitle className={postSaleModalStyles.title}>
-              <RefreshCw className={cn('h-5 w-5', postSaleModalStyles.icon)} />
+              <CalendarPlus className={cn('h-5 w-5', postSaleModalStyles.icon)} />
               {t.forms.lost.title}
             </DialogTitle>
             <DialogDescription className={postSaleModalStyles.description}>{t.forms.lost.description}</DialogDescription>
           </DialogHeader>
-          <div className={cn(postSaleModalStyles.body, 'grid gap-4 md:grid-cols-2')}>
-            <FilterSelect label={t.forms.lost.client} value={lostForm.clientId} onValueChange={(value) => setLostForm((current) => ({ ...current, clientId: value }))} options={contacts.map((contact) => ({ value: contact.id, label: `${contact.company} · ${contact.contactPerson}` }))} />
-            <FilterSelect label={t.forms.lost.opportunity} value={lostForm.relatedOpportunityId} onValueChange={(value) => setLostForm((current) => ({ ...current, relatedOpportunityId: value }))} options={[{ value: 'none', label: t.common.none }, ...opportunities.map((opportunity) => ({ value: opportunity.id, label: opportunity.opportunityName }))]} />
-            <FilterSelect label={t.forms.lost.reason} value={lostForm.lostReason} onValueChange={(value) => setLostForm((current) => ({ ...current, lostReason: value as LostReason }))} options={lostReasons.map((reason) => ({ value: reason, label: t.lostReasonLabels[reason] }))} />
-            <FilterSelect label={t.forms.lost.owner} value={lostForm.owner} onValueChange={(value) => setLostForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.lost.nextFollowUpDate}</label>
-              <Input type="date" value={lostForm.nextFollowUpDate} onChange={(event) => setLostForm((current) => ({ ...current, nextFollowUpDate: event.target.value }))} />
+          <div className={cn(postSaleModalStyles.body, 'space-y-4')}>
+            <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#B63B32]">{t.forms.lost.contextTitle}</p>
+              <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+                <div>
+                  <p className="font-black text-slate-950">{automationCase?.clientName}</p>
+                  <p className="mt-1 font-semibold text-slate-500">{automationCase?.contactPerson}</p>
+                </div>
+                <div>
+                  <p className="font-black text-slate-950">{automationCase?.lastPurchaseDate ?? t.common.notAvailable}</p>
+                  <p className="mt-1 font-semibold text-slate-500">{t.table.columns.lastPurchase}</p>
+                </div>
+                <div>
+                  <p className="font-black text-slate-950">{formatCurrency(automationCase?.sales[0]?.totalAmount ?? 0)}</p>
+                  <p className="mt-1 font-semibold text-slate-500">{automationCase?.sales[0]?.saleNumber ?? t.common.notAvailable}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-sm font-semibold leading-6 text-[#B63B32]">{t.forms.lost.contextDescription}</p>
+            </section>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <FilterSelect label={t.forms.lost.timing} value={automationForm.delay} onValueChange={handleAutomationDelayChange} options={[
+                { value: '30', label: t.forms.lost.schedule30 },
+                { value: '60', label: t.forms.lost.schedule60 },
+                { value: '90', label: t.forms.lost.schedule90 },
+                { value: '180', label: t.forms.lost.schedule180 },
+                { value: 'custom', label: t.forms.lost.scheduleCustom },
+              ]} />
+              <FilterSelect label={t.forms.lost.owner} value={automationForm.owner} onValueChange={(value) => setAutomationForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">{t.forms.lost.scheduledDate}</label>
+                <Input type="date" value={automationForm.scheduledDate} onChange={(event) => setAutomationForm((current) => ({ ...current, delay: 'custom', scheduledDate: event.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">{t.forms.lost.expectedCloseDate}</label>
+                <Input type="date" value={automationForm.expectedCloseDate} onChange={(event) => setAutomationForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-bold text-slate-700">{t.forms.lost.opportunityName}</label>
+                <Input value={automationForm.opportunityName} onChange={(event) => setAutomationForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.lost.opportunityNamePlaceholder} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-bold text-slate-700">{t.forms.lost.notes}</label>
+                <Textarea value={automationForm.notes} onChange={(event) => setAutomationForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.lost.notesPlaceholder} />
+              </div>
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.lost.notes}</label>
-              <Textarea value={lostForm.notes} onChange={(event) => setLostForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.lost.notesPlaceholder} />
+            <div className="space-y-2">
+              <p className="rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 p-3 text-sm font-semibold leading-6 text-[#177d66]">
+                {t.forms.lost.backendReadyNote}
+              </p>
             </div>
           </div>
           <DialogFooter className={postSaleModalStyles.footer}>
-            <Button variant="outline" className={postSaleModalStyles.secondaryButton} onClick={() => setIsLostModalOpen(false)}>{t.common.cancel}</Button>
-            <Button className={postSaleModalStyles.primaryButton} onClick={handleCreateLostFollowUp}>
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="outline" className={postSaleModalStyles.secondaryButton} onClick={() => setAutomationCase(null)}>{t.common.cancel}</Button>
+            <Button className={postSaleModalStyles.primaryButton} onClick={handleCreateAutomatedOpportunity}>
+              <CalendarPlus className="h-4 w-4" />
               {t.forms.lost.submit}
             </Button>
           </DialogFooter>

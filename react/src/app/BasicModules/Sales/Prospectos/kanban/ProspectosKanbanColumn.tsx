@@ -1,11 +1,13 @@
 import type { DragEvent } from 'react';
 import { opportunityStages, type OpportunityStage, type SalesOpportunity } from '../../salesCrmContext';
 import { cn } from '../../../../components/ui/utils';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import { getOpportunityIdFromDragEvent } from '../utils/prospectosFormatters';
-import { stageLabels, stageProgressStyles } from '../utils/prospectosStatus';
+import { stageProgressStyles } from '../utils/prospectosStatus';
 import { ProspectosKanbanCard } from './ProspectosKanbanCard';
 
 export function ProspectosKanbanColumn({
+  copy,
   stage,
   opportunities,
   allOpportunities,
@@ -14,6 +16,7 @@ export function ProspectosKanbanColumn({
   onEdit,
   onStageChange,
 }: {
+  copy: ProspectosCopy;
   stage: OpportunityStage;
   opportunities: SalesOpportunity[];
   allOpportunities: SalesOpportunity[];
@@ -43,7 +46,7 @@ export function ProspectosKanbanColumn({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={cn('h-2.5 w-2.5 rounded-full', stageProgressStyles[stage])} />
-          <h3 className="text-sm font-bold text-slate-950">{stageLabels[stage]}</h3>
+          <h3 className="text-sm font-bold text-slate-950">{copy.options.stages[stage]}</h3>
         </div>
         <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 shadow-sm">
           {opportunities.length}
@@ -52,12 +55,12 @@ export function ProspectosKanbanColumn({
 
       <div className="space-y-3">
         {opportunities.map((opportunity) => (
-          <ProspectosKanbanCard key={opportunity.id} opportunity={opportunity} onOpenFiles={onOpenFiles} onOpenHistory={onOpenHistory} onEdit={onEdit} />
+          <ProspectosKanbanCard key={opportunity.id} copy={copy} opportunity={opportunity} onOpenFiles={onOpenFiles} onOpenHistory={onOpenHistory} onEdit={onEdit} />
         ))}
 
         {opportunities.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-10 text-center text-sm font-medium text-slate-400">
-            Arrastra oportunidades aquí
+            {copy.kanban.emptyColumn}
           </div>
         ) : null}
       </div>
@@ -66,4 +69,3 @@ export function ProspectosKanbanColumn({
 }
 
 export { opportunityStages };
-

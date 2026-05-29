@@ -1,3 +1,5 @@
+import type { SalesAvailabilityStatus } from './salesWorkflow';
+
 export type QuoteStatus = 'Draft' | 'Sent' | 'Viewed' | 'Negotiation' | 'Approved' | 'Rejected' | 'Expired' | 'Closed Won';
 
 export type SalesQuoteItem = {
@@ -8,8 +10,16 @@ export type SalesQuoteItem = {
   section: string;
   quantity: number;
   unitPrice: number;
+  unitCost?: number;
   discountPercent: number;
   taxPercent: number;
+  subtotal?: number;
+  marginAmount?: number;
+  businessUnitId?: string;
+  businessId?: string;
+  warehouseId?: string;
+  suggestedWarehouseId?: string;
+  availabilityStatus?: SalesAvailabilityStatus;
   taxCode?: string;
   taxLabel?: string;
   taxJurisdiction?: string;

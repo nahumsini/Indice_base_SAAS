@@ -132,7 +132,7 @@ export const enCA = {
     title: 'Inventory stock table',
     description: 'Available stock, locations, stock status and movement readiness by item.',
     empty: 'No inventory items match the current filters.',
-    packageWarning: 'Package stock may depend on component availability. Backend logic pending.',
+    packageWarning: 'Package stock may depend on component availability. This validation will be connected in a later phase.',
     noInventoryEmpty: 'Enable inventory tracking on products to start managing stock.',
     columns: {
       item: 'Item',
@@ -207,7 +207,7 @@ export const enCA = {
     responsible: 'Responsible',
     helper: 'Use movements to keep stock changes clear and traceable.',
     submit: 'Record movement',
-    success: 'Movement prepared locally.',
+    success: 'Movement prepared for inventory review.',
     validation: {
       item: 'Select an item.',
       quantity: 'Enter a quantity greater than zero.',

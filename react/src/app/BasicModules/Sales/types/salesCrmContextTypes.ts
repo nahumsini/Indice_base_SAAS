@@ -10,6 +10,7 @@ import type { SalesOpportunity } from './opportunities';
 import type { SalesPostSaleCase, PostSaleStatus } from './postSales';
 import type { SalesCatalogItem } from './products';
 import type { SalesQuote, QuoteStatus } from './quotes';
+import type { SaleRecord } from '../Sales/types/salesTypes';
 
 export type CreateContactInput = Omit<SalesContact, 'id'>;
 export type UpdateContactInput = Partial<Omit<SalesContact, 'id'>>;
@@ -29,6 +30,7 @@ export type SalesCrmContextValue = {
   opportunities: SalesOpportunity[];
   products: SalesCatalogItem[];
   quotes: SalesQuote[];
+  salesRecords: SaleRecord[];
   postSaleCases: SalesPostSaleCase[];
   contracts: DigitalContract[];
   addContact: (contact: CreateContactInput) => SalesContact;
@@ -41,6 +43,8 @@ export type SalesCrmContextValue = {
   updateProduct: (productId: string, patch: UpdateProductInput) => void;
   addQuote: (quote: CreateQuoteInput) => SalesQuote;
   updateQuote: (quoteId: string, patch: UpdateQuoteInput) => void;
+  addSaleRecord: (saleRecord: SaleRecord) => void;
+  updateSaleRecord: (saleId: string, patch: Partial<SaleRecord>) => void;
   addPostSaleCase: (postSaleCase: CreatePostSaleCaseInput) => SalesPostSaleCase;
   addContract: (contract: CreateDigitalContractInput) => DigitalContract;
   updateQuoteStatus: (quoteId: string, status: QuoteStatus) => void;

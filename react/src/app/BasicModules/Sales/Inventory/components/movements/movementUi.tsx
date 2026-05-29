@@ -27,7 +27,7 @@ export const movementStatusTone = {
 
 export function MovementFlow({ movement }: { movement: InventoryOperationalMovement }) {
   return (
-    <div className="min-w-[260px] rounded-2xl border border-slate-200 bg-white p-3">
+    <div className="min-w-[260px] rounded-lg border border-slate-200 bg-white p-3">
       <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
         {movement.fromWarehouseName ?? 'System'}
       </span>
@@ -87,16 +87,16 @@ export function MovementActions({
 }) {
   const isCancelled = movement.status === 'cancelled';
   const actions = [
-    { icon: <Pencil className="h-4 w-4" />, title: t.operational.actions.edit, className: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50', onClick: () => onEdit(movement), disabled: isCancelled },
+    { icon: <Pencil className="h-4 w-4" />, title: t.operational.actions.edit, className: 'border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20 disabled:opacity-50', onClick: () => onEdit(movement), disabled: isCancelled },
     { icon: <Printer className="h-4 w-4" />, title: t.operational.actions.print, className: 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100', onClick: () => onPrint(movement), disabled: false },
     { icon: <Radar className="h-4 w-4" />, title: t.operational.actions.track, className: 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100', onClick: () => onTrack(movement), disabled: false },
     { icon: <Ban className="h-4 w-4" />, title: t.operational.actions.cancelMovement, className: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50', onClick: () => onCancel(movement), disabled: isCancelled },
   ];
 
   return (
-    <div className="flex justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2">
+    <div className="flex justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
       {actions.map((action) => (
-        <Button key={action.title} size="icon" variant="ghost" className={`h-9 w-9 rounded-xl border ${action.className}`} title={action.title} disabled={action.disabled} onClick={action.onClick}>
+        <Button key={action.title} size="icon" variant="ghost" className={`h-9 w-9 rounded-lg border ${action.className}`} title={action.title} disabled={action.disabled} onClick={action.onClick}>
           {action.icon}
         </Button>
       ))}

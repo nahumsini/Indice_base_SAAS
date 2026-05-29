@@ -62,8 +62,11 @@ import {
 } from '../utils/salesOwnerOptions';
 import { normalizeTextKey } from '../utils/salesTextUtils';
 import { ContactFiscalBadge } from './components/ContactFiscalBadge';
+import { ContactLearningGuide } from './components/ContactLearningGuide';
 import { ImportContactsModal } from './components/ImportContactsModal';
 import { ContactRelationshipSignal } from './components/ContactRelationshipSignal';
+import { useContactLearningCopy } from './translations/contactLearning';
+import { useContactTranslations } from './translations/contactTranslations';
 import { getContactFiscalSignal, getContactRelationshipSignal } from './utils/contactTableSignals';
 import type { ImportedContactDraft } from './utils/contactImportUtils';
 
@@ -98,6 +101,10 @@ type ContactFormState = {
   fiscalRegime: string;
   fiscalNotes: string;
 };
+
+interface ContactosProps {
+  learningModeActive?: boolean;
+}
 
 type FiscalCountryOption = {
   value: string;
@@ -293,7 +300,9 @@ function ContactActionButton({
   );
 }
 
-export default function Contactos() {
+export default function Contactos({ learningModeActive = false }: ContactosProps) {
+  const t = useContactTranslations();
+  const learningCopy = useContactLearningCopy();
   const { contacts, opportunities, quotes, addContact, updateContact, deleteContact } = useSalesCrm();
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -377,7 +386,14 @@ export default function Contactos() {
   const defaultOwnerValue = currentUserCompanyId
     ? `user-company:${currentUserCompanyId}`
     : ownerSelectOptions[0]?.value ?? fallbackOwnerValue(initialContactForm.owner);
-  const fiscalCopy = getFiscalCountryCopy(form.fiscalCountry);
+  const localizedFiscalCountryOptions = useMemo(
+    () => fiscalCountryOptions.map((country) => ({
+      value: country.value,
+      ...t.fiscalCountries[country.value as keyof typeof t.fiscalCountries],
+    })),
+    [t.fiscalCountries],
+  );
+  const fiscalCopy = localizedFiscalCountryOptions.find((option) => option.value === form.fiscalCountry) ?? localizedFiscalCountryOptions[0] ?? getFiscalCountryCopy(form.fiscalCountry);
 
   const getOwnerPayloadFromValue = (value: string) => {
     const userCompanyId = getOwnerUserCompanyIdFromValue(value);
@@ -499,7 +515,7 @@ export default function Contactos() {
   };
 
   const handleDeleteContact = (contact: SalesContact) => {
-    const shouldDelete = window.confirm(`¿Eliminar el contacto ${contact.contactPerson}?`);
+    const shouldDelete = window.confirm(t.actions.deleteConfirm(contact.contactPerson));
     if (!shouldDelete) {
       return;
     }
@@ -558,16 +574,16 @@ export default function Contactos() {
       }
 
       addContact({
-        company: draft.company.trim() || 'Contacto importado',
-        contactPerson: draft.contactPerson.trim() || draft.company.trim() || 'Contacto importado',
-        role: draft.role.trim() || 'Contacto comercial',
+        company: draft.company.trim() || t.defaults.importedCompany,
+        contactPerson: draft.contactPerson.trim() || draft.company.trim() || t.defaults.importedPerson,
+        role: draft.role.trim() || t.defaults.commercialContact,
         phone: draft.phone.trim(),
         email: draft.email.trim(),
         source: 'Manual',
         ownerUserCompanyId: ownerPayload.ownerUserCompanyId,
         owner: ownerPayload.owner,
-        tags: ['Importado'],
-        notes: draft.notes.trim() || 'Importado desde contactos del teléfono o archivo.',
+        tags: [t.defaults.importedTag],
+        notes: draft.notes.trim() || t.defaults.importedNote,
         fiscalCountry: fallbackFiscalCountry.value,
         fiscalLegalName: '',
         fiscalTaxId: '',
@@ -596,7 +612,7 @@ export default function Contactos() {
     const contactPayload = {
       company: form.company.trim(),
       contactPerson: form.contactPerson.trim(),
-      role: form.role.trim() || 'Contacto comercial',
+      role: form.role.trim() || t.defaults.commercialContact,
       phone: form.phone.trim(),
       email: form.email.trim(),
       source: form.source,
@@ -636,10 +652,10 @@ export default function Contactos() {
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900">
               <span className="text-2xl leading-none" aria-hidden="true">👥</span>
-              Contactos
+              {t.header.title}
             </h2>
             <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600">
-              Directorio comercial base para ligar clientes, datos fiscales y oportunidades de venta.
+              {t.header.subtitle}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -650,7 +666,7 @@ export default function Contactos() {
               onClick={() => setIsImportModalOpen(true)}
             >
               <UploadCloud className="h-4 w-4" />
-              Importar contactos
+              {t.header.importContacts}
             </Button>
             <Button
               type="button"
@@ -658,11 +674,13 @@ export default function Contactos() {
               onClick={handleOpenCreateContact}
             >
               <Plus className="h-4 w-4" />
-              Agregar contacto
+              {t.header.addContact}
             </Button>
           </div>
         </div>
       </section>
+
+      {learningModeActive ? <ContactLearningGuide copy={learningCopy} /> : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
@@ -671,12 +689,12 @@ export default function Contactos() {
             <Input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Buscar contacto, empresa, teléfono, email, responsable o dato fiscal"
+              placeholder={t.search.placeholder}
               className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
-            <span>Contactos visibles</span>
+            <span>{t.search.visibleContacts}</span>
             <span className="font-bold text-slate-950">{sortedContacts.length}</span>
           </div>
         </div>
@@ -686,16 +704,16 @@ export default function Contactos() {
         <Table className="min-w-[1660px]">
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50">
-              {renderSortableHead('contact', 'Contacto')}
-              {renderSortableHead('company', 'Empresa')}
-              {renderSortableHead('phone', 'Teléfono')}
-              {renderSortableHead('email', 'Email')}
-              {renderSortableHead('source', 'Origen')}
-              {renderSortableHead('owner', 'Responsable')}
-              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Relación</TableHead>
-              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Fiscal</TableHead>
-              {renderSortableHead('notes', 'Notas')}
-              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Acciones</TableHead>
+              {renderSortableHead('contact', t.table.columns.contact)}
+              {renderSortableHead('company', t.table.columns.company)}
+              {renderSortableHead('phone', t.table.columns.phone)}
+              {renderSortableHead('email', t.table.columns.email)}
+              {renderSortableHead('source', t.table.columns.source)}
+              {renderSortableHead('owner', t.table.columns.owner)}
+              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.table.columns.relationship}</TableHead>
+              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.table.columns.fiscal}</TableHead>
+              {renderSortableHead('notes', t.table.columns.notes)}
+              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.table.columns.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -703,9 +721,9 @@ export default function Contactos() {
               <TableRow>
                 <TableCell colSpan={10} className="px-5 py-12 text-center">
                   <div className="mx-auto max-w-md space-y-2">
-                    <p className="text-sm font-bold text-slate-900">No contacts found</p>
+                    <p className="text-sm font-bold text-slate-900">{t.table.emptyTitle}</p>
                     <p className="text-sm text-slate-500">
-                      Try another search or add a new contact to start building the commercial directory.
+                      {t.table.emptyDescription}
                     </p>
                   </div>
                 </TableCell>
@@ -714,7 +732,7 @@ export default function Contactos() {
               const ownerValue = getContactOwnerSelectValue(contact, ownerOptions);
               const rowOwnerOptions = ownerSelectOptions.some((owner) => owner.value === ownerValue)
                 ? ownerSelectOptions
-                : [{ value: ownerValue, label: contact.owner || 'Sin responsable' }, ...ownerSelectOptions];
+                : [{ value: ownerValue, label: contact.owner || t.defaults.unassignedOwner }, ...ownerSelectOptions];
               const hasPhone = Boolean(contact.phone.trim());
               const hasEmail = Boolean(contact.email.trim());
               const fiscalSignal = getContactFiscalSignal(contact);
@@ -731,27 +749,27 @@ export default function Contactos() {
                   </TableCell>
                   <TableCell className="px-5 py-5 text-sm font-semibold text-slate-900">
                     <div className="min-w-[180px]">
-                      <p className={cn(!contact.company && 'text-slate-400')}>{contact.company || 'No company'}</p>
+                      <p className={cn(!contact.company && 'text-slate-400')}>{contact.company || t.table.noCompany}</p>
                       {contact.fiscalTaxId ? (
                         <p className="mt-1 text-xs font-medium text-slate-500">{contact.fiscalTaxId}</p>
                       ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="px-5 py-5 text-sm text-slate-700">
-                    <span className={cn(!hasPhone && 'font-medium text-slate-400')}>{hasPhone ? contact.phone : 'No phone'}</span>
+                    <span className={cn(!hasPhone && 'font-medium text-slate-400')}>{hasPhone ? contact.phone : t.table.noPhone}</span>
                   </TableCell>
                   <TableCell className="px-5 py-5 text-sm text-slate-700">
-                    <span className={cn(!hasEmail && 'font-medium text-slate-400')}>{hasEmail ? contact.email : 'No email'}</span>
+                    <span className={cn(!hasEmail && 'font-medium text-slate-400')}>{hasEmail ? contact.email : t.table.noEmail}</span>
                   </TableCell>
                   <TableCell className="px-5 py-5">
                     <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">
-                      {contact.source}
+                      {t.sources[contact.source]}
                     </Badge>
                   </TableCell>
                   <TableCell className="px-5 py-5">
                     <Select value={ownerValue} onValueChange={(value) => handleOwnerChange(contact, value)}>
                       <SelectTrigger className="h-10 min-w-[190px] rounded-full border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-none focus:ring-[#FF6B5E]/20">
-                        <SelectValue placeholder="Responsable" />
+                        <SelectValue placeholder={t.table.ownerPlaceholder} />
                       </SelectTrigger>
                       <SelectContent>
                         {rowOwnerOptions.map((owner) => (
@@ -761,32 +779,32 @@ export default function Contactos() {
                     </Select>
                   </TableCell>
                   <TableCell className="px-5 py-5">
-                    <ContactRelationshipSignal signal={relationshipSignal} />
+                    <ContactRelationshipSignal copy={t.signals.relationship} signal={relationshipSignal} />
                   </TableCell>
                   <TableCell className="px-5 py-5">
-                    <ContactFiscalBadge signal={fiscalSignal} />
+                    <ContactFiscalBadge copy={t.signals.fiscal} signal={fiscalSignal} country={contact.fiscalCountry} />
                   </TableCell>
                   <TableCell className="px-5 py-5">
                     <Textarea
                       value={contact.notes}
                       onChange={(event) => updateContact(contact.id, { notes: event.target.value })}
-                      placeholder="Notas libres del contacto"
+                      placeholder={t.table.notesPlaceholder}
                       className="min-h-[58px] min-w-[260px] resize-none rounded-lg border-slate-200 bg-white text-sm text-slate-800 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
                     />
                   </TableCell>
                   <TableCell className="px-5 py-5">
                     <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
-                      <ContactActionButton label={hasPhone ? `Llamar a ${contact.contactPerson}` : 'No phone available'} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" href={hasPhone ? getPhoneHref(contact.phone) : undefined} disabled={!hasPhone} />
-                      <ContactActionButton label={hasPhone ? `WhatsApp a ${contact.contactPerson}` : 'No phone available'} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" href={hasPhone ? getWhatsAppHref(contact.phone) : undefined} disabled={!hasPhone} />
-                      <ContactActionButton label={hasEmail ? `Email a ${contact.contactPerson}` : 'No email available'} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" href={hasEmail ? `mailto:${contact.email}` : undefined} disabled={!hasEmail} />
+                      <ContactActionButton label={hasPhone ? t.actions.call(contact.contactPerson) : t.actions.noPhone} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" href={hasPhone ? getPhoneHref(contact.phone) : undefined} disabled={!hasPhone} />
+                      <ContactActionButton label={hasPhone ? t.actions.whatsapp(contact.contactPerson) : t.actions.noPhone} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" href={hasPhone ? getWhatsAppHref(contact.phone) : undefined} disabled={!hasPhone} />
+                      <ContactActionButton label={hasEmail ? t.actions.email(contact.contactPerson) : t.actions.noEmail} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" href={hasEmail ? `mailto:${contact.email}` : undefined} disabled={!hasEmail} />
                       <ContactActionButton
-                        label={`Editar ${contact.contactPerson}`}
+                        label={t.actions.edit(contact.contactPerson)}
                         icon={<PencilLine className="h-4 w-4" />}
                         className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                         onClick={() => handleOpenEditContact(contact)}
                       />
                       <ContactActionButton
-                        label={`Eliminar ${contact.contactPerson}`}
+                        label={t.actions.delete(contact.contactPerson)}
                         icon={<Trash2 className="h-4 w-4" />}
                         className="border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] hover:bg-[#FF6B5E]/20"
                         onClick={() => handleDeleteContact(contact)}
@@ -805,118 +823,119 @@ export default function Contactos() {
           <DialogHeader className={cn(contactModalStyles.header, 'shrink-0')}>
             <DialogTitle className={contactModalStyles.title}>
               <UsersRound className="h-6 w-6" />
-              {editingContact ? 'Editar contacto' : 'Agregar contacto'}
+              {editingContact ? t.modal.editTitle : t.modal.createTitle}
             </DialogTitle>
             <DialogDescription className={contactModalStyles.description}>
-              Captura la información comercial y fiscal base para futuras oportunidades, cotizaciones y facturación.
+              {t.modal.description}
             </DialogDescription>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
             <section className="space-y-4">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Información comercial</h3>
-                <p className="mt-1 text-sm text-slate-500">Datos de relación y seguimiento del contacto.</p>
+                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">{t.modal.commercialTitle}</h3>
+                <p className="mt-1 text-sm text-slate-500">{t.modal.commercialDescription}</p>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <ContactFormField label="Empresa / cliente">
-                  <Input value={form.company} onChange={(event) => setForm((current) => ({ ...current, company: event.target.value }))} placeholder="Nombre comercial o razón social" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.company}>
+                  <Input value={form.company} onChange={(event) => setForm((current) => ({ ...current, company: event.target.value }))} placeholder={t.modal.placeholders.company} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Persona de contacto">
-                  <Input value={form.contactPerson} onChange={(event) => setForm((current) => ({ ...current, contactPerson: event.target.value }))} placeholder="Nombre de la persona" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.contactPerson}>
+                  <Input value={form.contactPerson} onChange={(event) => setForm((current) => ({ ...current, contactPerson: event.target.value }))} placeholder={t.modal.placeholders.contactPerson} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Cargo / rol">
-                  <Input value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))} placeholder="Compras, dirección, operaciones..." className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.role}>
+                  <Input value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))} placeholder={t.modal.placeholders.role} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Teléfono">
-                  <Input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} placeholder="+52 81 0000 0000" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.phone}>
+                  <Input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} placeholder={t.modal.placeholders.phone} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Email">
-                  <Input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="correo@empresa.com" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.email}>
+                  <Input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder={t.modal.placeholders.email} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Origen">
+                <ContactFormField label={t.modal.fields.source}>
                   <Select value={form.source} onValueChange={(value) => setForm((current) => ({ ...current, source: value as OpportunitySource }))}>
-                    <SelectTrigger className={contactSelectClassName}><SelectValue placeholder="Origen" /></SelectTrigger>
-                    <SelectContent>{opportunitySources.map((source) => <SelectItem key={source} value={source}>{source}</SelectItem>)}</SelectContent>
+                    <SelectTrigger className={contactSelectClassName}><SelectValue placeholder={t.modal.placeholders.source} /></SelectTrigger>
+                    <SelectContent>{opportunitySources.map((source) => <SelectItem key={source} value={source}>{t.sources[source]}</SelectItem>)}</SelectContent>
                   </Select>
                 </ContactFormField>
-                <ContactFormField label="Responsable">
+                <ContactFormField label={t.modal.fields.owner}>
                   <Select value={form.ownerValue || defaultOwnerValue} onValueChange={handleFormOwnerChange}>
-                    <SelectTrigger className={contactSelectClassName}><SelectValue placeholder="Responsable" /></SelectTrigger>
+                    <SelectTrigger className={contactSelectClassName}><SelectValue placeholder={t.modal.placeholders.owner} /></SelectTrigger>
                     <SelectContent>
                       {ownerSelectOptions.map((owner) => <SelectItem key={owner.value} value={owner.value}>{owner.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </ContactFormField>
-                <ContactFormField label="Notas comerciales" className="md:col-span-2">
-                  <Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Contexto, preferencias, origen de la relación o próximos pasos." className="min-h-24 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
+                <ContactFormField label={t.modal.fields.notes} className="md:col-span-2">
+                  <Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.modal.placeholders.notes} className="min-h-24 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
                 </ContactFormField>
               </div>
             </section>
 
             <section className="space-y-4 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-[#B63B32]">Datos fiscales</h3>
+                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-[#B63B32]">{t.modal.fiscalTitle}</h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  Base fiscal preparada para México, Canadá, Colombia, Estados Unidos y Brasil.
+                  {t.modal.fiscalDescription}
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <ContactFormField label="País fiscal">
+                <ContactFormField label={t.modal.fields.fiscalCountry}>
                   <Select value={form.fiscalCountry} onValueChange={(value) => setForm((current) => ({ ...current, fiscalCountry: value }))}>
-                    <SelectTrigger className={contactSelectClassName}><SelectValue placeholder="País fiscal" /></SelectTrigger>
+                    <SelectTrigger className={contactSelectClassName}><SelectValue placeholder={t.modal.placeholders.fiscalCountry} /></SelectTrigger>
                     <SelectContent>
-                      {fiscalCountryOptions.map((country) => <SelectItem key={country.value} value={country.value}>{country.label}</SelectItem>)}
+                      {localizedFiscalCountryOptions.map((country) => <SelectItem key={country.value} value={country.value}>{country.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </ContactFormField>
-                <ContactFormField label="Razón social / nombre fiscal">
-                  <Input value={form.fiscalLegalName} onChange={(event) => setForm((current) => ({ ...current, fiscalLegalName: event.target.value }))} placeholder="Razón social para documentos fiscales" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.fiscalLegalName}>
+                  <Input value={form.fiscalLegalName} onChange={(event) => setForm((current) => ({ ...current, fiscalLegalName: event.target.value }))} placeholder={t.modal.placeholders.fiscalLegalName} className={contactInputClassName} />
                 </ContactFormField>
                 <ContactFormField label={fiscalCopy.taxIdLabel}>
-                  <Input value={form.fiscalTaxId} onChange={(event) => setForm((current) => ({ ...current, fiscalTaxId: event.target.value }))} placeholder="Identificación fiscal principal" className={contactInputClassName} />
+                  <Input value={form.fiscalTaxId} onChange={(event) => setForm((current) => ({ ...current, fiscalTaxId: event.target.value }))} placeholder={t.modal.placeholders.fiscalTaxId} className={contactInputClassName} />
                 </ContactFormField>
                 <ContactFormField label={fiscalCopy.registryLabel}>
-                  <Input value={form.fiscalRegistryId} onChange={(event) => setForm((current) => ({ ...current, fiscalRegistryId: event.target.value }))} placeholder="Registro corporativo o autoridad fiscal" className={contactInputClassName} />
+                  <Input value={form.fiscalRegistryId} onChange={(event) => setForm((current) => ({ ...current, fiscalRegistryId: event.target.value }))} placeholder={t.modal.placeholders.fiscalRegistryId} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Dirección fiscal">
-                  <Input value={form.fiscalAddressLine1} onChange={(event) => setForm((current) => ({ ...current, fiscalAddressLine1: event.target.value }))} placeholder="Calle, número, colonia o suite" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.fiscalAddressLine1}>
+                  <Input value={form.fiscalAddressLine1} onChange={(event) => setForm((current) => ({ ...current, fiscalAddressLine1: event.target.value }))} placeholder={t.modal.placeholders.fiscalAddressLine1} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Complemento de dirección">
-                  <Input value={form.fiscalAddressLine2} onChange={(event) => setForm((current) => ({ ...current, fiscalAddressLine2: event.target.value }))} placeholder="Interior, piso, referencia" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.fiscalAddressLine2}>
+                  <Input value={form.fiscalAddressLine2} onChange={(event) => setForm((current) => ({ ...current, fiscalAddressLine2: event.target.value }))} placeholder={t.modal.placeholders.fiscalAddressLine2} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Ciudad">
-                  <Input value={form.fiscalCity} onChange={(event) => setForm((current) => ({ ...current, fiscalCity: event.target.value }))} placeholder="Ciudad" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.fiscalCity}>
+                  <Input value={form.fiscalCity} onChange={(event) => setForm((current) => ({ ...current, fiscalCity: event.target.value }))} placeholder={t.modal.placeholders.fiscalCity} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Estado / provincia">
-                  <Input value={form.fiscalState} onChange={(event) => setForm((current) => ({ ...current, fiscalState: event.target.value }))} placeholder="Estado, provincia o departamento" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.fiscalState}>
+                  <Input value={form.fiscalState} onChange={(event) => setForm((current) => ({ ...current, fiscalState: event.target.value }))} placeholder={t.modal.placeholders.fiscalState} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Código postal">
-                  <Input value={form.fiscalPostalCode} onChange={(event) => setForm((current) => ({ ...current, fiscalPostalCode: event.target.value }))} placeholder="Código postal" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.fiscalPostalCode}>
+                  <Input value={form.fiscalPostalCode} onChange={(event) => setForm((current) => ({ ...current, fiscalPostalCode: event.target.value }))} placeholder={t.modal.placeholders.fiscalPostalCode} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Email fiscal">
-                  <Input value={form.fiscalEmail} onChange={(event) => setForm((current) => ({ ...current, fiscalEmail: event.target.value }))} placeholder="facturacion@empresa.com" className={contactInputClassName} />
+                <ContactFormField label={t.modal.fields.fiscalEmail}>
+                  <Input value={form.fiscalEmail} onChange={(event) => setForm((current) => ({ ...current, fiscalEmail: event.target.value }))} placeholder={t.modal.placeholders.fiscalEmail} className={contactInputClassName} />
                 </ContactFormField>
                 <ContactFormField label={fiscalCopy.regimeLabel}>
-                  <Input value={form.fiscalRegime} onChange={(event) => setForm((current) => ({ ...current, fiscalRegime: event.target.value }))} placeholder="Régimen, clasificación o responsabilidad" className={contactInputClassName} />
+                  <Input value={form.fiscalRegime} onChange={(event) => setForm((current) => ({ ...current, fiscalRegime: event.target.value }))} placeholder={t.modal.placeholders.fiscalRegime} className={contactInputClassName} />
                 </ContactFormField>
-                <ContactFormField label="Notas fiscales" className="md:col-span-2">
-                  <Textarea value={form.fiscalNotes} onChange={(event) => setForm((current) => ({ ...current, fiscalNotes: event.target.value }))} placeholder="Condiciones fiscales, requisitos de facturación, uso fiscal o notas para integración futura." className="min-h-20 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
+                <ContactFormField label={t.modal.fields.fiscalNotes} className="md:col-span-2">
+                  <Textarea value={form.fiscalNotes} onChange={(event) => setForm((current) => ({ ...current, fiscalNotes: event.target.value }))} placeholder={t.modal.placeholders.fiscalNotes} className="min-h-20 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
                 </ContactFormField>
               </div>
             </section>
           </div>
 
           <DialogFooter className={cn(contactModalStyles.footer, 'shrink-0')}>
-            <Button variant="outline" className={contactModalStyles.secondaryButton} onClick={() => handleContactModalOpenChange(false)}>Cancelar</Button>
+            <Button variant="outline" className={contactModalStyles.secondaryButton} onClick={() => handleContactModalOpenChange(false)}>{t.modal.cancel}</Button>
             <Button className={contactModalStyles.primaryButton} onClick={handleSaveContact}>
-              {editingContact ? 'Guardar cambios' : 'Guardar contacto'}
+              {editingContact ? t.modal.saveChanges : t.modal.saveContact}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <ImportContactsModal
+        copy={t.importModal}
         isOpen={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
         onImportContacts={handleImportContacts}
