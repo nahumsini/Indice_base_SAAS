@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
 import {
@@ -43,7 +44,8 @@ import { sortOpportunities } from './utils/prospectosMetrics';
 import { initialOpportunityForm } from './utils/prospectosStatus';
 
 export default function Prospectos() {
-  const { contacts, opportunities, addOpportunity, updateOpportunity, deleteOpportunity } = useSalesCrm();
+  const { contacts, opportunities, quotes, addOpportunity, updateOpportunity, deleteOpportunity } = useSalesCrm();
+  const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<SalesOpportunity | null>(null);
   const [filesOpportunity, setFilesOpportunity] = useState<SalesOpportunity | null>(null);
@@ -130,9 +132,11 @@ export default function Prospectos() {
     const companyOwnerOptions = ownerOptions.map((owner) => ({ value: ownerOptionValue(owner), label: owner.name }));
     const fallbackOwnerNames = [...salesOwners, ...contacts.map((contact) => contact.owner), ...opportunities.map((opportunity) => opportunity.owner)]
       .filter((owner, index, owners) => owner && owners.findIndex((candidate) => normalizeTextKey(candidate) === normalizeTextKey(owner)) === index);
-    const fallbackOwnerOptions = fallbackOwnerNames.map((owner) => ({ value: fallbackOwnerValue(owner), label: owner }));
+    const fallbackOwnerOptions = fallbackOwnerNames
+      .map((owner) => ({ value: fallbackOwnerValue(owner), label: owner }))
+      .filter((option) => !companyOwnerOptions.some((owner) => normalizeTextKey(owner.label) === normalizeTextKey(option.label)));
 
-    return companyOwnerOptions.length > 0 ? companyOwnerOptions : fallbackOwnerOptions;
+    return [...companyOwnerOptions, ...fallbackOwnerOptions];
   }, [contacts, opportunities, ownerOptions]);
 
   const ownerNameByValue = useMemo(
@@ -193,8 +197,8 @@ export default function Prospectos() {
   });
 
   const tableOpportunities = useMemo(
-    () => sortOpportunities(filteredOpportunities, sortState),
-    [filteredOpportunities, sortState],
+    () => sortOpportunities(filteredOpportunities, sortState, quotes),
+    [filteredOpportunities, quotes, sortState],
   );
 
   const metrics = useProspectosMetrics(filteredOpportunities);
@@ -257,6 +261,10 @@ export default function Prospectos() {
     setIsCreateOpen(true);
   };
 
+  const handleOpenCreateQuote = () => {
+    navigate('/sales/quotes?create=quote');
+  };
+
   const handleOpenEditOpportunity = (opportunity: SalesOpportunity) => {
     setEditingOpportunity(opportunity);
     setForm({
@@ -281,7 +289,12 @@ export default function Prospectos() {
   };
 
   const handleDeleteOpportunity = (opportunity: SalesOpportunity) => {
-    const shouldDelete = window.confirm(`¿Eliminar la oportunidad ${opportunity.opportunityName}?`);
+    const linkedQuotesCount = quotes.filter((quote) => quote.opportunityId === opportunity.id).length;
+    const shouldDelete = window.confirm(
+      linkedQuotesCount > 0
+        ? `¿Eliminar la oportunidad ${opportunity.opportunityName}? Tiene ${linkedQuotesCount} cotización(es) ligada(s).`
+        : `¿Eliminar la oportunidad ${opportunity.opportunityName}?`,
+    );
     if (!shouldDelete) {
       return;
     }
@@ -331,7 +344,7 @@ export default function Prospectos() {
       nextActionDate: form.nextActionDate,
       lastContact: form.lastContact,
       files: form.files.split(',').map((file) => file.trim()).filter(Boolean),
-      status: form.status,
+      status: getOpportunityStatusForStage(form.stage, form.status),
       notes: form.notes.trim(),
     };
 
@@ -359,6 +372,7 @@ export default function Prospectos() {
     <section className="space-y-5">
       <ProspectosHeader
         onOpenColumns={() => setIsColumnsModalOpen(true)}
+        onCreateQuote={handleOpenCreateQuote}
         onCreateOpportunity={handleOpenCreateOpportunity}
       />
 
@@ -398,6 +412,7 @@ export default function Prospectos() {
       {activeView === 'table' ? (
         <ProspectosTable
           opportunities={tableOpportunities}
+          quotes={quotes}
           visibleColumns={visibleColumns}
           tableMinWidth={tableMinWidth}
           sortState={sortState}
@@ -467,4 +482,3 @@ export default function Prospectos() {
     </section>
   );
 }
-

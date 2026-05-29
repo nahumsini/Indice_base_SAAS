@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useGastosTranslations } from '../../hooks/useGastosTranslations';
-import { useDeferredTabChange } from '../../hooks/useDeferredTabChange';
+import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { mockExpenses } from './data/expenses.mock';
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
@@ -22,9 +22,32 @@ interface ExpensesModuleProps {
 
 type TabId = 'expenses' | 'budgets' | 'providers' | 'kpis' | 'accounting' | 'payment_accounts';
 
+const expenseTabIds = [
+  'expenses',
+  'budgets',
+  'providers',
+  'accounting',
+  'payment_accounts',
+  'kpis',
+] as const satisfies readonly TabId[];
+
+const legacyExpenseTabAliases: Partial<Record<string, TabId>> = {
+  gastos: 'expenses',
+  presupuestos: 'budgets',
+  proveedores: 'providers',
+  contabilidad: 'accounting',
+  cuentas_contables: 'accounting',
+  cuentasPago: 'payment_accounts',
+  cuentas_pago: 'payment_accounts',
+};
+
 export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
   const t = useGastosTranslations();
-  const [activeTab, setActiveTab] = useState<TabId>('expenses');
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<TabId>(
+    'expenses',
+    expenseTabIds,
+    legacyExpenseTabAliases,
+  );
   const [providers, setProviders] = useState<ProviderRecord[]>(mockProviderRecords);
   const [expenses, setExpenses] = useState<Expense[]>(() =>
     [
@@ -63,8 +86,6 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       }, mockExpenses.length + 4),
     ],
   );
-  const { changeTab, isTabLoading } = useDeferredTabChange<TabId>(activeTab, setActiveTab);
-
   const tabs = [
     { id: 'expenses' as TabId, label: t.tabs.gastos, emoji: '💰' },
     { id: 'budgets' as TabId, label: t.tabs.presupuestos, emoji: '📋' },
@@ -106,10 +127,10 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
           {/* Favorites Bar */}
           <FavoritesBar 
             onNavigate={(page) => {
-              if (page === 'gastos') return; // Already here
+              if (page === 'expenses') return;
               onNavigate(page);
             }} 
-            currentModule="gastos" 
+            currentModule="expenses" 
           />
           
           <div className="flex items-start justify-between">
@@ -135,7 +156,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => changeTab(tab.id)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'

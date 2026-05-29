@@ -6,13 +6,9 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import type { ProductsTranslations } from '../translations';
+import type { ProductCategoryOption } from '../utils/productCategories';
 
 const noCategoriesValue = '__no_categories__';
-
-export type ProductCategoryOption = {
-  value: string;
-  label: string;
-};
 
 type ProductInlineCategorySelectProps = {
   value: string;
@@ -29,12 +25,16 @@ export function ProductInlineCategorySelect({
 }: ProductInlineCategorySelectProps) {
   const hasOptions = options.length > 0;
   const currentValueIsAvailable = options.some((option) => option.value === value);
-  const selectValue = hasOptions && currentValueIsAvailable ? value : noCategoriesValue;
+  const fallbackOption = value.trim() ? { value, label: value } : null;
+  const resolvedOptions = fallbackOption && !currentValueIsAvailable
+    ? [fallbackOption, ...options]
+    : options;
+  const selectValue = resolvedOptions.some((option) => option.value === value) ? value : noCategoriesValue;
 
   return (
     <Select
       value={selectValue}
-      disabled={!hasOptions}
+      disabled={!hasOptions && !fallbackOption}
       onValueChange={(nextValue) => {
         if (nextValue !== noCategoriesValue) {
           onValueChange(nextValue);
@@ -45,12 +45,12 @@ export function ProductInlineCategorySelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {!hasOptions || !currentValueIsAvailable ? (
+        {!hasOptions && !fallbackOption ? (
           <SelectItem value={noCategoriesValue} disabled>
             {t.table.selection.noCategories}
           </SelectItem>
         ) : null}
-        {options.map((option) => (
+        {resolvedOptions.map((option) => (
           <SelectItem key={option.value} value={option.value}>
             {option.label}
           </SelectItem>

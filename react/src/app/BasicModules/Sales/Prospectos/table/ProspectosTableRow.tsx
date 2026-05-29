@@ -13,6 +13,7 @@ import {
   type OpportunityStatus,
   type OpportunityTemperature,
   type SalesOpportunity,
+  type SalesQuote,
 } from '../../salesCrmContext';
 import { Input } from '../../../../components/ui/input';
 import {
@@ -25,14 +26,17 @@ import {
 import { TableCell, TableRow } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
+import { OpportunityQuoteSignalBadge } from '../components/OpportunityQuoteSignalBadge';
 import type { OpportunityColumnId } from '../types/prospectosTypes';
 import {
   formatCurrencyAmount,
+  getOpportunityStatusForStage,
   getOpportunitySchedule,
   normalizeEstimatedValueInput,
   parseMoney,
   toEstimatedValueInputValue,
 } from '../utils/prospectosFormatters';
+import { getOpportunityQuoteSignal } from '../utils/prospectosQuoteSignals';
 import { stageClasses, statusClasses, temperatureClasses } from '../utils/prospectosStatus';
 
 function OpportunityInlineSelect<TValue extends string>({
@@ -134,6 +138,7 @@ function OpportunityScheduleInlineEditor({
 
 export function ProspectosTableRow({
   opportunity,
+  quotes,
   visibleColumns,
   ownerSelectOptions,
   resolveOpportunityOwnerValue,
@@ -146,6 +151,7 @@ export function ProspectosTableRow({
   onScheduleChange,
 }: {
   opportunity: SalesOpportunity;
+  quotes: SalesQuote[];
   visibleColumns: Array<{ id: string }>;
   ownerSelectOptions: Array<{ value: string; label: string }>;
   resolveOpportunityOwnerValue: (opportunity: SalesOpportunity) => string;
@@ -157,6 +163,8 @@ export function ProspectosTableRow({
   onDelete: (opportunity: SalesOpportunity) => void;
   onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
 }) {
+  const quoteSignal = getOpportunityQuoteSignal(opportunity, quotes);
+
   const renderOpportunityCell = (columnId: OpportunityColumnId) => {
     switch (columnId) {
       case 'opportunity':
@@ -186,7 +194,10 @@ export function ProspectosTableRow({
           <OpportunityInlineSelect<OpportunityStage>
             value={opportunity.stage}
             options={opportunityStages}
-            onValueChange={(stage) => onUpdateOpportunity(opportunity.id, { stage })}
+            onValueChange={(stage) => onUpdateOpportunity(opportunity.id, {
+              stage,
+              status: getOpportunityStatusForStage(stage, opportunity.status),
+            })}
             className={stageClasses[opportunity.stage]}
           />
         );
@@ -227,6 +238,8 @@ export function ProspectosTableRow({
             className="text-[#9a6b05]"
           />
         );
+      case 'quoteSignal':
+        return <OpportunityQuoteSignalBadge signal={quoteSignal} />;
       case 'expectedCloseDate':
         return (
           <Input
@@ -288,4 +301,3 @@ export function ProspectosTableRow({
     </TableRow>
   );
 }
-

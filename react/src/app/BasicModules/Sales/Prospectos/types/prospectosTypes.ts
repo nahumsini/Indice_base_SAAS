@@ -21,6 +21,7 @@ export type OpportunityColumnId =
   | 'owner'
   | 'estimatedValue'
   | 'probability'
+  | 'quoteSignal'
   | 'expectedCloseDate'
   | 'nextAction'
   | 'nextActionDate'
@@ -68,4 +69,3 @@ export type OpportunityFormState = {
 export type OpportunityColumnConfig = ColumnConfig & {
   id: OpportunityColumnId;
 };
-

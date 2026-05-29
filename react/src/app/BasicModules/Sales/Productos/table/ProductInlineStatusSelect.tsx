@@ -10,12 +10,12 @@ import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import { productStatusClasses } from '../utils/productStyles';
 
-type InlineStatusValue = 'Active' | 'Inactive';
+const inlineStatusValues: SalesCatalogItem['status'][] = ['Active', 'Inactive', 'Draft'];
 
 type ProductInlineStatusSelectProps = {
   value: SalesCatalogItem['status'];
   t: ProductsTranslations;
-  onValueChange: (value: InlineStatusValue) => void;
+  onValueChange: (value: SalesCatalogItem['status']) => void;
 };
 
 export function ProductInlineStatusSelect({
@@ -23,20 +23,18 @@ export function ProductInlineStatusSelect({
   t,
   onValueChange,
 }: ProductInlineStatusSelectProps) {
-  const selectValue: InlineStatusValue = value === 'Active' ? 'Active' : 'Inactive';
-
   return (
-    <Select value={selectValue} onValueChange={(nextValue) => onValueChange(nextValue as InlineStatusValue)}>
+    <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as SalesCatalogItem['status'])}>
       <SelectTrigger
         className={cn(
           'h-10 w-full rounded-xl border px-3 text-sm font-bold shadow-none focus:ring-[#FF6B5E]/20',
-          productStatusClasses[selectValue],
+          productStatusClasses[value],
         )}
       >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {(['Active', 'Inactive'] as InlineStatusValue[]).map((status) => (
+        {inlineStatusValues.map((status) => (
           <SelectItem key={status} value={status}>
             {t.statusLabels[status]}
           </SelectItem>

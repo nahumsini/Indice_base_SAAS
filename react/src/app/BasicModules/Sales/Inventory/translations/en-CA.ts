@@ -234,7 +234,7 @@ export const enCA = {
   },
   operational: {
     badge: 'Índice Sales OS',
-    title: 'Inventory control',
+    title: 'Inventory Control',
     subtitle: 'Track stock, warehouses, and inventory movements across your business.',
     actions: {
       addInventory: 'Add inventory',
@@ -249,7 +249,7 @@ export const enCA = {
       adjust: 'Adjust stock',
       viewMovements: 'View movements',
       documents: 'Documents',
-      track: 'Track',
+      track: 'Traceability',
       edit: 'Edit',
       print: 'Print',
       cancelMovement: 'Cancel movement',
@@ -266,7 +266,8 @@ export const enCA = {
     },
     filtersTitle: 'Filters',
     movementsTitle: 'Inventory Movements',
-    movementsSubtitle: 'Track inventory flow, transfers, receipts, adjustments and warehouse activity.',
+    movementsSubtitle: 'Track inventory flow, transfers, receipts, adjustments, and warehouse activity.',
+    cancelledReturnMessage: 'Cancelled · Stock returned to inventory',
     movementViewModes: {
       table: 'Table',
       kanban: 'Kanban',
@@ -306,10 +307,17 @@ export const enCA = {
     },
     movementStatuses: {
       draft: 'Draft',
-      inTransit: 'In Transit',
+      inTransit: 'In transit',
       received: 'Received',
       completed: 'Completed',
       cancelled: 'Cancelled',
+    },
+    kanbanColumns: {
+      draft: 'Pending inventory events',
+      inTransit: 'Stock moving between locations',
+      received: 'Receipts waiting final close',
+      completed: 'Finished inventory flow',
+      cancelled: 'Cancelled and returned to inventory',
     },
     columns: {
       photo: 'Photo',
@@ -418,7 +426,7 @@ export const enCA = {
       movementDocumentSubtitle: 'Review the inventory movement before printing.',
       printDocument: 'Print document',
       cancelMovementTitle: 'Cancel movement',
-      cancelMovementDescription: 'This will cancel the movement and return stock to its previous location when possible.',
+      cancelMovementDescription: 'Cancelling this movement will return the merchandise to inventory.',
       confirmCancelMovement: 'Cancel movement',
       createWarehouseTitle: 'Create warehouse',
       movementType: 'Movement type',

@@ -67,6 +67,7 @@ export const enCA = {
       margin: 'Margin',
       profit: 'Profit',
       status: 'Status',
+      visibility: 'Visibility',
       availableIn: 'Available in',
       updated: 'Last updated',
       actions: 'Actions',
@@ -104,6 +105,7 @@ export const enCA = {
   },
   actions: {
     view: 'View item',
+    viewImages: 'View images',
     edit: 'Edit item',
     duplicate: 'Duplicate item',
     delete: 'Delete item',
@@ -171,6 +173,10 @@ export const enCA = {
         label: 'Status',
         description: 'Editable active or inactive state for each row.',
       },
+      visibility: {
+        label: 'Visibility',
+        description: 'Commercial visibility controlled by usage readiness.',
+      },
       availableIn: {
         label: 'Available in',
         description: 'Operational availability across sales, POS and inventory.',
@@ -186,6 +192,12 @@ export const enCA = {
     pos: 'POS',
     inventory: 'Inventory',
     internal: 'Internal',
+  },
+  visibilityLabels: {
+    Internal: 'Internal',
+    Commercial: 'Commercial',
+    'POS ready': 'POS ready',
+    'Quote only': 'Quote only',
   },
   healthWarnings: {
     missingCategory: 'Missing category',
@@ -250,6 +262,7 @@ export const enCA = {
     applySuggestedPrice: 'Use suggested price',
     finalSalePrice: 'Final sale price',
     estimatedMargin: 'Estimated margin',
+    temporaryValuesNote: 'Price builder values calculate the suggested sale price and are not saved as product fields.',
     taxesInQuoteNote: 'Taxes are configured later inside the quote according to customer, country and transaction context.',
   },
   marginGuidance: {

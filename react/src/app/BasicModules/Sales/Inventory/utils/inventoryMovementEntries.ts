@@ -42,6 +42,10 @@ const movementStatus: Record<InventoryMovementEntryType, InventoryOperationalMov
   writeOff: 'completed',
 };
 
+export function getInventoryMovementEntryStatus(type: InventoryMovementEntryType) {
+  return movementStatus[type];
+}
+
 const staticMovementLocations: Record<InventoryMovementEntryType, { from?: string; to?: string }> = {
   supplierReceipt: { from: 'Supplier' },
   transfer: {},

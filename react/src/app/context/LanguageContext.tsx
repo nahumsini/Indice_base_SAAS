@@ -285,33 +285,55 @@ type TranslationDictionary = {
         hour: string;
         hours: string;
       };
-    };
-    loginPage: {
-      workspaceBadge: string;
-      accessBadge: string;
-      title: string;
-      subtitle: string;
-      modulePills: string[];
-      featureCards: Array<{
-        title: string;
-        description: string;
-      }>;
-      welcomeTitle: string;
-      welcomeText: string;
-      emailLabel: string;
-      emailPlaceholder: string;
-      emailError: string;
-      passwordLabel: string;
-      passwordPlaceholder: string;
-      hidePassword: string;
-      showPassword: string;
-      signIn: string;
-      signingIn: string;
-      successToast: string;
-      errorFallback: string;
-      insideTitle: string;
-      insideText: string;
-    };
+	    };
+	    loginPage: {
+	      logoAlt: string;
+	      workspaceBadge: string;
+	      accessBadge: string;
+	      operatingSystemLabel: string;
+	      frameworkLabel: string;
+	      title: string;
+	      subtitle: string;
+	      pillars: Array<{
+	        icon: string;
+	        title: string;
+	        description: string;
+	      }>;
+	      featureCards: Array<{
+	        title: string;
+	        description: string;
+	      }>;
+	      visualTitle: string;
+	      visualSubtitle: string;
+	      visualMetricValue: string;
+	      visualMetricLabel: string;
+	      visualSignalLabel: string;
+	      welcomeTitle: string;
+	      welcomeText: string;
+	      emailLabel: string;
+	      emailPlaceholder: string;
+	      emailError: string;
+	      passwordLabel: string;
+	      passwordPlaceholder: string;
+	      forgotPassword: string;
+	      hidePassword: string;
+	      showPassword: string;
+	      signIn: string;
+	      signingIn: string;
+	      successToast: string;
+	      errorFallback: string;
+	      insideTitle: string;
+	      insideItems: string[];
+	      resetBadge: string;
+	      resetTitle: string;
+	      resetDescription: string;
+	      resetCloseLabel: string;
+	      resetCancel: string;
+	      resetSubmit: string;
+	      resetSubmitting: string;
+	      resetSuccessFallback: string;
+	      resetErrorFallback: string;
+	    };
     learningMode: {
       welcome: string;
       hide: string;
@@ -1773,41 +1795,85 @@ const translations: Translations = {
         hours: 'Hace 2 horas',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Espacio de trabajo Indice',
-      accessBadge: 'Acceso Indice',
-      title: 'Inicia sesión en tu espacio de trabajo Indice',
-      subtitle:
-        'Indice conecta la estructura de tu negocio, tu equipo, tus gastos, tus controles y la ejecución diaria en una sola plataforma para equipos operativos reales.',
-      modulePills: ['Dashboard', 'Recursos Humanos', 'Gastos', 'Analítica'],
-      featureCards: [
-        {
-          title: 'Un espacio para todo el equipo',
-          description: 'Muévete de finanzas a operaciones, personal, ventas y analítica sin perder contexto.',
-        },
-        {
-          title: 'Claridad desde la primera pantalla',
-          description: 'Abre Indice y ve de inmediato los módulos, métricas y flujos que importan para tu negocio.',
-        },
-      ],
-      welcomeTitle: 'Bienvenido de nuevo',
-      welcomeText:
-        'Inicia sesión para entrar al dashboard de Indice, donde tus módulos, flujos de trabajo y la visibilidad operativa viven en un solo lugar.',
-      emailLabel: 'Correo electrónico',
-      emailPlaceholder: 'tu@empresa.com',
-      emailError: 'Ingresa un correo electrónico válido.',
-      passwordLabel: 'Contraseña',
-      passwordPlaceholder: 'Escribe tu contraseña',
-      hidePassword: 'Ocultar contraseña',
-      showPassword: 'Mostrar contraseña',
-      signIn: 'Iniciar sesión',
-      signingIn: 'Ingresando...',
-      successToast: 'Sesión iniciada correctamente.',
-      errorFallback: 'No fue posible iniciar sesión.',
-      insideTitle: 'Lo que te espera dentro',
-      insideText:
-        'Después de iniciar sesión, Indice te lleva directo al dashboard principal para moverte entre módulos, monitorear actividad y mantener alineada cada parte del negocio.',
-    },
+	    loginPage: {
+	      logoAlt: 'Logo de Indice',
+	      workspaceBadge: 'Claridad operacional',
+	      accessBadge: 'Acceso Indice',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Marco operativo Indice',
+	      title: 'Opera tu negocio con claridad.',
+	      subtitle:
+	        'Conecta personas, procesos, productos y finanzas en un espacio operativo diseñado para empresas en crecimiento.',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: 'Personas',
+	          description: 'Equipos, responsabilidades y actividad diaria con mayor visibilidad.',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: 'Procesos',
+	          description: 'Flujos claros para ejecutar, dar seguimiento y reducir desorden.',
+	        },
+	        {
+	          icon: '📦',
+	          title: 'Productos',
+	          description: 'Catálogos, operación comercial e inventario conectados al negocio.',
+	        },
+	        {
+	          icon: '📊',
+	          title: 'Finanzas',
+	          description: 'Control financiero y lectura operativa para decidir mejor.',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: 'Visibilidad operativa',
+	          description: 'Entiende qué está pasando en cada área del negocio.',
+	        },
+	        {
+	          title: 'Control empresarial',
+	          description: 'Centraliza la ejecución y reduce el caos operativo.',
+	        },
+	        {
+	          title: 'Mejores decisiones',
+	          description: 'Convierte la actividad diaria en señales claras para actuar.',
+	        },
+	      ],
+	      visualTitle: 'Crecimiento estructurado',
+	      visualSubtitle:
+	        'Indice organiza la operación en pilares conectados para que cada equipo trabaje con contexto y dirección.',
+	      visualMetricValue: '4',
+	      visualMetricLabel: 'pilares conectados',
+	      visualSignalLabel: 'Sistema operativo',
+	      welcomeTitle: 'Accede a tu espacio operativo',
+	      welcomeText:
+	        'Continúa la ejecución diaria con visibilidad, control y contexto de negocio.',
+	      emailLabel: 'Correo electrónico',
+	      emailPlaceholder: 'tu@empresa.com',
+	      emailError: 'Ingresa un correo electrónico válido.',
+	      passwordLabel: 'Contraseña',
+	      passwordPlaceholder: 'Escribe tu contraseña',
+	      forgotPassword: '¿Olvidaste tu contraseña?',
+	      hidePassword: 'Ocultar contraseña',
+	      showPassword: 'Mostrar contraseña',
+	      signIn: 'Iniciar sesión',
+	      signingIn: 'Ingresando...',
+	      successToast: 'Sesión iniciada correctamente.',
+	      errorFallback: 'No fue posible iniciar sesión.',
+	      insideTitle: 'Lo que tendrás disponible',
+	      insideItems: ['Visibilidad operativa', 'Actividad del equipo', 'Control financiero', 'Desempeño del negocio'],
+	      resetBadge: 'Recuperación de acceso',
+	      resetTitle: 'Restablece tu contraseña',
+	      resetDescription:
+	        'Ingresa el correo de tu cuenta. Si existe, enviaremos un enlace de recuperación con vigencia limitada.',
+	      resetCloseLabel: 'Cerrar recuperación de contraseña',
+	      resetCancel: 'Cancelar',
+	      resetSubmit: 'Enviar enlace',
+	      resetSubmitting: 'Enviando enlace...',
+	      resetSuccessFallback: 'Si ese correo existe, se envió un enlace para restablecer la contraseña.',
+	      resetErrorFallback: 'No fue posible enviar la solicitud de recuperación.',
+	    },
     learningMode: {
       welcome: '¡Bienvenido al modo de aprendizaje!',
       hide: 'Ocultar',
@@ -2605,41 +2671,85 @@ const translations: Translations = {
         hours: 'Hace 2 horas',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Espacio de trabajo Indice',
-      accessBadge: 'Acceso Indice',
-      title: 'Inicia sesión en tu espacio de trabajo Indice',
-      subtitle:
-        'Indice conecta la estructura de tu negocio, tu equipo, tus gastos, tus controles y la ejecución diaria en una sola plataforma para equipos operativos reales.',
-      modulePills: ['Dashboard', 'Recursos Humanos', 'Gastos', 'Analítica'],
-      featureCards: [
-        {
-          title: 'Un espacio para todo el equipo',
-          description: 'Muévete de finanzas a operaciones, personal, ventas y analítica sin perder contexto.',
-        },
-        {
-          title: 'Claridad desde la primera pantalla',
-          description: 'Abre Indice y ve de inmediato los módulos, métricas y flujos que importan para tu negocio.',
-        },
-      ],
-      welcomeTitle: 'Bienvenido de nuevo',
-      welcomeText:
-        'Inicia sesión para entrar al dashboard de Indice, donde tus módulos, flujos de trabajo y la visibilidad operativa viven en un solo lugar.',
-      emailLabel: 'Correo electrónico',
-      emailPlaceholder: 'tu@empresa.com',
-      emailError: 'Ingresa un correo electrónico válido.',
-      passwordLabel: 'Contraseña',
-      passwordPlaceholder: 'Escribe tu contraseña',
-      hidePassword: 'Ocultar contraseña',
-      showPassword: 'Mostrar contraseña',
-      signIn: 'Iniciar sesión',
-      signingIn: 'Ingresando...',
-      successToast: 'Sesión iniciada correctamente.',
-      errorFallback: 'No fue posible iniciar sesión.',
-      insideTitle: 'Lo que te espera dentro',
-      insideText:
-        'Después de iniciar sesión, Indice te lleva directo al dashboard principal para moverte entre módulos, monitorear actividad y mantener alineada cada parte del negocio.',
-    },
+	    loginPage: {
+	      logoAlt: 'Logo de Indice',
+	      workspaceBadge: 'Claridad operacional',
+	      accessBadge: 'Acceso Indice',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Marco operativo Indice',
+	      title: 'Opera tu negocio con claridad.',
+	      subtitle:
+	        'Conecta personal, procesos, productos y finanzas en un espacio operativo diseñado para empresas en crecimiento.',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: 'Personal',
+	          description: 'Equipos, responsabilidades y actividad diaria con mayor visibilidad.',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: 'Procesos',
+	          description: 'Flujos claros para ejecutar, hacer seguimiento y reducir desorden.',
+	        },
+	        {
+	          icon: '📦',
+	          title: 'Productos',
+	          description: 'Catálogos, operación comercial e inventario conectados al negocio.',
+	        },
+	        {
+	          icon: '📊',
+	          title: 'Finanzas',
+	          description: 'Control financiero y lectura operativa para decidir mejor.',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: 'Visibilidad operativa',
+	          description: 'Entiende qué está pasando en cada área del negocio.',
+	        },
+	        {
+	          title: 'Control empresarial',
+	          description: 'Centraliza la ejecución y reduce el caos operativo.',
+	        },
+	        {
+	          title: 'Mejores decisiones',
+	          description: 'Convierte la actividad diaria en señales claras para actuar.',
+	        },
+	      ],
+	      visualTitle: 'Crecimiento estructurado',
+	      visualSubtitle:
+	        'Indice organiza la operación en pilares conectados para que cada equipo trabaje con contexto y dirección.',
+	      visualMetricValue: '4',
+	      visualMetricLabel: 'pilares conectados',
+	      visualSignalLabel: 'Sistema operativo',
+	      welcomeTitle: 'Accede a tu espacio operativo',
+	      welcomeText:
+	        'Continúa la ejecución diaria con visibilidad, control y contexto de negocio.',
+	      emailLabel: 'Correo electrónico',
+	      emailPlaceholder: 'tu@empresa.com',
+	      emailError: 'Ingresa un correo electrónico válido.',
+	      passwordLabel: 'Contraseña',
+	      passwordPlaceholder: 'Escribe tu contraseña',
+	      forgotPassword: '¿Olvidaste tu contraseña?',
+	      hidePassword: 'Ocultar contraseña',
+	      showPassword: 'Mostrar contraseña',
+	      signIn: 'Iniciar sesión',
+	      signingIn: 'Ingresando...',
+	      successToast: 'Sesión iniciada correctamente.',
+	      errorFallback: 'No fue posible iniciar sesión.',
+	      insideTitle: 'Lo que tendrás disponible',
+	      insideItems: ['Visibilidad operativa', 'Actividad del equipo', 'Control financiero', 'Desempeño del negocio'],
+	      resetBadge: 'Recuperación de acceso',
+	      resetTitle: 'Restablece tu contraseña',
+	      resetDescription:
+	        'Ingresa el correo de tu cuenta. Si existe, enviaremos un enlace de recuperación con vigencia limitada.',
+	      resetCloseLabel: 'Cerrar recuperación de contraseña',
+	      resetCancel: 'Cancelar',
+	      resetSubmit: 'Enviar enlace',
+	      resetSubmitting: 'Enviando enlace...',
+	      resetSuccessFallback: 'Si ese correo existe, se envió un enlace para restablecer la contraseña.',
+	      resetErrorFallback: 'No fue posible enviar la solicitud de recuperación.',
+	    },
     learningMode: {
       welcome: '¡Bienvenido al modo de aprendizaje!',
       hide: 'Ocultar',
@@ -3437,41 +3547,85 @@ const translations: Translations = {
         hours: '2 hours ago',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Indice Workspace',
-      accessBadge: 'Indice access',
-      title: 'Sign in to your Indice workspace',
-      subtitle:
-        'Indice brings your business structure, people, expenses, controls, and daily execution into one connected platform built for real operating teams.',
-      modulePills: ['Dashboard', 'Human Resources', 'Expenses', 'Analytics'],
-      featureCards: [
-        {
-          title: 'One workspace for every team',
-          description: 'Move from finance to operations, people, sales, and analytics without losing context.',
-        },
-        {
-          title: 'Clarity from the first screen',
-          description: 'Open Indice and immediately see the modules, metrics, and workflows that matter to your business.',
-        },
-      ],
-      welcomeTitle: 'Welcome back',
-      welcomeText:
-        'Sign in to continue into the Indice dashboard, where your modules, team workflows, and operational visibility are all in one place.',
-      emailLabel: 'Email',
-      emailPlaceholder: 'you@company.com',
-      emailError: 'Enter a valid email address.',
-      passwordLabel: 'Password',
-      passwordPlaceholder: 'Enter your password',
-      hidePassword: 'Hide password',
-      showPassword: 'Show password',
-      signIn: 'Sign in',
-      signingIn: 'Signing in...',
-      successToast: 'Signed in successfully.',
-      errorFallback: 'Unable to sign in.',
-      insideTitle: 'What waits inside',
-      insideText:
-        'After login, Indice takes you straight into the main dashboard so you can move across modules, monitor activity, and keep every part of the business aligned.',
-    },
+	    loginPage: {
+	      logoAlt: 'Indice logo',
+	      workspaceBadge: 'Operational clarity',
+	      accessBadge: 'Indice access',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Indice operating framework',
+	      title: 'Run your business with clarity.',
+	      subtitle:
+	        'Connect people, processes, products, and finance into one operational workspace designed for growing businesses.',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: 'People',
+	          description: 'Teams, responsibilities, and daily activity with clearer visibility.',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: 'Processes',
+	          description: 'Structured workflows to execute, follow up, and reduce operational noise.',
+	        },
+	        {
+	          icon: '📦',
+	          title: 'Products',
+	          description: 'Catalogues, commercial operations, and inventory connected to the business.',
+	        },
+	        {
+	          icon: '📊',
+	          title: 'Finance',
+	          description: 'Financial control and operating insight for better decisions.',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: 'Operational Visibility',
+	          description: 'Understand what is happening across your business.',
+	        },
+	        {
+	          title: 'Business Control',
+	          description: 'Centralize execution and reduce operational chaos.',
+	        },
+	        {
+	          title: 'Better Decisions',
+	          description: 'Turn daily activity into actionable insight.',
+	        },
+	      ],
+	      visualTitle: 'Structured growth',
+	      visualSubtitle:
+	        'Indice organizes operations into connected pillars so every team works with context and direction.',
+	      visualMetricValue: '4',
+	      visualMetricLabel: 'connected pillars',
+	      visualSignalLabel: 'Operating system',
+	      welcomeTitle: 'Access your workspace',
+	      welcomeText:
+	        'Continue daily execution with visibility, control, and business context.',
+	      emailLabel: 'Email',
+	      emailPlaceholder: 'you@company.com',
+	      emailError: 'Enter a valid email address.',
+	      passwordLabel: 'Password',
+	      passwordPlaceholder: 'Enter your password',
+	      forgotPassword: 'Forgot password?',
+	      hidePassword: 'Hide password',
+	      showPassword: 'Show password',
+	      signIn: 'Sign in',
+	      signingIn: 'Signing in...',
+	      successToast: 'Signed in successfully.',
+	      errorFallback: 'Unable to sign in.',
+	      insideTitle: "What you'll access",
+	      insideItems: ['Operational visibility', 'Team activity', 'Financial control', 'Business performance'],
+	      resetBadge: 'Access recovery',
+	      resetTitle: 'Reset your password',
+	      resetDescription:
+	        'Enter your account email. If it exists, we will send a reset link with limited validity.',
+	      resetCloseLabel: 'Close password reset',
+	      resetCancel: 'Cancel',
+	      resetSubmit: 'Send reset link',
+	      resetSubmitting: 'Sending link...',
+	      resetSuccessFallback: 'If that email exists, a password reset link has been sent.',
+	      resetErrorFallback: 'Password reset request could not be sent.',
+	    },
     learningMode: {
       welcome: 'Welcome to Learning Mode!',
       hide: 'Hide',
@@ -4269,41 +4423,85 @@ const translations: Translations = {
         hours: '2 hours ago',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Indice Workspace',
-      accessBadge: 'Indice access',
-      title: 'Sign in to your Indice workspace',
-      subtitle:
-        'Indice brings your business structure, people, expenses, controls, and daily execution into one connected platform built for real operating teams.',
-      modulePills: ['Dashboard', 'Human Resources', 'Expenses', 'Analytics'],
-      featureCards: [
-        {
-          title: 'One workspace for every team',
-          description: 'Move from finance to operations, people, sales, and analytics without losing context.',
-        },
-        {
-          title: 'Clarity from the first screen',
-          description: 'Open Indice and immediately see the modules, metrics, and workflows that matter to your business.',
-        },
-      ],
-      welcomeTitle: 'Welcome back',
-      welcomeText:
-        'Sign in to continue into the Indice dashboard, where your modules, team workflows, and operational visibility are all in one place.',
-      emailLabel: 'Email',
-      emailPlaceholder: 'you@company.com',
-      emailError: 'Enter a valid email address.',
-      passwordLabel: 'Password',
-      passwordPlaceholder: 'Enter your password',
-      hidePassword: 'Hide password',
-      showPassword: 'Show password',
-      signIn: 'Sign in',
-      signingIn: 'Signing in...',
-      successToast: 'Signed in successfully.',
-      errorFallback: 'Unable to sign in.',
-      insideTitle: 'What waits inside',
-      insideText:
-        'After login, Indice takes you straight into the main dashboard so you can move across modules, monitor activity, and keep every part of the business aligned.',
-    },
+	    loginPage: {
+	      logoAlt: 'Indice logo',
+	      workspaceBadge: 'Operational clarity',
+	      accessBadge: 'Indice access',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Indice operating framework',
+	      title: 'Run your business with clarity.',
+	      subtitle:
+	        'Connect people, processes, products, and finance into one operational workspace designed for growing businesses.',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: 'People',
+	          description: 'Teams, responsibilities, and daily activity with clearer visibility.',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: 'Processes',
+	          description: 'Structured workflows to execute, follow up, and reduce operational noise.',
+	        },
+	        {
+	          icon: '📦',
+	          title: 'Products',
+	          description: 'Catalogues, commercial operations, and inventory connected to the business.',
+	        },
+	        {
+	          icon: '📊',
+	          title: 'Finance',
+	          description: 'Financial control and operating insight for better decisions.',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: 'Operational Visibility',
+	          description: 'Understand what is happening across your business.',
+	        },
+	        {
+	          title: 'Business Control',
+	          description: 'Centralize execution and reduce operational chaos.',
+	        },
+	        {
+	          title: 'Better Decisions',
+	          description: 'Turn daily activity into actionable insight.',
+	        },
+	      ],
+	      visualTitle: 'Structured growth',
+	      visualSubtitle:
+	        'Indice organizes operations into connected pillars so every team works with context and direction.',
+	      visualMetricValue: '4',
+	      visualMetricLabel: 'connected pillars',
+	      visualSignalLabel: 'Operating system',
+	      welcomeTitle: 'Access your workspace',
+	      welcomeText:
+	        'Continue daily execution with visibility, control, and business context.',
+	      emailLabel: 'Email',
+	      emailPlaceholder: 'you@company.com',
+	      emailError: 'Enter a valid email address.',
+	      passwordLabel: 'Password',
+	      passwordPlaceholder: 'Enter your password',
+	      forgotPassword: 'Forgot password?',
+	      hidePassword: 'Hide password',
+	      showPassword: 'Show password',
+	      signIn: 'Sign in',
+	      signingIn: 'Signing in...',
+	      successToast: 'Signed in successfully.',
+	      errorFallback: 'Unable to sign in.',
+	      insideTitle: "What you'll access",
+	      insideItems: ['Operational visibility', 'Team activity', 'Financial control', 'Business performance'],
+	      resetBadge: 'Access recovery',
+	      resetTitle: 'Reset your password',
+	      resetDescription:
+	        'Enter your account email. If it exists, we will send a reset link with limited validity.',
+	      resetCloseLabel: 'Close password reset',
+	      resetCancel: 'Cancel',
+	      resetSubmit: 'Send reset link',
+	      resetSubmitting: 'Sending link...',
+	      resetSuccessFallback: 'If that email exists, a password reset link has been sent.',
+	      resetErrorFallback: 'Password reset request could not be sent.',
+	    },
     learningMode: {
       welcome: 'Welcome to Learning Mode!',
       hide: 'Hide',
@@ -5101,41 +5299,85 @@ const translations: Translations = {
         hours: 'Il y a 2 heures',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Espace de travail Indice',
-      accessBadge: 'Accès Indice',
-      title: 'Connectez-vous à votre espace de travail Indice',
-      subtitle:
-        'Indice réunit la structure de votre entreprise, vos équipes, vos dépenses, vos contrôles et votre exécution quotidienne dans une seule plateforme connectée.',
-      modulePills: ['Tableau de bord', 'Ressources humaines', 'Dépenses', 'Analytique'],
-      featureCards: [
-        {
-          title: 'Un espace pour toute l’équipe',
-          description: 'Passez de la finance aux opérations, aux équipes, aux ventes et à l’analytique sans perdre le contexte.',
-        },
-        {
-          title: 'De la clarté dès le premier écran',
-          description: 'Ouvrez Indice et voyez immédiatement les modules, les indicateurs et les flux qui comptent pour votre entreprise.',
-        },
-      ],
-      welcomeTitle: 'Bon retour',
-      welcomeText:
-        'Connectez-vous pour accéder au tableau de bord Indice, où vos modules, flux de travail et votre visibilité opérationnelle se trouvent au même endroit.',
-      emailLabel: 'Courriel',
-      emailPlaceholder: 'vous@entreprise.com',
-      emailError: 'Entrez une adresse courriel valide.',
-      passwordLabel: 'Mot de passe',
-      passwordPlaceholder: 'Entrez votre mot de passe',
-      hidePassword: 'Masquer le mot de passe',
-      showPassword: 'Afficher le mot de passe',
-      signIn: 'Se connecter',
-      signingIn: 'Connexion en cours...',
-      successToast: 'Connexion réussie.',
-      errorFallback: 'Impossible de se connecter.',
-      insideTitle: 'Ce qui vous attend',
-      insideText:
-        'Après la connexion, Indice vous amène directement au tableau de bord principal pour naviguer entre les modules, suivre l’activité et garder l’entreprise alignée.',
-    },
+	    loginPage: {
+	      logoAlt: 'Logo Indice',
+	      workspaceBadge: 'Clarté opérationnelle',
+	      accessBadge: 'Accès Indice',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Cadre opérationnel Indice',
+	      title: 'Pilotez votre entreprise avec clarté.',
+	      subtitle:
+	        'Reliez les personnes, les processus, les produits et les finances dans un espace opérationnel conçu pour les entreprises en croissance.',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: 'Personnes',
+	          description: 'Équipes, responsabilités et activité quotidienne avec plus de visibilité.',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: 'Processus',
+	          description: 'Flux structurés pour exécuter, suivre et réduire le bruit opérationnel.',
+	        },
+	        {
+	          icon: '📦',
+	          title: 'Produits',
+	          description: 'Catalogues, opérations commerciales et inventaire liés à l’entreprise.',
+	        },
+	        {
+	          icon: '📊',
+	          title: 'Finances',
+	          description: 'Contrôle financier et lecture opérationnelle pour mieux décider.',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: 'Visibilité opérationnelle',
+	          description: 'Comprenez ce qui se passe dans chaque partie de l’entreprise.',
+	        },
+	        {
+	          title: 'Contrôle d’entreprise',
+	          description: 'Centralisez l’exécution et réduisez le désordre opérationnel.',
+	        },
+	        {
+	          title: 'Meilleures décisions',
+	          description: 'Transformez l’activité quotidienne en signaux actionnables.',
+	        },
+	      ],
+	      visualTitle: 'Croissance structurée',
+	      visualSubtitle:
+	        'Indice organise l’opération en piliers connectés pour que chaque équipe travaille avec contexte et direction.',
+	      visualMetricValue: '4',
+	      visualMetricLabel: 'piliers connectés',
+	      visualSignalLabel: 'Système opérationnel',
+	      welcomeTitle: 'Accédez à votre espace de travail',
+	      welcomeText:
+	        'Poursuivez l’exécution quotidienne avec visibilité, contrôle et contexte d’affaires.',
+	      emailLabel: 'Courriel',
+	      emailPlaceholder: 'vous@entreprise.com',
+	      emailError: 'Entrez une adresse courriel valide.',
+	      passwordLabel: 'Mot de passe',
+	      passwordPlaceholder: 'Entrez votre mot de passe',
+	      forgotPassword: 'Mot de passe oublié?',
+	      hidePassword: 'Masquer le mot de passe',
+	      showPassword: 'Afficher le mot de passe',
+	      signIn: 'Se connecter',
+	      signingIn: 'Connexion en cours...',
+	      successToast: 'Connexion réussie.',
+	      errorFallback: 'Impossible de se connecter.',
+	      insideTitle: 'Ce que vous pourrez consulter',
+	      insideItems: ['Visibilité opérationnelle', 'Activité des équipes', 'Contrôle financier', 'Performance d’affaires'],
+	      resetBadge: 'Récupération d’accès',
+	      resetTitle: 'Réinitialisez votre mot de passe',
+	      resetDescription:
+	        'Entrez le courriel de votre compte. S’il existe, nous enverrons un lien de récupération à durée limitée.',
+	      resetCloseLabel: 'Fermer la réinitialisation du mot de passe',
+	      resetCancel: 'Annuler',
+	      resetSubmit: 'Envoyer le lien',
+	      resetSubmitting: 'Envoi du lien...',
+	      resetSuccessFallback: 'Si ce courriel existe, un lien de réinitialisation a été envoyé.',
+	      resetErrorFallback: 'Impossible d’envoyer la demande de réinitialisation.',
+	    },
     learningMode: {
       welcome: 'Bienvenue en mode d\'apprentissage !',
       hide: 'Masquer',
@@ -5933,41 +6175,85 @@ const translations: Translations = {
         hours: 'Há 2 horas',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Espaço de trabalho Indice',
-      accessBadge: 'Acesso Indice',
-      title: 'Entre no seu espaço de trabalho Indice',
-      subtitle:
-        'Indice conecta a estrutura do seu negócio, sua equipe, despesas, controles e execução diária em uma única plataforma para equipes operacionais reais.',
-      modulePills: ['Dashboard', 'Recursos Humanos', 'Despesas', 'Análises'],
-      featureCards: [
-        {
-          title: 'Um espaço para toda a equipe',
-          description: 'Vá de finanças para operações, pessoas, vendas e análises sem perder o contexto.',
-        },
-        {
-          title: 'Clareza desde a primeira tela',
-          description: 'Abra o Indice e veja imediatamente os módulos, métricas e fluxos que importam para o seu negócio.',
-        },
-      ],
-      welcomeTitle: 'Bem-vindo de volta',
-      welcomeText:
-        'Entre para continuar no dashboard do Indice, onde seus módulos, fluxos de trabalho e visibilidade operacional ficam no mesmo lugar.',
-      emailLabel: 'E-mail',
-      emailPlaceholder: 'voce@empresa.com',
-      emailError: 'Digite um endereço de e-mail válido.',
-      passwordLabel: 'Senha',
-      passwordPlaceholder: 'Digite sua senha',
-      hidePassword: 'Ocultar senha',
-      showPassword: 'Mostrar senha',
-      signIn: 'Entrar',
-      signingIn: 'Entrando...',
-      successToast: 'Login realizado com sucesso.',
-      errorFallback: 'Não foi possível entrar.',
-      insideTitle: 'O que espera por você',
-      insideText:
-        'Depois do login, o Indice leva você direto ao dashboard principal para navegar entre módulos, acompanhar a atividade e manter todas as áreas do negócio alinhadas.',
-    },
+	    loginPage: {
+	      logoAlt: 'Logo do Indice',
+	      workspaceBadge: 'Clareza operacional',
+	      accessBadge: 'Acesso Indice',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Estrutura operacional Indice',
+	      title: 'Opere seu negócio com clareza.',
+	      subtitle:
+	        'Conecte colaboradores, processos, produtos e finanças em um espaço operacional criado para empresas em crescimento.',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: 'Colaboradores',
+	          description: 'Equipes, responsabilidades e atividade diária com mais visibilidade.',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: 'Processos',
+	          description: 'Fluxos claros para executar, acompanhar e reduzir ruído operacional.',
+	        },
+	        {
+	          icon: '📦',
+	          title: 'Produtos',
+	          description: 'Catálogos, operação comercial e estoque conectados ao negócio.',
+	        },
+	        {
+	          icon: '📊',
+	          title: 'Finanças',
+	          description: 'Controle financeiro e leitura operacional para decidir melhor.',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: 'Visibilidade operacional',
+	          description: 'Entenda o que está acontecendo em todo o negócio.',
+	        },
+	        {
+	          title: 'Controle empresarial',
+	          description: 'Centralize a execução e reduza o caos operacional.',
+	        },
+	        {
+	          title: 'Melhores decisões',
+	          description: 'Transforme a atividade diária em insights acionáveis.',
+	        },
+	      ],
+	      visualTitle: 'Crescimento estruturado',
+	      visualSubtitle:
+	        'O Indice organiza a operação em pilares conectados para que cada equipe trabalhe com contexto e direção.',
+	      visualMetricValue: '4',
+	      visualMetricLabel: 'pilares conectados',
+	      visualSignalLabel: 'Sistema operacional',
+	      welcomeTitle: 'Acesse seu espaço operacional',
+	      welcomeText:
+	        'Continue a execução diária com visibilidade, controle e contexto de negócio.',
+	      emailLabel: 'E-mail',
+	      emailPlaceholder: 'voce@empresa.com',
+	      emailError: 'Digite um endereço de e-mail válido.',
+	      passwordLabel: 'Senha',
+	      passwordPlaceholder: 'Digite sua senha',
+	      forgotPassword: 'Esqueceu sua senha?',
+	      hidePassword: 'Ocultar senha',
+	      showPassword: 'Mostrar senha',
+	      signIn: 'Entrar',
+	      signingIn: 'Entrando...',
+	      successToast: 'Login realizado com sucesso.',
+	      errorFallback: 'Não foi possível entrar.',
+	      insideTitle: 'O que você acessa',
+	      insideItems: ['Visibilidade operacional', 'Atividade da equipe', 'Controle financeiro', 'Desempenho do negócio'],
+	      resetBadge: 'Recuperação de acesso',
+	      resetTitle: 'Redefina sua senha',
+	      resetDescription:
+	        'Informe o e-mail da sua conta. Se ele existir, enviaremos um link de recuperação com validade limitada.',
+	      resetCloseLabel: 'Fechar recuperação de senha',
+	      resetCancel: 'Cancelar',
+	      resetSubmit: 'Enviar link',
+	      resetSubmitting: 'Enviando link...',
+	      resetSuccessFallback: 'Se esse e-mail existir, um link de redefinição de senha foi enviado.',
+	      resetErrorFallback: 'Não foi possível enviar a solicitação de recuperação.',
+	    },
     learningMode: {
       welcome: 'Bem-vindo ao Modo de Aprendizado!',
       hide: 'Ocultar',
@@ -6765,41 +7051,85 @@ const translations: Translations = {
         hours: '2시간 전',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Indice 워크스페이스',
-      accessBadge: 'Indice 접속',
-      title: 'Indice 워크스페이스에 로그인하세요',
-      subtitle:
-        'Indice는 비즈니스 구조, 인력, 지출, 통제, 일상 실행을 하나의 연결된 플랫폼으로 모아 운영 팀이 더 잘 움직일 수 있도록 돕습니다.',
-      modulePills: ['대시보드', '인사', '지출', '분석'],
-      featureCards: [
-        {
-          title: '모든 팀을 위한 하나의 공간',
-          description: '재무, 운영, 인력, 영업, 분석 사이를 맥락 손실 없이 이동할 수 있습니다.',
-        },
-        {
-          title: '첫 화면부터 명확하게',
-          description: 'Indice를 열면 비즈니스에 중요한 모듈, 지표, 워크플로를 바로 확인할 수 있습니다.',
-        },
-      ],
-      welcomeTitle: '다시 오신 것을 환영합니다',
-      welcomeText:
-        '로그인하면 모듈, 팀 워크플로, 운영 가시성을 한곳에서 볼 수 있는 Indice 대시보드로 이동합니다.',
-      emailLabel: '이메일',
-      emailPlaceholder: 'you@company.com',
-      emailError: '올바른 이메일 주소를 입력하세요.',
-      passwordLabel: '비밀번호',
-      passwordPlaceholder: '비밀번호를 입력하세요',
-      hidePassword: '비밀번호 숨기기',
-      showPassword: '비밀번호 보기',
-      signIn: '로그인',
-      signingIn: '로그인 중...',
-      successToast: '로그인에 성공했습니다.',
-      errorFallback: '로그인할 수 없습니다.',
-      insideTitle: '로그인 후 할 수 있는 일',
-      insideText:
-        '로그인 후 Indice는 메인 대시보드로 바로 이동하여 모듈을 오가고 활동을 모니터링하며 비즈니스 전반을 정렬할 수 있게 합니다.',
-    },
+	    loginPage: {
+	      logoAlt: 'Indice 로고',
+	      workspaceBadge: '운영 명확성',
+	      accessBadge: 'Indice 접속',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Indice 운영 프레임워크',
+	      title: '비즈니스를 명확하게 운영하세요.',
+	      subtitle:
+	        '사람, 프로세스, 제품, 재무를 성장하는 기업을 위한 하나의 운영 워크스페이스로 연결합니다.',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: '사람',
+	          description: '팀, 책임, 일상 활동을 더 명확하게 볼 수 있습니다.',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: '프로세스',
+	          description: '실행, 후속 조치, 운영 혼선을 줄이는 구조화된 흐름입니다.',
+	        },
+	        {
+	          icon: '📦',
+	          title: '제품',
+	          description: '카탈로그, 영업 운영, 재고를 비즈니스와 연결합니다.',
+	        },
+	        {
+	          icon: '📊',
+	          title: '재무',
+	          description: '더 나은 결정을 위한 재무 통제와 운영 인사이트입니다.',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: '운영 가시성',
+	          description: '비즈니스 전반에서 무슨 일이 일어나는지 이해합니다.',
+	        },
+	        {
+	          title: '비즈니스 통제',
+	          description: '실행을 한곳에 모으고 운영 혼란을 줄입니다.',
+	        },
+	        {
+	          title: '더 나은 결정',
+	          description: '일상 활동을 실행 가능한 인사이트로 바꿉니다.',
+	        },
+	      ],
+	      visualTitle: '구조화된 성장',
+	      visualSubtitle:
+	        'Indice는 운영을 연결된 핵심 축으로 정리해 모든 팀이 맥락과 방향을 갖고 일하도록 돕습니다.',
+	      visualMetricValue: '4',
+	      visualMetricLabel: '연결된 핵심 축',
+	      visualSignalLabel: '운영 시스템',
+	      welcomeTitle: '워크스페이스에 접속하세요',
+	      welcomeText:
+	        '가시성, 통제, 비즈니스 맥락을 가지고 일상 실행을 이어가세요.',
+	      emailLabel: '이메일',
+	      emailPlaceholder: 'you@company.com',
+	      emailError: '올바른 이메일 주소를 입력하세요.',
+	      passwordLabel: '비밀번호',
+	      passwordPlaceholder: '비밀번호를 입력하세요',
+	      forgotPassword: '비밀번호를 잊으셨나요?',
+	      hidePassword: '비밀번호 숨기기',
+	      showPassword: '비밀번호 보기',
+	      signIn: '로그인',
+	      signingIn: '로그인 중...',
+	      successToast: '로그인에 성공했습니다.',
+	      errorFallback: '로그인할 수 없습니다.',
+	      insideTitle: '접속 후 볼 수 있는 것',
+	      insideItems: ['운영 가시성', '팀 활동', '재무 통제', '비즈니스 성과'],
+	      resetBadge: '접속 복구',
+	      resetTitle: '비밀번호 재설정',
+	      resetDescription:
+	        '계정 이메일을 입력하세요. 계정이 존재하면 제한된 시간 동안 유효한 복구 링크를 보내드립니다.',
+	      resetCloseLabel: '비밀번호 재설정 닫기',
+	      resetCancel: '취소',
+	      resetSubmit: '재설정 링크 보내기',
+	      resetSubmitting: '링크 보내는 중...',
+	      resetSuccessFallback: '해당 이메일이 존재하면 비밀번호 재설정 링크가 전송되었습니다.',
+	      resetErrorFallback: '비밀번호 재설정 요청을 보낼 수 없습니다.',
+	    },
     learningMode: {
       welcome: '학습 모드에 오신 것을 환영합니다!',
       hide: '숨기기',
@@ -7597,41 +7927,85 @@ const translations: Translations = {
         hours: '2小时前',
       },
     },
-    loginPage: {
-      workspaceBadge: 'Indice 工作区',
-      accessBadge: 'Indice 访问',
-      title: '登录到你的 Indice 工作区',
-      subtitle:
-        'Indice 将企业结构、团队、费用、控制和日常执行整合到一个互联平台中，帮助运营团队更高效地工作。',
-      modulePills: ['仪表板', '人力资源', '费用', '分析'],
-      featureCards: [
-        {
-          title: '一个面向所有团队的工作区',
-          description: '在财务、运营、人力、销售和分析之间切换时无需丢失上下文。',
-        },
-        {
-          title: '从第一屏开始就更清晰',
-          description: '打开 Indice，即可立即看到对业务最重要的模块、指标和工作流。',
-        },
-      ],
-      welcomeTitle: '欢迎回来',
-      welcomeText:
-        '登录后即可进入 Indice 仪表板，在同一个地方查看模块、团队流程和运营可见性。',
-      emailLabel: '邮箱',
-      emailPlaceholder: 'you@company.com',
-      emailError: '请输入有效的邮箱地址。',
-      passwordLabel: '密码',
-      passwordPlaceholder: '输入你的密码',
-      hidePassword: '隐藏密码',
-      showPassword: '显示密码',
-      signIn: '登录',
-      signingIn: '登录中...',
-      successToast: '登录成功。',
-      errorFallback: '无法登录。',
-      insideTitle: '登录后可查看',
-      insideText:
-        '登录后，Indice 会直接带你进入主仪表板，方便你在各模块之间切换、监控活动并保持业务各部分协同。',
-    },
+	    loginPage: {
+	      logoAlt: 'Indice 标志',
+	      workspaceBadge: '运营清晰度',
+	      accessBadge: 'Indice 访问',
+	      operatingSystemLabel: 'Business Operating System',
+	      frameworkLabel: 'Indice 运营框架',
+	      title: '清晰地运营你的业务。',
+	      subtitle:
+	        '把人员、流程、产品和财务连接到一个为成长型企业设计的运营工作区中。',
+	      pillars: [
+	        {
+	          icon: '👥',
+	          title: '人员',
+	          description: '更清楚地查看团队、职责和日常活动。',
+	        },
+	        {
+	          icon: '⚙️',
+	          title: '流程',
+	          description: '用结构化流程执行、跟进并减少运营噪音。',
+	        },
+	        {
+	          icon: '📦',
+	          title: '产品',
+	          description: '将目录、商业运营和库存连接到业务。',
+	        },
+	        {
+	          icon: '📊',
+	          title: '财务',
+	          description: '通过财务控制和运营洞察做出更好决策。',
+	        },
+	      ],
+	      featureCards: [
+	        {
+	          title: '运营可见性',
+	          description: '了解整个业务正在发生什么。',
+	        },
+	        {
+	          title: '业务控制',
+	          description: '集中执行，减少运营混乱。',
+	        },
+	        {
+	          title: '更好的决策',
+	          description: '把日常活动转化为可行动的洞察。',
+	        },
+	      ],
+	      visualTitle: '结构化增长',
+	      visualSubtitle:
+	        'Indice 将运营组织成相互连接的支柱，让每个团队都带着上下文和方向工作。',
+	      visualMetricValue: '4',
+	      visualMetricLabel: '连接的支柱',
+	      visualSignalLabel: '运营系统',
+	      welcomeTitle: '访问你的工作区',
+	      welcomeText:
+	        '带着可见性、控制力和业务上下文继续日常执行。',
+	      emailLabel: '邮箱',
+	      emailPlaceholder: 'you@company.com',
+	      emailError: '请输入有效的邮箱地址。',
+	      passwordLabel: '密码',
+	      passwordPlaceholder: '输入你的密码',
+	      forgotPassword: '忘记密码？',
+	      hidePassword: '隐藏密码',
+	      showPassword: '显示密码',
+	      signIn: '登录',
+	      signingIn: '登录中...',
+	      successToast: '登录成功。',
+	      errorFallback: '无法登录。',
+	      insideTitle: '你将访问',
+	      insideItems: ['运营可见性', '团队活动', '财务控制', '业务表现'],
+	      resetBadge: '访问恢复',
+	      resetTitle: '重置你的密码',
+	      resetDescription:
+	        '输入你的账户邮箱。如果账户存在，我们会发送一个限时有效的重置链接。',
+	      resetCloseLabel: '关闭密码重置',
+	      resetCancel: '取消',
+	      resetSubmit: '发送重置链接',
+	      resetSubmitting: '正在发送链接...',
+	      resetSuccessFallback: '如果该邮箱存在，密码重置链接已经发送。',
+	      resetErrorFallback: '无法发送密码重置请求。',
+	    },
     learningMode: {
       welcome: '欢迎来到学习模式！',
       hide: '隐藏',

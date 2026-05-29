@@ -24,12 +24,12 @@ function InventoryMetricCard({
 }) {
   return (
     <span className="inline-flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
         {icon}
       </span>
       <span className="text-base font-semibold">
         <span className={cn('mr-2 font-bold', valueClassName)}>{value}</span>
-        <span className="text-slate-600">{label}</span>
+        <span className="font-bold text-slate-600 dark:text-slate-300">{label}</span>
       </span>
     </span>
   );

@@ -16,7 +16,18 @@ import {
 import { cn } from '../../../../components/ui/utils';
 import type { SalesCatalogItem } from '../../types';
 
-export type QuoteSortColumn = 'number' | 'client' | 'opportunity' | 'status' | 'amount' | 'created' | 'expiration' | 'seller' | 'updated' | 'files';
+export type QuoteSortColumn =
+  | 'number'
+  | 'client'
+  | 'opportunity'
+  | 'status'
+  | 'amount'
+  | 'margin'
+  | 'created'
+  | 'expiration'
+  | 'seller'
+  | 'updated'
+  | 'files';
 export type QuoteSortDirection = 'asc' | 'desc';
 
 export type QuoteSortState = {

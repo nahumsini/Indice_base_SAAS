@@ -22,7 +22,7 @@ export const movementStatusTone = {
   inTransit: 'border-blue-200 bg-blue-50 text-blue-700',
   received: 'border-cyan-200 bg-cyan-50 text-cyan-700',
   completed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  cancelled: 'border-red-200 bg-red-50 text-red-700',
+  cancelled: 'border-red-300 bg-red-100 text-red-800 shadow-sm shadow-red-200/60',
 };
 
 export function MovementFlow({ movement }: { movement: InventoryOperationalMovement }) {
@@ -85,11 +85,12 @@ export function MovementActions({
   onTrack: (movement: InventoryOperationalMovement) => void;
   onCancel: (movement: InventoryOperationalMovement) => void;
 }) {
+  const isCancelled = movement.status === 'cancelled';
   const actions = [
-    { icon: <Pencil className="h-4 w-4" />, title: t.operational.actions.edit, className: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100', onClick: () => onEdit(movement), disabled: false },
+    { icon: <Pencil className="h-4 w-4" />, title: t.operational.actions.edit, className: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50', onClick: () => onEdit(movement), disabled: isCancelled },
     { icon: <Printer className="h-4 w-4" />, title: t.operational.actions.print, className: 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100', onClick: () => onPrint(movement), disabled: false },
     { icon: <Radar className="h-4 w-4" />, title: t.operational.actions.track, className: 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100', onClick: () => onTrack(movement), disabled: false },
-    { icon: <Ban className="h-4 w-4" />, title: t.operational.actions.cancelMovement, className: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50', onClick: () => onCancel(movement), disabled: movement.status === 'cancelled' },
+    { icon: <Ban className="h-4 w-4" />, title: t.operational.actions.cancelMovement, className: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50', onClick: () => onCancel(movement), disabled: isCancelled },
   ];
 
   return (

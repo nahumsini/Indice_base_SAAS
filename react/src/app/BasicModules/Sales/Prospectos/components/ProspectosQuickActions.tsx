@@ -10,19 +10,22 @@ export function OpportunityActionButton({
   className,
   href,
   onClick,
+  disabled,
 }: {
   label: string;
   icon: ReactNode;
   className: string;
   href?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   const controlClassName = cn(
     'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20',
     className,
+    disabled && 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60 hover:bg-slate-100',
   );
 
-  if (href) {
+  if (href && !disabled) {
     return (
       <a
         href={href}
@@ -38,7 +41,7 @@ export function OpportunityActionButton({
   }
 
   return (
-    <button type="button" title={label} aria-label={label} className={controlClassName} onClick={onClick}>
+    <button type="button" title={label} aria-label={label} className={controlClassName} onClick={onClick} disabled={disabled}>
       {icon}
     </button>
   );
@@ -57,11 +60,14 @@ export function ProspectosQuickActions({
   onEdit: (opportunity: SalesOpportunity) => void;
   onDelete?: (opportunity: SalesOpportunity) => void;
 }) {
+  const hasPhone = Boolean(opportunity.phone.trim());
+  const hasEmail = Boolean(opportunity.email.trim());
+
   return (
     <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
-      <OpportunityActionButton label={`Llamar a ${opportunity.contactPerson}`} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" href={getPhoneHref(opportunity.phone)} />
-      <OpportunityActionButton label={`WhatsApp a ${opportunity.contactPerson}`} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" href={getWhatsAppHref(opportunity.phone)} />
-      <OpportunityActionButton label={`Email a ${opportunity.contactPerson}`} icon={<Mail className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20" href={`mailto:${opportunity.email}`} />
+      <OpportunityActionButton label={hasPhone ? `Llamar a ${opportunity.contactPerson}` : 'Sin teléfono disponible'} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" href={hasPhone ? getPhoneHref(opportunity.phone) : undefined} disabled={!hasPhone} />
+      <OpportunityActionButton label={hasPhone ? `WhatsApp a ${opportunity.contactPerson}` : 'Sin teléfono disponible'} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" href={hasPhone ? getWhatsAppHref(opportunity.phone) : undefined} disabled={!hasPhone} />
+      <OpportunityActionButton label={hasEmail ? `Email a ${opportunity.contactPerson}` : 'Sin email disponible'} icon={<Mail className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20" href={hasEmail ? `mailto:${opportunity.email}` : undefined} disabled={!hasEmail} />
       <OpportunityActionButton label={`Archivos de ${opportunity.opportunityName}`} icon={<Paperclip className="h-4 w-4" />} className="border-[#F4C84A]/35 bg-[#F4C84A]/15 text-[#9a6b05] hover:bg-[#F4C84A]/25" onClick={() => onOpenFiles(opportunity)} />
       <OpportunityActionButton label={`Historial de ${opportunity.opportunityName}`} icon={<History className="h-4 w-4" />} className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" onClick={() => onOpenHistory(opportunity)} />
       <OpportunityActionButton label={`Editar ${opportunity.opportunityName}`} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100" onClick={() => onEdit(opportunity)} />
@@ -71,4 +77,3 @@ export function ProspectosQuickActions({
     </div>
   );
 }
-

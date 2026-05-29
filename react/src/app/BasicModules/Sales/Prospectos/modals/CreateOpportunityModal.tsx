@@ -36,7 +36,7 @@ import {
 } from '../../salesCrmContext';
 import { getSalesModalStyles } from '../../salesModalStyles';
 import type { OpportunityFormState } from '../types/prospectosTypes';
-import { normalizeEstimatedValueInput } from '../utils/prospectosFormatters';
+import { getOpportunityStatusForStage, normalizeEstimatedValueInput } from '../utils/prospectosFormatters';
 import { opportunityInputClassName, opportunitySelectClassName, stageLabels } from '../utils/prospectosStatus';
 
 const opportunityModalStyles = getSalesModalStyles('coral');
@@ -114,7 +114,14 @@ export function CreateOpportunityModal({
             </Select>
           </OpportunityFormField>
           <OpportunityFormField label="Etapa">
-            <Select value={form.stage} onValueChange={(value) => setForm((current) => ({ ...current, stage: value as OpportunityStage }))}>
+            <Select value={form.stage} onValueChange={(value) => setForm((current) => {
+              const stage = value as OpportunityStage;
+              return {
+                ...current,
+                stage,
+                status: getOpportunityStatusForStage(stage, current.status),
+              };
+            })}>
               <SelectTrigger className={opportunitySelectClassName}><SelectValue placeholder="Etapa" /></SelectTrigger>
               <SelectContent>{opportunityStages.map((stage) => <SelectItem key={stage} value={stage}>{stageLabels[stage]}</SelectItem>)}</SelectContent>
             </Select>
@@ -189,4 +196,3 @@ export function CreateOpportunityModal({
     </Dialog>
   );
 }
-

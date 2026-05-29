@@ -90,13 +90,12 @@ export function ProspectosFilters({
             />
           </div>
         </div>
-        <FilterSelect label="Stage" value={stageFilter} onValueChange={onStageFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunityStages.map((stage) => ({ value: stage, label: stageLabels[stage] }))]} />
-        <FilterSelect label="Owner" value={ownerFilter} onValueChange={onOwnerFilterChange} options={[{ value: 'all', label: 'Todos' }, ...ownerSelectOptions]} />
-        <FilterSelect label="Temperature" value={temperatureFilter} onValueChange={onTemperatureFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunityTemperatures.map((temperature) => ({ value: temperature, label: temperature }))]} />
-        <FilterSelect label="Source" value={sourceFilter} onValueChange={onSourceFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunitySources.map((source) => ({ value: source, label: source }))]} />
-        <FilterSelect label="Status" value={statusFilter} onValueChange={onStatusFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunityStatuses.map((status) => ({ value: status, label: status }))]} />
+        <FilterSelect label="Etapa" value={stageFilter} onValueChange={onStageFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunityStages.map((stage) => ({ value: stage, label: stageLabels[stage] }))]} />
+        <FilterSelect label="Responsable" value={ownerFilter} onValueChange={onOwnerFilterChange} options={[{ value: 'all', label: 'Todos' }, ...ownerSelectOptions]} />
+        <FilterSelect label="Temperatura" value={temperatureFilter} onValueChange={onTemperatureFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunityTemperatures.map((temperature) => ({ value: temperature, label: temperature }))]} />
+        <FilterSelect label="Origen" value={sourceFilter} onValueChange={onSourceFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunitySources.map((source) => ({ value: source, label: source }))]} />
+        <FilterSelect label="Estado" value={statusFilter} onValueChange={onStatusFilterChange} options={[{ value: 'all', label: 'Todos' }, ...opportunityStatuses.map((status) => ({ value: status, label: status }))]} />
       </div>
     </section>
   );
 }
-

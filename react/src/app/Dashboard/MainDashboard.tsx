@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { dashboardApi } from '../api/dashboard';
+import { useMemo, useState } from 'react';
 import {
-  buildDefaultModuleCatalog,
-  mapBackendModuleToCard,
-  mergeDashboardModules,
+  sortBasicModulesForOperationalLauncher,
   type DashboardModuleCard,
 } from '../config/moduleCatalog';
 import type { PageId } from '../config/navigation';
+import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useFavorites, useLanguage } from '../shared/context';
 import { FavoritesSection } from './components/FavoritesSection';
@@ -47,7 +45,7 @@ export function MainDashboard({
   const copy = useMainDashboardTranslations();
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
-  const [availableModules, setAvailableModules] = useState<DashboardModuleCard[]>(() => buildDefaultModuleCatalog(t));
+  const availableModules = useAccessibleModuleCatalog(t);
   const [guidanceStageId, setGuidanceStageId] = useState<OperationalJourneyStageId | undefined>();
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>(
     'indice.dashboard.selectedKpis',
@@ -61,40 +59,6 @@ export function MainDashboard({
   const handleModuleClick = (moduleRoute: PageId) => {
     onNavigate(moduleRoute);
   };
-
-  useEffect(() => {
-    let active = true;
-
-    const defaultModules = buildDefaultModuleCatalog(t);
-    setAvailableModules(defaultModules);
-
-    dashboardApi.listModules()
-      .then((backendModules) => {
-        if (!active) {
-          return;
-        }
-
-        const mappedModules = backendModules
-          .map((module) => mapBackendModuleToCard(module, t))
-          .filter((module): module is DashboardModuleCard => module !== null);
-
-        if (mappedModules.length === 0) {
-          setAvailableModules(defaultModules);
-          return;
-        }
-
-        setAvailableModules(mergeDashboardModules(mappedModules, defaultModules));
-      })
-      .catch(() => {
-        if (active) {
-          setAvailableModules(defaultModules);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [t]);
 
   const kpiDataMap = useMemo(() => buildDashboardKpiDataMap(copy), [copy]);
   const kpiData = useMemo(
@@ -117,9 +81,23 @@ export function MainDashboard({
     [copy, t],
   );
 
-  const mainModules = availableModules.filter((module) => module.category === 'basic');
-  const complementaryModules = availableModules.filter((module) => module.category === 'complementary');
-  const aiModules = availableModules.filter((module) => module.category === 'ai');
+  const mainModules = useMemo(
+    () => availableModules.filter((module) => module.category === 'basic'),
+    [availableModules],
+  );
+  const operationalLauncherModules = useMemo(
+    () => sortBasicModulesForOperationalLauncher(mainModules),
+    [mainModules],
+  );
+  const standardBasicModules = learningModeActive ? mainModules : operationalLauncherModules;
+  const complementaryModules = useMemo(
+    () => availableModules.filter((module) => module.category === 'complementary'),
+    [availableModules],
+  );
+  const aiModules = useMemo(
+    () => availableModules.filter((module) => module.category === 'ai'),
+    [availableModules],
+  );
 
   const favoriteModules = getFavoriteModules(availableModules);
   const safeLearningStep = clampOperationalJourneyStep(learningStep);
@@ -217,7 +195,7 @@ export function MainDashboard({
           icon="🏢"
           title={copy.sections.basicModules}
           label={copy.sections.main}
-          modules={mainModules}
+          modules={standardBasicModules}
           favoriteIds={favorites}
           onToggleFavorite={toggleFavorite}
           onModuleClick={handleModuleClick}

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, X } from 'lucide-react';
+import { ArrowRightLeft, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
-import type { InventoryMovementEntryType, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
+import type { InventoryMovementEntryType, InventoryOperationalMovement, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
-import { SUPPLIER_SOURCE_ID, isSupplierSource } from '../../utils/inventoryMovementEntries';
+import { SUPPLIER_SOURCE_ID, getInventoryMovementEntryStatus, isSupplierSource } from '../../utils/inventoryMovementEntries';
 import { MovementProductLines, createMovementProductLine, type MovementProductLineDraft } from './MovementProductLines';
 
 export type TransferStockDraft = {
@@ -50,18 +50,29 @@ export function TransferStockModal({
   warehouses,
   t,
   initialProductId,
+  initialMovementType = 'transfer',
+  initialWarehouseId,
+  editingMovement,
+  editingMovementLines = [],
   onOpenChange,
   onSubmit,
+  onSaveEdit,
 }: {
   open: boolean;
   rows: InventoryStockRow[];
   warehouses: InventoryWarehouse[];
   t: InventoryTranslations;
   initialProductId?: string;
+  initialMovementType?: InventoryMovementEntryType;
+  initialWarehouseId?: string;
+  editingMovement?: InventoryOperationalMovement | null;
+  editingMovementLines?: InventoryOperationalMovement[];
   onOpenChange: (open: boolean) => void;
   onSubmit: (draft: TransferStockDraft) => void;
+  onSaveEdit?: (movementId: string, draft: TransferStockDraft) => void;
 }) {
   const activeWarehouses = useMemo(() => warehouses.filter((warehouse) => warehouse.status === 'active'), [warehouses]);
+  const isEditing = Boolean(editingMovement);
   const [draft, setDraft] = useState<TransferStockDraft>({
     movementType: 'transfer',
     items: [createMovementProductLine()],
@@ -84,16 +95,44 @@ export function TransferStockModal({
 
   useEffect(() => {
     if (!open) return;
+
+    if (editingMovement) {
+      const editableMovementType = movementTypes.includes(editingMovement.movementType as InventoryMovementEntryType)
+        ? editingMovement.movementType as InventoryMovementEntryType
+        : 'transfer';
+      const movementLines = editingMovementLines.length > 0 ? editingMovementLines : [editingMovement];
+
+      setDraft({
+        movementType: editableMovementType,
+        items: movementLines.map((line) => ({
+          id: line.id,
+          productId: line.productId,
+          quantity: Math.abs(line.quantity),
+        })),
+        fromWarehouseId: editingMovement.fromWarehouseId ?? (editableMovementType === 'supplierReceipt' ? SUPPLIER_SOURCE_ID : activeWarehouses[0]?.id ?? ''),
+        toWarehouseId: editingMovement.toWarehouseId ?? activeWarehouses[0]?.id ?? '',
+        reason: editingMovement.reason,
+        reference: editingMovement.reference ?? '',
+        date: editingMovement.movementDate,
+      });
+      return;
+    }
+
     const firstProductId = initialProductId ?? rows[0]?.productId ?? '';
-    setDraft((current) => ({
-      ...current,
+    const initialWarehouse = activeWarehouses.find((warehouse) => warehouse.id === initialWarehouseId);
+    const firstWarehouseId = initialWarehouse?.id ?? activeWarehouses[0]?.id ?? '';
+    const alternateWarehouseId = activeWarehouses.find((warehouse) => warehouse.id !== firstWarehouseId)?.id ?? firstWarehouseId;
+    const shouldUseSupplierSource = initialMovementType === 'supplierReceipt';
+    setDraft({
+      movementType: initialMovementType,
       items: [createMovementProductLine(firstProductId)],
-      fromWarehouseId: activeWarehouses[0]?.id ?? '',
-      toWarehouseId: activeWarehouses[1]?.id ?? activeWarehouses[0]?.id ?? '',
-      reason: t.operational.movementTypes[current.movementType],
+      fromWarehouseId: shouldUseSupplierSource ? SUPPLIER_SOURCE_ID : firstWarehouseId,
+      toWarehouseId: shouldUseSupplierSource ? firstWarehouseId : alternateWarehouseId,
+      reason: t.operational.movementTypes[initialMovementType],
+      reference: '',
       date: new Date().toISOString().slice(0, 10),
-    }));
-  }, [activeWarehouses, initialProductId, open, rows, t]);
+    });
+  }, [activeWarehouses, editingMovement, editingMovementLines, initialMovementType, initialProductId, initialWarehouseId, open, rows, t]);
 
   const hasValidItems = draft.items.length > 0 && draft.items.every((item) => item.productId && item.quantity > 0);
   const hasValidLocations = (!usesFromWarehouse || draft.fromWarehouseId)
@@ -114,6 +153,16 @@ export function TransferStockModal({
     }));
   };
 
+  const isAdjustment = !isEditing && draft.movementType === 'adjustment';
+  const displayedStatus = editingMovement?.status ?? getInventoryMovementEntryStatus(draft.movementType);
+  const HeaderIcon = isAdjustment ? SlidersHorizontal : ArrowRightLeft;
+  const title = isEditing
+    ? t.operational.modals.editMovementTitle
+    : isAdjustment
+      ? t.operational.actions.inventoryAdjustment
+      : t.operational.modals.movementEntryTitle;
+  const subtitle = isEditing ? t.operational.modals.editMovementSubtitle : t.operational.modals.movementEntrySubtitle;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[86vh] flex-col overflow-hidden rounded-[30px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:max-w-[920px] [&>button]:hidden">
@@ -121,11 +170,11 @@ export function TransferStockModal({
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/15">
-                <ArrowRightLeft className="h-5 w-5" />
+                <HeaderIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <DialogTitle className="text-xl font-bold text-white">{t.operational.modals.movementEntryTitle}</DialogTitle>
-                <DialogDescription className="mt-1 text-sm font-medium leading-5 text-white/80">{t.operational.modals.movementEntrySubtitle}</DialogDescription>
+                <DialogTitle className="text-xl font-bold text-white">{title}</DialogTitle>
+                <DialogDescription className="mt-1 text-sm font-medium leading-5 text-white/80">{subtitle}</DialogDescription>
               </div>
             </div>
             <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-2xl border border-white/30 bg-white/10 text-white hover:bg-white/20" onClick={() => onOpenChange(false)}>
@@ -137,6 +186,7 @@ export function TransferStockModal({
         <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5">
           <div className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
             <SelectField label={t.operational.modals.movementType} value={draft.movementType} options={movementTypes.map((type) => ({ value: type, label: t.operational.movementTypes[type] }))} onValueChange={(movementType) => handleTypeChange(movementType as InventoryMovementEntryType)} />
+            <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses[displayedStatus]} />
             <InputField label={t.operational.modals.date} type="date" value={draft.date} onChange={(date) => setDraft({ ...draft, date })} />
             {usesFromWarehouse ? (
               <SelectField label={t.operational.modals.fromWarehouse} value={draft.fromWarehouseId} options={fromLocationOptions} onValueChange={(fromWarehouseId) => setDraft({ ...draft, fromWarehouseId })} />
@@ -164,7 +214,21 @@ export function TransferStockModal({
 
         <DialogFooter className="bg-[#FF6B5E] px-6 py-4">
           <Button type="button" variant="outline" className="h-10 rounded-xl border-white/40 bg-transparent px-4 font-semibold text-white hover:bg-white/10 hover:text-white" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
-          <Button type="button" className="h-10 rounded-xl bg-white px-4 font-bold text-[#B63B32] shadow-sm hover:bg-white/90" disabled={!canSubmit} onClick={() => onSubmit(draft)}>{t.operational.modals.registerMovement}</Button>
+          <Button
+            type="button"
+            className="h-10 rounded-xl bg-white px-4 font-bold text-[#B63B32] shadow-sm hover:bg-white/90"
+            disabled={!canSubmit}
+            onClick={() => {
+              if (editingMovement && onSaveEdit) {
+                onSaveEdit(editingMovement.id, draft);
+                return;
+              }
+
+              onSubmit(draft);
+            }}
+          >
+            {isEditing ? t.common.save : t.operational.modals.registerMovement}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

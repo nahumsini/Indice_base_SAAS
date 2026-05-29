@@ -20,6 +20,7 @@ export type ProductTableColumnId =
   | 'cost'
   | 'profit'
   | 'status'
+  | 'visibility'
   | 'availableIn'
   | 'lastUpdated';
 
@@ -38,6 +39,7 @@ const productColumnConfigs: ProductColumnConfig[] = [
   { id: 'cost', defaultVisible: true },
   { id: 'profit', defaultVisible: true },
   { id: 'status', defaultVisible: true },
+  { id: 'visibility', defaultVisible: true },
   { id: 'availableIn', defaultVisible: true },
   { id: 'lastUpdated', defaultVisible: true },
 ];

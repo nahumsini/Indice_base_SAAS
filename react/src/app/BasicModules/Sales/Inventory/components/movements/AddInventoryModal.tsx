@@ -30,6 +30,7 @@ export function AddInventoryModal({
   businesses,
   t,
   initialProductId,
+  initialWarehouseId,
   onOpenChange,
   onSubmit,
 }: {
@@ -40,6 +41,7 @@ export function AddInventoryModal({
   businesses: InventoryBusiness[];
   t: InventoryTranslations;
   initialProductId?: string;
+  initialWarehouseId?: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (draft: AddInventoryDraft) => void;
 }) {
@@ -60,7 +62,7 @@ export function AddInventoryModal({
 
   useEffect(() => {
     if (!open) return;
-    const warehouse = activeWarehouses[0];
+    const warehouse = activeWarehouses.find((item) => item.id === initialWarehouseId) ?? activeWarehouses[0];
     setDraft((current) => ({
       ...current,
       items: [createMovementProductLine(initialProductId ?? rows[0]?.productId ?? '')],
@@ -69,7 +71,7 @@ export function AddInventoryModal({
       businessId: warehouse?.businessId ?? '',
       date: new Date().toISOString().slice(0, 10),
     }));
-  }, [activeWarehouses, initialProductId, open, rows]);
+  }, [activeWarehouses, initialProductId, initialWarehouseId, open, rows]);
 
   const canSubmit = draft.supplierName
     && draft.destinationWarehouseId
@@ -117,6 +119,8 @@ export function AddInventoryModal({
 
         <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5">
           <div className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+            <ReadOnlyField label={t.operational.modals.movementType} value={t.operational.movementTypes.supplierReceipt} />
+            <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses.received} />
             <SelectField label={t.operational.modals.supplier} value={draft.supplierName} options={suppliers.map((supplier) => ({ value: supplier, label: supplier }))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
             <label className="grid gap-2">
               <FieldLabel>{t.operational.modals.quickAddSupplier}</FieldLabel>
@@ -192,6 +196,15 @@ function SelectField({ label, value, options, onValueChange }: { label: string; 
         <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
         <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>
+    </label>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="grid gap-2">
+      <FieldLabel>{label}</FieldLabel>
+      <span className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700">{value}</span>
     </label>
   );
 }

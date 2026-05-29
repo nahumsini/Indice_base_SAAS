@@ -25,23 +25,21 @@ export function InventoryHeader({
   const subtitle = isMovementsView ? t.operational.movementsSubtitle : t.operational.subtitle;
 
   return (
-    <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-6 shadow-sm">
+    <div className="rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-6 py-6 shadow-sm shadow-[#FF6B5E]/10 dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <div className="mb-4 h-1 w-14 rounded-full bg-[#FF6B5E]" />
-          <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#B63B32]">{t.operational.badge}</p>
-          <h2 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-950">
-            <span className="text-2xl leading-none" aria-hidden="true">{t.header.emoji}</span>
+          <h2 className="mb-2 flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
+            <span className="text-xl leading-none" aria-hidden="true">{isMovementsView ? '🔁' : t.header.emoji}</span>
             {title}
           </h2>
-          <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600">{subtitle}</p>
+          <p className="max-w-4xl text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{subtitle}</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap justify-start gap-2.5 lg:max-w-[720px] lg:justify-end">
           {showColumnsAction ? (
             <Button
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-none hover:bg-[#FF6B5E]/10"
+              className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/15"
               onClick={onOpenColumns}
             >
               <Columns3 className="h-4 w-4" />
@@ -51,7 +49,7 @@ export function InventoryHeader({
           {!isMovementsView ? (
             <Button
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-none hover:bg-[#FF6B5E]/10"
+              className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/15"
               onClick={onCreateWarehouse}
             >
               <Warehouse className="h-4 w-4" />
@@ -60,7 +58,7 @@ export function InventoryHeader({
           ) : null}
           <Button
             variant="outline"
-            className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-none hover:bg-[#FF6B5E]/10"
+            className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/15"
             onClick={onTransferStock}
           >
             <ArrowRightLeft className="h-4 w-4" />
@@ -69,7 +67,7 @@ export function InventoryHeader({
           {isMovementsView ? (
             <Button
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-none hover:bg-[#FF6B5E]/10"
+              className="h-10 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/15"
               onClick={onInventoryAdjustment}
             >
               <SlidersHorizontal className="h-4 w-4" />
@@ -77,7 +75,7 @@ export function InventoryHeader({
             </Button>
           ) : null}
           <Button
-            className="h-10 gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-bold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
+            className="h-10 gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-bold text-white shadow-sm shadow-[#FF6B5E]/25 hover:bg-[#E85C50]"
             onClick={onAddInventory}
           >
             <PackagePlus className="h-4 w-4" />

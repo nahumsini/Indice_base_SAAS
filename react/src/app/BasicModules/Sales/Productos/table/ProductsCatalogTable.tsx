@@ -11,7 +11,7 @@ import { useProductRowSelection } from '../hooks/useProductRowSelection';
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig } from '../types/productCategoryTypes';
 import type { ProductSortColumn, ProductSortState } from '../types/productosTypes';
-import { getCategoryLabel } from '../utils/productCategories';
+import { buildProductCategoryOptions } from '../utils/productCategories';
 import type { ProductTableColumnId } from './ProductsColumnsModal';
 import { ProductBulkActionsBar } from './ProductBulkActionsBar';
 import { ProductTableHeader, type ProductColumn } from './ProductTableHeader';
@@ -46,7 +46,7 @@ export function ProductsCatalogTable({
   onDeleteProduct: (product: SalesCatalogItem) => void;
   onToggleProductStatus: (product: SalesCatalogItem) => void;
   onUpdateProductCategory: (product: SalesCatalogItem, category: string) => void;
-  onUpdateProductStatus: (product: SalesCatalogItem, status: 'Active' | 'Inactive') => void;
+  onUpdateProductStatus: (product: SalesCatalogItem, status: SalesCatalogItem['status']) => void;
   onBulkSetProductStatus: (productIds: string[], status: 'Active' | 'Inactive') => void;
   onBulkMarkAvailableForSales: (productIds: string[]) => void;
   onBulkRemoveFromPublicCatalog: (productIds: string[]) => void;
@@ -64,12 +64,7 @@ export function ProductsCatalogTable({
   );
   const selectedProductIds = useMemo(() => selectedProducts.map((product) => product.id), [selectedProducts]);
   const categoryOptions = useMemo(
-    () => categories
-      .filter((category) => category.isActive)
-      .map((category) => ({
-        value: category.value,
-        label: getCategoryLabel(category.value, t),
-      })),
+    () => buildProductCategoryOptions(categories, t),
     [categories, t],
   );
   const columns = useMemo<ProductColumn[]>(() => [
@@ -81,6 +76,7 @@ export function ProductsCatalogTable({
     ...(visibleColumns.includes('cost') ? [{ id: 'cost', sortColumn: 'cost' as ProductSortColumn, label: t.table.columns.cost, className: 'w-[130px]' }] : []),
     ...(visibleColumns.includes('profit') ? [{ id: 'profit', sortColumn: 'profit' as ProductSortColumn, label: t.table.columns.profit, className: 'w-[150px]' }] : []),
     ...(visibleColumns.includes('status') ? [{ id: 'status', sortColumn: 'status' as ProductSortColumn, label: t.table.columns.status, className: 'w-[150px]' }] : []),
+    ...(visibleColumns.includes('visibility') ? [{ id: 'visibility', label: t.table.columns.visibility, className: 'w-[150px]' }] : []),
     ...(visibleColumns.includes('availableIn') ? [{ id: 'availableIn', label: t.table.columns.availableIn, className: 'w-[210px]' }] : []),
     ...(visibleColumns.includes('lastUpdated') ? [{ id: 'lastUpdated', sortColumn: 'lastUpdated' as ProductSortColumn, label: t.table.columns.updated, className: 'w-[150px]' }] : []),
   ], [t, visibleColumns]);
@@ -112,7 +108,7 @@ export function ProductsCatalogTable({
 
       <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1520px] table-fixed">
+          <Table className="min-w-[1680px] table-fixed">
             <TableHeader>
               <ProductTableHeader
                 columns={columns}

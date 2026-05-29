@@ -31,9 +31,9 @@ export function FavoritesSection({
         <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{quickAccessLabel}</span>
       </div>
       <ModuleCarousel>
-        {modules.map((module, index) => (
+        {modules.map((module) => (
           <ModuleCard
-            key={index}
+            key={module.id}
             {...module}
             isFavorite={true}
             onToggleFavorite={() => onToggleFavorite(module.id)}

@@ -61,6 +61,7 @@ export const defaultOpportunityColumns: ColumnConfig[] = [
   { id: 'owner', label: 'Responsable', visible: true, description: 'Vendedor o ejecutivo responsable.' },
   { id: 'estimatedValue', label: 'Valor estimado', visible: true, description: 'Monto estimado de la negociación.' },
   { id: 'probability', label: 'Probabilidad', visible: true, description: 'Probabilidad estimada de cierre.' },
+  { id: 'quoteSignal', label: 'Cotización', visible: true, description: 'Estado de cotizaciones ligadas a la oportunidad.' },
   { id: 'expectedCloseDate', label: 'Cierre esperado', visible: true, description: 'Fecha objetivo de cierre.' },
   { id: 'nextAction', label: 'Siguiente acción', visible: true, description: 'Próximo paso comercial.' },
   { id: 'nextActionDate', label: 'Fecha de acción', visible: true, description: 'Fecha y hora programada para el siguiente contacto.' },
@@ -112,4 +113,3 @@ export const statusClasses: Record<OpportunityStatus, string> = {
   'On hold': 'border-slate-200 bg-slate-50 text-slate-600',
   Closed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 };
-

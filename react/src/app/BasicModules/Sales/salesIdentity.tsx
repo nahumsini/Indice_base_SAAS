@@ -23,16 +23,17 @@ export const salesTabIds = [
   'leads',
   'contacts',
   'quotes',
+  'sales',
   'products',
   'inventory',
-  'after-sales',
   'contracts',
+  'after-sales',
   'kpis',
 ] as const;
 
 export type SalesTabId = (typeof salesTabIds)[number];
 
-type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'productos' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
+type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'productos' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
 
 type SalesTone = 'blue' | 'aqua' | 'yellow' | 'coral' | 'graphite';
 
@@ -86,10 +87,11 @@ export const salesModuleTabs: Array<{
   { id: 'leads', translationKey: 'prospectos', icon: Target, emoji: '🎯', tone: 'blue' },
   { id: 'contacts', translationKey: 'contactos', icon: UsersRound, emoji: '👥', tone: 'aqua' },
   { id: 'quotes', translationKey: 'cotizacion', icon: Quote, emoji: '💬', tone: 'yellow' },
+  { id: 'sales', translationKey: 'sales', icon: CircleDollarSign, emoji: '💼', tone: 'coral' },
   { id: 'products', translationKey: 'productos', icon: PackageCheck, emoji: '📦', tone: 'aqua' },
   { id: 'inventory', translationKey: 'inventario', icon: Warehouse, emoji: '🏬', tone: 'coral' },
-  { id: 'after-sales', translationKey: 'postventa', icon: Handshake, emoji: '🤝', tone: 'coral' },
   { id: 'contracts', translationKey: 'contrato', icon: FileSignature, emoji: '📝', tone: 'graphite' },
+  { id: 'after-sales', translationKey: 'postventa', icon: Handshake, emoji: '🤝', tone: 'coral' },
   { id: 'kpis', translationKey: 'kpis', icon: BarChart3, emoji: '📊', tone: 'blue' },
 ];
 
@@ -217,6 +219,26 @@ const salesCopyEs: SalesWorkspaceCopy = {
       ],
       signalTitle: 'Control de propuesta',
       signals: ['Validar margen antes de enviar', 'Mantener vigencia visible', 'Convertir aceptadas a contrato'],
+    },
+    sales: {
+      eyebrow: 'Cierre comercial',
+      title: 'Ventas ganadas',
+      description: 'Registro operativo donde una cotización aceptada se convierte en venta lista para ejecución.',
+      primaryAction: 'Nueva venta',
+      secondaryAction: 'Ver validaciones',
+      metrics: [
+        { label: 'Ventas ganadas', value: '24', detail: 'cotizaciones aceptadas' },
+        { label: 'Validación pendiente', value: '6', detail: 'finanzas o inventario' },
+        { label: 'Comisiones', value: '$18K', detail: 'generadas' },
+      ],
+      lanes: [
+        { label: 'Pendiente', value: '6', detail: 'Validación comercial' },
+        { label: 'Finanzas', value: '12', detail: 'Pago aprobado' },
+        { label: 'Inventario', value: '10', detail: 'Listo para salida' },
+        { label: 'Entregado', value: '8', detail: 'Ejecución completada' },
+      ],
+      signalTitle: 'Puente operativo',
+      signals: ['Crear venta desde cotización aceptada', 'Separar cierre comercial de inventario', 'Pasar validación a finanzas y postventa'],
     },
     products: {
       eyebrow: 'Catálogo comercial',

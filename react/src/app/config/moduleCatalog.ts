@@ -27,6 +27,20 @@ export interface DashboardModuleCard {
 
 type Translator = Record<string, any>;
 
+export const BASIC_MODULE_OPERATIONAL_ORDER: readonly PageId[] = [
+  'home-panel',
+  'human-resources',
+  'processes-tasks',
+  'sales',
+  'point-of-sale',
+  'expenses',
+  'kpis',
+];
+
+const basicModuleOperationalOrderIndex = new Map<PageId, number>(
+  BASIC_MODULE_OPERATIONAL_ORDER.map((route, index) => [route, index] as const),
+);
+
 const moduleMetaBySlug: Record<
   string,
   {
@@ -299,6 +313,24 @@ export function routeForBackendSlug(slug: string): PageId | null {
 export function backendSlugForRoute(route: PageId): string | null {
   const entry = Object.entries(moduleMetaBySlug).find(([, meta]) => meta.route === route);
   return entry?.[0] ?? null;
+}
+
+export function sortBasicModulesForOperationalLauncher(
+  modules: DashboardModuleCard[],
+): DashboardModuleCard[] {
+  return modules
+    .map((module, index) => ({ module, index }))
+    .sort((left, right) => {
+      const leftOrder = basicModuleOperationalOrderIndex.get(left.module.route) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = basicModuleOperationalOrderIndex.get(right.module.route) ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ module }) => module);
 }
 
 export function mergeDashboardModules(
