@@ -59,6 +59,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
     { id: 'plan', label: t.panelInicial.tabs.plan, emoji: '💳', component: Plan },
   ];
+  const visibleSubTabs = subTabs.filter(tab => tab.id !== 'plan');
 
   // Get the active component
   const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
@@ -131,7 +132,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
           {/* Sub-tabs */}
           <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
             <div className="flex min-w-max items-center gap-2">
-              {subTabs.map(tab => (
+              {visibleSubTabs.map(tab => (
                 <button
                   key={tab.id}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm ${
