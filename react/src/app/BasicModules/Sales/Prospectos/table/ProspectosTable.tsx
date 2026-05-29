@@ -10,6 +10,7 @@ import {
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity, SalesQuote } from '../../salesCrmContext';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import type { OpportunityColumnId, OpportunitySortState } from '../types/prospectosTypes';
 import { ProspectosTableRow } from './ProspectosTableRow';
 
@@ -39,6 +40,7 @@ function OpportunitySortableHeader({
 }
 
 export function ProspectosTable({
+  copy,
   opportunities,
   quotes,
   visibleColumns,
@@ -55,6 +57,7 @@ export function ProspectosTable({
   onDelete,
   onScheduleChange,
 }: {
+  copy: ProspectosCopy;
   opportunities: SalesOpportunity[];
   quotes: SalesQuote[];
   visibleColumns: ColumnConfig[];
@@ -81,12 +84,13 @@ export function ProspectosTable({
                 <OpportunitySortableHeader column={column} sortState={sortState} onSort={onSort} />
               </TableHead>
             ))}
-            <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Acciones</TableHead>
+            <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{copy.table.actions}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {opportunities.map((opportunity) => (
             <ProspectosTableRow
+              copy={copy}
               key={opportunity.id}
               opportunity={opportunity}
               quotes={quotes}
@@ -106,7 +110,7 @@ export function ProspectosTable({
           {opportunities.length === 0 ? (
             <TableRow>
               <TableCell colSpan={visibleColumns.length + 1} className="px-6 py-16 text-center text-base text-slate-500">
-                No hay oportunidades que coincidan con la búsqueda.
+                {copy.table.empty}
               </TableCell>
             </TableRow>
           ) : null}

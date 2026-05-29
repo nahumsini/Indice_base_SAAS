@@ -8,6 +8,7 @@ import {
   initialProducts,
   initialQuotes,
 } from './mocks/salesCrmMocks';
+import { salesMockData } from './Sales/data/salesMockData';
 import type {
   SalesCatalogItem,
   SalesContact,
@@ -93,6 +94,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
   const [opportunities, setOpportunities] = useState<SalesOpportunity[]>(initialOpportunities);
   const [products, setProducts] = useState<SalesCatalogItem[]>(initialProducts);
   const [quotes, setQuotes] = useState<SalesQuote[]>(initialQuotes);
+  const [salesRecords, setSalesRecords] = useState(salesMockData);
   const [postSaleCases, setPostSaleCases] = useState<SalesPostSaleCase[]>(initialPostSaleCases);
   const [contracts, setContracts] = useState<DigitalContract[]>(initialContracts);
 
@@ -101,6 +103,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
     opportunities,
     products,
     quotes,
+    salesRecords,
     postSaleCases,
     contracts,
     addContact: (contact) => {
@@ -184,6 +187,14 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
           : quote
       )));
     },
+    addSaleRecord: (saleRecord) => {
+      setSalesRecords((current) => [saleRecord, ...current]);
+    },
+    updateSaleRecord: (saleId, patch) => {
+      setSalesRecords((current) => current.map((saleRecord) => (
+        saleRecord.id === saleId ? { ...saleRecord, ...patch } : saleRecord
+      )));
+    },
     addPostSaleCase: (postSaleCase) => {
       const createdPostSaleCase = {
         ...postSaleCase,
@@ -261,7 +272,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
           : contract
       )));
     },
-  }), [contacts, contracts, opportunities, postSaleCases, products, quotes]);
+  }), [contacts, contracts, opportunities, postSaleCases, products, quotes, salesRecords]);
 
   return (
     <SalesCrmContext.Provider value={value}>

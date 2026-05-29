@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
-import { salesMockData } from '../data/salesMockData';
 import type { SaleRecord, SaleRecordDraft, SalesColumnId, SalesFiltersState } from '../types/salesTypes';
 import { normalizeTextKey } from '../../utils/salesTextUtils';
+import { getCustomerLifecycleSignals } from '../../utils/customerLifecycle';
+import { validateSaleDraftForBackendReadiness } from '../../services/salesWorkflowBridge';
+import { useSalesCrm } from '../../salesCrmContext';
 import { calculateCommissionAmount } from '../utils/salesFormatters';
 import { calculateSalesMetrics } from '../utils/salesMetrics';
 import { defaultVisibleSalesColumns } from '../utils/salesStatuses';
@@ -18,6 +20,9 @@ const initialFilters: SalesFiltersState = {
   inventoryStatus: 'all',
   inventoryMovementStatus: 'all',
   commissionStatus: 'all',
+  relationship: 'all',
+  customerHealth: 'all',
+  postSaleStatus: 'all',
 };
 
 function matchesFilter(value: string, filter: string) {
@@ -62,10 +67,15 @@ function isWithinSelectedPeriod(value: string, period: SalesFiltersState['period
   return saleDate >= weekStart && saleDate <= weekEnd;
 }
 
-function filterSalesRecords(records: SaleRecord[], filters: SalesFiltersState) {
+function filterSalesRecords(
+  records: SaleRecord[],
+  filters: SalesFiltersState,
+  lifecycleByRecordId: Record<string, ReturnType<typeof getCustomerLifecycleSignals>>,
+) {
   const query = normalizeTextKey(filters.search);
 
   return records.filter((record) => {
+    const lifecycle = lifecycleByRecordId[record.id];
     const searchable = normalizeTextKey([
       record.saleNumber,
       record.quoteReference,
@@ -75,6 +85,9 @@ function filterSalesRecords(records: SaleRecord[], filters: SalesFiltersState) {
       record.businessUnitName,
       record.businessName,
       record.inventoryMovementReference,
+      lifecycle?.relationship,
+      lifecycle?.health,
+      lifecycle?.postSaleStatus,
       record.notes,
     ].join(' '));
 
@@ -88,7 +101,10 @@ function filterSalesRecords(records: SaleRecord[], filters: SalesFiltersState) {
       && matchesFilter(record.financeStatus, filters.financeStatus)
       && matchesFilter(record.inventoryStatus, filters.inventoryStatus)
       && matchesFilter(record.inventoryMovementStatus, filters.inventoryMovementStatus)
-      && matchesFilter(record.commissionStatus, filters.commissionStatus);
+      && matchesFilter(record.commissionStatus, filters.commissionStatus)
+      && matchesFilter(lifecycle?.relationship ?? '', filters.relationship)
+      && matchesFilter(lifecycle?.health ?? '', filters.customerHealth)
+      && matchesFilter(lifecycle?.postSaleStatus ?? '', filters.postSaleStatus);
   });
 }
 
@@ -120,44 +136,78 @@ function uniqueBusinesses(records: SaleRecord[]) {
 }
 
 export function useSalesRecords() {
-  const [records, setRecords] = useState<SaleRecord[]>(salesMockData);
+  const {
+    salesRecords: records,
+    postSaleCases,
+    addSaleRecord,
+    updateSaleRecord: updateSharedSaleRecord,
+  } = useSalesCrm();
   const [filters, setFilters] = useState<SalesFiltersState>(initialFilters);
   const [visibleColumns, setVisibleColumns] = useState<SalesColumnId[]>(defaultVisibleSalesColumns);
 
-  const filteredRecords = useMemo(
-    () => filterSalesRecords(records, filters),
-    [filters, records],
+  const lifecycleByRecordId = useMemo(
+    () => Object.fromEntries(records.map((record) => [
+      record.id,
+      getCustomerLifecycleSignals({
+        sale: record,
+        sales: records,
+        postSaleRecords: postSaleCases,
+      }),
+    ])),
+    [postSaleCases, records],
   );
 
-  const metrics = useMemo(() => calculateSalesMetrics(filteredRecords), [filteredRecords]);
+  const filteredRecords = useMemo(
+    () => filterSalesRecords(records, filters, lifecycleByRecordId),
+    [filters, lifecycleByRecordId, records],
+  );
+
+  const metrics = useMemo(() => calculateSalesMetrics(filteredRecords, lifecycleByRecordId), [filteredRecords, lifecycleByRecordId]);
   const sellers = useMemo(() => uniqueOptions(records.map((record) => record.sellerName)), [records]);
   const customers = useMemo(() => uniqueOptions(records.map((record) => record.customerName)), [records]);
   const businessUnits = useMemo(() => uniqueBusinessUnits(records), [records]);
   const businesses = useMemo(() => uniqueBusinesses(records), [records]);
+  const postSaleStatuses = useMemo(
+    () => uniqueOptions(Object.values(lifecycleByRecordId).map((lifecycle) => lifecycle.postSaleStatus ?? '')),
+    [lifecycleByRecordId],
+  );
 
   const createSaleRecord = (draft: SaleRecordDraft) => {
-    setRecords((current) => {
-      const nextIndex = current.length + 1;
-      const totalAmount = Number(draft.totalAmount) || 0;
-      const commissionRate = Number(draft.commissionRate) || 0;
-      const createdRecord: SaleRecord = {
-        ...draft,
-        id: `SAL-${String(nextIndex).padStart(3, '0')}`,
-        saleNumber: draft.saleNumber || `SALE-2026-${String(nextIndex).padStart(3, '0')}`,
-        saleDocumentReference: draft.saleDocumentReference || `SALE-SUM-2026-${String(nextIndex).padStart(3, '0')}`,
-        totalAmount,
-        commissionRate,
-        commissionAmount: draft.commissionAmount ?? calculateCommissionAmount(totalAmount, commissionRate),
-      };
+    const validation = validateSaleDraftForBackendReadiness(draft);
+    if (!validation.valid) return;
 
-      return [createdRecord, ...current];
-    });
+    const nextIndex = records.length + 1;
+    const id = `SAL-${String(nextIndex).padStart(3, '0')}`;
+    const totalAmount = Number(draft.totalAmount) || 0;
+    const commissionRate = Number(draft.commissionRate) || 0;
+    const saleLines = draft.saleLines.map((line, index) => ({
+      ...line,
+      id: `SLN-${id}-${String(index + 1).padStart(2, '0')}`,
+      inventoryMovementDraftId: line.inventoryMovementDraftId
+        ? `MOV-DRAFT-${id}-${String(index + 1).padStart(2, '0')}`
+        : undefined,
+    }));
+    const createdRecord: SaleRecord = {
+      ...draft,
+      id,
+      saleNumber: draft.saleNumber || `SALE-2026-${String(nextIndex).padStart(3, '0')}`,
+      saleDocumentReference: draft.saleDocumentReference || `SALE-SUM-2026-${String(nextIndex).padStart(3, '0')}`,
+      totalAmount,
+      subtotal: Number(draft.subtotal) || saleLines.reduce((sum, line) => sum + line.subtotal, 0),
+      discountTotal: Number(draft.discountTotal) || 0,
+      taxTotal: Number(draft.taxTotal) || 0,
+      marginTotal: Number(draft.marginTotal) || saleLines.reduce((sum, line) => sum + line.marginAmount, 0),
+      commissionRate,
+      commissionAmount: draft.commissionAmount ?? calculateCommissionAmount(totalAmount, commissionRate),
+      inventoryMovementReference: draft.inventoryMovementReference || saleLines[0]?.inventoryMovementDraftId || '',
+      saleLines,
+    };
+
+    addSaleRecord(createdRecord);
   };
 
   const updateSaleRecord = (saleId: string, patch: Partial<SaleRecord>) => {
-    setRecords((current) => current.map((record) => (
-      record.id === saleId ? { ...record, ...patch } : record
-    )));
+    updateSharedSaleRecord(saleId, patch);
   };
 
   return {
@@ -168,10 +218,12 @@ export function useSalesRecords() {
     setFilters,
     visibleColumns,
     setVisibleColumns,
+    lifecycleByRecordId,
     sellers,
     customers,
     businessUnits,
     businesses,
+    postSaleStatuses,
     createSaleRecord,
     updateSaleRecord,
   };

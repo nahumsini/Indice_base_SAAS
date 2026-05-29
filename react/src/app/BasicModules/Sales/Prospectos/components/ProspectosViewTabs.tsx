@@ -1,21 +1,23 @@
 import { CalendarDays, KanbanSquare, ListChecks } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import type { OpportunityView } from '../types/prospectosTypes';
 
 const viewOptions: Array<{
   id: OpportunityView;
-  label: string;
   icon: typeof ListChecks;
 }> = [
-  { id: 'table', label: 'Tabla', icon: ListChecks },
-  { id: 'kanban', label: 'Kanban', icon: KanbanSquare },
-  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+  { id: 'table', icon: ListChecks },
+  { id: 'kanban', icon: KanbanSquare },
+  { id: 'agenda', icon: CalendarDays },
 ];
 
 export function ProspectosViewTabs({
+  labels,
   activeView,
   onViewChange,
 }: {
+  labels: ProspectosCopy['views'];
   activeView: OpportunityView;
   onViewChange: (view: OpportunityView) => void;
 }) {
@@ -38,11 +40,10 @@ export function ProspectosViewTabs({
             )}
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
-            {view.label}
+            {labels[view.id]}
           </button>
         );
       })}
     </div>
   );
 }
-

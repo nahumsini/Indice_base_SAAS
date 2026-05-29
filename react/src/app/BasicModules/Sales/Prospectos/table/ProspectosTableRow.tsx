@@ -27,6 +27,7 @@ import { TableCell, TableRow } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
 import { OpportunityQuoteSignalBadge } from '../components/OpportunityQuoteSignalBadge';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import type { OpportunityColumnId } from '../types/prospectosTypes';
 import {
   formatCurrencyAmount,
@@ -43,11 +44,13 @@ function OpportunityInlineSelect<TValue extends string>({
   value,
   options,
   onValueChange,
+  getLabel,
   className,
 }: {
   value: TValue;
   options: readonly TValue[];
   onValueChange: (value: TValue) => void;
+  getLabel?: (value: TValue) => string;
   className?: string;
 }) {
   return (
@@ -63,7 +66,7 @@ function OpportunityInlineSelect<TValue extends string>({
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option} value={option}>
-            {option}
+            {getLabel ? getLabel(option) : option}
           </SelectItem>
         ))}
       </SelectContent>
@@ -137,6 +140,7 @@ function OpportunityScheduleInlineEditor({
 }
 
 export function ProspectosTableRow({
+  copy,
   opportunity,
   quotes,
   visibleColumns,
@@ -150,6 +154,7 @@ export function ProspectosTableRow({
   onDelete,
   onScheduleChange,
 }: {
+  copy: ProspectosCopy;
   opportunity: SalesOpportunity;
   quotes: SalesQuote[];
   visibleColumns: Array<{ id: string }>;
@@ -186,6 +191,7 @@ export function ProspectosTableRow({
           <OpportunityInlineSelect<OpportunitySource>
             value={opportunity.source}
             options={opportunitySources}
+            getLabel={(source) => copy.options.sources[source]}
             onValueChange={(source) => onUpdateOpportunity(opportunity.id, { source })}
           />
         );
@@ -194,6 +200,7 @@ export function ProspectosTableRow({
           <OpportunityInlineSelect<OpportunityStage>
             value={opportunity.stage}
             options={opportunityStages}
+            getLabel={(stage) => copy.options.stages[stage]}
             onValueChange={(stage) => onUpdateOpportunity(opportunity.id, {
               stage,
               status: getOpportunityStatusForStage(stage, opportunity.status),
@@ -206,6 +213,7 @@ export function ProspectosTableRow({
           <OpportunityInlineSelect<OpportunityTemperature>
             value={opportunity.temperature}
             options={opportunityTemperatures}
+            getLabel={(temperature) => copy.options.temperatures[temperature]}
             onValueChange={(temperature) => onUpdateOpportunity(opportunity.id, { temperature })}
             className={temperatureClasses[opportunity.temperature]}
           />
@@ -225,7 +233,7 @@ export function ProspectosTableRow({
             value={toEstimatedValueInputValue(opportunity.estimatedValue)}
             inputMode="decimal"
             onChange={(event) => onUpdateOpportunity(opportunity.id, { estimatedValue: normalizeEstimatedValueInput(event.target.value) })}
-            placeholder="0"
+            placeholder={copy.table.zeroPlaceholder}
             className="h-9 min-w-[148px] rounded-full border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20"
           />
         );
@@ -239,7 +247,7 @@ export function ProspectosTableRow({
           />
         );
       case 'quoteSignal':
-        return <OpportunityQuoteSignalBadge signal={quoteSignal} />;
+        return <OpportunityQuoteSignalBadge signal={quoteSignal} copy={copy.quoteSignal} />;
       case 'expectedCloseDate':
         return (
           <Input
@@ -254,13 +262,14 @@ export function ProspectosTableRow({
           <OpportunityInlineSelect<OpportunityNextAction>
             value={opportunity.nextAction}
             options={opportunityNextActions}
+            getLabel={(nextAction) => copy.options.nextActions[nextAction]}
             onValueChange={(nextAction) => onUpdateOpportunity(opportunity.id, { nextAction })}
           />
         );
       case 'nextActionDate':
         return <OpportunityScheduleInlineEditor opportunity={opportunity} onScheduleChange={onScheduleChange} />;
       case 'lastContact':
-        return <span className="text-sm text-slate-700">{opportunity.lastContact || 'Sin registro'}</span>;
+        return <span className="text-sm text-slate-700">{opportunity.lastContact || copy.table.noLastContact}</span>;
       case 'files':
         return (
           <button type="button" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100" onClick={() => onOpenFiles(opportunity)}>
@@ -273,6 +282,7 @@ export function ProspectosTableRow({
           <OpportunityInlineSelect<OpportunityStatus>
             value={opportunity.status}
             options={opportunityStatuses}
+            getLabel={(status) => copy.options.statuses[status]}
             onValueChange={(status) => onUpdateOpportunity(opportunity.id, { status })}
             className={statusClasses[opportunity.status]}
           />
@@ -291,6 +301,7 @@ export function ProspectosTableRow({
       ))}
       <TableCell className="px-5 py-5">
         <ProspectosQuickActions
+          copy={copy.quickActions}
           opportunity={opportunity}
           onOpenFiles={onOpenFiles}
           onOpenHistory={onOpenHistory}

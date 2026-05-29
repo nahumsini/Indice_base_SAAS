@@ -4,11 +4,26 @@ import { Button } from '../../../../components/ui/button';
 import { TableCell, TableRow } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesRecordsTranslations } from '../translations';
-import type { SaleRecord, SalesColumnId } from '../types/salesTypes';
+import type { SaleCustomerHealthStatus, SaleCustomerRelationshipStatus, SaleLifecycleSignals, SaleRecord, SalesColumnId } from '../types/salesTypes';
 import { formatCommissionRate, formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { InventoryMovementBadge } from './InventoryMovementBadge';
 import { SalesStatusBadge } from './SalesStatusBadge';
 import { ValidationStatusBadge } from './ValidationStatusBadge';
+
+const relationshipClasses: Record<SaleCustomerRelationshipStatus, string> = {
+  first_purchase: 'border-slate-200 bg-slate-50 text-slate-700',
+  recurring: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
+  renewal: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
+  recovered: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
+  dormant: 'border-slate-300 bg-slate-100 text-slate-500',
+};
+
+const healthClasses: Record<SaleCustomerHealthStatus, string> = {
+  healthy: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
+  attention: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
+  at_risk: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32]',
+  lost: 'border-slate-300 bg-slate-100 text-slate-500',
+};
 
 function OptionalText({
   value,
@@ -56,6 +71,7 @@ function RowActionButton({
 export function SalesTableRow({
   record,
   visibleColumns,
+  lifecycle,
   t,
   onView,
   onPreviewSummary,
@@ -66,6 +82,7 @@ export function SalesTableRow({
 }: {
   record: SaleRecord;
   visibleColumns: SalesColumnId[];
+  lifecycle?: SaleLifecycleSignals;
   t: SalesRecordsTranslations;
   onView: (record: SaleRecord) => void;
   onPreviewSummary: (record: SaleRecord) => void;
@@ -78,6 +95,8 @@ export function SalesTableRow({
   const isCancelled = record.commercialStatus === 'cancelled';
   const movementPrepared = record.inventoryMovementStatus !== 'not_generated';
   const financeApproved = record.financeStatus === 'approved';
+  const relationship = lifecycle?.relationship ?? 'first_purchase';
+  const health = lifecycle?.health ?? 'healthy';
 
   return (
     <TableRow className="border-slate-200 hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-800/70">
@@ -114,10 +133,37 @@ export function SalesTableRow({
         </TableCell>
       ) : null}
       {isVisible('saleDate') ? <TableCell className="px-5 py-5 text-sm font-semibold text-slate-700 dark:text-slate-200">{formatSalesDate(record.saleDate)}</TableCell> : null}
+      {isVisible('relationship') ? (
+        <TableCell className="px-5 py-5">
+          <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', relationshipClasses[relationship])}>
+            {t.lifecycle.relationship[relationship]}
+          </span>
+        </TableCell>
+      ) : null}
+      {isVisible('customerHealth') ? (
+        <TableCell className="px-5 py-5">
+          <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', healthClasses[health])}>
+            {t.lifecycle.health[health]}
+          </span>
+        </TableCell>
+      ) : null}
+      {isVisible('postSaleStatus') ? (
+        <TableCell className="px-5 py-5">
+          <OptionalText value={lifecycle?.postSaleStatus ?? ''} fallback={t.lifecycle.noPostSaleStatus} />
+        </TableCell>
+      ) : null}
       {isVisible('commercialStatus') ? <TableCell className="px-5 py-5"><SalesStatusBadge status={record.commercialStatus} t={t} /></TableCell> : null}
       {isVisible('financeStatus') ? <TableCell className="px-5 py-5"><ValidationStatusBadge label={t.statuses.finance[record.financeStatus]} tone={record.financeStatus} /></TableCell> : null}
       {isVisible('inventoryStatus') ? <TableCell className="px-5 py-5"><ValidationStatusBadge label={t.statuses.inventory[record.inventoryStatus]} tone={record.inventoryStatus} /></TableCell> : null}
       {isVisible('inventoryMovement') ? <TableCell className="px-5 py-5"><InventoryMovementBadge status={record.inventoryMovementStatus} t={t} /></TableCell> : null}
+      {isVisible('commission') ? (
+        <TableCell className="px-5 py-5">
+          <div className="space-y-2">
+            <ValidationStatusBadge label={t.statuses.commission[record.commissionStatus]} tone={record.commissionStatus} />
+            <p className="text-sm font-black text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
+          </div>
+        </TableCell>
+      ) : null}
       {isVisible('commissionStatus') ? (
         <TableCell className="px-5 py-5">
           <div className="space-y-2">
@@ -149,7 +195,7 @@ export function SalesTableRow({
             <RowActionButton
               label={t.table.actions.previewSummary}
               icon={<FileSearch className="h-4 w-4" />}
-              className="border-blue-500/25 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
+              className="border-[#FF6B5E]/25 bg-white text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900 dark:text-[#FFB0AA]"
               onClick={() => onPreviewSummary(record)}
             />
             <RowActionButton

@@ -1,14 +1,16 @@
-import { Columns3, Plus } from 'lucide-react';
+import { BadgePercent, Columns3, Plus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type { SalesRecordsTranslations } from '../translations';
 
 export function SalesHeader({
   t,
   onOpenColumns,
+  onOpenCommissionRules,
   onCreateSale,
 }: {
   t: SalesRecordsTranslations;
   onOpenColumns: () => void;
+  onOpenCommissionRules: () => void;
   onCreateSale: () => void;
 }) {
   return (
@@ -30,6 +32,15 @@ export function SalesHeader({
           >
             <Columns3 className="h-4 w-4" />
             {t.header.columnsAction}
+          </Button>
+          {/* TODO permissions: show this action only to admins/managers once CRM role rules are connected. */}
+          <Button
+            variant="outline"
+            className="h-10 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-4 text-sm font-semibold text-[#B63B32] shadow-none hover:bg-[#FF6B5E]/10"
+            onClick={onOpenCommissionRules}
+          >
+            <BadgePercent className="h-4 w-4" />
+            {t.header.commissionRulesAction}
           </Button>
           <Button
             className="h-10 gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"

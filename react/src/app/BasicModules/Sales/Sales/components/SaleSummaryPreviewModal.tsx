@@ -35,6 +35,8 @@ export function SaleSummaryPreviewModal({
 }) {
   const currency = sale?.currency || 'MXN';
   const totalAmount = sale?.totalAmount || quote?.total || 0;
+  const saleLines = sale?.saleLines ?? [];
+  const quoteLines = quote?.items ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -73,14 +75,21 @@ export function SaleSummaryPreviewModal({
                 <span>{t.modal.summaryColumns.quantity}</span>
                 <span className="text-right">{t.modal.summaryColumns.total}</span>
               </div>
-              {(quote?.items.length ? quote.items : []).map((item) => (
+              {saleLines.map((item) => (
+                <div key={item.id} className="grid grid-cols-[1fr_90px_120px] gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0 dark:border-slate-800">
+                  <span className="font-bold text-slate-900 dark:text-white">{item.productName}</span>
+                  <span className="font-semibold text-slate-600 dark:text-slate-300">{item.quantity}</span>
+                  <span className="text-right font-black text-slate-900 dark:text-white">{formatSalesCurrency(item.subtotal, currency)}</span>
+                </div>
+              ))}
+              {!saleLines.length ? quoteLines.map((item) => (
                 <div key={item.id} className="grid grid-cols-[1fr_90px_120px] gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0 dark:border-slate-800">
                   <span className="font-bold text-slate-900 dark:text-white">{item.productName}</span>
                   <span className="font-semibold text-slate-600 dark:text-slate-300">{item.quantity}</span>
                   <span className="text-right font-black text-slate-900 dark:text-white">{formatSalesCurrency(item.quantity * item.unitPrice, currency)}</span>
                 </div>
-              ))}
-              {!quote?.items.length ? (
+              )) : null}
+              {!saleLines.length && !quoteLines.length ? (
                 <div className="px-4 py-5 text-sm font-semibold text-slate-500">{t.summaryPreview.noProducts}</div>
               ) : null}
             </div>

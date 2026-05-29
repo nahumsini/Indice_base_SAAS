@@ -1,5 +1,6 @@
 import { Badge } from '../../../../components/ui/badge';
 import { cn } from '../../../../components/ui/utils';
+import type { ContactCopy } from '../translations/contactTranslations';
 import type { ContactFiscalSignal } from '../utils/contactTableSignals';
 
 const fiscalStateClassNames: Record<ContactFiscalSignal['state'], string> = {
@@ -8,16 +9,24 @@ const fiscalStateClassNames: Record<ContactFiscalSignal['state'], string> = {
   missing: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
-export function ContactFiscalBadge({ signal }: { signal: ContactFiscalSignal }) {
+export function ContactFiscalBadge({
+  copy,
+  signal,
+  country,
+}: {
+  copy: ContactCopy['signals']['fiscal'];
+  signal: ContactFiscalSignal;
+  country?: string | null;
+}) {
   return (
     <div className="min-w-[150px] space-y-1">
       <Badge
         variant="outline"
         className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', fiscalStateClassNames[signal.state])}
       >
-        {signal.label}
+        {copy.labels[signal.state]}
       </Badge>
-      <p className="text-xs font-medium text-slate-500">{signal.detail}</p>
+      <p className="text-xs font-medium text-slate-500">{copy.details[signal.state](country)}</p>
     </div>
   );
 }

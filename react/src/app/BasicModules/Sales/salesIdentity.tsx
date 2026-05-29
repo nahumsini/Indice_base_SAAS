@@ -95,6 +95,8 @@ export const salesModuleTabs: Array<{
   { id: 'kpis', translationKey: 'kpis', icon: BarChart3, emoji: '📊', tone: 'blue' },
 ];
 
+export const visibleSalesModuleTabs = salesModuleTabs.filter((tab) => tab.id !== 'contracts');
+
 const toneClasses: Record<SalesTone, {
   accent: string;
   border: string;

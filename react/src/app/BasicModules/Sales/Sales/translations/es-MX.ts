@@ -18,9 +18,11 @@ export const esMX = {
     title: 'Ventas',
     subtitle: 'Controla ventas ganadas, evidencia de pago, validaciones, preparación de inventario y comisiones.',
     columnsAction: 'Columnas',
+    commissionRulesAction: 'Commission Rules',
     primaryAction: 'Nueva venta',
   },
   filters: {
+    ...enCA.filters,
     title: 'Filtros',
     search: 'Buscar',
     searchPlaceholder: 'Buscar venta, cotización, cliente, vendedor, pago, unidad o negocio',
@@ -34,6 +36,9 @@ export const esMX = {
     inventoryStatus: 'Estado de inventario',
     inventoryMovementStatus: 'Movimiento de inventario',
     commissionStatus: 'Estado de comisión',
+    relationship: 'Relación',
+    customerHealth: 'Salud del cliente',
+    postSaleStatus: 'Estado postventa',
     periodOptions: {
       today: 'Hoy',
       thisWeek: 'Esta semana',
@@ -43,6 +48,12 @@ export const esMX = {
     },
   },
   kpis: {
+    ...enCA.kpis,
+    totalRevenue: 'Ingresos totales',
+    recurringRevenue: 'Ingresos recurrentes',
+    renewalRevenue: 'Ingresos por renovación',
+    recoveredRevenue: 'Ingresos recuperados',
+    customersAtRisk: 'Clientes en riesgo',
     totalSalesAmount: 'Monto total vendido',
     totalCommissions: 'Comisiones totales',
     averageTicket: 'Ticket promedio',
@@ -52,11 +63,12 @@ export const esMX = {
     deliveredSales: 'Ventas entregadas',
   },
   insight: {
-    summary: (totalAmount: string, totalCommissions: string, visible: number, total: number) => (
-      `Resumen de ventas: ${totalAmount} vendidos · ${totalCommissions} en comisiones · ${visible} ventas · mostrando ${visible} de ${total}.`
+    summary: (totalAmount: string, recurringRevenue: string, customersAtRisk: number, visible: number, total: number) => (
+      `Mostrando ${visible} ventas · ${totalAmount} de ingresos · ${recurringRevenue} recurrentes · ${customersAtRisk} clientes en riesgo · mostrando ${visible} de ${total}.`
     ),
   },
   table: {
+    ...enCA.table,
     emptyTitle: 'No se encontraron ventas',
     emptyDescription: 'Ajusta filtros o crea una venta desde una cotización aceptada.',
     actions: {
@@ -72,11 +84,15 @@ export const esMX = {
       cancelled: 'Venta cancelada',
     },
     columns: {
+      ...enCA.table.columns,
       saleNumber: 'Venta',
       customer: 'Cliente',
       seller: 'Vendedor',
       total: 'Total',
       saleDate: 'Fecha de venta',
+      relationship: 'Relación',
+      customerHealth: 'Salud del cliente',
+      postSaleStatus: 'Estado postventa',
       commercialStatus: 'Estado comercial',
       financeStatus: 'Finanzas',
       inventoryStatus: 'Inventario',
@@ -102,7 +118,23 @@ export const esMX = {
     description: 'Revisa el cierre comercial y el traspaso operativo.',
     quoteHelper: 'Las ventas normalmente deben generarse desde cotizaciones aceptadas.',
     quoteSelectorHelper: 'Elige primero una cotización aceptada para precargar cliente, vendedor y monto.',
-    quoteFallbackHelper: 'Aún no hay cotizaciones aceptadas, por eso se muestran todas para este flujo frontend.',
+    quoteFallbackHelper: 'Aún no hay cotizaciones aceptadas, por eso se muestran todas para este flujo de preparación.',
+    generatedFromQuote: (quoteNumber: string, notes?: string) => (
+      notes ? `Generada desde ${quoteNumber}. ${notes}` : `Generada desde ${quoteNumber}.`
+    ),
+    validationTitle: 'Completa la venta antes de guardar',
+    validationErrors: {
+      missingCustomer: 'Selecciona una cotización o cliente para conservar la relación comercial.',
+      missingBusinessUnit: 'Selecciona una unidad de negocio para la venta.',
+      missingBusiness: 'Selecciona un negocio para la venta.',
+      missingLines: 'Selecciona una cotización con productos antes de crear la venta.',
+      missingProduct: 'Cada línea de venta necesita un producto.',
+      invalidQuantity: 'Cada línea de venta necesita una cantidad mayor a cero.',
+      missingUnitPrice: 'Cada línea de venta necesita precio unitario.',
+      missingWarehouse: 'Cada línea de venta necesita almacén o almacén sugerido.',
+      missingAvailability: 'La disponibilidad debe estar validada o pendiente de validación de inventario.',
+      quoteNotApproved: 'La cotización seleccionada debe estar aprobada antes de convertirse en venta.',
+    },
     inventoryHelper: 'Inventario controla la ejecución de stock. Este registro de venta solo prepara el traspaso.',
     inventoryExecutionHelper: 'Inventario valida la ejecución de stock después del cierre comercial. Desde esta pantalla no se descuenta inventario.',
     acceptedQuoteBadge: 'Aceptada',
@@ -119,15 +151,18 @@ export const esMX = {
       total: 'Total',
     },
     sections: {
+      ...enCA.modal.sections,
       general: 'General',
       payment: 'Pago',
       validation: 'Validación',
       inventory: 'Inventario',
       operationalContext: 'Contexto operativo',
+      postSaleSnapshot: 'Snapshot postventa',
       commission: 'Comisión',
       notes: 'Notas',
     },
     fields: {
+      ...enCA.modal.fields,
       quoteSelector: 'Cotización',
       quoteReference: 'Referencia de cotización',
       saleDocumentReference: 'Referencia del documento de venta',
@@ -136,6 +171,8 @@ export const esMX = {
       customerName: 'Cliente',
       sellerName: 'Vendedor',
       saleDate: 'Fecha de venta',
+      nextFollowUpDate: 'Último / próximo seguimiento',
+      renewalDate: 'Fecha de renovación',
       totalAmount: 'Monto total',
       currency: 'Moneda',
       paymentMethod: 'Método de pago',
@@ -151,8 +188,13 @@ export const esMX = {
       commissionRate: 'Porcentaje de comisión',
       commissionAmount: 'Monto de comisión',
       commissionNotes: 'Notas de comisión',
+      customerHealth: 'Salud del cliente',
+      relationship: 'Relación',
+      openCases: 'Casos abiertos',
+      postSaleStatus: 'Estado postventa',
       notes: 'Notas',
     },
+    postSaleSnapshotHelper: 'Contexto de ciclo del cliente desde Postventa para entender continuidad sin salir de Ventas.',
     placeholders: {
       quoteSelector: 'Selecciona una cotización aceptada',
       quoteReference: 'Q-2026-000',
@@ -165,7 +207,7 @@ export const esMX = {
       notes: 'Notas de ejecución, compromiso con cliente o contexto de validación.',
     },
     operationalContext: {
-      helper: 'Contexto frontend preparado para futura integración con estructura de empresa.',
+      helper: 'Contexto de negocio preparado para futura integración con estructura de empresa.',
       legalName: 'Razón social',
       fiscalAddress: 'Dirección fiscal',
       taxIdentifier: 'Identificación fiscal',
@@ -218,7 +260,7 @@ export const esMX = {
     not_generated: 'Movimiento no generado. No se ha afectado stock.',
     pending: 'Movimiento pendiente. Esperando validación de inventario.',
     approved: 'Movimiento aprobado. Inventario aprobó la preparación.',
-    completed: 'Movimiento completado. Inventario marcó el movimiento como completado en este flujo frontend.',
+    completed: 'Movimiento completado. Inventario marcó el movimiento como completado en este flujo de preparación.',
   },
   commissionModal: {
     title: 'Gestionar comisión',

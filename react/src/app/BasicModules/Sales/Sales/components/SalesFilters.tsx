@@ -9,13 +9,6 @@ import {
 } from '../../../../components/ui/select';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SalesFiltersState } from '../types/salesTypes';
-import {
-  commercialStatuses,
-  commissionStatuses,
-  financeStatuses,
-  inventoryMovementStatuses,
-  inventoryStatuses,
-} from '../utils/salesStatuses';
 
 function FilterSelect({
   label,
@@ -83,7 +76,7 @@ export function SalesFilters({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="space-y-2 xl:col-span-2">
           <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.filters.search}</label>
           <div className="relative">
@@ -102,11 +95,6 @@ export function SalesFilters({
         <FilterSelect label={t.filters.period} value={filters.period} onValueChange={(value) => updateFilter('period', value)} options={periodOptions} />
         <FilterSelect label={t.filters.seller} value={filters.seller} onValueChange={(value) => updateFilter('seller', value)} options={[{ value: 'all', label: t.common.all }, ...sellers.map((seller) => ({ value: seller, label: seller }))]} />
         <FilterSelect label={t.filters.customer} value={filters.customer} onValueChange={(value) => updateFilter('customer', value)} options={[{ value: 'all', label: t.common.all }, ...customers.map((customer) => ({ value: customer, label: customer }))]} />
-        <FilterSelect label={t.filters.commercialStatus} value={filters.commercialStatus} onValueChange={(value) => updateFilter('commercialStatus', value)} options={[{ value: 'all', label: t.common.all }, ...commercialStatuses.map((status) => ({ value: status, label: t.statuses.commercial[status] }))]} />
-        <FilterSelect label={t.filters.financeStatus} value={filters.financeStatus} onValueChange={(value) => updateFilter('financeStatus', value)} options={[{ value: 'all', label: t.common.all }, ...financeStatuses.map((status) => ({ value: status, label: t.statuses.finance[status] }))]} />
-        <FilterSelect label={t.filters.inventoryStatus} value={filters.inventoryStatus} onValueChange={(value) => updateFilter('inventoryStatus', value)} options={[{ value: 'all', label: t.common.all }, ...inventoryStatuses.map((status) => ({ value: status, label: t.statuses.inventory[status] }))]} />
-        <FilterSelect label={t.filters.inventoryMovementStatus} value={filters.inventoryMovementStatus} onValueChange={(value) => updateFilter('inventoryMovementStatus', value)} options={[{ value: 'all', label: t.common.all }, ...inventoryMovementStatuses.map((status) => ({ value: status, label: t.statuses.movement[status] }))]} />
-        <FilterSelect label={t.filters.commissionStatus} value={filters.commissionStatus} onValueChange={(value) => updateFilter('commissionStatus', value)} options={[{ value: 'all', label: t.common.all }, ...commissionStatuses.map((status) => ({ value: status, label: t.statuses.commission[status] }))]} />
       </div>
     </section>
   );

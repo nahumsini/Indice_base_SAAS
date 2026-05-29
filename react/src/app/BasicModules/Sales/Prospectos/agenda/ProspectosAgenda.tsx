@@ -4,18 +4,21 @@ import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import { useProspectosAgenda } from '../hooks/useProspectosAgenda';
 import type { AgendaViewMode } from '../types/prospectosTypes';
 import { ProspectosAgendaCalendar } from './ProspectosAgendaCalendar';
 import { ProspectosAgendaSidebar } from './ProspectosAgendaSidebar';
 
 export function ProspectosAgenda({
+  copy,
   opportunities,
   onOpenFiles,
   onOpenHistory,
   onEdit,
   onScheduleChange,
 }: {
+  copy: ProspectosCopy;
   opportunities: SalesOpportunity[];
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
@@ -30,34 +33,28 @@ export function ProspectosAgenda({
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h3 className="text-xl font-bold text-slate-950">
-              {agenda.agendaViewMode === 'day' ? 'Agenda comercial del día' : agenda.agendaViewMode === 'week' ? 'Semana comercial' : 'Lista semanal'}
+              {copy.agenda.titleByView[agenda.agendaViewMode]}
             </h3>
             <p className="mt-1 text-sm text-slate-600">
-              {agenda.agendaViewMode === 'day'
-                ? 'Organiza llamadas, WhatsApp, correos y seguimientos por orden y horario de contacto.'
-                : 'Visualiza la carga comercial semanal, mueve seguimientos entre días y mantén el orden de contacto claro.'}
+              {copy.agenda.descriptionByView[agenda.agendaViewMode]}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-              {([
-                { value: 'day', label: 'Día' },
-                { value: 'week', label: 'Semana' },
-                { value: 'list', label: 'Lista' },
-              ] as Array<{ value: AgendaViewMode; label: string }>).map((viewOption) => (
+              {(['day', 'week', 'list'] as AgendaViewMode[]).map((viewOption) => (
                 <button
-                  key={viewOption.value}
+                  key={viewOption}
                   type="button"
                   className={cn(
                     'h-8 rounded-md px-3 text-sm font-bold transition-colors',
-                    agenda.agendaViewMode === viewOption.value
+                    agenda.agendaViewMode === viewOption
                       ? 'bg-[#FF6B5E] text-white shadow-sm'
                       : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
                   )}
-                  onClick={() => agenda.setAgendaViewMode(viewOption.value)}
+                  onClick={() => agenda.setAgendaViewMode(viewOption)}
                 >
-                  {viewOption.label}
+                  {copy.agenda.views[viewOption]}
                 </button>
               ))}
             </div>
@@ -71,16 +68,16 @@ export function ProspectosAgenda({
               <ArrowUp className="h-4 w-4 -rotate-90" />
             </Button>
             <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-4 font-bold" onClick={agenda.goToToday}>
-              Hoy
+              {copy.agenda.today}
             </Button>
             <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-3 font-bold" onClick={() => agenda.moveAgendaWindow(1)}>
               <ArrowUp className="h-4 w-4 rotate-90" />
             </Button>
             <Badge variant="outline" className="rounded-full border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-2 text-sm font-bold text-[#2563EB]">
-              {agenda.agendaViewMode === 'day' ? `${agenda.dayOpportunities.length} del día` : `${agenda.weekOpportunities.length} de la semana`}
+              {agenda.agendaViewMode === 'day' ? copy.agenda.dayCount(agenda.dayOpportunities.length) : copy.agenda.weekCount(agenda.weekOpportunities.length)}
             </Badge>
             <Badge variant="outline" className="rounded-full border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-2 text-sm font-bold text-[#177d66]">
-              {agenda.scheduledCount} programadas
+              {copy.agenda.scheduled(agenda.scheduledCount)}
             </Badge>
             {agenda.agendaViewMode !== 'day' ? (
               <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600">
@@ -94,6 +91,7 @@ export function ProspectosAgenda({
       {agenda.agendaViewMode === 'day' ? (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <ProspectosAgendaCalendar
+            copy={copy}
             mode={agenda.agendaViewMode}
             selectedDate={agenda.selectedDate}
             dayOpportunities={agenda.dayOpportunities}
@@ -109,6 +107,7 @@ export function ProspectosAgenda({
             onEdit={onEdit}
           />
           <ProspectosAgendaSidebar
+            copy={copy}
             unscheduledOpportunities={agenda.unscheduledOpportunities}
             opportunitySchedules={agenda.opportunitySchedules}
             onDraftChange={agenda.handleDraftChange}
@@ -119,6 +118,7 @@ export function ProspectosAgenda({
 
       {agenda.agendaViewMode !== 'day' ? (
         <ProspectosAgendaCalendar
+          copy={copy}
           mode={agenda.agendaViewMode}
           selectedDate={agenda.selectedDate}
           dayOpportunities={agenda.dayOpportunities}
@@ -137,4 +137,3 @@ export function ProspectosAgenda({
     </section>
   );
 }
-

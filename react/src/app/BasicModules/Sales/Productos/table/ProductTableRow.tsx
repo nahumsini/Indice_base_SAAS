@@ -81,14 +81,14 @@ export function ProductTableRow({
     <TableRow
       className={cn(
         'border-slate-200 align-middle transition-colors hover:bg-slate-50/80',
-        selected && 'bg-[#F4C84A]/10',
+        selected && 'bg-[#FF6B5E]/10',
       )}
     >
       <TableCell className="w-[56px] px-5 py-4 align-middle">
         <Checkbox
           aria-label={t.table.selection.selectRow(product.name)}
           checked={selected}
-          className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
+          className="border-slate-300 data-[state=checked]:border-[#FF6B5E] data-[state=checked]:bg-[#FF6B5E]"
           onCheckedChange={(checked) => onSelectionChange(checked === true)}
         />
       </TableCell>

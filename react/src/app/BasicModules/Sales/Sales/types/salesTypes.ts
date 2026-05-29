@@ -1,3 +1,14 @@
+import type {
+  CustomerHealthStatus,
+  CustomerRelationshipStatus,
+  CustomerLifecycleSignals,
+} from '../../utils/customerLifecycle';
+import type {
+  SalesAvailabilityStatus,
+  SalesWorkflowInventoryMovementDraft,
+  SalesWorkflowSaleLine,
+} from '../../types/salesWorkflow';
+
 export type CommercialStatus = 'pending_validation' | 'approved' | 'rejected' | 'cancelled';
 export type FinanceStatus = 'pending' | 'approved' | 'rejected';
 export type InventoryStatus = 'pending' | 'reserved' | 'approved' | 'unavailable';
@@ -6,11 +17,18 @@ export type CommissionStatus = 'pending' | 'calculated' | 'paid';
 export type InventoryMovementStatus = 'not_generated' | 'pending' | 'approved' | 'completed';
 export type PaymentEvidenceStatus = 'missing' | 'uploaded' | 'under_review' | 'approved' | 'rejected';
 export type SalesPeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
+export type SaleLineAvailabilityStatus = SalesAvailabilityStatus;
+export type SaleLine = SalesWorkflowSaleLine;
+export type SaleInventoryMovementDraft = SalesWorkflowInventoryMovementDraft;
 
 export type SaleRecord = {
   id: string;
   saleNumber: string;
   quoteId?: string;
+  prospectId?: string;
+  contactId?: string;
+  customerId?: string;
+  sellerId?: string;
   quoteReference: string;
   saleDocumentReference?: string;
   businessUnitId?: string;
@@ -21,6 +39,10 @@ export type SaleRecord = {
   sellerName: string;
   saleDate: string;
   totalAmount: number;
+  subtotal: number;
+  discountTotal: number;
+  taxTotal: number;
+  marginTotal: number;
   currency: string;
   paymentMethod: string;
   paymentReference: string;
@@ -35,6 +57,7 @@ export type SaleRecord = {
   commissionRate: number;
   commissionAmount: number;
   commissionNotes: string;
+  saleLines: SaleLine[];
   notes: string;
 };
 
@@ -77,6 +100,9 @@ export type SalesFiltersState = {
   inventoryStatus: string;
   inventoryMovementStatus: string;
   commissionStatus: string;
+  relationship: string;
+  customerHealth: string;
+  postSaleStatus: string;
 };
 
 export type SalesColumnId =
@@ -85,10 +111,14 @@ export type SalesColumnId =
   | 'seller'
   | 'total'
   | 'saleDate'
+  | 'relationship'
+  | 'customerHealth'
+  | 'postSaleStatus'
   | 'commercialStatus'
   | 'financeStatus'
   | 'inventoryStatus'
   | 'inventoryMovement'
+  | 'commission'
   | 'commissionStatus'
   | 'actions'
   | 'quoteReference'
@@ -109,8 +139,16 @@ export type SalesMetrics = {
   totalCommissions: number;
   averageTicket: number;
   salesCount: number;
+  recurringRevenue: number;
+  renewalRevenue: number;
+  recoveredRevenue: number;
+  customersAtRisk: number;
   pendingFinanceValidation: number;
   pendingInventoryMovement: number;
   deliveredSales: number;
   totalRecords: number;
 };
+
+export type SaleLifecycleSignals = CustomerLifecycleSignals;
+export type SaleCustomerHealthStatus = CustomerHealthStatus;
+export type SaleCustomerRelationshipStatus = CustomerRelationshipStatus;

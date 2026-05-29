@@ -10,14 +10,17 @@ import {
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
 import { getSalesModalStyles } from '../../salesModalStyles';
+import type { ProspectosCopy } from '../translations/prospectosTranslations';
 import { buildOpportunityHistory } from '../utils/prospectosMetrics';
 
 const opportunityModalStyles = getSalesModalStyles('coral');
 
 export function OpportunityDetailModal({
+  copy,
   opportunity,
   onClose,
 }: {
+  copy: ProspectosCopy['detailModal'];
   opportunity: SalesOpportunity | null;
   onClose: () => void;
 }) {
@@ -27,9 +30,9 @@ export function OpportunityDetailModal({
     }}>
       <DialogContent className={cn(opportunityModalStyles.content, 'max-w-3xl')} closeButtonClassName={opportunityModalStyles.close}>
         <DialogHeader className={opportunityModalStyles.header}>
-          <DialogTitle className={opportunityModalStyles.title}>Historial de oportunidad</DialogTitle>
+          <DialogTitle className={opportunityModalStyles.title}>{copy.title}</DialogTitle>
           <DialogDescription className={opportunityModalStyles.description}>
-            Registro operativo de eventos comerciales, seguimiento, archivos y cambios relevantes.
+            {copy.description}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,11 +67,10 @@ export function OpportunityDetailModal({
 
         <DialogFooter className={opportunityModalStyles.footer}>
           <Button className={opportunityModalStyles.primaryButton} onClick={onClose}>
-            Cerrar
+            {copy.close}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

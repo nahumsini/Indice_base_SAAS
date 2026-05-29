@@ -11,6 +11,13 @@ const emptySummary: NotificationsSummary = {
   unread_count: 0,
 };
 
+function normalizeSummary(summary?: Partial<NotificationsSummary> | null): NotificationsSummary {
+  return {
+    total_count: Number(summary?.total_count) || 0,
+    unread_count: Number(summary?.unread_count) || 0,
+  };
+}
+
 export function useNotifications() {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [summary, setSummary] = useState<NotificationsSummary>(emptySummary);
@@ -22,9 +29,11 @@ export function useNotifications() {
     setError('');
     try {
       const response = await notificationsApi.list();
-      setItems(response.items);
-      setSummary(response.summary);
+      setItems(Array.isArray(response?.items) ? response.items : []);
+      setSummary(normalizeSummary(response?.summary));
     } catch (loadError) {
+      setItems([]);
+      setSummary(emptySummary);
       setError(loadError instanceof Error ? loadError.message : 'Unable to load notifications.');
     } finally {
       setLoading(false);

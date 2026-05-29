@@ -33,6 +33,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
   const [filterModule, setFilterModule] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
+  const unreadCount = summary?.unread_count ?? 0;
   const moduleOptions = Array.from(new Set(items.map((item) => item.module_slug)));
   const visibleItems = items.filter((notification) => {
     const matchesSearch = !deferredSearch
@@ -57,7 +58,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
             <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2"><Bell className="h-6 w-6 text-white" /></div>
             <div>
               <h2 className="text-2xl font-bold text-white">Ver todas las notificaciones</h2>
-              <p className="text-sm text-white/80 mt-0.5">{summary.unread_count} notificaciones sin leer</p>
+              <p className="text-sm text-white/80 mt-0.5">{unreadCount} notificaciones sin leer</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20 rounded-full">
@@ -88,7 +89,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={onMarkAllRead} disabled={summary.unread_count === 0} className="whitespace-nowrap">
+            <Button variant="outline" onClick={onMarkAllRead} disabled={unreadCount === 0} className="whitespace-nowrap">
               <Check className="h-4 w-4 mr-2" />
               Marcar todo como leído
             </Button>
@@ -96,8 +97,8 @@ export function NotificationCenter(props: NotificationCenterProps) {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all">Todas ({items.length})</TabsTrigger>
-              <TabsTrigger value="unread">Sin leer ({summary.unread_count})</TabsTrigger>
-              <TabsTrigger value="read">Leídas ({items.length - summary.unread_count})</TabsTrigger>
+              <TabsTrigger value="unread">Sin leer ({unreadCount})</TabsTrigger>
+              <TabsTrigger value="read">Leídas ({items.length - unreadCount})</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

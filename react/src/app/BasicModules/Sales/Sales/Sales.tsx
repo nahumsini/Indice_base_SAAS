@@ -1,22 +1,31 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CommissionManagementModal } from './components/CommissionManagementModal';
+import { CommissionRulesModal } from './components/CommissionRulesModal';
+import { CommissionsView } from './components/CommissionsView';
 import { SaleSummaryPreviewModal } from './components/SaleSummaryPreviewModal';
 import { SalesColumnsModal } from './components/SalesColumnsModal';
 import { SalesDetailModal } from './components/SalesDetailModal';
-import { SalesFilters } from './components/SalesFilters';
 import { SalesHeader } from './components/SalesHeader';
-import { SalesInsightBar } from './components/SalesInsightBar';
-import { SalesKpiStrip } from './components/SalesKpiStrip';
-import { SalesTable } from './components/SalesTable';
+import { SalesView } from './components/SalesView';
+import { SalesViewSwitcher } from './components/SalesViewSwitcher';
+import { commissionMockRules } from './data/commissionMockData';
 import { useSalesRecords } from './hooks/useSalesRecords';
 import { useSalesTranslations } from './hooks/useSalesTranslations';
-import { salesOperationalGuidanceSections } from './operationalGuidance';
+import type { CommissionRule, CommissionViewMode } from './types/commissions';
 import type { SaleRecord } from './types/salesTypes';
+import { calculateCommissionRecords } from './utils/commissionRules';
 import { useSalesCrm } from '../salesCrmContext';
 
 export default function Sales() {
   const t = useSalesTranslations();
-  const { quotes } = useSalesCrm();
+  const {
+    quotes,
+    products,
+    contacts,
+    opportunities,
+    updateQuoteStatus,
+    updateOpportunity,
+  } = useSalesCrm();
   const {
     records,
     filteredRecords,
@@ -25,6 +34,7 @@ export default function Sales() {
     setFilters,
     visibleColumns,
     setVisibleColumns,
+    lifecycleByRecordId,
     sellers,
     customers,
     businessUnits,
@@ -36,9 +46,13 @@ export default function Sales() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
+  const [isCommissionRulesOpen, setIsCommissionRulesOpen] = useState(false);
+  const [activeView, setActiveView] = useState<CommissionViewMode>('sales');
+  const [commissionRules, setCommissionRules] = useState<CommissionRule[]>(commissionMockRules);
   const [selectedRecord, setSelectedRecord] = useState<SaleRecord | null>(null);
   const [summaryPreviewRecord, setSummaryPreviewRecord] = useState<SaleRecord | null>(null);
   const [commissionRecord, setCommissionRecord] = useState<SaleRecord | null>(null);
+  const commissionRecords = useMemo(() => calculateCommissionRecords(records, commissionRules), [commissionRules, records]);
 
   const handleCreateSale = () => {
     setSelectedRecord(null);
@@ -95,51 +109,36 @@ export default function Sales() {
       <SalesHeader
         t={t}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
+        onOpenCommissionRules={() => setIsCommissionRulesOpen(true)}
         onCreateSale={handleCreateSale}
       />
 
-      <SalesFilters
-        filters={filters}
-        businessUnits={businessUnits}
-        businesses={businesses}
-        sellers={sellers}
-        customers={customers}
-        t={t}
-        onFiltersChange={setFilters}
-      />
+      <SalesViewSwitcher activeView={activeView} t={t} onViewChange={setActiveView} />
 
-      <SalesKpiStrip metrics={metrics} t={t} />
-
-      <SalesInsightBar
-        metrics={metrics}
-        visibleCount={filteredRecords.length}
-        totalCount={records.length}
-        t={t}
-      />
-
-      <SalesTable
-        records={filteredRecords}
-        visibleColumns={visibleColumns}
-        t={t}
-        onViewRecord={handleViewRecord}
-        onPreviewSummary={handlePreviewSummary}
-        onManageCommission={handleManageCommission}
-        onPrepareMovement={handlePrepareMovement}
-        onSendToFinance={handleSendToFinance}
-        onCancelSale={handleCancelSale}
-      />
-
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="text-lg font-bold text-slate-950 dark:text-white">{t.guidance.title}</h3>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {salesOperationalGuidanceSections.map((section) => (
-            <article key={section} className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
-              <p className="text-sm font-black text-[#B63B32]">{t.guidance.sections[section].title}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{t.guidance.sections[section].body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      {activeView === 'sales' ? (
+        <SalesView
+          records={records}
+          filteredRecords={filteredRecords}
+          metrics={metrics}
+          filters={filters}
+          visibleColumns={visibleColumns}
+          lifecycleByRecordId={lifecycleByRecordId}
+          sellers={sellers}
+          customers={customers}
+          businessUnits={businessUnits}
+          businesses={businesses}
+          t={t}
+          onFiltersChange={setFilters}
+          onViewRecord={handleViewRecord}
+          onPreviewSummary={handlePreviewSummary}
+          onManageCommission={handleManageCommission}
+          onPrepareMovement={handlePrepareMovement}
+          onSendToFinance={handleSendToFinance}
+          onCancelSale={handleCancelSale}
+        />
+      ) : (
+        <CommissionsView sales={records} rules={commissionRules} t={t} />
+      )}
 
       <SalesColumnsModal
         open={isColumnsModalOpen}
@@ -153,10 +152,25 @@ export default function Sales() {
         open={isDetailModalOpen}
         record={selectedRecord}
         quotes={quotes}
+        products={products}
+        contacts={contacts}
+        opportunities={opportunities}
+        lifecycle={selectedRecord ? lifecycleByRecordId[selectedRecord.id] : undefined}
+        commissionRecords={selectedRecord ? commissionRecords.filter((commission) => commission.saleId === selectedRecord.id) : []}
         t={t}
         onOpenChange={setIsDetailModalOpen}
         onCreate={createSaleRecord}
         onUpdate={updateSaleRecord}
+        onQuoteConverted={(quoteId, opportunityId) => {
+          updateQuoteStatus(quoteId, 'Closed Won');
+          if (opportunityId) {
+            updateOpportunity(opportunityId, {
+              stage: 'Won',
+              status: 'Closed',
+              probability: '100%',
+            });
+          }
+        }}
       />
 
       <SaleSummaryPreviewModal
@@ -173,6 +187,15 @@ export default function Sales() {
         t={t}
         onOpenChange={setIsCommissionModalOpen}
         onUpdate={updateSaleRecord}
+      />
+
+      <CommissionRulesModal
+        open={isCommissionRulesOpen}
+        rules={commissionRules}
+        sales={records}
+        t={t}
+        onOpenChange={setIsCommissionRulesOpen}
+        onRulesChange={setCommissionRules}
       />
     </section>
   );

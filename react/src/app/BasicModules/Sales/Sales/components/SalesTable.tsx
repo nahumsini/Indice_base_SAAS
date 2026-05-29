@@ -7,12 +7,13 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import type { SalesRecordsTranslations } from '../translations';
-import type { SaleRecord, SalesColumnId } from '../types/salesTypes';
+import type { SaleLifecycleSignals, SaleRecord, SalesColumnId } from '../types/salesTypes';
 import { SalesTableRow } from './SalesTableRow';
 
 export function SalesTable({
   records,
   visibleColumns,
+  lifecycleByRecordId,
   t,
   onViewRecord,
   onPreviewSummary,
@@ -23,6 +24,7 @@ export function SalesTable({
 }: {
   records: SaleRecord[];
   visibleColumns: SalesColumnId[];
+  lifecycleByRecordId: Record<string, SaleLifecycleSignals>;
   t: SalesRecordsTranslations;
   onViewRecord: (record: SaleRecord) => void;
   onPreviewSummary: (record: SaleRecord) => void;
@@ -58,6 +60,7 @@ export function SalesTable({
               key={record.id}
               record={record}
               visibleColumns={visibleColumns}
+              lifecycle={lifecycleByRecordId[record.id]}
               t={t}
               onView={onViewRecord}
               onPreviewSummary={onPreviewSummary}

@@ -12,6 +12,7 @@ import {
 } from '../../../../components/ui/dialog';
 import { cn } from '../../../../components/ui/utils';
 import { getSalesModalStyles } from '../../salesModalStyles';
+import type { ContactCopy } from '../translations/contactTranslations';
 import {
   parseContactFile,
   pickNativeContacts,
@@ -27,10 +28,12 @@ type ImportContactsResult = {
 };
 
 export function ImportContactsModal({
+  copy,
   isOpen,
   onOpenChange,
   onImportContacts,
 }: {
+  copy: ContactCopy['importModal'];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onImportContacts: (contacts: ImportedContactDraft[]) => ImportContactsResult;
@@ -74,9 +77,9 @@ export function ImportContactsModal({
     try {
       const selectedContacts = await pickNativeContacts(navigator as ContactImportNavigator);
       setDrafts(selectedContacts);
-      setStatusMessage(selectedContacts.length > 0 ? `${selectedContacts.length} contactos listos para importar.` : 'No se seleccionaron contactos.');
+      setStatusMessage(selectedContacts.length > 0 ? copy.selectedReady(selectedContacts.length) : copy.noneSelected);
     } catch {
-      setStatusMessage('El navegador no permitió leer contactos. Usa un archivo .vcf o .csv como alternativa.');
+      setStatusMessage(copy.nativeDenied);
     } finally {
       setIsReadingContacts(false);
     }
@@ -95,9 +98,9 @@ export function ImportContactsModal({
       const fileContent = await file.text();
       const parsedContacts = parseContactFile(file.name, fileContent);
       setDrafts(parsedContacts);
-      setStatusMessage(parsedContacts.length > 0 ? `${parsedContacts.length} contactos detectados en ${file.name}.` : 'No se detectaron contactos válidos en el archivo.');
+      setStatusMessage(parsedContacts.length > 0 ? copy.fileDetected(parsedContacts.length, file.name) : copy.fileEmpty);
     } catch {
-      setStatusMessage('No se pudo leer el archivo. Prueba con un .vcf o .csv exportado desde tu teléfono.');
+      setStatusMessage(copy.fileReadError);
     } finally {
       setIsReadingContacts(false);
     }
@@ -105,7 +108,7 @@ export function ImportContactsModal({
 
   const handleImportContacts = () => {
     const result = onImportContacts(drafts);
-    setStatusMessage(`${result.imported} contactos importados${result.skipped > 0 ? ` · ${result.skipped} duplicados omitidos` : ''}.`);
+    setStatusMessage(copy.importResult(result.imported, result.skipped));
     setDrafts([]);
   };
 
@@ -115,10 +118,10 @@ export function ImportContactsModal({
         <DialogHeader className={cn(importModalStyles.header, 'shrink-0')}>
           <DialogTitle className={importModalStyles.title}>
             <UploadCloud className="h-6 w-6" />
-            Importar contactos
+            {copy.title}
           </DialogTitle>
           <DialogDescription className={importModalStyles.description}>
-            Trae contactos desde Android, iPhone o un archivo exportado. Todo se procesa localmente en el navegador.
+            {copy.description}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,12 +139,12 @@ export function ImportContactsModal({
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#FF6B5E] text-white">
                 <Smartphone className="h-5 w-5" />
               </span>
-              <span className="mt-3 block text-sm font-black text-slate-950">Desde teléfono</span>
+              <span className="mt-3 block text-sm font-black text-slate-950">{copy.fromPhone}</span>
               <span className="mt-1 block text-sm leading-6 text-slate-600">
-                Disponible si el navegador permite abrir el selector nativo de contactos.
+                {copy.fromPhoneDescription}
               </span>
               <Badge variant="outline" className="mt-3 rounded-full border-slate-200 bg-white text-xs font-bold text-slate-600">
-                {canUseNativeContacts ? 'Disponible' : 'Usa archivo'}
+                {canUseNativeContacts ? copy.available : copy.useFile}
               </Badge>
             </button>
 
@@ -154,9 +157,9 @@ export function ImportContactsModal({
               <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
                 <FileUp className="h-5 w-5" />
               </span>
-              <span className="mt-3 block text-sm font-black text-slate-950">Archivo .vcf o .csv</span>
+              <span className="mt-3 block text-sm font-black text-slate-950">{copy.fileTitle}</span>
               <span className="mt-1 block text-sm leading-6 text-slate-600">
-                Ideal para iPhone, Android o contactos exportados desde otro sistema.
+                {copy.fileDescription}
               </span>
             </button>
             <input ref={fileInputRef} type="file" accept=".vcf,.csv,text/vcard,text/csv" className="hidden" onChange={handleFileChange} />
@@ -165,11 +168,11 @@ export function ImportContactsModal({
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">Vista previa</h3>
-                <p className="mt-1 text-sm text-slate-600">Revisa antes de crear contactos en el directorio.</p>
+                <h3 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{copy.previewTitle}</h3>
+                <p className="mt-1 text-sm text-slate-600">{copy.previewDescription}</p>
               </div>
               <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
-                {drafts.length} listos
+                {copy.ready(drafts.length)}
               </Badge>
             </div>
 
@@ -178,15 +181,15 @@ export function ImportContactsModal({
                 <div key={`${contact.contactPerson}-${contact.email}-${index}`} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                   <p className="font-bold text-slate-950">{contact.contactPerson}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{contact.company}</p>
-                  <p className="mt-1 text-xs text-slate-500">{[contact.phone, contact.email].filter(Boolean).join(' · ') || 'Sin teléfono/email'}</p>
+                  <p className="mt-1 text-xs text-slate-500">{[contact.phone, contact.email].filter(Boolean).join(' · ') || copy.noPhoneEmail}</p>
                 </div>
               )) : (
                 <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-400">
-                  Selecciona contactos desde el teléfono o carga un archivo para ver la vista previa.
+                  {copy.emptyPreview}
                 </div>
               )}
               {drafts.length > 8 ? (
-                <p className="text-center text-xs font-semibold text-slate-500">+{drafts.length - 8} contactos más</p>
+                <p className="text-center text-xs font-semibold text-slate-500">{copy.moreContacts(drafts.length - 8)}</p>
               ) : null}
             </div>
           </section>
@@ -200,9 +203,9 @@ export function ImportContactsModal({
         </div>
 
         <DialogFooter className={cn(importModalStyles.footer, 'shrink-0')}>
-          <Button variant="outline" className={importModalStyles.secondaryButton} onClick={() => handleOpenChange(false)}>Cancelar</Button>
+          <Button variant="outline" className={importModalStyles.secondaryButton} onClick={() => handleOpenChange(false)}>{copy.cancel}</Button>
           <Button className={importModalStyles.primaryButton} onClick={handleImportContacts} disabled={drafts.length === 0 || isReadingContacts}>
-            Importar contactos
+            {copy.importContacts}
           </Button>
         </DialogFooter>
       </DialogContent>
