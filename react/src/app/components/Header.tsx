@@ -1,4 +1,4 @@
-import { Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
+import { CreditCard, Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -327,6 +327,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   <DropdownMenuItem className="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.profile}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-0" />
+                  <DropdownMenuItem
+                    className="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    onClick={() => navigate('/home-panel/plan')}
+                  >
+                    <CreditCard className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.panelInicial.tabs.plan}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0" />
                   <DropdownMenuItem className="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
