@@ -1131,8 +1131,7 @@ public class HrPayrollService {
         BigDecimal regularHours = BigDecimal.ZERO;
         BigDecimal overtimeHours = BigDecimal.ZERO;
         BigDecimal leaveHours = BigDecimal.ZERO;
-        BigDecimal baseDailyAmount = BigDecimal.ZERO;
-        BigDecimal absenceDeductionAmount = BigDecimal.ZERO;
+        BigDecimal scheduledWorkDays = countScheduledWorkDays(scheduleWindows, periodStartDate, periodEndDate);
 
         for (var currentDate = periodStartDate; !currentDate.isAfter(periodEndDate); currentDate = currentDate.plusDays(1)) {
             var record = dailyRecords.get(currentDate);
@@ -1148,20 +1147,13 @@ public class HrPayrollService {
                 case "absence" -> {
                     if (window != null && !window.isRestDay()) {
                         absenceDays = absenceDays.add(BigDecimal.ONE);
-                        if ("daily".equals(user.salaryType())) {
-                            baseDailyAmount = baseDailyAmount.add(user.salary());
-                            absenceDeductionAmount = absenceDeductionAmount.add(user.salary());
-                        }
                     }
                 }
                 case "leave" -> {
                     leaveDays = leaveDays.add(BigDecimal.ONE);
                     if ("daily".equals(user.salaryType())) {
-                        baseDailyAmount = baseDailyAmount.add(user.salary());
                         if (preferences.payLeaveDays()) {
                             payableDays = payableDays.add(BigDecimal.ONE);
-                        } else {
-                            absenceDeductionAmount = absenceDeductionAmount.add(user.salary());
                         }
                     } else {
                         leaveHours = leaveHours.add(scheduledHours);
@@ -1170,7 +1162,6 @@ public class HrPayrollService {
                 case "late" -> {
                     lateCount++;
                     if ("daily".equals(user.salaryType())) {
-                        baseDailyAmount = baseDailyAmount.add(user.salary());
                         payableDays = payableDays.add(BigDecimal.ONE);
                     } else {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
@@ -1182,7 +1173,6 @@ public class HrPayrollService {
                 }
                 case "on_time" -> {
                     if ("daily".equals(user.salaryType())) {
-                        baseDailyAmount = baseDailyAmount.add(user.salary());
                         payableDays = payableDays.add(BigDecimal.ONE);
                     } else {
                         var workedHours = resolveWorkedHours(record, scheduledHours);
@@ -1200,9 +1190,14 @@ public class HrPayrollService {
 
         var items = new ArrayList<PayrollLineItemDraft>();
         if ("daily".equals(user.salaryType())) {
-            if (baseDailyAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("BASE_DAILY", "earning", "Base daily pay", baseDailyAmount, "computed", 10));
+            if (user.salary().compareTo(BigDecimal.ZERO) > 0) {
+                items.add(new PayrollLineItemDraft("BASE_DAILY", "earning", "Fixed period salary", user.salary(), "computed", 10));
             }
+            var unpaidDays = absenceDays.add(preferences.payLeaveDays() ? BigDecimal.ZERO : leaveDays);
+            var prorationDays = scheduledWorkDays.compareTo(BigDecimal.ZERO) > 0
+                ? scheduledWorkDays
+                : payableDays.add(unpaidDays);
+            var absenceDeductionAmount = computeFixedSalaryDeduction(user.salary(), unpaidDays, prorationDays);
             if (absenceDeductionAmount.compareTo(BigDecimal.ZERO) > 0) {
                 items.add(new PayrollLineItemDraft("ABSENCE_DEDUCTION", "deduction", "Unpaid attendance deduction", absenceDeductionAmount, "computed", 70));
             }
@@ -1643,6 +1638,17 @@ public class HrPayrollService {
             .orElse(null);
     }
 
+    private BigDecimal countScheduledWorkDays(List<PayrollScheduleWindow> windows, LocalDate startDate, LocalDate endDate) {
+        BigDecimal days = BigDecimal.ZERO;
+        for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
+            var window = resolveScheduleWindow(windows, currentDate);
+            if (window != null && !window.isRestDay()) {
+                days = days.add(BigDecimal.ONE);
+            }
+        }
+        return days;
+    }
+
     private String resolvePayrollStatus(PayrollDailyRecordRow record, PayrollScheduleWindow window) {
         if (record != null && !isBlank(record.correctedStatus())) {
             return record.correctedStatus();
@@ -1982,6 +1988,22 @@ public class HrPayrollService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    static BigDecimal computeFixedSalaryDeduction(BigDecimal periodSalary, BigDecimal unpaidDays, BigDecimal prorationDays) {
+        if (periodSalary == null
+            || unpaidDays == null
+            || prorationDays == null
+            || periodSalary.compareTo(BigDecimal.ZERO) <= 0
+            || unpaidDays.compareTo(BigDecimal.ZERO) <= 0
+            || prorationDays.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return periodSalary
+            .divide(prorationDays, 6, RoundingMode.HALF_UP)
+            .multiply(unpaidDays)
+            .setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal sumAmounts(List<PayrollLineItemDraft> items, String category) {
