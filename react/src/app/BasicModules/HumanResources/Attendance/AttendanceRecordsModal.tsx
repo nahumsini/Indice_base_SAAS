@@ -8,10 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../components/ui/dialog';
-import type {
-  AttendanceCalendarResponse,
-  AttendanceCorrectionStatus,
-} from '../../../api/humanResources';
+import type { AttendanceCalendarResponse } from '../../../api/humanResources';
 
 interface AttendanceRecordsModalProps {
   calendar: AttendanceCalendarResponse | null;
@@ -24,10 +21,6 @@ interface AttendanceRecordsModalProps {
   title: string;
   onMonthChange: (month: string) => void;
   onOpenChange: (open: boolean) => void;
-  onUpdateStatus: (
-    date: string,
-    status: AttendanceCorrectionStatus | '',
-  ) => Promise<void>;
 }
 
 export function AttendanceRecordsModal({
@@ -41,7 +34,6 @@ export function AttendanceRecordsModal({
   title,
   onMonthChange,
   onOpenChange,
-  onUpdateStatus,
 }: AttendanceRecordsModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -87,8 +79,8 @@ export function AttendanceRecordsModal({
               days={calendar.items}
               isLoading={isLoadingCalendar}
               onMonthChange={onMonthChange}
-              onUpdateStatus={onUpdateStatus}
               displayMode="embedded"
+              readOnly
             />
           ) : (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-5 py-10 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-400">

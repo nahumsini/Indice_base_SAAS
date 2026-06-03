@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, MapPin, User, View } from 'lucide-react';
 import { AttendanceRecorderPhotoCard } from './AttendanceRecorderPhotoCard';
-import { AttendanceRecordsModal } from './AttendanceRecordsModal';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
@@ -16,63 +15,20 @@ import {
 } from '../../../shared/attendancePunchState';
 import {
   humanResourcesApi,
-  type AttendanceCalendarDay,
   type AttendanceCalendarResponse,
-  type AttendanceCorrectionStatus,
   type AttendanceDashboardResponse,
-  type AttendanceLocation,
 } from '../../../api/humanResources';
 import { useAttendanceTranslations } from './hooks/useAttendanceTranslations';
+import {
+  formatAttendanceTime,
+  localDateTimeString,
+  todayIsoDate,
+  todayMonth,
+} from './utils/attendance.utils';
 
-const padDatePart = (value: number) => `${value}`.padStart(2, '0');
-const localDateString = (date: Date) =>
-  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
-const localDateTimeString = (date: Date) =>
-  `${localDateString(date)}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`;
-const todayIsoDate = () => localDateString(new Date());
-const todayMonth = () => todayIsoDate().slice(0, 7);
-const formatAttendanceTime = (value: string | null | undefined, locale: string) => {
-  if (!value) {
-    return '--';
-  }
-
-  const parsedDate = new Date(value);
-  if (Number.isNaN(parsedDate.getTime())) {
-    return '--';
-  }
-
-  return new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(parsedDate);
-};
-
-const formatAttendanceBusinessOption = (location: AttendanceLocation) => (
-  location.business_name?.trim() || location.name
+const LazyAttendanceRecordsModal = lazy(() =>
+  import('./AttendanceRecordsModal').then((module) => ({ default: module.AttendanceRecordsModal })),
 );
-
-const formatAttendanceLocationOption = (location: AttendanceLocation, fallback: string) => (
-  location.name?.trim() || location.business_name?.trim() || fallback
-);
-
-const attendanceLocationUnitKey = (location: AttendanceLocation) => (
-  location.unit_id ? String(location.unit_id) : 'unassigned'
-);
-
-const attendanceLocationBusinessKey = (location: AttendanceLocation) => (
-  location.business_id ? String(location.business_id) : `location:${location.id}`
-);
-
-type AttendanceUnitOption = {
-  id: string;
-  name: string;
-};
-
-type AttendanceBusinessOption = {
-  id: string;
-  unitId: string;
-  name: string;
-};
 
 export default function Attendance() {
   const { currentLanguage } = useLanguage();
@@ -89,77 +45,12 @@ export default function Attendance() {
   const [overlayDescription, setOverlayDescription] = useState<string>(copy.loading.refreshDescription);
   const [errorMessage, setErrorMessage] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
-  const [recorderUnitKey, setRecorderUnitKey] = useState('');
-  const [recorderBusinessKey, setRecorderBusinessKey] = useState('');
-  const [recorderLocationId, setRecorderLocationId] = useState('');
   const [recorderLocationState, setRecorderLocationState] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
   const successToastTimeoutRef = useRef<number | null>(null);
   const attendancePhotoUpload = useAttendancePhotoUpload();
-  const attendanceLocations = useMemo(() => dashboard?.locations ?? [], [dashboard?.locations]);
-  const recorderSelectorLocations = useMemo(() => {
-    const businessLocations = attendanceLocations.filter((location) => location.business_id);
-    return businessLocations.length ? businessLocations : attendanceLocations;
-  }, [attendanceLocations]);
-  const attendanceUnitOptions = useMemo<AttendanceUnitOption[]>(() => {
-    const unitOptionsByKey = new Map<string, string>();
-
-    recorderSelectorLocations.forEach((location) => {
-      const unitKey = attendanceLocationUnitKey(location);
-      if (!unitOptionsByKey.has(unitKey)) {
-        unitOptionsByKey.set(unitKey, location.unit_name?.trim() || copy.labels.unassignedUnit);
-      }
-    });
-
-    return Array.from(unitOptionsByKey, ([id, name]) => ({ id, name }));
-  }, [copy.labels.unassignedUnit, recorderSelectorLocations]);
-  const allBusinessOptions = useMemo<AttendanceBusinessOption[]>(() => {
-    const businessOptionsByKey = new Map<string, AttendanceBusinessOption>();
-    recorderSelectorLocations.forEach((location) => {
-      const unitId = attendanceLocationUnitKey(location);
-      const businessId = attendanceLocationBusinessKey(location);
-      if (!businessOptionsByKey.has(businessId)) {
-        businessOptionsByKey.set(businessId, {
-          id: businessId,
-          unitId,
-          name: formatAttendanceBusinessOption(location),
-        });
-      }
-    });
-
-    return Array.from(businessOptionsByKey.values());
-  }, [recorderSelectorLocations]);
-  const businessLocationOptions = useMemo(
-    () => recorderUnitKey
-      ? allBusinessOptions.filter((business) => business.unitId === recorderUnitKey)
-      : [],
-    [allBusinessOptions, recorderUnitKey],
-  );
-  const attendanceLocationOptions = useMemo(
-    () => recorderBusinessKey
-      ? recorderSelectorLocations.filter((location) => (
-        attendanceLocationBusinessKey(location) === recorderBusinessKey
-        && (!recorderUnitKey || attendanceLocationUnitKey(location) === recorderUnitKey)
-      ))
-      : [],
-    [recorderBusinessKey, recorderSelectorLocations, recorderUnitKey],
-  );
-  const selectedAttendanceUnit = useMemo(
-    () => attendanceUnitOptions.find((unit) => unit.id === recorderUnitKey) ?? null,
-    [attendanceUnitOptions, recorderUnitKey],
-  );
-  const selectedAttendanceBusiness = useMemo(
-    () => businessLocationOptions.find((business) => business.id === recorderBusinessKey) ?? null,
-    [businessLocationOptions, recorderBusinessKey],
-  );
-  const selectedAttendanceLocation = useMemo(
-    () => attendanceLocations.find((location) => String(location.id) === recorderLocationId) ?? null,
-    [attendanceLocations, recorderLocationId],
-  );
-  const hasSelectedAttendanceLocation = Boolean(selectedAttendanceLocation);
-  const shouldShowAttendanceLocationSelectors = recorderSelectorLocations.length > 0;
   const selectedItem = useMemo(() => dashboard?.items[0] ?? null, [dashboard?.items]);
   const selectedEmployeeOption = useMemo(() => dashboard?.users[0] ?? null, [dashboard?.users]);
   const selectedEmployeeId = selectedItem?.user_company_id ?? null;
@@ -251,68 +142,6 @@ export default function Attendance() {
 
     void loadCalendar(calendarMonth);
   }, [calendarMonth, selectedItem]);
-
-  useEffect(() => {
-    if (recorderSelectorLocations.length === 1) {
-      const [singleLocation] = recorderSelectorLocations;
-      setRecorderUnitKey(attendanceLocationUnitKey(singleLocation));
-      setRecorderBusinessKey(attendanceLocationBusinessKey(singleLocation));
-      setRecorderLocationId(String(singleLocation.id));
-      return;
-    }
-
-    if (!attendanceUnitOptions.length) {
-      setRecorderUnitKey('');
-      setRecorderBusinessKey('');
-      setRecorderLocationId('');
-      return;
-    }
-    if (attendanceUnitOptions.length === 1) {
-      setRecorderUnitKey(attendanceUnitOptions[0].id);
-      return;
-    }
-
-    setRecorderUnitKey((currentUnitKey) => (
-      attendanceUnitOptions.some((unit) => unit.id === currentUnitKey) ? currentUnitKey : ''
-    ));
-  }, [attendanceUnitOptions, recorderSelectorLocations]);
-
-  useEffect(() => {
-    if (recorderSelectorLocations.length === 1) {
-      return;
-    }
-
-    if (!businessLocationOptions.length) {
-      setRecorderBusinessKey('');
-      setRecorderLocationId('');
-      return;
-    }
-
-    setRecorderBusinessKey((currentBusinessKey) => (
-      businessLocationOptions.some((business) => business.id === currentBusinessKey)
-        ? currentBusinessKey
-        : businessLocationOptions.length === 1
-          ? businessLocationOptions[0].id
-          : ''
-    ));
-  }, [businessLocationOptions, recorderSelectorLocations.length]);
-
-  useEffect(() => {
-    if (recorderSelectorLocations.length === 1) {
-      return;
-    }
-
-    if (!recorderBusinessKey || !attendanceLocationOptions.length) {
-      setRecorderLocationId('');
-      return;
-    }
-
-    setRecorderLocationId((currentLocationId) => (
-      attendanceLocationOptions.some((location) => String(location.id) === currentLocationId)
-        ? currentLocationId
-        : String(attendanceLocationOptions[0].id)
-    ));
-  }, [attendanceLocationOptions, recorderBusinessKey, recorderSelectorLocations.length]);
 
   useEffect(() => {
     attendancePhotoUpload.clearPhoto();
@@ -440,19 +269,6 @@ export default function Attendance() {
       return;
     }
 
-    const latestAttendanceLocations = latestDashboard?.locations ?? attendanceLocations;
-    const canResolveOpenScheduleLocation = Boolean(
-      latestSelectedItem?.schedule_rule?.schedule_mode === 'open'
-      && !latestSelectedItem?.schedule_rule?.enforce_location
-      && !latestSelectedItem?.active_work_site
-      && latestAttendanceLocations.length > 0,
-    );
-
-    if (!hasSelectedAttendanceLocation && !canResolveOpenScheduleLocation) {
-      setErrorMessage(copy.recorder.locationRequiredError);
-      return;
-    }
-
     if (eventType === 'check_in' && !attendancePhotoUpload.photo) {
       setErrorMessage(copy.recorder.photoRequiredError);
       return;
@@ -486,18 +302,14 @@ export default function Attendance() {
             event_type: eventType,
             event_kind: eventType,
             auth_method: 'manual_override',
-            location_id: selectedAttendanceLocation?.id,
             latitude: coordinates.latitude,
             longitude: coordinates.longitude,
             photo_url: photoObjectKey,
             event_timestamp: eventTimestamp,
             metadata: {
-              selected_unit_id: selectedAttendanceLocation?.unit_id ?? null,
-              selected_unit_name: selectedAttendanceUnit?.name ?? selectedAttendanceLocation?.unit_name ?? null,
-              selected_business_id: selectedAttendanceLocation?.business_id ?? null,
-              selected_business_name: selectedAttendanceLocation?.business_name ?? selectedAttendanceBusiness?.name ?? null,
-              selected_location_id: selectedAttendanceLocation?.id ?? null,
-              selected_location_name: selectedAttendanceLocation?.name ?? null,
+              location_optional: false,
+              location_forced: true,
+              gps_captured: true,
             },
           });
 
@@ -537,33 +349,9 @@ export default function Attendance() {
 
   const recorderDisabled = !selectedItem;
   const photoCaptureDisabled = recorderDisabled || isSubmitting || punchState.hasActiveCheckIn || punchState.hasCheckOut;
-  const canInlineCheckIn = Boolean(selectedItem) && hasSelectedAttendanceLocation && !punchState.hasCheckIn;
-  const canInlineCheckOut = Boolean(selectedItem) && hasSelectedAttendanceLocation && punchState.hasActiveCheckIn;
-
-  const handleUpdateStatus = async (
-    date: string,
-    status: AttendanceCorrectionStatus | '',
-  ) => {
-    if (!selectedItem) {
-      return;
-    }
-
-    try {
-      await runMutation({
-        title: copy.loading.correctTitle,
-        description: copy.loading.correctDescription,
-        task: async () => {
-          await humanResourcesApi.updateMyAttendanceDailyRecord(date, { status });
-          await Promise.all([loadDashboard(currentAttendanceDate), loadCalendar(calendarMonth)]);
-        },
-      });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : copy.labels.retry);
-      return;
-    }
-
-    showSuccessToast(status ? copy.success.correctionApplied : copy.success.correctionCleared);
-  };
+  const hasRecorderLocation = Boolean(recorderLocationState);
+  const canInlineCheckIn = Boolean(selectedItem) && hasRecorderLocation && Boolean(attendancePhotoUpload.photo) && !punchState.hasCheckIn;
+  const canInlineCheckOut = Boolean(selectedItem) && hasRecorderLocation && punchState.hasActiveCheckIn;
 
   return (
     <>
@@ -737,65 +525,6 @@ export default function Attendance() {
               </div>
             </div>
 
-            {shouldShowAttendanceLocationSelectors ? (
-              <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    {copy.recorder.unit}
-                  </span>
-                  <select
-                    value={recorderUnitKey}
-                    onChange={(event) => {
-                      const nextUnitKey = event.target.value;
-                      setRecorderUnitKey(nextUnitKey);
-                      setRecorderBusinessKey('');
-                      setRecorderLocationId('');
-                    }}
-                    disabled={recorderDisabled || attendanceUnitOptions.length === 0}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
-                  >
-                    <option value="">{copy.recorder.selectUnit}</option>
-                    {attendanceUnitOptions.length ? (
-                      attendanceUnitOptions.map((unit) => (
-                        <option key={unit.id} value={unit.id}>
-                          {unit.name}
-                        </option>
-                      ))
-                    ) : null}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                    {copy.recorder.business}
-                  </span>
-                  <select
-                    value={recorderBusinessKey}
-                    onChange={(event) => {
-                      setRecorderBusinessKey(event.target.value);
-                      setRecorderLocationId('');
-                    }}
-                    disabled={recorderDisabled || !recorderUnitKey || businessLocationOptions.length === 0}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900/50"
-                  >
-                    <option value="">{copy.recorder.selectBusiness}</option>
-                    {businessLocationOptions.length ? (
-                      businessLocationOptions.map((business) => (
-                        <option key={business.id} value={business.id}>
-                          {business.name}
-                        </option>
-                      ))
-                    ) : null}
-                  </select>
-                </label>
-              </div>
-            ) : selectedAttendanceLocation ? (
-              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                <span className="font-medium">{copy.recorder.location}:</span>{' '}
-                {formatAttendanceLocationOption(selectedAttendanceLocation, copy.recorder.location)}
-              </div>
-            ) : null}
-
             <Button
               type="button"
               variant="outline"
@@ -855,19 +584,22 @@ export default function Attendance() {
         </div>
       </div>
 
-      <AttendanceRecordsModal
-        calendar={selectedItem ? calendar : null}
-        closeLabel={copy.closeRecords}
-        emptyMessage={copy.labels.noEmployeeSelected}
-        isLoadingCalendar={isLoadingCalendar}
-        isOpen={isRecordsOpen}
-        month={calendarMonth}
-        subtitle={copy.recordsModalSubtitle}
-        title={copy.viewRecords}
-        onMonthChange={setCalendarMonth}
-        onOpenChange={setIsRecordsOpen}
-        onUpdateStatus={handleUpdateStatus}
-      />
+      <Suspense fallback={null}>
+        {isRecordsOpen ? (
+          <LazyAttendanceRecordsModal
+            calendar={selectedItem ? calendar : null}
+            closeLabel={copy.closeRecords}
+            emptyMessage={copy.labels.noEmployeeSelected}
+            isLoadingCalendar={isLoadingCalendar}
+            isOpen={isRecordsOpen}
+            month={calendarMonth}
+            subtitle={copy.recordsModalSubtitle}
+            title={copy.viewRecords}
+            onMonthChange={setCalendarMonth}
+            onOpenChange={setIsRecordsOpen}
+          />
+        ) : null}
+      </Suspense>
     </>
   );
 }
