@@ -13,6 +13,7 @@ export type EmployeePayPeriodTranslationKey = 'weekly' | 'biweekly' | 'monthly';
 export type EmployeeSalaryTypeTranslationKey = 'daily' | 'hourly';
 export type EmployeeContractTypeTranslationKey = 'permanent' | 'temporary';
 export type EmployeeScheduleLocationRuleTranslationKey = 'business' | 'exact';
+export type EmployeeIdentifierCountryKey = 'BR' | 'CA' | 'CO' | 'MX' | 'US';
 export type EmployeeDocumentTranslationKey =
   | 'birth_certificate'
   | 'government_id'
@@ -135,6 +136,23 @@ export interface EmployeeModalTranslations {
     compensation: string;
     contract: string;
   };
+  identifierProfiles: Record<EmployeeIdentifierCountryKey, {
+    group: string;
+    labels: {
+      nationalId: string;
+      taxId: string;
+      socialSecurityNumber: string;
+    };
+    placeholders: {
+      nationalId: string;
+      taxId: string;
+      socialSecurityNumber: string;
+    };
+    helpers: {
+      taxId: string;
+      socialSecurityNumber: string;
+    };
+  }>;
   labels: {
     employeeNumber: string;
     firstName: string;
@@ -192,6 +210,31 @@ export interface EmployeeModalTranslations {
     scheduleExactLocation: string;
     noScheduleLocations: string;
   };
+  belonging: {
+    businessUnitHelper: string;
+    businessHelper: string;
+    selectUnitFirst: string;
+    noHeadquartersOption: string;
+    corporateUnitBadge: string;
+    businessUnitBadge: string;
+    corporateBusinessBadge: string;
+    unitHeadquartersBadge: string;
+    operatingBusinessBadge: string;
+    autoAssignedBadge: string;
+    corporateUnitDescription: string;
+    businessUnitDescription: string;
+    corporateBusinessDescription: string;
+    unitHeadquartersDescription: (unit: string) => string;
+    operatingBusinessDescription: string;
+    belongingSummary: (unit: string, business: string, kind: string) => string;
+    corporateAutoSummary: string;
+  };
+  creatableOptions: {
+    add: string;
+    helper: string;
+    saved: string;
+    suggestedForDepartment: (department: string) => string;
+  };
   placeholders: {
     employeeNumber: string;
     firstName: string;
@@ -248,6 +291,7 @@ export interface EmployeesTranslations {
   subtitle: string;
   addEmployee: string;
   configureColumns: string;
+  retryLoad: string;
   detailLoadingTitle: string;
   detailLoadingDescription: string;
   loadLoadingTitle: string;
@@ -279,11 +323,9 @@ export interface EmployeesTranslations {
     inactive: string;
     payroll: string;
     visible: string;
-    selected: string;
     terminated: string;
     activeRate: string;
     statusReview: (count: number) => string;
-    selectedBadge: (count: number) => string;
     summaryInsight: (args: EmployeesSummaryInsightArgs) => string;
   };
   filters: {

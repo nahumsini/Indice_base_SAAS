@@ -26,7 +26,7 @@ export function StepProgress({
   return (
     <div className="border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
           {progressLabel}
         </p>
       </div>

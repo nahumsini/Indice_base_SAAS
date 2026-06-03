@@ -68,7 +68,7 @@ interface JobPositionOption {
 
 export const positionOptions: readonly JobPositionOption[] = [
   { id: 'owner', labels: { en: 'Owner', es: 'Propietario' } },
-  { id: 'director', labels: { en: 'Director', es: 'Director' } },
+  { id: 'director', labels: { en: 'Director', es: 'Director/a' } },
   { id: 'general_manager', labels: { en: 'General Manager', es: 'Gerente general' } },
   { id: 'administrator', labels: { en: 'Administrator', es: 'Administrador' } },
   { id: 'office_coordinator', labels: { en: 'Office Coordinator', es: 'Coordinador de oficina' } },

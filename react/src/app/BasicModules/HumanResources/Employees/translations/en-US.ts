@@ -3,7 +3,7 @@ import { enCA } from './en-CA';
 
 export const enUS = {
   ...enCA,
-  subtitle: 'HR User records, assignments, schedules, and payroll context',
+  subtitle: 'Employee records, assignments, schedules, and payroll context',
   columns: {
     ...enCA.columns,
     socialSecurityNumber: 'SSN',
@@ -14,8 +14,8 @@ export const enUS = {
   columnDescriptions: {
     ...enCA.columnDescriptions,
     socialSecurityNumber: 'Social Security number used for payroll processes.',
-    stateProvince: 'State from the HR user profile.',
-    postalCode: 'ZIP code from the HR user profile.',
+    stateProvince: 'State from the employee profile.',
+    postalCode: 'ZIP code from the employee profile.',
   },
   modal: {
     ...enCA.modal,

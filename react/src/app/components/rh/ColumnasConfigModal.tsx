@@ -29,7 +29,7 @@ interface ColumnasConfigModalProps {
   onSave: (columns: ColumnConfig[]) => void;
   defaultColumns?: ColumnConfig[];
   fixedColumns?: ColumnConfig[];
-  theme?: 'default' | 'processes';
+  theme?: 'default' | 'processes' | 'humanResources';
 }
 
 interface DraggableColumnItemProps {
@@ -38,11 +38,17 @@ interface DraggableColumnItemProps {
   moveColumn: (dragIndex: number, hoverIndex: number) => void;
   toggleColumn: (id: string) => void;
   fixedLabel: string;
+  accentClassName: string;
+  checkboxClassName: string;
+  interactiveClassName: string;
 }
 
 function DraggableColumnItem({
+  accentClassName,
+  checkboxClassName,
   column,
   index,
+  interactiveClassName,
   moveColumn,
   toggleColumn,
   fixedLabel,
@@ -83,7 +89,7 @@ function DraggableColumnItem({
         isDragging && 'opacity-50',
         isFixed
           ? 'bg-slate-50 dark:bg-slate-900/60'
-          : 'hover:border-[rgb(235,165,52)]/40 hover:bg-[rgb(235,165,52)]/5',
+          : interactiveClassName,
       )}
     >
       <div
@@ -94,7 +100,7 @@ function DraggableColumnItem({
         }}
         className={isFixed ? 'cursor-not-allowed' : 'cursor-grab'}
       >
-        <GripVertical className="h-5 w-5 text-[rgb(235,165,52)]" />
+        <GripVertical className={cn('h-5 w-5', accentClassName)} />
       </div>
       
       <Checkbox
@@ -102,6 +108,7 @@ function DraggableColumnItem({
         checked={column.visible}
         onCheckedChange={() => !column.locked && toggleColumn(column.id)}
         disabled={column.locked}
+        className={checkboxClassName}
       />
       
       <label htmlFor={column.id} className="min-w-0 flex-1 cursor-pointer">
@@ -135,18 +142,45 @@ export function ColumnasConfigModal({
   const { currentLanguage } = useLanguage();
   const [localColumns, setLocalColumns] = useState<ColumnConfig[]>(columns);
   const [searchQuery, setSearchQuery] = useState('');
-  const modalTheme = theme === 'processes'
-    ? {
-        header: 'bg-[rgb(235,165,52)]',
+  const modalTheme = (() => {
+    if (theme === 'processes') {
+      return {
+        accent: 'text-[rgb(235,165,52)]',
+        checkbox:
+          'data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)] focus-visible:ring-[rgb(235,165,52)]/30',
+        content: 'max-w-[760px] rounded-2xl',
         footer: 'bg-[rgb(235,165,52)]',
+        header: 'bg-[rgb(235,165,52)]',
+        interactive: 'hover:border-[rgb(235,165,52)]/40 hover:bg-[rgb(235,165,52)]/5',
         primary:
           'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[rgb(176,111,22)] shadow-sm hover:bg-slate-100 hover:text-[rgb(176,111,22)] focus-visible:ring-white/40 dark:bg-white dark:text-[rgb(176,111,22)] dark:hover:bg-slate-100',
-      }
-    : {
-        header: 'bg-[#143675]',
-        footer: 'bg-[#143675]',
-        primary: moduleModalPrimaryButtonClassName,
       };
+    }
+
+    if (theme === 'humanResources') {
+      return {
+        accent: 'text-[#59C3A5]',
+        checkbox:
+          'data-[state=checked]:border-[#59C3A5] data-[state=checked]:bg-[#59C3A5] focus-visible:ring-[#59C3A5]/30',
+        content: 'max-w-[900px] rounded-[28px]',
+        footer: 'bg-[#59C3A5]',
+        header: 'bg-[#59C3A5]',
+        interactive: 'hover:border-[#59C3A5]/40 hover:bg-[#59C3A5]/5',
+        primary:
+          'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#59C3A5] shadow-sm hover:bg-slate-100 hover:text-[#59C3A5] focus-visible:ring-white/40 dark:bg-white dark:text-[#59C3A5] dark:hover:bg-slate-100',
+      };
+    }
+
+    return {
+      accent: 'text-[rgb(235,165,52)]',
+      checkbox: '',
+      content: 'max-w-[760px] rounded-2xl',
+      footer: 'bg-[#143675]',
+      header: 'bg-[#143675]',
+      interactive: 'hover:border-[rgb(235,165,52)]/40 hover:bg-[rgb(235,165,52)]/5',
+      primary: moduleModalPrimaryButtonClassName,
+    };
+  })();
   const copy = (() => {
     if (currentLanguage.code.startsWith('es')) {
       return {
@@ -161,7 +195,7 @@ export function ColumnasConfigModal({
         deselectAll: 'Deseleccionar todas',
         restoreDefaults: 'Restaurar',
         search: 'Buscar columnas',
-        searchPlaceholder: 'Nombre o descripcion',
+        searchPlaceholder: 'Nombre o descripción',
         noColumns: 'No hay columnas con ese criterio.',
         cancel: 'Cancelar',
         apply: 'Aplicar cambios',
@@ -172,13 +206,13 @@ export function ColumnasConfigModal({
       return {
         title: 'Configurer les colonnes',
         description:
-          'Selectionnez et ordonnez les colonnes a afficher dans le tableau. Faites glisser pour reordonner.',
+          'Sélectionnez et ordonnez les colonnes à afficher dans le tableau. Faites glisser pour réordonner.',
         close: 'Fermer',
         fixed: 'Fixe',
         visibleCount: (visible: number, total: number) =>
           `${visible} sur ${total} colonnes visibles`,
-        selectAll: 'Tout selectionner',
-        deselectAll: 'Tout deselectionner',
+        selectAll: 'Tout sélectionner',
+        deselectAll: 'Tout désélectionner',
         restoreDefaults: 'Restaurer',
         search: 'Rechercher des colonnes',
         searchPlaceholder: 'Nom ou description',
@@ -338,7 +372,10 @@ export function ColumnasConfigModal({
     <Dialog open={isOpen} onOpenChange={handleCancel}>
       <DialogContent
         hideCloseButton
-        className="!flex h-[min(86vh,820px)] max-h-[calc(100vh-3rem)] max-w-[760px] flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800"
+        className={cn(
+          '!flex h-[min(86vh,820px)] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800',
+          modalTheme.content,
+        )}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>{copy.title}</DialogTitle>
@@ -418,8 +455,11 @@ export function ColumnasConfigModal({
                 {visibleFixedColumns.map((column) => (
                   <DraggableColumnItem
                     key={column.id}
+                    accentClassName={modalTheme.accent}
+                    checkboxClassName={modalTheme.checkbox}
                     column={column}
                     index={-1}
+                    interactiveClassName={modalTheme.interactive}
                     moveColumn={() => {}}
                     toggleColumn={() => {}}
                     fixedLabel={copy.fixed}
@@ -428,8 +468,11 @@ export function ColumnasConfigModal({
                 {visibleLocalColumns.map(({ column, index }) => (
                   <DraggableColumnItem
                     key={column.id}
+                    accentClassName={modalTheme.accent}
+                    checkboxClassName={modalTheme.checkbox}
                     column={column}
                     index={index}
+                    interactiveClassName={modalTheme.interactive}
                     moveColumn={moveColumn}
                     toggleColumn={toggleColumn}
                     fixedLabel={copy.fixed}

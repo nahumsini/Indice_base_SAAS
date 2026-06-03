@@ -1,6 +1,6 @@
-import { Country, State } from 'country-state-city';
-import { useMemo, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useLanguage } from '../../../../shared/context';
+import { PROFILE_COUNTRY_OPTIONS } from '../../../../shared/profileCountries';
 import { inputClassName, textareaClassName } from '../constants';
 import type { BusinessAddressFormValues, EstructuraType, LocationCoordinateFormValues } from '../types';
 import { LocationCoordinateFields } from './LocationCoordinateFields';
@@ -20,11 +20,9 @@ const countryConfig: Record<string, CountryConfig> = {
 };
 const priorityCountryCodes = ['CA', 'US', 'MX', 'CO', 'BR'] as const;
 
-const countryOptionsSource = Country.getAllCountries().map((country) => ({
-  code: country.isoCode,
-  flag: country.flag,
-  fallbackName: country.name,
-}));
+type StateDataset = typeof import('country-state-city/lib/state');
+
+const countryOptionsSource = PROFILE_COUNTRY_OPTIONS;
 
 interface StructureCopy {
   identity: {
@@ -111,6 +109,7 @@ export function BusinessIdentitySection({
   disabled = false,
 }: BusinessIdentitySectionProps) {
   const { currentLanguage } = useLanguage();
+  const [stateDataset, setStateDataset] = useState<StateDataset | null>(null);
   const companyNameLabel = estructuraType === 'simple'
     ? structure.fields.companyName
     : structure.fields.holdingName;
@@ -147,12 +146,32 @@ export function BusinessIdentitySection({
 
     return [...priorityOptions, ...remainingOptions];
   }, [currentLanguage.code]);
-  const stateOptions = useMemo(() => {
+
+  useEffect(() => {
     if (!countryConfig[businessAddress.country]?.hasStates) {
+      setStateDataset(null);
+      return undefined;
+    }
+
+    let isActive = true;
+
+    void import('country-state-city/lib/state').then((dataset) => {
+      if (isActive) {
+        setStateDataset(dataset);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [businessAddress.country]);
+
+  const stateOptions = useMemo(() => {
+    if (!stateDataset || !countryConfig[businessAddress.country]?.hasStates) {
       return [];
     }
 
-    return State.getStatesOfCountry(businessAddress.country)
+    return stateDataset.getStatesOfCountry(businessAddress.country)
       .map((state) => ({
         code: state.isoCode,
         name: state.name,
@@ -160,7 +179,7 @@ export function BusinessIdentitySection({
       .sort((firstState, secondState) => (
         firstState.name.localeCompare(secondState.name, currentLanguage.code)
       ));
-  }, [businessAddress.country, currentLanguage.code]);
+  }, [businessAddress.country, currentLanguage.code, stateDataset]);
   const usesStateDropdown = Boolean(countryConfig[businessAddress.country]?.hasStates && stateOptions.length > 0);
 
   const handleAddressCountryChange = (country: string) => {

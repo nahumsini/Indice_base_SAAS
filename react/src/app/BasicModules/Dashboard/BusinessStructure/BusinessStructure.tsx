@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { Country } from 'country-state-city';
 import { CheckCircle2, X } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLanguage } from '../../../shared/context';
+import { PROFILE_COUNTRY_OPTIONS } from '../../../shared/profileCountries';
 import { configCenterApi, type ConfigCenterEmpresaMapUnit } from '../../../api/configCenter';
 import { validateOptionalEmail } from '../../../shared/validation/email';
 import { inputClassName } from './constants';
@@ -121,11 +121,7 @@ const MODAL_PRIORITY_COUNTRY_CODES = ['CA', 'US', 'MX', 'CO', 'BR'] as const;
 const MODAL_STATE_DROPDOWN_COUNTRY_CODES = ['MX', 'US', 'CA', 'CO', 'BR'] as const;
 const BUSINESS_STRUCTURE_AUTO_SAVE_DEBOUNCE_MS = 900;
 
-const modalCountryOptionsSource = Country.getAllCountries().map((country) => ({
-  code: country.isoCode,
-  flag: country.flag,
-  fallbackName: country.name,
-}));
+const modalCountryOptionsSource = PROFILE_COUNTRY_OPTIONS;
 
 const DEFAULT_UNIDAD_FORM_VALUES: UnidadFormValues = {
   ...DEFAULT_LOCATION_COORDINATE_VALUES,

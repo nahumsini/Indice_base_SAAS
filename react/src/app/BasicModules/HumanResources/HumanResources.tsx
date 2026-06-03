@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import { useHRLanguage } from './HRLanguage';
+import { useHumanResourcesTranslations } from './hooks/useHumanResourcesTranslations';
 import { authApi } from '../../api/auth';
 import {
   canAccessHumanResourcesTab,
@@ -50,7 +50,7 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
 };
 
 export default function HumanResources({ onNavigate }: HumanResourcesProps) {
-  const t = useHRLanguage();
+  const t = useHumanResourcesTranslations();
   const [sessionAccess, setSessionAccess] = useState<{
     role: string | null;
     tabPermissionKeys: string[];
@@ -68,16 +68,16 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   );
 
   const allTabs = [
-    { id: 'collaborators', label: t.shell.tabs.collaborators, emoji: '👥', component: Employees },
-    { id: 'attendance', label: t.shell.tabs.attendance, emoji: '📅', component: Attendance },
-    { id: 'control', label: t.shell.tabs.control, emoji: '⏱️', component: Control },
-    { id: 'payroll', label: t.shell.tabs.payroll, emoji: '💰', component: Payroll },
-    { id: 'announcements', label: t.shell.tabs.announcements, emoji: '📢', component: Announcements },
-    { id: 'assets', label: t.shell.tabs.assets, emoji: '💼', component: Assets },
-    { id: 'records', label: t.shell.tabs.records, emoji: '📋', component: Records },
-    { id: 'permissions', label: t.shell.tabs.permissions, emoji: '✅', component: Permissions },
-    { id: 'incentives', label: t.shell.tabs.incentives, emoji: '🎁', component: Incentives },
-    { id: 'kpis', label: t.shell.tabs.kpis, emoji: '📊', component: KPIs },
+    { id: 'collaborators', label: t.tabs.collaborators, emoji: '👥', component: Employees },
+    { id: 'attendance', label: t.tabs.attendance, emoji: '📅', component: Attendance },
+    { id: 'control', label: t.tabs.control, emoji: '⏱️', component: Control },
+    { id: 'payroll', label: t.tabs.payroll, emoji: '💰', component: Payroll },
+    { id: 'announcements', label: t.tabs.announcements, emoji: '📢', component: Announcements },
+    { id: 'assets', label: t.tabs.assets, emoji: '💼', component: Assets },
+    { id: 'records', label: t.tabs.records, emoji: '📋', component: Records },
+    { id: 'permissions', label: t.tabs.permissions, emoji: '✅', component: Permissions },
+    { id: 'incentives', label: t.tabs.incentives, emoji: '🎁', component: Incentives },
+    { id: 'kpis', label: t.tabs.kpis, emoji: '📊', component: KPIs },
   ] satisfies Array<{
     id: HumanResourcesTabId;
     label: string;
@@ -171,10 +171,10 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {t.shell.title}
+                {t.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {t.shell.subtitle}
+                {t.subtitle}
               </p>
             </div>
             <Button 
@@ -182,7 +182,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
               onClick={() => onNavigate()}
               className="text-sm gap-2"
             >
-              <span className="text-lg">🏠</span> {t.shell.back}
+              <span className="text-lg">🏠</span> {t.back}
             </Button>
           </div>
 
@@ -191,13 +191,13 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => handleTabClick(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
+	                onClick={() => handleTabClick(tab.id)}
+	                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+	                  activeTab === tab.id
+	                    ? 'bg-[#59C3A5] text-white shadow-md shadow-[#59C3A5]/25'
+	                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-[#59C3A5]/10 dark:hover:bg-[#59C3A5]/15 hover:text-[#2F8F78] dark:hover:text-[#8BE0CB]'
+	                }`}
+	              >
                 <span>{tab.emoji}</span>
                 <span>{tab.label}</span>
               </button>
@@ -212,8 +212,8 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
           fallback={(
             <LoadingBarOverlay
               isVisible
-              title="Loading HR tab"
-              description="Downloading only the selected human resources workspace."
+              title={t.loading.title}
+              description={t.loading.description}
             />
           )}
         >
@@ -221,13 +221,13 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             <ActiveComponent />
           ) : isAccessLoaded ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-              No Human Resources tabs are available for this user.
+              {t.access.empty}
             </div>
           ) : (
             <LoadingBarOverlay
               isVisible
-              title="Loading HR access"
-              description="Checking which workspaces are available."
+              title={t.access.loadingTitle}
+              description={t.access.loadingDescription}
             />
           )}
         </Suspense>

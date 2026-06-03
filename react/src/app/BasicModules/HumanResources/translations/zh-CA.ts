@@ -8,16 +8,21 @@ export const zhCA = {
     title: '正在加载人力资源标签',
     description: '仅下载所选的人力资源工作区。',
   },
+  access: {
+    loadingTitle: '正在加载人力资源权限',
+    loadingDescription: '正在检查可用的工作区。',
+    empty: '此用户没有可用的人力资源标签。',
+  },
   tabs: {
     collaborators: '员工',
     attendance: '考勤',
-    control: '控制',
+    control: '考勤控制',
     payroll: '薪资',
     announcements: '公告',
     assets: '资产',
     records: '记录',
     permissions: '权限',
     incentives: '激励',
-    kpis: 'KPIs',
+    kpis: '绩效指标',
   },
 } satisfies HumanResourcesTranslations;
