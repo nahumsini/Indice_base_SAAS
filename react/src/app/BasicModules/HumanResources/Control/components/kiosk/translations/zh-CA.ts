@@ -43,6 +43,7 @@ export const zhCA = {
   identifyDescription: '输入 HR 分配的员工 PIN。',
   credentialLabel: 'PIN',
   pinPlaceholder: '输入 PIN',
+  backspaceLabel: '删除',
   identify: '识别',
   methods: {
     pin: 'PIN',

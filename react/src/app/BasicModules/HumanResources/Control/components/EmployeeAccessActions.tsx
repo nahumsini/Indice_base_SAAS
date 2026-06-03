@@ -108,6 +108,29 @@ export function EmployeeAccessActions({
     : actionButtonClassName;
   const effectiveAccessProfile = selectedAccessProfile ?? selectedEmployee.access_profile ?? null;
   const selectedPinMethod = effectiveAccessProfile?.methods.find((method) => method.method_type === 'pin') ?? null;
+  const accessProfileFormFromProfile = (profile: AttendanceAccessProfile): AttendanceAccessProfilePayload => ({
+    user_company_id: profile.user_company_id,
+    status: profile.status,
+    default_method: normalizeControlAccessMethod(profile.default_method),
+    last_enrolled_at: profile.last_enrolled_at ?? undefined,
+    metadata: profile.metadata ?? { supports_face_recognition: false },
+  });
+  const resolveAccessProfileForEmployee = (userCompanyId: number) => (
+    assignments.find((assignment) => assignment.user_company_id === userCompanyId)?.access_profile
+    ?? (selectedAccessProfile?.user_company_id === userCompanyId ? selectedAccessProfile : null)
+    ?? null
+  );
+  const hydrateAccessProfileForEmployee = (userCompanyId: number) => {
+    const nextProfile = resolveAccessProfileForEmployee(userCompanyId);
+    setEditingAccessProfile(nextProfile);
+    setAccessProfileForm(nextProfile
+      ? accessProfileFormFromProfile(nextProfile)
+      : {
+          ...defaultAccessProfileForm(),
+          user_company_id: userCompanyId,
+        });
+    setShouldRegeneratePin(false);
+  };
 
   const openCreateAccessProfileDialog = () => {
     setEditingAccessProfile(null);
@@ -121,13 +144,7 @@ export function EmployeeAccessActions({
 
   const openEditAccessProfileDialog = (profile: AttendanceAccessProfile) => {
     setEditingAccessProfile(profile);
-    setAccessProfileForm({
-      user_company_id: profile.user_company_id,
-      status: profile.status,
-      default_method: normalizeControlAccessMethod(profile.default_method),
-      last_enrolled_at: profile.last_enrolled_at ?? undefined,
-      metadata: profile.metadata ?? { supports_face_recognition: false },
-    });
+    setAccessProfileForm(accessProfileFormFromProfile(profile));
     setShouldRegeneratePin(false);
     setIsAccessProfileDialogOpen(true);
   };
@@ -262,6 +279,7 @@ export function EmployeeAccessActions({
       </div>
 
       <AccessProfileDialog
+        key={accessProfileForm.user_company_id || 'new-access-profile'}
         copy={copy}
         isOpen={isAccessProfileDialogOpen}
         isSaving={isSaving}
@@ -276,6 +294,7 @@ export function EmployeeAccessActions({
           setShouldRegeneratePin(false);
         }}
         onChange={setAccessProfileForm}
+        onEmployeeChange={hydrateAccessProfileForEmployee}
         onRegeneratePin={() => setShouldRegeneratePin(true)}
         onCancelRegeneratePin={() => setShouldRegeneratePin(false)}
         onPinRefreshed={onReload}
@@ -326,6 +345,7 @@ function AccessProfileDialog({
   title,
   onClose,
   onChange,
+  onEmployeeChange,
   onRegeneratePin,
   onCancelRegeneratePin,
   onPinRefreshed,
@@ -343,6 +363,7 @@ function AccessProfileDialog({
   title: string;
   onClose: () => void;
   onChange: (value: AttendanceAccessProfilePayload) => void;
+  onEmployeeChange: (userCompanyId: number) => void;
   onRegeneratePin: () => void;
   onCancelRegeneratePin: () => void;
   onPinRefreshed?: () => Promise<void> | void;
@@ -365,7 +386,7 @@ function AccessProfileDialog({
     setRevealedPin(null);
     setPinRevealMessage('');
     setIsResetPinDialogOpen(false);
-  }, [currentPin, isOpen]);
+  }, [currentPin, form.user_company_id, isOpen]);
 
   const loadVisiblePin = async (forceReset: boolean) => {
     const response = await humanResourcesApi.listAttendanceAccessMethods();
@@ -502,7 +523,7 @@ function AccessProfileDialog({
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.selectedEmployee}</label>
             <select
               value={form.user_company_id || ''}
-              onChange={(event) => onChange({ ...form, user_company_id: Number(event.target.value) })}
+              onChange={(event) => onEmployeeChange(Number(event.target.value))}
               className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             >
               <option value="0">--</option>

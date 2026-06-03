@@ -1,4 +1,4 @@
-import { Save, X } from 'lucide-react';
+import { CheckCircle2, Lock, Save, Unlock, X, type LucideIcon } from 'lucide-react';
 import { type AttendanceKioskDevicePayload } from '../../../../../api/humanResources';
 import { Button } from '../../../../../components/ui/button';
 import type { ControlTranslations } from '../../translations';
@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '../../../../../components/ui/dialog';
 import { KioskFormSection } from './KioskFormSection';
-import { KioskTypeSelector, type KioskType } from './KioskTypeSelector';
+import type { KioskType } from './KioskTypeSelector';
 
 export interface KioskOption {
   id: number;
@@ -21,26 +21,24 @@ export interface KioskOption {
 }
 
 export interface CreateKioskModalProps {
+  allowedKioskTypes: readonly KioskType[];
+  businessOptions: KioskOption[];
   canSave: boolean;
   copy: ControlTranslations;
   form: AttendanceKioskDevicePayload;
-  isBusinessUnitKiosk: boolean;
-  isOpenAttendanceKiosk: boolean;
+  hasScopedLocations: boolean;
   isEditing: boolean;
   isOpen: boolean;
   isSaving: boolean;
   kioskType: KioskType;
-  title: string;
-  availableLocations: KioskOption[];
-  businessOptions: KioskOption[];
-  hasBusinessStructureLocations: boolean;
+  selectedRadiusLabel: string;
   selectedScopeLabel: string;
+  title: string;
   unitOptions: KioskOption[];
+  onBusinessChange: (businessId: number | null) => void;
   onChange: (value: AttendanceKioskDevicePayload) => void;
   onClose: () => void;
   onKioskTypeChange: (value: KioskType) => void;
-  onLocationChange: (locationId: number | null) => void;
-  onBusinessChange: (businessId: number | null) => void;
   onSave: () => void;
   onUnitChange: (unitId: number | null) => void;
 }
@@ -58,26 +56,24 @@ const referenceFromTitle = (value: string) => {
 };
 
 export function CreateKioskModal({
+  allowedKioskTypes,
+  businessOptions,
   canSave,
   copy,
   form,
-  isBusinessUnitKiosk,
-  isOpenAttendanceKiosk,
+  hasScopedLocations,
   isEditing,
   isOpen,
   isSaving,
   kioskType,
-  title,
-  availableLocations,
-  businessOptions,
-  hasBusinessStructureLocations,
+  selectedRadiusLabel,
   selectedScopeLabel,
+  title,
   unitOptions,
+  onBusinessChange,
   onChange,
   onClose,
   onKioskTypeChange,
-  onLocationChange,
-  onBusinessChange,
   onSave,
   onUnitChange,
 }: CreateKioskModalProps) {
@@ -86,6 +82,8 @@ export function CreateKioskModal({
   const modalDescription = isEditing
     ? copy.kiosk.form.editDescription
     : copy.kiosk.form.createDescription;
+  const canUseOpenAttendance = allowedKioskTypes.includes('open_attendance');
+  const canUseClosedAttendance = allowedKioskTypes.includes('business_unit');
 
   return (
     <Dialog
@@ -123,54 +121,118 @@ export function CreateKioskModal({
               title={copy.kiosk.form.typeSectionTitle}
               description={copy.kiosk.form.typeSectionDescription}
             >
-              <KioskTypeSelector copy={copy} value={kioskType} onChange={onKioskTypeChange} />
+              <AttendanceModeSelector
+                copy={copy}
+                canUseOpenAttendance={canUseOpenAttendance}
+                canUseClosedAttendance={canUseClosedAttendance}
+                hasScopedLocations={hasScopedLocations}
+                value={kioskType === 'business_unit' ? 'closed' : 'open'}
+                onChange={(value) => onKioskTypeChange(value === 'closed' ? 'business_unit' : 'open_attendance')}
+              />
+              <div className="mt-4 rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/8 px-4 py-3 text-sm text-slate-700 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10 dark:text-slate-200">
+                <p className="font-semibold text-slate-950 dark:text-white">{copy.kiosk.form.attendanceModeHelpTitle}</p>
+                <p className="mt-1 leading-6">
+                  {hasScopedLocations
+                    ? copy.kiosk.form.attendanceModeHelpDescription
+                    : copy.kiosk.form.noActiveLocations}
+                </p>
+              </div>
             </KioskFormSection>
+
+            {kioskType === 'business_unit' ? (
+              <KioskFormSection
+                title={copy.kiosk.form.closedAttendanceTitle}
+                description={copy.kiosk.form.closedAttendanceDescription}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      {copy.labels.unit} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={form.unit_id ?? ''}
+                      onChange={(event) => onUnitChange(event.target.value ? Number(event.target.value) : null)}
+                      className={selectClassName}
+                    >
+                      <option value="">{copy.contractSites.basic.selectUnit}</option>
+                      {unitOptions.map((unit) => (
+                        <option key={unit.id} value={unit.id}>{unit.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      {copy.labels.business} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={form.business_id ?? ''}
+                      disabled={!form.unit_id}
+                      onChange={(event) => onBusinessChange(event.target.value ? Number(event.target.value) : null)}
+                      className={selectClassName}
+                    >
+                      <option value="">{copy.kiosk.form.selectBusiness}</option>
+                      {businessOptions.map((business) => (
+                        <option key={business.id} value={business.id}>{business.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/60 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                      {copy.kiosk.form.availableForLabel}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-950 dark:text-white">{selectedScopeLabel}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                      {copy.kiosk.form.registrationDiameterLabel}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-950 dark:text-white">{selectedRadiusLabel}</p>
+                  </div>
+                </div>
+              </KioskFormSection>
+            ) : (
+              <KioskFormSection
+                title={copy.kiosk.form.openAttendanceTitle}
+                description={copy.kiosk.form.openAttendanceDescription}
+              >
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-100">
+                  <p className="font-semibold">{copy.kiosk.form.allEmployeesNoLocationScope}</p>
+                  <p className="mt-1 leading-6">{copy.kiosk.form.openAttendanceDescription}</p>
+                </div>
+              </KioskFormSection>
+            )}
 
             <KioskFormSection
               title={copy.kiosk.form.pointInformationTitle}
               description={copy.kiosk.form.pointInformationDescription}
             >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {copy.kiosk.form.nameLabel} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.name}
-                    placeholder={copy.kiosk.form.namePlaceholder}
-                    onChange={(event) => {
-                      const nextTitle = event.target.value;
-                      const currentGeneratedReference = referenceFromTitle(form.name);
-                      const shouldSyncReference = !form.code || form.code === currentGeneratedReference;
-                      onChange({
-                        ...form,
-                        name: nextTitle,
-                        code: shouldSyncReference ? referenceFromTitle(nextTitle) : form.code,
-                      });
-                    }}
-                    className={inputClassName}
-                  />
-                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    {copy.kiosk.form.nameHint}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {copy.kiosk.form.internalReferenceLabel} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.code}
-                    placeholder={copy.kiosk.form.internalReferencePlaceholder}
-                    onChange={(event) => onChange({ ...form, code: event.target.value })}
-                    className={inputClassName}
-                  />
-                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    {copy.kiosk.form.internalReferenceHint}
-                  </p>
-                </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {copy.kiosk.form.nameLabel} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  placeholder={copy.kiosk.form.namePlaceholder}
+                  onChange={(event) => {
+                    const nextTitle = event.target.value;
+                    const currentGeneratedReference = referenceFromTitle(form.name);
+                    const shouldSyncReference = !form.code || form.code === currentGeneratedReference;
+                    onChange({
+                      ...form,
+                      name: nextTitle,
+                      code: shouldSyncReference ? referenceFromTitle(nextTitle) : form.code,
+                    });
+                  }}
+                  className={inputClassName}
+                />
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  {copy.kiosk.form.nameHint}
+                </p>
               </div>
 
               <div className="mt-4">
@@ -190,91 +252,6 @@ export function CreateKioskModal({
                   })}
                   className={`${inputClassName} min-h-[88px] resize-none`}
                 />
-              </div>
-            </KioskFormSection>
-
-            <KioskFormSection
-              title={copy.kiosk.form.scopeSectionTitle}
-              description={copy.kiosk.form.scopeSectionDescription}
-            >
-              {isBusinessUnitKiosk ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.labels.unit}</label>
-                    <select
-                      value={form.unit_id ?? ''}
-                      onChange={(event) => onUnitChange(event.target.value ? Number(event.target.value) : null)}
-                      className={selectClassName}
-                    >
-                      <option value="">{copy.labels.allUnits}</option>
-                      {unitOptions.map((unit) => (
-                        <option key={unit.id} value={unit.id}>{unit.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.labels.business}</label>
-                    <select
-                      value={form.business_id ?? ''}
-                      disabled={!form.unit_id}
-                      onChange={(event) => onBusinessChange(event.target.value ? Number(event.target.value) : null)}
-                      className={selectClassName}
-                    >
-                      <option value="">{copy.labels.allBusinesses}</option>
-                      {form.unit_id ? businessOptions.map((business) => (
-                        <option key={business.id} value={business.id}>{business.name}</option>
-                      )) : null}
-                    </select>
-                  </div>
-
-                  {!hasBusinessStructureLocations ? (
-                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200 sm:col-span-2">
-                      {copy.kiosk.form.noActiveLocations}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">
-                      {copy.kiosk.form.allScopeHint}
-                    </p>
-                  )}
-                </div>
-              ) : isOpenAttendanceKiosk ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-100">
-                  <p className="font-semibold">{copy.kiosk.form.openAttendanceTitle}</p>
-                  <p className="mt-1 leading-6">
-                    {copy.kiosk.form.openAttendanceDescription}
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {kioskType === 'head_office' ? copy.kiosk.form.mainOfficeLabel : copy.kiosk.form.temporaryWorkSiteLabel}
-                  </label>
-                  <select
-                    value={form.location_id ?? ''}
-                    onChange={(event) => onLocationChange(event.target.value ? Number(event.target.value) : null)}
-                    className={selectClassName}
-                  >
-                    <option value="">{copy.kiosk.form.selectLocation}</option>
-                    {availableLocations.map((location) => (
-                      <option key={location.id} value={location.id}>{location.name}</option>
-                    ))}
-                  </select>
-                  {availableLocations.length === 0 ? (
-                    <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
-                      {copy.kiosk.form.noActiveLocations}
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                      {copy.kiosk.form.selectedLocationHint}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-4 rounded-lg bg-[#59C3A5]/5 px-3 py-3 text-sm font-medium text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em]">{copy.kiosk.form.availableForLabel}</p>
-                <p className="mt-1">{selectedScopeLabel}</p>
               </div>
             </KioskFormSection>
 
@@ -318,5 +295,95 @@ export function CreateKioskModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AttendanceModeSelector({
+  canUseClosedAttendance,
+  canUseOpenAttendance,
+  copy,
+  hasScopedLocations,
+  value,
+  onChange,
+}: {
+  canUseClosedAttendance: boolean;
+  canUseOpenAttendance: boolean;
+  copy: ControlTranslations;
+  hasScopedLocations: boolean;
+  value: 'open' | 'closed';
+  onChange: (value: 'open' | 'closed') => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <AttendanceModeOption
+        description={copy.kiosk.form.openAttendanceModeDescription}
+        isDisabled={!canUseOpenAttendance}
+        isSelected={value === 'open'}
+        title={copy.kiosk.form.openAttendanceModeTitle}
+        Icon={Unlock}
+        onSelect={() => onChange('open')}
+      />
+      <AttendanceModeOption
+        description={hasScopedLocations ? copy.kiosk.form.closedAttendanceModeDescription : copy.kiosk.form.closedAttendanceUnavailable}
+        isDisabled={!canUseClosedAttendance}
+        isSelected={value === 'closed'}
+        title={copy.kiosk.form.closedAttendanceModeTitle}
+        Icon={Lock}
+        onSelect={() => onChange('closed')}
+      />
+    </div>
+  );
+}
+
+function AttendanceModeOption({
+  description,
+  Icon,
+  isDisabled = false,
+  isSelected,
+  title,
+  onSelect,
+}: {
+  description: string;
+  Icon: LucideIcon;
+  isDisabled?: boolean;
+  isSelected: boolean;
+  title: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={isDisabled}
+      onClick={onSelect}
+      className={`rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        isSelected
+          ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#18715D] ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]'
+          : 'border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5]/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
+      }`}
+      aria-pressed={isSelected}
+    >
+      <div className="flex items-start gap-3">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+          isSelected
+            ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
+            : 'bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300'
+        }`}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-start justify-between gap-2 text-sm font-semibold">
+            <span>{title}</span>
+            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+              isSelected ? 'border-[#59C3A5] bg-white text-[#59C3A5]' : 'border-slate-300 bg-white text-transparent dark:border-slate-700 dark:bg-slate-950'
+            }`}
+            >
+              {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+            </span>
+          </span>
+          <span className="mt-2 block text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</span>
+        </span>
+      </div>
+    </button>
   );
 }

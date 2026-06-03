@@ -43,6 +43,7 @@ export const koCA = {
   identifyDescription: 'HR에서 발급한 직원 PIN을 입력하세요.',
   credentialLabel: 'PIN',
   pinPlaceholder: 'PIN 입력',
+  backspaceLabel: '삭제',
   identify: '확인',
   methods: {
     pin: 'PIN',

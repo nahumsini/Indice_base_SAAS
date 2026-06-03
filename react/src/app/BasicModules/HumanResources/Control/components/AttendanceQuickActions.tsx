@@ -8,12 +8,6 @@ import {
 } from '../../../../api/humanResources';
 import {
   type AttendanceControlCopy,
-  DayEvidenceCard,
-  DayInfoStat,
-  dayStatusPillTone,
-  formatDate,
-  formatTimeOnly,
-  formatWorkDuration,
   resolvedDayStatus,
 } from './ControlAttendanceWidgets';
 
@@ -46,7 +40,6 @@ export function AttendanceQuickActions({
   copy,
   day,
   employeeName,
-  locale,
   pendingStatus,
   isSaving,
   onPendingStatusChange,
@@ -57,7 +50,6 @@ export function AttendanceQuickActions({
   copy: AttendanceControlCopy;
   day: AttendanceCalendarDay | null;
   employeeName: string;
-  locale: string;
   pendingStatus: AttendanceCorrectionStatus | '';
   isSaving: boolean;
   onPendingStatusChange: (status: AttendanceCorrectionStatus | '') => void;
@@ -122,43 +114,6 @@ export function AttendanceQuickActions({
 
   return (
     <div className="space-y-4 rounded-2xl border border-[#59C3A5]/10 bg-[#fbfdff] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-gray-800 dark:bg-gray-900/30" title={employeeName}>
-      <div className="flex flex-col gap-2 border-b border-[#59C3A5]/10 pb-3 dark:border-gray-800 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
-            {copy.labels.modifyStatusOfDay}
-          </p>
-          <h4 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-            {formatDate(day.date, locale, day.date)}
-          </h4>
-        </div>
-        <span className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${dayStatusPillTone(day)}`}>
-          {copy.statuses[resolvedDayStatus(day)]}
-        </span>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <DayInfoStat label={copy.labels.checkIn} value={formatTimeOnly(day.first_check_in_at, locale, copy.labels.noRegistration)} />
-        <DayInfoStat label={copy.labels.checkOut} value={formatTimeOnly(day.last_check_out_at, locale, copy.labels.noRegistration)} />
-        <DayInfoStat label={copy.labels.totalTime} value={formatWorkDuration(day.first_check_in_at, day.last_check_out_at, copy.labels.noRegistration)} />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        <DayEvidenceCard
-          label={copy.labels.checkIn}
-          photoUrl={day.first_photo_url ?? null}
-          location={day.first_location?.name ?? null}
-          copy={copy}
-          compact
-        />
-        <DayEvidenceCard
-          label={copy.labels.checkOut}
-          photoUrl={day.last_photo_url ?? null}
-          location={day.last_location?.name ?? null}
-          copy={copy}
-          compact
-        />
-      </div>
-
       {manualStatusDisabled ? (
         <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           {manualStatusDisabledReason}

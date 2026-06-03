@@ -19,9 +19,13 @@ type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_atten
 
 const kioskTypeOptions: KioskType[] = ['business_unit', 'contract_site', 'head_office', 'open_attendance'];
 
-const kioskTypeFromMetadata = (metadata?: Record<string, unknown>): KioskType => {
-  const value = typeof metadata?.kiosk_type === 'string' ? metadata.kiosk_type : '';
-  return kioskTypeOptions.includes(value as KioskType) ? value as KioskType : 'business_unit';
+const kioskTypeForDevice = (device: AttendanceKioskDevice): KioskType => {
+  const value = typeof device.metadata?.kiosk_type === 'string' ? device.metadata.kiosk_type : '';
+  if (kioskTypeOptions.includes(value as KioskType)) {
+    return value as KioskType;
+  }
+
+  return device.unit_id || device.business_id || device.location_id ? 'business_unit' : 'open_attendance';
 };
 
 const valueFromMetadata = (metadata: Record<string, unknown> | undefined, keys: string[]) => {
@@ -56,7 +60,7 @@ const valueFromMetadata = (metadata: Record<string, unknown> | undefined, keys: 
 };
 
 const kioskTypeLabel = (device: AttendanceKioskDevice, copy: AttendanceControlCopy) => {
-  const kioskType = kioskTypeFromMetadata(device.metadata);
+  const kioskType = kioskTypeForDevice(device);
   if (kioskType === 'contract_site') {
     return copy.kiosk.messages.typeLabelContractSite;
   }
@@ -70,7 +74,7 @@ const kioskTypeLabel = (device: AttendanceKioskDevice, copy: AttendanceControlCo
 };
 
 const scopeDescriptionForDevice = (device: AttendanceKioskDevice, copy: AttendanceControlCopy) => {
-  const kioskType = kioskTypeFromMetadata(device.metadata);
+  const kioskType = kioskTypeForDevice(device);
   const unitName = device.unit_name || copy.labels.allUnits;
   const businessName = device.business_name || copy.labels.allBusinesses;
 
@@ -110,7 +114,7 @@ const locationRuleForDevice = (
   locations: AttendanceControlLocation[],
   copy: AttendanceControlCopy,
 ) => {
-  const kioskType = kioskTypeFromMetadata(device.metadata);
+  const kioskType = kioskTypeForDevice(device);
   const locationName = locationNameForDevice(device, locations);
 
   if (kioskType === 'business_unit' && !device.location_id) {
@@ -186,10 +190,6 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
     onRotate,
     onDelete,
   } = props;
-  const activeDevices = kioskDevices.filter((device) => device.status === 'active').length;
-  const publicLinkDevices = kioskDevices.filter((device) => Boolean(device.public_access_token)).length;
-  const inactiveDevices = kioskDevices.length - activeDevices;
-
   return (
     <Dialog
       open={isOpen}
@@ -243,25 +243,6 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               <Plus className="h-4 w-4" />
               {copy.kiosk.management.newButton}
             </Button>
-          </div>
-
-          <div className="mt-5 grid gap-3 border-y border-slate-200 py-4 text-sm dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="text-2xl font-semibold text-slate-950 dark:text-white">{kioskDevices.length}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.totalPoints}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-300">{activeDevices}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.activeToday}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold text-amber-600 dark:text-amber-300">{inactiveDevices}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.needsReview}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold text-[#59C3A5] dark:text-[#8FE0CA]">{publicLinkDevices}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.kiosk.management.accessScreensReady}</p>
-            </div>
           </div>
 
           {kioskDevices.length > 0 ? (

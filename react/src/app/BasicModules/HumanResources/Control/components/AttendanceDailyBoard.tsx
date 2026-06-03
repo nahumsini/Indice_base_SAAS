@@ -1,4 +1,3 @@
-import type { UIEvent } from 'react';
 import type { AttendanceControlAssignment } from '../../../../api/humanResources';
 import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 import { type AttendanceFilterOption, EmployeeAttendanceList } from './EmployeeAttendanceList';
@@ -11,8 +10,12 @@ export function AttendanceDailyBoard({
   visibleCount,
   filteredCount,
   assignments,
+  currentPage,
+  endRow,
+  pageCount,
   selectedEmployeeId,
   searchQuery,
+  startRow,
   unitFilter,
   businessFilter,
   statusFilter,
@@ -25,8 +28,8 @@ export function AttendanceDailyBoard({
   onUnitFilterChange,
   onBusinessFilterChange,
   onStatusFilterChange,
+  onPageChange,
   onSelectAssignment,
-  onScroll,
 }: {
   copy: AttendanceControlCopy;
   locale: string;
@@ -35,8 +38,12 @@ export function AttendanceDailyBoard({
   visibleCount: number;
   filteredCount: number;
   assignments: AttendanceControlAssignment[];
+  currentPage: number;
+  endRow: number;
+  pageCount: number;
   selectedEmployeeId: number | null;
   searchQuery: string;
+  startRow: number;
   unitFilter: string;
   businessFilter: string;
   statusFilter: string;
@@ -49,8 +56,8 @@ export function AttendanceDailyBoard({
   onUnitFilterChange: (value: string) => void;
   onBusinessFilterChange: (value: string) => void;
   onStatusFilterChange: (value: string) => void;
+  onPageChange: (value: number) => void;
   onSelectAssignment: (assignment: AttendanceControlAssignment) => void;
-  onScroll: (event: UIEvent<HTMLDivElement>) => void;
 }) {
   return (
     <section className="overflow-hidden rounded-[22px] border border-[#59C3A5]/10 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05),0_8px_24px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-800">
@@ -81,8 +88,13 @@ export function AttendanceDailyBoard({
         copy={copy}
         locale={locale}
         assignments={assignments}
+        currentPage={currentPage}
+        endRow={endRow}
         selectedEmployeeId={selectedEmployeeId}
+        filteredCount={filteredCount}
+        pageCount={pageCount}
         searchQuery={searchQuery}
+        startRow={startRow}
         unitFilter={unitFilter}
         businessFilter={businessFilter}
         statusFilter={statusFilter}
@@ -94,8 +106,8 @@ export function AttendanceDailyBoard({
         onUnitFilterChange={onUnitFilterChange}
         onBusinessFilterChange={onBusinessFilterChange}
         onStatusFilterChange={onStatusFilterChange}
+        onPageChange={onPageChange}
         onSelectAssignment={onSelectAssignment}
-        onScroll={onScroll}
       />
     </section>
   );
