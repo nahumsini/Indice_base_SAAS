@@ -47,8 +47,7 @@ export function KioskActionsMenu({
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuItem
           disabled={!hasPublicLink}
-          onSelect={(event) => {
-            event.preventDefault();
+          onSelect={() => {
             if (hasPublicLink) {
               onCopy();
             }
@@ -59,8 +58,7 @@ export function KioskActionsMenu({
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={!hasPublicLink}
-          onSelect={(event) => {
-            event.preventDefault();
+          onSelect={() => {
             if (hasPublicLink) {
               onShowQr();
             }
@@ -71,8 +69,7 @@ export function KioskActionsMenu({
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={isSaving}
-          onSelect={(event) => {
-            event.preventDefault();
+          onSelect={() => {
             if (!isSaving) {
               onRotate();
             }
@@ -83,8 +80,7 @@ export function KioskActionsMenu({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
+          onSelect={() => {
             onEdit();
           }}
         >
@@ -94,8 +90,7 @@ export function KioskActionsMenu({
         <DropdownMenuItem
           variant="destructive"
           disabled={isSaving}
-          onSelect={(event) => {
-            event.preventDefault();
+          onSelect={() => {
             if (!isSaving) {
               onDelete();
             }

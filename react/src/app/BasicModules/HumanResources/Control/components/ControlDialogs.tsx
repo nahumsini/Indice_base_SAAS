@@ -26,163 +26,78 @@ import {
   KioskManagementModal,
   type KioskManagementModalProps,
 } from './kiosks/KioskManagementModal';
-import { CreateKioskModal } from './kiosks/CreateKioskModal';
+import { CreateKioskModal, type KioskOption } from './kiosks/CreateKioskModal';
+import type { ControlWorkSiteForm, KioskType } from '../types/controlTypes';
+import {
+  contractSiteAssignmentDates,
+  dateInputValue,
+  defaultKioskScopeCode,
+  isActiveLocation,
+  kioskTypeFromMetadata,
+  laterDate,
+  locationMatchesKioskType,
+  timeToInput,
+  withContractSiteTime,
+  withKioskType,
+} from '../utils/controlDialogUtils';
 
-export interface ControlWorkSiteForm {
-  user_company_ids: number[];
-  location_ids: number[];
-  location_id: number;
-  effective_start_date: string;
-  effective_end_date: string;
-  start_time: string;
-  end_time: string;
-}
+export type { ControlWorkSiteForm } from '../types/controlTypes';
 
-type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
+const hasKioskLocationGeometry = (location: AttendanceControlLocation) => (
+  Number.isFinite(Number(location.latitude))
+  && Number.isFinite(Number(location.longitude))
+  && Number.isFinite(Number(location.radius_meters))
+  && Number(location.radius_meters) > 0
+);
 
-const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
-const dateInputValue = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-const laterDate = (...dates: Array<string | null | undefined>) => {
-  const values = dates.filter((date): date is string => Boolean(date));
-  values.sort();
-  return values.length > 0 ? values[values.length - 1] : '';
-};
-const contractSiteAssignmentDates = (
-  location: AttendanceControlLocation | undefined,
-  requestedStartDate: string,
-  todayDate: string,
+const isBusinessScopeKioskLocation = (location: AttendanceControlLocation) => (
+  isActiveLocation(location)
+  && Boolean(location.unit_id)
+  && Boolean(location.business_id)
+  && (location.managed_source ?? '').toLowerCase() !== 'contract_site'
+  && hasKioskLocationGeometry(location)
+);
+
+const collectBusinessScopeKioskLocations = (
+  locations: AttendanceControlLocation[],
+  assignments: AttendanceControlAssignment[],
 ) => {
-  if (!location) {
-    const startDate = laterDate(todayDate, requestedStartDate) || todayDate;
-    return { startDate, endDate: startDate };
-  }
-
-  const minimumStartDate = laterDate(todayDate, location.contract_start_date);
-  const startCandidate = requestedStartDate && requestedStartDate >= minimumStartDate
-    ? requestedStartDate
-    : minimumStartDate;
-  const startDate = location.contract_end_date && startCandidate > location.contract_end_date
-    ? location.contract_end_date
-    : startCandidate;
-  const endDate = location.contract_end_date && location.contract_end_date >= startDate
-    ? location.contract_end_date
-    : startDate;
-  return { startDate, endDate };
-};
-const withContractSiteTime = (
-  payload: AttendanceControlLocationPayload,
-  field: 'required_start_time' | 'required_end_time',
-  value: string,
-): AttendanceControlLocationPayload => {
-  return {
-    ...payload,
-    [field]: value ? `${value}:00` : null,
+  const locationById = new Map<number, AttendanceControlLocation>();
+  const addLocation = (location?: AttendanceControlLocation | null) => {
+    if (location && isBusinessScopeKioskLocation(location)) {
+      locationById.set(location.id, location);
+    }
   };
+
+  locations.forEach(addLocation);
+  assignments.forEach((assignment) => {
+    assignment.business_locations?.forEach(addLocation);
+    assignment.allowed_locations?.forEach(addLocation);
+  });
+
+  return Array.from(locationById.values());
 };
 
-const kioskTypeOptions: KioskType[] = ['business_unit', 'contract_site', 'head_office', 'open_attendance'];
+const formatKioskRadiusSummary = (
+  locations: AttendanceControlLocation[],
+  copy: AttendanceControlCopy,
+) => {
+  const radii = Array.from(new Set(
+    locations
+      .map((location) => Math.round(Number(location.radius_meters)))
+      .filter((radius) => Number.isFinite(radius) && radius > 0),
+  )).sort((left, right) => left - right);
 
-const kioskTypeFromMetadata = (metadata?: Record<string, unknown>): KioskType => {
-  const value = typeof metadata?.kiosk_type === 'string' ? metadata.kiosk_type : '';
-  return kioskTypeOptions.includes(value as KioskType) ? value as KioskType : 'business_unit';
+  if (radii.length === 0) {
+    return copy.kiosk.form.noActiveLocations;
+  }
+
+  if (radii.length === 1) {
+    return `${radii[0] * 2} m`;
+  }
+
+  return `${radii[0] * 2}-${radii[radii.length - 1] * 2} m`;
 };
-
-const withKioskType = (metadata: Record<string, unknown> | undefined, kioskType: KioskType) => ({
-  ...(metadata ?? {}),
-  kiosk_type: kioskType,
-});
-
-const isContractSiteLocation = (location: AttendanceControlLocation) =>
-  (location.managed_source ?? '').toLowerCase() === 'contract_site';
-
-const isBusinessStructureLocation = (location: AttendanceControlLocation) =>
-  (location.managed_source ?? '').toLowerCase() === 'business_structure';
-
-const normalizeLocationLabel = (value?: string | null) =>
-  (value ?? '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '');
-
-const headOfficeExactKeys = new Set([
-  'corporateoffice',
-  'oficinacorporativa',
-  'sedecorporativa',
-  'headquarter',
-  'headquarters',
-  'headoffice',
-  'mainoffice',
-  'oficinacentral',
-]);
-
-const headOfficeContainsKeys = [
-  'corporateoffice',
-  'oficinacorporativa',
-  'sedecorporativa',
-  'headoffice',
-  'mainoffice',
-  'oficinacentral',
-];
-
-const isHeadOfficeLocation = (location: AttendanceControlLocation) => {
-  if (!isBusinessStructureLocation(location)) {
-    return false;
-  }
-  if (!location.business_id) {
-    return true;
-  }
-
-  const labels = [location.name, location.unit_name, location.business_name]
-    .map(normalizeLocationLabel)
-    .filter(Boolean);
-
-  return labels.some((label) =>
-    headOfficeExactKeys.has(label) || headOfficeContainsKeys.some((key) => label.includes(key))
-  );
-};
-
-const locationMatchesKioskType = (location: AttendanceControlLocation, kioskType: KioskType) => {
-  if (kioskType === 'contract_site') {
-    return isContractSiteLocation(location);
-  }
-  if (kioskType === 'open_attendance') {
-    return false;
-  }
-  if (kioskType === 'head_office') {
-    return isHeadOfficeLocation(location);
-  }
-  return isBusinessStructureLocation(location) && Boolean(location.business_id) && !isHeadOfficeLocation(location);
-};
-
-const isActiveLocation = (location: AttendanceControlLocation) => (location.status ?? 'active') !== 'inactive';
-
-const slugifyKioskPart = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-
-const defaultKioskCode = (location: AttendanceControlLocation, kioskType: KioskType) => {
-  const prefix = kioskType === 'contract_site'
-    ? 'site'
-    : kioskType === 'head_office'
-      ? 'hq'
-      : 'business';
-  const slug = slugifyKioskPart(location.name) || `${prefix}-${location.id}`;
-  return `${slug}-point`;
-};
-
-const defaultKioskScopeCode = (label: string, fallback: string) =>
-  `${slugifyKioskPart(label) || fallback}-point`;
 
 export function ControlContractSiteDialog({
   copy,
@@ -832,6 +747,7 @@ export function ControlKioskManagerDialog(props: KioskManagementModalProps) {
 }
 
 export function ControlKioskDialog({
+  assignments,
   copy,
   isOpen,
   isSaving,
@@ -855,14 +771,15 @@ export function ControlKioskDialog({
   onChange: (value: AttendanceKioskDevicePayload) => void;
   onSave: () => void;
 }) {
-  const kioskType = kioskTypeFromMetadata(form.metadata);
-  const activeLocations = locations.filter(isActiveLocation);
-  const businessStructureLocations = activeLocations.filter((location) => locationMatchesKioskType(location, 'business_unit'));
-  const availableLocations = activeLocations.filter((location) => locationMatchesKioskType(location, kioskType));
-  const selectedLocation = locations.find((location) => location.id === form.location_id) ?? null;
+  const kioskType = typeof form.metadata?.kiosk_type === 'string'
+    ? kioskTypeFromMetadata(form.metadata)
+    : form.unit_id || form.business_id || form.location_id
+      ? 'business_unit'
+      : 'open_attendance';
+  const businessScopeLocations = collectBusinessScopeKioskLocations(locations, assignments);
   const unitOptions = Array.from(
     new Map(
-      businessStructureLocations
+      businessScopeLocations
         .filter((location) => location.unit_id)
         .map((location) => [
           location.unit_id as number,
@@ -873,8 +790,8 @@ export function ControlKioskDialog({
         ]),
     ).values(),
   ).sort((first, second) => first.name.localeCompare(second.name));
-  const businessOptions = businessStructureLocations
-    .filter((location) => !form.unit_id || location.unit_id === form.unit_id)
+  const businessOptions: KioskOption[] = businessScopeLocations
+    .filter((location) => form.unit_id && location.unit_id === form.unit_id)
     .filter((location) => location.business_id)
     .map((location) => ({
       id: location.business_id as number,
@@ -886,30 +803,39 @@ export function ControlKioskDialog({
     .sort((first, second) => first.name.localeCompare(second.name));
   const selectedUnit = unitOptions.find((unit) => unit.id === form.unit_id) ?? null;
   const selectedBusiness = businessOptions.find((business) => business.id === form.business_id) ?? null;
-  const selectedScopeLabel = (() => {
-    if (kioskType === 'open_attendance') {
-      return copy.kiosk.form.allEmployeesNoLocationScope;
-    }
-    if (kioskType === 'business_unit') {
-      if (form.business_id) {
-        return [
-          selectedBusiness?.unitName || selectedUnit?.name || copy.labels.allUnits,
+  const selectedScopeLocations = businessScopeLocations.filter((location) => (
+    Boolean(form.unit_id)
+    && location.unit_id === form.unit_id
+    && (!form.business_id || location.business_id === form.business_id)
+  ));
+  const selectedScopeLabel = kioskType === 'business_unit'
+    ? form.business_id
+      ? [
+          selectedBusiness?.unitName || selectedUnit?.name || copy.labels.noUnit,
           selectedBusiness?.name || copy.labels.noBusiness,
-        ].join(' / ');
-      }
-      if (form.unit_id) {
-        return [selectedUnit?.name || copy.labels.noUnit, copy.labels.allBusinesses].join(' / ');
-      }
-      return [copy.labels.allUnits, copy.labels.allBusinesses].join(' / ');
-    }
-    return selectedLocation
-      ? [selectedLocation.unit_name || copy.labels.noUnit, selectedLocation.business_name || copy.labels.noBusiness].join(' / ')
-      : copy.labels.noLinkedLocation;
-  })();
-  const isBusinessUnitKiosk = kioskType === 'business_unit';
-  const isOpenAttendanceKiosk = kioskType === 'open_attendance';
+        ].join(' / ')
+      : form.unit_id
+        ? [selectedUnit?.name || copy.labels.noUnit, copy.labels.allBusinesses].join(' / ')
+        : copy.contractSites.basic.selectUnit
+    : copy.kiosk.form.allEmployeesNoLocationScope;
+  const selectedRadiusLabel = kioskType === 'business_unit'
+    ? formatKioskRadiusSummary(selectedScopeLocations, copy)
+    : copy.kiosk.form.allEmployeesNoLocationScope;
+  const hasBusinessScopeLocations = businessScopeLocations.length > 0;
+  const allowedKioskTypes: readonly KioskType[] = isEditing
+    ? [kioskType]
+    : ['business_unit', 'open_attendance'];
+  const hasValidBusinessScope = kioskType !== 'business_unit' || (
+    Boolean(form.unit_id)
+    && Boolean(form.business_id)
+    && selectedScopeLocations.length > 0
+  );
   const requiresLocation = kioskType !== 'business_unit' && kioskType !== 'open_attendance';
-  const canSave = !isSaving && form.code.trim().length > 0 && form.name.trim().length > 0 && (!requiresLocation || Boolean(form.location_id));
+  const canSave = !isSaving
+    && form.code.trim().length > 0
+    && form.name.trim().length > 0
+    && hasValidBusinessScope
+    && (!requiresLocation || Boolean(form.location_id));
   const updateKioskType = (nextType: KioskType) => {
     const currentLocation = locations.find((location) => location.id === form.location_id);
     if (nextType === 'open_attendance') {
@@ -926,17 +852,28 @@ export function ControlKioskDialog({
     }
 
     if (nextType === 'business_unit') {
-      const nextUnitId = currentLocation && isBusinessStructureLocation(currentLocation)
-        ? currentLocation.unit_id ?? null
-        : form.unit_id ?? null;
-      const nextBusinessId = currentLocation && locationMatchesKioskType(currentLocation, 'business_unit')
-        ? currentLocation.business_id ?? null
-        : form.business_id ?? null;
+      const currentLocationCanScope = currentLocation ? isBusinessScopeKioskLocation(currentLocation) : false;
+      const currentLocationUnitId = currentLocationCanScope ? currentLocation?.unit_id ?? null : null;
+      const fallbackUnit = unitOptions.find((unit) => unit.id === (currentLocationUnitId ?? form.unit_id))
+        ?? unitOptions[0]
+        ?? null;
+      const nextUnitId = currentLocationUnitId ?? fallbackUnit?.id ?? null;
+      const availableBusinessesForUnit = businessScopeLocations
+        .filter((location) => nextUnitId && location.unit_id === nextUnitId && location.business_id)
+        .map((location) => location.business_id as number);
+      const nextBusinessId = currentLocationCanScope && currentLocation?.business_id
+        ? currentLocation.business_id
+        : form.business_id && availableBusinessesForUnit.includes(form.business_id)
+          ? form.business_id
+          : null;
+      const scopeLabel = fallbackUnit?.name || copy.labels.unit;
       onChange({
         ...form,
         unit_id: nextUnitId,
         business_id: nextBusinessId,
         location_id: null,
+        name: form.name || copy.kiosk.form.defaultAttendancePointName(scopeLabel),
+        code: form.code || defaultKioskScopeCode(scopeLabel, nextUnitId ? `unit-${nextUnitId}` : 'business-unit'),
         metadata: withKioskType(form.metadata, nextType),
       });
       return;
@@ -953,63 +890,53 @@ export function ControlKioskDialog({
   };
   const updateKioskUnit = (unitId: number | null) => {
     const nextUnit = unitOptions.find((unit) => unit.id === unitId) ?? null;
-    const currentBusiness = businessStructureLocations.find((location) => location.business_id === form.business_id);
-    const shouldKeepBusiness = Boolean(unitId && currentBusiness?.unit_id === unitId);
-    const label = nextUnit?.name || copy.labels.allUnits;
+    const currentBusiness = businessOptions.find((business) => business.id === form.business_id) ?? null;
+    const shouldKeepBusiness = Boolean(unitId && currentBusiness?.unitId === unitId);
+    const label = nextUnit?.name || copy.labels.unit;
     onChange({
       ...form,
       unit_id: unitId,
       business_id: shouldKeepBusiness ? form.business_id ?? null : null,
       location_id: null,
       name: form.name || copy.kiosk.form.defaultAttendancePointName(label),
-      code: form.code || defaultKioskScopeCode(label, unitId ? `unit-${unitId}` : 'all-business'),
+      code: form.code || defaultKioskScopeCode(label, unitId ? `unit-${unitId}` : 'business-unit'),
+      metadata: withKioskType(form.metadata, 'business_unit'),
     });
   };
   const updateKioskBusiness = (businessId: number | null) => {
     const nextBusiness = businessOptions.find((business) => business.id === businessId) ?? null;
+    const label = nextBusiness?.name || selectedUnit?.name || copy.labels.business;
     onChange({
       ...form,
       unit_id: nextBusiness?.unitId ?? form.unit_id ?? null,
       business_id: businessId,
       location_id: null,
-      name: form.name || copy.kiosk.form.defaultAttendancePointName(nextBusiness?.name || copy.labels.allBusinesses),
-      code: form.code || defaultKioskScopeCode(nextBusiness?.name || copy.labels.allBusinesses, businessId ? `business-${businessId}` : 'all-business'),
-    });
-  };
-  const updateKioskLocation = (locationId: number | null) => {
-    const nextLocation = locations.find((location) => location.id === locationId) ?? null;
-    onChange({
-      ...form,
-      unit_id: nextLocation?.unit_id ?? null,
-      business_id: nextLocation?.business_id ?? null,
-      location_id: nextLocation?.id ?? null,
-      name: form.name || (nextLocation ? copy.kiosk.form.defaultAttendancePointName(nextLocation.name) : form.name),
-      code: form.code || (nextLocation ? defaultKioskCode(nextLocation, kioskType) : form.code),
+      name: form.name || copy.kiosk.form.defaultAttendancePointName(label),
+      code: form.code || defaultKioskScopeCode(label, businessId ? `business-${businessId}` : `unit-${form.unit_id ?? 'business-unit'}`),
+      metadata: withKioskType(form.metadata, 'business_unit'),
     });
   };
 
   return (
     <CreateKioskModal
+      allowedKioskTypes={allowedKioskTypes}
+      businessOptions={businessOptions}
       canSave={canSave}
       copy={copy}
       form={form}
-      isBusinessUnitKiosk={isBusinessUnitKiosk}
-      isOpenAttendanceKiosk={isOpenAttendanceKiosk}
+      hasScopedLocations={hasBusinessScopeLocations}
       isEditing={isEditing}
       isOpen={isOpen}
       isSaving={isSaving}
       kioskType={kioskType}
-      title={title}
-      availableLocations={availableLocations}
-      businessOptions={businessOptions}
-      hasBusinessStructureLocations={businessStructureLocations.length > 0}
+      selectedRadiusLabel={selectedRadiusLabel}
       selectedScopeLabel={selectedScopeLabel}
+      title={title}
       unitOptions={unitOptions}
+      onBusinessChange={updateKioskBusiness}
       onChange={onChange}
       onClose={onClose}
       onKioskTypeChange={updateKioskType}
-      onLocationChange={updateKioskLocation}
-      onBusinessChange={updateKioskBusiness}
       onSave={onSave}
       onUnitChange={updateKioskUnit}
     />

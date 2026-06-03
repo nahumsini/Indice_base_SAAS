@@ -86,8 +86,11 @@ export const enCA = {
       `Records summary: ${pendingCount} pending · ${reviewedCount} reviewed · ${resolvedCount} resolved · ${highSeverityCount} high severity · showing ${visibleCount} of ${totalCount}.`,
   },
   pagination: {
+    pageSize: 'Rows per page',
     showing: (start: number, end: number, total: number) => `Showing ${start}-${end} of ${total} records`,
     page: (current: number, total: number) => `Page ${current} of ${total}`,
+    previous: 'Previous',
+    next: 'Next',
   },
   columnsModal: {
     title: 'Table columns',

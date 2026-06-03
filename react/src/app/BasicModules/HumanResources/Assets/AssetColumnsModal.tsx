@@ -71,7 +71,7 @@ export function AssetColumnsModal({
     <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : undefined)}>
       <DialogContent
         className={cn(
-          'max-w-xl p-0 sm:rounded-2xl',
+          'max-w-xl overflow-hidden p-0 sm:rounded-[20px]',
           isDarkMode
             ? 'border border-gray-700 bg-gray-800/95 text-white shadow-[0_28px_60px_rgba(4,10,30,0.5)]'
             : 'border border-gray-200 bg-white text-gray-900 shadow-[0_28px_60px_rgba(15,23,42,0.18)]',
@@ -79,16 +79,13 @@ export function AssetColumnsModal({
       >
         <DialogHeader
           className={cn(
-            'border-b px-6 py-5 text-left',
-            isDarkMode
-              ? 'border-gray-700 bg-[linear-gradient(135deg,rgba(89,195,165,0.18)_0%,rgba(37,24,130,0.22)_100%)]'
-              : 'border-gray-200 bg-[linear-gradient(135deg,#F4FCF9_0%,#eef3ff_100%)]',
+            'border-b border-[#59C3A5]/30 bg-[#59C3A5] px-6 py-5 text-left',
           )}
         >
-          <DialogTitle className={cn('text-xl font-semibold', isDarkMode ? 'text-white' : 'text-gray-900')}>
+          <DialogTitle className="text-xl font-semibold text-white">
             {copy.title}
           </DialogTitle>
-          <DialogDescription className={cn('text-sm', isDarkMode ? 'text-slate-300' : 'text-gray-600')}>
+          <DialogDescription className="text-sm text-white/85">
             {copy.subtitle}
           </DialogDescription>
         </DialogHeader>
@@ -162,23 +159,18 @@ export function AssetColumnsModal({
 
         <DialogFooter
           className={cn(
-            'border-t px-6 py-4 sm:justify-end',
-            isDarkMode ? 'border-gray-700 bg-gray-900/55' : 'border-gray-200 bg-gray-50',
+            'border-t border-[#59C3A5]/30 bg-[#59C3A5] px-6 py-4 sm:justify-end',
           )}
         >
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
-            className={cn(
-              isDarkMode
-                ? 'border-gray-600 bg-gray-800 text-slate-200 hover:bg-gray-700 hover:text-white'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900',
-            )}
+            className="border-white/35 bg-white/10 text-white hover:bg-white/20 hover:text-white"
           >
             {copy.cancel}
           </Button>
-          <Button type="button" onClick={handleApply} className="bg-[#5d35ff] text-white hover:bg-[#4e29ef]">
+          <Button type="button" onClick={handleApply} className="bg-white text-[#237964] hover:bg-white/90">
             {copy.apply}
           </Button>
         </DialogFooter>

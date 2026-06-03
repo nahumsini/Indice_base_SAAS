@@ -7,6 +7,7 @@ export const esMX = {
   subtitle: 'Expedientes, asignaciones, horarios y contexto de nómina',
   addEmployee: 'Agregar colaborador',
   configureColumns: 'Columnas',
+  retryLoad: 'Reintentar',
   detailLoadingTitle: 'Cargando detalle del colaborador',
   detailLoadingDescription: 'Estamos obteniendo el perfil completo y documentos del colaborador.',
   loadLoadingTitle: 'Cargando colaboradores',
@@ -38,11 +39,9 @@ export const esMX = {
     inactive: 'Inactivos',
     payroll: 'Nómina mensual',
     visible: 'visibles por filtros',
-    selected: 'seleccionados',
     terminated: 'Terminados',
     activeRate: 'activos',
     statusReview: (count: number) => `${count} requieren revisión de estatus`,
-    selectedBadge: (count: number) => `${count} seleccionados`,
     summaryInsight: ({
       activeCount,
       activeRate,
@@ -163,9 +162,9 @@ export const esMX = {
     scheduleLateAfterMinutes: 'Minutos permitidos antes de marcar asistencia como tarde.',
     scheduleLocationRule: 'Regla de ubicación de negocio o ubicación exacta para asistencia.',
     scheduleLocationId: 'Ubicación exacta de asistencia cuando está configurada.',
-    salaryType: 'Indica si el colaborador cobra por día o por hora.',
+    salaryType: 'Indica si el colaborador cobra un sueldo fijo por periodo o por hora.',
     workdayHours: 'Horas estándar configuradas para la jornada.',
-    salary: 'Salario o tarifa por hora utilizada por nómina.',
+    salary: 'Monto fijo pagado en el periodo seleccionado.',
     hourlyRate: 'Tarifa por hora usada cuando el tipo de salario es por hora.',
     payPeriod: 'Frecuencia de pago configurada para el colaborador.',
     contractType: 'Configuración de contrato permanente o temporal.',
@@ -184,7 +183,7 @@ export const esMX = {
     monthly: 'Mensual',
   },
   salaryTypeLabels: {
-    daily: 'Salario por día',
+    daily: 'Sueldo fijo por periodo',
     hourly: 'Salario por hora',
   },
   contractTypeLabels: {
@@ -263,6 +262,93 @@ export const esMX = {
       compensation: 'Compensación',
       contract: 'Contrato',
     },
+    identifierProfiles: {
+      BR: {
+        group: 'Identificadores de Brasil',
+        labels: {
+          nationalId: 'CPF',
+          taxId: 'CNPJ / fiscal',
+          socialSecurityNumber: 'PIS/PASEP',
+        },
+        placeholders: {
+          nationalId: 'Ej. 123.456.789-00',
+          taxId: 'Ej. 12.345.678/0001-90',
+          socialSecurityNumber: 'Ej. 123.45678.90-1',
+        },
+        helpers: {
+          taxId: 'Opcional. Requerido para procesos fiscales y de folha cuando aplica.',
+          socialSecurityNumber: 'Opcional. Agrega PIS/PASEP cuando el proceso laboral lo requiera.',
+        },
+      },
+      CA: {
+        group: 'Identificadores de Canadá',
+        labels: {
+          nationalId: 'Identificación oficial',
+          taxId: 'Tax ID',
+          socialSecurityNumber: 'SIN',
+        },
+        placeholders: {
+          nationalId: 'Ej. licencia o pasaporte',
+          taxId: 'Ej. identificador fiscal',
+          socialSecurityNumber: 'Ej. 123 456 789',
+        },
+        helpers: {
+          taxId: 'Opcional. Requerido para procesos fiscales y de payroll cuando aplica.',
+          socialSecurityNumber: 'Opcional. Agrega el SIN cuando payroll lo requiera.',
+        },
+      },
+      CO: {
+        group: 'Identificadores de Colombia',
+        labels: {
+          nationalId: 'Cédula',
+          taxId: 'NIT',
+          socialSecurityNumber: 'Seguridad social',
+        },
+        placeholders: {
+          nationalId: 'Ej. 1020304050',
+          taxId: 'Ej. 900123456-7',
+          socialSecurityNumber: 'Ej. EPS / fondo',
+        },
+        helpers: {
+          taxId: 'Opcional. Requerido para DIAN y procesos de pago cuando aplica.',
+          socialSecurityNumber: 'Opcional. Puedes agregar EPS, pensión u otros datos después.',
+        },
+      },
+      MX: {
+        group: 'Identificadores de México',
+        labels: {
+          nationalId: 'CURP',
+          taxId: 'RFC',
+          socialSecurityNumber: 'NSS',
+        },
+        placeholders: {
+          nationalId: 'Ej. GARC800101HDFRNN09',
+          taxId: 'Ej. GARR800101ABC',
+          socialSecurityNumber: 'Ej. 12345678901',
+        },
+        helpers: {
+          taxId: 'Opcional. Requerido para SAT y procesos de nómina.',
+          socialSecurityNumber: 'Opcional. Agrega el NSS cuando los procesos de seguridad social lo requieran.',
+        },
+      },
+      US: {
+        group: 'Identificadores de Estados Unidos',
+        labels: {
+          nationalId: 'Identificación oficial',
+          taxId: 'Tax ID / TIN',
+          socialSecurityNumber: 'SSN',
+        },
+        placeholders: {
+          nationalId: 'Ej. licencia o pasaporte',
+          taxId: 'Ej. EIN cuando aplique',
+          socialSecurityNumber: 'Ej. 123-45-6789',
+        },
+        helpers: {
+          taxId: 'Opcional. Requerido para procesos fiscales y de payroll cuando aplica.',
+          socialSecurityNumber: 'Opcional. Agrega el SSN cuando payroll lo requiera.',
+        },
+      },
+    },
     labels: {
       employeeNumber: 'Número de colaborador',
       firstName: 'Nombre',
@@ -300,7 +386,7 @@ export const esMX = {
       scheduleLocationId: 'Ubicación exacta',
       salaryType: 'Tipo de salario',
       workdayHours: 'Horas de jornada',
-      salary: 'Salario',
+      salary: 'Sueldo fijo',
       hourlyRate: 'Sueldo por hora',
       payPeriod: 'Periodo de pago',
       contractType: 'Tipo de contrato',
@@ -319,6 +405,32 @@ export const esMX = {
       scheduleBusinessLocation: 'El colaborador registrará asistencia desde la ubicación de Business Structure asignada a su negocio.',
       scheduleExactLocation: 'La ubicación exacta seleccionada se aplicará para este horario.',
       noScheduleLocations: 'No hay ubicaciones activas para el negocio o unidad seleccionada.',
+    },
+    belonging: {
+      businessUnitHelper: 'Elige la unidad física o corporativa a la que pertenece el colaborador.',
+      businessHelper: 'Selecciona una oficina corporativa, sede de unidad o negocio operativo con ID real.',
+      selectUnitFirst: 'Selecciona primero una unidad para ver las opciones de pertenencia.',
+      noHeadquartersOption: 'Esta unidad todavía no muestra una opción de sede. Guarda Estructura empresarial para crearla.',
+      corporateUnitBadge: 'Corporativo',
+      businessUnitBadge: 'Unidad',
+      corporateBusinessBadge: 'Oficina corporativa',
+      unitHeadquartersBadge: 'Sede de unidad',
+      operatingBusinessBadge: 'Negocio operativo',
+      autoAssignedBadge: 'Asignado automáticamente',
+      corporateUnitDescription: 'Base física del equipo corporativo.',
+      businessUnitDescription: 'Unidad física donde operan negocios y oficinas de unidad.',
+      corporateBusinessDescription: 'Para CEO, dirección general o equipo corporativo.',
+      unitHeadquartersDescription: (unit: string) => `Para dirección o administración de ${unit}.`,
+      operatingBusinessDescription: 'Para gerentes y colaboradores asignados al negocio.',
+      belongingSummary: (unit: string, business: string, kind: string) => `Pertenencia: ${unit} / ${business} - ${kind}.`,
+      corporateAutoSummary: 'La oficina corporativa se asigna desde la unidad seleccionada.',
+    },
+    creatableOptions: {
+      add: 'Agregar opción',
+      helper: 'Puedes seleccionar una opción o escribir una nueva. Las opciones personalizadas se guardan en este navegador.',
+      saved: 'Opción personalizada guardada para futuros colaboradores.',
+      suggestedForDepartment: (department: string) =>
+        `Puestos sugeridos para ${department}. También puedes escribir uno propio.`,
     },
     placeholders: {
       employeeNumber: 'Se genera al guardar',
@@ -349,7 +461,7 @@ export const esMX = {
       departments: getDepartmentOptionLabels('es-MX'),
       positions: getAllPositionLabels('es-MX'),
       salaryTypes: [
-        { value: 'daily', label: 'Salario por día' },
+        { value: 'daily', label: 'Sueldo fijo por periodo' },
         { value: 'hourly', label: 'Salario por hora' },
       ],
       payPeriods: [

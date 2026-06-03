@@ -8,6 +8,11 @@ export const enUS = {
     title: 'Loading HR tab',
     description: 'Downloading only the selected human resources workspace.',
   },
+  access: {
+    loadingTitle: 'Loading HR access',
+    loadingDescription: 'Checking which workspaces are available.',
+    empty: 'No Human Resources tabs are available for this user.',
+  },
   tabs: {
     collaborators: 'Employees',
     attendance: 'Attendance',

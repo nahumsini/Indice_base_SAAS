@@ -1,15 +1,12 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
-  Building2,
   CalendarDays,
   Clock3,
   LogIn,
   LogOut,
   Printer,
-  Trash2,
-  Users,
   UserX,
   X,
 } from 'lucide-react';
@@ -21,280 +18,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../../components/ui/dialog';
-import {
-  type AttendanceControlAssignment,
-  type AttendanceControlRule,
-} from '../../../../api/humanResources';
 import { useControlTranslations } from '../hooks/useControlTranslations';
-import type { ControlTranslations } from '../translations';
-
-interface TimeTableModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  assignments: AttendanceControlAssignment[];
-  date: string;
-  locale: string;
-  isSaving: boolean;
-  onDateChange: (date: string) => void;
-  onRemoveShift: (assignment: AttendanceControlAssignment, date?: string) => Promise<void> | void;
-}
-
-type TimeTableEmployeeRow = {
-  assignment: AttendanceControlAssignment;
-  attendance: string;
-  businessLocation: string;
-  contractSite: string;
-  hasAttendance: boolean;
-  hasScheduleAssignment: boolean;
-  hasWorkSite: boolean;
-  schedule: string;
-  workingDays: number;
-};
-type TimeTableUnitCoverage = {
-  unitId: string;
-  unit: string;
-  count: number;
-  businessList: Array<{
-    business: string;
-    count: number;
-  }>;
-};
-type DailyAttendanceMetric = {
-  key: string;
-  icon: ReactNode;
-  label: string;
-  title: string;
-  value: number;
-  valueClassName?: string;
-};
-type TimeTableCopy = ControlTranslations['timeTable'];
-
-const employeeRowsPerPage = 10;
-const noUnitFilterValue = 'unit:none';
-const noBusinessFilterValue = 'business:none';
-
-const toTimeText = (value?: string | null) => (value ? value.slice(0, 5) : '');
-const parseLocalDate = (value: string) => {
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-};
-
-const isActiveEmployee = (assignment: AttendanceControlAssignment) =>
-  (assignment.user_status || 'active').toLowerCase() === 'active';
-
-const hasWorkingRule = (assignment: AttendanceControlAssignment) =>
-  Boolean(assignment.schedule_template_id && assignment.today_rule && !assignment.today_rule.is_rest_day);
-
-const canRemoveShift = (assignment: AttendanceControlAssignment) =>
-  Boolean((assignment.schedule_template_id || assignment.active_work_site) && !assignment.first_check_in_at && !assignment.last_check_out_at);
-
-const assignmentUnitName = (assignment: AttendanceControlAssignment, copy: ControlTranslations) =>
-  assignment.unit_name || copy.labels.noUnit;
-
-const assignmentUnitFilterValue = (assignment: AttendanceControlAssignment) =>
-  assignment.unit_id != null ? `unit:${assignment.unit_id}` : noUnitFilterValue;
-
-const assignmentBusinessName = (assignment: AttendanceControlAssignment, copy: ControlTranslations) =>
-  assignment.business_name || copy.labels.noBusiness;
-const assignmentBusinessFilterValue = (assignment: AttendanceControlAssignment) =>
-  assignment.business_id != null ? `business:${assignment.business_id}` : noBusinessFilterValue;
-
-const timeTextToMinutes = (value?: string | null) => {
-  const timeText = toTimeText(value);
-  const [hours, minutes] = timeText.split(':').map(Number);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
-    return null;
-  }
-  return hours * 60 + minutes;
-};
-
-const scheduledMinutesForRule = (rule?: AttendanceControlRule | null) => {
-  if (!rule || rule.is_rest_day || rule.schedule_mode === 'open') {
-    return 0;
-  }
-  const start = timeTextToMinutes(rule.start_time);
-  const end = timeTextToMinutes(rule.end_time);
-  if (start == null || end == null || end <= start) {
-    return 0;
-  }
-  return end - start;
-};
-
-const formatScheduledDuration = (minutes: number) => {
-  if (minutes <= 0) {
-    return '';
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  if (!hours) {
-    return `${remainingMinutes}m`;
-  }
-  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-};
-
-const scheduleRuleTimeLabel = (rule: AttendanceControlRule | null | undefined, copy: TimeTableCopy) => {
-  if (!rule) {
-    return copy.noRule;
-  }
-  if (rule.is_rest_day) {
-    return copy.noShiftDay;
-  }
-  if (rule.schedule_mode === 'open') {
-    return copy.openSchedule;
-  }
-
-  const start = toTimeText(rule.start_time);
-  const end = toTimeText(rule.end_time);
-  const duration = formatScheduledDuration(scheduledMinutesForRule(rule));
-  if (start && end) {
-    return duration ? `${start} - ${end} (${duration})` : `${start} - ${end}`;
-  }
-  return copy.notScheduled;
-};
-
-const scheduleWindow = (assignment: AttendanceControlAssignment, copy: TimeTableCopy) => {
-  if (!assignment.schedule_template_id) {
-    return copy.noScheduleAssigned;
-  }
-
-  const rule = assignment.today_rule;
-  if (!rule) {
-    return copy.noScheduleRule;
-  }
-
-  if (rule.is_rest_day) {
-    return copy.noShiftAssigned;
-  }
-
-  return copy.scheduledTime(scheduleRuleTimeLabel(rule, copy));
-};
-
-const attendanceLabel = (assignment: AttendanceControlAssignment, copy: ControlTranslations) => {
-  const statusKey = assignment.corrected_status ?? assignment.today_status ?? 'pending';
-  return (copy.statuses as Record<string, string>)[statusKey] ?? statusKey;
-};
-
-const assignmentBusinessLocationName = (assignment: AttendanceControlAssignment, copy: TimeTableCopy) => {
-  const businessLocations = (assignment.business_locations ?? [])
-    .map((location) => location.name);
-  return businessLocations.length > 0 ? businessLocations.join(', ') : copy.notAssigned;
-};
-
-const assignmentContractSiteName = (assignment: AttendanceControlAssignment, copy: TimeTableCopy) =>
-  assignment.active_work_site?.location_name || copy.notAssigned;
-
-const assignmentStatus = (assignment: AttendanceControlAssignment) =>
-  assignment.corrected_status ?? assignment.today_status;
-
-const isLateAssignment = (assignment: AttendanceControlAssignment) =>
-  assignmentStatus(assignment) === 'late' || assignment.minutes_late > 0;
-
-const isAbsentAssignment = (assignment: AttendanceControlAssignment) =>
-  assignmentStatus(assignment) === 'absence';
-
-const formatAttendanceTime = (value: string | null | undefined, locale: string) => {
-  if (!value) {
-    return '-';
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return toTimeText(value) || value;
-  }
-  return new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(parsed);
-};
-
-const escapePrintHtml = (value: string) => value
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;');
-
-const printHtmlDocument = ({
-  title,
-  bodyHtml,
-  lang,
-}: {
-  title: string;
-  bodyHtml: string;
-  lang: string;
-}) => {
-  const htmlDocument = `<!doctype html>
-<html lang="${escapePrintHtml(lang)}">
-  <head>
-    <meta charset="utf-8" />
-    <title>${escapePrintHtml(title)}</title>
-    <style>
-      @page { size: A4 landscape; margin: 10mm; }
-      html, body { margin: 0; padding: 0; color: #111827; font-family: "Segoe UI", Arial, Helvetica, sans-serif; }
-      body { background: #ffffff; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      h1, h2, p { margin: 0; }
-      .report-shell { padding: 18px 18px 20px; }
-      .document-header { border-bottom: 1px solid #d1d5db; padding-bottom: 13px; }
-      .document-topline { align-items: center; display: flex; justify-content: space-between; gap: 18px; }
-      .brand-lockup { align-items: center; display: inline-flex; gap: 11px; min-width: 0; }
-      .indice-mark { align-items: end; display: inline-grid; gap: 3px; grid-template-columns: repeat(4, 7px); height: 25px; }
-      .indice-mark span { border-radius: 7px 7px 3px 3px; display: block; width: 7px; }
-      .indice-mark span:nth-child(1) { background: #ff6b5e; height: 11px; }
-      .indice-mark span:nth-child(2) { background: #f4c84a; height: 15px; }
-      .indice-mark span:nth-child(3) { background: #59c3a5; height: 20px; }
-      .indice-mark span:nth-child(4) { background: #2563eb; height: 25px; }
-      .brand-text { align-items: baseline; display: inline-flex; gap: 12px; }
-      .brand-text strong,
-      .report-id { color: #111827; font-size: 11px; font-weight: 850; letter-spacing: 0.14em; text-transform: uppercase; }
-      .brand-text span { color: #4b5563; font-size: 10px; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; }
-      .title-block { margin-top: 22px; max-width: 720px; }
-      .kicker { color: #1f3a5f; font-size: 10px; font-weight: 850; letter-spacing: 0.14em; margin-bottom: 8px; text-transform: uppercase; }
-      .title-block h1 { color: #111827; font-size: 28px; font-weight: 850; letter-spacing: 0; line-height: 1.08; }
-      .title-block::after {
-        background: linear-gradient(90deg, #ff6b5e 0 25%, #f4c84a 25% 50%, #59c3a5 50% 75%, #2563eb 75% 100%);
-        content: "";
-        display: block;
-        height: 3px;
-        margin-top: 15px;
-        width: 96px;
-      }
-      .meta-grid { border-bottom: 1px solid #d1d5db; border-top: 1px solid #d1d5db; display: grid; gap: 24px; grid-template-columns: 0.8fr 1.5fr; margin-top: 18px; padding: 12px 0; }
-      .meta-label { color: #6b7280; display: block; font-size: 9px; font-weight: 850; letter-spacing: 0.1em; line-height: 1.3; text-transform: uppercase; }
-      .meta-value { color: #111827; display: block; font-size: 14px; font-weight: 800; line-height: 1.25; margin-top: 5px; }
-      .metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; }
-      .metric { border: 1px solid #d1d5db; min-height: 54px; padding: 8px 9px; }
-      .metric-value { color: #1f3a5f; font-size: 19px; font-weight: 850; line-height: 1; }
-      .metric-label { color: #4b5563; font-size: 10.5px; font-weight: 700; line-height: 1.25; margin-top: 5px; }
-      table { width: 100%; border-collapse: collapse; table-layout: auto; }
-      th, td { border: 1px solid #d1d5db; padding: 7px 8px; font-size: 10.5px; text-align: left; vertical-align: top; }
-      th { background: #f3f4f6; color: #111827; font-size: 9px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
-      td strong { color: #111827; font-weight: 850; }
-      .muted { color: #64748b; }
-      .footer-note { border-top: 1px solid #d1d5db; color: #6b7280; display: flex; font-size: 9px; font-weight: 750; justify-content: space-between; letter-spacing: 0.06em; margin-top: 14px; padding-top: 10px; text-transform: uppercase; }
-    </style>
-  </head>
-  <body>
-    <main class="report-shell">${bodyHtml}</main>
-  </body>
-</html>`;
-
-  const blob = new Blob([htmlDocument], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const printWindow = window.open(blobUrl, '_blank');
-  if (!printWindow) {
-    URL.revokeObjectURL(blobUrl);
-    return false;
-  }
-  const cleanup = () => {
-    URL.revokeObjectURL(blobUrl);
-  };
-  printWindow.addEventListener('load', () => {
-    printWindow.focus();
-    printWindow.print();
-    setTimeout(cleanup, 30_000);
-  }, { once: true });
-  setTimeout(cleanup, 60_000);
-  return true;
-};
+import type {
+  DailyAttendanceMetric,
+  TimeTableEmployeeRow,
+  TimeTableModalProps,
+  TimeTableSortDirection,
+  TimeTableSortKey,
+} from '../types/timeTableTypes';
+import { printDailyAttendanceReport } from '../utils/timeTablePrintReport';
+import {
+  assignmentBusinessFilterValue,
+  assignmentBusinessLocationName,
+  assignmentBusinessName,
+  assignmentContractSiteName,
+  assignmentUnitFilterValue,
+  assignmentUnitName,
+  attendanceLabel,
+  compareNullableTime,
+  compareText,
+  hasWorkingRule,
+  isAbsentAssignment,
+  isActiveEmployee,
+  isLateAssignment,
+  parseLocalDate,
+  scheduleWindow,
+} from '../utils/timeTableUtils';
+import {
+  EmployeeTable,
+  OrganizationSummary,
+  TimeTableFilters,
+  TimeTableKpiStrip,
+} from './modals/timetable/TimeTableSections';
 
 export function TimeTableModal({
   isOpen,
@@ -302,14 +57,13 @@ export function TimeTableModal({
   assignments,
   date,
   locale,
-  isSaving,
   onDateChange,
-  onRemoveShift,
 }: TimeTableModalProps) {
   const copy = useControlTranslations();
   const [unitFilter, setUnitFilter] = useState('');
   const [businessFilter, setBusinessFilter] = useState('');
-  const [employeeTablePage, setEmployeeTablePage] = useState(1);
+  const [sortKey, setSortKey] = useState<TimeTableSortKey>('employee');
+  const [sortDirection, setSortDirection] = useState<TimeTableSortDirection>('asc');
 
   const dateLabel = useMemo(() => {
     const parsed = parseLocalDate(date);
@@ -438,27 +192,53 @@ export function TimeTableModal({
           businessLocation: assignmentBusinessLocationName(assignment, copy.timeTable),
           contractSite: assignmentContractSiteName(assignment, copy.timeTable),
         };
-      })
-      .sort((left, right) => left.assignment.user_name.localeCompare(right.assignment.user_name)),
+      }),
     [copy, filteredAssignments],
   );
 
-  const employeeTablePageCount = Math.max(1, Math.ceil(employeeRows.length / employeeRowsPerPage));
-  const currentEmployeeTablePage = Math.min(employeeTablePage, employeeTablePageCount);
-  const employeeTableStartIndex = (currentEmployeeTablePage - 1) * employeeRowsPerPage;
-  const paginatedEmployeeRows = employeeRows.slice(employeeTableStartIndex, employeeTableStartIndex + employeeRowsPerPage);
-  const employeeTableShowingStart = employeeRows.length === 0 ? 0 : employeeTableStartIndex + 1;
-  const employeeTableShowingEnd = Math.min(employeeTableStartIndex + employeeRowsPerPage, employeeRows.length);
+  const sortedEmployeeRows = useMemo(() => {
+    const getComparisonValue = (row: TimeTableEmployeeRow, key: TimeTableSortKey) => {
+      switch (key) {
+        case 'employee':
+          return row.assignment.user_name;
+        case 'unit':
+          return assignmentUnitName(row.assignment, copy);
+        case 'business':
+          return assignmentBusinessName(row.assignment, copy);
+        case 'businessLocation':
+          return row.businessLocation;
+        case 'contractSite':
+          return row.contractSite;
+        case 'scheduledTime':
+          return row.schedule;
+        case 'attendance':
+          return row.attendance;
+        default:
+          return '';
+      }
+    };
 
-  useEffect(() => {
-    setEmployeeTablePage(1);
-  }, [businessFilter, date, unitFilter]);
+    return [...employeeRows].sort((left, right) => {
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      if (sortKey === 'checkIn') {
+        return compareNullableTime(left.assignment.first_check_in_at, right.assignment.first_check_in_at) * direction;
+      }
+      if (sortKey === 'checkOut') {
+        return compareNullableTime(left.assignment.last_check_out_at, right.assignment.last_check_out_at) * direction;
+      }
+      return compareText(getComparisonValue(left, sortKey), getComparisonValue(right, sortKey)) * direction;
+    });
+  }, [copy, employeeRows, sortDirection, sortKey]);
 
-  useEffect(() => {
-    if (employeeTablePage > employeeTablePageCount) {
-      setEmployeeTablePage(employeeTablePageCount);
+  const handleSortChange = (nextSortKey: TimeTableSortKey) => {
+    if (nextSortKey === sortKey) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
     }
-  }, [employeeTablePage, employeeTablePageCount]);
+
+    setSortKey(nextSortKey);
+    setSortDirection('asc');
+  };
 
   const organisationSummary = useMemo(
     () => ({
@@ -537,87 +317,16 @@ export function TimeTableModal({
   );
 
   const handlePrintDailyAttendance = () => {
-    const title = copy.timeTable.printTitle(dateLabel);
-    const scopeLabel = [
-      copy.timeTable.unitScopeLabel(unitFilter ? selectedUnitLabel : copy.timeTable.allUnits),
-      copy.timeTable.businessScopeLabel(businessFilter ? selectedBusinessLabel : copy.timeTable.allBusinesses),
-    ].join(' | ');
-    const metricsHtml = dailyAttendanceMetrics
-      .map((metric) => `
-        <div class="metric">
-          <div class="metric-value">${metric.value}</div>
-          <div class="metric-label">${escapePrintHtml(metric.label)}</div>
-        </div>
-      `)
-      .join('');
-    const rowsHtml = employeeRows.length > 0
-      ? employeeRows.map((row) => `
-        <tr>
-          <td><strong>${escapePrintHtml(row.assignment.user_name)}</strong><br><span class="muted">${escapePrintHtml(row.assignment.user_code || `EMP-${row.assignment.user_company_id}`)}</span></td>
-          <td>${escapePrintHtml(assignmentUnitName(row.assignment, copy))}</td>
-          <td>${escapePrintHtml(assignmentBusinessName(row.assignment, copy))}</td>
-          <td>${escapePrintHtml(row.businessLocation)}</td>
-          <td>${escapePrintHtml(row.contractSite)}</td>
-          <td>${escapePrintHtml(row.schedule)}</td>
-          <td>${escapePrintHtml(formatAttendanceTime(row.assignment.first_check_in_at, locale))}</td>
-          <td>${escapePrintHtml(formatAttendanceTime(row.assignment.last_check_out_at, locale))}</td>
-          <td>${escapePrintHtml(row.attendance)}</td>
-        </tr>
-      `).join('')
-      : `<tr><td colspan="9" class="muted">${escapePrintHtml(copy.timeTable.printEmptyRows)}</td></tr>`;
-
-    printHtmlDocument({
-      lang: locale,
-      title,
-      bodyHtml: `
-        <header class="document-header">
-          <div class="document-topline">
-            <div class="brand-lockup">
-              <span class="indice-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
-              <div class="brand-text">
-                <strong>INDICE</strong>
-                <span>${escapePrintHtml(copy.labels.dailyAttendance)}</span>
-              </div>
-            </div>
-            <p class="report-id">${escapePrintHtml(title)}</p>
-          </div>
-          <div class="title-block">
-            <p class="kicker">${escapePrintHtml(copy.labels.timeTable)}</p>
-            <h1>${escapePrintHtml(copy.timeTable.printReportTitle)}</h1>
-          </div>
-          <div class="meta-grid">
-            <div>
-              <span class="meta-label">${escapePrintHtml(copy.timeTable.printDateLabel)}</span>
-              <strong class="meta-value">${escapePrintHtml(dateLabel)}</strong>
-            </div>
-            <div>
-              <span class="meta-label">${escapePrintHtml(copy.labels.unit)} / ${escapePrintHtml(copy.labels.business)}</span>
-              <strong class="meta-value">${escapePrintHtml(scopeLabel)}</strong>
-            </div>
-          </div>
-        </header>
-        <div class="metrics">${metricsHtml}</div>
-        <table>
-          <thead>
-            <tr>
-              <th>${escapePrintHtml(copy.timeTable.table.employee)}</th>
-              <th>${escapePrintHtml(copy.timeTable.table.unit)}</th>
-              <th>${escapePrintHtml(copy.timeTable.table.business)}</th>
-              <th>${escapePrintHtml(copy.timeTable.table.businessLocation)}</th>
-              <th>${escapePrintHtml(copy.timeTable.table.workSite)}</th>
-              <th>${escapePrintHtml(copy.timeTable.table.scheduledTime)}</th>
-              <th>${escapePrintHtml(copy.labels.checkIn)}</th>
-              <th>${escapePrintHtml(copy.labels.checkOut)}</th>
-              <th>${escapePrintHtml(copy.timeTable.table.attendance)}</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-        <footer class="footer-note">
-          <span>INDICE</span>
-          <span>${escapePrintHtml(copy.timeTable.printReportTitle)}</span>
-        </footer>
-      `,
+    printDailyAttendanceReport({
+      businessFilter,
+      copy,
+      dailyAttendanceMetrics,
+      dateLabel,
+      locale,
+      selectedBusinessLabel,
+      selectedUnitLabel,
+      sortedEmployeeRows,
+      unitFilter,
     });
   };
 
@@ -674,9 +383,7 @@ export function TimeTableModal({
             onUnitFilterChange={setUnitFilter}
           />
 
-          <TimeTableKpiStrip
-            metrics={dailyAttendanceMetrics}
-          />
+          <TimeTableKpiStrip metrics={dailyAttendanceMetrics} />
 
           <OrganizationSummary
             businessFilter={businessFilter}
@@ -692,21 +399,16 @@ export function TimeTableModal({
 
           <EmployeeTable
             copy={copy}
-            currentPage={currentEmployeeTablePage}
-            date={date}
-            employeeRows={employeeRows}
-            endRow={employeeTableShowingEnd}
-            isSaving={isSaving}
-            pageCount={employeeTablePageCount}
-            paginatedRows={paginatedEmployeeRows}
+            employeeRows={sortedEmployeeRows}
             dateLabel={dateLabel}
+            locale={locale}
             selectedBusinessLabel={selectedBusinessLabel}
             selectedUnitLabel={selectedUnitLabel}
-            startRow={employeeTableShowingStart}
             businessFilter={businessFilter}
             unitFilter={unitFilter}
-            onPageChange={setEmployeeTablePage}
-            onRemoveShift={onRemoveShift}
+            sortDirection={sortDirection}
+            sortKey={sortKey}
+            onSortChange={handleSortChange}
           />
         </div>
 
@@ -730,426 +432,5 @@ export function TimeTableModal({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function TimeTableFilters({
-  businessFilter,
-  businessOptions,
-  copy,
-  date,
-  unitFilter,
-  unitOptions,
-  onBusinessFilterChange,
-  onDateChange,
-  onUnitFilterChange,
-}: {
-  businessFilter: string;
-  businessOptions: Array<[string, string]>;
-  copy: ControlTranslations;
-  date: string;
-  unitFilter: string;
-  unitOptions: Array<[string, string]>;
-  onBusinessFilterChange: (value: string) => void;
-  onDateChange: (date: string) => void;
-  onUnitFilterChange: (value: string) => void;
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.filtersTitle}</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {copy.timeTable.filtersDescription}
-          </p>
-        </div>
-
-        <label className="block w-full xl:w-52">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            {copy.timeTable.attendanceDate}
-          </span>
-          <input
-            type="date"
-            value={date}
-            onChange={(event) => {
-              if (event.target.value) {
-                onDateChange(event.target.value);
-              }
-            }}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          />
-        </label>
-
-        <label className="block w-full xl:w-72">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            {copy.labels.unit}
-          </span>
-          <select
-            value={unitFilter}
-            onChange={(event) => onUnitFilterChange(event.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          >
-            <option value="">{copy.timeTable.allUnits}</option>
-            {unitOptions.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block w-full xl:w-72">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            {copy.labels.business}
-          </span>
-          <select
-            value={businessFilter}
-            onChange={(event) => onBusinessFilterChange(event.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          >
-            <option value="">{copy.timeTable.allBusinesses}</option>
-            {businessOptions.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-    </section>
-  );
-}
-
-function TimeTableKpiStrip({ metrics }: { metrics: DailyAttendanceMetric[] }) {
-  return (
-    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      {metrics.map((metric, index) => (
-        <div key={metric.key} className="flex items-center gap-x-4">
-          <TimeTableKpiMetric
-            icon={metric.icon}
-            label={metric.label}
-            title={metric.title}
-            value={metric.value}
-            valueClassName={metric.valueClassName}
-          />
-          {index < metrics.length - 1 ? <KpiSeparator /> : null}
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function TimeTableKpiMetric({
-  icon,
-  label,
-  title,
-  value,
-  valueClassName = 'text-[#59C3A5]',
-}: {
-  icon: ReactNode;
-  label: string;
-  title: string;
-  value: number;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="flex min-w-[145px] items-center gap-2" title={title}>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA]">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-lg font-semibold leading-5 text-slate-950 dark:text-white">
-          <span className={valueClassName}>{value}</span>
-        </p>
-        <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function KpiSeparator() {
-  return <span aria-hidden="true" className="hidden h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600 md:inline-flex" />;
-}
-
-function OrganizationSummary({
-  businessFilter,
-  copy,
-  dateLabel,
-  selectedBusinessLabel,
-  selectedUnitLabel,
-  totalEmployees,
-  unitFilter,
-  visibleUnitCoverage,
-  onUnitFilterChange,
-}: {
-  businessFilter: string;
-  copy: ControlTranslations;
-  dateLabel: string;
-  selectedBusinessLabel: string;
-  selectedUnitLabel: string;
-  totalEmployees: number;
-  unitFilter: string;
-  visibleUnitCoverage: TimeTableUnitCoverage[];
-  onUnitFilterChange: (value: string) => void;
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.organizationSummaryTitle}</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {copy.timeTable.organizationSummaryDescription(
-              totalEmployees,
-              unitFilter ? selectedUnitLabel : copy.timeTable.allUnits,
-              businessFilter ? selectedBusinessLabel : copy.timeTable.allBusinesses,
-            )}
-          </p>
-        </div>
-        <span className="inline-flex w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA]">
-          {dateLabel}
-        </span>
-      </div>
-
-      <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-        {visibleUnitCoverage.length > 0 ? visibleUnitCoverage.map((group) => (
-          <button
-            key={group.unitId}
-            type="button"
-            onClick={() => onUnitFilterChange(group.unitId)}
-            className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${
-              unitFilter === group.unitId
-                ? 'border-[#59C3A5] bg-[#59C3A5]/5 shadow-sm dark:border-[#8FE0CA] dark:bg-[#8FE0CA]/10'
-                : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950/40'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{group.unit}</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {copy.timeTable.businessCount(group.businessList.length)}
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-slate-800 dark:text-[#8FE0CA]">
-                <Users className="h-3.5 w-3.5" />
-                {group.count}
-              </span>
-            </div>
-            <div className="mt-3 space-y-2">
-              {group.businessList.slice(0, 3).map((business) => (
-                <div key={business.business} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900">
-                  <span className="truncate font-medium text-slate-700 dark:text-slate-200">{business.business}</span>
-                  <span className="font-semibold text-slate-950 dark:text-white">{business.count}</span>
-                </div>
-              ))}
-            </div>
-          </button>
-        )) : (
-          <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-400">
-            {copy.timeTable.noUnitsMatch}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function EmployeeTable({
-  businessFilter,
-  copy,
-  currentPage,
-  date,
-  dateLabel,
-  employeeRows,
-  endRow,
-  isSaving,
-  pageCount,
-  paginatedRows,
-  selectedBusinessLabel,
-  selectedUnitLabel,
-  startRow,
-  unitFilter,
-  onPageChange,
-  onRemoveShift,
-}: {
-  businessFilter: string;
-  copy: ControlTranslations;
-  currentPage: number;
-  date: string;
-  dateLabel: string;
-  employeeRows: TimeTableEmployeeRow[];
-  endRow: number;
-  isSaving: boolean;
-  pageCount: number;
-  paginatedRows: TimeTableEmployeeRow[];
-  selectedBusinessLabel: string;
-  selectedUnitLabel: string;
-  startRow: number;
-  unitFilter: string;
-  onPageChange: (value: number) => void;
-  onRemoveShift: (assignment: AttendanceControlAssignment, date?: string) => Promise<void> | void;
-}) {
-  const selectionLabel = `${unitFilter ? selectedUnitLabel : copy.timeTable.allUnits} · ${businessFilter ? selectedBusinessLabel : copy.timeTable.allBusinesses}`;
-
-  return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.employeeListTitle}</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {selectionLabel} · {dateLabel}
-          </p>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800">
-          <thead className="bg-slate-50 dark:bg-slate-950/60">
-            <tr>
-              <TableHead>{copy.timeTable.table.employee}</TableHead>
-              <TableHead>{copy.timeTable.table.unit}</TableHead>
-              <TableHead>{copy.timeTable.table.business}</TableHead>
-              <TableHead>{copy.timeTable.table.businessLocation}</TableHead>
-              <TableHead>{copy.timeTable.table.workSite}</TableHead>
-              <TableHead>{copy.timeTable.table.scheduledTime}</TableHead>
-              <TableHead>{copy.timeTable.table.attendance}</TableHead>
-              <TableHead>{copy.timeTable.table.action}</TableHead>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {paginatedRows.length > 0 ? paginatedRows.map((row) => {
-              const scheduleIssue = !row.hasScheduleAssignment;
-              const noWorkingTimeWarning = row.hasScheduleAssignment && row.workingDays === 0;
-              const siteWarning = !row.hasWorkSite;
-              const rowClassName = scheduleIssue
-                ? 'bg-rose-50/70 dark:bg-rose-950/15'
-                : noWorkingTimeWarning || siteWarning
-                  ? 'bg-amber-50/70 dark:bg-amber-950/15'
-                  : 'bg-white dark:bg-slate-900';
-
-              return (
-                <tr key={row.assignment.user_company_id} className={`${rowClassName} transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60`}>
-                  <TableCell>
-                    <div>
-                      <p className="font-semibold text-slate-950 dark:text-white">{row.assignment.user_name}</p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {row.assignment.user_code || `EMP-${row.assignment.user_company_id}`}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{assignmentUnitName(row.assignment, copy)}</TableCell>
-                  <TableCell>{assignmentBusinessName(row.assignment, copy)}</TableCell>
-                  <TableCell>{row.businessLocation}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className={siteWarning ? 'font-semibold text-amber-700 dark:text-amber-200' : undefined}>
-                        {row.contractSite}
-                      </p>
-                      {siteWarning ? (
-                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{copy.timeTable.noWorkSiteAssigned}</p>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className={scheduleIssue ? 'font-semibold text-rose-700 dark:text-rose-200' : noWorkingTimeWarning ? 'font-semibold text-amber-700 dark:text-amber-200' : undefined}>
-                        {row.schedule}
-                      </p>
-                      {scheduleIssue ? (
-                        <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">
-                          {copy.timeTable.scheduleMissingHint}
-                        </p>
-                      ) : null}
-                      {noWorkingTimeWarning ? (
-                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                          {copy.timeTable.noWorkingShiftHint}
-                        </p>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      row.hasAttendance
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200'
-                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                    }`}
-                    >
-                      {row.attendance}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onRemoveShift(row.assignment, date)}
-                      disabled={isSaving || !canRemoveShift(row.assignment)}
-                      className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 disabled:text-slate-400 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">{copy.labels.removeTimeTableDay}</span>
-                    </Button>
-                  </TableCell>
-                </tr>
-              );
-            }) : null}
-
-            {paginatedRows.length === 0 ? (
-              <tr>
-                <TableCell colSpan={8}>
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
-                    <Building2 className="mx-auto h-8 w-8 text-slate-400" />
-                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{copy.timeTable.noEmployeesFound}</p>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      {copy.timeTable.noEmployeesHint}
-                    </p>
-                  </div>
-                </TableCell>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          {copy.timeTable.showingRows(startRow, endRow, employeeRows.length)}
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            disabled={currentPage <= 1}
-          >
-            {copy.timeTable.previousPage}
-          </Button>
-          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            {copy.timeTable.pageLabel(currentPage, pageCount)}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(Math.min(pageCount, currentPage + 1))}
-            disabled={currentPage >= pageCount}
-          >
-            {copy.timeTable.nextPage}
-          </Button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TableHead({ children }: { children: ReactNode }) {
-  return (
-    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">
-      {children}
-    </th>
-  );
-}
-
-function TableCell({ children, colSpan }: { children: ReactNode; colSpan?: number }) {
-  return (
-    <td colSpan={colSpan} className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
-      {children}
-    </td>
   );
 }

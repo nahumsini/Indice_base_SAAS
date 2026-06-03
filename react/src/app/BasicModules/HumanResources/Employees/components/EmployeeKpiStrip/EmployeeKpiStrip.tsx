@@ -1,6 +1,5 @@
 import {
   Eye,
-  MousePointer2,
   UserCheck,
   UserMinus,
   Users,
@@ -16,8 +15,6 @@ interface EmployeeKpiStripLabels {
   activeRate: string;
   inactive: string;
   payroll: string;
-  selected: string;
-  selectedBadge: (count: number) => string;
   statusReview: (count: number) => string;
   summaryInsight: (params: {
     activeCount: number;
@@ -37,7 +34,6 @@ interface EmployeeKpiStripProps {
   isLoading: boolean;
   labels: EmployeeKpiStripLabels;
   monthlyPayroll: string;
-  selectedCount: number;
   terminatedCount: number;
   totalCount: number;
   visibleCount: number;
@@ -49,7 +45,6 @@ export function EmployeeKpiStrip({
   isLoading,
   labels,
   monthlyPayroll,
-  selectedCount,
   terminatedCount,
   totalCount,
   visibleCount,
@@ -101,14 +96,6 @@ export function EmployeeKpiStrip({
             value={visibleCount}
             valueClassName="text-[#59C3A5] dark:text-blue-300"
           />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <EmployeeKpiMetric
-            icon={<MousePointer2 className="h-4 w-4" />}
-            label={labels.selected}
-            value={selectedCount}
-            valueClassName="text-blue-600 dark:text-blue-300"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <EmployeeKpiMetric
             icon={<Wallet className="h-4 w-4" />}
             label={labels.payroll}
@@ -121,11 +108,6 @@ export function EmployeeKpiStrip({
           {inactiveAndTerminatedCount > 0 ? (
             <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
               {labels.statusReview(inactiveAndTerminatedCount)}
-            </span>
-          ) : null}
-          {selectedCount > 0 ? (
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-              {labels.selectedBadge(selectedCount)}
             </span>
           ) : null}
           <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
@@ -159,4 +141,3 @@ export function EmployeeKpiStrip({
 }
 
 export type { EmployeeKpiStripLabels };
-

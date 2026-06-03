@@ -58,11 +58,18 @@ export function RecordKpiStrip({
         <Metric icon={<Eye className="h-4 w-4" />} label={copy.visibleAfterFilters} value={visibleCount} />
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <div className="flex h-full">
-          <div className="bg-amber-500" style={{ width: `${pendingPercent}%` }} />
-          <div className="bg-blue-500" style={{ width: `${reviewedPercent}%` }} />
-          <div className="bg-emerald-500" style={{ width: `${resolvedPercent}%` }} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="flex h-full">
+            <div className="bg-amber-500" style={{ width: `${pendingPercent}%` }} />
+            <div className="bg-blue-500" style={{ width: `${reviewedPercent}%` }} />
+            <div className="bg-emerald-500" style={{ width: `${resolvedPercent}%` }} />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <LegendItem color="bg-amber-500" label={copy.pending} />
+          <LegendItem color="bg-blue-500" label={copy.reviewed} />
+          <LegendItem color="bg-emerald-500" label={copy.resolved} />
         </div>
       </div>
 
@@ -70,5 +77,14 @@ export function RecordKpiStrip({
         {copy.summary(pendingCount, reviewedCount, resolvedCount, highSeverityCount, visibleCount, totalCount)}
       </div>
     </div>
+  );
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      {label}
+    </span>
   );
 }

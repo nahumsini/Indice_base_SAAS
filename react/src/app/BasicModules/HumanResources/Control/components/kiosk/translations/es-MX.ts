@@ -6,7 +6,7 @@ export const esMX = {
   language: {
     label: 'Idioma',
     selectorLabel: 'Idioma del kiosco',
-    autoBadge: 'Auto',
+    autoBadge: 'Automático',
     autoDetected: 'Sugerido por senales del dispositivo/IP',
   },
   title: 'Pantalla de asistencia',
@@ -43,6 +43,7 @@ export const esMX = {
   identifyDescription: 'Captura el PIN asignado por RH.',
   credentialLabel: 'PIN',
   pinPlaceholder: 'Captura el PIN',
+  backspaceLabel: 'Borrar',
   identify: 'Identificar',
   methods: {
     pin: 'PIN',

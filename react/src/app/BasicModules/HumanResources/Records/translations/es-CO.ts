@@ -34,8 +34,11 @@ export const esCO = {
       `Resumen de registros: ${pendingCount} pendientes · ${reviewedCount} revisados · ${resolvedCount} resueltos · ${highSeverityCount} de alta gravedad · mostrando ${visibleCount} de ${totalCount}.`,
   },
   pagination: {
+    pageSize: esMX.pagination.pageSize,
     showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} registros`,
     page: esMX.pagination.page,
+    previous: esMX.pagination.previous,
+    next: esMX.pagination.next,
   },
   modal: {
     ...esMX.modal,

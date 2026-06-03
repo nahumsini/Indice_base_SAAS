@@ -8,6 +8,14 @@ export const zhCA = {
     columns: '列',
     addAnnouncement: '新增公告',
   },
+  feedback: {
+    processingTitle: '正在处理公告',
+    processingDescription: '正在使用当前会话验证并发送请求。',
+    retry: '重试',
+    uploadAttachmentFailed: '无法上传附件。',
+    removeAttachmentFailed: '无法移除附件。',
+    openDetails: '打开详情',
+  },
   filters: {
     title: '筛选',
     searchLabel: '搜索公告',
@@ -42,6 +50,7 @@ export const zhCA = {
     drafts: '草稿',
     visibleAfterFilters: '筛选后显示',
     selected: '已选择',
+    notTracked: '未跟踪',
     publishedRate: (rate: string) => `发布率 ${rate}`,
     selectedBadge: (count: number) => `已选择 ${count} 项`,
     summary: (
@@ -85,6 +94,19 @@ export const zhCA = {
     subtitle: '选择要在表格中显示的公告信息。',
     close: '关闭',
     done: '完成',
+  },
+  detail: {
+    eyebrow: '公告详情',
+    status: '状态',
+    read: '阅读',
+    publication: '发布',
+    author: '作者',
+    markAsRead: '标记为已读',
+    uploadAttachment: '上传附件',
+    attachments: (count: number) => `附件（${count}）`,
+    noAttachments: '没有附件。',
+    removeAttachment: '移除',
+    close: '关闭公告详情',
   },
   deleteDialog: {
     title: '删除公告',

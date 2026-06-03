@@ -124,20 +124,20 @@ export function EmployeeCalendarPanel({
   return (
     <div className="rounded-[22px] border border-[#59C3A5]/10 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_6px_18px_rgba(89,195,165,0.04)] dark:border-gray-800 dark:bg-gray-900">
       <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
-        <Button variant="outline" size="icon" onClick={() => onShiftMonth(-1)}>
-          <span aria-hidden="true">‹</span>
-        </Button>
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
-            {copy.labels.attendanceCalendar}
-          </p>
-          <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{calendarMonthLabel}</p>
+        <div className="flex items-center justify-between gap-4">
+          <Button variant="outline" size="icon" onClick={() => onShiftMonth(-1)}>
+            <span aria-hidden="true">‹</span>
+          </Button>
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+              {copy.labels.attendanceCalendar}
+            </p>
+            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{calendarMonthLabel}</p>
+          </div>
+          <Button variant="outline" size="icon" onClick={() => onShiftMonth(1)}>
+            <span aria-hidden="true">›</span>
+          </Button>
         </div>
-        <Button variant="outline" size="icon" onClick={() => onShiftMonth(1)}>
-          <span aria-hidden="true">›</span>
-        </Button>
-      </div>
 
       <div className="rounded-2xl border border-[#59C3A5]/10 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-950/40">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">

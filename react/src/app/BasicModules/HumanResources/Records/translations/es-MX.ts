@@ -90,8 +90,11 @@ export const esMX = {
       `Resumen de actas: ${pendingCount} pendientes · ${reviewedCount} revisadas · ${resolvedCount} resueltas · ${highSeverityCount} de alta gravedad · mostrando ${visibleCount} de ${totalCount}.`,
   },
   pagination: {
+    pageSize: 'Filas por página',
     showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} actas`,
     page: (current: number, total: number) => `Página ${current} de ${total}`,
+    previous: 'Anterior',
+    next: 'Siguiente',
   },
   columnsModal: {
     title: 'Columnas de la tabla',

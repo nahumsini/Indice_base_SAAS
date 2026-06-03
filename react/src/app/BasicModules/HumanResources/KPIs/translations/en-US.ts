@@ -3,7 +3,7 @@ import type { KPIsTranslations } from './types';
 
 export const enUS = {
   ...enCA,
-  subtitle: 'Key performance indicators for workforce, attendance, payroll, and operations.',
+  subtitle: 'Operational indicators built from employees, attendance control, assets, permissions, and records.',
   notes: {
     ...enCA.notes,
     averageLabourCost: 'Average labor cost',

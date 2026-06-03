@@ -58,9 +58,6 @@ export function KioskCard({
                   {statusLabel}
                 </span>
               </div>
-              <p className="mt-1 text-xs font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                {copy.kiosk.card.internalReferenceLabel}: {device.code || copy.kiosk.card.notAssigned}
-              </p>
             </div>
           </div>
 
@@ -103,7 +100,7 @@ export function KioskCard({
           <Button
             type="button"
             className="h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#3AAE90] hover:shadow-md disabled:hover:translate-y-0 disabled:hover:shadow-sm"
-            disabled={!hasPublicLink}
+            disabled={isSaving}
             onClick={onOpen}
           >
             <ExternalLink className="h-4 w-4" />

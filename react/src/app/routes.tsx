@@ -1,11 +1,11 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, redirect } from 'react-router';
-import App from './App';
 import { InviteAcceptPage, LoginPage, ResetPasswordPage } from './Auth';
 import { authApi } from './api/auth';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 import { SalesCrmProvider } from './BasicModules/Sales/salesCrmContext';
 
+const App = lazy(() => import('./App'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
@@ -48,6 +48,22 @@ function PublicCatalogRoute() {
       <SalesCrmProvider>
         <PublicCatalogPage />
       </SalesCrmProvider>
+    </Suspense>
+  );
+}
+
+function PrivateAppRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading workspace"
+          description="Preparing your dashboard."
+        />
+      )}
+    >
+      <App />
     </Suspense>
   );
 }
@@ -109,7 +125,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/:pageId/*',
-    element: <App />,
+    element: <PrivateAppRoute />,
     loader: requireAuthenticatedSession,
   },
 ]);

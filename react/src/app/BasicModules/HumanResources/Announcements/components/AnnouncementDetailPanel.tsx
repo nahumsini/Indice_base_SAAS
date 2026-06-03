@@ -1,10 +1,12 @@
 import { Paperclip, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type { AnnouncementView } from '../announcementTypes';
+import type { AnnouncementDetailCopy } from '../translations';
 
 interface AnnouncementDetailPanelProps {
   announcement: AnnouncementView | null;
   canManage: boolean;
+  copy: AnnouncementDetailCopy;
   isBusy: boolean;
   onClose: () => void;
   onDeleteAttachment: (attachmentId: number) => void;
@@ -15,6 +17,7 @@ interface AnnouncementDetailPanelProps {
 export function AnnouncementDetailPanel({
   announcement,
   canManage,
+  copy,
   isBusy,
   onClose,
   onDeleteAttachment,
@@ -31,21 +34,26 @@ export function AnnouncementDetailPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-300">
-              Announcement details
+              {copy.eyebrow}
             </p>
             <h3 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{announcement.title}</h3>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{announcement.audienceSummary}</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-full p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <button
+            type="button"
+            aria-label={copy.close}
+            onClick={onClose}
+            className="rounded-full p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-          <Info label="Status" value={announcement.status} />
-          <Info label="Read" value={announcement.readSummary} />
-          <Info label="Publication" value={`${announcement.publicationDate} ${announcement.publicationTime}`} />
-          <Info label="Author" value={announcement.authorName} />
+          <Info label={copy.status} value={announcement.status} />
+          <Info label={copy.read} value={announcement.readSummary} />
+          <Info label={copy.publication} value={`${announcement.publicationDate} ${announcement.publicationTime}`} />
+          <Info label={copy.author} value={announcement.authorName} />
         </div>
 
         <div className="mt-6 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
@@ -54,11 +62,11 @@ export function AnnouncementDetailPanel({
 
         <div className="mt-5 flex flex-wrap gap-3">
           {!announcement.isRead ? (
-            <Button disabled={isBusy} onClick={() => onMarkRead(announcement)}>Mark as read</Button>
+            <Button disabled={isBusy} onClick={() => onMarkRead(announcement)}>{copy.markAsRead}</Button>
           ) : null}
           {canManage ? (
             <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-slate-200 px-4 text-sm font-medium text-[#59C3A5] hover:bg-slate-50 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-slate-800">
-              Upload attachment
+              {copy.uploadAttachment}
               <input
                 type="file"
                 className="hidden"
@@ -78,11 +86,11 @@ export function AnnouncementDetailPanel({
         <div className="mt-6">
           <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
             <Paperclip className="h-4 w-4" />
-            Attachments ({announcement.attachmentCount})
+            {copy.attachments(announcement.attachmentCount)}
           </h4>
           <div className="mt-3 space-y-2">
             {announcement.attachments.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">No attachments.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{copy.noAttachments}</p>
             ) : announcement.attachments.map((attachment) => (
               <div key={attachment.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">
                 <a href={attachment.download_url ?? undefined} target="_blank" rel="noreferrer" className="truncate text-[#59C3A5] dark:text-blue-300">
@@ -90,7 +98,7 @@ export function AnnouncementDetailPanel({
                 </a>
                 {canManage ? (
                   <button type="button" disabled={isBusy} onClick={() => onDeleteAttachment(attachment.id)} className="text-rose-600 disabled:opacity-50">
-                    Remove
+                    {copy.removeAttachment}
                   </button>
                 ) : null}
               </div>

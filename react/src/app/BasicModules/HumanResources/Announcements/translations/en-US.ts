@@ -8,4 +8,7 @@ export const enUS = {
     ...enCA.modal,
     subtitle: 'Create, target, and schedule internal HR updates.',
   },
+  detail: {
+    ...enCA.detail,
+  },
 } as const satisfies AnnouncementsTranslations;

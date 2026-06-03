@@ -6,7 +6,7 @@ export const ptBR = {
   language: {
     label: 'Idioma',
     selectorLabel: 'Idioma do quiosque',
-    autoBadge: 'Auto',
+    autoBadge: 'Automático',
     autoDetected: 'Sugerido por sinais do dispositivo/IP',
   },
   title: 'Tela de ponto',
@@ -43,6 +43,7 @@ export const ptBR = {
   identifyDescription: 'Digite o PIN definido pelo RH.',
   credentialLabel: 'PIN',
   pinPlaceholder: 'Digite o PIN',
+  backspaceLabel: 'Apagar',
   identify: 'Identificar',
   methods: {
     pin: 'PIN',
@@ -77,7 +78,7 @@ export const ptBR = {
   readyToPunch: 'Pronto para registrar.',
   todayActivity: 'Atividade de hoje',
   noActivityToday: 'Nenhuma entrada ou saida registrada hoje.',
-  activityStatus: 'Status',
+  activityStatus: 'Situação',
   readyToCheckIn: 'Pronto para registrar entrada.',
   alreadyCheckedIn: 'Entrada ja registrada. A proxima acao e saida.',
   checkedOutForDay: 'A saida ja foi registrada para este turno.',

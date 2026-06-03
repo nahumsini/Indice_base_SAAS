@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ICity, IState } from 'country-state-city';
+import type { IState } from 'country-state-city';
 import { cn } from './ui/utils';
 
 const inputClassName =
@@ -47,13 +47,15 @@ type PostalCodeRule = {
   pattern: RegExp;
 };
 
-type LocationDataset = typeof import('country-state-city');
+type StateDataset = typeof import('country-state-city/lib/state');
 
 type SuggestionOption = {
   value: string;
   label: string;
   detail?: string;
 };
+
+const emptySuggestionOptions: SuggestionOption[] = [];
 
 const postalCodeRules: Record<string, PostalCodeRule> = {
   AR: {
@@ -118,18 +120,6 @@ const normalizeComparableText = (value: string) =>
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
-
-const uniqueCities = (cities: ICity[]) => {
-  const seen = new Set<string>();
-  return cities.filter((city) => {
-    const key = `${normalizeComparableText(city.name)}::${city.stateCode}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-};
 
 const findSelectedState = (states: IState[], stateValue: string) => {
   const normalizedState = normalizeComparableText(stateValue);
@@ -211,52 +201,36 @@ export function ManualLocationFields({
   controlClassName,
   labelClassName: customLabelClassName,
 }: ManualLocationFieldsProps) {
-  const [locationDataset, setLocationDataset] = useState<LocationDataset | null>(null);
+  const [stateDataset, setStateDataset] = useState<StateDataset | null>(null);
   const normalizedCountry = values.pais.trim().toUpperCase();
 
   useEffect(() => {
+    if (!normalizedCountry) {
+      setStateDataset(null);
+      return undefined;
+    }
+
     let isActive = true;
 
-    void import('country-state-city').then((dataset) => {
+    void import('country-state-city/lib/state').then((dataset) => {
       if (isActive) {
-        setLocationDataset(dataset);
+        setStateDataset(dataset);
       }
     });
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [normalizedCountry]);
 
   const stateOptions = useMemo(
-    () => locationDataset?.State.getStatesOfCountry(normalizedCountry) ?? [],
-    [locationDataset, normalizedCountry],
+    () => stateDataset?.getStatesOfCountry(normalizedCountry) ?? [],
+    [stateDataset, normalizedCountry],
   );
   const selectedState = useMemo(
     () => findSelectedState(stateOptions, values.estado),
     [stateOptions, values.estado],
   );
-  const cityOptions = useMemo(() => {
-    if (!normalizedCountry) {
-      return [];
-    }
-
-    if (!locationDataset) {
-      return [];
-    }
-
-    if (values.estado.trim() && !selectedState) {
-      return [];
-    }
-
-    const cities = selectedState
-      ? locationDataset.City.getCitiesOfState(normalizedCountry, selectedState.isoCode)
-      : locationDataset.City.getCitiesOfCountry(normalizedCountry) ?? [];
-
-    return uniqueCities(cities).sort((left, right) =>
-      left.name.localeCompare(right.name) || left.stateCode.localeCompare(right.stateCode),
-    );
-  }, [locationDataset, normalizedCountry, selectedState, values.estado]);
   const stateSuggestionOptions = useMemo(
     () => stateOptions.map((state) => ({
       value: state.name,
@@ -265,14 +239,7 @@ export function ManualLocationFields({
     })),
     [stateOptions],
   );
-  const citySuggestionOptions = useMemo(
-    () => cityOptions.map((city) => ({
-      value: city.name,
-      label: city.name,
-      detail: selectedState ? undefined : city.stateCode,
-    })),
-    [cityOptions, selectedState],
-  );
+  const citySuggestionOptions = emptySuggestionOptions;
   const postalValidation = validatePostalCodeForCountry(values.pais, values.cp);
   const postalFormat = getPostalCodeFormatForCountry(values.pais);
   const resolvedFieldNames = {
@@ -329,7 +296,7 @@ export function ManualLocationFields({
                 value={selectedState?.name ?? values.estado}
                 onChange={(event) => onChange({ estado: event.target.value, ciudad: '' })}
                 className={cn(resolvedControlClassName, 'appearance-none cursor-pointer')}
-                disabled={disabled || !normalizedCountry || !locationDataset}
+                disabled={disabled || !normalizedCountry || !stateDataset}
               >
                 <option value="">{placeholders.state}</option>
                 {stateOptions.map((state) => (
@@ -349,7 +316,7 @@ export function ManualLocationFields({
               minQueryLength={1}
               onChange={(value) => onChange({ estado: value, ciudad: '' })}
               onSelect={(value) => onChange({ estado: value, ciudad: '' })}
-              disabled={disabled || !normalizedCountry || !locationDataset}
+              disabled={disabled || !normalizedCountry || !stateDataset}
               controlClassName={resolvedControlClassName}
               labelClassName={resolvedLabelClassName}
             />
@@ -365,7 +332,7 @@ export function ManualLocationFields({
             options={citySuggestionOptions}
             onChange={(value) => onChange({ ciudad: value })}
             onSelect={(value) => onChange({ ciudad: value })}
-            disabled={disabled || !normalizedCountry || !locationDataset}
+            disabled={disabled || !normalizedCountry}
             controlClassName={resolvedControlClassName}
             labelClassName={resolvedLabelClassName}
           />

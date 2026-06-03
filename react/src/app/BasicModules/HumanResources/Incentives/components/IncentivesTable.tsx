@@ -1,4 +1,10 @@
+import { useEffect, useMemo, useState } from 'react';
 import type { RHIncentivo } from '../../mockData';
+import {
+  StandardPaginationFooter,
+  StandardSortIcon,
+  type StandardSortDirection,
+} from '../../shared/StandardTableControls';
 import type { IncentivesTranslations } from '../translations';
 
 export type IncentiveColumnId =
@@ -15,8 +21,12 @@ interface IncentivesTableProps {
   selectedIds: string[];
   visibleColumns: IncentiveColumnId[];
   onToggleRow: (incentiveId: string) => void;
-  onToggleAll: (checked: boolean) => void;
+  onToggleRows: (incentiveIds: string[], checked: boolean) => void;
 }
+
+type IncentiveSortField = IncentiveColumnId;
+
+const defaultIncentivesPageSize = 10;
 
 const statusClasses: Record<RHIncentivo['estado'], string> = {
   Activo: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -34,43 +44,102 @@ export function IncentivesTable({
   incentives,
   selectedIds,
   visibleColumns,
-  onToggleAll,
+  onToggleRows,
   onToggleRow,
 }: IncentivesTableProps) {
-  const visibleColumnSet = new Set(visibleColumns);
-  const allVisibleSelected = incentives.length > 0 && incentives.every((incentive) => selectedIds.includes(incentive.id));
+  const [sortField, setSortField] = useState<IncentiveSortField>('incentive');
+  const [sortDirection, setSortDirection] = useState<StandardSortDirection>('asc');
+  const [pageSize, setPageSize] = useState(defaultIncentivesPageSize);
+  const [currentPage, setCurrentPage] = useState(1);
+  const visibleColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
+
+  const handleSort = (field: IncentiveSortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection('asc');
+  };
+
+  const sortedIncentives = useMemo(() => {
+    const getValue = (incentive: RHIncentivo): string => {
+      switch (sortField) {
+        case 'incentive':
+          return `${incentive.nombre} ${incentive.id}`.toLowerCase();
+        case 'type':
+          return copy.types[incentive.tipo].toLowerCase();
+        case 'scope':
+          return incentive.alcance.toLowerCase();
+        case 'amount':
+          return incentive.monto.toLowerCase();
+        case 'application':
+          return incentive.aplicacion.toLowerCase();
+        case 'status':
+          return copy.statuses[incentive.estado].toLowerCase();
+      }
+    };
+
+    return [...incentives].sort((left, right) => {
+      const comparison = getValue(left).localeCompare(getValue(right), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [copy.statuses, copy.types, incentives, sortDirection, sortField]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedIncentives.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
+  const paginatedIncentives = sortedIncentives.slice(pageStartIndex, pageEndIndex);
+  const paginationStart = sortedIncentives.length === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = sortedIncentives.length === 0 ? 0 : Math.min(pageEndIndex, sortedIncentives.length);
+  const allVisibleSelected = paginatedIncentives.length > 0 && paginatedIncentives.every((incentive) => selectedIds.includes(incentive.id));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [incentives, pageSize, sortDirection, sortField, visibleColumns]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <table className="min-w-full">
-          <thead className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-900/50">
+          <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
               <th className="w-12 px-5 py-4 text-left">
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
-                  onChange={(event) => onToggleAll(event.target.checked)}
+                  onChange={(event) => onToggleRows(paginatedIncentives.map((incentive) => incentive.id), event.target.checked)}
                   className="h-4 w-4 rounded border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                 />
               </th>
-              {visibleColumnSet.has('incentive') ? <TableHeader label={copy.columns.incentive} /> : null}
-              {visibleColumnSet.has('type') ? <TableHeader label={copy.columns.type} /> : null}
-              {visibleColumnSet.has('scope') ? <TableHeader label={copy.columns.scope} /> : null}
-              {visibleColumnSet.has('amount') ? <TableHeader label={copy.columns.amount} /> : null}
-              {visibleColumnSet.has('application') ? <TableHeader label={copy.columns.application} /> : null}
-              {visibleColumnSet.has('status') ? <TableHeader label={copy.columns.status} /> : null}
+              {visibleColumnSet.has('incentive') ? <TableHeader field="incentive" label={copy.columns.incentive} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
+              {visibleColumnSet.has('type') ? <TableHeader field="type" label={copy.columns.type} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
+              {visibleColumnSet.has('scope') ? <TableHeader field="scope" label={copy.columns.scope} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
+              {visibleColumnSet.has('amount') ? <TableHeader field="amount" label={copy.columns.amount} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
+              {visibleColumnSet.has('application') ? <TableHeader field="application" label={copy.columns.application} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
+              {visibleColumnSet.has('status') ? <TableHeader field="status" label={copy.columns.status} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {incentives.length === 0 ? (
+            {sortedIncentives.length === 0 ? (
               <tr>
                 <td colSpan={visibleColumns.length + 1} className="px-5 py-10 text-center text-sm text-slate-500">
                   {copy.table.empty}
                 </td>
               </tr>
             ) : (
-              incentives.map((incentive) => (
+              paginatedIncentives.map((incentive) => (
                 <tr key={incentive.id} className="transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-700/40">
                   <td className="px-5 py-4">
                     <input
@@ -116,22 +185,47 @@ export function IncentivesTable({
         </table>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-gray-200 px-5 py-4 text-sm text-slate-600 dark:border-gray-700 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between">
-        <span>{copy.table.showing(incentives.length)}</span>
-        <div className="flex items-center gap-3">
-          <span>{copy.table.page}</span>
-          <button type="button" className="text-slate-400" disabled>{copy.table.previous}</button>
-          <button type="button" className="text-slate-400" disabled>{copy.table.next}</button>
-        </div>
-      </div>
+      <StandardPaginationFooter
+        currentPage={safeCurrentPage}
+        labels={copy.pagination}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(nextPageSize) => {
+          setPageSize(nextPageSize);
+          setCurrentPage(1);
+        }}
+        pageEnd={paginationEnd}
+        pageSize={pageSize}
+        pageStart={paginationStart}
+        totalCount={sortedIncentives.length}
+        totalPages={totalPages}
+      />
     </div>
   );
 }
 
-function TableHeader({ label }: { label: string }) {
+function TableHeader({
+  field,
+  label,
+  onSort,
+  sortDirection,
+  sortField,
+}: {
+  field: IncentiveSortField;
+  label: string;
+  onSort: (field: IncentiveSortField) => void;
+  sortDirection: StandardSortDirection;
+  sortField: IncentiveSortField;
+}) {
   return (
-    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
-      {label}
+    <th className="px-5 py-4 text-left">
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex items-center gap-2 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+      >
+        <span>{label}</span>
+        <StandardSortIcon active={sortField === field} direction={sortDirection} />
+      </button>
     </th>
   );
 }

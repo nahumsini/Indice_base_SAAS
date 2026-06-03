@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
@@ -12,92 +12,47 @@ import {
 } from './announcementMapping';
 import type {
   AnnouncementDepartmentOption,
-  AnnouncementDisplayStatus,
-  AnnouncementDisplayType,
   AnnouncementEmployeeOption,
   AnnouncementUnitOption,
   AnnouncementView,
   CreateAnnouncementFormData,
 } from './announcementTypes';
-import { AnnouncementColumnsModal, type AnnouncementColumn } from './components/AnnouncementColumnsModal';
+import {
+  type AnnouncementAudienceFilter,
+  type AnnouncementStatusFilter,
+  type AnnouncementTypeFilter,
+  audienceFilterValues,
+  defaultVisibleColumnIds,
+  emptyAnnouncementSummary,
+  statusFilterValues,
+  typeFilterValues,
+} from './constants/announcements.constants';
+import type { AnnouncementColumn } from './components/AnnouncementColumnsModal';
 import { AnnouncementFilters } from './components/AnnouncementFilters';
 import { AnnouncementHeaderBar } from './components/AnnouncementHeaderBar';
 import { AnnouncementKpiStrip } from './components/AnnouncementKpiStrip';
 import { AnnouncementTable } from './components/AnnouncementTable';
 import { AnnouncementDetailPanel } from './components/AnnouncementDetailPanel';
-import { CreateAnnouncementModal } from './components/CreateAnnouncementModal';
 import { useAnnouncementsResolvedLocale, useAnnouncementsTranslations } from './hooks/useAnnouncementsTranslations';
 import type { AnnouncementsTranslations } from './translations';
+import {
+  filterAnnouncements,
+  getAnnouncementStatusClasses,
+  getAnnouncementTypeClasses,
+} from './utils/announcements.filters';
 
-const audienceFilterValues = ['all', 'operations', 'leaders', 'everyone'] as const;
-const typeFilterValues = ['all', 'general', 'urgent', 'reminder', 'celebration'] as const;
-const statusFilterValues = ['all', 'published', 'scheduled', 'draft'] as const;
-const defaultVisibleColumnIds = ['type', 'audience', 'publication', 'reads', 'status', 'author'] as const;
-
-type AnnouncementAudienceFilter = (typeof audienceFilterValues)[number];
-type AnnouncementTypeFilter = (typeof typeFilterValues)[number];
-type AnnouncementStatusFilter = (typeof statusFilterValues)[number];
-
-const typeFilterMap: Partial<Record<AnnouncementTypeFilter, AnnouncementDisplayType>> = {
-  celebration: 'Celebracion',
-  general: 'General',
-  reminder: 'Recordatorio',
-  urgent: 'Urgente',
-};
-
-const statusFilterMap: Partial<Record<AnnouncementStatusFilter, AnnouncementDisplayStatus>> = {
-  draft: 'Borrador',
-  published: 'Publicado',
-  scheduled: 'Programado',
-};
-
-const emptySummary = {
-  can_manage: false,
-  draft_count: 0,
-  published_count: 0,
-  scheduled_count: 0,
-  total_count: 0,
-};
-
-const getAudienceGroup = (announcement: AnnouncementView): AnnouncementAudienceFilter => {
-  if (announcement.audienceType === 'all') {
-    return 'everyone';
-  }
-  if (announcement.audienceSummary.toLowerCase().includes('lider')) {
-    return 'leaders';
-  }
-  if (announcement.audienceSummary.toLowerCase().includes('operacion')) {
-    return 'operations';
-  }
-  return 'all';
-};
-
-const getTypeClasses = (type: AnnouncementDisplayType) => {
-  const styles: Record<AnnouncementDisplayType, string> = {
-    Celebracion: 'border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-900/50 dark:bg-fuchsia-950/30 dark:text-fuchsia-300',
-    General: 'border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300',
-    Recordatorio: 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300',
-    Urgente: 'border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300',
-  };
-
-  return styles[type];
-};
-
-const getStatusClasses = (status: AnnouncementDisplayStatus) => {
-  const styles: Record<AnnouncementDisplayStatus, string> = {
-    Borrador: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-    Programado: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
-    Publicado: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-  };
-
-  return styles[status];
-};
+const LazyAnnouncementColumnsModal = lazy(() =>
+  import('./components/AnnouncementColumnsModal').then((module) => ({ default: module.AnnouncementColumnsModal })),
+);
+const LazyCreateAnnouncementModal = lazy(() =>
+  import('./components/CreateAnnouncementModal').then((module) => ({ default: module.CreateAnnouncementModal })),
+);
 
 export default function Announcements() {
   const copy = useAnnouncementsTranslations();
   const locale = useAnnouncementsResolvedLocale();
   const [announcements, setAnnouncements] = useState<AnnouncementView[]>([]);
-  const [summary, setSummary] = useState(emptySummary);
+  const [summary, setSummary] = useState(emptyAnnouncementSummary);
   const [employees, setEmployees] = useState<AnnouncementEmployeeOption[]>([]);
   const [departmentOptions, setDepartmentOptions] = useState<AnnouncementDepartmentOption[]>([]);
   const [unitOptions, setUnitOptions] = useState<AnnouncementUnitOption[]>([]);
@@ -187,14 +142,12 @@ export default function Announcements() {
 
   const filteredAnnouncements = useMemo(
     () =>
-      announcements.filter((announcement) => {
-        const matchesSearch = `${announcement.title} ${announcement.audienceSummary} ${announcement.authorName} ${announcement.content}`
-          .toLowerCase()
-          .includes(searchQuery.trim().toLowerCase());
-        const matchesType = selectedType === 'all' || announcement.type === typeFilterMap[selectedType];
-        const matchesStatus = selectedStatus === 'all' || announcement.status === statusFilterMap[selectedStatus];
-        const matchesAudience = selectedAudience === 'all' || getAudienceGroup(announcement) === selectedAudience;
-        return matchesSearch && matchesType && matchesStatus && matchesAudience;
+      filterAnnouncements({
+        announcements,
+        searchQuery,
+        selectedAudience,
+        selectedStatus,
+        selectedType,
       }),
     [announcements, searchQuery, selectedAudience, selectedStatus, selectedType],
   );
@@ -306,7 +259,7 @@ export default function Announcements() {
         size_bytes: file.size,
         object_key: upload.object_key,
       });
-    }, 'Unable to upload attachment.');
+    }, copy.feedback.uploadAttachmentFailed);
   };
 
   const handleDeleteAttachment = async (attachmentId: number) => {
@@ -315,7 +268,7 @@ export default function Announcements() {
     }
     await guardedMutation(
       () => humanResourcesApi.deleteAnnouncementAttachment(selectedAnnouncement.backendId, attachmentId),
-      'Unable to remove attachment.',
+      copy.feedback.removeAttachmentFailed,
     );
   };
 
@@ -341,8 +294,8 @@ export default function Announcements() {
     <>
       <LoadingBarOverlay
         isVisible={isSubmitting}
-        title="Processing announcement"
-        description="The request is being validated and sent with the current session security token."
+        title={copy.feedback.processingTitle}
+        description={copy.feedback.processingDescription}
       />
 
       <AnnouncementHeaderBar
@@ -364,7 +317,7 @@ export default function Announcements() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>{errorMessage}</span>
             <Button variant="outline" size="sm" onClick={() => void loadAnnouncements()}>
-              Retry
+              {copy.feedback.retry}
             </Button>
           </div>
         </div>
@@ -390,7 +343,7 @@ export default function Announcements() {
         draftCount={summary.draft_count}
         progressCopy={copy.progress}
         publishedCount={summary.published_count}
-        readRate="not tracked"
+        readRate={copy.kpis.notTracked}
         scheduledCount={summary.scheduled_count}
         totalCount={summary.total_count}
         visibleCount={filteredAnnouncements.length}
@@ -400,8 +353,8 @@ export default function Announcements() {
         announcements={isLoading ? [] : filteredAnnouncements}
         copy={copy}
         getAudienceLabel={(announcement) => announcement.audienceSummary}
-        getStatusClasses={getStatusClasses}
-        getTypeClasses={getTypeClasses}
+        getStatusClasses={getAnnouncementStatusClasses}
+        getTypeClasses={getAnnouncementTypeClasses}
         visibleColumns={visibleColumns}
         canManage={canManage}
         onDelete={handleDeleteAnnouncement}
@@ -412,6 +365,7 @@ export default function Announcements() {
       <AnnouncementDetailPanel
         announcement={selectedAnnouncement}
         canManage={canManage}
+        copy={copy.detail}
         isBusy={isSubmitting}
         onClose={() => setSelectedAnnouncement(null)}
         onDeleteAttachment={handleDeleteAttachment}
@@ -419,32 +373,36 @@ export default function Announcements() {
         onUploadAttachment={handleUploadAttachment}
       />
 
-      <AnnouncementColumnsModal
-        columns={announcementColumns}
-        copy={copy.columnsModal}
-        isOpen={isColumnsModalOpen}
-        visibleColumns={visibleColumns}
-        onClose={() => setIsColumnsModalOpen(false)}
-        onToggleColumn={handleToggleColumn}
-      />
+      <Suspense fallback={null}>
+        {isColumnsModalOpen ? (
+          <LazyAnnouncementColumnsModal
+            columns={announcementColumns}
+            copy={copy.columnsModal}
+            isOpen={isColumnsModalOpen}
+            visibleColumns={visibleColumns}
+            onClose={() => setIsColumnsModalOpen(false)}
+            onToggleColumn={handleToggleColumn}
+          />
+        ) : null}
 
-      {canManage ? (
-        <CreateAnnouncementModal
-          copy={copy.modal}
-          departments={departmentOptions}
-          employees={employees}
-          initialData={editingAnnouncement?.editData}
-          isEdit={Boolean(editingAnnouncement)}
-          isOpen={isModalOpen}
-          isSubmitting={isSubmitting}
-          units={unitOptions}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingAnnouncement(null);
-          }}
-          onSave={handleSaveAnnouncement}
-        />
-      ) : null}
+        {canManage && isModalOpen ? (
+          <LazyCreateAnnouncementModal
+            copy={copy.modal}
+            departments={departmentOptions}
+            employees={employees}
+            initialData={editingAnnouncement?.editData}
+            isEdit={Boolean(editingAnnouncement)}
+            isOpen={isModalOpen}
+            isSubmitting={isSubmitting}
+            units={unitOptions}
+            onClose={() => {
+              setIsModalOpen(false);
+              setEditingAnnouncement(null);
+            }}
+            onSave={handleSaveAnnouncement}
+          />
+        ) : null}
+      </Suspense>
 
       <ConfirmDeleteDialog
         isVisible={pendingDeleteAnnouncement !== null}

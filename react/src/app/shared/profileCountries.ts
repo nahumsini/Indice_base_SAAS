@@ -1,5 +1,5 @@
-import { Country } from 'country-state-city';
 import {
+  getCountries,
   getCountryCallingCode,
   isSupportedCountry,
   parsePhoneNumberFromString,
@@ -19,22 +19,35 @@ export const DEFAULT_PROFILE_COUNTRY: ProfileCountry = 'MX';
 
 const PRIORITY_PROFILE_COUNTRY_CODES = ['MX', 'US', 'CA', 'ES', 'CO', 'AR', 'BR', 'CL', 'PE'] as const;
 
-const normalizePhoneCode = (phoneCode: string) => {
-  const primaryPhoneCode = phoneCode.split(/\s+and\s+/i)[0]?.trim() ?? '';
-  return primaryPhoneCode.startsWith('+') ? primaryPhoneCode : `+${primaryPhoneCode}`;
+const REGION_CODE_PATTERN = /^[A-Z]{2}$/;
+
+const getCountryFlag = (countryCode: string) => {
+  const normalizedCountryCode = countryCode.trim().toUpperCase();
+  if (!REGION_CODE_PATTERN.test(normalizedCountryCode)) {
+    return normalizedCountryCode;
+  }
+
+  return String.fromCodePoint(
+    ...Array.from(normalizedCountryCode).map((character) =>
+      0x1f1e6 + character.charCodeAt(0) - 65,
+    ),
+  );
 };
 
-const getDialCodeForCountry = (countryCode: string, phoneCode: string) => (
-  isSupportedCountry(countryCode as CountryCode)
-    ? `+${getCountryCallingCode(countryCode as CountryCode)}`
-    : normalizePhoneCode(phoneCode)
-);
+const getFallbackCountryName = (countryCode: CountryCode) => {
+  try {
+    const englishDisplayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+    return englishDisplayNames.of(countryCode) ?? countryCode;
+  } catch {
+    return countryCode;
+  }
+};
 
-const allCountryOptions = Country.getAllCountries().map((country) => ({
-  code: country.isoCode,
-  dialCode: getDialCodeForCountry(country.isoCode, country.phonecode),
-  flag: country.flag,
-  fallbackName: country.name,
+const allCountryOptions: ProfileCountryOption[] = getCountries().map((countryCode) => ({
+  code: countryCode,
+  dialCode: `+${getCountryCallingCode(countryCode)}`,
+  flag: getCountryFlag(countryCode),
+  fallbackName: getFallbackCountryName(countryCode),
 }));
 
 const priorityCountryOptions = PRIORITY_PROFILE_COUNTRY_CODES

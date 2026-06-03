@@ -30,7 +30,7 @@ export function IncentiveColumnsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-      <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#59C3A5]/30 bg-white shadow-2xl dark:bg-slate-900">
+      <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-[20px] border border-[#59C3A5]/30 bg-white shadow-2xl dark:bg-slate-900">
         <header className="flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
           <div>
             <h2 className="text-lg font-semibold">{copy.title}</h2>
@@ -51,7 +51,7 @@ export function IncentiveColumnsModal({
             {columns.map((column) => (
               <label
                 key={column.id}
-                className={`flex items-center gap-3 rounded-lg border p-3 text-sm ${
+                className={`flex items-center gap-3 rounded-xl border p-3 text-sm ${
                   column.locked
                     ? 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800/60'
                     : 'cursor-pointer border-slate-200 bg-white text-slate-800 hover:border-[#59C3A5]/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
@@ -75,7 +75,7 @@ export function IncentiveColumnsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[#59C3A5] transition hover:bg-blue-50"
+            className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#59C3A5] transition hover:bg-blue-50"
           >
             {copy.done}
           </button>

@@ -8,6 +8,14 @@ export const koCA = {
     columns: '열',
     addAnnouncement: '공지 추가',
   },
+  feedback: {
+    processingTitle: '공지 처리 중',
+    processingDescription: '현재 세션으로 요청을 검증하고 전송하는 중입니다.',
+    retry: '다시 시도',
+    uploadAttachmentFailed: '첨부 파일을 업로드할 수 없습니다.',
+    removeAttachmentFailed: '첨부 파일을 제거할 수 없습니다.',
+    openDetails: '세부 정보 열기',
+  },
   filters: {
     title: '필터',
     searchLabel: '공지 검색',
@@ -42,6 +50,7 @@ export const koCA = {
     drafts: '초안',
     visibleAfterFilters: '필터 후 표시',
     selected: '선택됨',
+    notTracked: '추적 안 됨',
     publishedRate: (rate: string) => `게시율 ${rate}`,
     selectedBadge: (count: number) => `${count}개 선택됨`,
     summary: (
@@ -85,6 +94,19 @@ export const koCA = {
     subtitle: '테이블에 표시할 공지 세부 정보를 선택하세요.',
     close: '닫기',
     done: '완료',
+  },
+  detail: {
+    eyebrow: '공지 세부 정보',
+    status: '상태',
+    read: '읽음',
+    publication: '게시',
+    author: '작성자',
+    markAsRead: '읽음으로 표시',
+    uploadAttachment: '첨부 파일 업로드',
+    attachments: (count: number) => `첨부 파일 (${count})`,
+    noAttachments: '첨부 파일이 없습니다.',
+    removeAttachment: '삭제',
+    close: '공지 세부 정보 닫기',
   },
   deleteDialog: {
     title: '공지 삭제',

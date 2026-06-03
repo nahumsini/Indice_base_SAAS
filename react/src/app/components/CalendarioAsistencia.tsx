@@ -12,11 +12,12 @@ interface CalendarioAsistenciaProps {
   days: AttendanceCalendarDay[];
   isLoading: boolean;
   onMonthChange: (month: string) => void;
-  onUpdateStatus: (
+  onUpdateStatus?: (
     date: string,
     status: AttendanceCorrectionStatus | '',
   ) => Promise<void>;
   displayMode?: 'card' | 'embedded';
+  readOnly?: boolean;
 }
 
 const calendarCopy = {
@@ -236,6 +237,7 @@ export function CalendarioAsistencia({
   onMonthChange,
   onUpdateStatus,
   displayMode = 'card',
+  readOnly = false,
 }: CalendarioAsistenciaProps) {
   const { currentLanguage } = useLanguage();
   const copy = currentLanguage.code.startsWith('es') ? calendarCopy.es : calendarCopy.en;
@@ -309,7 +311,7 @@ export function CalendarioAsistencia({
     if (!selectedDay) {
       return;
     }
-    if (selectedDayEditLocked) {
+    if (readOnly || selectedDayEditLocked || !onUpdateStatus) {
       return;
     }
 
@@ -673,50 +675,52 @@ export function CalendarioAsistencia({
                 )}
               </div>
 
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-                  {copy.labels.overrideTools}
-                </p>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  {copy.labels.overrideHint}
-                </p>
-                {selectedDayEditLocked ? (
-                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
-                    {selectedDayEditLockReason}
-                  </div>
-                ) : null}
-
-                <div className="mt-4 grid gap-2">
-                  {manualCorrectionStatuses.map((status) => (
-                    <Button
-                      key={status}
-                      type="button"
-                      disabled={isSaving || selectedDayEditLocked}
-                      onClick={() => {
-                        void handleUpdateStatus(status);
-                      }}
-                      className={`w-full justify-start gap-3 ${statusTones[status].buttonTone}`}
-                    >
-                      <span className="h-2.5 w-2.5 rounded-full bg-white/90" />
-                      {copy.actions.markAs} {copy.statusLabels[status].toLowerCase()}
-                    </Button>
-                  ))}
-
-                  {selectedDay.corrected_status ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isSaving || selectedDayEditLocked}
-                      onClick={() => {
-                        void handleUpdateStatus('');
-                      }}
-                      className="w-full"
-                    >
-                      {copy.actions.clearCorrection}
-                    </Button>
+              {!readOnly ? (
+                <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                    {copy.labels.overrideTools}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    {copy.labels.overrideHint}
+                  </p>
+                  {selectedDayEditLocked ? (
+                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200">
+                      {selectedDayEditLockReason}
+                    </div>
                   ) : null}
+
+                  <div className="mt-4 grid gap-2">
+                    {manualCorrectionStatuses.map((status) => (
+                      <Button
+                        key={status}
+                        type="button"
+                        disabled={isSaving || selectedDayEditLocked}
+                        onClick={() => {
+                          void handleUpdateStatus(status);
+                        }}
+                        className={`w-full justify-start gap-3 ${statusTones[status].buttonTone}`}
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full bg-white/90" />
+                        {copy.actions.markAs} {copy.statusLabels[status].toLowerCase()}
+                      </Button>
+                    ))}
+
+                    {selectedDay.corrected_status ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSaving || selectedDayEditLocked}
+                        onClick={() => {
+                          void handleUpdateStatus('');
+                        }}
+                        className="w-full"
+                      >
+                        {copy.actions.clearCorrection}
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
         ) : (

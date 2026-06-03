@@ -73,4 +73,26 @@ class HrPayrollServiceTest {
         assertEquals(30L, items.getFirst().get("id"));
         assertEquals(new BigDecimal("2250.00"), items.getFirst().get("net_amount"));
     }
+
+    @Test
+    void fixedSalaryDeductionProratesPeriodAmountByUnpaidWorkDays() {
+        var deduction = HrPayrollService.computeFixedSalaryDeduction(
+            new BigDecimal("3000.00"),
+            BigDecimal.ONE,
+            new BigDecimal("5")
+        );
+
+        assertEquals(new BigDecimal("600.00"), deduction);
+    }
+
+    @Test
+    void fixedSalaryDeductionDoesNotTreatPeriodSalaryAsDailySalary() {
+        var deduction = HrPayrollService.computeFixedSalaryDeduction(
+            new BigDecimal("3000.00"),
+            new BigDecimal("2"),
+            new BigDecimal("5")
+        );
+
+        assertEquals(new BigDecimal("1200.00"), deduction);
+    }
 }

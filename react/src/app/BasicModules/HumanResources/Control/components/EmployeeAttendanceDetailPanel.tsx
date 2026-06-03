@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
 import type {
   AttendanceAccessProfile,
-  AttendanceCalendarDay,
   AttendanceControlAssignment,
-  AttendanceControlTemplate,
 } from '../../../../api/humanResources';
 import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 import { EmployeeActionBar } from './EmployeeActionBar';
@@ -14,10 +12,8 @@ type FaceEnrollmentSummary = { id: number; status: string; enrolled_at?: string 
 export function EmployeeAttendanceDetailPanel({
   copy,
   selectedEmployee,
-  selectedCalendarDay,
   selectedAccessProfile,
   faceEnrollment,
-  templates,
   assignments,
   selectedEmployeeBusyReason,
   calendar,
@@ -30,10 +26,8 @@ export function EmployeeAttendanceDetailPanel({
 }: {
   copy: AttendanceControlCopy;
   selectedEmployee: AttendanceControlAssignment | null;
-  selectedCalendarDay: AttendanceCalendarDay | null;
   selectedAccessProfile: AttendanceAccessProfile | null;
   faceEnrollment: FaceEnrollmentSummary;
-  templates: AttendanceControlTemplate[];
   assignments: AttendanceControlAssignment[];
   selectedEmployeeBusyReason: string;
   calendar: ReactNode;
@@ -59,10 +53,6 @@ export function EmployeeAttendanceDetailPanel({
             <EmployeeHeaderCard
               copy={copy}
               selectedEmployee={selectedEmployee}
-              selectedCalendarDay={selectedCalendarDay}
-              selectedAccessProfile={selectedAccessProfile}
-              faceEnrollment={faceEnrollment}
-              templates={templates}
               accessActions={(
                 <EmployeeActionBar
                   copy={copy}

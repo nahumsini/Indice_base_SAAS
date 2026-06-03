@@ -8,6 +8,14 @@ export const esMX = {
     columns: 'Columnas',
     addAnnouncement: 'Agregar comunicado',
   },
+  feedback: {
+    processingTitle: 'Procesando comunicado',
+    processingDescription: 'Validando la solicitud y enviándola con la sesión actual.',
+    retry: 'Reintentar',
+    uploadAttachmentFailed: 'No fue posible cargar el adjunto.',
+    removeAttachmentFailed: 'No fue posible retirar el adjunto.',
+    openDetails: 'Abrir detalle',
+  },
   filters: {
     title: 'Filtros',
     searchLabel: 'Buscar comunicado',
@@ -17,7 +25,7 @@ export const esMX = {
     audience: 'Destinatarios',
     typeOptions: {
       all: 'Todos',
-      general: 'General',
+      general: 'Informativo',
       urgent: 'Urgente',
       reminder: 'Recordatorio',
       celebration: 'Celebración',
@@ -42,6 +50,7 @@ export const esMX = {
     drafts: 'Borradores',
     visibleAfterFilters: 'visibles tras filtros',
     selected: 'seleccionados',
+    notTracked: 'sin seguimiento',
     publishedRate: (rate: string) => `${rate} tasa publicada`,
     selectedBadge: (count: number) => `${count} seleccionados`,
     summary: (
@@ -86,6 +95,19 @@ export const esMX = {
     close: 'Cerrar',
     done: 'Listo',
   },
+  detail: {
+    eyebrow: 'Detalle del comunicado',
+    status: 'Estado',
+    read: 'Lectura',
+    publication: 'Publicación',
+    author: 'Autor',
+    markAsRead: 'Marcar como leído',
+    uploadAttachment: 'Subir adjunto',
+    attachments: (count: number) => `Adjuntos (${count})`,
+    noAttachments: 'Sin adjuntos.',
+    removeAttachment: 'Quitar',
+    close: 'Cerrar detalle del comunicado',
+  },
   deleteDialog: {
     title: 'Eliminar comunicado',
     description: 'Este comunicado se eliminará de la lista.',
@@ -101,7 +123,7 @@ export const esMX = {
   },
   typeLabels: {
     Celebracion: 'Celebración',
-    General: 'General',
+    General: 'Informativo',
     Recordatorio: 'Recordatorio',
     Urgente: 'Urgente',
   },
@@ -140,7 +162,7 @@ export const esMX = {
       message: 'Escribe el contenido del comunicado...',
     },
     typeOptions: {
-      general: 'General',
+      general: 'Informativo',
       urgent: 'Urgente',
       reminder: 'Recordatorio',
       celebration: 'Celebración',

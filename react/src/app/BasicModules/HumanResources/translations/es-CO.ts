@@ -8,16 +8,21 @@ export const esCO = {
     title: 'Cargando pestaña de RH',
     description: 'Descargando solo el espacio seleccionado de recursos humanos.',
   },
+  access: {
+    loadingTitle: 'Cargando acceso de RH',
+    loadingDescription: 'Validando qué espacios de trabajo están disponibles.',
+    empty: 'Este usuario no tiene pestañas de Recursos Humanos disponibles.',
+  },
   tabs: {
     collaborators: 'Personal',
     attendance: 'Asistencia',
-    control: 'Control',
+    control: 'Control de asistencia',
     payroll: 'Pago',
     announcements: 'Comunicados',
     assets: 'Activos',
     records: 'Actas',
     permissions: 'Permisos',
     incentives: 'Incentivos',
-    kpis: 'KPIs',
+    kpis: 'Indicadores',
   },
 } satisfies HumanResourcesTranslations;

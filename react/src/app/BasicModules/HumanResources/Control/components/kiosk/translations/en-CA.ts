@@ -39,6 +39,7 @@ export const enCA = {
   identifyDescription: 'Enter the employee PIN assigned by HR.',
   credentialLabel: 'PIN',
   pinPlaceholder: 'Enter PIN',
+  backspaceLabel: 'Del',
   identify: 'Identify',
   methods: {
     pin: 'PIN',

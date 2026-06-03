@@ -8,16 +8,21 @@ export const ptBR = {
     title: 'Carregando aba de RH',
     description: 'Baixando apenas o espaço selecionado de recursos humanos.',
   },
+  access: {
+    loadingTitle: 'Carregando acesso de RH',
+    loadingDescription: 'Verificando quais espaços de trabalho estão disponíveis.',
+    empty: 'Nenhuma aba de Recursos Humanos está disponível para este usuário.',
+  },
   tabs: {
     collaborators: 'Colaboradores',
     attendance: 'Presença',
-    control: 'Controle',
+    control: 'Controle de presença',
     payroll: 'Folha',
     announcements: 'Comunicados',
     assets: 'Ativos',
     records: 'Registros',
     permissions: 'Permissões',
     incentives: 'Incentivos',
-    kpis: 'KPIs',
+    kpis: 'Indicadores',
   },
 } satisfies HumanResourcesTranslations;

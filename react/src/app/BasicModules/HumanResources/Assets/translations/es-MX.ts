@@ -63,6 +63,13 @@ export const esMX = {
     notes: 'Notas',
     actions: 'Acciones',
   },
+  pagination: {
+    pageSize: 'Filas por página',
+    showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} activos`,
+    page: (current: number, total: number) => `Página ${current} de ${total}`,
+    previous: 'Anterior',
+    next: 'Siguiente',
+  },
   kpis: {
     visibleAfterFilters: 'visibles tras filtros',
     assetValue: 'valor de activos',
@@ -178,7 +185,7 @@ export const esMX = {
       notes: 'Información adicional sobre el activo...',
     },
     options: {
-      laptop: 'Laptop',
+      laptop: 'Equipo portátil',
       attendanceTerminal: 'Terminal de asistencia',
       mobileDevice: 'Dispositivo móvil',
       maintenanceKit: 'Kit de mantenimiento',

@@ -444,6 +444,7 @@ type PayrollBreakdownModalProps = {
   isOpen: boolean;
   onClose: () => void;
   employee: PayrollRow | null;
+  copy: PayrollCopy['breakdown'];
 };
 
 const roundPayrollMoney = (value: number) => Math.round(value * 100) / 100;
@@ -1223,6 +1224,7 @@ export default function Payroll() {
     statusLabel: copy.statuses[detail.run.status],
     groupingLabel: detail.run.grouping_label || copy.groupingModes[detail.run.grouping_mode],
     payPeriodLabel: copy.frequencies[detail.run.pay_period],
+    copy: copy.pdf,
   });
 
   const fetchRunDetail = async (runId: number) => {
@@ -4271,6 +4273,7 @@ function PayrollEditRunDialog({
         isOpen={Boolean(breakdownRow)}
         onClose={() => setBreakdownRow(null)}
         employee={breakdownRow}
+        copy={copy.breakdown}
       />
 
       <VariablePayModal
@@ -4298,6 +4301,7 @@ function PayrollBreakdownModal({
   isOpen,
   onClose,
   employee,
+  copy,
 }: PayrollBreakdownModalProps) {
   const formatCurrency = (value: number): string => value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -4314,6 +4318,7 @@ function PayrollBreakdownModal({
     value: number | string;
     tone?: 'positive' | 'negative' | 'primary' | 'neutral';
   };
+  const rowsCopy = copy.rows;
 
   const formatBreakdownValue = (value: number | string) => (
     typeof value === 'number' ? formatCurrency(value) : value
@@ -4503,269 +4508,269 @@ function PayrollBreakdownModal({
   const summaryRows: BreakdownValueRow[] = !effectiveEmployee
     ? []
     : [
-      { label: 'HR User name', value: effectiveEmployee.employee },
-      { label: 'Jurisdiction', value: jurisdictionLabel || '—' },
-      { label: 'Unit', value: effectiveEmployee.unit || '—' },
-      { label: 'Business', value: effectiveEmployee.business || '—' },
+      { label: rowsCopy.hrUserName, value: effectiveEmployee.employee },
+      { label: copy.jurisdiction, value: jurisdictionLabel || '—' },
+      { label: rowsCopy.unit, value: effectiveEmployee.unit || '—' },
+      { label: rowsCopy.business, value: effectiveEmployee.business || '—' },
       ...(isCanadaPayroll
         ? [
-          { label: 'SIN', value: effectiveEmployee.sin || '—' },
-          { label: 'Province', value: effectiveEmployee.province || '—' },
-          { label: 'Employment type', value: effectiveEmployee.employmentType },
-          { label: 'Pay type', value: effectiveEmployee.payType },
-          { label: 'Daily salary', value: effectiveEmployee.dailyWage },
-          { label: 'Gross pay', value: effectiveEmployee.grossPay },
+          { label: copy.identity.sin, value: effectiveEmployee.sin || '—' },
+          { label: copy.identity.province, value: effectiveEmployee.province || '—' },
+          { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
+          { label: rowsCopy.payType, value: effectiveEmployee.payType },
+          { label: rowsCopy.dailySalary, value: effectiveEmployee.dailyWage },
+          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
         ]
         : isUsaPayroll
           ? [
-            { label: 'SSN / Tax ID', value: effectiveEmployee.sin || '—' },
-            { label: 'State', value: effectiveEmployee.province || '—' },
-            { label: 'Employment type', value: effectiveEmployee.employmentType },
-            { label: 'Pay type', value: effectiveEmployee.payType },
-            { label: 'Daily salary', value: effectiveEmployee.dailyWage },
-            { label: 'Gross pay', value: effectiveEmployee.grossPay },
+            { label: copy.identity.ssnTaxId, value: effectiveEmployee.sin || '—' },
+            { label: copy.identity.state, value: effectiveEmployee.province || '—' },
+            { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
+            { label: rowsCopy.payType, value: effectiveEmployee.payType },
+            { label: rowsCopy.dailySalary, value: effectiveEmployee.dailyWage },
+            { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
           ]
         : isColombiaPayroll
           ? [
-            { label: 'ID number', value: effectiveEmployee.idNumber || '—' },
-            { label: 'Contract type', value: effectiveEmployee.contractType },
-            { label: 'Employment type', value: effectiveEmployee.employmentType },
-            { label: 'Pay type', value: effectiveEmployee.payType },
-            { label: 'Monthly salary', value: effectiveEmployee.monthlySalary },
-            { label: 'Gross pay', value: effectiveEmployee.grossPay },
+            { label: copy.identity.idNumber, value: effectiveEmployee.idNumber || '—' },
+            { label: copy.identity.contractType, value: effectiveEmployee.contractType },
+            { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
+            { label: rowsCopy.payType, value: effectiveEmployee.payType },
+            { label: rowsCopy.monthlySalary, value: effectiveEmployee.monthlySalary },
+            { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
           ]
         : isBrazilPayroll
           ? [
-            { label: 'CPF', value: effectiveEmployee.cpf || '—' },
-            { label: 'PIS/PASEP', value: effectiveEmployee.pisPasep || '—' },
-            { label: 'Employment type', value: effectiveEmployee.employmentType },
-            { label: 'Pay type', value: effectiveEmployee.payType },
-            { label: 'Monthly salary', value: effectiveEmployee.monthlySalary },
-            { label: 'Gross pay', value: effectiveEmployee.grossPay },
+            { label: copy.identity.cpf, value: effectiveEmployee.cpf || '—' },
+            { label: copy.identity.pisPasep, value: effectiveEmployee.pisPasep || '—' },
+            { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
+            { label: rowsCopy.payType, value: effectiveEmployee.payType },
+            { label: rowsCopy.monthlySalary, value: effectiveEmployee.monthlySalary },
+            { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
           ]
         : [
-          { label: 'RFC', value: effectiveEmployee.rfc },
-          { label: 'CURP', value: effectiveEmployee.curp },
-          { label: 'NSS', value: effectiveEmployee.nss },
-          { label: 'Daily salary', value: effectiveEmployee.dailyWage },
-          { label: 'SDI', value: effectiveEmployee.integratedDailyWage },
-          { label: 'SBC', value: effectiveEmployee.baseContributionSalary },
+          { label: copy.identity.rfc, value: effectiveEmployee.rfc },
+          { label: copy.identity.curp, value: effectiveEmployee.curp },
+          { label: copy.identity.nss, value: effectiveEmployee.nss },
+          { label: rowsCopy.dailySalary, value: effectiveEmployee.dailyWage },
+          { label: rowsCopy.sdi, value: effectiveEmployee.integratedDailyWage },
+          { label: rowsCopy.sbc, value: effectiveEmployee.baseContributionSalary },
         ]),
-      { label: 'Days paid', value: String(effectiveEmployee.daysPaid) },
-      { label: 'Net pay', value: effectiveEmployee.netPay, tone: 'primary' },
+      { label: rowsCopy.daysPaid, value: String(effectiveEmployee.daysPaid) },
+      { label: rowsCopy.netPay, value: effectiveEmployee.netPay, tone: 'primary' },
     ];
 
   const earningsRows: BreakdownValueRow[] = !effectiveEmployee
     ? []
     : isCanadaPayroll
       ? [
-        { label: 'Period salary', value: effectiveEmployee.periodSalary },
-        { label: 'Overtime amount', value: effectiveEmployee.overtimeAmount },
-        { label: 'Variable pay', value: effectiveEmployee.variablePayTotal },
-        { label: 'Vacation pay', value: effectiveEmployee.vacationPay },
-        { label: 'Taxable benefits', value: effectiveEmployee.taxableBenefits },
-        { label: 'Gross pay', value: effectiveEmployee.grossPay, tone: 'positive' },
+        { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
+        { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
+        { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
+        { label: rowsCopy.vacationPay, value: effectiveEmployee.vacationPay },
+        { label: rowsCopy.taxableBenefits, value: effectiveEmployee.taxableBenefits },
+        { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
       ]
       : isUsaPayroll
         ? [
-          { label: 'Period salary', value: effectiveEmployee.periodSalary },
-          { label: 'Overtime amount', value: effectiveEmployee.overtimeAmount },
-          { label: 'Variable pay', value: effectiveEmployee.variablePayTotal },
-          { label: 'Taxable benefits', value: effectiveEmployee.taxableBenefits },
-          { label: 'Gross pay', value: effectiveEmployee.grossPay, tone: 'positive' },
+          { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
+          { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
+          { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
+          { label: rowsCopy.taxableBenefits, value: effectiveEmployee.taxableBenefits },
+          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
         ]
       : isColombiaPayroll
         ? [
-          { label: 'Period salary', value: effectiveEmployee.periodSalary },
-          { label: 'Overtime amount', value: effectiveEmployee.overtimeAmount },
-          { label: 'Night surcharge', value: effectiveEmployee.nightSurcharge },
-          { label: 'Sunday / holiday surcharge', value: effectiveEmployee.sundayHolidaySurcharge },
-          { label: 'Transport allowance', value: effectiveEmployee.transportAllowance },
-          { label: 'Variable pay', value: effectiveEmployee.variablePayTotal },
-          { label: 'Gross pay', value: effectiveEmployee.grossPay, tone: 'positive' },
+          { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
+          { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
+          { label: rowsCopy.nightSurcharge, value: effectiveEmployee.nightSurcharge },
+          { label: rowsCopy.sundayHolidaySurcharge, value: effectiveEmployee.sundayHolidaySurcharge },
+          { label: rowsCopy.transportAllowance, value: effectiveEmployee.transportAllowance },
+          { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
+          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
         ]
       : isBrazilPayroll
         ? [
-          { label: 'Period salary', value: effectiveEmployee.periodSalary },
-          { label: 'Overtime amount', value: effectiveEmployee.overtimeAmount },
-          { label: 'Variable pay', value: effectiveEmployee.variablePayTotal },
-          { label: 'Vacation pay', value: effectiveEmployee.vacationPay },
-          { label: 'Vacation bonus 1/3', value: effectiveEmployee.vacationBonusOneThird },
-          { label: '13th salary provision', value: effectiveEmployee.thirteenthSalaryProvision },
-          { label: 'Taxable benefits', value: effectiveEmployee.taxableBenefits },
-          { label: 'Gross pay', value: effectiveEmployee.grossPay, tone: 'positive' },
+          { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
+          { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
+          { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
+          { label: rowsCopy.vacationPay, value: effectiveEmployee.vacationPay },
+          { label: rowsCopy.vacationBonusOneThird, value: effectiveEmployee.vacationBonusOneThird },
+          { label: rowsCopy.thirteenthSalaryProvision, value: effectiveEmployee.thirteenthSalaryProvision },
+          { label: rowsCopy.taxableBenefits, value: effectiveEmployee.taxableBenefits },
+          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
         ]
       : [
-        { label: 'Period salary', value: effectiveEmployee.periodSalary },
-        { label: 'Overtime amount', value: effectiveEmployee.overtimeAmount },
-        { label: 'Bonuses / commissions', value: effectiveEmployee.bonusesCommissions },
-        { label: 'Vacation premium', value: effectiveEmployee.vacationPremium },
-        { label: 'Proportional Christmas bonus', value: effectiveEmployee.proportionalChristmasBonus },
-        { label: 'Total earnings', value: effectiveEmployee.totalEarnings, tone: 'positive' },
+        { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
+        { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
+        { label: rowsCopy.bonusesCommissions, value: effectiveEmployee.bonusesCommissions },
+        { label: rowsCopy.vacationPremium, value: effectiveEmployee.vacationPremium },
+        { label: rowsCopy.proportionalChristmasBonus, value: effectiveEmployee.proportionalChristmasBonus },
+        { label: rowsCopy.totalEarnings, value: effectiveEmployee.totalEarnings, tone: 'positive' },
       ];
 
   const taxRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
     ? []
     : isCanadaStandard
       ? [
-        { label: 'Federal tax', value: effectiveEmployee.federalTax, tone: 'negative' },
-        { label: 'Provincial tax', value: effectiveEmployee.provincialTax, tone: 'negative' },
+        { label: rowsCopy.federalTax, value: effectiveEmployee.federalTax, tone: 'negative' },
+        { label: rowsCopy.provincialTax, value: effectiveEmployee.provincialTax, tone: 'negative' },
       ]
       : isUsaPayroll
         ? [
-          { label: 'Federal withholding', value: effectiveEmployee.federalTax, tone: 'negative' },
-          { label: 'State withholding', value: effectiveEmployee.provincialTax, tone: 'negative' },
+          { label: rowsCopy.federalWithholding, value: effectiveEmployee.federalTax, tone: 'negative' },
+          { label: rowsCopy.stateWithholding, value: effectiveEmployee.provincialTax, tone: 'negative' },
         ]
       : isCanadaQuebec
         ? [
-          { label: 'Federal tax', value: effectiveEmployee.federalTax, tone: 'negative' },
-          { label: 'Quebec provincial tax', value: effectiveEmployee.quebecProvincialTax, tone: 'negative' },
+          { label: rowsCopy.federalTax, value: effectiveEmployee.federalTax, tone: 'negative' },
+          { label: rowsCopy.quebecProvincialTax, value: effectiveEmployee.quebecProvincialTax, tone: 'negative' },
         ]
         : isColombiaPayroll
           ? []
         : [
-          { label: 'ISR before subsidy', value: effectiveEmployee.isrBeforeSubsidy, tone: 'negative' },
-          { label: 'Employment subsidy', value: effectiveEmployee.employmentSubsidy, tone: 'positive' },
-          { label: 'Final ISR', value: effectiveEmployee.finalIsr, tone: 'negative' },
+          { label: rowsCopy.isrBeforeSubsidy, value: effectiveEmployee.isrBeforeSubsidy, tone: 'negative' },
+          { label: rowsCopy.employmentSubsidy, value: effectiveEmployee.employmentSubsidy, tone: 'positive' },
+          { label: rowsCopy.finalIsr, value: effectiveEmployee.finalIsr, tone: 'negative' },
         ];
 
   const employeeDeductionRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
     ? []
     : isCanadaStandard
       ? [
-        { label: 'HR User CPP', value: effectiveEmployee.employeeCpp, tone: 'negative' },
-        { label: 'HR User CPP2', value: effectiveEmployee.employeeCpp2, tone: 'negative' },
-        { label: 'HR User EI', value: effectiveEmployee.employeeEi, tone: 'negative' },
-        { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
-        { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+        { label: rowsCopy.employeeCpp, value: effectiveEmployee.employeeCpp, tone: 'negative' },
+        { label: rowsCopy.employeeCpp2, value: effectiveEmployee.employeeCpp2, tone: 'negative' },
+        { label: rowsCopy.employeeEi, value: effectiveEmployee.employeeEi, tone: 'negative' },
+        { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
+        { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
       ]
       : isUsaPayroll
         ? [
-          { label: 'HR User Social Security', value: effectiveEmployee.employeeCpp, tone: 'negative' },
-          { label: 'HR User Medicare', value: effectiveEmployee.employeeEi, tone: 'negative' },
-          { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
-          { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+          { label: rowsCopy.employeeSocialSecurity, value: effectiveEmployee.employeeCpp, tone: 'negative' },
+          { label: rowsCopy.employeeMedicare, value: effectiveEmployee.employeeEi, tone: 'negative' },
+          { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
+          { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
         ]
       : isCanadaQuebec
         ? [
-          { label: 'HR User QPP', value: effectiveEmployee.employeeQpp, tone: 'negative' },
-          { label: 'HR User QPP2', value: effectiveEmployee.employeeQpp2, tone: 'negative' },
-          { label: 'HR User QPIP', value: effectiveEmployee.employeeQpip, tone: 'negative' },
-          { label: 'HR User EI', value: effectiveEmployee.employeeEi, tone: 'negative' },
-          { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
-          { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+          { label: rowsCopy.employeeQpp, value: effectiveEmployee.employeeQpp, tone: 'negative' },
+          { label: rowsCopy.employeeQpp2, value: effectiveEmployee.employeeQpp2, tone: 'negative' },
+          { label: rowsCopy.employeeQpip, value: effectiveEmployee.employeeQpip, tone: 'negative' },
+          { label: rowsCopy.employeeEi, value: effectiveEmployee.employeeEi, tone: 'negative' },
+          { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
+          { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
         ]
         : isColombiaPayroll
           ? [
-            { label: 'HR User health', value: effectiveEmployee.employeeHealth, tone: 'negative' },
-            { label: 'HR User pension', value: effectiveEmployee.employeePension, tone: 'negative' },
-            { label: 'Withholding tax', value: effectiveEmployee.withholdingTax, tone: 'negative' },
-            { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
-            { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+            { label: rowsCopy.employeeHealth, value: effectiveEmployee.employeeHealth, tone: 'negative' },
+            { label: rowsCopy.employeePension, value: effectiveEmployee.employeePension, tone: 'negative' },
+            { label: rowsCopy.withholdingTax, value: effectiveEmployee.withholdingTax, tone: 'negative' },
+            { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
+            { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
           ]
         : isBrazilPayroll
           ? [
-            { label: 'HR User INSS', value: effectiveEmployee.employeeInss, tone: 'negative' },
-            { label: 'IRRF', value: effectiveEmployee.irrf, tone: 'negative' },
-            { label: 'Transportation voucher', value: effectiveEmployee.transportationVoucher, tone: 'negative' },
-            { label: 'Meal / benefits deduction', value: effectiveEmployee.mealBenefitsDeduction, tone: 'negative' },
-            { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
-            { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+            { label: rowsCopy.employeeInss, value: effectiveEmployee.employeeInss, tone: 'negative' },
+            { label: rowsCopy.irrf, value: effectiveEmployee.irrf, tone: 'negative' },
+            { label: rowsCopy.transportationVoucher, value: effectiveEmployee.transportationVoucher, tone: 'negative' },
+            { label: rowsCopy.mealBenefitsDeduction, value: effectiveEmployee.mealBenefitsDeduction, tone: 'negative' },
+            { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
+            { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
           ]
         : [
-          { label: 'HR User IMSS', value: effectiveEmployee.employeeImss, tone: 'negative' },
-          { label: 'INFONAVIT type', value: effectiveEmployee.infonavitType },
-          { label: 'INFONAVIT discount', value: effectiveEmployee.infonavitDiscount, tone: 'negative' },
-          { label: 'Loans', value: effectiveEmployee.loans, tone: 'negative' },
-          { label: 'Other discounts', value: effectiveEmployee.otherDiscounts, tone: 'negative' },
-          { label: 'Net adjustment', value: effectiveEmployee.netAdjustment, tone: effectiveEmployee.netAdjustment < 0 ? 'negative' : 'neutral' },
-          { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+          { label: rowsCopy.employeeImss, value: effectiveEmployee.employeeImss, tone: 'negative' },
+          { label: rowsCopy.infonavitType, value: effectiveEmployee.infonavitType },
+          { label: rowsCopy.infonavitDiscount, value: effectiveEmployee.infonavitDiscount, tone: 'negative' },
+          { label: rowsCopy.loans, value: effectiveEmployee.loans, tone: 'negative' },
+          { label: rowsCopy.otherDiscounts, value: effectiveEmployee.otherDiscounts, tone: 'negative' },
+          { label: rowsCopy.netAdjustment, value: effectiveEmployee.netAdjustment, tone: effectiveEmployee.netAdjustment < 0 ? 'negative' : 'neutral' },
+          { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
         ];
 
   const employerObligationRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
     ? []
     : isCanadaStandard
       ? [
-        { label: 'Employer CPP', value: effectiveEmployee.employerCpp },
-        { label: 'Employer CPP2', value: effectiveEmployee.employerCpp2 },
-        { label: 'Employer EI', value: effectiveEmployee.employerEi },
-        { label: 'Employer benefits', value: effectiveEmployee.employerBenefits },
-        { label: 'Total employer obligations', value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
+        { label: rowsCopy.employerCpp, value: effectiveEmployee.employerCpp },
+        { label: rowsCopy.employerCpp2, value: effectiveEmployee.employerCpp2 },
+        { label: rowsCopy.employerEi, value: effectiveEmployee.employerEi },
+        { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
+        { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
       ]
       : isUsaPayroll
         ? [
-          { label: 'Employer Social Security', value: effectiveEmployee.employerCpp },
-          { label: 'Employer Medicare', value: effectiveEmployee.employerEi },
-          { label: 'FUTA / SUTA', value: effectiveEmployee.payrollStateTax },
-          { label: 'Employer benefits', value: effectiveEmployee.employerBenefits },
-          { label: 'Total employer obligations', value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
+          { label: rowsCopy.employerSocialSecurity, value: effectiveEmployee.employerCpp },
+          { label: rowsCopy.employerMedicare, value: effectiveEmployee.employerEi },
+          { label: rowsCopy.futaSuta, value: effectiveEmployee.payrollStateTax },
+          { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
+          { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
         ]
       : isCanadaQuebec
         ? [
-          { label: 'Employer QPP', value: effectiveEmployee.employerQpp },
-          { label: 'Employer QPP2', value: effectiveEmployee.employerQpp2 },
-          { label: 'Employer QPIP', value: effectiveEmployee.employerQpip },
-          { label: 'Employer EI', value: effectiveEmployee.employerEi },
-          { label: 'Employer benefits', value: effectiveEmployee.employerBenefits },
-          { label: 'Total employer obligations', value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
+          { label: rowsCopy.employerQpp, value: effectiveEmployee.employerQpp },
+          { label: rowsCopy.employerQpp2, value: effectiveEmployee.employerQpp2 },
+          { label: rowsCopy.employerQpip, value: effectiveEmployee.employerQpip },
+          { label: rowsCopy.employerEi, value: effectiveEmployee.employerEi },
+          { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
+          { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
         ]
         : isColombiaPayroll
           ? [
-            { label: 'Employer health', value: effectiveEmployee.employerHealth },
-            { label: 'Employer pension', value: effectiveEmployee.employerPension },
-            { label: 'ARL', value: effectiveEmployee.arl },
-            { label: 'Family compensation fund', value: effectiveEmployee.familyCompensationFund },
-            { label: 'ICBF', value: effectiveEmployee.icbf },
-            { label: 'SENA', value: effectiveEmployee.sena },
-            { label: 'Total employer obligations', value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
+            { label: rowsCopy.employerHealth, value: effectiveEmployee.employerHealth },
+            { label: rowsCopy.employerPension, value: effectiveEmployee.employerPension },
+            { label: rowsCopy.arl, value: effectiveEmployee.arl },
+            { label: rowsCopy.familyCompensationFund, value: effectiveEmployee.familyCompensationFund },
+            { label: rowsCopy.icbf, value: effectiveEmployee.icbf },
+            { label: rowsCopy.sena, value: effectiveEmployee.sena },
+            { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
           ]
         : isBrazilPayroll
           ? [
-            { label: 'Employer INSS', value: effectiveEmployee.employerInss },
-            { label: 'FGTS', value: effectiveEmployee.fgts },
-            { label: 'RAT / Work Accident', value: effectiveEmployee.ratWorkAccident },
-            { label: 'Third-party Contributions', value: effectiveEmployee.thirdPartyContributions },
-            { label: 'Employer benefits', value: effectiveEmployee.employerBenefits },
-            { label: 'Total employer obligations', value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
+            { label: rowsCopy.employerInss, value: effectiveEmployee.employerInss },
+            { label: rowsCopy.fgts, value: effectiveEmployee.fgts },
+            { label: rowsCopy.ratWorkAccident, value: effectiveEmployee.ratWorkAccident },
+            { label: rowsCopy.thirdPartyContributions, value: effectiveEmployee.thirdPartyContributions },
+            { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
+            { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
           ]
         : [
-          { label: 'Employer IMSS', value: effectiveEmployee.employerImss },
-          { label: 'Employer INFONAVIT', value: effectiveEmployee.employerInfonavit },
-          { label: 'SAR 2%', value: effectiveEmployee.sar },
-          { label: 'Payroll tax / state tax', value: effectiveEmployee.payrollStateTax },
-          { label: 'Occupational risk', value: effectiveEmployee.occupationalRisk },
-          { label: 'Childcare IMSS', value: effectiveEmployee.childcareImss },
-          { label: 'Total employer obligations', value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
+          { label: rowsCopy.employerImss, value: effectiveEmployee.employerImss },
+          { label: rowsCopy.employerInfonavit, value: effectiveEmployee.employerInfonavit },
+          { label: rowsCopy.sar2, value: effectiveEmployee.sar },
+          { label: rowsCopy.payrollTaxStateTax, value: effectiveEmployee.payrollStateTax },
+          { label: rowsCopy.occupationalRisk, value: effectiveEmployee.occupationalRisk },
+          { label: rowsCopy.childcareImss, value: effectiveEmployee.childcareImss },
+          { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
         ];
 
   const internalOnlyRows: BreakdownValueRow[] = !effectiveEmployee
     ? []
     : isColombiaPayroll || isCanadaPayroll || isUsaPayroll || isBrazilPayroll
       ? [
-        { label: 'Other deductions', value: effectiveEmployee.otherDeductions, tone: 'negative' },
-        { label: 'Total internal deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+        { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
+        { label: rowsCopy.totalInternalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
       ]
       : [
-        { label: 'Loans', value: effectiveEmployee.loans, tone: 'negative' },
-        { label: 'Other deductions', value: effectiveEmployee.otherDiscounts, tone: 'negative' },
-        { label: 'Net adjustment', value: effectiveEmployee.netAdjustment, tone: effectiveEmployee.netAdjustment < 0 ? 'negative' : 'neutral' },
-        { label: 'Total internal deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
+        { label: rowsCopy.loans, value: effectiveEmployee.loans, tone: 'negative' },
+        { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDiscounts, tone: 'negative' },
+        { label: rowsCopy.netAdjustment, value: effectiveEmployee.netAdjustment, tone: effectiveEmployee.netAdjustment < 0 ? 'negative' : 'neutral' },
+        { label: rowsCopy.totalInternalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
       ];
 
   const benefitsRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
     ? []
     : isColombiaPayroll
       ? [
-        { label: 'Severance', value: effectiveEmployee.severance },
-        { label: 'Severance interest', value: effectiveEmployee.severanceInterest },
-        { label: 'Service bonus', value: effectiveEmployee.serviceBonus },
-        { label: 'Vacation provision', value: effectiveEmployee.vacationProvision },
+        { label: rowsCopy.severance, value: effectiveEmployee.severance },
+        { label: rowsCopy.severanceInterest, value: effectiveEmployee.severanceInterest },
+        { label: rowsCopy.serviceBonus, value: effectiveEmployee.serviceBonus },
+        { label: rowsCopy.vacationProvision, value: effectiveEmployee.vacationProvision },
       ]
       : isBrazilPayroll
         ? [
-          { label: 'Transportation voucher', value: effectiveEmployee.transportationVoucher, tone: 'negative' },
-          { label: 'Meal / benefits deduction', value: effectiveEmployee.mealBenefitsDeduction, tone: 'negative' },
-          { label: 'Employer benefits', value: effectiveEmployee.employerBenefits },
+          { label: rowsCopy.transportationVoucher, value: effectiveEmployee.transportationVoucher, tone: 'negative' },
+          { label: rowsCopy.mealBenefitsDeduction, value: effectiveEmployee.mealBenefitsDeduction, tone: 'negative' },
+          { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
         ]
         : [];
 
@@ -4773,16 +4778,16 @@ function PayrollBreakdownModal({
     ? []
     : [
       {
-        label: usesGrossPayModel ? 'Gross pay' : 'Total earnings',
+        label: usesGrossPayModel ? rowsCopy.grossPay : rowsCopy.totalEarnings,
         value: usesGrossPayModel ? effectiveEmployee.grossPay : effectiveEmployee.totalEarnings,
         tone: 'positive',
       },
-      { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
-      { label: 'Net pay', value: effectiveEmployee.netPay, tone: 'primary' },
+      { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
+      { label: rowsCopy.netPay, value: effectiveEmployee.netPay, tone: 'primary' },
       {
         label: effectiveEmployee.statutoryPayroll
-          ? 'Total payroll cost (Net Pay + Employer Obligations)'
-          : 'Total payroll cost (Net Pay)',
+          ? copy.formulas.costWithEmployer
+          : copy.formulas.costInternal,
         value: effectiveEmployee.totalPayrollCost,
         tone: 'primary',
       },
@@ -4791,13 +4796,13 @@ function PayrollBreakdownModal({
   const headerIdentityLine = !effectiveEmployee
     ? ''
     : isCanadaPayroll
-      ? `SIN: ${effectiveEmployee.sin || '—'} | Province: ${effectiveEmployee.province || '—'}`
+      ? `${copy.identity.sin}: ${effectiveEmployee.sin || '—'} | ${copy.identity.province}: ${effectiveEmployee.province || '—'}`
       : isUsaPayroll
-        ? `SSN / Tax ID: ${effectiveEmployee.sin || '—'} | State: ${effectiveEmployee.province || '—'}`
+        ? `${copy.identity.ssnTaxId}: ${effectiveEmployee.sin || '—'} | ${copy.identity.state}: ${effectiveEmployee.province || '—'}`
       : isColombiaPayroll
-        ? `ID Number: ${effectiveEmployee.idNumber || '—'} | Contract Type: ${effectiveEmployee.contractType}`
+        ? `${copy.identity.idNumber}: ${effectiveEmployee.idNumber || '—'} | ${copy.identity.contractType}: ${effectiveEmployee.contractType}`
       : isBrazilPayroll
-        ? `CPF: ${effectiveEmployee.cpf || '—'} | PIS/PASEP: ${effectiveEmployee.pisPasep || '—'}`
+        ? `${copy.identity.cpf}: ${effectiveEmployee.cpf || '—'} | ${copy.identity.pisPasep}: ${effectiveEmployee.pisPasep || '—'}`
       : `RFC: ${effectiveEmployee.rfc} | CURP: ${effectiveEmployee.curp} | NSS: ${effectiveEmployee.nss}`;
 
   const handlePrintBreakdownPdf = () => {
@@ -4805,24 +4810,24 @@ function PayrollBreakdownModal({
       return;
     }
 
-    const title = `Payroll Breakdown - ${effectiveEmployee.employee}`;
+    const title = copy.printTitle(effectiveEmployee.employee);
     const headerHtml = `
       <div class="header">
         <h1>${escapePrintHtml(title)}</h1>
-        <p class="meta">Period: ${escapePrintHtml(periodLabel)}</p>
-        <p class="meta">Jurisdiction: ${escapePrintHtml(jurisdictionLabel || '—')}</p>
+        <p class="meta">${escapePrintHtml(copy.period)}: ${escapePrintHtml(periodLabel)}</p>
+        <p class="meta">${escapePrintHtml(copy.jurisdiction)}: ${escapePrintHtml(jurisdictionLabel || '—')}</p>
         <p class="meta">${escapePrintHtml(headerIdentityLine)}</p>
-        <p class="meta"><span class="badge">${escapePrintHtml(effectiveEmployee.statutoryPayroll ? 'Statutory payroll' : 'Internal only payroll')}</span></p>
+        <p class="meta"><span class="badge">${escapePrintHtml(effectiveEmployee.statutoryPayroll ? copy.statutoryPayroll : copy.internalOnlyPayroll)}</span></p>
       </div>
     `;
 
-    const earningsHtml = buildPrintSection('Earnings', earningsRows);
+    const earningsHtml = buildPrintSection(copy.earnings, earningsRows);
     const taxHtml = effectiveEmployee.statutoryPayroll && taxRows.length > 0
       ? buildPrintSection(breakdownConfig.taxSectionTitle, taxRows)
       : '';
     const deductionsHtml = effectiveEmployee.statutoryPayroll
       ? buildPrintSection(breakdownConfig.employeeDeductionsTitle, employeeDeductionRows)
-      : buildPrintSection('Internal Deductions', internalOnlyRows, breakdownConfig.internalOnlyNotice);
+      : buildPrintSection(copy.internalDeductions, internalOnlyRows, breakdownConfig.internalOnlyNotice);
     const employerHtml = effectiveEmployee.statutoryPayroll
       ? buildPrintSection(
         breakdownConfig.employerObligationsTitle,
@@ -4831,14 +4836,14 @@ function PayrollBreakdownModal({
       )
       : '';
     const benefitsHtml = effectiveEmployee.statutoryPayroll && benefitsRows.length > 0
-      ? buildPrintSection(breakdownConfig.benefitsSectionTitle || 'Benefits / Vouchers', benefitsRows)
+      ? buildPrintSection(breakdownConfig.benefitsSectionTitle || copy.benefitsVouchers, benefitsRows)
       : '';
     const contributionHtml = effectiveEmployee.statutoryPayroll
       ? `
         <div class="section">
           <h2>${escapePrintHtml(breakdownConfig.contributionBreakdownTitle)}</h2>
           <table>
-            <thead><tr><th>Concept</th><th class="num">Employer</th><th class="num">HR User</th></tr></thead>
+            <thead><tr><th>${escapePrintHtml(copy.concept)}</th><th class="num">${escapePrintHtml(copy.employer)}</th><th class="num">${escapePrintHtml(copy.employee)}</th></tr></thead>
             <tbody>
               ${contributionBreakdown.map((row) => `<tr><td>${escapePrintHtml(row.concept)}</td><td class="num">${escapePrintHtml(formatNumber(row.employer))}</td><td class="num">${escapePrintHtml(formatNumber(row.employee))}</td></tr>`).join('')}
             </tbody>
@@ -4865,16 +4870,16 @@ function PayrollBreakdownModal({
         <DialogHeader className="shrink-0 bg-[#59C3A5] px-5 py-4 text-left text-white sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <DialogTitle className="text-xl font-semibold">Payroll breakdown</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">{copy.title}</DialogTitle>
               <DialogDescription className="mt-1 text-sm text-blue-100">
-                {employee ? `${employee.employee} · ${periodLabel}` : 'No payroll row selected.'}
+                {employee ? `${employee.employee} · ${periodLabel}` : copy.noRowSelected}
               </DialogDescription>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/60 bg-white/10 transition-colors hover:bg-white/20"
-              aria-label="Close"
+              aria-label={copy.closeLabel}
             >
               <X className="h-4 w-4" />
             </button>
@@ -4883,7 +4888,7 @@ function PayrollBreakdownModal({
 
         {!effectiveEmployee ? (
           <div className="flex flex-1 items-center justify-center px-6 text-sm text-slate-500 dark:text-slate-400">
-            No payroll row selected.
+            {copy.noRowSelected}
           </div>
         ) : (
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-950/40 sm:px-6">
@@ -4901,7 +4906,7 @@ function PayrollBreakdownModal({
                   ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-300'
                   : 'border border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200'}`}
                 >
-                  {effectiveEmployee.statutoryPayroll ? 'Calculated' : 'Internal only'}
+                  {effectiveEmployee.statutoryPayroll ? copy.calculated : copy.internalOnly}
                 </span>
               </div>
               {!effectiveEmployee.statutoryPayroll && (
@@ -4923,7 +4928,7 @@ function PayrollBreakdownModal({
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Earnings</h4>
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{copy.earnings}</h4>
                 {renderValueRows(earningsRows)}
               </section>
 
@@ -4934,7 +4939,7 @@ function PayrollBreakdownModal({
                       <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.taxSectionTitle}</h4>
                       {!isCanadaPayroll && !isUsaPayroll && !isBrazilPayroll && !isColombiaPayroll && (
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          ISR is calculated before applying the employment subsidy. The final ISR is the amount withheld from the HR user.
+                          {copy.isrHint}
                         </p>
                       )}
                       {renderValueRows(taxRows)}
@@ -4955,7 +4960,7 @@ function PayrollBreakdownModal({
                 </>
               ) : (
                 <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Internal deductions</h4>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{copy.internalDeductions}</h4>
                   {renderValueRows(internalOnlyRows)}
                 </section>
               )}
@@ -4969,9 +4974,9 @@ function PayrollBreakdownModal({
                     <table className="w-full min-w-[560px] border-collapse text-sm">
                       <thead>
                         <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700">
-                          <th className="py-2 pr-3">Concept</th>
-                          <th className="py-2 px-3 text-right">Employer</th>
-                          <th className="py-2 pl-3 text-right">HR User</th>
+                          <th className="py-2 pr-3">{copy.concept}</th>
+                          <th className="py-2 px-3 text-right">{copy.employer}</th>
+                          <th className="py-2 pl-3 text-right">{copy.employee}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4989,7 +4994,7 @@ function PayrollBreakdownModal({
 
                 {benefitsRows.length > 0 && (
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.benefitsSectionTitle || 'Benefits / Vouchers'}</h4>
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.benefitsSectionTitle || copy.benefitsVouchers}</h4>
                     {renderValueRows(benefitsRows)}
                   </section>
                 )}
@@ -5001,30 +5006,30 @@ function PayrollBreakdownModal({
               <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-xl border border-[#59C3A5]/20 bg-white px-3 py-3 dark:border-[#59C3A5]/40 dark:bg-slate-900/60">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {usesGrossPayModel ? 'Net Pay = Gross Pay - Total Deductions' : 'Net Pay = Total Earnings - Total Deductions'}
+                    {usesGrossPayModel ? copy.formulas.netFromGross : copy.formulas.netFromEarnings}
                   </p>
                   {renderValueRows([
                     {
-                      label: usesGrossPayModel ? 'Gross pay' : 'Total earnings',
+                      label: usesGrossPayModel ? rowsCopy.grossPay : rowsCopy.totalEarnings,
                       value: usesGrossPayModel ? effectiveEmployee.grossPay : effectiveEmployee.totalEarnings,
                       tone: 'positive',
                     },
-                    { label: 'Total deductions', value: effectiveEmployee.totalDeductions, tone: 'negative' },
-                    { label: 'Net pay', value: effectiveEmployee.netPay, tone: 'primary' },
+                    { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
+                    { label: rowsCopy.netPay, value: effectiveEmployee.netPay, tone: 'primary' },
                   ])}
                 </div>
                 <div className="rounded-xl border border-[#59C3A5]/20 bg-white px-3 py-3 dark:border-[#59C3A5]/40 dark:bg-slate-900/60">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {effectiveEmployee.statutoryPayroll
-                      ? 'Total Payroll Cost = Net Pay + Employer Obligations'
-                      : 'Total Payroll Cost = Net Pay'}
+                      ? copy.formulas.costWithEmployer
+                      : copy.formulas.costInternal}
                   </p>
                   {renderValueRows([
-                    { label: 'Net pay', value: effectiveEmployee.netPay },
+                    { label: rowsCopy.netPay, value: effectiveEmployee.netPay },
                     ...(effectiveEmployee.statutoryPayroll
-                      ? [{ label: 'Employer obligations', value: effectiveEmployee.totalEmployerObligations }]
+                      ? [{ label: rowsCopy.employerObligations, value: effectiveEmployee.totalEmployerObligations }]
                       : []),
-                    { label: 'Total payroll cost', value: effectiveEmployee.totalPayrollCost, tone: 'primary' },
+                    { label: rowsCopy.totalPayrollCost, value: effectiveEmployee.totalPayrollCost, tone: 'primary' },
                   ])}
                 </div>
               </div>
@@ -5033,10 +5038,10 @@ function PayrollBreakdownModal({
         )}
 
         <DialogFooter className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900 sm:px-6">
-          <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">Close</Button>
+          <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">{copy.closeLabel}</Button>
           <Button type="button" onClick={handlePrintBreakdownPdf} className="gap-2 rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]">
             <Printer className="h-4 w-4" />
-            Print breakdown
+            {copy.printBreakdown}
           </Button>
         </DialogFooter>
       </DialogContent>

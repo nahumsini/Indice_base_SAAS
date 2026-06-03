@@ -53,7 +53,7 @@ export const esMX = {
       ],
     },
     control: {
-      label: 'Control',
+      label: 'Centro de control',
       ctaLabel: 'Abrir centro de control',
       title: 'Opera horarios y accesos con disciplina',
       summary: 'Gestiona horarios, kioskos, configuraciones de asistencia y rutinas operativas del equipo.',
@@ -180,7 +180,7 @@ export const esMX = {
       ],
     },
     kpis: {
-      label: 'KPIs',
+      label: 'Indicadores RH',
       ctaLabel: 'Revisar KPIs de RH',
       title: 'Mide la operación del personal',
       summary: 'Lee señales de headcount, actividad, asistencia, nómina y comportamiento operativo del equipo.',

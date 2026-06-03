@@ -31,7 +31,6 @@ export const esCO = {
     total: 'Total de personal',
     payroll: 'Pago mensual',
     statusReview: (count: number) => `${count} requieren revisión de estado`,
-    selectedBadge: (count: number) => `${count} seleccionados`,
     summaryInsight: ({
       activeCount,
       activeRate,

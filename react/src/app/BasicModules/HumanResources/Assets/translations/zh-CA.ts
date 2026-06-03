@@ -64,6 +64,13 @@ export const zhCA = {
     notes: '备注',
     actions: '操作',
   },
+  pagination: {
+    pageSize: '每页行数',
+    showing: (start: number, end: number, total: number) => `显示 ${start}-${end} 条，共 ${total} 项资产`,
+    page: (current: number, total: number) => `第 ${current} 页，共 ${total} 页`,
+    previous: '上一页',
+    next: '下一页',
+  },
   kpis: {
     visibleAfterFilters: '筛选后显示',
     assetValue: '资产价值',

@@ -4,6 +4,7 @@ import type {
   PayrollRunDetailResponse,
   PayrollRunLine,
 } from '../../../api/humanResources';
+import type { PayrollTranslations } from './translations';
 
 import '../../Dashboard/BusinessProfile/BusinessDiagnosisPdf/businessDiagnosisPdf.css';
 import './payrollPdf.css';
@@ -19,6 +20,7 @@ export type PayrollRunPdfDocumentProps = {
   statusLabel: string;
   groupingLabel: string;
   payPeriodLabel: string;
+  copy: PayrollTranslations['pdf'];
 };
 
 const CURRENCY = 'USD';
@@ -84,24 +86,23 @@ const getPrimaryItems = (items: PayrollLineItem[]) => (
     .slice(0, 4)
 );
 
-const buildExecutiveSummary = (detail: PayrollRunDetailResponse, locale: string) => {
+const buildExecutiveSummary = (
+  detail: PayrollRunDetailResponse,
+  locale: string,
+  copy: PayrollTranslations['pdf'],
+) => {
   const { run, lines } = detail;
-  const highestNetLine = [...lines].sort((left, right) => right.net_amount - left.net_amount)[0];
-  const manualAdjustmentsCount = lines.reduce((total, line) => total + getManualAdjustments(line).length, 0);
-
-  return `This payroll run covers ${lines.length} HR user${lines.length === 1 ? '' : 's'} from ${formatDate(run.period_start_date, locale)} to ${formatDate(run.period_end_date, locale)}. `
-    + `Net payroll closes at ${formatCurrency(run.net_amount, locale)} with ${formatCurrency(run.deductions_amount, locale)} in deductions and `
-    + `${formatCurrency(run.employer_contributions_amount, locale)} in employer-side costs. `
-    + `${highestNetLine ? `${highestNetLine.user_name} has the largest net payout in this run. ` : ''}`
-    + `${manualAdjustmentsCount > 0 ? `${manualAdjustmentsCount} manual adjustment${manualAdjustmentsCount === 1 ? '' : 's'} were applied across the ledger.` : 'No manual adjustments were applied in this run.'}`;
+  const period = `${formatDate(run.period_start_date, locale)} - ${formatDate(run.period_end_date, locale)}`;
+  return copy.executiveSummaryText(period, lines.length, formatCurrency(run.net_amount, locale), run.status);
 };
 
-const buildPolicySummary = (preferences: PayrollPreferences) => {
-  const leavePolicy = preferences.pay_leave_days ? 'Leave days are payable in this payroll configuration.' : 'Leave days are excluded from pay in this payroll configuration.';
-
-  return `${leavePolicy} Default daily hours are set to ${preferences.default_daily_hours}, `
-    + `and the default grouping mode is ${preferences.grouping_mode.replace('_', ' ')}.`;
-};
+const buildPolicySummary = (preferences: PayrollPreferences, copy: PayrollTranslations['pdf']) => (
+  copy.policySummary(
+    preferences.grouping_mode.replace('_', ' '),
+    preferences.default_daily_hours,
+    preferences.pay_leave_days ? copy.leavePaid : copy.leaveUnpaid,
+  )
+);
 
 const getTopLines = (lines: PayrollRunLine[]) => (
   [...lines]
@@ -158,6 +159,7 @@ export function PayrollRunPdfDocument({
   statusLabel,
   groupingLabel,
   payPeriodLabel,
+  copy,
 }: PayrollRunPdfDocumentProps) {
   const topLines = getTopLines(detail.lines);
   const totals = getTotals(detail);
@@ -172,7 +174,7 @@ export function PayrollRunPdfDocument({
         <div className="bdpdf-page-card">
           <div className="bdpdf-hero prpdf-hero">
             <div className="bdpdf-hero-topline">
-              <div className="bdpdf-brand-badge">Indice payroll report</div>
+              <div className="bdpdf-brand-badge">{copy.brandBadge}</div>
               <div className="bdpdf-report-id">{reportId}</div>
             </div>
 
@@ -181,15 +183,15 @@ export function PayrollRunPdfDocument({
 
             <div className="bdpdf-hero-meta">
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Run status</p>
+                <p className="bdpdf-meta-label">{copy.runStatus}</p>
                 <p className="bdpdf-meta-value">{statusLabel}</p>
               </div>
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Grouping</p>
+                <p className="bdpdf-meta-label">{copy.grouping}</p>
                 <p className="bdpdf-meta-value">{groupingLabel}</p>
               </div>
               <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">Generated</p>
+                <p className="bdpdf-meta-label">{copy.generated}</p>
                   <p className="bdpdf-meta-value">{formatShortDateTime(generatedAt, locale)}</p>
               </div>
             </div>
@@ -198,98 +200,98 @@ export function PayrollRunPdfDocument({
           <div className="bdpdf-page-content">
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Executive summary</h2>
-                <p className="bdpdf-section-caption">Current payroll posture and the most important signals in one page</p>
+                <h2 className="bdpdf-section-title">{copy.executiveSummary}</h2>
+                <p className="bdpdf-section-caption">{copy.executiveSummaryCaption}</p>
               </div>
 
               <div className="bdpdf-summary-grid">
                 <div className="bdpdf-summary-card">
-                  <p className="bdpdf-lead">{buildExecutiveSummary(detail, locale)}</p>
+                  <p className="bdpdf-lead">{buildExecutiveSummary(detail, locale, copy)}</p>
                 </div>
                 <div className="bdpdf-panel-card">
-                  <p className="bdpdf-lead">{buildPolicySummary(preferences)}</p>
+                  <p className="bdpdf-lead">{buildPolicySummary(preferences, copy)}</p>
                 </div>
               </div>
 
               <div className="bdpdf-highlight-grid">
                 <div className="bdpdf-highlight-card bdpdf-highlight-card--accent">
-                  <p className="bdpdf-highlight-label">Net payroll</p>
+                  <p className="bdpdf-highlight-label">{copy.netPayroll}</p>
                   <p className="bdpdf-highlight-value">{formatCurrency(detail.run.net_amount, locale)}</p>
-                  <p className="bdpdf-highlight-text">HR User take-home total for this run</p>
+                  <p className="bdpdf-highlight-text">{copy.netPayrollHint}</p>
                 </div>
                 <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Gross payroll</p>
+                  <p className="bdpdf-highlight-label">{copy.grossPayroll}</p>
                   <p className="bdpdf-highlight-value">{formatCurrency(detail.run.gross_amount, locale)}</p>
-                  <p className="bdpdf-highlight-text">Before deductions and employer-side costs</p>
+                  <p className="bdpdf-highlight-text">{copy.grossPayrollHint}</p>
                 </div>
                 <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Employer cost</p>
+                  <p className="bdpdf-highlight-label">{copy.employerCost}</p>
                   <p className="bdpdf-highlight-value">{formatCurrency(detail.run.employer_contributions_amount, locale)}</p>
-                  <p className="bdpdf-highlight-text">Company-funded statutory contributions</p>
+                  <p className="bdpdf-highlight-text">{copy.employerCostHint}</p>
                 </div>
                 <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">Average net</p>
+                  <p className="bdpdf-highlight-label">{copy.averageNet}</p>
                   <p className="bdpdf-highlight-value">{formatCurrency(averageNet, locale)}</p>
-                  <p className="bdpdf-highlight-text">Per HR user across {detail.run.users_count} payroll lines</p>
+                  <p className="bdpdf-highlight-text">{copy.averageNetHint(detail.run.users_count)}</p>
                 </div>
               </div>
             </div>
 
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Run signals</h2>
-                <p className="bdpdf-section-caption">Hours, attendance drag, and fiscal settings driving this payroll</p>
+                <h2 className="bdpdf-section-title">{copy.runSignals}</h2>
+                <p className="bdpdf-section-caption">{copy.runSignalsCaption}</p>
               </div>
 
               <div className="prpdf-signal-grid">
                 <article className="prpdf-signal-card">
                   <div className="prpdf-signal-head">
-                    <h3 className="prpdf-signal-title">Workload mix</h3>
+                    <h3 className="prpdf-signal-title">{copy.workloadMix}</h3>
                     <span className={`bdpdf-score-chip ${statusTone}`}>{payPeriodLabel}</span>
                   </div>
                   <div className="prpdf-signal-kpis">
                     <div>
                       <p className="prpdf-signal-value">{formatWholeNumber(totals.regularHours, locale)}</p>
-                      <p className="prpdf-signal-label">Regular hours</p>
+                      <p className="prpdf-signal-label">{copy.regularHours}</p>
                     </div>
                     <div>
                       <p className="prpdf-signal-value">{formatWholeNumber(totals.overtimeHours, locale)}</p>
-                      <p className="prpdf-signal-label">Overtime hours</p>
+                      <p className="prpdf-signal-label">{copy.overtimeHours}</p>
                     </div>
                   </div>
                 </article>
 
                 <article className="prpdf-signal-card">
                   <div className="prpdf-signal-head">
-                    <h3 className="prpdf-signal-title">Attendance impact</h3>
-                    <span className="bdpdf-score-chip level-3">Attendance</span>
+                    <h3 className="prpdf-signal-title">{copy.attendanceImpact}</h3>
+                    <span className="bdpdf-score-chip level-3">{copy.attendance}</span>
                   </div>
                   <div className="prpdf-signal-kpis">
                     <div>
                       <p className="prpdf-signal-value">{formatWholeNumber(totals.leaveDays, locale)}</p>
-                      <p className="prpdf-signal-label">Leave days</p>
+                      <p className="prpdf-signal-label">{copy.leaveDays}</p>
                     </div>
                     <div>
                       <p className="prpdf-signal-value">{formatWholeNumber(totals.absenceDays, locale)}</p>
-                      <p className="prpdf-signal-label">Absence days</p>
+                      <p className="prpdf-signal-label">{copy.absenceDays}</p>
                     </div>
                     <div>
                       <p className="prpdf-signal-value">{formatWholeNumber(totals.lateCount, locale)}</p>
-                      <p className="prpdf-signal-label">Late events</p>
+                      <p className="prpdf-signal-label">{copy.lateEvents}</p>
                     </div>
                   </div>
                 </article>
 
                 <article className="prpdf-signal-card">
                   <div className="prpdf-signal-head">
-                    <h3 className="prpdf-signal-title">Fiscal configuration</h3>
-                    <span className="bdpdf-score-chip level-4">{preferences.pay_leave_days ? 'Leave paid' : 'Leave unpaid'}</span>
+                    <h3 className="prpdf-signal-title">{copy.fiscalConfiguration}</h3>
+                    <span className="bdpdf-score-chip level-4">{preferences.pay_leave_days ? copy.leavePaid : copy.leaveUnpaid}</span>
                   </div>
                   <ul className="bdpdf-info-list">
-                    <li><span className="bdpdf-bullet">•</span> Default daily hours: {formatWholeNumber(preferences.default_daily_hours, locale)}</li>
-                    <li><span className="bdpdf-bullet">•</span> ISR rate: {formatRate(preferences.isr_rate)}</li>
-                    <li><span className="bdpdf-bullet">•</span> HR User burden: {formatRate(preferences.imss_user_rate + preferences.infonavit_user_rate)}</li>
-                    <li><span className="bdpdf-bullet">•</span> Employer burden: {formatRate(preferences.imss_employer_rate + preferences.infonavit_employer_rate + preferences.sar_employer_rate)}</li>
+                    <li><span className="bdpdf-bullet">•</span> {copy.defaultDailyHours}: {formatWholeNumber(preferences.default_daily_hours, locale)}</li>
+                    <li><span className="bdpdf-bullet">•</span> {copy.isrRate}: {formatRate(preferences.isr_rate)}</li>
+                    <li><span className="bdpdf-bullet">•</span> {copy.employeeBurden}: {formatRate(preferences.imss_user_rate + preferences.infonavit_user_rate)}</li>
+                    <li><span className="bdpdf-bullet">•</span> {copy.employerBurden}: {formatRate(preferences.imss_employer_rate + preferences.infonavit_employer_rate + preferences.sar_employer_rate)}</li>
                   </ul>
                 </article>
               </div>
@@ -297,8 +299,8 @@ export function PayrollRunPdfDocument({
 
             <div className="bdpdf-section">
               <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">Top payouts</h2>
-                <p className="bdpdf-section-caption">Highest net payouts in the current run with the strongest compensation signals</p>
+                <h2 className="bdpdf-section-title">{copy.topPayouts}</h2>
+                <p className="bdpdf-section-caption">{copy.topPayoutsCaption}</p>
               </div>
 
               <div className="prpdf-employee-grid">
@@ -308,7 +310,7 @@ export function PayrollRunPdfDocument({
                       <div>
                         <h3 className="prpdf-employee-title">{line.user_name}</h3>
                         <p className="prpdf-employee-subtitle">
-                          {[line.position_title, line.department, line.unit_name].filter(Boolean).join(' · ') || 'Active payroll line'}
+                          {[line.position_title, line.department, line.unit_name].filter(Boolean).join(' · ') || copy.activePayrollLine}
                         </p>
                       </div>
                       <div className="prpdf-employee-chip">{formatCurrency(line.net_amount, locale)}</div>
@@ -316,15 +318,15 @@ export function PayrollRunPdfDocument({
 
                     <div className="prpdf-employee-metrics">
                       <div>
-                        <p className="prpdf-mini-label">Gross</p>
+                        <p className="prpdf-mini-label">{copy.gross}</p>
                         <p className="prpdf-mini-value">{formatCurrency(line.gross_amount, locale)}</p>
                       </div>
                       <div>
-                        <p className="prpdf-mini-label">Deductions</p>
+                        <p className="prpdf-mini-label">{copy.deductions}</p>
                         <p className="prpdf-mini-value">{formatCurrency(line.deductions_amount, locale)}</p>
                       </div>
                       <div>
-                        <p className="prpdf-mini-label">Employer</p>
+                        <p className="prpdf-mini-label">{copy.employer}</p>
                         <p className="prpdf-mini-value">{formatCurrency(line.employer_contributions_amount, locale)}</p>
                       </div>
                     </div>
@@ -343,8 +345,8 @@ export function PayrollRunPdfDocument({
             </div>
 
             <div className="bdpdf-footer-note">
-              <span>Run period: {formatDate(detail.run.period_start_date, locale)} to {formatDate(detail.run.period_end_date, locale)}</span>
-              <span>Average gross per HR user: {formatCurrency(averageGross, locale)}</span>
+              <span>{copy.runPeriod}: {formatDate(detail.run.period_start_date, locale)} - {formatDate(detail.run.period_end_date, locale)}</span>
+              <span>{copy.averageGross}: {formatCurrency(averageGross, locale)}</span>
             </div>
           </div>
         </div>
@@ -356,24 +358,24 @@ export function PayrollRunPdfDocument({
             <div className="bdpdf-page-content">
               <div className="bdpdf-section">
                 <div className="bdpdf-section-heading">
-                  <h2 className="bdpdf-section-title">HR User ledger</h2>
+                  <h2 className="bdpdf-section-title">{copy.ledger}</h2>
                   <p className="bdpdf-section-caption">
-                    Page {chunkIndex + 1} of {ledgerChunks.length} · Payroll period {formatDate(detail.run.period_start_date, locale)} to {formatDate(detail.run.period_end_date, locale)}
+                    {copy.page} {chunkIndex + 1} {copy.of} {ledgerChunks.length} · {copy.payrollPeriod} {formatDate(detail.run.period_start_date, locale)} - {formatDate(detail.run.period_end_date, locale)}
                   </p>
                 </div>
 
                 <article className="bdpdf-table-card">
-                  <h3 className="bdpdf-table-title">Payroll line breakdown</h3>
+                  <h3 className="bdpdf-table-title">{copy.lineBreakdown}</h3>
                   <table className="bdpdf-table prpdf-ledger-table">
                     <thead>
                       <tr>
-                        <th>HR User</th>
-                        <th>Scope</th>
-                        <th>Payable</th>
-                        <th>Gross</th>
-                        <th>Deductions</th>
-                        <th>Employer</th>
-                        <th>Net</th>
+                        <th>{copy.employee}</th>
+                        <th>{copy.scope}</th>
+                        <th>{copy.payable}</th>
+                        <th>{copy.gross}</th>
+                        <th>{copy.deductions}</th>
+                        <th>{copy.employer}</th>
+                        <th>{copy.net}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -381,22 +383,22 @@ export function PayrollRunPdfDocument({
                         <tr key={line.id}>
                           <td>
                             <div className="prpdf-cell-title">{line.user_name}</div>
-                            <div className="prpdf-cell-subtitle">{line.position_title || 'Role not set'}</div>
+                            <div className="prpdf-cell-subtitle">{line.position_title || copy.roleNotSet}</div>
                           </td>
                           <td>
-                            <div className="prpdf-cell-title">{line.unit_name || line.business_name || 'Single payroll'}</div>
-                            <div className="prpdf-cell-subtitle">{line.department || 'No department'}</div>
+                            <div className="prpdf-cell-title">{line.unit_name || line.business_name || copy.singlePayroll}</div>
+                            <div className="prpdf-cell-subtitle">{line.department || copy.noDepartment}</div>
                           </td>
                           <td>
-                            <div className="prpdf-cell-title">{formatWholeNumber(line.days_payable, locale)} days</div>
-                            <div className="prpdf-cell-subtitle">{formatWholeNumber(line.regular_hours, locale)} regular · {formatWholeNumber(line.overtime_hours, locale)} OT</div>
+                            <div className="prpdf-cell-title">{formatWholeNumber(line.days_payable, locale)} {copy.days}</div>
+                            <div className="prpdf-cell-subtitle">{formatWholeNumber(line.regular_hours, locale)} {copy.regularShort} · {formatWholeNumber(line.overtime_hours, locale)} {copy.overtimeShort}</div>
                           </td>
                           <td>{formatCurrency(line.gross_amount, locale)}</td>
                           <td>{formatCurrency(line.deductions_amount, locale)}</td>
                           <td>{formatCurrency(line.employer_contributions_amount, locale)}</td>
                           <td>
                             <div className="prpdf-cell-title">{formatCurrency(line.net_amount, locale)}</div>
-                            <div className="prpdf-cell-subtitle">{line.include_in_fiscal ? 'Fiscal included' : 'Fiscal excluded'}</div>
+                            <div className="prpdf-cell-subtitle">{line.include_in_fiscal ? copy.fiscalIncluded : copy.fiscalExcluded}</div>
                           </td>
                         </tr>
                       ))}
@@ -407,8 +409,8 @@ export function PayrollRunPdfDocument({
 
               <div className="bdpdf-section">
                 <div className="bdpdf-section-heading">
-                  <h2 className="bdpdf-section-title">Adjustments and notes</h2>
-                  <p className="bdpdf-section-caption">Manual edits and narrative notes that changed the final payout</p>
+                  <h2 className="bdpdf-section-title">{copy.adjustmentsAndNotes}</h2>
+                  <p className="bdpdf-section-caption">{copy.adjustmentsCaption}</p>
                 </div>
 
                 <div className="prpdf-adjustment-grid">
@@ -420,14 +422,14 @@ export function PayrollRunPdfDocument({
                         <div className="prpdf-adjustment-head">
                           <h3 className="prpdf-adjustment-title">{line.user_name}</h3>
                           <span className={`bdpdf-score-chip ${manualAdjustments.length > 0 ? 'level-4' : 'level-2'}`}>
-                            {manualAdjustments.length > 0 ? `${manualAdjustments.length} manual` : 'No manual edits'}
+                            {manualAdjustments.length > 0 ? `${manualAdjustments.length} ${copy.manual}` : copy.noManualEdits}
                           </span>
                         </div>
 
                         {line.notes ? (
                           <p className="prpdf-adjustment-note">{line.notes}</p>
                         ) : (
-                          <p className="prpdf-adjustment-note prpdf-adjustment-note--muted">No payroll note was added for this HR user.</p>
+                          <p className="prpdf-adjustment-note prpdf-adjustment-note--muted">{copy.noNote}</p>
                         )}
 
                         {manualAdjustments.length > 0 ? (
@@ -441,8 +443,8 @@ export function PayrollRunPdfDocument({
                           </div>
                         ) : (
                           <ul className="bdpdf-info-list">
-                            <li><span className="bdpdf-bullet">•</span>No manual earnings or deductions were added.</li>
-                            <li><span className="bdpdf-bullet">•</span>Final line amount is driven entirely by computed payroll logic.</li>
+                            <li><span className="bdpdf-bullet">•</span>{copy.noAdjustments}</li>
+                            <li><span className="bdpdf-bullet">•</span>{copy.computedOnly}</li>
                           </ul>
                         )}
                       </article>
@@ -453,7 +455,7 @@ export function PayrollRunPdfDocument({
 
               <div className="bdpdf-footer-note">
                 <span>Run #{detail.run.id} · {groupingLabel}</span>
-                <span>Printed on {formatDateTime(generatedAt, locale)}</span>
+                <span>{copy.printedOn} {formatDateTime(generatedAt, locale)}</span>
               </div>
             </div>
           </div>

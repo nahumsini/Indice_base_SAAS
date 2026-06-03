@@ -90,9 +90,10 @@ public class HrUserService {
                        e.hire_date,
                        COALESCE(e.salary, 0) AS salary,
                        e.pay_period,
-                       e.salary_type,
-                       e.hourly_rate,
-                       e.contract_type,
+	                       e.salary_type,
+	                       e.hourly_rate,
+	                       e.workday_hours,
+	                       e.contract_type,
                        e.contract_start_date,
                        e.contract_end_date,
                        e.termination_date,
@@ -126,13 +127,16 @@ public class HrUserService {
                 SELECT COUNT(*) AS total_count,
                        SUM(CASE WHEN LOWER(COALESCE(status, 'active')) = 'active' THEN 1 ELSE 0 END) AS active_count,
                        SUM(CASE WHEN LOWER(COALESCE(status, 'active')) = 'inactive' THEN 1 ELSE 0 END) AS inactive_count,
-                       SUM(CASE WHEN LOWER(COALESCE(status, 'active')) = 'terminated' THEN 1 ELSE 0 END) AS terminated_count,
-                       COALESCE(SUM(
-                           CASE
-                               WHEN LOWER(COALESCE(salary_type, 'daily')) = 'hourly' THEN COALESCE(hourly_rate, 0) * 8 * 22
-                               ELSE COALESCE(salary, 0) * 30
-                           END
-                       ), 0) AS total_payroll_amount_monthly
+	                       SUM(CASE WHEN LOWER(COALESCE(status, 'active')) = 'terminated' THEN 1 ELSE 0 END) AS terminated_count,
+	                       COALESCE(SUM(
+	                           CASE
+	                               WHEN LOWER(COALESCE(status, 'active')) <> 'active' THEN 0
+	                               WHEN LOWER(COALESCE(salary_type, 'daily')) = 'hourly' THEN COALESCE(hourly_rate, 0) * COALESCE(workday_hours, 8) * 260 / 12
+	                               WHEN LOWER(COALESCE(pay_period, 'weekly')) = 'monthly' THEN COALESCE(salary, 0)
+	                               WHEN LOWER(COALESCE(pay_period, 'weekly')) = 'biweekly' THEN COALESCE(salary, 0) * 26 / 12
+	                               ELSE COALESCE(salary, 0) * 52 / 12
+	                           END
+	                       ), 0) AS total_payroll_amount_monthly
                 FROM hr_users e
                 WHERE e.company_id = ?
                   AND e.work_profile_id IS NOT NULL
@@ -1441,11 +1445,12 @@ public class HrUserService {
         hrUser.put("business_id", getNullableLong(rs, "business_id"));
         hrUser.put("business_name", safe(rs.getString("business_name")));
         hrUser.put("hire_date", rs.getObject("hire_date"));
-        hrUser.put("salary", rs.getBigDecimal("salary"));
-        hrUser.put("pay_period", normalizePayPeriod(rs.getString("pay_period")));
-        hrUser.put("salary_type", normalizeSalaryType(rs.getString("salary_type")));
-        hrUser.put("hourly_rate", rs.getBigDecimal("hourly_rate"));
-        hrUser.put("contract_type", normalizeContractType(rs.getString("contract_type")));
+	        hrUser.put("salary", rs.getBigDecimal("salary"));
+	        hrUser.put("pay_period", normalizePayPeriod(rs.getString("pay_period")));
+	        hrUser.put("salary_type", normalizeSalaryType(rs.getString("salary_type")));
+	        hrUser.put("hourly_rate", rs.getBigDecimal("hourly_rate"));
+	        hrUser.put("workday_hours", rs.getBigDecimal("workday_hours") == null ? new BigDecimal("8.00") : rs.getBigDecimal("workday_hours"));
+	        hrUser.put("contract_type", normalizeContractType(rs.getString("contract_type")));
         hrUser.put("contract_start_date", rs.getObject("contract_start_date"));
         hrUser.put("contract_end_date", rs.getObject("contract_end_date"));
         hrUser.put("termination_date", rs.getObject("termination_date"));

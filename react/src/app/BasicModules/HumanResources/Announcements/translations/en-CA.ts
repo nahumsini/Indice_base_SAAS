@@ -6,6 +6,14 @@ export const enCA = {
     columns: 'Columns',
     addAnnouncement: 'Add announcement',
   },
+  feedback: {
+    processingTitle: 'Processing announcement',
+    processingDescription: 'The request is being validated and sent with the current session security token.',
+    retry: 'Retry',
+    uploadAttachmentFailed: 'Unable to upload attachment.',
+    removeAttachmentFailed: 'Unable to remove attachment.',
+    openDetails: 'Open details',
+  },
   filters: {
     title: 'Filters',
     searchLabel: 'Search announcement',
@@ -40,6 +48,7 @@ export const enCA = {
     drafts: 'Drafts',
     visibleAfterFilters: 'visible after filters',
     selected: 'selected',
+    notTracked: 'not tracked',
     publishedRate: (rate: string) => `${rate} published rate`,
     selectedBadge: (count: number) => `${count} selected`,
     summary: (
@@ -83,6 +92,19 @@ export const enCA = {
     subtitle: 'Choose which announcement details are visible in the table.',
     close: 'Close',
     done: 'Done',
+  },
+  detail: {
+    eyebrow: 'Announcement details',
+    status: 'Status',
+    read: 'Read',
+    publication: 'Publication',
+    author: 'Author',
+    markAsRead: 'Mark as read',
+    uploadAttachment: 'Upload attachment',
+    attachments: (count: number) => `Attachments (${count})`,
+    noAttachments: 'No attachments.',
+    removeAttachment: 'Remove',
+    close: 'Close announcement details',
   },
   deleteDialog: {
     title: 'Delete announcement',
