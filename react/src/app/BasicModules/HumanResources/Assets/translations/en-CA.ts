@@ -61,6 +61,13 @@ export const enCA = {
     notes: 'Notes',
     actions: 'Actions',
   },
+  pagination: {
+    pageSize: 'Rows per page',
+    showing: (start: number, end: number, total: number) => `Showing ${start}-${end} of ${total} assets`,
+    page: (current: number, total: number) => `Page ${current} of ${total}`,
+    previous: 'Previous',
+    next: 'Next',
+  },
   kpis: {
     visibleAfterFilters: 'visible after filters',
     assetValue: 'asset value',

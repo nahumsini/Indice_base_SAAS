@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { dashboardApi } from '../../../api/dashboard';
 import {
@@ -13,237 +13,55 @@ import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useLanguage } from '../../../shared/context';
-import { AddNewAssests, type AddNewAssetDraft, type AddNewAssetOption, type AddNewAssetType } from './AddNewAssests';
-import { AssetDetailsModal } from './AssetDetailsModal';
-import { AssetColumnConfig, AssetColumnsModal } from './AssetColumnsModal';
+import {
+  StandardActionButton,
+  StandardPaginationFooter,
+  StandardSortIcon,
+  type StandardSortDirection,
+} from '../shared/StandardTableControls';
+import type { AddNewAssetDraft, AddNewAssetOption } from './AddNewAssests';
+import type { AssetColumnConfig } from './AssetColumnsModal';
 import { AssetFilters } from './components/AssetFilters';
 import { AssetHeaderBar } from './components/AssetHeaderBar';
 import { AssetKpiStrip } from './components/AssetKpiStrip';
 import { useAssetsTranslations } from './hooks/useAssetsTranslations';
-import type { AssetsTranslations } from './translations';
+import type { AssetColumnId, AssetRow, AssetType } from './types/assets.types';
+import {
+  allAssetColumnIds,
+  assignableAssetStatuses,
+  emptyAssetSummary,
+  formatAssetDate,
+  formatAssetValue,
+  getAssetColumnConfig,
+  getAssetStatusClasses,
+  getAssetStatusLabel,
+  getAssetTypeIcon,
+  getAssetTypeLabel,
+  lockedAssetColumnIds,
+  mapAssetRow,
+  normalizeAssetErrorMessage,
+  normalizeComparableAssetDate,
+} from './utils/assets.utils';
 
-type AssetType = AddNewAssetType;
-type AssetTypeFilter = AssetType | 'other';
-type AssetColumnId =
-  | 'id'
-  | 'type'
-  | 'asset'
-  | 'model'
-  | 'serialNumber'
-  | 'responsible'
-  | 'unit'
-  | 'status'
-  | 'assignedAt'
-  | 'value'
-  | 'notes'
-  | 'actions';
-
-interface AssetRow {
-  backendId: number;
-  assetCode: string;
-  assetType: string;
-  assetTypeFilter: AssetTypeFilter;
-  name: string;
-  model: string;
-  serialNumber: string;
-  responsibleName: string;
-  responsibleId: number | null;
-  responsibleEmail: string | null;
-  unitName: string;
-  unitId: number | null;
-  status: HrAssetStatus;
-  assignedAt: string | null;
-  valueAmount: number | null;
-  notes: string;
-}
-
-const allAssetColumnIds: AssetColumnId[] = [
-  'id',
-  'type',
-  'asset',
-  'model',
-  'serialNumber',
-  'responsible',
-  'unit',
-  'status',
-  'assignedAt',
-  'value',
-  'notes',
-  'actions',
-];
-
-const lockedAssetColumnIds: AssetColumnId[] = ['asset', 'actions'];
-
-const emptySummary: HrAssetsSummary = {
-  total_count: 0,
-  available_count: 0,
-  assigned_count: 0,
-  maintenance_count: 0,
-  custody_count: 0,
-  inactive_count: 0,
-  total_value_amount: 0,
-};
-
-const assignableStatuses: HrAssetStatus[] = ['assigned', 'custody'];
-
-const normalizeErrorMessage = (error: unknown, fallback: string) => (
-  error instanceof Error && error.message ? error.message : fallback
+const LazyAddNewAssests = lazy(() =>
+  import('./AddNewAssests').then((module) => ({ default: module.AddNewAssests })),
+);
+const LazyAssetDetailsModal = lazy(() =>
+  import('./AssetDetailsModal').then((module) => ({ default: module.AssetDetailsModal })),
+);
+const LazyAssetColumnsModal = lazy(() =>
+  import('./AssetColumnsModal').then((module) => ({ default: module.AssetColumnsModal })),
 );
 
-const getAssetTypeFilter = (assetType: string): AssetTypeFilter => {
-  const normalized = assetType.trim().toLowerCase();
+type AssetSortField = Exclude<AssetColumnId, 'actions'>;
 
-  if (normalized === 'laptop') {
-    return 'laptop';
-  }
-  if (normalized === 'attendance') {
-    return 'attendance';
-  }
-  if (normalized === 'operations') {
-    return 'operations';
-  }
-  if (normalized === 'maintenance') {
-    return 'maintenance';
-  }
-
-  return 'other';
-};
-
-const getAssetTypeIcon = (assetType: string) => {
-  const iconMap: Record<AssetTypeFilter, string> = {
-    laptop: '💻',
-    attendance: '🖥️',
-    operations: '📱',
-    maintenance: '🧰',
-    other: '📦',
-  };
-
-  return iconMap[getAssetTypeFilter(assetType)];
-};
-
-const getAssetStatusClasses = (status: HrAssetStatus) => {
-  const styles: Record<HrAssetStatus, string> = {
-    available: 'bg-[#5c7cff]/15 text-[#89a0ff]',
-    assigned: 'bg-emerald-500/15 text-emerald-400',
-    maintenance: 'bg-amber-500/15 text-amber-400',
-    custody: 'bg-slate-500/15 text-slate-300',
-    inactive: 'bg-rose-500/15 text-rose-300',
-  };
-
-  return styles[status];
-};
-
-const getAssetTypeLabel = (assetType: string, t: AssetsTranslations) => {
-  const labelMap: Partial<Record<AssetTypeFilter, string>> = {
-    laptop: t.addNewAsset.options.laptop,
-    attendance: t.filters.attendanceControl,
-    operations: t.filters.operation,
-    maintenance: t.filters.maintenance,
-  };
-
-  const normalizedType = getAssetTypeFilter(assetType);
-  if (normalizedType !== 'other') {
-    return labelMap[normalizedType] ?? assetType;
-  }
-
-  return assetType
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-};
-
-const getAssetStatusLabel = (status: HrAssetStatus, t: AssetsTranslations) => {
-  const labelMap: Record<HrAssetStatus, string> = {
-    available: t.filters.available,
-    assigned: t.filters.assigned,
-    maintenance: t.filters.inMaintenance,
-    custody: t.filters.custody,
-    inactive: t.filters.inactive,
-  };
-
-  return labelMap[status];
-};
-
-const getAssetColumnConfig = (
-  t: AssetsTranslations,
-  visibleIds: AssetColumnId[],
-): AssetColumnConfig[] => [
-  { id: 'id', label: t.table.id, visible: visibleIds.includes('id') },
-  { id: 'type', label: t.table.type, visible: visibleIds.includes('type') },
-  { id: 'asset', label: t.table.asset, visible: visibleIds.includes('asset'), locked: true },
-  { id: 'model', label: t.table.model, visible: visibleIds.includes('model') },
-  { id: 'serialNumber', label: t.table.serialNumber, visible: visibleIds.includes('serialNumber') },
-  { id: 'responsible', label: t.table.responsible, visible: visibleIds.includes('responsible') },
-  { id: 'unit', label: t.table.unit, visible: visibleIds.includes('unit') },
-  { id: 'status', label: t.table.status, visible: visibleIds.includes('status') },
-  { id: 'assignedAt', label: t.table.assignedAt, visible: visibleIds.includes('assignedAt') },
-  { id: 'value', label: t.table.value, visible: visibleIds.includes('value') },
-  { id: 'notes', label: t.table.notes, visible: visibleIds.includes('notes') },
-  { id: 'actions', label: t.table.actions, visible: visibleIds.includes('actions'), locked: true },
-];
-
-const formatAssetDate = (value: string | null, locale: string) => {
-  if (!value) {
-    return '-';
-  }
-
-  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
-  const parsedDate = new Date(normalized);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(parsedDate);
-};
-
-const formatAssetValue = (value: number | null, locale: string) => {
-  if (value === null || value === undefined) {
-    return '-';
-  }
-
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const normalizeComparableDate = (value: string | null) => {
-  if (!value) {
-    return '';
-  }
-
-  return value.slice(0, 10);
-};
-
-const mapAssetRow = (asset: HrAsset): AssetRow => ({
-  backendId: asset.id,
-  assetCode: asset.asset_code,
-  assetType: asset.asset_type,
-  assetTypeFilter: getAssetTypeFilter(asset.asset_type),
-  name: asset.name,
-  model: asset.model ?? '',
-  serialNumber: asset.serial_number ?? '',
-  responsibleName: asset.responsible_name || '',
-  responsibleId: asset.responsible_user_company_id,
-  responsibleEmail: asset.responsible_email ?? null,
-  unitName: asset.unit_name ?? '',
-  unitId: asset.unit_id,
-  status: asset.status,
-  assignedAt: asset.assigned_at,
-  valueAmount: asset.value_amount,
-  notes: asset.notes ?? '',
-});
+const defaultAssetsPageSize = 10;
 
 export default function Assets() {
   const t = useAssetsTranslations();
   const { currentLanguage } = useLanguage();
   const [assetRows, setAssetRows] = useState<AssetRow[]>([]);
-  const [summary, setSummary] = useState<HrAssetsSummary>(emptySummary);
+  const [summary, setSummary] = useState<HrAssetsSummary>(emptyAssetSummary);
   const [responsibleOptions, setResponsibleOptions] = useState<AddNewAssetOption[]>([]);
   const [unitOptions, setUnitOptions] = useState<AddNewAssetOption[]>([]);
   const [visibleColumnIds, setVisibleColumnIds] = useLocalStorageState<AssetColumnId[]>(
@@ -265,6 +83,10 @@ export default function Assets() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [assetEditing, setAssetEditing] = useState<AssetRow | null>(null);
+  const [sortField, setSortField] = useState<AssetSortField>('asset');
+  const [sortDirection, setSortDirection] = useState<StandardSortDirection>('asc');
+  const [pageSize, setPageSize] = useState(defaultAssetsPageSize);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const normalizedVisibleColumnIds = useMemo(() => {
     const nextVisible = allAssetColumnIds.filter(
@@ -304,6 +126,79 @@ export default function Assets() {
     [assetRows, searchQuery, statusFilter, typeFilter, unitFilter],
   );
 
+  const handleSort = (field: AssetSortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection('asc');
+  };
+
+  const sortedAssets = useMemo(() => {
+    const getValue = (asset: AssetRow): number | string => {
+      switch (sortField) {
+        case 'id':
+          return asset.assetCode.toLowerCase();
+        case 'type':
+          return getAssetTypeLabel(asset.assetType, t).toLowerCase();
+        case 'asset':
+          return asset.name.toLowerCase();
+        case 'model':
+          return asset.model.toLowerCase();
+        case 'serialNumber':
+          return asset.serialNumber.toLowerCase();
+        case 'responsible':
+          return asset.responsibleName.toLowerCase();
+        case 'unit':
+          return asset.unitName.toLowerCase();
+        case 'status':
+          return getAssetStatusLabel(asset.status, t).toLowerCase();
+        case 'assignedAt':
+          return asset.assignedAt ? new Date(asset.assignedAt).getTime() : 0;
+        case 'value':
+          return asset.valueAmount ?? 0;
+        case 'notes':
+          return asset.notes.toLowerCase();
+      }
+    };
+
+    return [...filteredAssets].sort((left, right) => {
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+
+      if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+        const comparison = leftValue - rightValue;
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      const comparison = String(leftValue).localeCompare(String(rightValue), currentLanguage.code, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [currentLanguage.code, filteredAssets, sortDirection, sortField, t]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedAssets.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
+  const paginatedAssets = sortedAssets.slice(pageStartIndex, pageEndIndex);
+  const paginationStart = sortedAssets.length === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = sortedAssets.length === 0 ? 0 : Math.min(pageEndIndex, sortedAssets.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize, searchQuery, sortDirection, sortField, statusFilter, typeFilter, unitFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const runAssetOperation = async <T,>(title: string, task: () => Promise<T>) => {
     setIsSubmitting(true);
     setLoadingTitle(title);
@@ -319,7 +214,7 @@ export default function Assets() {
   const loadAssets = async () => {
     const response = await hrAssetsApi.listAssets({ page: 1, size: 100 });
     setAssetRows(response.items.map(mapAssetRow));
-    setSummary(response.summary ?? emptySummary);
+    setSummary(response.summary ?? emptyAssetSummary);
   };
 
   useEffect(() => {
@@ -341,11 +236,11 @@ export default function Assets() {
 
       if (assetsResult.status === 'fulfilled') {
         setAssetRows(assetsResult.value.items.map(mapAssetRow));
-        setSummary(assetsResult.value.summary ?? emptySummary);
+        setSummary(assetsResult.value.summary ?? emptyAssetSummary);
       } else {
         setAssetRows([]);
-        setSummary(emptySummary);
-        setLoadError(normalizeErrorMessage(assetsResult.reason, t.errors.load));
+        setSummary(emptyAssetSummary);
+        setLoadError(normalizeAssetErrorMessage(assetsResult.reason, t.errors.load));
       }
 
       if (employeesResult.status === 'fulfilled') {
@@ -403,7 +298,7 @@ export default function Assets() {
       setSelectedAssetDetails(detail);
       setIsDetailsModalOpen(true);
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.errors.details));
+      window.alert(normalizeAssetErrorMessage(error, t.errors.details));
     }
   };
 
@@ -428,7 +323,7 @@ export default function Assets() {
       setToastMessage(t.actionAlerts.deactivated(assetPendingDeactivate.name));
       setAssetPendingDeactivate(null);
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.errors.status));
+      window.alert(normalizeAssetErrorMessage(error, t.errors.status));
     }
   };
 
@@ -443,9 +338,9 @@ export default function Assets() {
         const desiredUnitId = trimmedUnit ? Number(trimmedUnit) : null;
         const desiredResponsibleId = trimmedResponsible ? Number(trimmedResponsible) : null;
         const desiredAssignedDate = draft.assignedDate || '';
-        const currentAssignedDate = normalizeComparableDate(assetEditing.assignedAt);
-        const currentIsAssignmentStatus = assignableStatuses.includes(assetEditing.status);
-        const desiredIsAssignmentStatus = assignableStatuses.includes(draft.status);
+        const currentAssignedDate = normalizeComparableAssetDate(assetEditing.assignedAt);
+        const currentIsAssignmentStatus = assignableAssetStatuses.includes(assetEditing.status);
+        const desiredIsAssignmentStatus = assignableAssetStatuses.includes(draft.status);
         const lifecycleStatusChanged = assetEditing.status !== draft.status;
         const unitHandledByUpdate = !currentIsAssignmentStatus && !desiredIsAssignmentStatus && !lifecycleStatusChanged;
 
@@ -517,9 +412,9 @@ export default function Assets() {
         serial_number: draft.serialNumber.trim() || undefined,
         unit_id: trimmedUnit ? Number(trimmedUnit) : undefined,
         status: draft.status,
-        assigned_date: assignableStatuses.includes(draft.status) ? draft.assignedDate || undefined : undefined,
+        assigned_date: assignableAssetStatuses.includes(draft.status) ? draft.assignedDate || undefined : undefined,
         responsible_user_company_id:
-          assignableStatuses.includes(draft.status) && trimmedResponsible
+          assignableAssetStatuses.includes(draft.status) && trimmedResponsible
             ? Number(trimmedResponsible)
             : undefined,
         value: trimmedValue || undefined,
@@ -533,7 +428,7 @@ export default function Assets() {
       setToastMessage(t.addNewAsset.success(draft.name));
       return true;
     } catch (error) {
-      window.alert(normalizeErrorMessage(error, t.errors.save));
+      window.alert(normalizeAssetErrorMessage(error, t.errors.save));
       return false;
     }
   };
@@ -598,24 +493,38 @@ export default function Assets() {
         visibleCount={filteredAssets.length}
       />
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white/95 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-sm dark:border-slate-700 dark:bg-slate-800/95">
         <div className="overflow-x-auto">
           <table className="min-w-full">
-            <thead className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-700/60">
+            <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>
                 {assetColumnConfig
                   .filter((column) => column.visible)
                   .map((column) => (
                     <th
                       key={column.id}
-                      className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400"
+                      className={`px-5 py-4 ${column.id === 'actions' ? 'text-right' : 'text-left'} text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400`}
                     >
-                      {column.label}
+                      {column.id === 'actions' ? (
+                        column.label
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSort(column.id as AssetSortField)}
+                          className="inline-flex items-center gap-2 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                        >
+                          <span>{column.label}</span>
+                          <StandardSortIcon
+                            active={sortField === column.id}
+                            direction={sortDirection}
+                          />
+                        </button>
+                      )}
                     </th>
                   ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {isInitialLoading ? (
                 <tr>
                   <td
@@ -634,7 +543,7 @@ export default function Assets() {
                     {loadError}
                   </td>
                 </tr>
-              ) : filteredAssets.length === 0 ? (
+              ) : sortedAssets.length === 0 ? (
                 <tr>
                   <td
                     colSpan={assetColumnConfig.filter((column) => column.visible).length}
@@ -644,10 +553,10 @@ export default function Assets() {
                   </td>
                 </tr>
               ) : (
-                filteredAssets.map((asset) => (
+                paginatedAssets.map((asset) => (
                   <tr
                     key={asset.backendId}
-                    className="transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-700/30"
+                    className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/35"
                   >
                     {visibleColumnSet.has('id') ? (
                       <td className="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">{asset.assetCode}</td>
@@ -706,35 +615,27 @@ export default function Assets() {
                       </td>
                     ) : null}
                     {visibleColumnSet.has('actions') ? (
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3 text-sm">
-                          <button
-                            type="button"
+                      <td className="px-5 py-4 text-right">
+                        <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+                          <StandardActionButton
                             onClick={() => void handleViewDetails(asset)}
-                            aria-label={t.actionsMenu.viewDetails}
-                            title={t.actionsMenu.viewDetails}
-                            className="text-gray-400 transition hover:text-gray-200"
+                            label={t.actionsMenu.viewDetails}
                           >
                             <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
+                          </StandardActionButton>
+                          <StandardActionButton
                             onClick={() => handleEditAsset(asset)}
-                            aria-label={t.actionsMenu.edit}
-                            title={t.actionsMenu.edit}
-                            className="text-[#7b82ff] transition hover:text-[#9fa4ff]"
+                            label={t.actionsMenu.edit}
                           >
                             <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
+                          </StandardActionButton>
+                          <StandardActionButton
                             onClick={() => setAssetPendingDeactivate(asset)}
-                            aria-label={t.actionsMenu.delete}
-                            title={t.actionsMenu.delete}
-                            className="text-red-500 transition hover:text-red-400"
+                            label={t.actionsMenu.delete}
+                            tone="danger"
                           >
                             <Trash2 className="h-4 w-4" />
-                          </button>
+                          </StandardActionButton>
                         </div>
                       </td>
                     ) : null}
@@ -744,6 +645,20 @@ export default function Assets() {
             </tbody>
           </table>
         </div>
+        <StandardPaginationFooter
+          currentPage={safeCurrentPage}
+          labels={t.pagination}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setCurrentPage(1);
+          }}
+          pageEnd={paginationEnd}
+          pageSize={pageSize}
+          pageStart={paginationStart}
+          totalCount={sortedAssets.length}
+          totalPages={totalPages}
+        />
       </div>
 
       <ConfirmDeleteDialog
@@ -768,35 +683,43 @@ export default function Assets() {
         title={loadingTitle || t.loading}
       />
 
-      <AddNewAssests
-        isOpen={isAddAssetOpen}
-        onClose={() => {
-          setIsAddAssetOpen(false);
-          setAssetEditing(null);
-        }}
-        onSave={handleSaveAsset}
-        responsibleOptions={responsibleOptions}
-        unitOptions={unitOptions}
-        mode={assetEditing ? 'edit' : 'create'}
-        initialDraft={assetDraftForModal}
-      />
+      <Suspense fallback={null}>
+        {isAddAssetOpen ? (
+          <LazyAddNewAssests
+            isOpen={isAddAssetOpen}
+            onClose={() => {
+              setIsAddAssetOpen(false);
+              setAssetEditing(null);
+            }}
+            onSave={handleSaveAsset}
+            responsibleOptions={responsibleOptions}
+            unitOptions={unitOptions}
+            mode={assetEditing ? 'edit' : 'create'}
+            initialDraft={assetDraftForModal}
+          />
+        ) : null}
 
-      <AssetDetailsModal
-        isOpen={isDetailsModalOpen}
-        asset={selectedAssetDetails}
-        onClose={() => {
-          setIsDetailsModalOpen(false);
-          setSelectedAssetDetails(null);
-        }}
-      />
+        {isDetailsModalOpen ? (
+          <LazyAssetDetailsModal
+            isOpen={isDetailsModalOpen}
+            asset={selectedAssetDetails}
+            onClose={() => {
+              setIsDetailsModalOpen(false);
+              setSelectedAssetDetails(null);
+            }}
+          />
+        ) : null}
 
-      <AssetColumnsModal
-        copy={t.columnPicker}
-        isOpen={isColumnsModalOpen}
-        onClose={() => setIsColumnsModalOpen(false)}
-        columns={assetColumnConfig}
-        onApply={handleApplyColumns}
-      />
+        {isColumnsModalOpen ? (
+          <LazyAssetColumnsModal
+            copy={t.columnPicker}
+            isOpen={isColumnsModalOpen}
+            onClose={() => setIsColumnsModalOpen(false)}
+            columns={assetColumnConfig}
+            onApply={handleApplyColumns}
+          />
+        ) : null}
+      </Suspense>
     </>
   );
 }

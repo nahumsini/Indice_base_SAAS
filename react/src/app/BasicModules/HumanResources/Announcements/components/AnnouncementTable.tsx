@@ -1,5 +1,11 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Calendar, Clock, Eye, Pencil, Trash2 } from 'lucide-react';
+import {
+  StandardActionButton,
+  StandardPaginationFooter,
+  StandardSortIcon,
+  type StandardSortDirection,
+} from '../../shared/StandardTableControls';
 import type { AnnouncementView } from '../announcementTypes';
 import type { AnnouncementTableCopy } from '../translations';
 
@@ -16,6 +22,23 @@ interface AnnouncementTableProps {
   onOpen: (announcement: AnnouncementView) => void;
 }
 
+type AnnouncementSortField =
+  | 'announcement'
+  | 'type'
+  | 'audience'
+  | 'publication'
+  | 'reads'
+  | 'status'
+  | 'author';
+
+interface AnnouncementColumn {
+  id: string;
+  label: string;
+  sortField?: AnnouncementSortField;
+}
+
+const defaultPageSize = 10;
+
 export function AnnouncementTable({
   announcements,
   copy,
@@ -29,7 +52,85 @@ export function AnnouncementTable({
   onOpen,
 }: AnnouncementTableProps) {
   const canShow = (columnId: string) => visibleColumns.includes(columnId);
-  const emptyColSpan = 2 + visibleColumns.length;
+  const [sortField, setSortField] = useState<AnnouncementSortField>('publication');
+  const [sortDirection, setSortDirection] = useState<StandardSortDirection>('desc');
+  const [pageSize, setPageSize] = useState(defaultPageSize);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const tableColumns = useMemo<AnnouncementColumn[]>(
+    () => [
+      { id: 'announcement', label: copy.table.columns.announcement, sortField: 'announcement' },
+      ...(canShow('type') ? [{ id: 'type', label: copy.table.columns.type, sortField: 'type' as const }] : []),
+      ...(canShow('audience') ? [{ id: 'audience', label: copy.table.columns.audience, sortField: 'audience' as const }] : []),
+      ...(canShow('publication') ? [{ id: 'publication', label: copy.table.columns.publication, sortField: 'publication' as const }] : []),
+      ...(canShow('reads') ? [{ id: 'reads', label: copy.table.columns.reads, sortField: 'reads' as const }] : []),
+      ...(canShow('status') ? [{ id: 'status', label: copy.table.columns.status, sortField: 'status' as const }] : []),
+      ...(canShow('author') ? [{ id: 'author', label: copy.table.columns.author, sortField: 'author' as const }] : []),
+      { id: 'actions', label: copy.table.columns.actions },
+    ],
+    [copy, visibleColumns],
+  );
+
+  const handleSort = (field: AnnouncementSortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection('asc');
+  };
+
+  const sortedAnnouncements = useMemo(() => {
+    const getValue = (announcement: AnnouncementView) => {
+      switch (sortField) {
+        case 'announcement':
+          return announcement.title.toLowerCase();
+        case 'type':
+          return copy.typeLabels[announcement.type].toLowerCase();
+        case 'audience':
+          return getAudienceLabel(announcement).toLowerCase();
+        case 'publication':
+          return `${announcement.publicationDate} ${announcement.publicationTime ?? ''}`.trim();
+        case 'reads':
+          return announcement.readSummary.toLowerCase();
+        case 'status':
+          return copy.statusLabels[announcement.status].toLowerCase();
+        case 'author':
+          return announcement.authorName.toLowerCase();
+      }
+    };
+
+    return [...announcements].sort((left, right) => {
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      const comparison = String(leftValue).localeCompare(String(rightValue), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [announcements, copy.statusLabels, copy.typeLabels, getAudienceLabel, sortDirection, sortField]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedAnnouncements.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
+  const paginatedAnnouncements = sortedAnnouncements.slice(pageStartIndex, pageEndIndex);
+  const paginationStart = sortedAnnouncements.length === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = sortedAnnouncements.length === 0 ? 0 : Math.min(pageEndIndex, sortedAnnouncements.length);
+  const emptyColSpan = tableColumns.length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [announcements, pageSize, visibleColumns]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -37,29 +138,32 @@ export function AnnouncementTable({
         <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
-              <TableHeader>{copy.table.columns.announcement}</TableHeader>
-              {canShow('type') ? <TableHeader>{copy.table.columns.type}</TableHeader> : null}
-              {canShow('audience') ? <TableHeader>{copy.table.columns.audience}</TableHeader> : null}
-              {canShow('publication') ? <TableHeader>{copy.table.columns.publication}</TableHeader> : null}
-              {canShow('reads') ? <TableHeader>{copy.table.columns.reads}</TableHeader> : null}
-              {canShow('status') ? <TableHeader>{copy.table.columns.status}</TableHeader> : null}
-              {canShow('author') ? <TableHeader>{copy.table.columns.author}</TableHeader> : null}
-              <TableHeader>{copy.table.columns.actions}</TableHeader>
+              {tableColumns.map((column) => (
+                <TableHeader
+                  key={column.id}
+                  align={column.id === 'actions' ? 'right' : 'left'}
+                  onSort={column.sortField ? () => handleSort(column.sortField!) : undefined}
+                  sortActive={sortField === column.sortField}
+                  sortDirection={sortDirection}
+                >
+                  {column.label}
+                </TableHeader>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-            {announcements.length === 0 ? (
+            {paginatedAnnouncements.length === 0 ? (
               <tr>
                 <td colSpan={emptyColSpan} className="px-6 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
                   {copy.table.emptyState}
                 </td>
               </tr>
             ) : (
-              announcements.map((announcement) => {
+              paginatedAnnouncements.map((announcement) => {
                 return (
                   <tr
                     key={announcement.id}
-                    className="transition-colors odd:bg-slate-50/45 hover:bg-slate-50 dark:odd:bg-slate-900/20 dark:hover:bg-slate-700/35"
+                    className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/35"
                   >
                     <td className="min-w-[320px] px-5 py-5 align-middle">
                       <div className="flex items-center gap-3">
@@ -119,19 +223,19 @@ export function AnnouncementTable({
                         {announcement.authorName}
                       </td>
                     ) : null}
-                    <td className="px-5 py-5 align-middle">
-                      <div className="flex items-center gap-2">
-                        <ActionButton title="Open" onClick={() => onOpen(announcement)}>
+                    <td className="px-5 py-5 align-middle text-right">
+                      <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+                        <StandardActionButton label={copy.feedback.openDetails} onClick={() => onOpen(announcement)}>
                           <Eye className="h-4 w-4" />
-                        </ActionButton>
+                        </StandardActionButton>
                         {canManage ? (
                           <>
-                            <ActionButton title={copy.table.edit} onClick={() => onEdit(announcement)}>
+                            <StandardActionButton label={copy.table.edit} onClick={() => onEdit(announcement)}>
                               <Pencil className="h-4 w-4" />
-                            </ActionButton>
-                            <ActionButton title={copy.table.delete} tone="danger" onClick={() => onDelete(announcement)}>
+                            </StandardActionButton>
+                            <StandardActionButton label={copy.table.delete} tone="danger" onClick={() => onDelete(announcement)}>
                               <Trash2 className="h-4 w-4" />
-                            </ActionButton>
+                            </StandardActionButton>
                           </>
                         ) : null}
                       </div>
@@ -144,48 +248,62 @@ export function AnnouncementTable({
         </table>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-        <span>{copy.table.showing(announcements.length)}</span>
-        <div className="flex items-center gap-3">
-          <span>{copy.table.pageInfo}</span>
-          <button className="rounded-lg px-2 py-1 text-slate-400" disabled>{copy.table.previous}</button>
-          <span className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">1</span>
-          <button className="rounded-lg px-2 py-1 text-slate-400" disabled>{copy.table.next}</button>
-        </div>
-      </div>
+      <StandardPaginationFooter
+        currentPage={safeCurrentPage}
+        labels={{
+          showing: () => copy.table.showing(sortedAnnouncements.length),
+          page: (current, total) => (total === 1 ? copy.table.pageInfo : `${current} / ${total}`),
+          previous: copy.table.previous,
+          next: copy.table.next,
+        }}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(nextPageSize) => {
+          setPageSize(nextPageSize);
+          setCurrentPage(1);
+        }}
+        pageEnd={paginationEnd}
+        pageSize={pageSize}
+        pageStart={paginationStart}
+        totalCount={sortedAnnouncements.length}
+        totalPages={totalPages}
+      />
     </div>
   );
 }
 
-function ActionButton({
+function TableHeader({
+  align = 'left',
   children,
-  onClick,
-  title,
-  tone = 'default',
+  onSort,
+  sortActive = false,
+  sortDirection = null,
 }: {
+  align?: 'left' | 'right';
   children: ReactNode;
-  onClick: () => void;
-  title: string;
-  tone?: 'default' | 'danger';
+  onSort?: () => void;
+  sortActive?: boolean;
+  sortDirection?: StandardSortDirection;
 }) {
-  const classes = tone === 'danger'
-    ? 'border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300'
-    : 'border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300';
-  return (
-    <button
-      type="button"
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${classes}`}
-      title={title}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
+  const headerAlignClass = align === 'right' ? 'text-right' : 'text-left';
+  const buttonAlignClass = align === 'right' ? 'text-right' : 'text-left';
 
-function TableHeader({ children }: { children: ReactNode }) {
+  if (onSort) {
+    return (
+      <th className={`px-5 py-4 ${headerAlignClass}`}>
+        <button
+          type="button"
+          onClick={onSort}
+          className={`inline-flex items-center gap-2 ${buttonAlignClass} text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white`}
+        >
+          <span>{children}</span>
+          <StandardSortIcon active={sortActive} direction={sortDirection} />
+        </button>
+      </th>
+    );
+  }
+
   return (
-    <th className="px-5 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+    <th className={`px-5 py-4 ${headerAlignClass} text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400`}>
       {children}
     </th>
   );

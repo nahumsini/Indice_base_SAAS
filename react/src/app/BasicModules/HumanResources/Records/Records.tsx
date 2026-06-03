@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import jsPDF from 'jspdf';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   type ApiClientError,
 } from '../../../lib/apiClient';
@@ -11,18 +10,8 @@ import {
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '../../../components/ui/pagination';
-import { CreateRecordModal } from './components/CreateRecordModal';
-import { RecordColumnsModal, type RecordColumn } from './components/RecordColumnsModal';
-import { RecordDetailModal } from './components/RecordDetailModal';
+import { StandardPaginationFooter } from '../shared/StandardTableControls';
+import type { RecordColumn } from './components/RecordColumnsModal';
 import { RecordFilters } from './components/RecordFilters';
 import { RecordHeaderBar } from './components/RecordHeaderBar';
 import { RecordKpiStrip } from './components/RecordKpiStrip';
@@ -34,6 +23,17 @@ import type {
   RecordEmployeeOption,
   RecordFiltersState,
 } from './types/records.types';
+import { downloadRecordPdf } from './utils/records.pdf';
+
+const LazyCreateRecordModal = lazy(() =>
+  import('./components/CreateRecordModal').then((module) => ({ default: module.CreateRecordModal })),
+);
+const LazyRecordColumnsModal = lazy(() =>
+  import('./components/RecordColumnsModal').then((module) => ({ default: module.RecordColumnsModal })),
+);
+const LazyRecordDetailModal = lazy(() =>
+  import('./components/RecordDetailModal').then((module) => ({ default: module.RecordDetailModal })),
+);
 
 const defaultFilters: RecordFiltersState = {
   search: '',
@@ -61,15 +61,7 @@ const normalizeWitnesses = (witnesses: BackendRecordWitness[] | undefined) => (
   witnesses?.map((witness) => witness.name).filter(Boolean) ?? []
 );
 
-const sanitizeFileName = (value: string) => (
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'record'
-);
-
-const recordsPerPage = 10;
+const defaultRecordsPageSize = 10;
 
 const defaultVisibleRecordColumns: RecordColumnId[] = [
   'id',
@@ -160,6 +152,7 @@ export default function Records() {
     high_severity_count: 0,
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultRecordsPageSize);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
@@ -260,58 +253,23 @@ export default function Records() {
     });
   }, [filteredRecords]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedRecords.length / recordsPerPage));
+  const totalPages = Math.max(1, Math.ceil(sortedRecords.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-  const pageStartIndex = (safeCurrentPage - 1) * recordsPerPage;
-  const pageEndIndex = pageStartIndex + recordsPerPage;
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
   const paginatedRecords = sortedRecords.slice(pageStartIndex, pageEndIndex);
   const paginationStart = sortedRecords.length === 0 ? 0 : pageStartIndex + 1;
   const paginationEnd = sortedRecords.length === 0 ? 0 : Math.min(pageEndIndex, sortedRecords.length);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters]);
+  }, [filters, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
-
-  const changePage = (page: number) => {
-    if (page < 1 || page > totalPages || page === safeCurrentPage) {
-      return;
-    }
-
-    setCurrentPage(page);
-  };
-
-  const paginationItems = useMemo(() => {
-    if (totalPages <= 1) {
-      return [1];
-    }
-
-    const pages = new Set<number>([1, totalPages, safeCurrentPage]);
-
-    if (safeCurrentPage - 1 > 1) {
-      pages.add(safeCurrentPage - 1);
-    }
-    if (safeCurrentPage + 1 < totalPages) {
-      pages.add(safeCurrentPage + 1);
-    }
-
-    const orderedPages = Array.from(pages).sort((a, b) => a - b);
-    const items: Array<number | 'ellipsis'> = [];
-
-    orderedPages.forEach((page, index) => {
-      if (index > 0 && page - orderedPages[index - 1] > 1) {
-        items.push('ellipsis');
-      }
-      items.push(page);
-    });
-
-    return items;
-  }, [safeCurrentPage, totalPages]);
 
   useEffect(() => {
     void loadInitialData();
@@ -489,79 +447,9 @@ export default function Records() {
     }
   };
 
-  const handleDownloadRecord = (record: EmployeeRecord) => {
+  const handleDownloadRecord = async (record: EmployeeRecord) => {
     try {
-      const doc = new jsPDF();
-      const left = 14;
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const maxWidth = pageWidth - left * 2;
-      let cursorY = 20;
-
-      const addSection = (label: string, value: string) => {
-        if (!value.trim()) {
-          return;
-        }
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(label, left, cursorY);
-        cursorY += 6;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        const lines = doc.splitTextToSize(value, maxWidth);
-        doc.text(lines, left, cursorY);
-        cursorY += lines.length * 5 + 5;
-      };
-
-      const ensurePage = () => {
-        if (cursorY <= 270) {
-          return;
-        }
-        doc.addPage();
-        cursorY = 20;
-      };
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.text(record.title, left, cursorY);
-      cursorY += 8;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.text(record.recordNumber || copy.pdf.recordNumber(record.id), left, cursorY);
-      cursorY += 8;
-
-      addSection(copy.pdf.employee, `${record.user.name}${record.user.position ? ` · ${record.user.position}` : ''}`);
-      ensurePage();
-      addSection(copy.pdf.reportedBy, record.reportedBy.name);
-      ensurePage();
-      addSection(copy.pdf.eventDate, new Date(record.eventDate).toLocaleString(locale));
-      ensurePage();
-      addSection(copy.pdf.type, copy.types[record.type]);
-      ensurePage();
-      addSection(copy.pdf.severity, record.severity ? copy.severity[record.severity] : copy.pdf.notAvailable);
-      ensurePage();
-      addSection(copy.pdf.status, copy.status[record.status]);
-      ensurePage();
-      addSection(copy.pdf.description, record.description);
-      ensurePage();
-
-      if (record.actionsTaken) {
-        addSection(copy.pdf.actionsTaken, record.actionsTaken);
-        ensurePage();
-      }
-
-      if (record.witnesses?.length) {
-        addSection(copy.pdf.witnesses, record.witnesses.join(', '));
-        ensurePage();
-      }
-
-      if (record.attachments?.length) {
-        addSection(copy.pdf.attachments, record.attachments.map((attachment) => attachment.name).join(', '));
-      }
-
-      doc.save(`${sanitizeFileName(record.recordNumber || record.title)}.pdf`);
+      await downloadRecordPdf(record, copy, locale);
     } catch (error) {
       setErrorMessage(formatErrorMessage(error, copy.errors.exportRecord));
     }
@@ -626,102 +514,72 @@ export default function Records() {
         onDownload={handleDownloadRecord}
       />
 
-      <RecordColumnsModal
-        columns={recordColumns}
-        copy={copy.columnsModal}
-        isOpen={isColumnsModalOpen}
-        visibleColumns={visibleRecordColumns}
-        onClose={() => setIsColumnsModalOpen(false)}
-        onToggleColumn={handleToggleColumn}
-      />
+      <Suspense fallback={null}>
+        {isColumnsModalOpen ? (
+          <LazyRecordColumnsModal
+            columns={recordColumns}
+            copy={copy.columnsModal}
+            isOpen={isColumnsModalOpen}
+            visibleColumns={visibleRecordColumns}
+            onClose={() => setIsColumnsModalOpen(false)}
+            onToggleColumn={handleToggleColumn}
+          />
+        ) : null}
+      </Suspense>
 
       {sortedRecords.length > 0 ? (
-        <div className="flex flex-col gap-4 border border-gray-200 rounded-lg bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {copy.pagination.showing(paginationStart, paginationEnd, sortedRecords.length)}
-          </p>
-          <div className="flex flex-col items-start gap-3 md:items-end">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {copy.pagination.page(safeCurrentPage, totalPages)}
-            </p>
-            <Pagination className="mx-0 w-auto justify-start md:justify-end">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      changePage(safeCurrentPage - 1);
-                    }}
-                    aria-disabled={safeCurrentPage === 1}
-                    className={safeCurrentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
-                  />
-                </PaginationItem>
-                {paginationItems.map((item, index) => (
-                  item === 'ellipsis' ? (
-                    <PaginationItem key={`ellipsis-${index}`}>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  ) : (
-                    <PaginationItem key={item}>
-                      <PaginationLink
-                        href="#"
-                        isActive={item === safeCurrentPage}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          changePage(item);
-                        }}
-                      >
-                        {item}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )
-                ))}
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      changePage(safeCurrentPage + 1);
-                    }}
-                    aria-disabled={safeCurrentPage === totalPages}
-                    className={safeCurrentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <StandardPaginationFooter
+            currentPage={safeCurrentPage}
+            labels={copy.pagination}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setCurrentPage(1);
+            }}
+            pageEnd={paginationEnd}
+            pageSize={pageSize}
+            pageStart={paginationStart}
+            totalCount={sortedRecords.length}
+            totalPages={totalPages}
+          />
         </div>
       ) : null}
 
-      <CreateRecordModal
-        copy={copy}
-        isOpen={isCreateModalOpen}
-        onClose={() => {
-          setIsCreateModalOpen(false);
-          setEditingRecord(null);
-        }}
-        onSave={handleSaveRecord}
-        employees={employees}
-        isEmployeesLoading={isEmployeesLoading}
-        employeeLoadError={employeeLoadError}
-        onRetryEmployees={() => {
-          void loadEmployees();
-        }}
-        editingRecord={editingRecord}
-      />
+      <Suspense fallback={null}>
+        {isCreateModalOpen ? (
+          <LazyCreateRecordModal
+            copy={copy}
+            isOpen={isCreateModalOpen}
+            onClose={() => {
+              setIsCreateModalOpen(false);
+              setEditingRecord(null);
+            }}
+            onSave={handleSaveRecord}
+            employees={employees}
+            isEmployeesLoading={isEmployeesLoading}
+            employeeLoadError={employeeLoadError}
+            onRetryEmployees={() => {
+              void loadEmployees();
+            }}
+            editingRecord={editingRecord}
+          />
+        ) : null}
 
-      <RecordDetailModal
-        copy={copy}
-        locale={locale}
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        record={selectedRecord}
-        onEdit={(record) => {
-          void handleEditRecord(record);
-        }}
-        onDelete={handleDeleteRecord}
-      />
+        {isDetailModalOpen ? (
+          <LazyRecordDetailModal
+            copy={copy}
+            locale={locale}
+            isOpen={isDetailModalOpen}
+            onClose={() => setIsDetailModalOpen(false)}
+            record={selectedRecord}
+            onEdit={(record) => {
+              void handleEditRecord(record);
+            }}
+            onDelete={handleDeleteRecord}
+          />
+        ) : null}
+      </Suspense>
 
       <LoadingBarOverlay
         isVisible={loadingState.isVisible}

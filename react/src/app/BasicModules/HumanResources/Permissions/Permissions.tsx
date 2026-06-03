@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { authApi } from '../../../api/auth';
 import {
   permissionsApi,
@@ -10,9 +10,8 @@ import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { ApiClientError } from '../../../lib/apiClient';
-import { CreatePermissionModal, type PermissionFormData } from './components/CreatePermissionModal';
-import { PermissionColumnsModal, type PermissionColumn } from './components/PermissionColumnsModal';
-import { PermissionDetailModal } from './components/PermissionDetailModal';
+import type { PermissionFormData } from './components/CreatePermissionModal';
+import type { PermissionColumn } from './components/PermissionColumnsModal';
 import { PermissionFilters } from './components/PermissionFilters';
 import { PermissionHeaderBar } from './components/PermissionHeaderBar';
 import { PermissionKpiStrip } from './components/PermissionKpiStrip';
@@ -20,6 +19,17 @@ import { PermissionsTable, type PermissionColumnId } from './components/Permissi
 import { usePermissionsResolvedLocale, usePermissionsTranslations } from './hooks/usePermissionsTranslations';
 import { emptyPermissionSummary, formatPermissionError, isPermissionManagementRole, mapBackendPermission } from './support/permissionsSupport';
 import type { PermissionItem, PermissionFilterState } from './types/permissions.types';
+import { inferAttachmentContentType } from './utils/permissions.attachments';
+
+const LazyCreatePermissionModal = lazy(() =>
+  import('./components/CreatePermissionModal').then((module) => ({ default: module.CreatePermissionModal })),
+);
+const LazyPermissionColumnsModal = lazy(() =>
+  import('./components/PermissionColumnsModal').then((module) => ({ default: module.PermissionColumnsModal })),
+);
+const LazyPermissionDetailModal = lazy(() =>
+  import('./components/PermissionDetailModal').then((module) => ({ default: module.PermissionDetailModal })),
+);
 
 const defaultFilters: PermissionFilterState = {
   search: '',
@@ -40,22 +50,6 @@ const defaultVisiblePermissionColumns: PermissionColumnId[] = [
 ];
 
 type PermissionViewMode = 'management' | 'self';
-
-const inferAttachmentContentType = (attachment: File) => {
-  if (attachment.type) {
-    return attachment.type;
-  }
-
-  const extension = attachment.name.split('.').pop()?.toLowerCase();
-  return {
-    pdf: 'application/pdf',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-  }[extension ?? ''] ?? 'application/octet-stream';
-};
 
 export default function Permissions() {
   const copy = usePermissionsTranslations();
@@ -398,34 +392,42 @@ export default function Permissions() {
         busyPermissionId={busyPermissionId}
       />
 
-      <PermissionColumnsModal
-        columns={permissionColumns}
-        copy={copy.columnsModal}
-        isOpen={isColumnsModalOpen}
-        visibleColumns={visiblePermissionColumns}
-        onClose={() => setIsColumnsModalOpen(false)}
-        onToggleColumn={handleToggleColumn}
-      />
+      <Suspense fallback={null}>
+        {isColumnsModalOpen ? (
+          <LazyPermissionColumnsModal
+            columns={permissionColumns}
+            copy={copy.columnsModal}
+            isOpen={isColumnsModalOpen}
+            visibleColumns={visiblePermissionColumns}
+            onClose={() => setIsColumnsModalOpen(false)}
+            onToggleColumn={handleToggleColumn}
+          />
+        ) : null}
 
-      <CreatePermissionModal
-        copy={copy}
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreatePermission}
-      />
+        {isCreateModalOpen ? (
+          <LazyCreatePermissionModal
+            copy={copy}
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+            onSubmit={handleCreatePermission}
+          />
+        ) : null}
 
-      <PermissionDetailModal
-        copy={copy}
-        locale={locale}
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        permission={selectedPermission}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onDelete={handleDelete}
-        isManager={isManager}
-        isReviewing={busyPermissionId === selectedPermission?.id}
-      />
+        {isDetailModalOpen ? (
+          <LazyPermissionDetailModal
+            copy={copy}
+            locale={locale}
+            isOpen={isDetailModalOpen}
+            onClose={() => setIsDetailModalOpen(false)}
+            permission={selectedPermission}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onDelete={handleDelete}
+            isManager={isManager}
+            isReviewing={busyPermissionId === selectedPermission?.id}
+          />
+        ) : null}
+      </Suspense>
 
       <LoadingBarOverlay
         isVisible={loadingState.isVisible}

@@ -66,6 +66,13 @@ export const esMX = {
     previous: 'Anterior',
     next: 'Siguiente',
   },
+  pagination: {
+    pageSize: 'Filas por página',
+    showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} incentivos`,
+    page: (current: number, total: number) => `Página ${current} de ${total}`,
+    previous: 'Anterior',
+    next: 'Siguiente',
+  },
   newIncentive: {
     selectedCollaborators: (count: number) => `${count} colaboradores`,
     automatedRule: 'Regla automática',

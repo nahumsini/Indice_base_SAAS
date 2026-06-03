@@ -31,7 +31,8 @@ export type AnnouncementFiltersCopy = AnnouncementsTranslations['filters'];
 export type AnnouncementKpiCopy = AnnouncementsTranslations['kpis'];
 export type AnnouncementTableCopy = Pick<
   AnnouncementsTranslations,
-  'table' | 'typeLabels' | 'statusLabels' | 'previews' | 'audienceLabels'
+  'table' | 'typeLabels' | 'statusLabels' | 'previews' | 'audienceLabels' | 'feedback'
 >;
 export type AnnouncementColumnsModalCopy = AnnouncementsTranslations['columnsModal'];
+export type AnnouncementDetailCopy = AnnouncementsTranslations['detail'];
 export type CreateAnnouncementModalCopy = AnnouncementsTranslations['modal'];

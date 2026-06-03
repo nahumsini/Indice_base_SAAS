@@ -146,7 +146,7 @@ export const frCA = {
       ],
     },
     permissions: {
-      label: 'Permissions',
+      label: 'Demandes',
       ctaLabel: 'Réviser les permissions',
       title: 'Gérer les absences avec contrôle',
       summary: 'Organisez congés, absences, approbations et contexte sans perdre la visibilité opérationnelle.',
@@ -180,7 +180,7 @@ export const frCA = {
       ],
     },
     kpis: {
-      label: 'KPIs',
+      label: 'Indicateurs RH',
       ctaLabel: 'Réviser les KPIs RH',
       title: 'Mesurer les opérations du personnel',
       summary: 'Lisez effectifs, activité, présence, paie et signaux opérationnels du personnel.',

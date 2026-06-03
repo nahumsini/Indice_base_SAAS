@@ -2,9 +2,6 @@ import { type ReactNode, useMemo, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   Award,
   Download,
   Eye,
@@ -12,6 +9,11 @@ import {
   GraduationCap,
   Pencil,
 } from 'lucide-react';
+import {
+  StandardActionButton,
+  StandardSortIcon,
+  type StandardSortDirection,
+} from '../../shared/StandardTableControls';
 import type { EmployeeRecord, RecordSeverity, RecordType } from '../types/records.types';
 import type { RecordsListCopy } from '../translations';
 
@@ -27,7 +29,6 @@ interface RecordsListProps {
 
 type SortField = 'id' | 'employee' | 'reportedBy' | 'unit' | 'business' | 'type' | 'severity' | 'date';
 export type RecordColumnId = SortField | 'actions';
-type SortDirection = 'asc' | 'desc' | null;
 
 const typeConfig: Record<RecordType, { color: string; bgColor: string; icon: ReactNode }> = {
   incident: {
@@ -88,7 +89,7 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
 
 export function RecordsList({ copy, locale, records, visibleColumns, onRecordClick, onEdit, onDownload }: RecordsListProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [sortDirection, setSortDirection] = useState<StandardSortDirection>(null);
   const visibleColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
   const recordColumns = useMemo<Array<{ id: RecordColumnId; label: string; sortable?: boolean }>>(
     () => [
@@ -170,28 +171,19 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
     });
   }, [records, sortDirection, sortField]);
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
-    }
-    return sortDirection === 'asc'
-      ? <ArrowUp className="h-3.5 w-3.5" />
-      : <ArrowDown className="h-3.5 w-3.5" />;
-  };
-
   if (records.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white py-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <p className="text-gray-500 dark:text-gray-400">{copy.list.empty}</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <table className="min-w-full">
-          <thead className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-900">
+          <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
               {recordColumns
                 .filter((column) => column.id !== 'actions' && visibleColumnSet.has(column.id))
@@ -202,7 +194,7 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
                     className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   >
                     {column.label}
-                    {getSortIcon(column.id as SortField)}
+                    <StandardSortIcon active={sortField === column.id} direction={sortDirection} />
                   </button>
                 </th>
               ))}
@@ -273,38 +265,30 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
                     </td>
                   ) : null}
                   {visibleColumnSet.has('actions') ? (
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm">
+                    <td
+                      className="whitespace-nowrap px-4 py-4 text-right text-sm"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onRecordClick(record);
-                          }}
-                          className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-blue-600 transition-colors hover:bg-blue-100 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300"
-                          title={copy.actions.view}
+                        <StandardActionButton
+                          label={copy.actions.view}
+                          onClick={() => onRecordClick(record)}
                         >
                           <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onEdit(record);
-                          }}
-                          className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-blue-600 transition-colors hover:bg-blue-100 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300"
-                          title={copy.actions.edit}
+                        </StandardActionButton>
+                        <StandardActionButton
+                          label={copy.actions.edit}
+                          onClick={() => onEdit(record)}
                         >
                           <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDownload(record);
-                          }}
-                          className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300"
-                          title={copy.actions.downloadPdf}
+                        </StandardActionButton>
+                        <StandardActionButton
+                          label={copy.actions.downloadPdf}
+                          onClick={() => onDownload(record)}
+                          tone="success"
                         >
                           <Download className="h-4 w-4" />
-                        </button>
+                        </StandardActionButton>
                       </div>
                     </td>
                   ) : null}

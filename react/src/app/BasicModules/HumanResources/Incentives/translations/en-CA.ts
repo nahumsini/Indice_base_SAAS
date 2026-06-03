@@ -62,6 +62,13 @@ export const enCA = {
     previous: 'Previous',
     next: 'Next',
   },
+  pagination: {
+    pageSize: 'Rows per page',
+    showing: (start: number, end: number, total: number) => `Showing ${start}-${end} of ${total} incentives`,
+    page: (current: number, total: number) => `Page ${current} of ${total}`,
+    previous: 'Previous',
+    next: 'Next',
+  },
   newIncentive: {
     selectedCollaborators: (count: number) => `${count} employees`,
     automatedRule: 'Automated rule',

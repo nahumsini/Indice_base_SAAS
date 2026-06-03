@@ -1,12 +1,18 @@
-import { useMemo, useState } from 'react';
-import { NuevoIncentivoModal } from '../../../components/NuevoIncentivoModal';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { RHIncentivo, rhColaboradores, rhIncentivosSeed } from '../mockData';
-import { IncentiveColumnsModal, type IncentiveColumn } from './components/IncentiveColumnsModal';
+import type { IncentiveColumn } from './components/IncentiveColumnsModal';
 import { IncentiveFilters } from './components/IncentiveFilters';
 import { IncentiveHeaderBar } from './components/IncentiveHeaderBar';
 import { IncentiveKpiStrip } from './components/IncentiveKpiStrip';
 import { IncentivesTable, type IncentiveColumnId } from './components/IncentivesTable';
 import { useIncentivesTranslations } from './hooks/useIncentivesTranslations';
+
+const LazyIncentiveColumnsModal = lazy(() =>
+  import('./components/IncentiveColumnsModal').then((module) => ({ default: module.IncentiveColumnsModal })),
+);
+const LazyNuevoIncentivoModal = lazy(() =>
+  import('../../../components/NuevoIncentivoModal').then((module) => ({ default: module.NuevoIncentivoModal })),
+);
 
 const defaultVisibleIncentiveColumns: IncentiveColumnId[] = [
   'incentive',
@@ -75,16 +81,16 @@ export default function Incentives() {
     );
   };
 
-  const handleToggleAll = (checked: boolean) => {
+  const handleToggleRows = (incentiveIds: string[], checked: boolean) => {
     if (checked) {
       setSelectedIncentiveIds((current) =>
-        Array.from(new Set([...current, ...filteredIncentives.map((incentive) => incentive.id)])),
+        Array.from(new Set([...current, ...incentiveIds])),
       );
       return;
     }
 
     setSelectedIncentiveIds((current) =>
-      current.filter((id) => !filteredIncentives.some((incentive) => incentive.id === id)),
+      current.filter((id) => !incentiveIds.includes(id)),
     );
   };
 
@@ -137,51 +143,57 @@ export default function Incentives() {
         incentives={filteredIncentives}
         selectedIds={selectedIncentiveIds}
         visibleColumns={visibleColumns}
-        onToggleAll={handleToggleAll}
         onToggleRow={handleToggleRow}
+        onToggleRows={handleToggleRows}
       />
 
-      <IncentiveColumnsModal
-        columns={incentiveColumns}
-        copy={copy.columnsModal}
-        isOpen={isColumnsModalOpen}
-        visibleColumns={visibleColumns}
-        onClose={() => setIsColumnsModalOpen(false)}
-        onToggleColumn={handleToggleColumn}
-      />
+      <Suspense fallback={null}>
+        {isColumnsModalOpen ? (
+          <LazyIncentiveColumnsModal
+            columns={incentiveColumns}
+            copy={copy.columnsModal}
+            isOpen={isColumnsModalOpen}
+            visibleColumns={visibleColumns}
+            onClose={() => setIsColumnsModalOpen(false)}
+            onToggleColumn={handleToggleColumn}
+          />
+        ) : null}
 
-      <NuevoIncentivoModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={(data) => {
-          const nextId = `INC-${210 + incentivos.length + 1}`;
-          setIncentivos((prev) => [
-            {
-              id: nextId,
-              nombre: data.nombre,
-              tipo: data.tipo === 'manual' ? 'Manual' : 'Automatizado',
-              alcance:
-                data.tipo === 'manual'
-                  ? copy.newIncentive.selectedCollaborators(data.colaboradoresSeleccionados.length)
-                  : copy.newIncentive.automatedRule,
-              monto:
-                data.tipo === 'manual'
-                  ? `$${data.montoManual || '0'} ${copy.newIncentive.fixed}`
-                  : `${data.montoAutomatizado || '0'} ${data.tipoMontoAuto === 'porcentaje' ? '%' : copy.newIncentive.fixed}`,
-              aplicacion: data.aplicacion === 'especifica' ? data.fechaEspecifica || copy.newIncentive.pending : copy.newIncentive.nextPayroll,
-              estado: data.activo ? 'Activo' : 'Pausado',
-            },
-            ...prev,
-          ]);
-          setIsModalOpen(false);
-        }}
-        colaboradores={rhColaboradores.map(({ id, nombre, puesto, unidad }) => ({
-          id,
-          nombre,
-          puesto,
-          unidad,
-        }))}
-      />
+        {isModalOpen ? (
+          <LazyNuevoIncentivoModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSave={(data) => {
+              const nextId = `INC-${210 + incentivos.length + 1}`;
+              setIncentivos((prev) => [
+                {
+                  id: nextId,
+                  nombre: data.nombre,
+                  tipo: data.tipo === 'manual' ? 'Manual' : 'Automatizado',
+                  alcance:
+                    data.tipo === 'manual'
+                      ? copy.newIncentive.selectedCollaborators(data.colaboradoresSeleccionados.length)
+                      : copy.newIncentive.automatedRule,
+                  monto:
+                    data.tipo === 'manual'
+                      ? `$${data.montoManual || '0'} ${copy.newIncentive.fixed}`
+                      : `${data.montoAutomatizado || '0'} ${data.tipoMontoAuto === 'porcentaje' ? '%' : copy.newIncentive.fixed}`,
+                  aplicacion: data.aplicacion === 'especifica' ? data.fechaEspecifica || copy.newIncentive.pending : copy.newIncentive.nextPayroll,
+                  estado: data.activo ? 'Activo' : 'Pausado',
+                },
+                ...prev,
+              ]);
+              setIsModalOpen(false);
+            }}
+            colaboradores={rhColaboradores.map(({ id, nombre, puesto, unidad }) => ({
+              id,
+              nombre,
+              puesto,
+              unidad,
+            }))}
+          />
+        ) : null}
+      </Suspense>
     </>
   );
 }

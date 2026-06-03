@@ -51,11 +51,18 @@ export function PermissionKpiStrip({ approved, copy, pending, rejected, total, v
         </span>
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <div className="flex h-full">
-          <div className="bg-emerald-500" style={{ width: `${approvedPercent}%` }} />
-          <div className="bg-amber-500" style={{ width: `${pendingPercent}%` }} />
-          <div className="bg-rose-500" style={{ width: `${rejectedPercent}%` }} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="flex h-full">
+            <div className="bg-emerald-500" style={{ width: `${approvedPercent}%` }} />
+            <div className="bg-amber-500" style={{ width: `${pendingPercent}%` }} />
+            <div className="bg-rose-500" style={{ width: `${rejectedPercent}%` }} />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <LegendItem color="bg-emerald-500" label={copy.kpis.approved} />
+          <LegendItem color="bg-amber-500" label={copy.kpis.pending} />
+          <LegendItem color="bg-rose-500" label={copy.kpis.rejected} />
         </div>
       </div>
 
@@ -63,5 +70,14 @@ export function PermissionKpiStrip({ approved, copy, pending, rejected, total, v
         {copy.kpis.summary(approved, pending, rejected, visible, total)}
       </div>
     </div>
+  );
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      {label}
+    </span>
   );
 }

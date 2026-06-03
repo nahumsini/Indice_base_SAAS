@@ -64,11 +64,18 @@ export function IncentiveKpiStrip({
         <Metric icon={<Users className="h-4 w-4" />} label={copy.kpis.eligibleEmployees} value={eligibleCount} />
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <div className="flex h-full">
-          <div className="bg-emerald-500" style={{ width: `${activePercent}%` }} />
-          <div className="bg-blue-500" style={{ width: `${scheduledPercent}%` }} />
-          <div className="bg-slate-400" style={{ width: `${pausedPercent}%` }} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="flex h-full">
+            <div className="bg-emerald-500" style={{ width: `${activePercent}%` }} />
+            <div className="bg-blue-500" style={{ width: `${scheduledPercent}%` }} />
+            <div className="bg-slate-400" style={{ width: `${pausedPercent}%` }} />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <LegendItem color="bg-emerald-500" label={copy.statuses.Activo} />
+          <LegendItem color="bg-blue-500" label={copy.statuses.Programado} />
+          <LegendItem color="bg-slate-400" label={copy.statuses.Pausado} />
         </div>
       </div>
 
@@ -76,5 +83,14 @@ export function IncentiveKpiStrip({
         {copy.kpis.summary(activeCount, scheduledCount, pausedCount, selectedCount, visibleCount, totalCount)}
       </div>
     </div>
+  );
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      {label}
+    </span>
   );
 }

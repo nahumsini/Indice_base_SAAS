@@ -67,11 +67,18 @@ export function AssetKpiStrip({
         <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={copy.kpis.assetValue} value={formattedValue} valueClassName="text-[#59C3A5]" />
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <div className="flex h-full">
-          <div className="bg-emerald-500" style={{ width: `${assignedPercent}%` }} />
-          <div className="bg-blue-500" style={{ width: `${availablePercent}%` }} />
-          <div className="bg-amber-500" style={{ width: `${maintenancePercent}%` }} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="flex h-full">
+            <div className="bg-emerald-500" style={{ width: `${assignedPercent}%` }} />
+            <div className="bg-blue-500" style={{ width: `${availablePercent}%` }} />
+            <div className="bg-amber-500" style={{ width: `${maintenancePercent}%` }} />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <LegendItem color="bg-emerald-500" label={copy.cards.assigned} />
+          <LegendItem color="bg-blue-500" label={copy.cards.available} />
+          <LegendItem color="bg-amber-500" label={copy.cards.maintenance} />
         </div>
       </div>
 
@@ -79,5 +86,14 @@ export function AssetKpiStrip({
         {copy.kpis.summary(assignedCount, availableCount, maintenanceCount, selectedCount, visibleCount, totalCount)}
       </div>
     </div>
+  );
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      {label}
+    </span>
   );
 }

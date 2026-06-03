@@ -8,6 +8,8 @@ import { ptBR } from './pt-BR';
 import { zhCA } from './zh-CA';
 import type { KPIsLocale, KPIsTranslations } from './types';
 
+export const fallbackKPIsLocale: KPIsLocale = 'en-CA';
+
 export const kpisTranslations = {
   'es-MX': esMX,
   'es-CO': esCO,
@@ -20,7 +22,7 @@ export const kpisTranslations = {
 } as const satisfies Record<KPIsLocale, KPIsTranslations>;
 
 export function resolveKPIsLocale(locale?: string): KPIsLocale {
-  return locale && locale in kpisTranslations ? (locale as KPIsLocale) : 'en-CA';
+  return locale && locale in kpisTranslations ? (locale as KPIsLocale) : fallbackKPIsLocale;
 }
 
 export function getKPIsTranslations(locale?: string): KPIsTranslations {

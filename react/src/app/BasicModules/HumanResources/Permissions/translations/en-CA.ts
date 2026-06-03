@@ -21,6 +21,13 @@ export const enCA = {
     status: 'Status',
     actions: 'Actions',
   },
+  pagination: {
+    pageSize: 'Rows per page',
+    showing: (start: number, end: number, total: number) => `Showing ${start}-${end} of ${total} requests`,
+    page: (current: number, total: number) => `Page ${current} of ${total}`,
+    previous: 'Previous',
+    next: 'Next',
+  },
   filters: {
     title: 'Filters',
     searchLabel: 'Search request',

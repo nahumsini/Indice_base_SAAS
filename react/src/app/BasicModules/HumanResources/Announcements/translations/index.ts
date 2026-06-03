@@ -10,6 +10,7 @@ import type { AnnouncementsLocale, AnnouncementsTranslations } from './types';
 
 export type {
   AnnouncementColumnsModalCopy,
+  AnnouncementDetailCopy,
   AnnouncementFiltersCopy,
   AnnouncementHeaderCopy,
   AnnouncementKpiCopy,

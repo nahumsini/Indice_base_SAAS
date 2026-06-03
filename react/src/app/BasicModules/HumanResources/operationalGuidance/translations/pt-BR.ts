@@ -180,7 +180,7 @@ export const ptBR = {
       ],
     },
     kpis: {
-      label: 'KPIs',
+      label: 'Indicadores RH',
       ctaLabel: 'Revisar KPIs de RH',
       title: 'Meça a operação de pessoas',
       summary: 'Leia sinais de quadro, atividade, presença, folha e comportamento operacional da equipe.',

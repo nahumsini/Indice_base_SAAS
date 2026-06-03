@@ -31,6 +31,16 @@ export const esCO = {
     ...esMX.columnsModal,
     subtitle: 'Elige qué datos del aviso se muestran en la tabla.',
   },
+  detail: {
+    ...esMX.detail,
+    eyebrow: 'Detalle del aviso',
+    markAsRead: 'Marcar como leído',
+    uploadAttachment: 'Cargar soporte',
+    attachments: (count: number) => `Soportes (${count})`,
+    noAttachments: 'Sin soportes cargados.',
+    removeAttachment: 'Retirar',
+    close: 'Cerrar detalle del aviso',
+  },
   deleteDialog: {
     ...esMX.deleteDialog,
     title: 'Eliminar aviso',

@@ -64,6 +64,13 @@ export const koCA = {
     notes: '메모',
     actions: '작업',
   },
+  pagination: {
+    pageSize: '페이지당 행',
+    showing: (start: number, end: number, total: number) => `자산 ${total}개 중 ${start}-${end}개 표시`,
+    page: (current: number, total: number) => `${current} / ${total} 페이지`,
+    previous: '이전',
+    next: '다음',
+  },
   kpis: {
     visibleAfterFilters: '필터 후 표시',
     assetValue: '자산 가치',
