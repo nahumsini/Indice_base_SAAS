@@ -47,6 +47,7 @@ export const koCA: AgendaTranslations = {
   },
   periods: {
     mine: '내 일정',
+    delegated: '위임한 작업',
     team: '팀 일정',
     week: '이번 주',
     month: '이번 달',
@@ -89,6 +90,7 @@ export const koCA: AgendaTranslations = {
     createdAt: { label: '생성일', description: '작업이 등록된 날짜입니다.' },
     startDate: { label: '시작일', description: '예정 시작일입니다.' },
     dueDate: { label: '마감일', description: '완료 기한입니다.' },
+    agendaTime: { label: '시간', description: '일일 작업 순서를 정하는 예정 시간입니다.' },
     status: { label: '상태', description: '현재 상태이며 기한 초과는 시각 상태로 표시됩니다.' },
     creator: { label: '생성자', description: '작업을 만든 사용자입니다.' },
     responsible: { label: '담당자', description: '작업 실행을 맡은 사용자입니다.' },
@@ -107,6 +109,14 @@ export const koCA: AgendaTranslations = {
     resizeColumn: '너비 조정',
     noWeighting: '가중치 없음',
   },
+  quickAdd: {
+    buttonLabel: '빠른 작업 추가',
+    title: '빠른 작업',
+    description: '이름만으로 작업을 만들고 세부 정보는 나중에 완성할 수 있습니다.',
+    fieldLabel: '작업 이름',
+    placeholder: '작업 이름 입력',
+    submit: '작업 만들기',
+  },
   actions: {
     closeTask: '작업 마감',
     taskReport: '작업 보고서',
@@ -116,6 +126,10 @@ export const koCA: AgendaTranslations = {
     copyTask: '작업 복사',
     deleteTask: '작업 삭제',
     files: '파일',
+  },
+  bulk: {
+    assignDescription: (count: number) => `선택한 작업 ${count}개에 담당자를 적용합니다.`,
+    unitDescription: (count: number) => `선택한 작업 ${count}개에 유닛을 적용합니다.`,
   },
   kanban: {
     title: '일정 칸반',
@@ -147,6 +161,9 @@ export const koCA: AgendaTranslations = {
     unscheduledTitle: '시간 없는 작업',
     unscheduledDescription: '작업을 시간대에 끌어 놓거나, 시간 없이 보관하려면 여기에 놓으세요.',
     emptyUnscheduled: '표시된 모든 작업에 시간이 배정되었습니다.',
+    delegatedTitle: '위임한 작업',
+    delegatedDescription: '현재 필터에서 내가 만들고 다른 담당자에게 배정한 작업입니다.',
+    emptyDelegated: '이 일정 필터에는 위임한 작업이 없습니다.',
     emptySlot: '여기에 작업 놓기',
     dayTitle: 'Daily operational agenda',
     weekTitle: 'Weekly planner',

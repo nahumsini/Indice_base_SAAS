@@ -66,6 +66,20 @@ const formatScheduledDuration = (minutes: number) => {
   return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 };
 
+export const formatWorkedDuration = (checkIn?: string | null, checkOut?: string | null) => {
+  if (!checkIn || !checkOut) {
+    return '-';
+  }
+
+  const checkInTime = new Date(checkIn).getTime();
+  const checkOutTime = new Date(checkOut).getTime();
+  if (!Number.isFinite(checkInTime) || !Number.isFinite(checkOutTime) || checkOutTime <= checkInTime) {
+    return '-';
+  }
+
+  return formatScheduledDuration(Math.round((checkOutTime - checkInTime) / 60000)) || '-';
+};
+
 const scheduleRuleTimeLabel = (rule: AttendanceControlRule | null | undefined, copy: TimeTableCopy) => {
   if (!rule) {
     return copy.noRule;

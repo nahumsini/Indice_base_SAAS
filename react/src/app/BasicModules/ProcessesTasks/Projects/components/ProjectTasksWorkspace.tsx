@@ -4,13 +4,9 @@ import {
   useMemo,
   useState,
   type FormEvent,
-  type KeyboardEvent,
   type ReactNode,
 } from 'react';
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   CalendarRange,
   CheckCircle2,
   ClipboardCheck,
@@ -55,7 +51,6 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
-import { Textarea } from '../../../../components/ui/textarea';
 import { cn } from '../../../../components/ui/utils';
 import { authApi } from '../../../../api/auth';
 import { accentButtonClass } from '../../Processes/processesData';
@@ -93,6 +88,15 @@ import {
 } from '../../shared/assignmentScope';
 import { listProjectTasks, type ProjectRecord } from '../projectsApi';
 import type { ProjectsTranslations } from '../translations';
+import {
+  InlineNumberInput,
+  InlineTextArea,
+  InlineTextInput,
+  SortableHead,
+  TableActionButton,
+  tableInputClass,
+  tableSelectTriggerClass,
+} from './ProjectTaskTablePrimitives';
 
 type DisplayTaskStatus = TaskStatus | 'overdue';
 type AuditPendingStatusFilter = 'pending_audit';
@@ -185,18 +189,6 @@ const projectTaskStatusFilterValues: Array<DisplayTaskStatus | AuditPendingStatu
   'overdue',
   'cancelled',
 ];
-
-const tableInputClass =
-  'h-10 min-w-0 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100';
-
-const tableTextareaClass =
-  'min-h-[76px] rounded-xl border-slate-200 bg-white text-sm leading-5 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100';
-
-const tableSelectTriggerClass =
-  'h-10 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100';
-
-const actionButtonBaseClass =
-  'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors disabled:cursor-not-allowed disabled:opacity-50';
 
 function createDefaultProjectTaskColumns(columnCopy: AgendaTranslations['columns']): ColumnConfig[] {
   return [
@@ -597,9 +589,12 @@ function normalizeProjectTask(task: TaskRecord, project: ProjectRecord): AgendaT
     description: task.description,
     status: task.status,
     priority: task.priority,
-    agendaDate: task.dueDate ?? '',
+    agendaDate: task.agendaDate ?? task.dueDate ?? null,
+    agendaStartTime: task.agendaStartTime ?? null,
+    agendaEndTime: task.agendaEndTime ?? null,
+    agendaTimeZone: task.agendaTimeZone ?? null,
     startDate: task.startDate,
-    dueDate: task.dueDate ?? '',
+    dueDate: task.dueDate ?? null,
     startedAt: task.startedAt,
     completedAt: task.completedAt,
     cancelledAt: task.cancelledAt,
@@ -679,243 +674,6 @@ function taskReportRows(task: AgendaTaskItem, copy: AgendaTranslations) {
     [copy.report.fields.notes, task.notes ?? copy.common.noNotes],
     [copy.report.fields.auditNotes, task.auditNotes ?? copy.common.noAuditNotes],
   ];
-}
-
-function TableActionButton({
-  className,
-  disabled,
-  icon,
-  label,
-  onClick,
-}: {
-  className: string;
-  disabled?: boolean;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(actionButtonBaseClass, className)}
-    >
-      {icon}
-    </button>
-  );
-}
-
-function SortableHead({
-  column,
-  onSort,
-  sortState,
-}: {
-  column: ColumnConfig;
-  onSort: (columnId: ProjectTaskColumnId) => void;
-  sortState: ProjectTaskSortState;
-}) {
-  const columnId = column.id as ProjectTaskColumnId;
-  const isActiveSort = sortState.columnId === columnId;
-  const SortIcon = isActiveSort ? (sortState.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
-
-  return (
-    <TableHead className="px-5 py-5">
-      <button
-        type="button"
-        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
-        onClick={() => onSort(columnId)}
-      >
-        <span className="truncate">{column.label}</span>
-        <SortIcon
-          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[#9A6B05]' : 'text-slate-400')}
-        />
-      </button>
-    </TableHead>
-  );
-}
-
-function InlineTextInput({
-  disabled = false,
-  onCommit,
-  placeholder,
-  value,
-}: {
-  disabled?: boolean;
-  onCommit: (value: string) => void | Promise<void>;
-  placeholder: string;
-  value: string | null | undefined;
-}) {
-  const normalizedValue = value ?? '';
-  const [draft, setDraft] = useState(normalizedValue);
-
-  useEffect(() => {
-    setDraft(normalizedValue);
-  }, [normalizedValue]);
-
-  const commit = () => {
-    const nextValue = draft.trim();
-    if (nextValue === normalizedValue.trim()) {
-      setDraft(normalizedValue);
-      return;
-    }
-
-    void onCommit(nextValue);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commit();
-    }
-
-    if (event.key === 'Escape') {
-      setDraft(normalizedValue);
-    }
-  };
-
-  return (
-    <Input
-      value={draft}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={tableInputClass}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={handleKeyDown}
-    />
-  );
-}
-
-function InlineTextArea({
-  disabled = false,
-  onCommit,
-  placeholder,
-  value,
-}: {
-  disabled?: boolean;
-  onCommit: (value: string) => void | Promise<void>;
-  placeholder: string;
-  value: string | null | undefined;
-}) {
-  const normalizedValue = value ?? '';
-  const [draft, setDraft] = useState(normalizedValue);
-
-  useEffect(() => {
-    setDraft(normalizedValue);
-  }, [normalizedValue]);
-
-  const commit = () => {
-    const nextValue = draft.trim();
-    if (nextValue === normalizedValue.trim()) {
-      setDraft(normalizedValue);
-      return;
-    }
-
-    void onCommit(nextValue);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-      event.preventDefault();
-      commit();
-    }
-
-    if (event.key === 'Escape') {
-      setDraft(normalizedValue);
-    }
-  };
-
-  return (
-    <Textarea
-      value={draft}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={tableTextareaClass}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={handleKeyDown}
-    />
-  );
-}
-
-function InlineNumberInput({
-  disabled = false,
-  max = 100,
-  min = 0,
-  onCommit,
-  onInvalid,
-  placeholder,
-  rangeMessage,
-  value,
-}: {
-  disabled?: boolean;
-  max?: number;
-  min?: number;
-  onCommit: (value: number | null) => void | Promise<void>;
-  onInvalid?: (message: string) => void;
-  placeholder: string;
-  rangeMessage: (field: string, min: number, max: number) => string;
-  value: number | null | undefined;
-}) {
-  const normalizedValue = value == null ? '' : String(value);
-  const [draft, setDraft] = useState(normalizedValue);
-
-  useEffect(() => {
-    setDraft(normalizedValue);
-  }, [normalizedValue]);
-
-  const commit = () => {
-    const normalizedDraft = draft.trim();
-    if (!normalizedDraft) {
-      if (value != null) {
-        void onCommit(null);
-      }
-      return;
-    }
-
-    const parsedValue = Number(normalizedDraft);
-    if (!Number.isInteger(parsedValue) || parsedValue < min || parsedValue > max) {
-      onInvalid?.(rangeMessage(placeholder, min, max));
-      setDraft(normalizedValue);
-      return;
-    }
-
-    if (parsedValue === value) {
-      setDraft(normalizedValue);
-      return;
-    }
-
-    void onCommit(parsedValue);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commit();
-    }
-
-    if (event.key === 'Escape') {
-      setDraft(normalizedValue);
-    }
-  };
-
-  return (
-    <Input
-      type="number"
-      min={min}
-      max={max}
-      value={draft}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={tableInputClass}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={handleKeyDown}
-    />
-  );
 }
 
 export function ProjectTasksWorkspace({

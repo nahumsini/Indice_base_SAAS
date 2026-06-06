@@ -47,6 +47,7 @@ export const esCO: AgendaTranslations = {
   },
   periods: {
     mine: 'Mi agenda',
+    delegated: 'Tareas delegadas',
     team: 'Agenda de equipo',
     week: 'Esta semana',
     month: 'Este mes',
@@ -89,6 +90,7 @@ export const esCO: AgendaTranslations = {
     createdAt: { label: 'Fecha de creacion', description: 'Fecha en que se registro la tarea.' },
     startDate: { label: 'Fecha de inicio', description: 'Fecha programada para iniciar.' },
     dueDate: { label: 'Fecha de vencimiento', description: 'Fecha limite de cumplimiento.' },
+    agendaTime: { label: 'Hora', description: 'Hora programada usada para ordenar la agenda del dia.' },
     status: { label: 'Estado', description: 'Estado actual, incluyendo vencida como estado visual.' },
     creator: { label: 'Creador', description: 'Usuario que creo la tarea.' },
     responsible: { label: 'Responsable', description: 'Usuario asignado para ejecutar la tarea.' },
@@ -107,6 +109,14 @@ export const esCO: AgendaTranslations = {
     resizeColumn: 'Ajustar ancho',
     noWeighting: 'Sin ponderacion',
   },
+  quickAdd: {
+    buttonLabel: 'Agregar tarea rapida',
+    title: 'Tarea rapida',
+    description: 'Crea una tarea solo con su nombre. Puedes completar los detalles despues.',
+    fieldLabel: 'Nombre de la tarea',
+    placeholder: 'Escribe el nombre de la tarea',
+    submit: 'Crear tarea',
+  },
   actions: {
     closeTask: 'Cerrar tarea',
     taskReport: 'Reporte de tarea',
@@ -116,6 +126,10 @@ export const esCO: AgendaTranslations = {
     copyTask: 'Copiar tarea',
     deleteTask: 'Eliminar tarea',
     files: 'Archivos',
+  },
+  bulk: {
+    assignDescription: (count: number) => `Aplica un responsable a ${count} tarea${count === 1 ? '' : 's'} seleccionada${count === 1 ? '' : 's'}.`,
+    unitDescription: (count: number) => `Aplica una unidad a ${count} tarea${count === 1 ? '' : 's'} seleccionada${count === 1 ? '' : 's'}.`,
   },
   kanban: {
     title: 'Kanban de agenda',
@@ -147,6 +161,9 @@ export const esCO: AgendaTranslations = {
     unscheduledTitle: 'Tareas sin agendar',
     unscheduledDescription: 'Arrastra tareas a un horario, o sueltalas aqui para dejarlas a un costado sin hora asignada.',
     emptyUnscheduled: 'Todas las tareas visibles tienen horario.',
+    delegatedTitle: 'Tareas delegadas',
+    delegatedDescription: 'Tareas creadas por ti y asignadas a otro colaborador dentro del filtro actual.',
+    emptyDelegated: 'No hay tareas delegadas en este filtro de agenda.',
     emptySlot: 'Suelta tarea aqui',
     dayTitle: 'Agenda operativa del dia',
     weekTitle: 'Planeador semanal',

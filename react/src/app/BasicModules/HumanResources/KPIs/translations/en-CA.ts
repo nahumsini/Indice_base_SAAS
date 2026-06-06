@@ -10,6 +10,7 @@ export const enCA = {
   dashboard: {
     actions: {
       refresh: 'Refresh data',
+      printReport: 'Print report',
     },
     common: {
       noData: 'No operational data for the current filters.',
@@ -33,6 +34,11 @@ export const enCA = {
       month: 'Selected month',
       year: 'Selected year',
       allPeriods: 'All periods',
+      thisMonth: 'This month',
+      lastMonth: 'Last month',
+      thisQuarter: 'This quarter',
+      annualized: 'Annualized',
+      specificDate: 'Specific date',
       unit: 'Unit',
       business: 'Business',
       department: 'Department',

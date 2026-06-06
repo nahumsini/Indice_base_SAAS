@@ -49,7 +49,6 @@ import {
   TableHeader,
   TableRow,
 } from '../../../components/ui/table';
-import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
 import {
   accentButtonClass,
@@ -62,6 +61,13 @@ import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../a
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { createProcess, deleteProcess, listProcesses, materializeProcess, updateProcess } from './processesApi';
 import { ProcessFormDialog } from './components/ProcessFormDialog';
+import {
+  FilterSelect,
+  InlineSelectField,
+  InlineTextCell,
+  InlineTextareaCell,
+  ProcessActionButton,
+} from './components/ProcessPrimitives';
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
 import { useRowSelection } from '../shared/useRowSelection';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../shared/assignmentScope';
@@ -86,12 +92,19 @@ type UnitFilter = 'all' | string;
 type ProcessViewMode = 'table' | 'diagram';
 type ProcessConfirmation = { type: 'delete'; record: ProcessRecord };
 
-const actionButtonBaseClass =
-  'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors';
+interface StoredProcessFilters {
+  business: BusinessFilter;
+  collaborator: CollaboratorFilter;
+  frequency: FrequencyFilter;
+  search: string;
+  unit: UnitFilter;
+}
+
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
 const UNASSIGNED_RESPONSIBLE_VALUE = '__unassigned__';
 const processColumnsStorageKey = 'processes-tasks-processes-columns-v1';
+const processFiltersStorageKey = 'processes-tasks-processes-filters-v1';
 const processPriorityValues: ProcessPriority[] = ['high', 'medium', 'low'];
 const selectionColumnWidth = 64;
 
@@ -357,6 +370,25 @@ function addProcessDays(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
 }
 
+function addProcessMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function startOfProcessMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfProcessMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+function formatProcessMonth(date: Date) {
+  return new Intl.DateTimeFormat('es-MX', {
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
 function processDaysBetween(start: Date, end: Date) {
   const startAtMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   const endAtMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
@@ -521,192 +553,6 @@ function createDefaultProcessFormFromCatalog(
   };
 }
 
-function FilterSelect<T extends string>({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: T) => void;
-  options: Option<T>[];
-  value: T;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
-      <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-function InlineSelectField<T extends string>({
-  value,
-  options,
-  onChange,
-  className,
-  renderValue,
-  disabled,
-}: {
-  value: T;
-  options: Option<T>[];
-  onChange: (value: T) => void;
-  className?: string;
-  renderValue?: (value: T) => ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)} disabled={disabled}>
-      <SelectTrigger
-        className={cn(
-          'h-10 min-w-[148px] rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100',
-          className,
-        )}
-      >
-        {renderValue ? renderValue(value) : <SelectValue />}
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function InlineTextCell({
-  value,
-  onCommit,
-  placeholder,
-  className,
-  disabled,
-}: {
-  value: string;
-  onCommit: (value: string) => Promise<boolean> | boolean;
-  placeholder?: string;
-  className?: string;
-  disabled?: boolean;
-}) {
-  const [draft, setDraft] = useState(value);
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  const handleBlur = async () => {
-    const nextValue = draft.trim();
-    if (nextValue === value) {
-      return;
-    }
-
-    const didCommit = await onCommit(nextValue);
-    if (!didCommit) {
-      setDraft(value);
-    }
-  };
-
-  return (
-    <Input
-      value={draft}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => {
-        void handleBlur();
-      }}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={cn(
-        'h-10 min-w-[220px] rounded-xl border-slate-200 bg-white text-base text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400',
-        className,
-      )}
-    />
-  );
-}
-
-function InlineTextareaCell({
-  value,
-  onCommit,
-  placeholder,
-  className,
-  disabled,
-}: {
-  value: string;
-  onCommit: (value: string) => Promise<boolean> | boolean;
-  placeholder?: string;
-  className?: string;
-  disabled?: boolean;
-}) {
-  const [draft, setDraft] = useState(value);
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  const handleBlur = async () => {
-    const nextValue = draft.trim();
-    if (nextValue === value) {
-      return;
-    }
-
-    const didCommit = await onCommit(nextValue);
-    if (!didCommit) {
-      setDraft(value);
-    }
-  };
-
-  return (
-    <Textarea
-      value={draft}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => {
-        void handleBlur();
-      }}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={className}
-    />
-  );
-}
-
-function ProcessActionButton({
-  className,
-  icon,
-  label,
-  onClick,
-  disabled,
-}: {
-  className: string;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(actionButtonBaseClass, className, disabled && 'cursor-not-allowed opacity-60')}
-    >
-      {icon}
-    </button>
-  );
-}
-
 function getInitialProcessColumns(defaultProcessColumns: ProcessColumnConfig[]) {
   if (typeof window === 'undefined') {
     return defaultProcessColumns;
@@ -743,10 +589,41 @@ function getInitialProcessColumns(defaultProcessColumns: ProcessColumnConfig[]) 
   }
 }
 
+function getStoredProcessFilters(): StoredProcessFilters | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawFilters = window.sessionStorage.getItem(processFiltersStorageKey);
+    if (!rawFilters) {
+      return null;
+    }
+
+    const parsedFilters = JSON.parse(rawFilters) as Partial<StoredProcessFilters>;
+    const frequency =
+      parsedFilters.frequency === 'all' ||
+      frequencyOptions.some((option) => option.value === parsedFilters.frequency)
+        ? (parsedFilters.frequency as FrequencyFilter)
+        : 'all';
+
+    return {
+      business: typeof parsedFilters.business === 'string' ? parsedFilters.business : 'all',
+      collaborator: typeof parsedFilters.collaborator === 'string' ? parsedFilters.collaborator : 'all',
+      frequency,
+      search: typeof parsedFilters.search === 'string' ? parsedFilters.search : '',
+      unit: typeof parsedFilters.unit === 'string' ? parsedFilters.unit : 'all',
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function Processes() {
   const processCopy = useProcessesTranslations();
   const headerCopy = processCopy.header;
   const localizedColumns = useMemo(() => createProcessColumns(processCopy.columns), [processCopy.columns]);
+  const storedProcessFilters = useMemo(() => getStoredProcessFilters(), []);
   const [records, setRecords] = useState<ProcessRecord[]>([]);
   const [catalogUnits, setCatalogUnits] = useState<ProcessUnitOption[]>([]);
   const [catalogBusinesses, setCatalogBusinesses] = useState<ProcessBusinessOption[]>([]);
@@ -757,11 +634,14 @@ export default function Processes() {
   const [pendingRecordIds, setPendingRecordIds] = useState<number[]>([]);
   const [columns, setColumns] = useState<ProcessColumnConfig[]>(() => getInitialProcessColumns(localizedColumns));
   const [viewMode, setViewMode] = useState<ProcessViewMode>('table');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [unitFilter, setUnitFilter] = useState<UnitFilter>('all');
-  const [businessFilter, setBusinessFilter] = useState<BusinessFilter>('all');
-  const [collaboratorFilter, setCollaboratorFilter] = useState<CollaboratorFilter>('all');
-  const [frequencyFilter, setFrequencyFilter] = useState<FrequencyFilter>('all');
+  const [processDiagramMonth, setProcessDiagramMonth] = useState(() => startOfProcessMonth(new Date()));
+  const [searchQuery, setSearchQuery] = useState(storedProcessFilters?.search ?? '');
+  const [unitFilter, setUnitFilter] = useState<UnitFilter>(storedProcessFilters?.unit ?? 'all');
+  const [businessFilter, setBusinessFilter] = useState<BusinessFilter>(storedProcessFilters?.business ?? 'all');
+  const [collaboratorFilter, setCollaboratorFilter] = useState<CollaboratorFilter>(
+    storedProcessFilters?.collaborator ?? 'all',
+  );
+  const [frequencyFilter, setFrequencyFilter] = useState<FrequencyFilter>(storedProcessFilters?.frequency ?? 'all');
   const [isColumnsDialogOpen, setIsColumnsDialogOpen] = useState(false);
   const [processEditorOpen, setProcessEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
@@ -870,6 +750,22 @@ export default function Processes() {
 
     window.localStorage.setItem(processColumnsStorageKey, JSON.stringify(columns));
   }, [columns]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const nextFilters: StoredProcessFilters = {
+      business: businessFilter,
+      collaborator: collaboratorFilter,
+      frequency: frequencyFilter,
+      search: searchQuery,
+      unit: unitFilter,
+    };
+
+    window.sessionStorage.setItem(processFiltersStorageKey, JSON.stringify(nextFilters));
+  }, [businessFilter, collaboratorFilter, frequencyFilter, searchQuery, unitFilter]);
 
   useEffect(() => {
     const localizedColumnMap = new Map(localizedColumns.map((column) => [column.id, column]));
@@ -983,28 +879,15 @@ export default function Processes() {
     return sortState.direction === 'asc' ? comparison : comparison * -1;
   });
   const processTimeline = useMemo(() => {
-    const processDates = sortedRecords.flatMap((record) => [
-      dateFromProcessTimelineValue(record.nextOccurrenceDate ?? record.startDate ?? record.createdAt),
-      dateFromProcessTimelineValue(record.generatedUntilDate ?? record.nextOccurrenceDate ?? record.endDate),
-    ]).filter((date): date is Date => date !== null);
-    const today = new Date();
-    const fallbackStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const earliestDate = processDates.length > 0
-      ? new Date(Math.min(...processDates.map((date) => date.getTime())))
-      : fallbackStart;
-    const latestDate = processDates.length > 0
-      ? new Date(Math.max(...processDates.map((date) => date.getTime())))
-      : addProcessDays(fallbackStart, 13);
-    const timelineEnd = processDaysBetween(earliestDate, latestDate) > 30
-      ? addProcessDays(earliestDate, 30)
-      : latestDate;
+    const timelineStart = startOfProcessMonth(processDiagramMonth);
+    const timelineEnd = endOfProcessMonth(processDiagramMonth);
 
     return {
-      days: buildProcessTimelineDays(earliestDate, timelineEnd),
-      start: earliestDate,
+      days: buildProcessTimelineDays(timelineStart, timelineEnd),
+      start: timelineStart,
       end: timelineEnd,
     };
-  }, [sortedRecords]);
+  }, [processDiagramMonth]);
   const visibleRecordIds = sortedRecords.map((record) => record.id);
   const visibleRecordSelection = rowSelection.visibleSelectionState(visibleRecordIds);
   const selectedRecords = records.filter((record) => rowSelection.selectedIds.has(record.id));
@@ -1723,6 +1606,7 @@ export default function Processes() {
 
   const renderProcessDiagram = () => {
     const dayCount = Math.max(processTimeline.days.length, 1);
+    const activeRecordsCount = sortedRecords.filter((record) => record.isActive).length;
 
     return (
       <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -1734,9 +1618,33 @@ export default function Processes() {
                 {headerCopy.subtitle}
               </p>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]">
-              {sortedRecords.length} {headerCopy.title.toLowerCase()}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 w-9 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                aria-label="Previous month"
+                onClick={() => setProcessDiagramMonth((currentMonth) => addProcessMonths(currentMonth, -1))}
+              >
+                {'<'}
+              </Button>
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]">
+                <CalendarRange className="mr-1 h-4 w-4" />
+                {formatProcessMonth(processDiagramMonth)}
+              </Badge>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 w-9 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                aria-label="Next month"
+                onClick={() => setProcessDiagramMonth((currentMonth) => addProcessMonths(currentMonth, 1))}
+              >
+                {'>'}
+              </Button>
+              <Badge variant="outline" className="w-fit rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+                {activeRecordsCount} {processCopy.statuses.active.toLowerCase()}
+              </Badge>
+            </div>
           </div>
         </div>
 
@@ -1749,6 +1657,7 @@ export default function Processes() {
             {processCopy.table.empty}
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <div className="min-w-[1040px]">
               <div className="grid border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50" style={{ gridTemplateColumns: 'minmax(320px, 380px) 1fr minmax(130px, 160px)' }}>
@@ -1851,6 +1760,69 @@ export default function Processes() {
               })}
             </div>
           </div>
+          <div className="border-t border-slate-200 px-5 py-5 dark:border-slate-700">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+              <Table>
+                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/60">
+                  <TableRow>
+                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                      {processCopy.columns.folio.label}
+                    </TableHead>
+                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                      {processCopy.columns.title.label}
+                    </TableHead>
+                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                      {processCopy.columns.responsible.label}
+                    </TableHead>
+                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                      {processCopy.columns.nextOccurrence.label}
+                    </TableHead>
+                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                      {processCopy.columns.tasks.label}
+                    </TableHead>
+                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                      {processCopy.table.status}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedRecords.map((record) => (
+                    <TableRow key={`diagram-data-${record.id}`} className="border-slate-100 dark:border-slate-700">
+                      <TableCell className="px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {record.folio}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm font-semibold text-slate-950 dark:text-white">
+                        {record.title}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+                        {record.responsible || processCopy.common.unassigned}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+                        {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate)}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+                        {record.taskCount}
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'rounded-full px-2.5 py-1 text-xs font-semibold',
+                            record.isActive
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                          )}
+                        >
+                          {record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+          </>
         )}
       </section>
     );
@@ -1870,34 +1842,6 @@ export default function Processes() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-                  viewMode === 'table'
-                    ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
-                )}
-                onClick={() => setViewMode('table')}
-              >
-                <ListChecks className="h-4 w-4" />
-                {headerCopy.actions.table}
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-                  viewMode === 'diagram'
-                    ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
-                )}
-                onClick={() => setViewMode('diagram')}
-              >
-                <CalendarRange className="h-4 w-4" />
-                {headerCopy.actions.diagram}
-              </button>
-            </div>
             <Button
               type="button"
               variant="outline"
@@ -1994,6 +1938,37 @@ export default function Processes() {
             onChange={(value) => setFrequencyFilter(value)}
             options={localizedFrequencyOptions}
           />
+        </div>
+      </section>
+
+      <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-none dark:border-slate-700 dark:bg-slate-900">
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+              viewMode === 'table'
+                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
+            )}
+            onClick={() => setViewMode('table')}
+          >
+            <ListChecks className="h-4 w-4" />
+            {headerCopy.actions.table}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+              viewMode === 'diagram'
+                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
+                : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
+            )}
+            onClick={() => setViewMode('diagram')}
+          >
+            <CalendarRange className="h-4 w-4" />
+            {headerCopy.actions.diagram}
+          </button>
         </div>
       </section>
 

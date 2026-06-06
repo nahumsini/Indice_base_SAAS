@@ -34,9 +34,9 @@ export function KpiSection({
 }: KpiSectionProps) {
   return (
     <section>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">
             📊 {title}
           </h2>
           {kpis.length > 0 && (

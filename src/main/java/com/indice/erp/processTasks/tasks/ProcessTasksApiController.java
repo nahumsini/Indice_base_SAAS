@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -69,6 +70,29 @@ public class ProcessTasksApiController {
         try {
             return ResponseEntity.ok(processTasksService.updateTask(
                     access.user().companyId(), access.user().userId(), taskId, payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{taskId}/agenda-placement")
+    public ResponseEntity<?> updateAgendaPlacement(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long taskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processTasksService.updateAgendaPlacement(
+                    access.user().companyId(),
+                    access.user().userId(),
+                    taskId,
+                    payload == null ? Map.of() : payload));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {

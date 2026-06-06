@@ -7,12 +7,11 @@ import {
   CalendarCheck2,
   CheckCircle2,
   ClipboardList,
-  Download,
   FileWarning,
   Filter,
   IdCard,
   Laptop,
-  RefreshCw,
+  Printer,
   Search,
   ShieldCheck,
   Users,
@@ -49,8 +48,9 @@ import { cn } from '../../../components/ui/utils';
 import { useLanguage } from '../../../shared/context';
 import { useKPIsTranslations } from './hooks/useKPIsTranslations';
 import type { KPIsTranslations } from './translations';
+import { printKpisReport } from './utils/kpisPrintReport';
 
-type PeriodFilter = 'today' | 'month' | 'year' | 'all';
+type PeriodFilter = 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'annualized' | 'specificDate';
 type HealthStatus = 'healthy' | 'watch' | 'critical';
 
 interface KpiCardModel {
@@ -92,6 +92,61 @@ const todayIsoDate = () => {
   const month = `${now.getMonth() + 1}`.padStart(2, '0');
   const day = `${now.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const toIsoDate = (value: Date) => {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseIsoDate = (value: string) => {
+  const [yearText, monthText, dayText] = value.split('-');
+  const parsed = new Date(Number(yearText), Number(monthText) - 1, Number(dayText || '1'));
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const addMonthsClamped = (value: string, offset: number) => {
+  const base = parseIsoDate(value);
+  const day = base.getDate();
+  const target = new Date(base.getFullYear(), base.getMonth() + offset, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(day, lastDay));
+  return toIsoDate(target);
+};
+
+const effectiveControlDateForPeriod = (period: PeriodFilter, selectedDate: string) =>
+  period === 'lastMonth' ? addMonthsClamped(selectedDate, -1) : selectedDate;
+
+const periodRangeFor = (period: PeriodFilter, selectedDate: string) => {
+  const effectiveDate = parseIsoDate(effectiveControlDateForPeriod(period, selectedDate));
+  const year = effectiveDate.getFullYear();
+  const month = effectiveDate.getMonth();
+
+  if (period === 'specificDate') {
+    return { start: toIsoDate(effectiveDate), end: toIsoDate(effectiveDate) };
+  }
+
+  if (period === 'thisQuarter') {
+    const quarterStartMonth = Math.floor(month / 3) * 3;
+    return {
+      start: toIsoDate(new Date(year, quarterStartMonth, 1)),
+      end: toIsoDate(new Date(year, quarterStartMonth + 3, 0)),
+    };
+  }
+
+  if (period === 'annualized') {
+    return {
+      start: toIsoDate(new Date(year, 0, 1)),
+      end: toIsoDate(new Date(year, 11, 31)),
+    };
+  }
+
+  return {
+    start: toIsoDate(new Date(year, month, 1)),
+    end: toIsoDate(new Date(year, month + 1, 0)),
+  };
 };
 
 const emptyHrSummary = {
@@ -163,8 +218,8 @@ function formatPercent(value: number | null, copy: KPIsTranslations) {
   return `${Math.round(value)}%`;
 }
 
-function formatMonthLabel(date: string, locale: string) {
-  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(new Date(`${date.slice(0, 7)}-01T00:00:00`));
+function formatDateLabel(date: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseIsoDate(date));
 }
 
 function getHealthStatus(score: number): HealthStatus {
@@ -221,21 +276,14 @@ function getDateFromRecord(record: BackendRecordItem) {
 }
 
 function isDateInPeriod(dateValue: string, period: PeriodFilter, anchorDate: string) {
-  if (period === 'all' || !dateValue) {
-    return true;
+  if (!dateValue) {
+    return false;
   }
 
   const normalizedDate = dateValue.slice(0, 10);
+  const { start, end } = periodRangeFor(period, anchorDate);
 
-  if (period === 'today') {
-    return normalizedDate === anchorDate;
-  }
-
-  if (period === 'month') {
-    return normalizedDate.slice(0, 7) === anchorDate.slice(0, 7);
-  }
-
-  return normalizedDate.slice(0, 4) === anchorDate.slice(0, 4);
+  return normalizedDate >= start && normalizedDate <= end;
 }
 
 function employeeMatchesFilters(
@@ -402,7 +450,7 @@ export default function KPIs() {
   const [units, setUnits] = useState<BackendUnit[]>([]);
   const [businesses, setBusinesses] = useState<BackendBusiness[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('month');
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('thisMonth');
   const [unitFilter, setUnitFilter] = useState(allValue);
   const [businessFilter, setBusinessFilter] = useState(allValue);
   const [departmentFilter, setDepartmentFilter] = useState(allValue);
@@ -416,23 +464,28 @@ export default function KPIs() {
     [businessFilter, departmentFilter, searchQuery, unitFilter],
   );
 
+  const controlDate = useMemo(
+    () => effectiveControlDateForPeriod(periodFilter, selectedDate),
+    [periodFilter, selectedDate],
+  );
+
   const loadDashboard = async () => {
     setIsLoading(true);
 
     const fetchPermissions = async () => {
       try {
-        return await permissionsApi.listPermissions({ page: 1, size: 500 });
+        return await permissionsApi.listPermissions({ page: 1, size: 100 });
       } catch {
-        return permissionsApi.listMyPermissions({ page: 1, size: 500 });
+        return permissionsApi.listMyPermissions({ page: 1, size: 100 });
       }
     };
 
     const results = await runWithMinimumDuration(Promise.allSettled([
       humanResourcesApi.listHrUsers(),
-      humanResourcesApi.getAttendanceControlOverview(selectedDate),
+      humanResourcesApi.getAttendanceControlOverview(controlDate),
       hrAssetsApi.listAssets({ page: 1, size: 500 }),
       fetchPermissions(),
-      humanResourcesApi.listRecords({ page: 1, size: 500 }),
+      humanResourcesApi.listRecords({ page: 1, size: 200 }),
       dashboardApi.listUnits(),
       dashboardApi.listBusinesses(),
     ]));
@@ -506,7 +559,7 @@ export default function KPIs() {
 
   useEffect(() => {
     void loadDashboard();
-  }, [selectedDate]);
+  }, [controlDate]);
 
   const scopedEmployees = useMemo(
     () => employees.filter((employee) => employeeMatchesFilters(employee, filters)),
@@ -962,6 +1015,29 @@ export default function KPIs() {
     return copy.dashboard.insights.healthy;
   }, [copy.dashboard.insights, filteredEmployees.length, healthStatus]);
 
+  const periodOptions = useMemo(
+    () => [
+      { value: 'thisMonth', label: copy.dashboard.filters.thisMonth },
+      { value: 'lastMonth', label: copy.dashboard.filters.lastMonth },
+      { value: 'thisQuarter', label: copy.dashboard.filters.thisQuarter },
+      { value: 'annualized', label: copy.dashboard.filters.annualized },
+      { value: 'specificDate', label: copy.dashboard.filters.specificDate },
+    ],
+    [copy.dashboard.filters],
+  );
+  const periodRange = useMemo(() => periodRangeFor(periodFilter, selectedDate), [periodFilter, selectedDate]);
+  const periodLabel = periodOptions.find((option) => option.value === periodFilter)?.label ?? copy.dashboard.filters.thisMonth;
+  const periodScopeLabel = periodFilter === 'specificDate'
+    ? formatDateLabel(selectedDate, currentLanguage.code)
+    : `${formatDateLabel(periodRange.start, currentLanguage.code)} - ${formatDateLabel(periodRange.end, currentLanguage.code)}`;
+  const selectedUnitLabel = unitFilter === allValue
+    ? copy.dashboard.filters.allUnits
+    : unitOptions.find((unit) => unit.id === unitFilter)?.name ?? copy.dashboard.filters.allUnits;
+  const selectedBusinessLabel = businessFilter === allValue
+    ? copy.dashboard.filters.allBusinesses
+    : businessOptions.find((business) => business.id === businessFilter)?.name ?? copy.dashboard.filters.allBusinesses;
+  const selectedDepartmentLabel = departmentFilter === allValue ? copy.dashboard.filters.allDepartments : departmentFilter;
+
   const lastUpdatedLabel = lastUpdatedAt
     ? new Intl.DateTimeFormat(currentLanguage.code, {
         dateStyle: 'medium',
@@ -969,8 +1045,49 @@ export default function KPIs() {
       }).format(new Date(lastUpdatedAt))
     : copy.dashboard.common.notAvailable;
 
-  const handleRefresh = () => {
-    void loadDashboard();
+  const handlePrintReport = () => {
+    printKpisReport({
+      attentionRows: attentionRows.map((row) => ({
+        employee: row.employee,
+        meta: `${row.position} · ${row.unit}`,
+        signals: row.signals.join(' · '),
+        status: row.status,
+      })),
+      attendanceRows: attendanceChartData.map((item) => ({
+        name: item.name,
+        value: item.value,
+        valueLabel: formatNumber(item.value, currentLanguage.code),
+      })),
+      cards: kpiCards.map(({ description, status, target, title, value }) => ({
+        description,
+        status,
+        target,
+        title,
+        value,
+      })),
+      copy,
+      filters: [
+        { label: copy.dashboard.filters.search, value: searchQuery.trim() || copy.dashboard.common.notAvailable },
+        { label: copy.dashboard.filters.period, value: `${periodLabel} · ${periodScopeLabel}` },
+        { label: copy.dashboard.filters.unit, value: selectedUnitLabel },
+        { label: copy.dashboard.filters.business, value: selectedBusinessLabel },
+        { label: copy.dashboard.filters.department, value: selectedDepartmentLabel },
+      ],
+      healthInsight,
+      lastUpdatedLabel,
+      locale: currentLanguage.code,
+      periodLabel,
+      unitRows: unitRows.map((row) => ({
+        assignedAssets: formatNumber(row.assignedAssets, currentLanguage.code),
+        attendanceRate: formatPercent(row.attendanceRate, copy),
+        employees: formatNumber(row.employees, currentLanguage.code),
+        name: row.name,
+        pendingPermissions: formatNumber(row.pendingPermissions, currentLanguage.code),
+        readinessScore: `${row.readinessScore}%`,
+        readinessValue: row.readinessScore,
+        unresolvedRecords: formatNumber(row.unresolvedRecords, currentLanguage.code),
+      })),
+    });
   };
 
   return (
@@ -981,31 +1098,25 @@ export default function KPIs() {
         description={copy.loading.description}
       />
 
-      <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
+      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
-              <BarChart3 className="h-5 w-5" />
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
+              <BarChart3 className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-950 dark:text-white">{copy.title}</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-slate-950 dark:text-white">{copy.title}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={handleRefresh}
-              className="inline-flex h-11 items-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300"
+              onClick={handlePrintReport}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
             >
-              <RefreshCw className="h-4 w-4" />
-              {copy.dashboard.actions.refresh}
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex h-11 items-center gap-2 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
-            >
-              <Download className="h-4 w-4" />
-              {copy.exportReport}
+              <Printer className="h-4 w-4" />
+              {copy.dashboard.actions.printReport}
             </button>
           </div>
         </div>
@@ -1016,8 +1127,8 @@ export default function KPIs() {
           <Filter className="h-4 w-4 text-emerald-500" />
           {copy.dashboard.filters.title}
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <label className="flex min-w-0 flex-col gap-2 xl:col-span-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1.7fr_1.25fr_1fr_1fr_1fr]">
+          <label className="flex min-w-0 flex-col gap-2">
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               {copy.dashboard.filters.search}
             </span>
@@ -1032,23 +1143,32 @@ export default function KPIs() {
             </span>
           </label>
 
-          <SelectField label={copy.dashboard.filters.period} value={periodFilter} onChange={(value) => setPeriodFilter(value as PeriodFilter)}>
-            <option value="today">{copy.dashboard.filters.today}</option>
-            <option value="month">{copy.dashboard.filters.month}</option>
-            <option value="year">{copy.dashboard.filters.year}</option>
-            <option value="all">{copy.dashboard.filters.allPeriods}</option>
-          </SelectField>
-
           <label className="flex min-w-0 flex-col gap-2">
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-              {copy.dashboard.filters.date}
+              {copy.dashboard.filters.period}
             </span>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value || todayIsoDate())}
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
-            />
+            <div className={cn('grid gap-2', periodFilter === 'specificDate' ? 'grid-cols-1' : '')}>
+              <select
+                value={periodFilter}
+                onChange={(event) => setPeriodFilter(event.target.value as PeriodFilter)}
+                className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+              >
+                {periodOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {periodFilter === 'specificDate' ? (
+                <input
+                  aria-label={copy.dashboard.filters.date}
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value || todayIsoDate())}
+                  className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+                />
+              ) : null}
+            </div>
           </label>
 
           <SelectField label={copy.dashboard.filters.unit} value={unitFilter} onChange={setUnitFilter}>
@@ -1120,7 +1240,7 @@ export default function KPIs() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.dashboard.sections.attendanceMix}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{formatMonthLabel(selectedDate, currentLanguage.code)}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{periodLabel} · {periodScopeLabel}</p>
             </div>
             <IdCard className="h-5 w-5 text-emerald-500" />
           </div>

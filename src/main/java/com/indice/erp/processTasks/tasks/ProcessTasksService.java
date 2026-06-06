@@ -8,9 +8,11 @@ import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNulla
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableInteger;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableLong;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableString;
+import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.setNullableTime;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toDateString;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toDateTimeString;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toLocalDateTime;
+import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toTimeString;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskPresentation.fallback;
 
 import com.indice.erp.processTasks.tasks.domain.TaskCommand;
@@ -25,8 +27,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.Normalizer;
+import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.Year;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -76,6 +83,10 @@ public class ProcessTasksService {
                    pt.priority,
                    pt.start_date,
                    pt.due_date,
+                   pt.agenda_date,
+                   pt.agenda_start_time,
+                   pt.agenda_end_time,
+                   pt.agenda_time_zone,
                    pt.started_at,
                    pt.completed_at,
                    pt.cancelled_at,
@@ -372,6 +383,59 @@ public class ProcessTasksService {
     }
 
     @Transactional
+    public Map<String, Object> updateAgendaPlacement(long companyId, long userId, long taskId, Map<String, Object> payload) {
+        requireTaskAccess(companyId, userId, taskId);
+
+        var agendaDate = nullableDate(payload, "agendaDate", "agenda_date");
+        var agendaStartTime = nullableTime(payload, "agendaStartTime", "agenda_start_time");
+        var agendaEndTime = nullableTime(payload, "agendaEndTime", "agenda_end_time");
+        var agendaTimeZone = nullableTimeZone(payload, "agendaTimeZone", "agenda_time_zone", "timeZone", "time_zone");
+
+        if (agendaDate == null && (agendaStartTime != null || agendaEndTime != null || agendaTimeZone != null)) {
+            throw new IllegalArgumentException("agendaDate is required when agenda time fields are provided.");
+        }
+
+        if (agendaStartTime != null && agendaEndTime != null && agendaEndTime.isBefore(agendaStartTime)) {
+            throw new IllegalArgumentException("agendaEndTime must be greater than or equal to agendaStartTime.");
+        }
+
+        if (agendaDate == null) {
+            agendaStartTime = null;
+            agendaEndTime = null;
+            agendaTimeZone = null;
+        }
+
+        var placementDate = agendaDate;
+        var placementStartTime = agendaStartTime;
+        var placementEndTime = agendaEndTime;
+        var placementTimeZone = agendaTimeZone;
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(
+                    """
+                            UPDATE process_tasks
+                            SET agenda_date = ?,
+                                agenda_start_time = ?,
+                                agenda_end_time = ?,
+                                agenda_time_zone = ?
+                            WHERE company_id = ?
+                              AND id = ?
+                              AND deleted_at IS NULL
+                            """);
+
+            setNullableDate(statement, 1, placementDate);
+            setNullableTime(statement, 2, placementStartTime);
+            setNullableTime(statement, 3, placementEndTime);
+            setNullableString(statement, 4, placementTimeZone);
+            statement.setLong(5, companyId);
+            statement.setLong(6, taskId);
+            return statement;
+        });
+
+        return getTask(companyId, taskId);
+    }
+
+    @Transactional
     public void deleteTask(long companyId, long userId, long taskId) {
         requireTaskAccess(companyId, userId, taskId);
 
@@ -652,6 +716,76 @@ public class ProcessTasksService {
         }
 
         return rows.getFirst();
+    }
+
+    private LocalDate nullableDate(Map<String, Object> payload, String key, String... aliases) {
+        var value = firstPayloadValue(payload, key, aliases);
+        if (value == null) {
+            return null;
+        }
+
+        var normalized = String.valueOf(value).trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return LocalDate.parse(normalized);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException(key + " must use YYYY-MM-DD format.");
+        }
+    }
+
+    private LocalTime nullableTime(Map<String, Object> payload, String key, String... aliases) {
+        var value = firstPayloadValue(payload, key, aliases);
+        if (value == null) {
+            return null;
+        }
+
+        var normalized = String.valueOf(value).trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return LocalTime.parse(normalized);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException(key + " must use HH:mm or HH:mm:ss format.");
+        }
+    }
+
+    private String nullableTimeZone(Map<String, Object> payload, String key, String... aliases) {
+        var value = firstPayloadValue(payload, key, aliases);
+        if (value == null) {
+            return null;
+        }
+
+        var normalized = String.valueOf(value).trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        try {
+            ZoneId.of(normalized);
+        } catch (DateTimeException ex) {
+            throw new IllegalArgumentException(key + " must be a valid time zone.");
+        }
+
+        return normalized.length() > 80 ? normalized.substring(0, 80) : normalized;
+    }
+
+    private Object firstPayloadValue(Map<String, Object> payload, String key, String... aliases) {
+        if (payload.containsKey(key)) {
+            return payload.get(key);
+        }
+
+        for (String alias : aliases) {
+            if (payload.containsKey(alias)) {
+                return payload.get(alias);
+            }
+        }
+
+        return null;
     }
 
     private TaskMutationRecord requireTaskForMutation(long companyId, long taskId) {
@@ -1267,6 +1401,10 @@ public class ProcessTasksService {
         row.put("priority", fallback(rs.getString("priority"), "medium"));
         row.put("startDate", toDateString(rs.getDate("start_date")));
         row.put("dueDate", toDateString(rs.getDate("due_date")));
+        row.put("agendaDate", toDateString(rs.getDate("agenda_date")));
+        row.put("agendaStartTime", toTimeString(rs.getTime("agenda_start_time")));
+        row.put("agendaEndTime", toTimeString(rs.getTime("agenda_end_time")));
+        row.put("agendaTimeZone", rs.getString("agenda_time_zone"));
         row.put("startedAt", toDateTimeString(rs.getTimestamp("started_at")));
         row.put("completedAt", toDateTimeString(rs.getTimestamp("completed_at")));
         row.put("cancelledAt", toDateTimeString(rs.getTimestamp("cancelled_at")));

@@ -47,6 +47,7 @@ export const zhCA: AgendaTranslations = {
   },
   periods: {
     mine: '我的日程',
+    delegated: '已委派任务',
     team: '团队日程',
     week: '本周',
     month: '本月',
@@ -89,6 +90,7 @@ export const zhCA: AgendaTranslations = {
     createdAt: { label: '创建日期', description: '任务登记日期。' },
     startDate: { label: '开始日期', description: '计划开始日期。' },
     dueDate: { label: '到期日期', description: '完成截止日期。' },
+    agendaTime: { label: '时间', description: '用于排序当天工作的计划时间。' },
     status: { label: '状态', description: '当前状态，逾期作为视觉状态显示。' },
     creator: { label: '创建者', description: '创建任务的用户。' },
     responsible: { label: '负责人', description: '被分配执行任务的用户。' },
@@ -107,6 +109,14 @@ export const zhCA: AgendaTranslations = {
     resizeColumn: '调整宽度',
     noWeighting: '无权重',
   },
+  quickAdd: {
+    buttonLabel: '添加快速任务',
+    title: '快速任务',
+    description: '仅用名称创建任务，稍后可补充详情。',
+    fieldLabel: '任务名称',
+    placeholder: '输入任务名称',
+    submit: '创建任务',
+  },
   actions: {
     closeTask: '关闭任务',
     taskReport: '任务报告',
@@ -116,6 +126,10 @@ export const zhCA: AgendaTranslations = {
     copyTask: '复制任务',
     deleteTask: '删除任务',
     files: '文件',
+  },
+  bulk: {
+    assignDescription: (count: number) => `将负责人应用到 ${count} 个已选择任务。`,
+    unitDescription: (count: number) => `将单位应用到 ${count} 个已选择任务。`,
   },
   kanban: {
     title: '日程看板',
@@ -147,6 +161,9 @@ export const zhCA: AgendaTranslations = {
     unscheduledTitle: '无时间任务',
     unscheduledDescription: '将任务拖到时间段中，或拖到这里以保留为未指定时间。',
     emptyUnscheduled: '当前任务都已有计划时间。',
+    delegatedTitle: '已委派任务',
+    delegatedDescription: '当前筛选中由你创建并分配给其他协作者的任务。',
+    emptyDelegated: '此日程筛选中没有已委派任务。',
     emptySlot: '拖放任务到这里',
     dayTitle: 'Daily operational agenda',
     weekTitle: 'Weekly planner',

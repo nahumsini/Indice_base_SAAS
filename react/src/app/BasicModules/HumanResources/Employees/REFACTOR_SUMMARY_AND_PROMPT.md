@@ -4,7 +4,7 @@
 
 La pestaña Employees quedó organizada como un orquestador de experiencia: carga datos, coordina estado, conecta handlers y delega la UI en componentes enfocados. La tabla, filtros, paginación, acciones de cabecera, modales, feedback visual, edición inline, columnas, ordenamiento, selección, mutaciones y adaptadores quedaron separados por responsabilidad.
 
-El modal de creación/edición de colaboradores se dividió en frame, pasos, campos, hooks de estado, lectura de formulario, documentos, validación, tipos, modelo y estilos. Esto mantiene el flujo completo, pero baja la complejidad del archivo principal y hace que cada bloque pueda revisarse o corregirse sin tocar toda la pestaña.
+El modal de creación/edición de colaboradores se dividió en frame, pasos, campos, hooks de estado, lectura de formulario, documentos, validación, tipoºs, modelo y estilos. Esto mantiene el flujo completo, pero baja la complejidad del archivo principal y hace que cada bloque pueda revisarse o corregirse sin tocar toda la pestaña.
 
 Las traducciones de Employees permanecen tipadas con `EmployeesTranslations` y el índice de locales sigue validado con `Record<EmployeesLocale, EmployeesTranslations>`. La verificación final con `npm run typecheck` confirma que los diccionarios de `en-CA`, `en-US`, `es-MX`, `es-CO`, `fr-CA`, `pt-BR`, `ko-CA` y `zh-CA` conservan el contrato.
 

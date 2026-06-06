@@ -294,7 +294,7 @@ export function KPIConfiguration({
   return (
     <>
       {/* Configuration trigger */}
-      <Button variant="outline" size="sm" onClick={onOpen}>
+      <Button variant="outline" size="sm" onClick={onOpen} className="w-full justify-center sm:w-auto">
         <Settings className="h-4 w-4 mr-2" />
         {resolvedCopy.title}
       </Button>
@@ -302,16 +302,16 @@ export function KPIConfiguration({
       {/* Configuration modal */}
       {isOpen && (
         <DndProvider backend={HTML5Backend}>
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 z-50 flex animate-in items-center justify-center bg-black/50 p-2 backdrop-blur-sm duration-200 fade-in sm:p-4">
+            <div className="flex max-h-[calc(100vh-1rem)] w-full max-w-6xl animate-in flex-col overflow-hidden rounded-xl bg-white shadow-2xl duration-200 zoom-in-95 dark:bg-gray-800 sm:max-h-[90vh]">
               {/* Header */}
-              <div className="bg-[#2563EB] p-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
+              <div className="flex items-start justify-between gap-3 bg-[#2563EB] p-4 sm:p-6">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="shrink-0 rounded-lg bg-white/20 p-2 backdrop-blur-sm">
                     <Eye className="h-6 w-6 text-white" />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-bold text-white sm:text-2xl">
                       {resolvedCopy.title}
                     </h2>
                     <p className="text-sm text-white/80 mt-0.5">
@@ -323,17 +323,17 @@ export function KPIConfiguration({
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="text-white hover:bg-white/20 rounded-full"
+                  className="shrink-0 rounded-full text-white hover:bg-white/20"
                 >
                   <X className="h-5 w-5" />
                 </Button>
               </div>
 
-              {/* Main content - 2 columns */}
-              <div className="flex-1 overflow-hidden flex">
+              {/* Main content */}
+              <div className="flex-1 overflow-y-auto md:flex md:overflow-hidden">
                 {/* Left column - available KPIs */}
-                <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex min-h-[280px] w-full flex-col border-b border-gray-200 dark:border-gray-700 md:w-1/2 md:border-b-0 md:border-r">
+                  <div className="border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
                     <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-3">
                       {resolvedCopy.availableTitle(filteredAvailableKPIs.length)}
                     </h3>
@@ -347,7 +347,7 @@ export function KPIConfiguration({
                       />
                     </div>
                   </div>
-                  <ScrollArea className="flex-1 p-6">
+                  <ScrollArea className="min-h-[220px] flex-1 p-4 sm:p-6">
                     <div className="space-y-2">
                       {filteredAvailableKPIs.map((kpi) => {
                         const colorClasses = getModuleColorClasses(kpi.moduleColor);
@@ -383,9 +383,9 @@ export function KPIConfiguration({
                 </div>
 
                 {/* Right column - selected KPIs */}
-                <div className="w-1/2 flex flex-col">
-                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-3">
+                <div className="flex min-h-[280px] w-full flex-col md:w-1/2">
+                  <div className="border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
                         {resolvedCopy.selectedTitle(orderedKPIs.length)}
                       </h3>
@@ -393,7 +393,7 @@ export function KPIConfiguration({
                         variant="outline"
                         size="sm"
                         onClick={handleReset}
-                        className="text-xs"
+                        className="w-full text-xs sm:w-auto"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
                         {resolvedCopy.reset}
@@ -403,7 +403,7 @@ export function KPIConfiguration({
                       {resolvedCopy.reorderHint}
                     </p>
                   </div>
-                  <ScrollArea className="flex-1 p-6">
+                  <ScrollArea className="min-h-[220px] flex-1 p-4 sm:p-6">
                     {orderedKPIs.length === 0 ? (
                       <div className="text-center py-12">
                         <Eye className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
@@ -432,15 +432,15 @@ export function KPIConfiguration({
               </div>
 
               {/* Footer */}
-              <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-between">
+              <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {resolvedCopy.summary(orderedKPIs.length, availableKPIs.length)}
                 </p>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={onClose}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                  <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
                     {resolvedCopy.cancel}
                   </Button>
-                  <Button onClick={handleSave} className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white">
+                  <Button onClick={handleSave} className="w-full bg-[#2563EB] text-white hover:bg-[#1D4ED8] sm:w-auto">
                     <Save className="h-4 w-4 mr-2" />
                     {resolvedCopy.save}
                   </Button>

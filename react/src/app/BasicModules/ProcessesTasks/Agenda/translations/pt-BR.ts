@@ -47,6 +47,7 @@ export const ptBR: AgendaTranslations = {
   },
   periods: {
     mine: 'Minha agenda',
+    delegated: 'Tarefas delegadas',
     team: 'Agenda da equipe',
     week: 'Esta semana',
     month: 'Este mês',
@@ -89,6 +90,7 @@ export const ptBR: AgendaTranslations = {
     createdAt: { label: 'Data de criação', description: 'Data em que a tarefa foi registrada.' },
     startDate: { label: 'Data de início', description: 'Data programada de início.' },
     dueDate: { label: 'Data de vencimento', description: 'Prazo para conclusão.' },
+    agendaTime: { label: 'Hora', description: 'Hora programada usada para ordenar a agenda do dia.' },
     status: { label: 'Status', description: 'Status atual, incluindo vencida como status visual.' },
     creator: { label: 'Criador', description: 'Usuário que criou a tarefa.' },
     responsible: { label: 'Responsável', description: 'Usuário designado para executar a tarefa.' },
@@ -107,6 +109,14 @@ export const ptBR: AgendaTranslations = {
     resizeColumn: 'Ajustar largura',
     noWeighting: 'Sem ponderação',
   },
+  quickAdd: {
+    buttonLabel: 'Adicionar tarefa rapida',
+    title: 'Tarefa rapida',
+    description: 'Crie uma tarefa somente com o nome. Voce pode completar os detalhes depois.',
+    fieldLabel: 'Nome da tarefa',
+    placeholder: 'Digite o nome da tarefa',
+    submit: 'Criar tarefa',
+  },
   actions: {
     closeTask: 'Fechar tarefa',
     taskReport: 'Relatório da tarefa',
@@ -116,6 +126,10 @@ export const ptBR: AgendaTranslations = {
     copyTask: 'Copiar tarefa',
     deleteTask: 'Excluir tarefa',
     files: 'Arquivos',
+  },
+  bulk: {
+    assignDescription: (count: number) => `Aplicar um responsavel a ${count} tarefa${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}.`,
+    unitDescription: (count: number) => `Aplicar uma unidade a ${count} tarefa${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}.`,
   },
   kanban: {
     title: 'Kanban da agenda',
@@ -147,6 +161,9 @@ export const ptBR: AgendaTranslations = {
     unscheduledTitle: 'Tarefas sem horario',
     unscheduledDescription: 'Arraste tarefas para um horario, ou solte aqui para deixa-las sem hora atribuida.',
     emptyUnscheduled: 'Todas as tarefas visiveis tem horario.',
+    delegatedTitle: 'Tarefas delegadas',
+    delegatedDescription: 'Tarefas criadas por voce e atribuidas a outro colaborador dentro do filtro atual.',
+    emptyDelegated: 'Nao ha tarefas delegadas neste filtro de agenda.',
     emptySlot: 'Solte a tarefa aqui',
     dayTitle: 'Agenda operacional do dia',
     weekTitle: 'Planejador semanal',

@@ -11,9 +11,12 @@ export interface AgendaTaskItem {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
-  agendaDate: string;
+  agendaDate: string | null;
+  agendaStartTime: string | null;
+  agendaEndTime: string | null;
+  agendaTimeZone: string | null;
   startDate: string | null;
-  dueDate: string;
+  dueDate: string | null;
   startedAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
@@ -83,9 +86,12 @@ function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTaskItem {
     description: record.description ?? null,
     status: record.status ?? 'pending',
     priority: record.priority ?? 'medium',
-    agendaDate: record.agendaDate ?? record.dueDate ?? '',
+    agendaDate: record.agendaDate ?? record.dueDate ?? null,
+    agendaStartTime: record.agendaStartTime ?? null,
+    agendaEndTime: record.agendaEndTime ?? null,
+    agendaTimeZone: record.agendaTimeZone ?? null,
     startDate: record.startDate ?? null,
-    dueDate: record.dueDate ?? record.agendaDate ?? '',
+    dueDate: record.dueDate ?? null,
     startedAt: record.startedAt ?? null,
     completedAt: record.completedAt ?? null,
     cancelledAt: record.cancelledAt ?? null,

@@ -14,7 +14,9 @@ export const koCA = {
   dashboard: {
     ...enCA.dashboard,
     actions: {
+      ...enCA.dashboard.actions,
       refresh: '데이터 새로고침',
+      printReport: '보고서 인쇄',
     },
     common: {
       noData: '현재 필터에 해당하는 운영 데이터가 없습니다.',
@@ -29,6 +31,7 @@ export const koCA = {
       records: '인사 기록을 불러오지 못했습니다.',
     },
     filters: {
+      ...enCA.dashboard.filters,
       title: 'KPI 필터',
       search: '검색',
       searchPlaceholder: '이름, 코드, 직무, 유닛, 기록 또는 자산',
@@ -38,6 +41,11 @@ export const koCA = {
       month: '선택한 월',
       year: '선택한 연도',
       allPeriods: '전체 기간',
+      thisMonth: '이번 달',
+      lastMonth: '지난달',
+      thisQuarter: '이번 분기',
+      annualized: '연간 기준',
+      specificDate: '특정 날짜',
       unit: '유닛',
       business: '사업',
       department: '부서',

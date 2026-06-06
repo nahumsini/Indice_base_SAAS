@@ -146,6 +146,7 @@ export const ptBR: ProcessesTranslations = {
     loading: 'Carregando processos recorrentes...',
     empty: 'Nenhum processo recorrente corresponde aos filtros atuais.',
     progress: 'Progresso',
+    status: 'Status',
     graceDays: (days: number) => `Carencia ${days} dias`,
     evidenceRequired: 'Evidencia obrigatoria',
     start: 'Inicio',

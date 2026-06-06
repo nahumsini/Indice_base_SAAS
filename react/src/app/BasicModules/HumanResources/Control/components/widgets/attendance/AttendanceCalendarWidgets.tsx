@@ -69,7 +69,7 @@ export function ControlCalendarDayCell({
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
       title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : attendanceTooltip}
-      className={`group relative min-h-[104px] select-none overflow-hidden rounded-2xl border p-3 text-left transition-all ${
+      className={`group relative min-h-[76px] select-none overflow-hidden rounded-xl border p-2 text-left transition-all sm:min-h-[104px] sm:rounded-2xl sm:p-3 ${
         isSelected
           ? 'border-[#59C3A5]/45 bg-white shadow-[0_1px_2px_rgba(89,195,165,0.10),0_0_0_4px_rgba(89,195,165,0.06)] dark:border-[#8FE0CA]/45 dark:bg-gray-900'
           : isMultiSelected
@@ -79,7 +79,7 @@ export function ControlCalendarDayCell({
     >
       {day ? <span className={`absolute inset-x-0 top-0 h-1 ${dayHeatmapStripe(day)}`} /> : null}
       <div className="flex items-start justify-between gap-2">
-        <span className="text-base font-semibold text-gray-900 dark:text-white">{dayNumber}</span>
+        <span className="text-sm font-semibold text-gray-900 dark:text-white sm:text-base">{dayNumber}</span>
         {hasCorrection ? (
           <span
             className="rounded-full bg-[#59C3A5] px-1.5 py-0.5 text-[10px] font-semibold text-white"
@@ -90,9 +90,9 @@ export function ControlCalendarDayCell({
         ) : null}
       </div>
       {day ? (
-        <div className="mt-5 space-y-2">
+        <div className="mt-3 space-y-1.5 sm:mt-5 sm:space-y-2">
           {statusTone ? (
-            <div className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold ${statusTone}`}>
+            <div className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[10px] font-semibold sm:h-6 sm:min-w-6 sm:px-1.5 sm:text-[11px] ${statusTone}`}>
               {dayBadge(copy, day)}
             </div>
           ) : null}
@@ -101,7 +101,7 @@ export function ControlCalendarDayCell({
             {day.exit_registered ? <span className="h-2 w-2 rounded-full bg-sky-500" title={copy.labels.checkOut} /> : null}
             {!day.entry_registered && !day.exit_registered ? <span className="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600" /> : null}
           </div>
-          <p className="truncate text-[11px] font-medium text-gray-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-300">
+          <p className="hidden truncate text-[11px] font-medium text-gray-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-300 sm:block">
             {formatTimeOnly(day.first_check_in_at, locale, copy.labels.noRegistration)}
           </p>
         </div>

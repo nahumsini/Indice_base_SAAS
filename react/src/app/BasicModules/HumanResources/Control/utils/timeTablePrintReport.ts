@@ -5,6 +5,7 @@ import {
   assignmentBusinessName,
   assignmentUnitName,
   formatAttendanceTime,
+  formatWorkedDuration,
 } from './timeTableUtils';
 
 interface PrintDailyAttendanceReportParams {
@@ -49,11 +50,11 @@ export function printDailyAttendanceReport({
         <td><strong>${escapePrintHtml(row.assignment.user_name)}</strong><br><span class="muted">${escapePrintHtml(row.assignment.user_code || `EMP-${row.assignment.user_company_id}`)}</span></td>
         <td>${escapePrintHtml(assignmentUnitName(row.assignment, copy))}</td>
         <td>${escapePrintHtml(assignmentBusinessName(row.assignment, copy))}</td>
-        <td>${escapePrintHtml(row.businessLocation)}</td>
-        <td>${escapePrintHtml(row.contractSite)}</td>
-        <td>${escapePrintHtml(row.schedule)}</td>
+        <td>${escapePrintHtml(row.assignment.first_location?.name ?? copy.timeTable.notAssigned)}</td>
+        <td>${escapePrintHtml(row.assignment.last_location?.name ?? copy.timeTable.notAssigned)}</td>
         <td>${escapePrintHtml(formatAttendanceTime(row.assignment.first_check_in_at, locale))}</td>
         <td>${escapePrintHtml(formatAttendanceTime(row.assignment.last_check_out_at, locale))}</td>
+        <td>${escapePrintHtml(formatWorkedDuration(row.assignment.first_check_in_at, row.assignment.last_check_out_at))}</td>
         <td>${escapePrintHtml(row.attendance)}</td>
       </tr>
     `).join('')
@@ -96,11 +97,11 @@ export function printDailyAttendanceReport({
             <th>${escapePrintHtml(copy.timeTable.table.employee)}</th>
             <th>${escapePrintHtml(copy.timeTable.table.unit)}</th>
             <th>${escapePrintHtml(copy.timeTable.table.business)}</th>
-            <th>${escapePrintHtml(copy.timeTable.table.businessLocation)}</th>
-            <th>${escapePrintHtml(copy.timeTable.table.workSite)}</th>
-            <th>${escapePrintHtml(copy.timeTable.table.scheduledTime)}</th>
+            <th>${escapePrintHtml(copy.timeTable.table.checkInLocation)}</th>
+            <th>${escapePrintHtml(copy.timeTable.table.checkOutLocation)}</th>
             <th>${escapePrintHtml(copy.labels.checkIn)}</th>
             <th>${escapePrintHtml(copy.labels.checkOut)}</th>
+            <th>${escapePrintHtml(copy.timeTable.table.workedHours)}</th>
             <th>${escapePrintHtml(copy.timeTable.table.attendance)}</th>
           </tr>
         </thead>

@@ -122,8 +122,8 @@ export function EmployeeCalendarPanel({
   }, [monthDays]);
 
   return (
-    <div className="rounded-[22px] border border-[#59C3A5]/10 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_6px_18px_rgba(89,195,165,0.04)] dark:border-gray-800 dark:bg-gray-900">
-      <div className="space-y-5">
+    <div className="rounded-[22px] border border-[#59C3A5]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_6px_18px_rgba(89,195,165,0.04)] dark:border-gray-800 dark:bg-gray-900 sm:p-4">
+      <div className="space-y-4 sm:space-y-5">
         <div className="flex items-center justify-between gap-4">
           <Button variant="outline" size="icon" onClick={() => onShiftMonth(-1)}>
             <span aria-hidden="true">‹</span>
@@ -223,25 +223,25 @@ export function EmployeeCalendarPanel({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-7 gap-3">
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
         {weekdayLabels.map((label) => (
-          <div key={label} className="px-2 text-center text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+          <div key={label} className="px-0.5 text-center text-[10px] font-medium uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400 sm:px-2 sm:text-xs sm:tracking-[0.12em]">
             {label}
           </div>
         ))}
       </div>
 
       {isLoadingCalendar ? (
-        <div className="grid grid-cols-7 gap-3">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
           {Array.from({ length: 35 }).map((_, index) => (
-            <Skeleton key={index} className="h-[104px] rounded-2xl" />
+            <Skeleton key={index} className="h-[76px] rounded-xl sm:h-[104px] sm:rounded-2xl" />
           ))}
         </div>
       ) : (
-        <div className="grid select-none grid-cols-7 gap-3">
+        <div className="grid select-none grid-cols-7 gap-1.5 sm:gap-3">
           {calendarCells.map((dayNumber, index) => {
             if (dayNumber === null) {
-              return <div key={`empty-${index}`} className="h-[104px]" />;
+              return <div key={`empty-${index}`} className="h-[76px] sm:h-[104px]" />;
             }
 
             const day = attendanceCalendarMap.get(dayNumber) ?? null;

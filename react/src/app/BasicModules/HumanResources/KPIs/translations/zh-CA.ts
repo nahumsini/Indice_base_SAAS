@@ -14,7 +14,9 @@ export const zhCA = {
   dashboard: {
     ...enCA.dashboard,
     actions: {
+      ...enCA.dashboard.actions,
       refresh: '刷新数据',
+      printReport: '打印报告',
     },
     common: {
       noData: '当前筛选条件下没有运营数据。',
@@ -29,6 +31,7 @@ export const zhCA = {
       records: '无法加载人事记录。',
     },
     filters: {
+      ...enCA.dashboard.filters,
       title: 'KPI 筛选',
       search: '搜索',
       searchPlaceholder: '姓名、代码、职位、单位、记录或资产',
@@ -38,6 +41,11 @@ export const zhCA = {
       month: '所选月份',
       year: '所选年份',
       allPeriods: '全部期间',
+      thisMonth: '本月',
+      lastMonth: '上月',
+      thisQuarter: '本季度',
+      annualized: '年度化',
+      specificDate: '指定日期',
       unit: '单位',
       business: '业务',
       department: '部门',

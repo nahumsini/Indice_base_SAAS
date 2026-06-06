@@ -14,7 +14,9 @@ export const ptBR = {
   dashboard: {
     ...enCA.dashboard,
     actions: {
+      ...enCA.dashboard.actions,
       refresh: 'Atualizar dados',
+      printReport: 'Imprimir relatório',
     },
     common: {
       noData: 'Não há dados operacionais para os filtros atuais.',
@@ -29,6 +31,7 @@ export const ptBR = {
       records: 'Não foi possível carregar os registros.',
     },
     filters: {
+      ...enCA.dashboard.filters,
       title: 'Filtros de KPIs',
       search: 'Buscar',
       searchPlaceholder: 'Nome, código, cargo, unidade, registro ou ativo',
@@ -38,6 +41,11 @@ export const ptBR = {
       month: 'Mês selecionado',
       year: 'Ano selecionado',
       allPeriods: 'Todos os períodos',
+      thisMonth: 'Este mês',
+      lastMonth: 'Mês anterior',
+      thisQuarter: 'Este trimestre',
+      annualized: 'Anualizado',
+      specificDate: 'Data específica',
       unit: 'Unidade',
       business: 'Negócio',
       department: 'Departamento',
