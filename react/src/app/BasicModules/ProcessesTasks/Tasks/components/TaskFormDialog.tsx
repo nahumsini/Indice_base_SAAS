@@ -137,7 +137,6 @@ export function TaskFormDialog({
   onOpenChange,
   onSubmit,
   open,
-  processes,
   projects,
   setForm,
   unitOptions,
@@ -466,27 +465,6 @@ export function TaskFormDialog({
 
               {!isQuickCreate ? (
                 <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.process}</label>
-                    <Select
-                      value={form.processId || 'none'}
-                      onValueChange={(value) =>
-                        setForm((currentForm) => ({ ...currentForm, processId: value === 'none' ? '' : value }))
-                      }
-                    >
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                        <SelectValue placeholder={formCopy.placeholders.process} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">{formCopy.empty.process}</SelectItem>
-                        {processes.map((process) => (
-                          <SelectItem key={process.id} value={process.id.toString()}>
-                            {process.folio} - {process.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.project}</label>
                     <Select

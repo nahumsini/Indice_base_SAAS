@@ -101,6 +101,7 @@ export const frCA: ProcessesTranslations = {
     loading: 'Chargement des processus recurrents...',
     empty: 'Aucun processus recurrent ne correspond aux filtres actuels.',
     progress: 'Avancement',
+    status: 'Etat',
     graceDays: (days: number) => `Grace ${days} jours`,
     evidenceRequired: 'Preuve requise',
     start: 'Debut',

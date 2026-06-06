@@ -23,6 +23,10 @@ export interface TaskRecord {
   priority: TaskPriority;
   startDate: string | null;
   dueDate: string | null;
+  agendaDate: string | null;
+  agendaStartTime: string | null;
+  agendaEndTime: string | null;
+  agendaTimeZone: string | null;
   startedAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
@@ -74,6 +78,13 @@ export interface TaskPayload {
   auditNotes: string | null;
   businessId: number | null;
   unitId: number | null;
+}
+
+export interface TaskAgendaPlacementPayload {
+  agendaDate: string | null;
+  agendaStartTime: string | null;
+  agendaEndTime?: string | null;
+  agendaTimeZone?: string | null;
 }
 
 export interface TaskAttachmentRecord {
@@ -161,6 +172,10 @@ export function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     priority: (record.priority as TaskPriority | undefined) ?? 'medium',
     startDate: record.startDate ?? null,
     dueDate: record.dueDate ?? null,
+    agendaDate: record.agendaDate ?? null,
+    agendaStartTime: record.agendaStartTime ?? null,
+    agendaEndTime: record.agendaEndTime ?? null,
+    agendaTimeZone: record.agendaTimeZone ?? null,
     startedAt: record.startedAt ?? null,
     completedAt: record.completedAt ?? null,
     cancelledAt: record.cancelledAt ?? null,
@@ -237,6 +252,15 @@ export async function createProcessTask(payload: TaskPayload) {
 export async function updateProcessTask(taskId: number, payload: TaskPayload) {
   const response = await apiClient<Partial<TaskRecord>>(`/api/v1/process-tasks/${taskId}`, {
     method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeTaskRecord(response);
+}
+
+export async function updateProcessTaskAgendaPlacement(taskId: number, payload: TaskAgendaPlacementPayload) {
+  const response = await apiClient<Partial<TaskRecord>>(`/api/v1/process-tasks/${taskId}/agenda-placement`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 

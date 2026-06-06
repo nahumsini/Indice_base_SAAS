@@ -44,6 +44,10 @@ public class AgendaService {
                                task.priority,
                                task.start_date,
                                task.due_date,
+                               task.agenda_date,
+                               task.agenda_start_time,
+                               task.agenda_end_time,
+                               task.agenda_time_zone,
                                task.started_at,
                                task.completed_at,
                                task.cancelled_at,
@@ -124,10 +128,12 @@ public class AgendaService {
                             AND (unit.company_id = task.company_id OR unit.company_id IS NULL)
                         WHERE task.company_id = ?
                           AND task.deleted_at IS NULL
-                          AND task.due_date IS NOT NULL
-                          AND task.due_date BETWEEN ? AND ?
+                          AND COALESCE(task.agenda_date, task.due_date) IS NOT NULL
+                          AND COALESCE(task.agenda_date, task.due_date) BETWEEN ? AND ?
                           AND %s
-                        ORDER BY task.due_date ASC, task.id DESC
+                        ORDER BY COALESCE(task.agenda_date, task.due_date) ASC,
+                                 task.agenda_start_time ASC,
+                                 task.id DESC
                         """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapAgendaRow(rs),
                 params.toArray());
@@ -168,6 +174,7 @@ public class AgendaService {
         Long processId = rs.getObject("process_id", Long.class);
         Long projectId = rs.getObject("project_id", Long.class);
         var dueDate = rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null;
+        var agendaDate = rs.getDate("agenda_date") != null ? rs.getDate("agenda_date").toLocalDate() : dueDate;
         var status = rs.getString("status");
         int completionPercent = rs.getInt("completion_percent");
 
@@ -181,7 +188,10 @@ public class AgendaService {
         row.put("description", rs.getString("description"));
         row.put("status", status);
         row.put("priority", fallback(rs.getString("priority"), "medium"));
-        row.put("agendaDate", dueDate != null ? dueDate.toString() : null);
+        row.put("agendaDate", agendaDate != null ? agendaDate.toString() : null);
+        row.put("agendaStartTime", toTimeString(rs.getTime("agenda_start_time")));
+        row.put("agendaEndTime", toTimeString(rs.getTime("agenda_end_time")));
+        row.put("agendaTimeZone", rs.getString("agenda_time_zone"));
         row.put("startDate", toDateString(rs.getDate("start_date")));
         row.put("dueDate", dueDate != null ? dueDate.toString() : null);
         row.put("startedAt", toDateTimeString(rs.getTimestamp("started_at")));
@@ -263,6 +273,10 @@ public class AgendaService {
 
     private String toDateTimeString(Timestamp value) {
         return value != null ? value.toLocalDateTime().toString() : null;
+    }
+
+    private String toTimeString(java.sql.Time value) {
+        return value != null ? value.toLocalTime().toString() : null;
     }
 
     private String fallback(String value, String fallbackValue) {

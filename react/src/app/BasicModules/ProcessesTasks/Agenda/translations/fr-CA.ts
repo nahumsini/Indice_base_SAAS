@@ -47,6 +47,7 @@ export const frCA: AgendaTranslations = {
   },
   periods: {
     mine: "Mon agenda",
+    delegated: "Taches deleguees",
     team: "Agenda d equipe",
     week: "Cette semaine",
     month: "Ce mois-ci",
@@ -89,6 +90,7 @@ export const frCA: AgendaTranslations = {
     createdAt: { label: "Date de creation", description: "Date d enregistrement de la tache." },
     startDate: { label: "Date de debut", description: "Date de debut planifiee." },
     dueDate: { label: "Date d echeance", description: "Date limite de realisation." },
+    agendaTime: { label: "Heure", description: "Heure planifiee utilisee pour ordonner l agenda du jour." },
     status: { label: "Etat", description: "Etat actuel, incluant le retard comme etat visuel." },
     creator: { label: "Createur", description: "Utilisateur qui a cree la tache." },
     responsible: { label: "Responsable", description: "Utilisateur assigne pour executer la tache." },
@@ -107,6 +109,14 @@ export const frCA: AgendaTranslations = {
     resizeColumn: "Ajuster la largeur",
     noWeighting: "Sans ponderation",
   },
+  quickAdd: {
+    buttonLabel: "Ajouter une tache rapide",
+    title: "Tache rapide",
+    description: "Creez une tache avec son nom seulement. Vous pourrez completer les details plus tard.",
+    fieldLabel: "Nom de la tache",
+    placeholder: "Saisir le nom de la tache",
+    submit: "Creer la tache",
+  },
   actions: {
     closeTask: "Cloturer la tache",
     taskReport: "Rapport de tache",
@@ -116,6 +126,10 @@ export const frCA: AgendaTranslations = {
     copyTask: "Copier la tache",
     deleteTask: "Supprimer la tache",
     files: "Fichiers",
+  },
+  bulk: {
+    assignDescription: (count: number) => `Attribuer une personne responsable a ${count} tache${count === 1 ? "" : "s"} selectionnee${count === 1 ? "" : "s"}.`,
+    unitDescription: (count: number) => `Appliquer une unite a ${count} tache${count === 1 ? "" : "s"} selectionnee${count === 1 ? "" : "s"}.`,
   },
   kanban: {
     title: "Kanban agenda",
@@ -147,6 +161,9 @@ export const frCA: AgendaTranslations = {
     unscheduledTitle: "Taches sans horaire",
     unscheduledDescription: "Glissez les taches vers une heure, ou deposez-les ici pour les garder sans heure assignee.",
     emptyUnscheduled: "Toutes les taches visibles ont une heure planifiee.",
+    delegatedTitle: "Taches deleguees",
+    delegatedDescription: "Taches creees par vous et assignees a un autre collaborateur dans le filtre actuel.",
+    emptyDelegated: "Aucune tache deleguee dans ce filtre d agenda.",
     emptySlot: "Deposer la tache ici",
     dayTitle: "Agenda operationnel du jour",
     weekTitle: "Planificateur hebdomadaire",

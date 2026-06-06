@@ -102,6 +102,7 @@ export const zhCA: ProcessesTranslations = {
     loading: '正在加载周期性流程...',
     empty: '没有符合当前筛选条件的周期性流程。',
     progress: '进度',
+    status: '状态',
     graceDays: (days: number) => `宽限 ${days} 天`,
     evidenceRequired: '需要证据',
     start: '开始',

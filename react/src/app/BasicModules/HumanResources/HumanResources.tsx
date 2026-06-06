@@ -157,7 +157,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header del módulo */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
+      <div className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <div className="max-w-[1600px] mx-auto">
           {/* Barra de Favoritos */}
           <FavoritesBar 
@@ -168,46 +168,48 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             currentModule="human-resources" 
           />
           
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                 {t.title}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400 sm:text-base">
                 {t.subtitle}
               </p>
             </div>
             <Button 
               variant="outline" 
               onClick={() => onNavigate()}
-              className="text-sm gap-2"
+              className="w-full justify-center gap-2 text-sm sm:w-auto"
             >
               <span className="text-lg">🏠</span> {t.back}
             </Button>
           </div>
 
           {/* Pestañas */}
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-	                onClick={() => handleTabClick(tab.id)}
-	                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
-	                  activeTab === tab.id
-	                    ? 'bg-[#59C3A5] text-white shadow-md shadow-[#59C3A5]/25'
-	                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-[#59C3A5]/10 dark:hover:bg-[#59C3A5]/15 hover:text-[#2F8F78] dark:hover:text-[#8BE0CB]'
-	                }`}
-	              >
-                <span>{tab.emoji}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+          <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 scrollbar-hide sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
+            <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabClick(tab.id)}
+                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? 'bg-[#59C3A5] text-white shadow-md shadow-[#59C3A5]/25'
+                      : 'bg-gray-100 text-gray-600 hover:bg-[#59C3A5]/10 hover:text-[#2F8F78] dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-[#59C3A5]/15 dark:hover:text-[#8BE0CB]'
+                  }`}
+                >
+                  <span>{tab.emoji}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Contenido del tab activo */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
+      <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay

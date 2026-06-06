@@ -1,0 +1,49 @@
+import type {
+  ProcessBusinessOption,
+  ProcessCollaboratorOption,
+  ProcessUnitOption,
+} from '../../Processes/types';
+import type { ProjectRecord } from '../../Projects/projectsApi';
+import type { TaskPayload } from '../../Tasks/tasksApi';
+import type { AgendaTaskItem } from '../agendaApi';
+import type { AgendaColumnId } from '../types';
+import type { AgendaTranslations } from '../translations';
+
+export type AgendaTaskActionsProps = {
+  copy: AgendaTranslations;
+  isPending: boolean;
+  onAuditTask: (task: AgendaTaskItem) => void;
+  onCloseTask: (task: AgendaTaskItem) => void;
+  onCopyTask: (task: AgendaTaskItem) => void | Promise<void>;
+  onDeleteTask: (task: AgendaTaskItem) => void;
+  onEditTask: (task: AgendaTaskItem) => void;
+  onOpenReport: (task: AgendaTaskItem) => void;
+  task: AgendaTaskItem;
+};
+
+export type AgendaTaskCellProps = {
+  auditStatusClasses: Record<AgendaTaskItem['auditStatus'], string>;
+  businessOptionsForUnit: (unitId: number | null) => ProcessBusinessOption[];
+  collaboratorOptionsForScope: (unitId: number | null, businessId: number | null) => ProcessCollaboratorOption[];
+  columnId: AgendaColumnId;
+  copy: AgendaTranslations;
+  isPending: boolean;
+  noBusinessValue: string;
+  noProjectValue: string;
+  noUnitValue: string;
+  onAuditTask: (task: AgendaTaskItem) => void;
+  onBusinessChange: (task: AgendaTaskItem, value: string) => void;
+  onEditTask: (task: AgendaTaskItem) => void;
+  onOpenAttachments: (task: AgendaTaskItem) => void;
+  onPersistTaskChange: (task: AgendaTaskItem, patch: Partial<TaskPayload>) => void | Promise<void>;
+  onProjectChange: (task: AgendaTaskItem, value: string) => void;
+  onResponsibleChange: (task: AgendaTaskItem, value: string) => void;
+  onUnitChange: (task: AgendaTaskItem, value: string) => void;
+  onUpdateSchedulePlacement: (taskId: number, dateKey: string, hour: string | null) => void;
+  projects: ProjectRecord[];
+  scopedCatalogUnits: ProcessUnitOption[];
+  selectedScheduleDate: string;
+  task: AgendaTaskItem;
+  todayAgendaValue: string;
+  unassignedResponsibleValue: string;
+};

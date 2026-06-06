@@ -14,7 +14,9 @@ export const esMX = {
   dashboard: {
     ...enCA.dashboard,
     actions: {
+      ...enCA.dashboard.actions,
       refresh: 'Actualizar datos',
+      printReport: 'Imprimir reporte',
     },
     common: {
       noData: 'No hay datos operativos para los filtros actuales.',
@@ -29,6 +31,7 @@ export const esMX = {
       records: 'No se pudieron cargar las actas.',
     },
     filters: {
+      ...enCA.dashboard.filters,
       title: 'Filtros de KPIs',
       search: 'Buscar',
       searchPlaceholder: 'Nombre, código, puesto, unidad, acta o activo',
@@ -38,6 +41,11 @@ export const esMX = {
       month: 'Mes seleccionado',
       year: 'Año seleccionado',
       allPeriods: 'Todos los periodos',
+      thisMonth: 'Este mes',
+      lastMonth: 'Mes pasado',
+      thisQuarter: 'Este trimestre',
+      annualized: 'Anualizado',
+      specificDate: 'Fecha específica',
       unit: 'Unidad',
       business: 'Negocio',
       department: 'Departamento',

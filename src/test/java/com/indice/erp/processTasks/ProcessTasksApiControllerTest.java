@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -196,5 +197,32 @@ class ProcessTasksApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(91))
             .andExpect(jsonPath("$.title").value("Inspect kiosk"));
+    }
+
+    @Test
+    void taskAgendaPlacementReturnsUpdatedPayloadWhenModuleIsAllowed() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTasksService.updateAgendaPlacement(eq(7L), eq(1L), eq(91L), any())).willReturn(Map.of(
+            "id", 91,
+            "agendaDate", "2026-06-03",
+            "agendaStartTime", "14:00"
+        ));
+
+        mockMvc.perform(
+            patch("/api/v1/process-tasks/91/agenda-placement")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "agendaDate": "2026-06-03",
+                      "agendaStartTime": "14:00",
+                      "agendaTimeZone": "America/Toronto"
+                    }
+                    """)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(91))
+            .andExpect(jsonPath("$.agendaDate").value("2026-06-03"))
+            .andExpect(jsonPath("$.agendaStartTime").value("14:00"));
     }
 }

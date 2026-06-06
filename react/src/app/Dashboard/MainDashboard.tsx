@@ -140,7 +140,7 @@ export function MainDashboard({
   };
 
   return (
-    <main className="max-w-[1600px] mx-auto px-8 py-10 space-y-12">
+    <main className="mx-auto max-w-[1600px] space-y-8 px-4 py-6 sm:space-y-10 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       {isOperationalJourneyVisible && (
         <OperationalJourney
           copy={copy.operationalJourney}

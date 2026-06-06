@@ -45,6 +45,7 @@ export const enCA = {
   },
   periods: {
     mine: 'My agenda',
+    delegated: 'Delegated tasks',
     team: 'Team agenda',
     week: 'This week',
     month: 'This month',
@@ -87,6 +88,7 @@ export const enCA = {
     createdAt: { label: 'Creation date', description: 'Date when the task was registered.' },
     startDate: { label: 'Start date', description: 'Scheduled start date.' },
     dueDate: { label: 'Due date', description: 'Deadline for completion.' },
+    agendaTime: { label: 'Time', description: 'Scheduled agenda time used to order daily work.' },
     status: { label: 'Status', description: 'Current status, including overdue as a visual status.' },
     creator: { label: 'Creator', description: 'User who created the task.' },
     responsible: { label: 'Responsible', description: 'User assigned to execute the task.' },
@@ -105,6 +107,14 @@ export const enCA = {
     resizeColumn: 'Adjust width',
     noWeighting: 'No weighting',
   },
+  quickAdd: {
+    buttonLabel: 'Add quick task',
+    title: 'Quick task',
+    description: 'Create a task with only its name. You can complete the details later.',
+    fieldLabel: 'Task name',
+    placeholder: 'Write the task name',
+    submit: 'Create task',
+  },
   actions: {
     closeTask: 'Close task',
     taskReport: 'Task report',
@@ -114,6 +124,10 @@ export const enCA = {
     copyTask: 'Copy task',
     deleteTask: 'Delete task',
     files: 'Files',
+  },
+  bulk: {
+    assignDescription: (count: number) => `Apply a responsible collaborator to ${count} selected task${count === 1 ? '' : 's'}.`,
+    unitDescription: (count: number) => `Apply a unit to ${count} selected task${count === 1 ? '' : 's'}.`,
   },
   kanban: {
     title: 'Agenda Kanban',
@@ -145,6 +159,9 @@ export const enCA = {
     unscheduledTitle: 'Tasks without time',
     unscheduledDescription: 'Drag tasks into a time slot, or drop them here to keep them aside without a time.',
     emptyUnscheduled: 'All visible tasks have a planned time.',
+    delegatedTitle: 'Delegated tasks',
+    delegatedDescription: 'Tasks created by you and assigned to another collaborator within the current filter.',
+    emptyDelegated: 'No delegated tasks in this agenda filter.',
     emptySlot: 'Drop task here',
     dayTitle: 'Daily operational agenda',
     weekTitle: 'Weekly planner',

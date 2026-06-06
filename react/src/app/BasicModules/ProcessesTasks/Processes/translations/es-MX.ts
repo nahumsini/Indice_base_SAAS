@@ -99,6 +99,7 @@ export const esMX: ProcessesTranslations = {
     loading: 'Cargando procesos recurrentes...',
     empty: 'No hay procesos recurrentes que coincidan con los filtros actuales.',
     progress: 'Avance',
+    status: 'Estado',
     graceDays: (days: number) => `Gracia ${days} dias`,
     evidenceRequired: 'Evidencia requerida',
     start: 'Inicio',

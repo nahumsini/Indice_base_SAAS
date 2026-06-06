@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   CalendarRange,
   CheckCircle2,
   CircleSlash,
@@ -52,6 +49,7 @@ import type {
 } from '../Processes/types';
 import { collaboratorCanOwnScopedRecord } from '../shared/assignmentScope';
 import { ProjectFormDialog, type ProjectFormValues } from './components/ProjectFormDialog';
+import { ProjectActionButton, SortableTableHead } from './components/ProjectTablePrimitives';
 import { ProjectTasksWorkspace } from './components/ProjectTasksWorkspace';
 import {
   cancelProject,
@@ -92,6 +90,14 @@ interface ProjectSortState {
   direction: ProjectSortDirection;
 }
 
+interface StoredProjectFilters {
+  business: OptionFilter;
+  owner: OptionFilter;
+  search: string;
+  status: StatusFilter;
+  unit: OptionFilter;
+}
+
 const statusClasses: Record<ProjectStatus, string> = {
   active:
     'border-[#F4C84A]/30 bg-[#F4C84A]/10 text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]',
@@ -103,14 +109,13 @@ const statusClasses: Record<ProjectStatus, string> = {
     'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
 };
 
-const actionButtonBaseClass =
-  'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50';
 const progressTrackClass = 'h-2 w-full overflow-hidden rounded-full bg-[#F4C84A]/12 ring-1 ring-[#F4C84A]/20 dark:bg-slate-700 dark:ring-slate-600';
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
 const UNASSIGNED_OWNER_VALUE = '__unassigned_owner__';
 const NO_PRIORITY_VALUE = '__no_priority__';
 const projectColumnsStorageKey = 'processes-tasks-projects-columns-v1';
+const projectFiltersStorageKey = 'processes-tasks-projects-filters-v1';
 const projectPriorityValues: ProjectPriority[] = ['low', 'medium', 'high'];
 const projectStatusValues: ProjectStatus[] = ['active', 'paused', 'completed', 'cancelled'];
 const projectSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
@@ -170,6 +175,37 @@ function getInitialProjectColumns(defaultColumns: ColumnConfig[]) {
     return restoredColumns.length > 0 ? [...restoredColumns, ...missingColumns] : defaultColumns;
   } catch {
     return defaultColumns;
+  }
+}
+
+function getStoredProjectFilters(): StoredProjectFilters | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawFilters = window.sessionStorage.getItem(projectFiltersStorageKey);
+    if (!rawFilters) {
+      return null;
+    }
+
+    const parsedFilters = JSON.parse(rawFilters) as Partial<StoredProjectFilters>;
+    const status =
+      parsedFilters.status === 'all' ||
+      parsedFilters.status === 'at-risk' ||
+      projectStatusValues.includes(parsedFilters.status as ProjectStatus)
+        ? (parsedFilters.status as StatusFilter)
+        : 'all';
+
+    return {
+      business: typeof parsedFilters.business === 'string' ? parsedFilters.business : 'all',
+      owner: typeof parsedFilters.owner === 'string' ? parsedFilters.owner : 'all',
+      search: typeof parsedFilters.search === 'string' ? parsedFilters.search : '',
+      status,
+      unit: typeof parsedFilters.unit === 'string' ? parsedFilters.unit : 'all',
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -686,62 +722,6 @@ function ProjectKpiStrip({
   );
 }
 
-function ProjectActionButton({
-  className,
-  disabled,
-  icon,
-  label,
-  onClick,
-}: {
-  className: string;
-  disabled?: boolean;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(actionButtonBaseClass, className)}
-    >
-      {icon}
-    </button>
-  );
-}
-
-function SortableTableHead({
-  column,
-  onSort,
-  sortState,
-}: {
-  column: ColumnConfig;
-  onSort: (columnId: ProjectColumnId) => void;
-  sortState: ProjectSortState;
-}) {
-  const columnId = column.id as ProjectColumnId;
-  const isActiveSort = sortState.columnId === columnId;
-  const SortIcon = isActiveSort ? (sortState.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
-
-  return (
-    <TableHead className="px-5 py-5">
-      <button
-        type="button"
-        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
-        onClick={() => onSort(columnId)}
-      >
-        <span className="truncate">{column.label}</span>
-        <SortIcon
-          className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[#9A6B05]' : 'text-slate-400')}
-        />
-      </button>
-    </TableHead>
-  );
-}
-
 export default function Projects() {
   const projectCopy = useProjectsTranslations();
   const headerCopy = projectCopy.header;
@@ -758,15 +738,16 @@ export default function Projects() {
     ],
     [projectCopy.fixedColumns.actions.description, projectCopy.fixedColumns.actions.label],
   );
+  const storedProjectFilters = useMemo(() => getStoredProjectFilters(), []);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ProjectViewMode>('table');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [unitFilter, setUnitFilter] = useState<OptionFilter>('all');
-  const [businessFilter, setBusinessFilter] = useState<OptionFilter>('all');
-  const [ownerFilter, setOwnerFilter] = useState<OptionFilter>('all');
+  const [searchQuery, setSearchQuery] = useState(storedProjectFilters?.search ?? '');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(storedProjectFilters?.status ?? 'all');
+  const [unitFilter, setUnitFilter] = useState<OptionFilter>(storedProjectFilters?.unit ?? 'all');
+  const [businessFilter, setBusinessFilter] = useState<OptionFilter>(storedProjectFilters?.business ?? 'all');
+  const [ownerFilter, setOwnerFilter] = useState<OptionFilter>(storedProjectFilters?.owner ?? 'all');
   const [columns, setColumns] = useState<ColumnConfig[]>(() => getInitialProjectColumns(defaultColumns));
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [sortState, setSortState] = useState<ProjectSortState>({ columnId: 'dueDate', direction: 'asc' });
@@ -816,6 +797,22 @@ export default function Projects() {
 
     window.localStorage.setItem(projectColumnsStorageKey, JSON.stringify(columns));
   }, [columns]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const nextFilters: StoredProjectFilters = {
+      business: businessFilter,
+      owner: ownerFilter,
+      search: searchQuery,
+      status: statusFilter,
+      unit: unitFilter,
+    };
+
+    window.sessionStorage.setItem(projectFiltersStorageKey, JSON.stringify(nextFilters));
+  }, [businessFilter, ownerFilter, searchQuery, statusFilter, unitFilter]);
 
   useEffect(() => {
     const defaultColumnMap = new Map(defaultColumns.map((column) => [column.id, column]));

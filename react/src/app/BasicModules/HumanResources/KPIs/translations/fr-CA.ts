@@ -14,7 +14,9 @@ export const frCA = {
   dashboard: {
     ...enCA.dashboard,
     actions: {
+      ...enCA.dashboard.actions,
       refresh: 'Actualiser les données',
+      printReport: 'Imprimer le rapport',
     },
     common: {
       noData: 'Aucune donnée opérationnelle pour les filtres actuels.',
@@ -29,6 +31,7 @@ export const frCA = {
       records: 'Les dossiers n’ont pas pu être chargés.',
     },
     filters: {
+      ...enCA.dashboard.filters,
       title: 'Filtres des KPIs',
       search: 'Rechercher',
       searchPlaceholder: 'Nom, code, poste, unité, dossier ou actif',
@@ -38,6 +41,11 @@ export const frCA = {
       month: 'Mois sélectionné',
       year: 'Année sélectionnée',
       allPeriods: 'Toutes les périodes',
+      thisMonth: 'Ce mois-ci',
+      lastMonth: 'Mois dernier',
+      thisQuarter: 'Ce trimestre',
+      annualized: 'Annualisé',
+      specificDate: 'Date précise',
       unit: 'Unité',
       business: 'Secteur',
       department: 'Service',

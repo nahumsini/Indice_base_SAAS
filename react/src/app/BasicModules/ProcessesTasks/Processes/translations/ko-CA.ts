@@ -102,6 +102,7 @@ export const koCA: ProcessesTranslations = {
     loading: '반복 프로세스를 불러오는 중...',
     empty: '현재 필터와 일치하는 반복 프로세스가 없습니다.',
     progress: '진행률',
+    status: '상태',
     graceDays: (days: number) => `유예 ${days}일`,
     evidenceRequired: '증빙 필요',
     start: '시작',

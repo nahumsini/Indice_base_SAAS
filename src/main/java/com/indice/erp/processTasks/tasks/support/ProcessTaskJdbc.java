@@ -3,9 +3,11 @@ package com.indice.erp.processTasks.tasks.support;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Time;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public final class ProcessTaskJdbc {
 
@@ -57,12 +59,25 @@ public final class ProcessTaskJdbc {
         statement.setTimestamp(index, Timestamp.valueOf(value));
     }
 
+    public static void setNullableTime(PreparedStatement statement, int index, LocalTime value) throws SQLException {
+        if (value == null) {
+            statement.setNull(index, Types.TIME);
+            return;
+        }
+
+        statement.setTime(index, Time.valueOf(value));
+    }
+
     public static String toDateString(java.sql.Date value) {
         return value != null ? value.toLocalDate().toString() : null;
     }
 
     public static String toDateTimeString(Timestamp value) {
         return value != null ? value.toLocalDateTime().toString() : null;
+    }
+
+    public static String toTimeString(Time value) {
+        return value != null ? value.toLocalTime().toString() : null;
     }
 
     public static LocalDateTime toLocalDateTime(Timestamp value) {

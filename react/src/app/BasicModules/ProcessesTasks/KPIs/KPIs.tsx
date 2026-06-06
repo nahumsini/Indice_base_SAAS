@@ -36,13 +36,8 @@ import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResourc
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import {
-  Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from '../../../components/ui/select';
-import { Skeleton } from '../../../components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -61,6 +56,7 @@ import {
   type ProcessTaskKpiStatus,
   type ProjectPerformanceRow,
 } from './kpisApi';
+import { FilterSelect, KpiSkeleton } from './components/KpiControls';
 import { printKpisDashboardPdf } from './kpisPdf';
 import { useKpisTranslations, type KpisTranslations } from './translations';
 
@@ -612,20 +608,6 @@ function OperationalSignals({
   );
 }
 
-function KpiSkeleton() {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-28 rounded-lg" />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-40 rounded-lg" />
-        ))}
-      </div>
-      <Skeleton className="h-96 rounded-lg" />
-    </div>
-  );
-}
-
 function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: ProcessTaskKpiDashboard }) {
   const summary = dashboard.summary;
   const statusSegments = [
@@ -709,30 +691,6 @@ function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: 
         </div>
       </div>
     </section>
-  );
-}
-
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>{children}</SelectContent>
-      </Select>
-    </div>
   );
 }
 

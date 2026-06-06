@@ -98,6 +98,7 @@ export const enCA = {
     loading: 'Loading recurring processes...',
     empty: 'No recurring processes match the current filters.',
     progress: 'Progress',
+    status: 'Status',
     graceDays: (days: number) => `Grace ${days} days`,
     evidenceRequired: 'Evidence required',
     start: 'Start',

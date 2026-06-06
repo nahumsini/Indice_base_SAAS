@@ -30,7 +30,7 @@ export function ModuleCarousel({
   return (
     <>
       {/* Mobile carousel (< md) */}
-      <div className="md:hidden overflow-x-auto scrollbar-hide pb-4 -mx-8 px-8">
+      <div className="md:hidden overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6">
         <div className={`grid auto-cols-[140px] grid-flow-col ${fluidGap} snap-x snap-mandatory`}>
           {children}
         </div>
