@@ -47,8 +47,8 @@ export function AgendaScheduleToolbar({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
+          <div className="flex shrink-0 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             {([
               { value: 'day', label: scheduleCopy.viewDay },
               { value: 'week', label: scheduleCopy.viewWeek },
@@ -73,7 +73,7 @@ export function AgendaScheduleToolbar({
             type="date"
             value={selectedScheduleDate}
             onChange={(event) => onSelectedScheduleDateChange(event.target.value || todayAgendaValue)}
-            className="h-10 w-[168px] rounded-lg border-slate-200 bg-white font-bold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-800"
+            className="h-10 w-[168px] shrink-0 rounded-lg border-slate-200 bg-white font-bold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-800"
           />
           <Button
             variant="outline"

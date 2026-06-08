@@ -37,6 +37,7 @@ export const frCA: AgendaTranslations = {
   },
   filters: {
     title: "Filtres",
+    focus: "Vue",
     period: "Periode",
     from: "Du",
     to: "Au",
@@ -46,13 +47,18 @@ export const frCA: AgendaTranslations = {
     status: "Etat",
   },
   periods: {
-    mine: "Mon agenda",
-    delegated: "Taches deleguees",
-    team: "Agenda d equipe",
+    today: "Aujourd hui",
+    tomorrow: "Demain",
+    yesterday: "Hier",
     week: "Cette semaine",
     month: "Ce mois-ci",
-    overdue: "En retard",
     custom: "Date personnalisee",
+  },
+  focus: {
+    mine: "Mes taches",
+    delegated: "Deleguees par moi",
+    team: "Taches d equipe",
+    pendingAudit: "Audit a faire",
   },
   statuses: {
     open: "Ouvertes",

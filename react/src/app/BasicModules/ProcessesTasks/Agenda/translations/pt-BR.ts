@@ -37,6 +37,7 @@ export const ptBR: AgendaTranslations = {
   },
   filters: {
     title: 'Filtros',
+    focus: 'Foco',
     period: 'Período',
     from: 'De',
     to: 'Até',
@@ -46,13 +47,18 @@ export const ptBR: AgendaTranslations = {
     status: 'Status',
   },
   periods: {
-    mine: 'Minha agenda',
-    delegated: 'Tarefas delegadas',
-    team: 'Agenda da equipe',
+    today: 'Hoje',
+    tomorrow: 'Amanha',
+    yesterday: 'Ontem',
     week: 'Esta semana',
-    month: 'Este mês',
-    overdue: 'Vencidas',
+    month: 'Este mes',
     custom: 'Data personalizada',
+  },
+  focus: {
+    mine: 'Minhas tarefas',
+    delegated: 'Delegadas por mim',
+    team: 'Tarefas da equipe',
+    pendingAudit: 'Pendentes de auditoria',
   },
   statuses: {
     open: 'Abertas',

@@ -37,6 +37,7 @@ export const enUS: AgendaTranslations = {
   },
   filters: {
     title: 'Filters',
+    focus: 'Focus',
     period: 'Period',
     from: 'From',
     to: 'To',
@@ -46,13 +47,18 @@ export const enUS: AgendaTranslations = {
     status: 'Status',
   },
   periods: {
-    mine: 'My agenda',
-    delegated: 'Delegated tasks',
-    team: 'Team agenda',
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    yesterday: 'Yesterday',
     week: 'This week',
     month: 'This month',
-    overdue: 'Overdue',
     custom: 'Custom date',
+  },
+  focus: {
+    mine: 'My tasks',
+    delegated: 'Delegated by me',
+    team: 'Team tasks',
+    pendingAudit: 'Pending audit',
   },
   statuses: {
     open: 'Open',

@@ -176,7 +176,7 @@ export function AgendaKpiStrip({
   return (
     <div className="mb-6 space-y-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="flex gap-x-4 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
           <AgendaKpiMetric icon={<Eye className="h-4 w-4" />} label={copy.labels.visible} value={metrics.totalCount} />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AgendaKpiMetric

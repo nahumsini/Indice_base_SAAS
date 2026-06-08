@@ -14,7 +14,7 @@ export function AgendaTaskActions({
   task,
 }: AgendaTaskActionsProps) {
   return (
-    <div className="flex w-full min-w-[310px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70 md:min-w-[310px] md:flex-nowrap">
       <TableActionButton
         label={copy.actions.closeTask}
         onClick={() => onCloseTask(task)}

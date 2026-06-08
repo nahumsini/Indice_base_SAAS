@@ -37,6 +37,7 @@ export const koCA: AgendaTranslations = {
   },
   filters: {
     title: '필터',
+    focus: '초점',
     period: '기간',
     from: '시작',
     to: '종료',
@@ -46,13 +47,18 @@ export const koCA: AgendaTranslations = {
     status: '상태',
   },
   periods: {
-    mine: '내 일정',
-    delegated: '위임한 작업',
-    team: '팀 일정',
+    today: '오늘',
+    tomorrow: '내일',
+    yesterday: '어제',
     week: '이번 주',
     month: '이번 달',
-    overdue: '기한 초과',
     custom: '사용자 지정 날짜',
+  },
+  focus: {
+    mine: '내 작업',
+    delegated: '내가 위임한 작업',
+    team: '팀 작업',
+    pendingAudit: '감사 대기',
   },
   statuses: {
     open: '열림',

@@ -73,7 +73,7 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
         description={t.shell.loading.description}
       />
 
-      <div className="border-b border-gray-200 bg-white px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
+      <div className="border-b border-gray-200 bg-white px-4 py-5 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8 lg:py-6">
         <div className="mx-auto max-w-[1600px]">
           <FavoritesBar
             onNavigate={(page) => {
@@ -83,12 +83,12 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
             currentModule="processes-tasks"
           />
 
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">{t.shell.title}</h1>
-              <p className="text-gray-600 dark:text-gray-400">{t.shell.subtitle}</p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="mb-2 text-2xl font-bold leading-tight text-gray-900 dark:text-white sm:text-3xl">{t.shell.title}</h1>
+              <p className="text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">{t.shell.subtitle}</p>
             </div>
-            <Button variant="outline" onClick={() => onNavigate()} className="gap-2 text-sm">
+            <Button variant="outline" onClick={() => onNavigate()} className="w-full gap-2 text-sm sm:w-auto">
               <Home className="h-4 w-4" aria-hidden="true" />
               {t.shell.back}
             </Button>
@@ -104,13 +104,13 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
             </div>
           ) : null}
 
-          <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
+          <div className="mt-4 flex snap-x items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => {
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as ProcessTaskTabId)}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                  className={`flex snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                     activeTab === tab.id
                       ? 'bg-[#F4C84A] text-[#222831] shadow-md shadow-[#F4C84A]/20'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
@@ -125,7 +125,7 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
         </div>
       </div>
 
-      <div ref={mainContentRef} className="mx-auto max-w-[1600px] px-8 py-6">
+      <div ref={mainContentRef} className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay

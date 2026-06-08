@@ -37,6 +37,7 @@ export const zhCA: AgendaTranslations = {
   },
   filters: {
     title: '筛选',
+    focus: '重点',
     period: '期间',
     from: '从',
     to: '到',
@@ -46,13 +47,18 @@ export const zhCA: AgendaTranslations = {
     status: '状态',
   },
   periods: {
-    mine: '我的日程',
-    delegated: '已委派任务',
-    team: '团队日程',
+    today: '今天',
+    tomorrow: '明天',
+    yesterday: '昨天',
     week: '本周',
     month: '本月',
-    overdue: '逾期',
     custom: '自定义日期',
+  },
+  focus: {
+    mine: '我的任务',
+    delegated: '我委派的任务',
+    team: '团队任务',
+    pendingAudit: '待审核',
   },
   statuses: {
     open: '打开',

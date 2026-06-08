@@ -74,8 +74,8 @@ export function AgendaKanbanView({
           {copy.table.empty}
         </div>
       ) : (
-        <div className="overflow-x-auto bg-slate-50/70 p-4 dark:bg-slate-900/40">
-          <div className="grid min-w-[1820px] grid-cols-7 gap-4">
+        <div className="overflow-x-auto bg-slate-50/70 p-3 dark:bg-slate-900/40 sm:p-4">
+          <div className="grid auto-cols-[minmax(280px,82vw)] grid-flow-col gap-3 sm:auto-cols-[300px] lg:min-w-[1820px] lg:grid-flow-row lg:grid-cols-7 lg:gap-4">
             {columns.map((column) => {
               const columnTasks = kanbanTasksByColumn.get(column.id) ?? [];
               const draggedTaskIsActive = draggingTaskId != null && column.acceptsDrop;
@@ -84,7 +84,7 @@ export function AgendaKanbanView({
                 <section
                   key={column.id}
                   className={cn(
-                    'flex min-h-[520px] flex-col rounded-2xl border p-3 transition-colors',
+                    'flex min-h-[460px] flex-col rounded-2xl border p-3 transition-colors lg:min-h-[520px]',
                     column.accentClassName,
                     draggedTaskIsActive && 'ring-2 ring-[#F4C84A]/25',
                   )}

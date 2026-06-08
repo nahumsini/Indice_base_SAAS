@@ -72,9 +72,88 @@ export function AgendaTableView({
   visibleTaskIds,
   visibleTaskSelection,
 }: AgendaTableViewProps) {
+  const primaryMobileColumn = visibleAgendaColumns[0];
+  const secondaryMobileColumns = visibleAgendaColumns.slice(1);
+  const actionsMobileLabel = fixedAgendaColumns[0]?.label ?? agendaCopy.columns.actions.label;
+
   return (
     <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
+      <div className="md:hidden">
+        {isAgendaViewLoading ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {agendaCopy.kanban.loading}
+          </div>
+        ) : null}
+
+        {!isAgendaViewLoading && filteredTasks.length === 0 ? (
+          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+            {agendaCopy.table.empty}
+          </div>
+        ) : null}
+
+        {!isAgendaViewLoading && sortedTasks.length > 0 ? (
+          <div className="space-y-3 p-3">
+            {sortedTasks.map((task) => {
+              const selected = rowSelection.isSelected(task.taskId);
+
+              return (
+                <article
+                  key={task.taskId}
+                  className={cn(
+                    'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800',
+                    selected && 'border-[#F4C84A]/60 bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      aria-label={`Seleccionar ${task.folio}`}
+                      checked={selected}
+                      disabled={isTaskPending(task.taskId)}
+                      onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
+                      className="mt-1 border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
+                    />
+                    {primaryMobileColumn ? (
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                          {primaryMobileColumn.label}
+                        </p>
+                        {renderAgendaTaskCell(task, primaryMobileColumn.id as AgendaColumnId)}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {secondaryMobileColumns.length > 0 ? (
+                    <div className="mt-4 grid gap-3">
+                      {secondaryMobileColumns.map((column) => (
+                        <div
+                          key={`${task.taskId}-${column.id}`}
+                          className="rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 dark:border-slate-700 dark:bg-slate-900/50"
+                        >
+                          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            {column.label}
+                          </p>
+                          <div className="min-w-0">
+                            {renderAgendaTaskCell(task, column.id as AgendaColumnId)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                      {actionsMobileLabel}
+                    </p>
+                    {renderTaskActions(task)}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <Table style={{ minWidth: agendaTableMinWidth, tableLayout: 'fixed' }}>
           <TableHeader>
             <TableRow className="border-slate-200 dark:border-slate-700">

@@ -1,5 +1,5 @@
 import type { AgendaTaskItem } from '../agendaApi';
-import type { AgendaKanbanColumnId, DisplayTaskStatus, PeriodFilter, StatusFilter } from '../types';
+import type { AgendaFocusFilter, AgendaKanbanColumnId, DisplayTaskStatus, PeriodFilter, StatusFilter } from '../types';
 
 export const maximumAuditWeighting = 5;
 
@@ -114,20 +114,45 @@ export function matchesAgendaPeriod(
   task: AgendaTaskItem,
   period: PeriodFilter,
   todayValue: string,
-  currentUserId: number | null,
 ) {
+  const taskDate = taskDueDateValue(task);
+
   switch (period) {
-    case 'mine':
-      return isTaskInDailyAgenda(task, todayValue) && isTaskInMyAgenda(task, currentUserId);
-    case 'delegated':
-      return isTaskDelegatedByCurrentUser(task, currentUserId);
-    case 'team':
-      return isTaskInDailyAgenda(task, todayValue);
-    case 'overdue':
-      return isTaskOverdue(task);
+    case 'today':
+      return taskDate === todayValue;
+    case 'tomorrow':
+      return taskDate === toRelativeDateKey(todayValue, 1);
+    case 'yesterday':
+      return taskDate === toRelativeDateKey(todayValue, -1);
     case 'week':
     case 'month':
     case 'custom':
       return true;
   }
+}
+
+export function matchesAgendaFocus(
+  task: AgendaTaskItem,
+  focus: AgendaFocusFilter,
+  currentUserId: number | null,
+) {
+  switch (focus) {
+    case 'mine':
+      return isTaskInMyAgenda(task, currentUserId);
+    case 'delegated':
+      return isTaskDelegatedByCurrentUser(task, currentUserId);
+    case 'pendingAudit':
+      return task.status === 'completed' && !task.audited;
+    case 'team':
+      return task.status !== 'cancelled';
+  }
+}
+
+function toRelativeDateKey(dateKey: string, amount: number) {
+  const date = new Date(`${dateKey}T00:00:00`);
+  date.setDate(date.getDate() + amount);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

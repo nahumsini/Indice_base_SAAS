@@ -37,6 +37,7 @@ export const esMX: AgendaTranslations = {
   },
   filters: {
     title: 'Filtros',
+    focus: 'Enfoque',
     period: 'Periodo',
     from: 'Desde',
     to: 'Hasta',
@@ -46,13 +47,18 @@ export const esMX: AgendaTranslations = {
     status: 'Estado',
   },
   periods: {
-    mine: 'Mi agenda',
-    delegated: 'Tareas delegadas',
-    team: 'Agenda de equipo',
+    today: 'Hoy',
+    tomorrow: 'Manana',
+    yesterday: 'Ayer',
     week: 'Esta semana',
     month: 'Este mes',
-    overdue: 'Vencidas',
     custom: 'Fecha personalizada',
+  },
+  focus: {
+    mine: 'Mis tareas',
+    delegated: 'Delegadas por mi',
+    team: 'Tareas de equipo',
+    pendingAudit: 'Por auditar',
   },
   statuses: {
     open: 'Abiertas',
