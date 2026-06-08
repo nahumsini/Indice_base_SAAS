@@ -2,6 +2,7 @@ import type { KPIItem } from '../components/KPIConfiguration';
 import type { MainDashboardTranslations } from './translations';
 
 export interface DashboardKpiCardData {
+  id?: string;
   title: string;
   value: string;
   change: string;
@@ -22,13 +23,24 @@ export interface DashboardKpiModuleLabels {
 }
 
 export const defaultDashboardKpiIds = [
-  'weeklyRevenue',
-  'netProfit',
-  'activeClients',
   'activeEmployees',
   'pendingTasks',
-  'monthlyExpenses',
+  'completedTasks',
+  'taskCompletionRate',
+  'overdueTasks',
+  'newHires',
 ] as const;
+
+const liveDashboardKpiIds = new Set<string>([
+  'activeEmployees',
+  'newHires',
+  'absenteeismRate',
+  'payrollCost',
+  'pendingTasks',
+  'completedTasks',
+  'taskCompletionRate',
+  'overdueTasks',
+]);
 
 export function buildDashboardKpiDataMap(copy: MainDashboardTranslations): Record<string, DashboardKpiCardData> {
   const { kpis } = copy;
@@ -80,7 +92,7 @@ export function buildDashboardAvailableKpis(
 ): KPIItem[] {
   const { kpis } = copy;
 
-  return [
+  const items: KPIItem[] = [
     { id: 'monthlyExpenses', title: kpis.monthlyExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
     { id: 'expensesByCategory', title: kpis.expensesByCategory.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
     { id: 'pendingExpenses', title: kpis.pendingExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
@@ -119,4 +131,6 @@ export function buildDashboardAvailableKpis(
     { id: 'employeeSatisfaction', title: kpis.employeeSatisfaction.title, module: modules.workClimate, moduleEmoji: '😊', moduleColor: 'gray', category: 'people' },
     { id: 'engagementScore', title: kpis.engagementScore.title, module: modules.workClimate, moduleEmoji: '😊', moduleColor: 'gray', category: 'people' },
   ];
+
+  return items.filter((kpi) => liveDashboardKpiIds.has(kpi.id));
 }

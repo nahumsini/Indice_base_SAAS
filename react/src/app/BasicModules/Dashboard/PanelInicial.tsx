@@ -88,7 +88,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
       />
 
       {/* Module header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-4 sm:px-8 sm:py-6">
+      <div className="border-b border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-8 sm:py-6">
         <div className="max-w-[1600px] mx-auto">
           {/* Favorites bar */}
           <div className="mt-2 sm:mt-3">
@@ -101,12 +101,12 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
             />
           </div>
           
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 sm:text-3xl">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <h1 className="mb-2 text-[1.625rem] font-bold leading-tight text-gray-900 dark:text-white sm:text-3xl">
                 {t.panelInicial.title}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">
                 Configure your profile, business structure, users, and more.
               </p>
             </div>
@@ -130,12 +130,13 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
           ) : null}
 
           {/* Sub-tabs */}
-          <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            <div className="flex min-w-max items-center gap-2">
+          <div className="-mx-3 mt-4 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
+            <div className="flex min-w-max snap-x snap-mandatory items-center gap-2">
               {visibleSubTabs.map(tab => (
                 <button
                   key={tab.id}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm ${
+                  aria-current={activeSubTab === tab.id ? 'page' : undefined}
+                  className={`flex min-h-10 snap-start items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm ${
                     activeSubTab === tab.id
                       ? 'bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
@@ -152,7 +153,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
       </div>
 
       {/* Main content */}
-      <div ref={mainContentRef} className="max-w-[1600px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
+      <div ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-3 py-4 sm:px-8 sm:py-8">
         <Suspense
           fallback={(
             <LoadingBarOverlay

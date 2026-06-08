@@ -1,0 +1,152 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { DashboardKpiCardData } from '../dashboardData';
+import type { MainDashboardTranslations } from '../translations';
+
+type DashboardLiveKpiMap = Partial<Record<string, DashboardKpiCardData>>;
+
+const toLocalIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  return {
+    from: toLocalIsoDate(from),
+    to: toLocalIsoDate(to),
+  };
+};
+
+const formatNumber = (value: number, locale: string) =>
+  new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value);
+
+const formatCurrency = (value: number, locale: string) =>
+  new Intl.NumberFormat(locale, {
+    currency: 'USD',
+    maximumFractionDigits: 0,
+    style: 'currency',
+  }).format(value);
+
+const formatPercent = (value: number, locale: string) =>
+  new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 0,
+    style: 'percent',
+  }).format(value / 100);
+
+export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: string) {
+  const [liveKpis, setLiveKpis] = useState<DashboardLiveKpiMap>({});
+  const today = useMemo(() => toLocalIsoDate(new Date()), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLiveKpis = async () => {
+      const monthRange = getCurrentMonthRange();
+      const [{ humanResourcesApi }, { listProcessTaskKpis }] = await Promise.all([
+        import('../../api/humanResources'),
+        import('../../BasicModules/ProcessesTasks/KPIs/kpisApi'),
+      ]);
+      const [hrUsersResult, attendanceResult, processTasksResult] = await Promise.allSettled([
+        humanResourcesApi.listHrUsers(),
+        humanResourcesApi.getAttendanceControlOverview(today),
+        listProcessTaskKpis({
+          from: monthRange.from,
+          to: monthRange.to,
+          includeOverdueBacklog: true,
+        }),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      const nextKpis: DashboardLiveKpiMap = {};
+
+      if (hrUsersResult.status === 'fulfilled') {
+        const summary = hrUsersResult.value.summary;
+        const activeEmployees = summary?.active_count ?? hrUsersResult.value.items.filter((employee) => employee.status === 'active').length;
+        const currentMonth = today.slice(0, 7);
+        const newHires = hrUsersResult.value.items.filter((employee) => employee.hire_date?.startsWith(currentMonth)).length;
+        const payrollCost = summary?.total_payroll_amount_monthly ?? 0;
+
+        nextKpis.activeEmployees = {
+          title: copy.kpis.activeEmployees.title,
+          value: formatNumber(activeEmployees, locale),
+          change: copy.kpis.activeEmployees.change,
+          isPositive: true,
+        };
+        nextKpis.newHires = {
+          title: copy.kpis.newHires.title,
+          value: formatNumber(newHires, locale),
+          change: copy.kpis.newHires.change,
+          isPositive: true,
+        };
+        nextKpis.payrollCost = {
+          title: copy.kpis.payrollCost.title,
+          value: formatCurrency(payrollCost, locale),
+          change: copy.kpis.payrollCost.change,
+          isPositive: false,
+        };
+      }
+
+      if (attendanceResult.status === 'fulfilled') {
+        const assignments = attendanceResult.value.assignments ?? [];
+        const denominator = Math.max(assignments.length, attendanceResult.value.summary.users_count ?? 0);
+        const absent = assignments.filter((assignment) => assignment.today_status === 'absence').length;
+        const absenteeismRate = denominator > 0 ? (absent / denominator) * 100 : 0;
+
+        nextKpis.absenteeismRate = {
+          title: copy.kpis.absenteeismRate.title,
+          value: formatPercent(absenteeismRate, locale),
+          change: copy.kpis.absenteeismRate.change,
+          isPositive: absenteeismRate <= 3,
+        };
+      }
+
+      if (processTasksResult.status === 'fulfilled') {
+        const { summary } = processTasksResult.value;
+
+        nextKpis.pendingTasks = {
+          title: copy.kpis.pendingTasks.title,
+          value: formatNumber(summary.openTasks, locale),
+          change: copy.kpis.pendingTasks.change,
+          isPositive: summary.openTasks === 0,
+        };
+        nextKpis.completedTasks = {
+          title: copy.kpis.completedTasks.title,
+          value: formatNumber(summary.completedTasks, locale),
+          change: copy.kpis.completedTasks.change,
+          isPositive: true,
+        };
+        nextKpis.taskCompletionRate = {
+          title: copy.kpis.taskCompletionRate.title,
+          value: formatPercent(summary.completionRate, locale),
+          change: copy.kpis.taskCompletionRate.change,
+          isPositive: summary.completionRate >= 80,
+        };
+        nextKpis.overdueTasks = {
+          title: copy.kpis.overdueTasks.title,
+          value: formatNumber(summary.overdueTasks, locale),
+          change: copy.kpis.overdueTasks.change,
+          isPositive: summary.overdueTasks === 0,
+        };
+      }
+
+      setLiveKpis(nextKpis);
+    };
+
+    void loadLiveKpis();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [copy, locale, today]);
+
+  return liveKpis;
+}

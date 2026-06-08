@@ -13,7 +13,8 @@ import { ModuleSection } from './components/ModuleSection';
 import { OperationalJourney } from './components/OperationalJourney';
 import { OperationalModulesSection } from './components/OperationalModulesSection';
 import { OperationalTipsSection } from './components/OperationalTipsSection';
-import { buildDashboardAvailableKpis, buildDashboardKpiDataMap, defaultDashboardKpiIds } from './dashboardData';
+import { buildDashboardAvailableKpis, defaultDashboardKpiIds } from './dashboardData';
+import { useDashboardLiveKpis } from './hooks/useDashboardLiveKpis';
 import { useMainDashboardTranslations } from './hooks/useMainDashboardTranslations';
 import {
   buildOperationalJourneyView,
@@ -41,7 +42,7 @@ export function MainDashboard({
   setLearningStep,
   onNavigate,
 }: MainDashboardProps) {
-  const { t } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const copy = useMainDashboardTranslations();
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
@@ -60,10 +61,13 @@ export function MainDashboard({
     onNavigate(moduleRoute);
   };
 
-  const kpiDataMap = useMemo(() => buildDashboardKpiDataMap(copy), [copy]);
+  const liveKpiDataMap = useDashboardLiveKpis(copy, currentLanguage.code);
   const kpiData = useMemo(
-    () => selectedKPIIds.map(id => kpiDataMap[id]).filter(Boolean),
-    [kpiDataMap, selectedKPIIds],
+    () => selectedKPIIds.flatMap((id) => {
+      const kpi = liveKpiDataMap[id];
+      return kpi ? [{ ...kpi, id }] : [];
+    }),
+    [liveKpiDataMap, selectedKPIIds],
   );
   const availableKPIs = useMemo(
     () => buildDashboardAvailableKpis(copy, {
