@@ -10,6 +10,11 @@ export type OptionFilter = 'all' | string;
 export type AgendaViewMode = 'table' | 'kanban' | 'diagram';
 export type AgendaScheduleViewMode = 'day' | 'week' | 'list';
 
+export type AgendaLoadRange = {
+  from: string;
+  to: string;
+};
+
 export type AgendaColumnId =
   | 'folio'
   | 'type'

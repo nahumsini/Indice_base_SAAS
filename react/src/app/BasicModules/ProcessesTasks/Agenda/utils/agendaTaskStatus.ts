@@ -50,9 +50,13 @@ export function getTaskDisplayStatus(task: AgendaTaskItem): DisplayTaskStatus {
   return isTaskOverdue(task) ? 'overdue' : task.status;
 }
 
-export function taskMatchesStatusFilter(task: AgendaTaskItem, filter: StatusFilter) {
+export function taskMatchesStatusFilter(
+  task: AgendaTaskItem,
+  filter: StatusFilter,
+  options: { includeCancelledInAll?: boolean } = {},
+) {
   if (filter === 'all') {
-    return task.status !== 'cancelled';
+    return options.includeCancelledInAll || task.status !== 'cancelled';
   }
 
   if (filter === 'open') {
@@ -90,6 +94,30 @@ export function isTaskInDailyAgenda(task: AgendaTaskItem, todayValue: string) {
   return taskDueDateValue(task) === todayValue || isTaskOverdue(task);
 }
 
+function dateKeyFromDateTime(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  return value.slice(0, 10);
+}
+
+function taskClosedDateValue(task: AgendaTaskItem) {
+  if (task.status === 'completed') {
+    return dateKeyFromDateTime(task.completedAt);
+  }
+
+  if (task.status === 'cancelled') {
+    return dateKeyFromDateTime(task.cancelledAt);
+  }
+
+  return null;
+}
+
+function taskClosedOnDate(task: AgendaTaskItem, dateKey: string) {
+  return taskClosedDateValue(task) === dateKey;
+}
+
 function isTaskInMyAgenda(task: AgendaTaskItem, currentUserId: number | null) {
   if (currentUserId == null) {
     return false;
@@ -114,19 +142,26 @@ export function matchesAgendaPeriod(
   task: AgendaTaskItem,
   period: PeriodFilter,
   todayValue: string,
+  customRange?: { from: string; to: string },
 ) {
   const taskDate = taskDueDateValue(task);
 
   switch (period) {
     case 'today':
-      return taskDate === todayValue;
+      return taskDate === todayValue || isTaskOverdue(task) || task.status === 'in_progress';
     case 'tomorrow':
       return taskDate === toRelativeDateKey(todayValue, 1);
     case 'yesterday':
-      return taskDate === toRelativeDateKey(todayValue, -1);
+      return taskClosedOnDate(task, toRelativeDateKey(todayValue, -1));
     case 'week':
     case 'month':
+      return true;
     case 'custom':
+      if (customRange && customRange.to < todayValue) {
+        const closedDate = taskClosedDateValue(task);
+        return Boolean(closedDate && closedDate >= customRange.from && closedDate <= customRange.to);
+      }
+
       return true;
   }
 }
