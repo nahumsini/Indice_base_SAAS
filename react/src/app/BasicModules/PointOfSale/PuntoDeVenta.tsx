@@ -4,6 +4,7 @@ import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { usePuntoDeVentaTranslations } from '../../hooks/usePuntoDeVentaTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { SalesCrmProvider } from '../Sales/salesCrmContext';
 
 const Sale = lazy(() => import('./Sale/Sale'));
 const Cortes = lazy(() => import('./Cortes'));
@@ -124,17 +125,19 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <Suspense
-          fallback={(
-            <LoadingBarOverlay
-              isVisible
-              title="Loading point of sale tab"
-              description="Downloading only the selected sales operation workspace."
-            />
-          )}
-        >
-          <ActiveComponent />
-        </Suspense>
+        <SalesCrmProvider>
+          <Suspense
+            fallback={(
+              <LoadingBarOverlay
+                isVisible
+                title="Loading point of sale tab"
+                description="Downloading only the selected sales operation workspace."
+              />
+            )}
+          >
+            <ActiveComponent />
+          </Suspense>
+        </SalesCrmProvider>
       </div>
     </div>
   );

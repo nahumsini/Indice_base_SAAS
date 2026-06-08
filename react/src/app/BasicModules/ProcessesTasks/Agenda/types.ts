@@ -1,6 +1,7 @@
 import type { TaskStatus } from '../Tasks/tasksApi';
 
-export type PeriodFilter = 'mine' | 'delegated' | 'team' | 'week' | 'month' | 'overdue' | 'custom';
+export type PeriodFilter = 'today' | 'tomorrow' | 'yesterday' | 'week' | 'month' | 'custom';
+export type AgendaFocusFilter = 'mine' | 'delegated' | 'team' | 'pendingAudit';
 export type DisplayTaskStatus = TaskStatus | 'overdue' | 'audited';
 export type OpenStatusFilter = 'open';
 export type AuditPendingStatusFilter = 'pending_audit';

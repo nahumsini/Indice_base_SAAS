@@ -33,6 +33,7 @@ import { TaskCompletionDialog } from '../Tasks/components/TaskCompletionDialog';
 import { listAgendaTasks, type AgendaTaskItem } from './agendaApi';
 import type {
   AgendaColumnId,
+  AgendaFocusFilter,
   AgendaKanbanColumn,
   AgendaViewMode,
   DisplayTaskStatus,
@@ -199,12 +200,14 @@ export default function Agenda() {
     collaboratorFilter,
     customDateFrom,
     customDateTo,
+    focusFilter,
     handleCustomDateFromChange,
     handleCustomDateToChange,
     periodFilter,
     projectFilter,
     setBusinessFilter,
     setCollaboratorFilter,
+    setFocusFilter,
     setPeriodFilter,
     setProjectFilter,
     setStatusFilter,
@@ -212,6 +215,28 @@ export default function Agenda() {
     statusFilter,
     unitFilter,
   } = useAgendaFilters(location.search);
+  const handleFocusFilterChange = useCallback(
+    (nextFocus: AgendaFocusFilter) => {
+      setFocusFilter(nextFocus);
+      setCollaboratorFilter('all');
+
+      switch (nextFocus) {
+        case 'mine':
+          setStatusFilter('open');
+          break;
+        case 'team':
+          setStatusFilter('all');
+          break;
+        case 'delegated':
+          setStatusFilter('all');
+          break;
+        case 'pendingAudit':
+          setStatusFilter('pending_audit');
+          break;
+      }
+    },
+    [setCollaboratorFilter, setFocusFilter, setStatusFilter],
+  );
   const agendaKanbanColumns = useMemo(() => createAgendaKanbanColumns(agendaCopy), [agendaCopy]);
   const [viewMode, setViewMode] = useState<AgendaViewMode>('table');
   const {
@@ -397,6 +422,7 @@ export default function Agenda() {
     catalogCollaborators,
     collaboratorFilter,
     currentUserId,
+    focusFilter,
     isLoadingCurrentUser,
     isLoadingTasks,
     periodFilter,
@@ -637,22 +663,22 @@ export default function Agenda() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
+      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-4 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
-              <span className="text-2xl leading-none" aria-hidden="true">{headerCopy.emoji}</span>
+          <div className="min-w-0">
+            <h2 className="mb-1 flex items-center gap-2 text-xl font-semibold leading-tight text-slate-900 dark:text-white sm:text-2xl">
+              <span className="text-xl leading-none sm:text-2xl" aria-hidden="true">{headerCopy.emoji}</span>
               {headerCopy.title}
             </h2>
             <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
               {headerCopy.subtitle}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
@@ -660,7 +686,7 @@ export default function Agenda() {
             </Button>
             <Button
               type="button"
-              className="h-11 gap-2 rounded-xl border border-[#F4C84A]/50 bg-[#F4C84A] px-5 text-sm font-bold text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835]"
+              className="h-11 w-full gap-2 rounded-xl border border-[#F4C84A]/50 bg-[#F4C84A] px-5 text-sm font-bold text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835] sm:w-auto"
               onClick={handleOpenTaskKiosks}
             >
               <MonitorSmartphone className="h-5 w-5" />
@@ -668,7 +694,7 @@ export default function Agenda() {
             </Button>
             <Button
               type="button"
-              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              className={cn('h-10 w-full gap-2 rounded-xl px-4 text-sm font-semibold sm:w-auto', accentButtonClass)}
               onClick={handleCreateTaskClick}
             >
               <Plus className="h-4 w-4" />
@@ -679,7 +705,7 @@ export default function Agenda() {
       </section>
 
       <section className="mb-5 flex items-center">
-        <div className="inline-flex w-full rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:w-auto">
+        <div className="inline-flex w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800 [-ms-overflow-style:none] [scrollbar-width:none] sm:w-auto [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
             className={cn(
@@ -764,10 +790,13 @@ export default function Agenda() {
         copy={agendaCopy}
         customDateFrom={customDateFrom}
         customDateTo={customDateTo}
+        focusFilter={focusFilter}
+        focusLabels={agendaCopy.focus}
         onBusinessFilterChange={setBusinessFilter}
         onCollaboratorFilterChange={setCollaboratorFilter}
         onCustomDateFromChange={handleCustomDateFromChange}
         onCustomDateToChange={handleCustomDateToChange}
+        onFocusFilterChange={handleFocusFilterChange}
         onPeriodFilterChange={setPeriodFilter}
         onProjectFilterChange={setProjectFilter}
         onStatusFilterChange={setStatusFilter}
@@ -835,7 +864,7 @@ export default function Agenda() {
         type="button"
         title={agendaCopy.quickAdd.buttonLabel}
         aria-label={agendaCopy.quickAdd.buttonLabel}
-        className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full border border-[#F4C84A]/50 bg-[#F4C84A] p-0 text-slate-950 shadow-lg shadow-[#F4C84A]/25 hover:bg-[#E5B835]"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 h-12 w-12 rounded-full border border-[#F4C84A]/50 bg-[#F4C84A] p-0 text-slate-950 shadow-lg shadow-[#F4C84A]/25 hover:bg-[#E5B835] sm:bottom-6 sm:right-6"
         onClick={() => {
           setQuickTaskTitle('');
           setIsQuickTaskDialogOpen(true);

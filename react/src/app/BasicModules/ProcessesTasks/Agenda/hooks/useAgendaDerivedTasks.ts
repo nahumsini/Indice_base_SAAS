@@ -4,6 +4,7 @@ import type { AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
 import type {
   AgendaColumnId,
+  AgendaFocusFilter,
   AgendaKanbanColumn,
   AgendaKanbanColumnId,
   AgendaSortState,
@@ -22,6 +23,7 @@ import {
 } from '../utils/agendaFilterOptions';
 import {
   getTaskKanbanColumnId,
+  matchesAgendaFocus,
   matchesAgendaPeriod,
   taskDueDateValue,
   taskMatchesStatusFilter,
@@ -49,6 +51,7 @@ type UseAgendaDerivedTasksOptions = {
   catalogCollaborators: ProcessCollaboratorOption[];
   collaboratorFilter: string;
   currentUserId: number | null;
+  focusFilter: AgendaFocusFilter;
   isLoadingCurrentUser: boolean;
   isLoadingTasks: boolean;
   periodFilter: PeriodFilter;
@@ -71,6 +74,7 @@ export function useAgendaDerivedTasks({
   catalogCollaborators,
   collaboratorFilter,
   currentUserId,
+  focusFilter,
   isLoadingCurrentUser,
   isLoadingTasks,
   periodFilter,
@@ -91,23 +95,29 @@ export function useAgendaDerivedTasks({
   });
 
   const periodFilteredTasks = useMemo(
-    () => tasks.filter((task) => matchesAgendaPeriod(task, periodFilter, todayAgendaValue, currentUserId)),
-    [currentUserId, periodFilter, tasks, todayAgendaValue],
+    () => tasks.filter((task) => matchesAgendaPeriod(task, periodFilter, todayAgendaValue)),
+    [periodFilter, tasks, todayAgendaValue],
   );
 
-  const isAgendaViewLoading = isLoadingTasks || (periodFilter === 'mine' && isLoadingCurrentUser);
+  const focusFilteredTasks = useMemo(
+    () => periodFilteredTasks.filter((task) => matchesAgendaFocus(task, focusFilter, currentUserId)),
+    [currentUserId, focusFilter, periodFilteredTasks],
+  );
+
+  const isAgendaViewLoading =
+    isLoadingTasks || ((focusFilter === 'mine' || focusFilter === 'delegated') && isLoadingCurrentUser);
 
   const unitOptions = useMemo(
-    () => uniqueSortedOptions(periodFilteredTasks, (task) => unitFilterValue(task, agendaCopy)),
-    [agendaCopy, periodFilteredTasks],
+    () => uniqueSortedOptions(focusFilteredTasks, (task) => unitFilterValue(task, agendaCopy)),
+    [agendaCopy, focusFilteredTasks],
   );
 
   const tasksMatchingSelectedUnit = useMemo(
     () =>
       unitFilter === 'all'
-        ? periodFilteredTasks
-        : periodFilteredTasks.filter((task) => unitFilterValue(task, agendaCopy) === unitFilter),
-    [agendaCopy, periodFilteredTasks, unitFilter],
+        ? focusFilteredTasks
+        : focusFilteredTasks.filter((task) => unitFilterValue(task, agendaCopy) === unitFilter),
+    [agendaCopy, focusFilteredTasks, unitFilter],
   );
 
   const businessOptions = useMemo(

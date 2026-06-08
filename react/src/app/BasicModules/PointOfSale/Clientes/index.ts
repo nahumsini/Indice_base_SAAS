@@ -1,1 +1,1 @@
-export { default } from './Clientes';
+export { default } from '../../Sales/Contactos';

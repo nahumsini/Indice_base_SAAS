@@ -1,0 +1,5 @@
+export const SALE_TAX_RATE = 0.16;
+export const QUICK_PRODUCTS_LIMIT = 9;
+export const MAX_OPERATIONAL_ACTIVITIES = 20;
+export const LAST_ADDED_ITEM_ANIMATION_MS = 1000;
+
