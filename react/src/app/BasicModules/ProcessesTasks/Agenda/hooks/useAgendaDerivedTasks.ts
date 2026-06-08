@@ -51,6 +51,8 @@ type UseAgendaDerivedTasksOptions = {
   catalogCollaborators: ProcessCollaboratorOption[];
   collaboratorFilter: string;
   currentUserId: number | null;
+  customDateFrom: string;
+  customDateTo: string;
   focusFilter: AgendaFocusFilter;
   isLoadingCurrentUser: boolean;
   isLoadingTasks: boolean;
@@ -67,6 +69,42 @@ type UseAgendaDerivedTasksOptions = {
   visibleSelectionState: (visibleIds: readonly number[]) => VisibleSelectionState;
 };
 
+function sortAgendaTasks(
+  tasksToSort: AgendaTaskItem[],
+  sortState: AgendaSortState,
+  agendaCopy: AgendaTranslations,
+  todayAgendaValue: string,
+) {
+  return tasksToSort
+    .map((task, index) => ({ index, task }))
+    .sort((left, right) => {
+      const comparison = compareAgendaSortValues(
+        getAgendaSortValue(left.task, sortState.columnId, agendaCopy, todayAgendaValue),
+        getAgendaSortValue(right.task, sortState.columnId, agendaCopy, todayAgendaValue),
+        sortState.direction,
+      );
+
+      if (comparison !== 0) {
+        return comparison;
+      }
+
+      const leftDate = getTaskScheduleDateKey(left.task, todayAgendaValue) ?? taskDueDateValue(left.task) ?? '';
+      const rightDate = getTaskScheduleDateKey(right.task, todayAgendaValue) ?? taskDueDateValue(right.task) ?? '';
+      const dateComparison = compareAgendaText(leftDate, rightDate);
+
+      if (dateComparison !== 0) {
+        return dateComparison;
+      }
+
+      const leftHour = getTaskScheduleHour(left.task, todayAgendaValue) ?? '99:99';
+      const rightHour = getTaskScheduleHour(right.task, todayAgendaValue) ?? '99:99';
+      const hourComparison = compareAgendaText(leftHour, rightHour);
+
+      return hourComparison === 0 ? left.index - right.index : hourComparison;
+    })
+    .map(({ task }) => task);
+}
+
 export function useAgendaDerivedTasks({
   agendaCopy,
   agendaKanbanColumns,
@@ -74,6 +112,8 @@ export function useAgendaDerivedTasks({
   catalogCollaborators,
   collaboratorFilter,
   currentUserId,
+  customDateFrom,
+  customDateTo,
   focusFilter,
   isLoadingCurrentUser,
   isLoadingTasks,
@@ -95,13 +135,23 @@ export function useAgendaDerivedTasks({
   });
 
   const periodFilteredTasks = useMemo(
-    () => tasks.filter((task) => matchesAgendaPeriod(task, periodFilter, todayAgendaValue)),
-    [periodFilter, tasks, todayAgendaValue],
+    () => tasks.filter((task) => matchesAgendaPeriod(
+      task,
+      periodFilter,
+      todayAgendaValue,
+      { from: customDateFrom, to: customDateTo },
+    )),
+    [customDateFrom, customDateTo, periodFilter, tasks, todayAgendaValue],
   );
 
   const focusFilteredTasks = useMemo(
     () => periodFilteredTasks.filter((task) => matchesAgendaFocus(task, focusFilter, currentUserId)),
     [currentUserId, focusFilter, periodFilteredTasks],
+  );
+
+  const scheduleFocusFilteredTasks = useMemo(
+    () => tasks.filter((task) => matchesAgendaFocus(task, focusFilter, currentUserId)),
+    [currentUserId, focusFilter, tasks],
   );
 
   const isAgendaViewLoading =
@@ -222,46 +272,89 @@ export function useAgendaDerivedTasks({
   const filteredTasks = useMemo(() => {
     const selectedCollaborator =
       collaboratorFilter === 'all' ? null : collaboratorOptionMap.get(collaboratorFilter) ?? null;
+    const includeCancelledInAll = periodFilter === 'yesterday' || (periodFilter === 'custom' && customDateTo < todayAgendaValue);
 
     return tasksMatchingSelectedProject.filter((task) => {
+      const matchesCollaborator =
+        selectedCollaborator == null || taskMatchesParticipantFilter(task, selectedCollaborator);
+      const matchesStatus = taskMatchesStatusFilter(task, statusFilter, { includeCancelledInAll });
+
+      return matchesCollaborator && matchesStatus;
+    });
+  }, [
+    collaboratorFilter,
+    collaboratorOptionMap,
+    customDateTo,
+    periodFilter,
+    statusFilter,
+    tasksMatchingSelectedProject,
+    todayAgendaValue,
+  ]);
+
+  const scheduleTasksMatchingSelectedUnit = useMemo(
+    () =>
+      unitFilter === 'all'
+        ? scheduleFocusFilteredTasks
+        : scheduleFocusFilteredTasks.filter((task) => unitFilterValue(task, agendaCopy) === unitFilter),
+    [agendaCopy, scheduleFocusFilteredTasks, unitFilter],
+  );
+
+  const scheduleTasksMatchingSelectedBusiness = useMemo(
+    () =>
+      businessFilter === 'all'
+        ? scheduleTasksMatchingSelectedUnit
+        : scheduleTasksMatchingSelectedUnit.filter((task) => businessFilterValue(task, agendaCopy) === businessFilter),
+    [agendaCopy, businessFilter, scheduleTasksMatchingSelectedUnit],
+  );
+
+  const scheduleTasksMatchingSelectedProject = useMemo(
+    () =>
+      projectFilter === 'all'
+        ? scheduleTasksMatchingSelectedBusiness
+        : scheduleTasksMatchingSelectedBusiness.filter((task) => agendaProjectFilterValue(task) === projectFilter),
+    [projectFilter, scheduleTasksMatchingSelectedBusiness],
+  );
+
+  const scheduleCollaboratorOptions = useMemo(
+    () => agendaParticipantOptions(scheduleTasksMatchingSelectedProject, agendaCopy.common.unassigned),
+    [agendaCopy.common.unassigned, scheduleTasksMatchingSelectedProject],
+  );
+
+  const scheduleCollaboratorOptionMap = useMemo(
+    () => new Map(scheduleCollaboratorOptions.map((option) => [option.value, option])),
+    [scheduleCollaboratorOptions],
+  );
+
+  const scheduleFilteredTasks = useMemo(() => {
+    const selectedCollaborator =
+      collaboratorFilter === 'all'
+        ? null
+        : scheduleCollaboratorOptionMap.get(collaboratorFilter) ?? collaboratorOptionMap.get(collaboratorFilter) ?? null;
+
+    return scheduleTasksMatchingSelectedProject.filter((task) => {
       const matchesCollaborator =
         selectedCollaborator == null || taskMatchesParticipantFilter(task, selectedCollaborator);
       const matchesStatus = taskMatchesStatusFilter(task, statusFilter);
 
       return matchesCollaborator && matchesStatus;
     });
-  }, [collaboratorFilter, collaboratorOptionMap, statusFilter, tasksMatchingSelectedProject]);
+  }, [
+    collaboratorFilter,
+    collaboratorOptionMap,
+    scheduleCollaboratorOptionMap,
+    scheduleTasksMatchingSelectedProject,
+    statusFilter,
+  ]);
 
-  const sortedTasks = useMemo(() => {
-    return filteredTasks
-      .map((task, index) => ({ index, task }))
-      .sort((left, right) => {
-        const comparison = compareAgendaSortValues(
-          getAgendaSortValue(left.task, sortState.columnId, agendaCopy, todayAgendaValue),
-          getAgendaSortValue(right.task, sortState.columnId, agendaCopy, todayAgendaValue),
-          sortState.direction,
-        );
+  const sortedTasks = useMemo(
+    () => sortAgendaTasks(filteredTasks, sortState, agendaCopy, todayAgendaValue),
+    [agendaCopy, filteredTasks, sortState, todayAgendaValue],
+  );
 
-        if (comparison !== 0) {
-          return comparison;
-        }
-
-        const leftDate = getTaskScheduleDateKey(left.task, todayAgendaValue) ?? taskDueDateValue(left.task) ?? '';
-        const rightDate = getTaskScheduleDateKey(right.task, todayAgendaValue) ?? taskDueDateValue(right.task) ?? '';
-        const dateComparison = compareAgendaText(leftDate, rightDate);
-
-        if (dateComparison !== 0) {
-          return dateComparison;
-        }
-
-        const leftHour = getTaskScheduleHour(left.task, todayAgendaValue) ?? '99:99';
-        const rightHour = getTaskScheduleHour(right.task, todayAgendaValue) ?? '99:99';
-        const hourComparison = compareAgendaText(leftHour, rightHour);
-
-        return hourComparison === 0 ? left.index - right.index : hourComparison;
-      })
-      .map(({ task }) => task);
-  }, [agendaCopy, filteredTasks, sortState.columnId, sortState.direction, todayAgendaValue]);
+  const scheduleSortedTasks = useMemo(
+    () => sortAgendaTasks(scheduleFilteredTasks, sortState, agendaCopy, todayAgendaValue),
+    [agendaCopy, scheduleFilteredTasks, sortState, todayAgendaValue],
+  );
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => task.taskId), [sortedTasks]);
   const visibleTaskSelection = visibleSelectionState(visibleTaskIds);
@@ -286,6 +379,7 @@ export function useAgendaDerivedTasks({
     isAgendaViewLoading,
     kanbanTasksByColumn,
     projectOptions,
+    scheduleSortedTasks,
     sortState,
     sortedTasks,
     unitOptions,

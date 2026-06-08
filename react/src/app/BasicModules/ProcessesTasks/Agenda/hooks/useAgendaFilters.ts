@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import {
   addDays,
+  dateInputValueToDate,
   endOfMonth,
   endOfWeek,
   isDateInputValue,
@@ -33,6 +34,7 @@ export const agendaStatusFilterValues: Array<DisplayTaskStatus | OpenStatusFilte
 const agendaPeriodFilterValues: PeriodFilter[] = ['today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
 const agendaFocusFilterValues: AgendaFocusFilter[] = ['mine', 'delegated', 'team', 'pendingAudit'];
 const agendaFiltersStorageKey = 'processes-tasks-agenda-filters-v1';
+const agendaTodayLookbackDays = 365;
 
 type StoredAgendaFilters = {
   focus?: AgendaFocusFilter;
@@ -141,7 +143,7 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
   switch (period) {
     case 'today':
       return {
-        from: toDateInputValue(today),
+        from: toDateInputValue(addDays(today, -agendaTodayLookbackDays)),
         to: toDateInputValue(today),
       };
     case 'tomorrow': {
@@ -154,7 +156,7 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
     case 'yesterday': {
       const yesterday = addDays(today, -1);
       return {
-        from: toDateInputValue(yesterday),
+        from: toDateInputValue(addDays(yesterday, -agendaTodayLookbackDays)),
         to: toDateInputValue(yesterday),
       };
     }
@@ -169,6 +171,13 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
         to: toDateInputValue(endOfMonth(today)),
       };
     case 'custom':
+      if (customTo < toDateInputValue(today)) {
+        return {
+          from: toDateInputValue(addDays(dateInputValueToDate(customFrom), -agendaTodayLookbackDays)),
+          to: customTo,
+        };
+      }
+
       return {
         from: customFrom,
         to: customTo,

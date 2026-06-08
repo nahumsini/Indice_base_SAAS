@@ -35,6 +35,7 @@ import type {
   AgendaColumnId,
   AgendaFocusFilter,
   AgendaKanbanColumn,
+  AgendaLoadRange,
   AgendaViewMode,
   DisplayTaskStatus,
 } from './types';
@@ -71,7 +72,7 @@ import {
   filterUnitsForActor,
   resolveCollaboratorAssignmentScope,
 } from '../shared/assignmentScope';
-import { toDateInputValue } from './utils/agendaDateUtils';
+import { getWeekDateKeys, toDateInputValue } from './utils/agendaDateUtils';
 import {
   getErrorMessage,
   isTaskInDailyAgenda,
@@ -113,6 +114,17 @@ const agendaDisplayStatusClasses: Record<DisplayTaskStatus, string> = {
 
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
+
+function combineAgendaRanges(baseRange: AgendaLoadRange, rangeOverride?: AgendaLoadRange): AgendaLoadRange {
+  if (!rangeOverride) {
+    return baseRange;
+  }
+
+  return {
+    from: rangeOverride.from < baseRange.from ? rangeOverride.from : baseRange.from,
+    to: rangeOverride.to > baseRange.to ? rangeOverride.to : baseRange.to,
+  };
+}
 
 function createAgendaKanbanColumns(copy: AgendaTranslations): AgendaKanbanColumn[] {
   return [
@@ -294,12 +306,16 @@ export default function Agenda() {
     };
   }, []);
 
-  const loadAgenda = useCallback(async () => {
+  const loadAgenda = useCallback(async (rangeOverride?: AgendaLoadRange) => {
     setIsLoadingTasks(true);
     setAgendaError(null);
 
     try {
-      const response = await listAgendaTasks(activeRange.from, activeRange.to);
+      const requestedRange = combineAgendaRanges(
+        { from: activeRange.from, to: activeRange.to },
+        rangeOverride,
+      );
+      const response = await listAgendaTasks(requestedRange.from, requestedRange.to);
       setTasks(response.items);
     } catch (error) {
       setTasks([]);
@@ -332,6 +348,28 @@ export default function Agenda() {
     todayAgendaValue,
   });
 
+  const scheduleLoadRange = useMemo<AgendaLoadRange | null>(() => {
+    if (viewMode !== 'diagram') {
+      return null;
+    }
+
+    if (scheduleViewMode === 'day') {
+      return { from: selectedScheduleDate, to: selectedScheduleDate };
+    }
+
+    const weekDateKeys = getWeekDateKeys(selectedScheduleDate);
+
+    return {
+      from: weekDateKeys[0] ?? selectedScheduleDate,
+      to: weekDateKeys[weekDateKeys.length - 1] ?? selectedScheduleDate,
+    };
+  }, [scheduleViewMode, selectedScheduleDate, viewMode]);
+
+  const loadVisibleAgenda = useCallback(
+    () => loadAgenda(scheduleLoadRange ?? undefined),
+    [loadAgenda, scheduleLoadRange],
+  );
+
   const {
     auditNotes,
     auditTask,
@@ -351,7 +389,7 @@ export default function Agenda() {
     setCompletionPercent,
   } = useAgendaTaskCompletionAudit({
     agendaCopy,
-    loadAgenda,
+    loadAgenda: loadVisibleAgenda,
     patchTaskInAgenda,
     setAgendaError,
     setTaskPendingState,
@@ -370,8 +408,8 @@ export default function Agenda() {
   } = useAgendaTaskKiosks({ setAgendaError });
 
   useEffect(() => {
-    void loadAgenda();
-  }, [loadAgenda]);
+    void loadVisibleAgenda();
+  }, [loadVisibleAgenda]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -383,7 +421,7 @@ export default function Agenda() {
         return;
       }
 
-      void loadAgenda();
+      void loadVisibleAgenda();
     };
 
     const handleVisibilityChange = () => {
@@ -399,7 +437,7 @@ export default function Agenda() {
       window.removeEventListener('focus', refreshAgenda);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadAgenda]);
+  }, [loadVisibleAgenda]);
 
   const {
     businessOptions,
@@ -410,6 +448,7 @@ export default function Agenda() {
     isAgendaViewLoading,
     kanbanTasksByColumn,
     projectOptions,
+    scheduleSortedTasks,
     sortState,
     sortedTasks,
     unitOptions,
@@ -422,6 +461,8 @@ export default function Agenda() {
     catalogCollaborators,
     collaboratorFilter,
     currentUserId,
+    customDateFrom,
+    customDateTo,
     focusFilter,
     isLoadingCurrentUser,
     isLoadingTasks,
@@ -456,7 +497,7 @@ export default function Agenda() {
   } = useAgendaTaskFormDialog({
     agendaCopy,
     currentUserCollaborator,
-    loadAgenda,
+    loadAgenda: loadVisibleAgenda,
     selectedScheduleDate,
     setAgendaError,
     todayAgendaValue,
@@ -503,7 +544,7 @@ export default function Agenda() {
     catalogBusinesses,
     catalogCollaborators,
     catalogUnits,
-    loadAgenda,
+    loadAgenda: loadVisibleAgenda,
     noBusinessValue: NO_BUSINESS_VALUE,
     noProjectValue: NO_PROJECT_VALUE,
     noUnitValue: NO_UNIT_VALUE,
@@ -540,7 +581,7 @@ export default function Agenda() {
     bulkDefaultUnitValue: NO_UNIT_VALUE,
     bulkUnassignedResponsibleValue: UNASSIGNED_RESPONSIBLE_VALUE,
     catalogCollaborators,
-    loadAgenda,
+    loadAgenda: loadVisibleAgenda,
     reportTask,
     rowSelection,
     scopedCatalogBusinesses,
@@ -656,7 +697,7 @@ export default function Agenda() {
       scheduleDraggingTaskId={scheduleDraggingTaskId}
       scheduleViewMode={scheduleViewMode}
       selectedScheduleDate={selectedScheduleDate}
-      sortedTasks={sortedTasks}
+      sortedTasks={scheduleSortedTasks}
       todayAgendaValue={todayAgendaValue}
     />
   );
@@ -757,7 +798,7 @@ export default function Agenda() {
               variant="outline"
               className="h-9 rounded-xl border-red-200 bg-white px-4 text-red-700 shadow-none dark:border-red-900/60 dark:bg-slate-800 dark:text-red-200"
               onClick={() => {
-                void loadAgenda();
+                void loadVisibleAgenda();
               }}
             >
               {agendaCopy.common.retry}
@@ -965,7 +1006,7 @@ export default function Agenda() {
             setAttachmentsTask(null);
           }
         }}
-        onChanged={loadAgenda}
+        onChanged={loadVisibleAgenda}
       />
 
       <AgendaReportDialog
