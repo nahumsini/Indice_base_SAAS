@@ -32,7 +32,10 @@ public class ProcessTaskKpisApiController {
             @RequestParam(required = false) Boolean overdueOnly,
             @RequestParam(required = false) Long unitId,
             @RequestParam(required = false) Long businessId,
-            @RequestParam(required = false) Long collaboratorId) {
+            @RequestParam(required = false) Long collaboratorId,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String focus,
+            @RequestParam(required = false) String status) {
         var access = guard.requireRead(session);
         if (access.denied()) {
             return access.error();
@@ -48,7 +51,10 @@ public class ProcessTaskKpisApiController {
                     overdueOnly,
                     unitId,
                     businessId,
-                    collaboratorId));
+                    collaboratorId,
+                    projectId,
+                    focus,
+                    status));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

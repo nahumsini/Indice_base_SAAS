@@ -28,9 +28,22 @@ public class AgendaService {
         var range = parseRange(fromValue, toValue);
         var visibility = assignmentScopeService.taskVisibilityFilter(companyId, userId, "task", "business");
         var params = new ArrayList<Object>();
+        var fromDate = java.sql.Date.valueOf(range.from());
+        var toDate = java.sql.Date.valueOf(range.to());
+
         params.add(companyId);
-        params.add(java.sql.Date.valueOf(range.from()));
-        params.add(java.sql.Date.valueOf(range.to()));
+        params.add(fromDate);
+        params.add(toDate);
+        params.add(toDate);
+        params.add(fromDate);
+        params.add(fromDate);
+        params.add(fromDate);
+        params.add(toDate);
+        params.add(fromDate);
+        params.add(toDate);
+        params.add(fromDate);
+        params.add(toDate);
+        params.add(toDate);
         params.addAll(visibility.params());
 
         var rows = jdbcTemplate.query(
@@ -128,8 +141,21 @@ public class AgendaService {
                             AND (unit.company_id = task.company_id OR unit.company_id IS NULL)
                         WHERE task.company_id = ?
                           AND task.deleted_at IS NULL
-                          AND COALESCE(task.agenda_date, task.due_date) IS NOT NULL
-                          AND COALESCE(task.agenda_date, task.due_date) BETWEEN ? AND ?
+                          AND (
+                              COALESCE(task.agenda_date, task.due_date) BETWEEN ? AND ?
+                              OR (
+                                  COALESCE(task.agenda_date, task.due_date) <= ?
+                                  AND (task.completed_at IS NULL OR DATE(task.completed_at) >= ?)
+                                  AND (task.cancelled_at IS NULL OR DATE(task.cancelled_at) >= ?)
+                              )
+                              OR DATE(task.completed_at) BETWEEN ? AND ?
+                              OR DATE(task.cancelled_at) BETWEEN ? AND ?
+                              OR DATE(task.audited_at) BETWEEN ? AND ?
+                              OR (
+                                  task.status IN ('in_progress', 'paused')
+                                  AND DATE(task.created_at) <= ?
+                              )
+                          )
                           AND %s
                         ORDER BY COALESCE(task.agenda_date, task.due_date) ASC,
                                  task.agenda_start_time ASC,

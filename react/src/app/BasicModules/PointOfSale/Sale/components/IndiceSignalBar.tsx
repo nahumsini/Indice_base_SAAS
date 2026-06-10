@@ -15,8 +15,8 @@ export function IndiceSignalBar({
   activeAlertCount,
   isShiftActive,
 }: IndiceSignalBarProps) {
-  const stockSignal = lowStockCount === 0 ? 'no stock risk' : `${lowStockCount} stock risk${lowStockCount === 1 ? '' : 's'}`;
-  const ticketSignal = suspendedCount === 0 ? 'no held tickets' : `${suspendedCount} held ticket${suspendedCount === 1 ? '' : 's'}`;
+  const stockSignal = lowStockCount === 0 ? 'stock estable' : `${lowStockCount} alerta${lowStockCount === 1 ? '' : 's'} de stock`;
+  const ticketSignal = suspendedCount === 0 ? 'sin tickets pausados' : `${suspendedCount} ticket${suspendedCount === 1 ? '' : 's'} pausado${suspendedCount === 1 ? '' : 's'}`;
 
   return (
     <section className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 shadow-sm dark:border-blue-800 dark:bg-blue-900/20">
@@ -27,13 +27,13 @@ export function IndiceSignalBar({
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Indice Signal</h3>
-              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase text-blue-700 shadow-sm dark:bg-gray-900 dark:text-blue-300">
-                Commercial control
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Señal Indice</h3>
+              <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold uppercase text-blue-700 shadow-sm dark:bg-gray-900 dark:text-blue-300">
+                Control comercial
               </span>
             </div>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              Operation is readable: {salesTrendLabel}, {stockSignal}, {ticketSignal}, {activeAlertCount} active signal{activeAlertCount === 1 ? '' : 's'}.
+              Operacion legible: {salesTrendLabel}, {stockSignal}, {ticketSignal}, {activeAlertCount} señal{activeAlertCount === 1 ? '' : 'es'} activa{activeAlertCount === 1 ? '' : 's'}.
             </p>
           </div>
         </div>
@@ -41,12 +41,12 @@ export function IndiceSignalBar({
         <div className="flex flex-wrap gap-2">
           <SignalChip
             icon={ShieldCheck}
-            label={isShiftActive ? 'Register controlled' : 'Open shift required'}
+            label={isShiftActive ? 'Caja controlada' : 'Abrir turno'}
             tone={isShiftActive ? 'control' : 'risk'}
           />
           <SignalChip
             icon={lowStockCount > 0 ? AlertTriangle : Archive}
-            label={lowStockCount > 0 ? 'Replenish' : 'Stock stable'}
+            label={lowStockCount > 0 ? 'Reponer' : 'Stock estable'}
             tone={lowStockCount > 0 ? 'risk' : 'control'}
           />
           <SignalChip icon={TrendingUp} label={salesTrendLabel} tone="opportunity" />

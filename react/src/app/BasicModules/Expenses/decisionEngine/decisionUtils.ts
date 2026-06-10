@@ -1,6 +1,5 @@
 import type { Expense } from '../types/expenses.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
-
 export type DecisionType = 'warning' | 'alert' | 'opportunity';
 export type DecisionImpact = 'low' | 'medium' | 'high';
 export type RiskLevel = 'low' | 'medium' | 'high';

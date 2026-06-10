@@ -1,0 +1,66 @@
+import { apiClient } from '../../../lib/apiClient';
+import { toExpense, toExpenseApiRequest, toFinanceExpense } from '../adapters/expense.adapter';
+import { mockExpenses } from '../data/expenses.mock';
+import { EXPENSE_COLUMN_CONTRACT } from '../types/expense-column-contract.types';
+import { createEmptyFinancialOverview } from '../types/financial-overview.types';
+import type { Expense } from '../types/expenses.types';
+import type { ExpenseColumnContract } from '../types/expense-column-contract.types';
+import type { FinancialOverview } from '../types/financial-overview.types';
+import type { FinanceExpense, FinancePurchaseOrder } from '../types/finance-domain.types';
+import type { ExpenseApiDto, ExpenseListApiResponse } from '../types/finance-api.types';
+
+const expensesPath = '/api/v1/finance/expenses';
+const mockFinanceExpenses = mockExpenses.map(expense => toFinanceExpense(expense));
+
+const jsonMutation = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
+  method,
+  body: JSON.stringify(body),
+});
+
+export const expensesService = {
+  async getExpenses(providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
+    const response = await apiClient<ExpenseListApiResponse>(expensesPath);
+    return response.expenses.map(expense => toExpense(expense, providers));
+  },
+
+  async getFinanceExpenses(): Promise<FinanceExpense[]> {
+    return mockFinanceExpenses.map(expense => ({ ...expense, attachments: [...expense.attachments] }));
+  },
+
+  async getExpenseById(expenseId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense | null> {
+    const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expenseId}`);
+    return toExpense(response, providers);
+  },
+
+  async createExpense(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(
+      expensesPath,
+      jsonMutation('POST', toExpenseApiRequest(expense)),
+    );
+    return toExpense(response, providers);
+  },
+
+  async updateExpense(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(
+      `${expensesPath}/${expense.id}`,
+      jsonMutation('PUT', toExpenseApiRequest(expense)),
+    );
+    return toExpense(response, providers);
+  },
+
+  async deleteExpense(expenseId: string): Promise<void> {
+    await apiClient(`${expensesPath}/${expenseId}`, { method: 'DELETE' });
+  },
+
+  async getPurchaseOrders(): Promise<FinancePurchaseOrder[]> {
+    return [];
+  },
+
+  async getFinancialOverview(companyId = 'mock-company'): Promise<FinancialOverview> {
+    return createEmptyFinancialOverview(companyId);
+  },
+
+  async getExpenseColumnContract(): Promise<ExpenseColumnContract[]> {
+    return EXPENSE_COLUMN_CONTRACT.map(column => ({ ...column }));
+  },
+};

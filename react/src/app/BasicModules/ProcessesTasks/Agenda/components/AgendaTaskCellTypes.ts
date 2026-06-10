@@ -6,7 +6,7 @@ import type {
 import type { ProjectRecord } from '../../Projects/projectsApi';
 import type { TaskPayload } from '../../Tasks/tasksApi';
 import type { AgendaTaskItem } from '../agendaApi';
-import type { AgendaColumnId } from '../types';
+import type { AgendaColumnId, AgendaLoadRange } from '../types';
 import type { AgendaTranslations } from '../translations';
 
 export type AgendaTaskActionsProps = {
@@ -23,6 +23,8 @@ export type AgendaTaskActionsProps = {
 
 export type AgendaTaskCellProps = {
   auditStatusClasses: Record<AgendaTaskItem['auditStatus'], string>;
+  agendaStatusDate: string;
+  agendaStatusRange: AgendaLoadRange;
   businessOptionsForUnit: (unitId: number | null) => ProcessBusinessOption[];
   collaboratorOptionsForScope: (unitId: number | null, businessId: number | null) => ProcessCollaboratorOption[];
   columnId: AgendaColumnId;

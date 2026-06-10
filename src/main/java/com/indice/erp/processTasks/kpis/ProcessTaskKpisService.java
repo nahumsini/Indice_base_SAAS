@@ -37,7 +37,10 @@ public class ProcessTaskKpisService {
             Boolean overdueOnly,
             Long unitId,
             Long businessId,
-            Long collaboratorId) {
+            Long collaboratorId,
+            Long projectId,
+            String focus,
+            String status) {
         var scope = parseScope(
                 companyId,
                 userId,
@@ -47,7 +50,10 @@ public class ProcessTaskKpisService {
                 Boolean.TRUE.equals(overdueOnly),
                 unitId,
                 businessId,
-                collaboratorId);
+                collaboratorId,
+                projectId,
+                focus,
+                status);
 
         var summary = loadSummary(scope);
         var collaborators = loadCollaborators(scope);
@@ -64,7 +70,10 @@ public class ProcessTaskKpisService {
         body.put("filters", Map.of(
                 "unitId", nullable(scope.unitId()),
                 "businessId", nullable(scope.businessId()),
-                "collaboratorId", nullable(scope.collaboratorId())));
+                "collaboratorId", nullable(scope.collaboratorId()),
+                "projectId", nullable(scope.projectId()),
+                "focus", scope.focus(),
+                "status", scope.statusFilter() == null ? "all" : scope.statusFilter()));
         body.put("summary", summary);
         body.put("comparison", buildComparison(scope, summary));
         body.put("cards", buildCards(summary, collaborators, processes, projects));
@@ -85,7 +94,10 @@ public class ProcessTaskKpisService {
             boolean overdueOnly,
             Long unitId,
             Long businessId,
-            Long collaboratorId) {
+            Long collaboratorId,
+            Long projectId,
+            String focus,
+            String status) {
         var today = LocalDate.now();
         var from = parseDateOrDefault(fromValue, today, "from");
         var to = parseDateOrDefault(toValue, today, "to");
@@ -94,79 +106,85 @@ public class ProcessTaskKpisService {
             throw new IllegalArgumentException("to must be greater than or equal to from.");
         }
 
+        var referenceDate = today;
+        if (referenceDate.isBefore(from)) {
+            referenceDate = from;
+        } else if (referenceDate.isAfter(to)) {
+            referenceDate = to;
+        }
+
         return new KpiScope(
                 companyId,
+                userId,
                 from,
                 to,
+                referenceDate,
                 includeOverdueBacklog,
                 overdueOnly,
                 positiveOrNull(unitId),
                 positiveOrNull(businessId),
                 positiveOrNull(collaboratorId),
+                positiveOrNull(projectId),
+                normalizeFocus(focus),
+                normalizeStatusFilter(overdueOnly ? "overdue" : status),
                 assignmentScopeService.taskVisibilityFilter(companyId, userId, "pt", "business"));
     }
 
     private Map<String, Object> loadSummary(KpiScope scope) {
         var filter = taskFilter(scope, "pt");
+        var statusExpression = agendaStatusExpression(scope, "pt");
+        var agendaDateExpression = agendaDateExpression("pt");
+        var referenceDate = sqlDate(scope.referenceDate());
         var sql = """
                 SELECT COUNT(*) AS total_task_count,
-                       SUM(CASE WHEN pt.status <> 'cancelled' THEN 1 ELSE 0 END) AS actionable_task_count,
-                       SUM(CASE WHEN pt.status IN ('pending', 'in_progress', 'paused') THEN 1 ELSE 0 END) AS open_task_count,
+                       COUNT(*) AS actionable_task_count,
+                       SUM(CASE WHEN %1$s = 'pending' THEN 1 ELSE 0 END) AS pending_task_count,
+                       SUM(CASE WHEN %1$s = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_task_count,
+                       SUM(CASE WHEN %1$s = 'paused' THEN 1 ELSE 0 END) AS paused_task_count,
+                       SUM(CASE WHEN %1$s IN ('pending', 'in_progress', 'paused', 'overdue') THEN 1 ELSE 0 END) AS open_task_count,
                        SUM(CASE
-                             WHEN pt.status IN ('pending', 'in_progress', 'paused')
-                              AND pt.due_date >= CURRENT_DATE
+                             WHEN %1$s IN ('pending', 'in_progress', 'paused')
                              THEN 1 ELSE 0
                            END) AS active_on_track_task_count,
-                       SUM(CASE WHEN pt.status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
-                       SUM(CASE WHEN pt.status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                       SUM(CASE WHEN %1$s IN ('completed', 'audited') THEN 1 ELSE 0 END) AS closed_task_count,
+                       0 AS cancelled_task_count,
                        SUM(CASE WHEN pt.assigned_user_company_id IS NULL THEN 1 ELSE 0 END) AS unassigned_task_count,
                        SUM(CASE
                              WHEN pt.assigned_user_company_id IS NULL
-                              AND pt.status IN ('pending', 'in_progress', 'paused')
+                              AND %1$s IN ('pending', 'in_progress', 'paused', 'overdue')
                              THEN 1 ELSE 0
                            END) AS unassigned_open_task_count,
                        SUM(CASE
                              WHEN pt.assigned_user_company_id IS NULL
-                              AND pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
+                              AND %1$s = 'overdue'
                              THEN 1 ELSE 0
                            END) AS unassigned_overdue_task_count,
+                       SUM(CASE WHEN %1$s = 'overdue' THEN 1 ELSE 0 END) AS overdue_task_count,
                        SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                             THEN 1 ELSE 0
-                           END) AS overdue_task_count,
-                       SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                              AND DATEDIFF(CURRENT_DATE, pt.due_date) BETWEEN 1 AND 3
+                             WHEN %1$s = 'overdue'
+                              AND DATEDIFF(%3$s, %2$s) BETWEEN 1 AND 3
                              THEN 1 ELSE 0
                            END) AS overdue_1_to_3_day_count,
                        SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                              AND DATEDIFF(CURRENT_DATE, pt.due_date) BETWEEN 4 AND 7
+                             WHEN %1$s = 'overdue'
+                              AND DATEDIFF(%3$s, %2$s) BETWEEN 4 AND 7
                              THEN 1 ELSE 0
                            END) AS overdue_4_to_7_day_count,
                        SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                              AND DATEDIFF(CURRENT_DATE, pt.due_date) >= 8
+                             WHEN %1$s = 'overdue'
+                              AND DATEDIFF(%3$s, %2$s) >= 8
                              THEN 1 ELSE 0
                            END) AS overdue_8_plus_day_count,
-                       SUM(CASE
-                             WHEN pt.status = 'completed'
-                              AND COALESCE(pt.audited, 0) = 0
-                             THEN 1 ELSE 0
-                           END) AS pending_audit_task_count,
-                       SUM(CASE WHEN COALESCE(pt.audited, 0) = 1 THEN 1 ELSE 0 END) AS audited_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS pending_audit_task_count,
+                       SUM(CASE WHEN %1$s = 'audited' THEN 1 ELSE 0 END) AS audited_task_count,
                        ROUND(AVG(CASE
-                             WHEN pt.status <> 'cancelled'
-                             THEN COALESCE(pt.completion_percent, CASE WHEN pt.status = 'completed' THEN 100 ELSE 0 END)
+                             WHEN %1$s IS NOT NULL
+                             THEN COALESCE(pt.completion_percent, CASE WHEN %1$s IN ('completed', 'audited') THEN 100 ELSE 0 END)
                              ELSE NULL
                            END), 0) AS average_completion,
                        ROUND(AVG(CASE
-                             WHEN COALESCE(pt.audited, 0) = 1
+                             WHEN %1$s = 'audited'
                               AND pt.weighting IS NOT NULL
                              THEN LEAST(5, GREATEST(0, pt.weighting))
                              ELSE NULL
@@ -185,13 +203,14 @@ public class ProcessTaskKpisService {
                 LEFT JOIN businesses business ON business.id = pt.business_id
                     AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
-                """ + filter.sql();
+                """.formatted(statusExpression, agendaDateExpression, referenceDate) + filter.sql();
 
         return jdbcTemplate.queryForObject(sql, this::mapSummaryRow, filter.params().toArray());
     }
 
     private List<Map<String, Object>> loadCollaborators(KpiScope scope) {
         var filter = taskFilter(scope, "pt");
+        var statusExpression = agendaStatusExpression(scope, "pt");
         var sql = """
                 SELECT pt.assigned_user_company_id AS collaborator_id,
                        COALESCE(
@@ -206,27 +225,23 @@ public class ProcessTaskKpisService {
                        COALESCE(MAX(hr_user.business_id), MAX(pt.business_id)) AS business_id,
                        COALESCE(MAX(hr_business.name), MAX(task_business.name)) AS business_name,
                        COUNT(*) AS total_task_count,
-                       SUM(CASE WHEN pt.status <> 'cancelled' THEN 1 ELSE 0 END) AS actionable_task_count,
-                       SUM(CASE WHEN pt.status IN ('pending', 'in_progress', 'paused') THEN 1 ELSE 0 END) AS open_task_count,
-                       SUM(CASE WHEN pt.status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
-                       SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                             THEN 1 ELSE 0
-                           END) AS overdue_task_count,
-                       SUM(CASE
-                             WHEN pt.status = 'completed'
-                              AND COALESCE(pt.audited, 0) = 0
-                             THEN 1 ELSE 0
-                           END) AS pending_audit_task_count,
-                       SUM(CASE WHEN COALESCE(pt.audited, 0) = 1 THEN 1 ELSE 0 END) AS audited_task_count,
+                       COUNT(*) AS actionable_task_count,
+                       SUM(CASE WHEN %1$s = 'pending' THEN 1 ELSE 0 END) AS pending_task_count,
+                       SUM(CASE WHEN %1$s = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_task_count,
+                       SUM(CASE WHEN %1$s = 'paused' THEN 1 ELSE 0 END) AS paused_task_count,
+                       SUM(CASE WHEN %1$s IN ('pending', 'in_progress', 'paused', 'overdue') THEN 1 ELSE 0 END) AS open_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                       SUM(CASE WHEN %1$s IN ('completed', 'audited') THEN 1 ELSE 0 END) AS closed_task_count,
+                       SUM(CASE WHEN %1$s = 'overdue' THEN 1 ELSE 0 END) AS overdue_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS pending_audit_task_count,
+                       SUM(CASE WHEN %1$s = 'audited' THEN 1 ELSE 0 END) AS audited_task_count,
                        ROUND(AVG(CASE
-                             WHEN pt.status <> 'cancelled'
-                             THEN COALESCE(pt.completion_percent, CASE WHEN pt.status = 'completed' THEN 100 ELSE 0 END)
+                             WHEN %1$s IS NOT NULL
+                             THEN COALESCE(pt.completion_percent, CASE WHEN %1$s IN ('completed', 'audited') THEN 100 ELSE 0 END)
                              ELSE NULL
                            END), 0) AS average_completion,
                        ROUND(AVG(CASE
-                             WHEN COALESCE(pt.audited, 0) = 1
+                             WHEN %1$s = 'audited'
                               AND pt.weighting IS NOT NULL
                              THEN LEAST(5, GREATEST(0, pt.weighting))
                              ELSE NULL
@@ -252,7 +267,7 @@ public class ProcessTaskKpisService {
                 ) attachment_summary ON attachment_summary.company_id = pt.company_id
                     AND attachment_summary.task_id = pt.id
                 WHERE
-                """ + filter.sql() + """
+                """.formatted(statusExpression) + filter.sql() + """
                 GROUP BY pt.assigned_user_company_id
                 """;
 
@@ -271,6 +286,7 @@ public class ProcessTaskKpisService {
 
     private List<Map<String, Object>> loadProcesses(KpiScope scope) {
         var filter = taskFilter(scope, "pt");
+        var statusExpression = agendaStatusExpression(scope, "pt");
         var sql = """
                 SELECT pt.process_id,
                        MAX(process.folio) AS process_folio,
@@ -280,27 +296,23 @@ public class ProcessTaskKpisService {
                        MAX(process.generated_until_date) AS generated_until_date,
                        MAX(process.evidence_required) AS evidence_required,
                        COUNT(*) AS total_task_count,
-                       SUM(CASE WHEN pt.status <> 'cancelled' THEN 1 ELSE 0 END) AS actionable_task_count,
-                       SUM(CASE WHEN pt.status IN ('pending', 'in_progress', 'paused') THEN 1 ELSE 0 END) AS open_task_count,
-                       SUM(CASE WHEN pt.status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
-                       SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                             THEN 1 ELSE 0
-                           END) AS overdue_task_count,
-                       SUM(CASE
-                             WHEN pt.status = 'completed'
-                              AND COALESCE(pt.audited, 0) = 0
-                             THEN 1 ELSE 0
-                           END) AS pending_audit_task_count,
-                       SUM(CASE WHEN COALESCE(pt.audited, 0) = 1 THEN 1 ELSE 0 END) AS audited_task_count,
+                       COUNT(*) AS actionable_task_count,
+                       SUM(CASE WHEN %1$s = 'pending' THEN 1 ELSE 0 END) AS pending_task_count,
+                       SUM(CASE WHEN %1$s = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_task_count,
+                       SUM(CASE WHEN %1$s = 'paused' THEN 1 ELSE 0 END) AS paused_task_count,
+                       SUM(CASE WHEN %1$s IN ('pending', 'in_progress', 'paused', 'overdue') THEN 1 ELSE 0 END) AS open_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                       SUM(CASE WHEN %1$s IN ('completed', 'audited') THEN 1 ELSE 0 END) AS closed_task_count,
+                       SUM(CASE WHEN %1$s = 'overdue' THEN 1 ELSE 0 END) AS overdue_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS pending_audit_task_count,
+                       SUM(CASE WHEN %1$s = 'audited' THEN 1 ELSE 0 END) AS audited_task_count,
                        ROUND(AVG(CASE
-                             WHEN pt.status <> 'cancelled'
-                             THEN COALESCE(pt.completion_percent, CASE WHEN pt.status = 'completed' THEN 100 ELSE 0 END)
+                             WHEN %1$s IS NOT NULL
+                             THEN COALESCE(pt.completion_percent, CASE WHEN %1$s IN ('completed', 'audited') THEN 100 ELSE 0 END)
                              ELSE NULL
                            END), 0) AS average_completion,
                        ROUND(AVG(CASE
-                             WHEN COALESCE(pt.audited, 0) = 1
+                             WHEN %1$s = 'audited'
                               AND pt.weighting IS NOT NULL
                              THEN LEAST(5, GREATEST(0, pt.weighting))
                              ELSE NULL
@@ -320,7 +332,7 @@ public class ProcessTaskKpisService {
                 LEFT JOIN businesses business ON business.id = pt.business_id
                     AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
-                """ + filter.sql() + """
+                """.formatted(statusExpression) + filter.sql() + """
                   AND pt.process_id IS NOT NULL
                 GROUP BY pt.process_id
                 """;
@@ -335,6 +347,7 @@ public class ProcessTaskKpisService {
 
     private List<Map<String, Object>> loadProjects(KpiScope scope) {
         var filter = taskFilter(scope, "pt");
+        var statusExpression = agendaStatusExpression(scope, "pt");
         var sql = """
                 SELECT pt.project_id,
                        MAX(project.folio) AS project_folio,
@@ -342,27 +355,23 @@ public class ProcessTaskKpisService {
                        MAX(project.status) AS project_status,
                        MAX(project.due_date) AS project_due_date,
                        COUNT(*) AS total_task_count,
-                       SUM(CASE WHEN pt.status <> 'cancelled' THEN 1 ELSE 0 END) AS actionable_task_count,
-                       SUM(CASE WHEN pt.status IN ('pending', 'in_progress', 'paused') THEN 1 ELSE 0 END) AS open_task_count,
-                       SUM(CASE WHEN pt.status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
-                       SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                             THEN 1 ELSE 0
-                           END) AS overdue_task_count,
-                       SUM(CASE
-                             WHEN pt.status = 'completed'
-                              AND COALESCE(pt.audited, 0) = 0
-                             THEN 1 ELSE 0
-                           END) AS pending_audit_task_count,
-                       SUM(CASE WHEN COALESCE(pt.audited, 0) = 1 THEN 1 ELSE 0 END) AS audited_task_count,
+                       COUNT(*) AS actionable_task_count,
+                       SUM(CASE WHEN %1$s = 'pending' THEN 1 ELSE 0 END) AS pending_task_count,
+                       SUM(CASE WHEN %1$s = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_task_count,
+                       SUM(CASE WHEN %1$s = 'paused' THEN 1 ELSE 0 END) AS paused_task_count,
+                       SUM(CASE WHEN %1$s IN ('pending', 'in_progress', 'paused', 'overdue') THEN 1 ELSE 0 END) AS open_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                       SUM(CASE WHEN %1$s IN ('completed', 'audited') THEN 1 ELSE 0 END) AS closed_task_count,
+                       SUM(CASE WHEN %1$s = 'overdue' THEN 1 ELSE 0 END) AS overdue_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS pending_audit_task_count,
+                       SUM(CASE WHEN %1$s = 'audited' THEN 1 ELSE 0 END) AS audited_task_count,
                        ROUND(AVG(CASE
-                             WHEN pt.status <> 'cancelled'
-                             THEN COALESCE(pt.completion_percent, CASE WHEN pt.status = 'completed' THEN 100 ELSE 0 END)
+                             WHEN %1$s IS NOT NULL
+                             THEN COALESCE(pt.completion_percent, CASE WHEN %1$s IN ('completed', 'audited') THEN 100 ELSE 0 END)
                              ELSE NULL
                            END), 0) AS average_completion,
                        ROUND(AVG(CASE
-                             WHEN COALESCE(pt.audited, 0) = 1
+                             WHEN %1$s = 'audited'
                               AND pt.weighting IS NOT NULL
                              THEN LEAST(5, GREATEST(0, pt.weighting))
                              ELSE NULL
@@ -382,7 +391,7 @@ public class ProcessTaskKpisService {
                 LEFT JOIN businesses business ON business.id = pt.business_id
                     AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
-                """ + filter.sql() + """
+                """.formatted(statusExpression) + filter.sql() + """
                   AND pt.project_id IS NOT NULL
                 GROUP BY pt.project_id
                 """;
@@ -397,24 +406,25 @@ public class ProcessTaskKpisService {
 
     private List<Map<String, Object>> loadTrend(KpiScope scope) {
         var filter = taskFilter(scope, "pt");
+        var statusExpression = agendaStatusExpression(scope, "pt");
+        var eventDateExpression = "COALESCE(%s, DATE(pt.completed_at), DATE(pt.audited_at))"
+                .formatted(agendaDateExpression("pt"));
         var sql = """
-                SELECT pt.due_date AS date,
-                       COUNT(*) AS total_task_count,
-                       SUM(CASE WHEN pt.status = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
-                       SUM(CASE
-                             WHEN pt.due_date < CURRENT_DATE
-                              AND pt.status NOT IN ('completed', 'cancelled')
-                             THEN 1 ELSE 0
-                           END) AS overdue_task_count,
-                       SUM(CASE WHEN COALESCE(pt.audited, 0) = 1 THEN 1 ELSE 0 END) AS audited_task_count
+                SELECT %2$s AS date,
+                       SUM(CASE WHEN %1$s = 'pending' THEN 1 ELSE 0 END) AS total_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                       SUM(CASE WHEN %1$s = 'overdue' THEN 1 ELSE 0 END) AS overdue_task_count,
+                       SUM(CASE WHEN %1$s = 'audited' THEN 1 ELSE 0 END) AS audited_task_count
                 FROM process_tasks pt
                 LEFT JOIN businesses business ON business.id = pt.business_id
                     AND (business.company_id = pt.company_id OR business.company_id IS NULL)
                 WHERE
-                """ + filter.sql() + """
-                GROUP BY pt.due_date
-                ORDER BY pt.due_date ASC
+                """.formatted(statusExpression, eventDateExpression) + filter.sql() + """
+                  AND %s IS NOT NULL
+                GROUP BY %s
+                ORDER BY %s ASC
                 """;
+        sql = sql.formatted(eventDateExpression, eventDateExpression, eventDateExpression);
 
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             var row = new LinkedHashMap<String, Object>();
@@ -513,8 +523,12 @@ public class ProcessTaskKpisService {
     private Map<String, Object> mapAggregateBase(ResultSet rs) throws SQLException {
         var totalTasks = intValue(rs, "total_task_count");
         var actionableTasks = intValue(rs, "actionable_task_count");
+        var pendingTasks = intValue(rs, "pending_task_count");
+        var inProgressTasks = intValue(rs, "in_progress_task_count");
+        var pausedTasks = intValue(rs, "paused_task_count");
         var openTasks = intValue(rs, "open_task_count");
         var completedTasks = intValue(rs, "completed_task_count");
+        var closedTasks = intValue(rs, "closed_task_count");
         var overdueTasks = intValue(rs, "overdue_task_count");
         var pendingAuditTasks = intValue(rs, "pending_audit_task_count");
         var auditedTasks = intValue(rs, "audited_task_count");
@@ -525,8 +539,12 @@ public class ProcessTaskKpisService {
         var row = new LinkedHashMap<String, Object>();
         row.put("totalTasks", totalTasks);
         row.put("actionableTasks", actionableTasks);
+        row.put("pendingTasks", pendingTasks);
+        row.put("inProgressTasks", inProgressTasks);
+        row.put("pausedTasks", pausedTasks);
         row.put("openTasks", openTasks);
         row.put("completedTasks", completedTasks);
+        row.put("closedTasks", closedTasks);
         row.put("overdueTasks", overdueTasks);
         row.put("pendingAuditTasks", pendingAuditTasks);
         row.put("auditedTasks", auditedTasks);
@@ -572,17 +590,18 @@ public class ProcessTaskKpisService {
         var totalTasks = (Integer) row.getOrDefault("totalTasks", 0);
         var actionableTasks = (Integer) row.getOrDefault("actionableTasks", 0);
         var completedTasks = (Integer) row.getOrDefault("completedTasks", 0);
+        var closedTasks = (Integer) row.getOrDefault("closedTasks", completedTasks);
         var overdueTasks = (Integer) row.getOrDefault("overdueTasks", 0);
         var auditedTasks = (Integer) row.getOrDefault("auditedTasks", 0);
         var evidenceTasks = (Integer) row.getOrDefault("evidenceTasks", 0);
         var averageCompletion = ((Number) row.getOrDefault("averageCompletion", 0)).doubleValue();
         var averageWeighting = (Double) row.get("averageWeighting");
 
-        var completionRate = percent(completedTasks, actionableTasks);
+        var completionRate = percent(closedTasks, actionableTasks);
         var timelinessRate = actionableTasks > 0
                 ? percent(Math.max(0, actionableTasks - overdueTasks), actionableTasks)
                 : 0;
-        var auditRate = percent(auditedTasks, completedTasks);
+        var auditRate = percent(auditedTasks, closedTasks);
         var qualityScore = averageWeighting != null ? clampPercent(averageWeighting * 20) : auditRate;
         var evidenceRate = percent(evidenceTasks, totalTasks);
         var productivityScore = actionableTasks > 0
@@ -620,7 +639,7 @@ public class ProcessTaskKpisService {
                 "compliance",
                 "Cumplimiento de agenda",
                 summary.get("completionRate") + "%",
-                summary.get("completedTasks") + " cerradas",
+                summary.get("closedTasks") + " cerradas",
                 "Relacion entre tareas accionables y tareas cerradas.",
                 statusFromScore((Integer) summary.get("completionRate"))));
         cards.add(card(
@@ -704,29 +723,27 @@ public class ProcessTaskKpisService {
     private SqlFragment taskFilter(KpiScope scope, String alias) {
         var params = new ArrayList<Object>();
         var sql = new StringBuilder();
+        var agendaDate = agendaDateExpression(alias);
+        var statusExpression = agendaStatusExpression(scope, alias);
         sql.append(alias).append(".company_id = ?")
                 .append(" AND ").append(alias).append(".deleted_at IS NULL")
-                .append(" AND ").append(alias).append(".due_date IS NOT NULL");
+                .append(" AND (").append(alias).append(".created_at IS NULL OR DATE(")
+                .append(alias).append(".created_at) <= ").append(sqlDate(scope.to())).append(")");
         params.add(scope.companyId());
 
-        if (scope.overdueOnly()) {
-            sql.append(" AND ").append(alias).append(".due_date < CURRENT_DATE")
-                    .append(" AND ").append(alias).append(".status NOT IN ('completed', 'cancelled')");
-        } else {
-            sql.append(" AND (")
-                    .append(alias).append(".due_date BETWEEN ? AND ?");
-            params.add(java.sql.Date.valueOf(scope.from()));
-            params.add(java.sql.Date.valueOf(scope.to()));
-
-            if (scope.includeOverdueBacklog()) {
-                sql.append(" OR (")
-                        .append(alias).append(".due_date < ?")
-                        .append(" AND ").append(alias).append(".status NOT IN ('completed', 'cancelled'))");
-                params.add(java.sql.Date.valueOf(scope.from()));
-            }
-
-            sql.append(")");
-        }
+        sql.append(" AND (")
+                .append(agendaDate).append(" BETWEEN ").append(sqlDate(scope.from())).append(" AND ").append(sqlDate(scope.to()))
+                .append(" OR (")
+                .append(agendaDate).append(" <= ").append(sqlDate(scope.to()))
+                .append(" AND (").append(alias).append(".completed_at IS NULL OR DATE(").append(alias).append(".completed_at) >= ").append(sqlDate(scope.from())).append(")")
+                .append(" AND (").append(alias).append(".cancelled_at IS NULL OR DATE(").append(alias).append(".cancelled_at) >= ").append(sqlDate(scope.from())).append(")")
+                .append(")")
+                .append(" OR DATE(").append(alias).append(".completed_at) BETWEEN ").append(sqlDate(scope.from())).append(" AND ").append(sqlDate(scope.to()))
+                .append(" OR DATE(").append(alias).append(".cancelled_at) BETWEEN ").append(sqlDate(scope.from())).append(" AND ").append(sqlDate(scope.to()))
+                .append(" OR DATE(").append(alias).append(".audited_at) BETWEEN ").append(sqlDate(scope.from())).append(" AND ").append(sqlDate(scope.to()))
+                .append(" OR (").append(alias).append(".status IN ('in_progress', 'paused') AND DATE(").append(alias).append(".created_at) <= ").append(sqlDate(scope.to())).append(")")
+                .append(" OR (").append(alias).append(".status = 'completed' AND ").append(alias).append(".completed_at IS NULL)")
+                .append(")");
 
         if (scope.unitId() != null) {
             sql.append(" AND ").append(alias).append(".unit_id = ?");
@@ -737,13 +754,131 @@ public class ProcessTaskKpisService {
             params.add(scope.businessId());
         }
         if (scope.collaboratorId() != null) {
-            sql.append(" AND ").append(alias).append(".assigned_user_company_id = ?");
+            sql.append(" AND (")
+                    .append(alias).append(".assigned_user_company_id = ?")
+                    .append(" OR ").append(alias).append(".created_by = (")
+                    .append("SELECT uc.user_id FROM user_companies uc WHERE uc.company_id = ")
+                    .append(alias).append(".company_id AND uc.id = ? LIMIT 1)")
+                    .append(")");
             params.add(scope.collaboratorId());
+            params.add(scope.collaboratorId());
+        }
+        if (scope.projectId() != null) {
+            sql.append(" AND ").append(alias).append(".project_id = ?");
+            params.add(scope.projectId());
+        }
+        appendFocusFilter(sql, params, scope, alias);
+        sql.append(" AND ").append(statusExpression).append(" IS NOT NULL");
+        if (scope.statusFilter() != null) {
+            sql.append(" AND ").append(statusExpression).append(" = '").append(scope.statusFilter()).append("'");
         }
         sql.append(" AND ").append(scope.visibility().condition());
         params.addAll(scope.visibility().params());
 
         return new SqlFragment(sql.append(System.lineSeparator()).toString(), params);
+    }
+
+    private String agendaDateExpression(String alias) {
+        return "COALESCE(%s.agenda_date, %s.due_date)".formatted(alias, alias);
+    }
+
+    private String agendaStatusExpression(KpiScope scope, String alias) {
+        var from = sqlDate(scope.from());
+        var to = sqlDate(scope.to());
+        var reference = sqlDate(scope.referenceDate());
+        var agendaDate = agendaDateExpression(alias);
+
+        return """
+                CASE
+                  WHEN DATE(%1$s.audited_at) BETWEEN %2$s AND %3$s THEN 'audited'
+                  WHEN DATE(%1$s.completed_at) BETWEEN %2$s AND %3$s THEN
+                    CASE
+                      WHEN COALESCE(%1$s.audited, 0) = 1
+                       AND %1$s.audited_at IS NOT NULL
+                       AND DATE(%1$s.audited_at) <= %3$s
+                      THEN 'audited'
+                      ELSE 'completed'
+                    END
+                  WHEN %1$s.completed_at IS NOT NULL
+                   AND DATE(%1$s.completed_at) < %2$s THEN NULL
+                  WHEN %1$s.cancelled_at IS NOT NULL
+                   AND DATE(%1$s.cancelled_at) <= %3$s THEN NULL
+                  WHEN %1$s.status = 'completed'
+                   AND %1$s.completed_at IS NULL THEN
+                    CASE WHEN COALESCE(%1$s.audited, 0) = 1 THEN 'audited' ELSE 'completed' END
+                  WHEN %1$s.status IN ('in_progress', 'paused') THEN %1$s.status
+                  WHEN %4$s IS NOT NULL
+                   AND %4$s < %2$s
+                   AND (%1$s.completed_at IS NULL OR DATE(%1$s.completed_at) >= %2$s)
+                  THEN 'overdue'
+                  WHEN %4$s BETWEEN %2$s AND %3$s THEN
+                    CASE
+                      WHEN %4$s < %5$s
+                       AND (%1$s.completed_at IS NULL OR DATE(%1$s.completed_at) > %5$s)
+                      THEN 'overdue'
+                      ELSE 'pending'
+                    END
+                  ELSE NULL
+                END
+                """.formatted(alias, from, to, agendaDate, reference);
+    }
+
+    private void appendFocusFilter(StringBuilder sql, List<Object> params, KpiScope scope, String alias) {
+        if ("team".equals(scope.focus())) {
+            return;
+        }
+
+        if ("delegated".equals(scope.focus())) {
+            sql.append(" AND ")
+                    .append(alias).append(".created_by = ?")
+                    .append(" AND ").append(alias).append(".assigned_user_company_id IS NOT NULL")
+                    .append(" AND NOT EXISTS (")
+                    .append("SELECT 1 FROM user_companies focus_uc ")
+                    .append("WHERE focus_uc.company_id = ").append(alias).append(".company_id ")
+                    .append("AND focus_uc.id = ").append(alias).append(".assigned_user_company_id ")
+                    .append("AND focus_uc.user_id = ?)");
+            params.add(scope.userId());
+            params.add(scope.userId());
+            return;
+        }
+
+        sql.append(" AND (")
+                .append("EXISTS (SELECT 1 FROM user_companies focus_assigned_uc ")
+                .append("WHERE focus_assigned_uc.company_id = ").append(alias).append(".company_id ")
+                .append("AND focus_assigned_uc.id = ").append(alias).append(".assigned_user_company_id ")
+                .append("AND focus_assigned_uc.user_id = ?)")
+                .append(" OR (").append(alias).append(".created_by = ? AND (")
+                .append(alias).append(".assigned_user_company_id IS NULL")
+                .append(" OR EXISTS (SELECT 1 FROM user_companies focus_created_uc ")
+                .append("WHERE focus_created_uc.company_id = ").append(alias).append(".company_id ")
+                .append("AND focus_created_uc.id = ").append(alias).append(".assigned_user_company_id ")
+                .append("AND focus_created_uc.user_id = ?))))");
+        params.add(scope.userId());
+        params.add(scope.userId());
+        params.add(scope.userId());
+    }
+
+    private String normalizeFocus(String value) {
+        if ("delegated".equals(value) || "team".equals(value)) {
+            return value;
+        }
+        return "mine";
+    }
+
+    private String normalizeStatusFilter(String value) {
+        if (value == null || value.isBlank() || "all".equals(value)) {
+            return null;
+        }
+
+        return switch (value) {
+            case "pending", "in_progress", "paused", "completed", "overdue", "audited" -> value;
+            case "pending_audit" -> "completed";
+            default -> throw new IllegalArgumentException("status must be a valid agenda status.");
+        };
+    }
+
+    private String sqlDate(LocalDate value) {
+        return "'" + value + "'";
     }
 
     private LocalDate parseDateOrDefault(String value, LocalDate fallback, String fieldName) {
@@ -840,25 +975,42 @@ public class ProcessTaskKpisService {
 
     private record KpiScope(
             long companyId,
+            long userId,
             LocalDate from,
             LocalDate to,
+            LocalDate referenceDate,
             boolean includeOverdueBacklog,
             boolean overdueOnly,
             Long unitId,
             Long businessId,
             Long collaboratorId,
+            Long projectId,
+            String focus,
+            String statusFilter,
             ProcessTaskAssignmentScopeService.TaskVisibilityFilter visibility) {
 
         KpiScope withRange(LocalDate nextFrom, LocalDate nextTo) {
+            var nextReferenceDate = referenceDate;
+            if (nextReferenceDate.isBefore(nextFrom)) {
+                nextReferenceDate = nextFrom;
+            } else if (nextReferenceDate.isAfter(nextTo)) {
+                nextReferenceDate = nextTo;
+            }
+
             return new KpiScope(
                     companyId,
+                    userId,
                     nextFrom,
                     nextTo,
+                    nextReferenceDate,
                     includeOverdueBacklog,
                     overdueOnly,
                     unitId,
                     businessId,
                     collaboratorId,
+                    projectId,
+                    focus,
+                    statusFilter,
                     visibility);
         }
     }

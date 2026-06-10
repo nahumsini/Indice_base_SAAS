@@ -41,7 +41,19 @@ export function normalizeAgendaScheduleHour(value: string | null | undefined) {
   }
 
   const normalized = value.trim().slice(0, 5);
-  return agendaScheduleHours.includes(normalized) ? normalized : null;
+  const [rawHour, rawMinute] = normalized.split(':');
+  const hour = Number(rawHour);
+  const minute = Number(rawMinute);
+
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) {
+    return null;
+  }
+
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
 export function getTaskScheduleHour(task: AgendaTaskItem, todayValue?: string) {

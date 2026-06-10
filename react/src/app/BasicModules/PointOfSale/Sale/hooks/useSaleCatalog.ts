@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Product } from '../../Productos/types/product.types';
+import type { Product } from '../../shared/commercial/products';
 import {
   filterQuickProducts,
   getProductCategories,
@@ -23,4 +23,3 @@ export function useSaleCatalog(products: Product[], selectedCategory: string) {
     stockSignals,
   };
 }
-

@@ -1,6 +1,6 @@
 import type { FormEvent, RefObject } from 'react';
-import { Barcode, Package, Percent, Trash2, X } from 'lucide-react';
-import type { Product } from '../../Productos/types/product.types';
+import { Barcode, Minus, Package, Percent, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
+import type { Product } from '../../shared/commercial/products';
 import type { SaleItem } from '../types/sale.types';
 import type { SaleTotals } from '../utils/saleCalculations';
 import { getProductStockState } from '../utils/saleCatalog';
@@ -43,29 +43,35 @@ export function SaleTicketPanel({
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Nueva Venta</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {itemCount} artículos
-          </p>
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900">
+            <ShoppingCart className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ticket actual</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {itemCount} {itemCount === 1 ? 'articulo' : 'articulos'} en caja
+            </p>
+          </div>
         </div>
 
         <button
           onClick={onClearCart}
           disabled={cart.length === 0}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-900/20"
         >
-          <X className="w-4 h-4" />
-          Cancelar (ESC)
+          <X className="h-4 w-4" />
+          <span>Cancelar</span>
+          <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 dark:bg-red-900/40 dark:text-red-300">ESC</span>
         </button>
       </div>
 
-      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-gray-200 bg-gray-50 px-5 py-4 dark:border-gray-700 dark:bg-gray-900/50">
         <form onSubmit={onBarcodeSubmit} className="relative">
-          <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-            <Barcode className="w-5 h-5 text-gray-400" />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+            <Barcode className="h-5 w-5 text-gray-400" />
           </div>
           <input
             ref={barcodeInputRef}
@@ -73,18 +79,22 @@ export function SaleTicketPanel({
             value={barcodeInput}
             onChange={(event) => onBarcodeInputChange(event.target.value)}
             placeholder="Escanea código de barras..."
-            className="w-full pl-12 pr-4 py-3 text-lg font-mono bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/30 transition-all"
+            className="w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-12 pr-4 font-mono text-lg transition focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:border-gray-600 dark:bg-gray-800 dark:focus:ring-orange-900/30"
             autoComplete="off"
           />
         </form>
+        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+          <span>Escaner activo para venta continua</span>
+          <span className="hidden rounded bg-white px-2 py-1 font-semibold text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300 sm:inline">Enter para agregar</span>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-            <Barcode className="w-24 h-24 mb-4 opacity-20" />
-            <p className="text-xl font-medium">Escanea un producto</p>
-            <p className="text-sm">Los productos aparecerán aquí</p>
+          <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-400 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-500">
+            <Barcode className="mb-4 h-20 w-20 opacity-20" />
+            <p className="text-xl font-semibold text-gray-600 dark:text-gray-300">Escanea o toca un producto</p>
+            <p className="mt-1 text-sm">El ticket se arma aqui con cantidades, descuentos y stock visible.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -95,19 +105,19 @@ export function SaleTicketPanel({
               return (
                 <div
                   key={item.id}
-                  className={`flex flex-col gap-2 p-4 rounded-lg transition-all group ${
+                  className={`group flex flex-col gap-2 rounded-lg border p-4 transition ${
                     lastAddedItem === item.id
-                      ? 'bg-orange-100 dark:bg-orange-900/30 border-2 border-orange-400 shadow-lg scale-105'
-                      : 'bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700/50 border-2 border-transparent'
+                      ? 'border-orange-400 bg-orange-50 shadow-md ring-2 ring-orange-100 dark:bg-orange-900/20 dark:ring-orange-900/40'
+                      : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30 dark:hover:bg-gray-700/40'
                   }`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-12 h-12 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 font-bold text-lg rounded-lg flex-shrink-0">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-lg font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
                       {item.quantity}
                     </div>
 
                     <div
-                      className="flex-1 min-w-0 cursor-pointer rounded-lg p-1 -m-1 transition hover:bg-white/70 dark:hover:bg-gray-800/50"
+                      className="-m-1 min-w-0 flex-1 cursor-pointer rounded-lg p-1 transition hover:bg-gray-100 dark:hover:bg-gray-800/70"
                       onClick={() => {
                         if (product) {
                           onOpenProductPanel(product);
@@ -115,16 +125,16 @@ export function SaleTicketPanel({
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900 dark:text-white truncate">
+                        <p className="truncate font-semibold text-gray-900 dark:text-white">
                           {item.name}
                         </p>
                         {isOutOfStock && (
-                          <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded">
+                          <span className="rounded px-2 py-0.5 text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
                             SIN STOCK
                           </span>
                         )}
                         {hasLowStock && !isOutOfStock && (
-                          <span className="px-2 py-0.5 text-xs font-bold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded">
+                          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                             BAJO
                           </span>
                         )}
@@ -137,7 +147,7 @@ export function SaleTicketPanel({
                           <>
                             <span className="text-gray-400 dark:text-gray-500">•</span>
                             <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                              <Package className="w-3 h-3" />
+                              <Package className="h-3 w-3" />
                               Stock: {product.currentStock}
                             </span>
                           </>
@@ -145,7 +155,7 @@ export function SaleTicketPanel({
                       </div>
                       {item.discount > 0 && (
                         <div className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 font-medium">
-                          <Percent className="w-3 h-3" />
+                          <Percent className="h-3 w-3" />
                           <span>
                             Descuento: {item.discountType === 'percentage' ? `${item.discount}%` : formatCurrency(item.discount)}
                           </span>
@@ -156,42 +166,46 @@ export function SaleTicketPanel({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-600 hover:bg-gray-100 dark:hover:bg-gray-500 rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                        aria-label={`Restar ${item.name}`}
                       >
-                        <span className="text-lg font-bold text-gray-700 dark:text-gray-300">−</span>
+                        <Minus className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-600 hover:bg-gray-100 dark:hover:bg-gray-500 rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                        aria-label={`Sumar ${item.name}`}
                       >
-                        <span className="text-lg font-bold text-gray-700 dark:text-gray-300">+</span>
+                        <Plus className="h-4 w-4" />
                       </button>
                     </div>
 
-                    <div className="w-32 text-right">
+                    <div className="w-28 text-right sm:w-32">
                       {item.discount > 0 && (
                         <p className="text-sm text-gray-400 dark:text-gray-500 line-through">
                           {formatCurrency(item.price * item.quantity)}
                         </p>
                       )}
-                      <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      <p className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">
                         {formatCurrency(item.subtotal)}
                       </p>
                     </div>
 
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
                       <button
                         onClick={() => onOpenItemDiscount(item)}
-                        className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all"
+                        className="rounded-lg p-2 text-purple-600 transition hover:bg-purple-50 dark:hover:bg-purple-900/20"
                         title="Aplicar descuento"
+                        aria-label={`Aplicar descuento a ${item.name}`}
                       >
-                        <Percent className="w-4 h-4" />
+                        <Percent className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => onRemoveItem(item.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                        className="rounded-lg p-2 text-red-600 transition hover:bg-red-50 dark:hover:bg-red-900/20"
+                        aria-label={`Quitar ${item.name}`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -202,32 +216,30 @@ export function SaleTicketPanel({
         )}
       </div>
 
-      <div className="px-6 py-5 border-t-4 border-orange-500 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
-        <div className="text-center mb-4">
-          <p className="text-sm font-medium text-orange-700 dark:text-orange-400 uppercase tracking-wide mb-2">
-            Total a Cobrar
-          </p>
-          <p className="text-6xl font-black text-orange-600 dark:text-orange-400 tracking-tight leading-none">
-            {formatCurrency(totals.total)}
-          </p>
+      <div className="border-t border-gray-200 bg-gray-950 px-5 py-5 text-white dark:border-gray-700">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-300">Total a cobrar</p>
+            <p className="mt-1 break-words text-4xl font-black leading-none sm:text-5xl">
+              {formatCurrency(totals.total)}
+            </p>
+          </div>
+          <div className="text-right text-xs text-gray-300">
+            <p>Subtotal: {formatCurrency(totals.subtotal)}</p>
+            <p>IVA: {formatCurrency(totals.tax)}</p>
+          </div>
         </div>
 
         {cart.length > 0 && (
           <button
             onClick={onOpenGlobalDiscount}
-            className="w-full mb-3 py-2 px-4 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-950 shadow-sm transition hover:bg-gray-100"
           >
-            <Percent className="w-4 h-4" />
+            <Percent className="h-4 w-4" />
             <span>Descuento a toda la venta</span>
           </button>
         )}
-
-        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 border-t border-orange-200 dark:border-orange-700 pt-3">
-          <span>Subtotal: {formatCurrency(totals.subtotal)}</span>
-          <span>IVA: {formatCurrency(totals.tax)}</span>
-        </div>
       </div>
     </div>
   );
 }
-

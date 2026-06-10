@@ -70,13 +70,13 @@ export function CashMovementModal({ isOpen, onClose, onConfirm }: CashMovementMo
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800">
         {/* Header */}
         <div className={`bg-gradient-to-r ${
           type === 'entry'
             ? 'from-green-500 to-green-600'
             : 'from-red-500 to-red-600'
-        } rounded-t-2xl px-6 py-4 flex items-center justify-between transition-colors`}>
+        } flex items-center justify-between px-6 py-4 transition-colors`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
               {type === 'entry' ? (

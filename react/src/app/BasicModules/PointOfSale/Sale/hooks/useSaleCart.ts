@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Product } from '../../Productos/types/product.types';
+import { findCatalogProductByBarcode, type Product } from '../../shared/commercial/products';
 import { LAST_ADDED_ITEM_ANIMATION_MS } from '../constants/sale.constants';
 import type { SaleItem } from '../types/sale.types';
 import {
@@ -9,6 +9,11 @@ import {
 
 interface UseSaleCartOptions {
   products: Product[];
+}
+
+interface CartProductRequest {
+  product: Product;
+  quantity: number;
 }
 
 export function useSaleCart({ products }: UseSaleCartOptions) {
@@ -84,6 +89,47 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     setLastAddedItem(newItem.id);
   }, [blockSalesWithoutStock, cart, updateQuantity]);
 
+  const addProductsToCart = useCallback((requests: CartProductRequest[]) => {
+    if (requests.length === 0) {
+      return;
+    }
+
+    setCart((currentCart) => {
+      let nextCart = [...currentCart];
+      let lastItemId: string | null = null;
+
+      requests.forEach(({ product, quantity }) => {
+        const existingItem = nextCart.find((item) => item.productId === product.id);
+        const currentInCart = existingItem?.quantity || 0;
+
+        if (product.useInventory && currentInCart + quantity > product.currentStock) {
+          alert(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}`);
+          return;
+        }
+
+        if (existingItem) {
+          nextCart = nextCart.map((item) => (
+            item.id === existingItem.id
+              ? recalculateSaleItem(item, { quantity: item.quantity + quantity })
+              : item
+          ));
+          lastItemId = existingItem.id;
+          return;
+        }
+
+        const newItem = buildSaleItem(product, quantity);
+        nextCart = [newItem, ...nextCart];
+        lastItemId = newItem.id;
+      });
+
+      if (lastItemId) {
+        setLastAddedItem(lastItemId);
+      }
+
+      return nextCart;
+    });
+  }, []);
+
   const applyDiscount = useCallback((itemId: string, discount: number, type: SaleItem['discountType']) => {
     setCart((currentCart) => currentCart.map((item) => {
       if (item.id !== itemId) {
@@ -117,9 +163,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
       return;
     }
 
-    const product = products.find(
-      (candidate) => candidate.barcode === barcodeInput.trim() && candidate.status === 'active',
-    );
+    const product = findCatalogProductByBarcode(products, barcodeInput);
 
     if (product) {
       addToCart(product);
@@ -142,6 +186,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     blockSalesWithoutStock,
     handleBarcodeSubmit,
     addToCart,
+    addProductsToCart,
     updateQuantity,
     applyDiscount,
     applyGlobalDiscount,
@@ -149,4 +194,3 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     resetCart,
   };
 }
-

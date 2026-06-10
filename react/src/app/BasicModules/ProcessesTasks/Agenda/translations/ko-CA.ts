@@ -153,7 +153,7 @@ export const koCA: AgendaTranslations = {
       pending: { label: '대기', description: '아직 시작되지 않음' },
       in_progress: { label: '진행 중', description: '진행 중인 작업' },
       paused: { label: '일시 중지', description: '임시로 중지됨' },
-      completed: { label: '감사 대기', description: '담당자가 마감한 작업' },
+      completed: { label: '완료됨', description: '담당자가 완료한 작업' },
       audited: { label: '감사 완료', description: '관리자가 검토한 작업' },
       cancelled: { label: '취소됨', description: '활성 흐름 밖의 작업' },
     },

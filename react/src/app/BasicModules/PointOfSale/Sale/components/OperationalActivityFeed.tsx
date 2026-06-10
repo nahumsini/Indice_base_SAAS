@@ -52,7 +52,7 @@ const toneClasses = {
 function formatRelativeTime(date: Date) {
   const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
 
-  if (minutes < 1) return 'now';
+  if (minutes < 1) return 'ahora';
   if (minutes < 60) return `${minutes}m`;
 
   const hours = Math.round(minutes / 60);
@@ -73,11 +73,11 @@ export function OperationalActivityFeed({ activities }: { activities: Operationa
     <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Operational log</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Events that explain the register</p>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Bitacora operativa</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Eventos que explican la caja</p>
         </div>
         <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-          Controlled
+          Controlada
         </span>
       </div>
 

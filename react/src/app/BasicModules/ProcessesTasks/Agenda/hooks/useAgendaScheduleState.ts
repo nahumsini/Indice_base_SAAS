@@ -10,7 +10,6 @@ import type {
 } from '../types';
 import { getWeekDateKeys, isDateInputValue } from '../utils/agendaDateUtils';
 import {
-  agendaScheduleHours,
   getBrowserAgendaTimeZone,
   getTaskScheduleDateKey,
   getTaskScheduleHour,
@@ -51,10 +50,7 @@ function getInitialAgendaSchedulePlacements(): AgendaSchedulePlacements {
 
       restoredPlacements[taskId] = {
         date: placement.date,
-        hour:
-          typeof placement.hour === 'string' && agendaScheduleHours.includes(placement.hour)
-            ? placement.hour
-            : null,
+        hour: normalizeAgendaScheduleHour(placement.hour),
       };
     });
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Product } from '../Productos/types/product.types';
-import { mockProducts } from '../Productos/data/products.mock';
+import { pointOfSaleCatalogProducts as saleProducts, type Product } from '../shared/commercial/products';
 import { IndiceSignalBar } from './components/IndiceSignalBar';
+import { PendingPreTicketsPanel } from './components/PendingPreTicketsPanel';
 import { QuickProductsPanel } from './components/QuickProductsPanel';
 import { SaleModals } from './components/SaleModals';
 import { SaleNoShiftState } from './components/SaleNoShiftState';
@@ -15,13 +15,16 @@ import { useSaleCatalog } from './hooks/useSaleCatalog';
 import { useSaleCart } from './hooks/useSaleCart';
 import { useSaleCheckout } from './hooks/useSaleCheckout';
 import { useSaleKeyboardShortcuts } from './hooks/useSaleKeyboardShortcuts';
+import { useSaleRegisterContext } from './hooks/useSaleRegisterContext';
 import { useSaleShift } from './hooks/useSaleShift';
 import { useSaleSmartAlerts } from './hooks/useSaleSmartAlerts';
+import { usePendingPreTickets } from './hooks/usePendingPreTickets';
 import { useSuspendedSales } from './hooks/useSuspendedSales';
 import type { SaleItem } from './types/sale.types';
 import { formatSaleCurrency as formatCurrency } from './utils/saleFormatters';
 
 export default function Sale() {
+  const registerContext = useSaleRegisterContext();
   const {
     cart,
     setCart,
@@ -33,15 +36,25 @@ export default function Sale() {
     blockSalesWithoutStock,
     handleBarcodeSubmit,
     addToCart,
+    addProductsToCart,
     updateQuantity,
     applyDiscount,
     applyGlobalDiscount,
     removeItem,
     resetCart,
-  } = useSaleCart({ products: mockProducts });
+  } = useSaleCart({ products: saleProducts });
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sidePanel, setSidePanel] = useState<SaleSidePanelState | null>(null);
   const { recentActivities, pushActivity } = useSaleActivityFeed();
+  const {
+    preTickets,
+    pullPreTicket,
+  } = usePendingPreTickets({
+    products: saleProducts,
+    addProductsToCart,
+    pushActivity,
+    formatCurrency,
+  });
   const {
     currentShift,
     setCurrentShift,
@@ -54,7 +67,7 @@ export default function Sale() {
     handleOpenShift,
     handleCloseShift,
     handleCashMovement,
-  } = useSaleShift({ pushActivity, formatCurrency });
+  } = useSaleShift({ pushActivity, formatCurrency, registerContext });
 
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [selectedItemForDiscount, setSelectedItemForDiscount] = useState<SaleItem | null>(null);
@@ -63,7 +76,7 @@ export default function Sale() {
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  const { categories, filteredQuickProducts, stockSignals } = useSaleCatalog(mockProducts, selectedCategory);
+  const { categories, filteredQuickProducts, stockSignals } = useSaleCatalog(saleProducts, selectedCategory);
   const {
     payments,
     setPayments,
@@ -83,7 +96,7 @@ export default function Sale() {
     handleExactPayment,
   } = useSaleCheckout({
     cart,
-    products: mockProducts,
+    products: saleProducts,
     currentShift,
     setCurrentShift,
     resetCart,
@@ -178,7 +191,7 @@ export default function Sale() {
       cart,
       payments,
       totals,
-      cashierName: currentShift?.cashierName ?? 'No active cashier',
+      cashierName: currentShift?.cashierName ?? 'Sin cajero activo',
     });
   };
 
@@ -198,10 +211,10 @@ export default function Sale() {
     setShowReturnModal(false);
     pushActivity({
       type: 'return',
-      title: 'Return processed',
-      description: `${type === 'full' ? 'Full' : 'Partial'} return for sale ${saleId}`,
+      title: 'Devolucion procesada',
+      description: `Devolucion ${type === 'full' ? 'total' : 'parcial'} para venta ${saleId}`,
       actor: currentShift?.cashierName ?? 'Supervisor',
-      badge: 'Credit note',
+      badge: 'Nota credito',
       tone: 'danger',
     });
   };
@@ -252,6 +265,7 @@ export default function Sale() {
     return (
       <SaleNoShiftState
         isOpenShiftModalOpen={showOpenShiftModal}
+        registerContext={registerContext}
         onOpenShiftModal={() => setShowOpenShiftModal(true)}
         onOpenShift={handleOpenShift}
       />
@@ -269,7 +283,7 @@ export default function Sale() {
 
       <div className="mt-3">
         <IndiceSignalBar
-          salesTrendLabel={currentShift.totalSales > 0 ? '+18% shift pace' : 'baseline shift pace'}
+          salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
           lowStockCount={stockSignals.lowStockProducts.length}
           suspendedCount={suspendedSales.length}
           activeAlertCount={smartAlerts.length}
@@ -281,17 +295,25 @@ export default function Sale() {
         <SmartAlertsStrip alerts={smartAlerts} />
       </div>
 
-      <div className="h-[calc(100vh-390px)] min-h-[720px] flex gap-4 mt-3">
-        <QuickProductsPanel
-          categories={categories}
-          filteredQuickProducts={filteredQuickProducts}
-          selectedCategory={selectedCategory}
-          selectedQuickQuantity={selectedQuickQuantity}
-          blockSalesWithoutStock={blockSalesWithoutStock}
-          onSelectCategory={setSelectedCategory}
-          onAddToCart={addToCart}
-          formatCurrency={formatCurrency}
-        />
+      <div className="mt-3 grid min-h-[720px] grid-cols-1 gap-4 xl:h-[calc(100vh-390px)] xl:grid-cols-[minmax(260px,320px)_minmax(460px,1fr)_minmax(340px,384px)]">
+        <div className="min-w-0 space-y-4">
+          <PendingPreTicketsPanel
+            preTickets={preTickets}
+            onPullPreTicket={pullPreTicket}
+            formatCurrency={formatCurrency}
+          />
+
+          <QuickProductsPanel
+            categories={categories}
+            filteredQuickProducts={filteredQuickProducts}
+            selectedCategory={selectedCategory}
+            selectedQuickQuantity={selectedQuickQuantity}
+            blockSalesWithoutStock={blockSalesWithoutStock}
+            onSelectCategory={setSelectedCategory}
+            onAddToCart={addToCart}
+            formatCurrency={formatCurrency}
+          />
+        </div>
 
         <SaleTicketPanel
           cart={cart}
@@ -299,7 +321,7 @@ export default function Sale() {
           barcodeInputRef={barcodeInputRef}
           lastAddedItem={lastAddedItem}
           totals={totals}
-          products={mockProducts}
+          products={saleProducts}
           onBarcodeInputChange={setBarcodeInput}
           onBarcodeSubmit={handleBarcodeSubmit}
           onClearCart={clearCart}

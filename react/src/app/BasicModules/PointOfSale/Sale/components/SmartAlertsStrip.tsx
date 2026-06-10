@@ -1,4 +1,5 @@
-import { AlertTriangle, Archive, Flame, Package, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, Archive, ChevronDown, ChevronUp, Flame, Package, TrendingUp } from 'lucide-react';
 
 export type SmartAlertCategory = 'Control' | 'Risk' | 'Opportunity' | 'Action';
 
@@ -47,6 +48,13 @@ const categoryStyles: Record<SmartAlertCategory, string> = {
   Action: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
 };
 
+const categoryLabels: Record<SmartAlertCategory, string> = {
+  Control: 'Control',
+  Risk: 'Riesgo',
+  Opportunity: 'Oportunidad',
+  Action: 'Accion',
+};
+
 const toneIcons = {
   critical: AlertTriangle,
   warning: Package,
@@ -56,43 +64,68 @@ const toneIcons = {
 } as const;
 
 export function SmartAlertsStrip({ alerts }: { alerts: SmartAlert[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   if (alerts.length === 0) {
     return null;
   }
 
   return (
-    <section className="overflow-x-auto pb-1">
-      <div className="flex min-w-max gap-3">
-        {alerts.map((alert) => {
-          const styles = toneStyles[alert.tone];
-          const Icon = toneIcons[alert.tone];
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <button
+        onClick={() => setIsOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        aria-expanded={isOpen}
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+            <AlertTriangle className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-gray-900 dark:text-white">Alertas inteligentes</span>
+            <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+              {alerts.length} señales activas para revisar
+            </span>
+          </span>
+        </span>
+        {isOpen ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+      </button>
 
-          return (
-            <button
-              key={alert.id}
-              type="button"
-              onClick={alert.onAction}
-              className={`flex w-[300px] items-start gap-3 rounded-lg border px-4 py-3 text-left shadow-sm transition hover:shadow-md ${styles.shell}`}
-            >
-              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${styles.icon}`}>
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className={`mb-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${categoryStyles[alert.category]}`}>
-                  {alert.category}
-                </span>
-                <span className={`block truncate text-sm font-semibold ${styles.text}`}>{alert.title}</span>
-                <span className="mt-0.5 block text-xs text-gray-600 dark:text-gray-300">{alert.description}</span>
-                {alert.actionLabel && (
-                  <span className="mt-2 inline-flex text-xs font-semibold text-gray-900 underline-offset-2 hover:underline dark:text-white">
-                    {alert.actionLabel}
+      {isOpen && (
+        <div className="overflow-x-auto border-t border-gray-200 p-3 dark:border-gray-700">
+          <div className="flex min-w-max gap-3">
+            {alerts.map((alert) => {
+              const styles = toneStyles[alert.tone];
+              const Icon = toneIcons[alert.tone];
+
+              return (
+                <button
+                  key={alert.id}
+                  type="button"
+                  onClick={alert.onAction}
+                  className={`flex w-[300px] items-start gap-3 rounded-lg border px-4 py-3 text-left shadow-sm transition hover:shadow-md ${styles.shell}`}
+                >
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${styles.icon}`}>
+                    <Icon className="h-4 w-4" />
                   </span>
-                )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                  <span className="min-w-0 flex-1">
+                    <span className={`mb-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${categoryStyles[alert.category]}`}>
+                      {categoryLabels[alert.category]}
+                    </span>
+                    <span className={`block truncate text-sm font-semibold ${styles.text}`}>{alert.title}</span>
+                    <span className="mt-0.5 block text-xs text-gray-600 dark:text-gray-300">{alert.description}</span>
+                    {alert.actionLabel && (
+                      <span className="mt-2 inline-flex text-xs font-semibold text-gray-900 underline-offset-2 hover:underline dark:text-white">
+                        {alert.actionLabel}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
