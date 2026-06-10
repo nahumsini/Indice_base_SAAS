@@ -19,8 +19,8 @@ export const DEFAULT_EXPENSE_COLUMNS: ColumnConfig[] = [
   { key: 'status', label: 'Estado', visible: true },
   { key: 'attachments', label: 'Archivos adjuntos', visible: true },
   { key: 'authorizer', label: 'Autoriza', visible: true },
-  { key: 'performer', label: 'Realiza', visible: true },
-  { key: 'audit', label: 'Auditoría', visible: true },
+  { key: 'performer', label: 'Responsable', visible: true },
+  { key: 'audit', label: 'Auditoría', visible: false },
   { key: 'actions', label: 'Acciones', visible: true, fixed: true },
 ];
 

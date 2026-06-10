@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
 import { mockProviders } from '../../data/expenses.mock';
-import type { Expense, Provider } from '../../types/expenses.types';
+import type { Expense, ExpenseStatus, Provider } from '../../types/expenses.types';
 import type { ColumnConfig } from '../../types/expenseView.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import {
@@ -14,6 +14,8 @@ import {
   getDefaultExpenseWorkflow,
   type SortDirection,
 } from '../../utils/expenseTableUtils';
+import { useExpenseRowSelection } from '../../hooks/useExpenseRowSelection';
+import { ExpenseBulkActionsBar } from '../../components/table/ExpenseBulkActionsBar';
 import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeaderRow';
 import {
   EditableExpenseRow,
@@ -69,12 +71,18 @@ export function ExpenseTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [sortField, setSortField] = useState<ExpenseSortField | null>(null);
   const [workflowByExpenseId, setWorkflowByExpenseId] = useState<Record<string, ExpenseWorkflowState>>({});
+  const rowSelection = useExpenseRowSelection<string>();
 
   const editableRowOptions = useEditableRowOptions(expenses, providers, unitOptions, businessOptions, userOptions, accountingAccountOptions);
   const sortedExpenses = useMemo(() => {
     if (!sortField || !sortDirection) return expenses;
     return [...expenses].sort((left, right) => compareSortValues(left[sortField], right[sortField], sortDirection));
   }, [expenses, sortDirection, sortField]);
+  const visibleExpenseIds = useMemo(() => sortedExpenses.map(expense => expense.id), [sortedExpenses]);
+  const visibleSelection = rowSelection.visibleSelectionState(visibleExpenseIds);
+  const visibleColumnCount = useMemo(() => (
+    columns.filter(column => column.key !== 'actions' && column.visible).length + 2
+  ), [columns]);
 
   useEffect(() => {
     if (!resizingColumn) return undefined;
@@ -93,6 +101,10 @@ export function ExpenseTable({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [resizeStartWidth, resizeStartX, resizingColumn]);
+
+  useEffect(() => {
+    rowSelection.pruneSelection(expenses.map(expense => expense.id));
+  }, [expenses, rowSelection.pruneSelection]);
 
   const handleResizeStart = (event: ReactMouseEvent, columnKey: string) => {
     event.preventDefault();
@@ -128,6 +140,81 @@ export function ExpenseTable({
     const nextExpense = currentExpense ? { ...currentExpense, ...updates, updatedAt: new Date() } : null;
     onExpensesChange(prev => prev.map(expense => (expense.id === id ? { ...expense, ...updates, updatedAt: nextExpense?.updatedAt ?? new Date() } : expense)));
     if (nextExpense) onPersistExpenseUpdate?.(nextExpense);
+  };
+
+  const applyBulkExpenseUpdates = (getUpdates: (expense: Expense) => Partial<Expense>) => {
+    const selectedIds = new Set(rowSelection.selectedIdList);
+    if (selectedIds.size === 0) return;
+
+    const updatedExpenses = expenses
+      .filter(expense => selectedIds.has(expense.id))
+      .map(expense => ({ ...expense, ...getUpdates(expense), updatedAt: new Date() }));
+    const updatedExpenseMap = new Map(updatedExpenses.map(expense => [expense.id, expense]));
+
+    onExpensesChange(prev => prev.map(expense => updatedExpenseMap.get(expense.id) ?? expense));
+    updatedExpenses.forEach(expense => onPersistExpenseUpdate?.(expense));
+  };
+
+  const handleBulkUnitChange = (businessUnit: string) => {
+    applyBulkExpenseUpdates(() => ({ businessUnit, business: '' }));
+  };
+
+  const handleBulkBusinessChange = (business: string) => {
+    applyBulkExpenseUpdates(() => ({ business }));
+  };
+
+  const handleBulkProviderChange = (providerId: string) => {
+    const provider = providers.find(item => item.id === providerId);
+    applyBulkExpenseUpdates(() => ({ providerId, providerName: provider?.name ?? '' }));
+  };
+
+  const handleBulkAccountingAccountChange = (accountingAccount: string) => {
+    applyBulkExpenseUpdates(() => ({ accountingAccount }));
+  };
+
+  const handleBulkStatusChange = (status: ExpenseStatus) => {
+    applyBulkExpenseUpdates(() => ({ status }));
+  };
+
+  const updateSelectedWorkflowState = (updates: Partial<ExpenseWorkflowState>) => {
+    const selectedIds = new Set(rowSelection.selectedIdList);
+    if (selectedIds.size === 0) return;
+
+    setWorkflowByExpenseId(prev => {
+      const next = { ...prev };
+      expenses
+        .filter(expense => selectedIds.has(expense.id))
+        .forEach(expense => {
+          next[expense.id] = {
+            ...getDefaultExpenseWorkflow(expense),
+            ...next[expense.id],
+            ...updates,
+          };
+        });
+      return next;
+    });
+  };
+
+  const handleBulkAuthorizerChange = (authorizer: string) => {
+    updateSelectedWorkflowState({ authorizer });
+    applyBulkExpenseUpdates(() => ({
+      approvedByUserId: authorizer || undefined,
+      approver: authorizer || undefined,
+    }));
+  };
+
+  const handleBulkResponsibleChange = (performer: string) => {
+    updateSelectedWorkflowState({ performer });
+    applyBulkExpenseUpdates(() => ({ performedByUserId: performer || undefined }));
+  };
+
+  const handleBulkMarkPaid = () => {
+    const paymentDate = new Date();
+    applyBulkExpenseUpdates(expense => ({
+      amountPaid: expense.total,
+      paymentDate,
+      status: 'paid',
+    }));
   };
 
   const updateExpenseWorkflow = (expenseId: string, updates: Partial<ExpenseWorkflowState>) => {
@@ -174,6 +261,11 @@ export function ExpenseTable({
     onExpensesChange(prev => prev.filter(expense => expense.id !== id));
   };
 
+  const handleDeleteSelected = () => {
+    rowSelection.selectedIdList.forEach(id => handleDelete(id));
+    rowSelection.clearSelection();
+  };
+
   const handlePay = (id: string) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
@@ -181,22 +273,48 @@ export function ExpenseTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
+    <div className="space-y-3">
+      {rowSelection.selectedCount > 0 ? (
+        <ExpenseBulkActionsBar
+          accountingAccountOptions={editableRowOptions.accountingAccounts}
+          businessOptions={editableRowOptions.businesses}
+          onAccountingAccountChange={handleBulkAccountingAccountChange}
+          onAuthorizerChange={handleBulkAuthorizerChange}
+          onBusinessChange={handleBulkBusinessChange}
+          onClearSelection={rowSelection.clearSelection}
+          onDeleteSelected={handleDeleteSelected}
+          onMarkPaidSelected={handleBulkMarkPaid}
+          onProviderChange={handleBulkProviderChange}
+          onResponsibleChange={handleBulkResponsibleChange}
+          onStatusChange={handleBulkStatusChange}
+          onUnitChange={handleBulkUnitChange}
+          providers={providers}
+          selectedCount={rowSelection.selectedCount}
+          unitOptions={editableRowOptions.businessUnits}
+          userOptions={editableRowOptions.users}
+        />
+      ) : null}
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <ExpenseTableHeaderRow
+              allVisibleSelected={visibleSelection.allVisibleSelected}
               columnWidths={columnWidths}
               getSortIcon={getSortIcon}
               isColumnVisible={isColumnVisible}
               onResizeStart={handleResizeStart}
               onSort={handleSort}
+              onToggleAllVisible={(selected) => rowSelection.toggleAllVisible(visibleExpenseIds, selected)}
               resizingColumn={resizingColumn}
+              selectionColumnWidth={56}
+              someVisibleSelected={visibleSelection.someVisibleSelected}
             />
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {sortedExpenses.length === 0 ? (
-              <EmptyExpenseTableRow emptyMessage={emptyMessage} emptyTitle={emptyTitle} />
+              <EmptyExpenseTableRow colSpan={visibleColumnCount} emptyMessage={emptyMessage} emptyTitle={emptyTitle} />
             ) : (
               sortedExpenses.map(expense => (
                 <EditableExpenseRow
@@ -207,9 +325,11 @@ export function ExpenseTable({
                   columnWidths={columnWidths}
                   isEditing={editingRowId === expense.id}
                   isColumnVisible={isColumnVisible}
+                  isSelected={rowSelection.isSelected(expense.id)}
                   options={editableRowOptions}
                   workflow={workflowByExpenseId[expense.id] ?? getDefaultExpenseWorkflow(expense)}
                   onStartEdit={setEditingRowId}
+                  onSelectionChange={rowSelection.toggleSelection}
                   onUpdateExpense={updateExpense}
                   onUpdateWorkflow={updateExpenseWorkflow}
                   onOpenAttachments={onOpenAttachments}
@@ -222,7 +342,8 @@ export function ExpenseTable({
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -276,10 +397,10 @@ function useEditableRowOptions(
   }, [accountingAccountOptions, businessOptions, expenses, providers, unitOptions, userOptions]);
 }
 
-function EmptyExpenseTableRow({ emptyMessage, emptyTitle }: { emptyMessage: string; emptyTitle: string }) {
+function EmptyExpenseTableRow({ colSpan, emptyMessage, emptyTitle }: { colSpan: number; emptyMessage: string; emptyTitle: string }) {
   return (
     <tr>
-      <td colSpan={21} className="px-6 py-12 text-center">
+      <td colSpan={colSpan} className="px-6 py-12 text-center">
         <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
           <Search className="w-12 h-12 mb-4 opacity-50" />
           <p className="text-lg font-medium">{emptyTitle}</p>

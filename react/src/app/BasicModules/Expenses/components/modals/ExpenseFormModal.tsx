@@ -122,7 +122,7 @@ export function ExpenseFormModal({
             </span>
             <div>
               <h3 className="text-xl font-bold text-white">{isEditMode ? 'Editar gasto' : 'Agregar gasto'}</h3>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">Captura rapida del gasto base.</p>
+              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">Captura rápida del gasto base.</p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label="Cerrar modal de gasto">

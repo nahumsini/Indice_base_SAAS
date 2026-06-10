@@ -55,9 +55,9 @@ export function QuickExpenseDialog({
         className="max-w-[460px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
       >
         <div className="bg-[#147514] px-5 py-4 text-white">
-          <DialogTitle className="text-lg font-bold text-white">Gasto rapido</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-white">Gasto rápido</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-white/80">
-            Registra concepto y monto. La divisa favorita se aplica automaticamente.
+            Registra concepto y monto. La divisa favorita se aplica automáticamente.
           </DialogDescription>
         </div>
         <form onSubmit={handleSubmit}>
