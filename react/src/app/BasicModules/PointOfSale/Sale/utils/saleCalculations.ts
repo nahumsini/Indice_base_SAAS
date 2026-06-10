@@ -1,4 +1,4 @@
-import type { Product } from '../../Productos/types/product.types';
+import type { Product } from '../../shared/commercial/products';
 import type { Payment, SaleItem } from '../types/sale.types';
 import { SALE_TAX_RATE } from '../constants/sale.constants';
 
@@ -100,4 +100,3 @@ export function calculateSaleTotals(cart: SaleItem[], payments: Payment[]): Sale
     isPaid,
   };
 }
-

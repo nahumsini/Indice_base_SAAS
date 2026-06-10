@@ -36,7 +36,7 @@ export function FilterSelect({
     <div className="space-y-2">
       <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>{children}</SelectContent>

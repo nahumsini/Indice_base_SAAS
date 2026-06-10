@@ -74,12 +74,12 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md"
+        className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-t-2xl px-6 py-4 print:hidden">
+        <div className="bg-gradient-to-r from-gray-700 to-gray-800 px-6 py-4 print:hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">

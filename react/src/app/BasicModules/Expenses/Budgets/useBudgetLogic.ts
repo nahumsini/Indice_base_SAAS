@@ -1,5 +1,5 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type { Expense, ExpenseStatus } from '../types/expenses.types';
+import type { Expense } from '../types/expenses.types';
 import {
   type BudgetDraft,
   generateProjectedBudgetEntries,
@@ -8,6 +8,7 @@ import {
 } from './budgetUtils';
 
 export type BudgetFutureFilter = 'next_month' | 'next_quarter' | 'custom';
+export const MISSING_ACCOUNTING_ACCOUNT_FILTER = '__missing_accounting_account__';
 
 interface UseBudgetLogicParams {
   expenses: Expense[];
@@ -25,9 +26,9 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
   const [customStartDate, setCustomStartDate] = useState('');
   const [businessFilter, setBusinessFilter] = useState('all');
   const [businessUnitFilter, setBusinessUnitFilter] = useState('all');
+  const [accountingAccountFilter, setAccountingAccountFilter] = useState('all');
   const [providerFilter, setProviderFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ExpenseStatus | 'all'>('all');
 
   const budgetExpenses = useMemo(() => {
     return expenses.filter(expense => expense.type === 'budget');
@@ -53,7 +54,8 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
       const matchesBusinessUnit = businessUnitFilter === 'all' || expense.businessUnit === businessUnitFilter;
       const matchesBusiness = businessFilter === 'all' || expense.business === businessFilter;
       const matchesProvider = providerFilter === 'all' || expense.providerId === providerFilter;
-      const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
+      const accountingAccount = expense.accountingAccount?.trim() || MISSING_ACCOUNTING_ACCOUNT_FILTER;
+      const matchesAccountingAccount = accountingAccountFilter === 'all' || accountingAccount === accountingAccountFilter;
 
       return (
         isWithinRange(expense.dueDate, range.start, range.end) &&
@@ -61,10 +63,11 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
         matchesBusinessUnit &&
         matchesBusiness &&
         matchesProvider &&
-        matchesStatus
+        matchesAccountingAccount
       );
     });
   }, [
+    accountingAccountFilter,
     budgetExpenses,
     businessFilter,
     businessUnitFilter,
@@ -73,15 +76,16 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     futureFilter,
     providerFilter,
     searchTerm,
-    statusFilter,
   ]);
 
   const addBudgetEntries = (draft: BudgetDraft) => {
     const entries = generateProjectedBudgetEntries(draft, budgetExpenses.length);
     onExpensesChange(prevExpenses => [...prevExpenses, ...entries]);
+    return entries;
   };
 
   return {
+    accountingAccountFilter,
     addBudgetEntries,
     businessFilter,
     businessUnitFilter,
@@ -91,6 +95,7 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     futureFilter,
     providerFilter,
     searchTerm,
+    setAccountingAccountFilter,
     setBusinessFilter,
     setBusinessUnitFilter,
     setCustomEndDate,
@@ -98,7 +103,5 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     setFutureFilter,
     setProviderFilter,
     setSearchTerm,
-    setStatusFilter,
-    statusFilter,
   };
 }

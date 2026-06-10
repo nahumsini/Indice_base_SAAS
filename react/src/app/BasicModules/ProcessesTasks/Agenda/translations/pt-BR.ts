@@ -153,7 +153,7 @@ export const ptBR: AgendaTranslations = {
       pending: { label: 'Pendentes', description: 'Ainda não iniciadas' },
       in_progress: { label: 'Em andamento', description: 'Trabalho ativo' },
       paused: { label: 'Pausadas', description: 'Interrompidas temporariamente' },
-      completed: { label: 'Pendente de auditoria', description: 'Fechadas pelo responsável' },
+      completed: { label: 'Concluidas', description: 'Finalizadas pelo responsavel' },
       audited: { label: 'Auditadas', description: 'Revisadas pelo gestor' },
       cancelled: { label: 'Canceladas', description: 'Fora do fluxo ativo' },
     },

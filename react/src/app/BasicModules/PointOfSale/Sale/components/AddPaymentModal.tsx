@@ -97,23 +97,23 @@ export function AddPaymentModal({
       case 'cash':
         return {
           title: 'Agregar Pago en Efectivo',
-          icon: <DollarSign className="w-6 h-6" />,
-          color: 'green',
-          emoji: '💵',
+          icon: <DollarSign className="h-6 w-6" />,
+          headerClass: 'bg-emerald-600',
+          confirmClass: 'bg-emerald-600 hover:bg-emerald-700',
         };
       case 'card':
         return {
           title: 'Agregar Pago con Tarjeta',
-          icon: <CreditCard className="w-6 h-6" />,
-          color: 'blue',
-          emoji: '💳',
+          icon: <CreditCard className="h-6 w-6" />,
+          headerClass: 'bg-blue-600',
+          confirmClass: 'bg-blue-600 hover:bg-blue-700',
         };
       case 'transfer':
         return {
           title: 'Agregar Pago por Transferencia',
-          icon: <Smartphone className="w-6 h-6" />,
-          color: 'purple',
-          emoji: '📱',
+          icon: <Smartphone className="h-6 w-6" />,
+          headerClass: 'bg-purple-600',
+          confirmClass: 'bg-purple-600 hover:bg-purple-700',
         };
     }
   };
@@ -122,27 +122,28 @@ export function AddPaymentModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800">
         {/* Header */}
-        <div className={`bg-gradient-to-r from-${config.color}-500 to-${config.color}-600 rounded-t-2xl px-6 py-4 flex items-center justify-between`}>
+        <div className={`flex items-center justify-between px-6 py-4 ${config.headerClass}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <span className="text-2xl">{config.emoji}</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 text-white">
+              {config.icon}
             </div>
             <h2 className="text-xl font-bold text-white">{config.title}</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+            className="rounded-lg p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Cerrar pago"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-4">
           {/* Remaining Amount Display */}
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+          <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Falta por pagar</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">
               {formatCurrency(remainingAmount)}
@@ -264,7 +265,7 @@ export function AddPaymentModal({
 
               {/* Change Display */}
               {parseFloat(cashReceived) > 0 && (
-                <div className={`rounded-xl p-4 ${
+                <div className={`rounded-lg p-4 ${
                   change > 0
                     ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
                     : 'bg-red-50 dark:bg-red-900/20 border-2 border-red-500'
@@ -339,11 +340,7 @@ export function AddPaymentModal({
           <button
             onClick={handleConfirm}
             disabled={!amount || parseFloat(amount) <= 0}
-            className={`flex-1 px-6 py-3 text-base font-semibold text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-              config.color === 'green' ? 'bg-green-600 hover:bg-green-700' :
-              config.color === 'blue' ? 'bg-blue-600 hover:bg-blue-700' :
-              'bg-purple-600 hover:bg-purple-700'
-            }`}
+            className={`flex-1 rounded-lg px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${config.confirmClass}`}
           >
             Agregar Pago
           </button>

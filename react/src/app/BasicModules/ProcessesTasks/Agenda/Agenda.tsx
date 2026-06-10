@@ -72,7 +72,12 @@ import {
   filterUnitsForActor,
   resolveCollaboratorAssignmentScope,
 } from '../shared/assignmentScope';
-import { getWeekDateKeys, toDateInputValue } from './utils/agendaDateUtils';
+import {
+  addDays,
+  dateInputValueToDate,
+  getWeekDateKeys,
+  toDateInputValue,
+} from './utils/agendaDateUtils';
 import {
   getErrorMessage,
   isTaskInDailyAgenda,
@@ -126,6 +131,46 @@ function combineAgendaRanges(baseRange: AgendaLoadRange, rangeOverride?: AgendaL
   };
 }
 
+function agendaStatusDateForRange(todayValue: string, range: AgendaLoadRange) {
+  if (todayValue < range.from) {
+    return range.from;
+  }
+
+  if (todayValue > range.to) {
+    return range.to;
+  }
+
+  return todayValue;
+}
+
+function agendaEvaluationRangeForPeriod(
+  period: string,
+  todayValue: string,
+  activeRange: AgendaLoadRange,
+  customDateFrom: string,
+  customDateTo: string,
+): AgendaLoadRange {
+  if (period === 'today') {
+    return { from: todayValue, to: todayValue };
+  }
+
+  if (period === 'tomorrow') {
+    const tomorrow = toDateInputValue(addDays(dateInputValueToDate(todayValue), 1));
+    return { from: tomorrow, to: tomorrow };
+  }
+
+  if (period === 'yesterday') {
+    const yesterday = toDateInputValue(addDays(dateInputValueToDate(todayValue), -1));
+    return { from: yesterday, to: yesterday };
+  }
+
+  if (period === 'custom') {
+    return { from: customDateFrom, to: customDateTo };
+  }
+
+  return activeRange;
+}
+
 function createAgendaKanbanColumns(copy: AgendaTranslations): AgendaKanbanColumn[] {
   return [
   {
@@ -176,14 +221,6 @@ function createAgendaKanbanColumns(copy: AgendaTranslations): AgendaKanbanColumn
     dotClassName: 'bg-emerald-500',
     acceptsDrop: true,
   },
-  {
-    id: 'cancelled',
-    label: copy.kanban.columns.cancelled.label,
-    description: copy.kanban.columns.cancelled.description,
-    accentClassName: 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/70',
-    dotClassName: 'bg-slate-500',
-    acceptsDrop: true,
-  },
   ];
 }
 export default function Agenda() {
@@ -227,27 +264,26 @@ export default function Agenda() {
     statusFilter,
     unitFilter,
   } = useAgendaFilters(location.search);
+  const agendaEvaluationRange = useMemo(
+    () => agendaEvaluationRangeForPeriod(
+      periodFilter,
+      todayAgendaValue,
+      activeRange,
+      customDateFrom,
+      customDateTo,
+    ),
+    [activeRange, customDateFrom, customDateTo, periodFilter, todayAgendaValue],
+  );
+  const agendaStatusDate = useMemo(
+    () => agendaStatusDateForRange(todayAgendaValue, agendaEvaluationRange),
+    [agendaEvaluationRange, todayAgendaValue],
+  );
   const handleFocusFilterChange = useCallback(
     (nextFocus: AgendaFocusFilter) => {
       setFocusFilter(nextFocus);
       setCollaboratorFilter('all');
-
-      switch (nextFocus) {
-        case 'mine':
-          setStatusFilter('open');
-          break;
-        case 'team':
-          setStatusFilter('all');
-          break;
-        case 'delegated':
-          setStatusFilter('all');
-          break;
-        case 'pendingAudit':
-          setStatusFilter('pending_audit');
-          break;
-      }
     },
-    [setCollaboratorFilter, setFocusFilter, setStatusFilter],
+    [setCollaboratorFilter, setFocusFilter],
   );
   const agendaKanbanColumns = useMemo(() => createAgendaKanbanColumns(agendaCopy), [agendaCopy]);
   const [viewMode, setViewMode] = useState<AgendaViewMode>('table');
@@ -364,6 +400,11 @@ export default function Agenda() {
       to: weekDateKeys[weekDateKeys.length - 1] ?? selectedScheduleDate,
     };
   }, [scheduleViewMode, selectedScheduleDate, viewMode]);
+  const scheduleStatusRange = scheduleLoadRange ?? agendaEvaluationRange;
+  const scheduleStatusDate = useMemo(
+    () => agendaStatusDateForRange(todayAgendaValue, scheduleStatusRange),
+    [scheduleStatusRange, todayAgendaValue],
+  );
 
   const loadVisibleAgenda = useCallback(
     () => loadAgenda(scheduleLoadRange ?? undefined),
@@ -457,17 +498,19 @@ export default function Agenda() {
   } = useAgendaDerivedTasks({
     agendaCopy,
     agendaKanbanColumns,
+    activeRange: agendaEvaluationRange,
+    agendaStatusDate,
     businessFilter,
     catalogCollaborators,
     collaboratorFilter,
     currentUserId,
-    customDateFrom,
-    customDateTo,
     focusFilter,
     isLoadingCurrentUser,
     isLoadingTasks,
     periodFilter,
     projectFilter,
+    scheduleStatusDate,
+    scheduleStatusRange,
     setBusinessFilter,
     setCollaboratorFilter,
     setProjectFilter,
@@ -601,6 +644,8 @@ export default function Agenda() {
   );
 
   const handleKanbanDrop = useAgendaKanbanDrop({
+    activeRange: agendaEvaluationRange,
+    agendaStatusDate,
     agendaCopy,
     draggingTaskId,
     handleAuditTask,
@@ -611,7 +656,7 @@ export default function Agenda() {
     sortedTasks,
   });
 
-  const agendaKpiMetrics = useAgendaKpiMetrics(filteredTasks);
+  const agendaKpiMetrics = useAgendaKpiMetrics(filteredTasks, agendaStatusDate, agendaEvaluationRange);
   const renderTaskActions = (task: AgendaTaskItem) => (
     <AgendaTaskActions
       copy={agendaCopy}
@@ -629,6 +674,8 @@ export default function Agenda() {
   const renderAgendaTaskCell = (task: AgendaTaskItem, columnId: AgendaColumnId): ReactNode => (
     <AgendaTaskCell
       auditStatusClasses={auditStatusClasses}
+      agendaStatusDate={agendaStatusDate}
+      agendaStatusRange={agendaEvaluationRange}
       businessOptionsForUnit={businessOptionsForUnit}
       collaboratorOptionsForScope={collaboratorOptionsForScope}
       columnId={columnId}
@@ -657,9 +704,9 @@ export default function Agenda() {
 
   const renderKanbanBoard = () => (
     <AgendaKanbanView
-      auditStatusClasses={auditStatusClasses}
       columns={agendaKanbanColumns}
       copy={agendaCopy}
+      displayStatusClasses={agendaDisplayStatusClasses}
       draggingTaskId={draggingTaskId}
       isLoading={isAgendaViewLoading}
       isTaskPending={isTaskPending}
@@ -671,6 +718,8 @@ export default function Agenda() {
       onOpenAttachments={setAttachmentsTask}
       onSetDraggingTaskId={setDraggingTaskId}
       sortedTaskCount={sortedTasks.length}
+      statusReferenceDate={agendaStatusDate}
+      statusReferenceRange={agendaEvaluationRange}
     />
   );
 

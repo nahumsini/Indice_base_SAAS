@@ -7,6 +7,7 @@ import type {
   AgendaFocusFilter,
   AgendaKanbanColumn,
   AgendaKanbanColumnId,
+  AgendaLoadRange,
   AgendaSortState,
   OptionFilter,
   PeriodFilter,
@@ -47,17 +48,19 @@ type VisibleSelectionState = {
 type UseAgendaDerivedTasksOptions = {
   agendaCopy: AgendaTranslations;
   agendaKanbanColumns: AgendaKanbanColumn[];
+  activeRange: AgendaLoadRange;
+  agendaStatusDate: string;
   businessFilter: string;
   catalogCollaborators: ProcessCollaboratorOption[];
   collaboratorFilter: string;
   currentUserId: number | null;
-  customDateFrom: string;
-  customDateTo: string;
   focusFilter: AgendaFocusFilter;
   isLoadingCurrentUser: boolean;
   isLoadingTasks: boolean;
   periodFilter: PeriodFilter;
   projectFilter: string;
+  scheduleStatusDate: string;
+  scheduleStatusRange: AgendaLoadRange;
   setBusinessFilter: (value: string) => void;
   setCollaboratorFilter: (value: string) => void;
   setProjectFilter: (value: string) => void;
@@ -74,13 +77,15 @@ function sortAgendaTasks(
   sortState: AgendaSortState,
   agendaCopy: AgendaTranslations,
   todayAgendaValue: string,
+  agendaStatusDate: string,
+  activeRange: AgendaLoadRange,
 ) {
   return tasksToSort
     .map((task, index) => ({ index, task }))
     .sort((left, right) => {
       const comparison = compareAgendaSortValues(
-        getAgendaSortValue(left.task, sortState.columnId, agendaCopy, todayAgendaValue),
-        getAgendaSortValue(right.task, sortState.columnId, agendaCopy, todayAgendaValue),
+        getAgendaSortValue(left.task, sortState.columnId, agendaCopy, todayAgendaValue, agendaStatusDate, activeRange),
+        getAgendaSortValue(right.task, sortState.columnId, agendaCopy, todayAgendaValue, agendaStatusDate, activeRange),
         sortState.direction,
       );
 
@@ -108,17 +113,19 @@ function sortAgendaTasks(
 export function useAgendaDerivedTasks({
   agendaCopy,
   agendaKanbanColumns,
+  activeRange,
+  agendaStatusDate,
   businessFilter,
   catalogCollaborators,
   collaboratorFilter,
   currentUserId,
-  customDateFrom,
-  customDateTo,
   focusFilter,
   isLoadingCurrentUser,
   isLoadingTasks,
   periodFilter,
   projectFilter,
+  scheduleStatusDate,
+  scheduleStatusRange,
   setBusinessFilter,
   setCollaboratorFilter,
   setProjectFilter,
@@ -139,9 +146,10 @@ export function useAgendaDerivedTasks({
       task,
       periodFilter,
       todayAgendaValue,
-      { from: customDateFrom, to: customDateTo },
+      activeRange,
+      agendaStatusDate,
     )),
-    [customDateFrom, customDateTo, periodFilter, tasks, todayAgendaValue],
+    [activeRange, agendaStatusDate, periodFilter, tasks, todayAgendaValue],
   );
 
   const focusFilteredTasks = useMemo(
@@ -272,23 +280,24 @@ export function useAgendaDerivedTasks({
   const filteredTasks = useMemo(() => {
     const selectedCollaborator =
       collaboratorFilter === 'all' ? null : collaboratorOptionMap.get(collaboratorFilter) ?? null;
-    const includeCancelledInAll = periodFilter === 'yesterday' || (periodFilter === 'custom' && customDateTo < todayAgendaValue);
 
     return tasksMatchingSelectedProject.filter((task) => {
       const matchesCollaborator =
         selectedCollaborator == null || taskMatchesParticipantFilter(task, selectedCollaborator);
-      const matchesStatus = taskMatchesStatusFilter(task, statusFilter, { includeCancelledInAll });
+      const matchesStatus = taskMatchesStatusFilter(task, statusFilter, {
+        referenceDate: agendaStatusDate,
+        range: activeRange,
+      });
 
       return matchesCollaborator && matchesStatus;
     });
   }, [
+    activeRange,
+    agendaStatusDate,
     collaboratorFilter,
     collaboratorOptionMap,
-    customDateTo,
-    periodFilter,
     statusFilter,
     tasksMatchingSelectedProject,
-    todayAgendaValue,
   ]);
 
   const scheduleTasksMatchingSelectedUnit = useMemo(
@@ -334,7 +343,10 @@ export function useAgendaDerivedTasks({
     return scheduleTasksMatchingSelectedProject.filter((task) => {
       const matchesCollaborator =
         selectedCollaborator == null || taskMatchesParticipantFilter(task, selectedCollaborator);
-      const matchesStatus = taskMatchesStatusFilter(task, statusFilter);
+      const matchesStatus = taskMatchesStatusFilter(task, statusFilter, {
+        referenceDate: scheduleStatusDate,
+        range: scheduleStatusRange,
+      });
 
       return matchesCollaborator && matchesStatus;
     });
@@ -342,18 +354,27 @@ export function useAgendaDerivedTasks({
     collaboratorFilter,
     collaboratorOptionMap,
     scheduleCollaboratorOptionMap,
+    scheduleStatusDate,
+    scheduleStatusRange,
     scheduleTasksMatchingSelectedProject,
     statusFilter,
   ]);
 
   const sortedTasks = useMemo(
-    () => sortAgendaTasks(filteredTasks, sortState, agendaCopy, todayAgendaValue),
-    [agendaCopy, filteredTasks, sortState, todayAgendaValue],
+    () => sortAgendaTasks(filteredTasks, sortState, agendaCopy, todayAgendaValue, agendaStatusDate, activeRange),
+    [activeRange, agendaCopy, agendaStatusDate, filteredTasks, sortState, todayAgendaValue],
   );
 
   const scheduleSortedTasks = useMemo(
-    () => sortAgendaTasks(scheduleFilteredTasks, sortState, agendaCopy, todayAgendaValue),
-    [agendaCopy, scheduleFilteredTasks, sortState, todayAgendaValue],
+    () => sortAgendaTasks(
+      scheduleFilteredTasks,
+      sortState,
+      agendaCopy,
+      todayAgendaValue,
+      scheduleStatusDate,
+      scheduleStatusRange,
+    ),
+    [agendaCopy, scheduleFilteredTasks, scheduleStatusDate, scheduleStatusRange, sortState, todayAgendaValue],
   );
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => task.taskId), [sortedTasks]);
@@ -364,11 +385,11 @@ export function useAgendaDerivedTasks({
     agendaKanbanColumns.forEach((column) => groupedTasks.set(column.id, []));
 
     sortedTasks.forEach((task) => {
-      groupedTasks.get(getTaskKanbanColumnId(task))?.push(task);
+      groupedTasks.get(getTaskKanbanColumnId(task, agendaStatusDate, activeRange))?.push(task);
     });
 
     return groupedTasks;
-  }, [agendaKanbanColumns, sortedTasks]);
+  }, [activeRange, agendaKanbanColumns, agendaStatusDate, sortedTasks]);
 
   return {
     businessOptions,

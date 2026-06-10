@@ -121,6 +121,14 @@ export function AgendaScheduleView({
     Boolean(taskScheduleMap.get(task.taskId)?.hour),
   ).length;
   const visibleCount = scheduleViewMode === 'day' ? dayTasks.length : visibleScheduleTasks.length;
+  const visibleScheduleHours = Array.from(
+    new Set([
+      ...agendaScheduleHours,
+      ...visibleScheduleTasks
+        .map((task) => taskScheduleMap.get(task.taskId)?.hour ?? null)
+        .filter((hour): hour is string => Boolean(hour)),
+    ]),
+  ).sort(compareAgendaText);
 
   const moveScheduleWindow = (direction: -1 | 1) => {
     const offset = scheduleViewMode === 'day' ? direction : direction * 7;
@@ -183,7 +191,7 @@ export function AgendaScheduleView({
           <div className="px-3 py-3 sm:px-4">{scheduleCopy.planColumn}</div>
         </div>
 
-        {agendaScheduleHours.map((hour) => {
+        {visibleScheduleHours.map((hour) => {
           const hourTasks = tasksForDateAndHour(selectedScheduleDate, hour);
 
           return (
@@ -278,7 +286,7 @@ export function AgendaScheduleView({
       </div>
 
       <div className="max-h-[68vh] min-w-[1120px] overflow-auto">
-        {agendaScheduleHours.map((hour) => (
+        {visibleScheduleHours.map((hour) => (
           <div
             key={hour}
             className="grid min-h-[118px] border-b border-slate-100 last:border-b-0 dark:border-slate-700"

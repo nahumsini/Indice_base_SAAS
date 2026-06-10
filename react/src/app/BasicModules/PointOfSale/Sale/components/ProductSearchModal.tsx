@@ -1,7 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Search, X, Plus, Barcode } from 'lucide-react';
-import { Product } from '../types/sale.types';
-import { mockProducts, categories } from '../data/products.mock';
+import { findCatalogProductByBarcode, pointOfSaleCatalogProducts, type Product } from '../../shared/commercial/products';
 
 interface ProductSearchModalProps {
   isOpen: boolean;
@@ -13,30 +12,34 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [barcodeInput, setBarcodeInput] = useState('');
+  const categories = useMemo(
+    () => ['Todos', ...Array.from(new Set(pointOfSaleCatalogProducts.map((product) => product.department))).sort()],
+    [],
+  );
 
   const filteredProducts = useMemo(() => {
-    let filtered = mockProducts;
+    let filtered = pointOfSaleCatalogProducts;
 
     if (selectedCategory !== 'Todos') {
-      filtered = filtered.filter(p => p.category === selectedCategory);
+      filtered = filtered.filter((product) => product.department === selectedCategory);
     }
 
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(search) ||
-        p.code.toLowerCase().includes(search)
+      filtered = filtered.filter((product) =>
+        product.name.toLowerCase().includes(search) ||
+        product.barcode.toLowerCase().includes(search)
       );
     }
 
     return filtered;
   }, [searchTerm, selectedCategory]);
 
-  const handleBarcodeScan = (e: React.FormEvent) => {
+  const handleBarcodeScan = (e: FormEvent) => {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
 
-    const product = mockProducts.find(p => p.barcode === barcodeInput);
+    const product = findCatalogProductByBarcode(pointOfSaleCatalogProducts, barcodeInput);
     if (product) {
       onAddProduct(product);
       setBarcodeInput('');
@@ -142,16 +145,16 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
-                      {product.code}
+                      {product.barcode}
                     </span>
                     <span className={`text-xs font-medium px-2 py-1 rounded ${
-                      product.stock > 50
+                      product.currentStock > 50
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : product.stock > 20
+                        : product.currentStock > 20
                         ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                         : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}>
-                      Stock: {product.stock}
+                      Stock: {product.currentStock}
                     </span>
                   </div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 min-h-[2.5rem]">
@@ -160,10 +163,10 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                        {formatCurrency(product.price)}
+                        {formatCurrency(product.salePrice)}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Costo: {formatCurrency(product.cost)}
+                        Costo: {formatCurrency(product.costPrice)}
                       </p>
                     </div>
                     <div className="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

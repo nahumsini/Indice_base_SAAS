@@ -4,6 +4,7 @@ import { CloseShiftModal } from './CloseShiftModal';
 import { DiscountModal } from './DiscountModal';
 import { ReturnModal } from './ReturnModal';
 import { TicketModal } from './TicketModal';
+import type { CashClosingInput } from '../../shared/cashClosing.types';
 import type { Payment, PaymentMethod, SaleItem } from '../types/sale.types';
 import type { Shift, CashMovement } from '../types/shift.types';
 import type { SaleTotals } from '../utils/saleCalculations';
@@ -31,7 +32,7 @@ interface SaleModalsProps {
   onCloseAddPayment: () => void;
   onConfirmAddPayment: (amount: number, reference?: string, cashReceived?: number) => void;
   onCloseShiftModal: () => void;
-  onConfirmCloseShift: (actualCash: number) => void;
+  onConfirmCloseShift: (closing: CashClosingInput) => void;
   onCloseCashMovementModal: () => void;
   onConfirmCashMovement: (type: CashMovement['type'], amount: number, reason: string) => void;
   onCloseItemDiscount: () => void;
@@ -141,4 +142,3 @@ export function SaleModals({
     </>
   );
 }
-

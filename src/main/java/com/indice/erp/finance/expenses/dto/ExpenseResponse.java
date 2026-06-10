@@ -1,0 +1,51 @@
+package com.indice.erp.finance.expenses.dto;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.indice.erp.finance.expenses.ExpenseType;
+import com.indice.erp.finance.status.ExpenseStatus;
+import com.indice.erp.finance.status.PaymentStatus;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+
+public record ExpenseResponse(
+    Long id,
+    Long companyId,
+    Long unitId,
+    Long businessId,
+    Long providerId,
+    Long budgetLineId,
+    Long accountingAccountId,
+    Long paymentAccountId,
+    Long purchaseOrderId,
+    String folio,
+    String concept,
+    String description,
+    ExpenseType expenseType,
+    BigDecimal subtotalAmount,
+    BigDecimal taxAmount,
+    BigDecimal totalAmount,
+    BigDecimal paidAmount,
+    BigDecimal balanceAmount,
+    String currencyCode,
+    LocalDate expenseDate,
+    LocalDate dueDate,
+    LocalDate paymentDate,
+    LocalDate closeDate,
+    Long requestedByUserId,
+    Long approvedByUserId,
+    Long performedByUserId,
+    ExpenseStatus status,
+    PaymentStatus paymentStatus,
+    String auditStatus,
+    Integer attachmentCount,
+    Long createdByUserId,
+    Long updatedByUserId,
+    Instant createdAt,
+    Instant updatedAt,
+    Instant deletedAt,
+    Long version,
+    JsonNode customFields,
+    JsonNode metadata
+) {
+}

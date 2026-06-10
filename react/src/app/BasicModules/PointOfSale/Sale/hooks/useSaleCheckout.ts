@@ -1,5 +1,5 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type { Product } from '../../Productos/types/product.types';
+import type { Product } from '../../shared/commercial/products';
 import type { OperationalActivity } from '../components/OperationalActivityFeed';
 import type { Payment, PaymentMethod, SaleItem } from '../types/sale.types';
 import type { Shift } from '../types/shift.types';
@@ -112,12 +112,24 @@ export function useSaleCheckout({
       totals: { ...saleTotals },
     });
 
-    const cashPayment = salePayments.find((payment) => payment.method === 'cash')?.amount || 0;
+    const cashPayment = salePayments
+      .filter((payment) => payment.method === 'cash')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const cardPayment = salePayments
+      .filter((payment) => payment.method === 'card')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const transferPayment = salePayments
+      .filter((payment) => payment.method === 'transfer')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+
     setCurrentShift({
       ...currentShift,
       sales: currentShift.sales + 1,
       totalSales: currentShift.totalSales + saleTotals.total,
       expectedCash: currentShift.expectedCash + cashPayment,
+      cashSales: currentShift.cashSales + cashPayment,
+      cardSales: currentShift.cardSales + cardPayment,
+      transferSales: currentShift.transferSales + transferPayment,
     });
 
     cart.forEach((item) => {
@@ -132,8 +144,8 @@ export function useSaleCheckout({
     setShowTicketModal(true);
     pushActivity({
       type: 'sale',
-      title: 'Sale completed',
-      description: `${cart.length} lines collected by ${currentShift.cashierName}`,
+      title: 'Venta completada',
+      description: `${cart.length} linea${cart.length === 1 ? '' : 's'} cobrada${cart.length === 1 ? '' : 's'} por ${currentShift.cashierName}`,
       actor: currentShift.cashierName,
       badge: formatCurrency(saleTotals.total),
       tone: 'success',
@@ -192,4 +204,3 @@ export function useSaleCheckout({
     handleExactPayment,
   };
 }
-

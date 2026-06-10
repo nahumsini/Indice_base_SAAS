@@ -153,7 +153,7 @@ export const frCA: AgendaTranslations = {
       pending: { label: "En attente", description: "Pas encore demarrees" },
       in_progress: { label: "En cours", description: "Travail actif" },
       paused: { label: "En pause", description: "Arretees temporairement" },
-      completed: { label: "Audit a faire", description: "Cloturees par le responsable" },
+      completed: { label: "Terminees", description: "Terminees par le responsable" },
       audited: { label: "Auditees", description: "Revues par le gestionnaire" },
       cancelled: { label: "Annulees", description: "Hors du flux actif" },
     },

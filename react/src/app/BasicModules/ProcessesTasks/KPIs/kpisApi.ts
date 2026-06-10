@@ -15,8 +15,12 @@ export interface ProcessTaskKpiSummary {
   totalTasks: number;
   actionableTasks: number;
   activeOnTrackTasks: number;
+  pendingTasks: number;
+  inProgressTasks: number;
+  pausedTasks: number;
   openTasks: number;
   completedTasks: number;
+  closedTasks: number;
   cancelledTasks: number;
   unassignedTasks: number;
   unassignedOpenTasks: number;
@@ -65,8 +69,12 @@ export interface CollaboratorPerformanceRow {
   businessName: string | null;
   totalTasks: number;
   actionableTasks: number;
+  pendingTasks: number;
+  inProgressTasks: number;
+  pausedTasks: number;
   openTasks: number;
   completedTasks: number;
+  closedTasks: number;
   overdueTasks: number;
   pendingAuditTasks: number;
   auditedTasks: number;
@@ -91,8 +99,12 @@ export interface ProcessPerformanceRow {
   generatedUntilDate: string | null;
   evidenceRequired: boolean;
   totalTasks: number;
+  pendingTasks: number;
+  inProgressTasks: number;
+  pausedTasks: number;
   openTasks: number;
   completedTasks: number;
+  closedTasks: number;
   overdueTasks: number;
   pendingAuditTasks: number;
   auditedTasks: number;
@@ -111,8 +123,12 @@ export interface ProjectPerformanceRow {
   projectStatus: string | null;
   dueDate: string | null;
   totalTasks: number;
+  pendingTasks: number;
+  inProgressTasks: number;
+  pausedTasks: number;
   openTasks: number;
   completedTasks: number;
+  closedTasks: number;
   overdueTasks: number;
   pendingAuditTasks: number;
   auditedTasks: number;
@@ -158,6 +174,9 @@ export interface ProcessTaskKpiParams {
   unitId?: number | null;
   businessId?: number | null;
   collaboratorId?: number | null;
+  projectId?: number | null;
+  focus?: string;
+  status?: string;
 }
 
 type BackendRecord = Record<string, unknown>;
@@ -189,8 +208,12 @@ function normalizeSummary(record: BackendRecord): ProcessTaskKpiSummary {
     totalTasks: asNumber(record.totalTasks),
     actionableTasks: asNumber(record.actionableTasks),
     activeOnTrackTasks: asNumber(record.activeOnTrackTasks),
+    pendingTasks: asNumber(record.pendingTasks),
+    inProgressTasks: asNumber(record.inProgressTasks),
+    pausedTasks: asNumber(record.pausedTasks),
     openTasks: asNumber(record.openTasks),
     completedTasks: asNumber(record.completedTasks),
+    closedTasks: asNumber(record.closedTasks),
     cancelledTasks: asNumber(record.cancelledTasks),
     unassignedTasks: asNumber(record.unassignedTasks),
     unassignedOpenTasks: asNumber(record.unassignedOpenTasks),
@@ -257,8 +280,12 @@ function normalizeCollaborator(record: BackendRecord): CollaboratorPerformanceRo
     businessName: asStringOrNull(record.businessName),
     totalTasks: asNumber(record.totalTasks),
     actionableTasks: asNumber(record.actionableTasks),
+    pendingTasks: asNumber(record.pendingTasks),
+    inProgressTasks: asNumber(record.inProgressTasks),
+    pausedTasks: asNumber(record.pausedTasks),
     openTasks: asNumber(record.openTasks),
     completedTasks: asNumber(record.completedTasks),
+    closedTasks: asNumber(record.closedTasks),
     overdueTasks: asNumber(record.overdueTasks),
     pendingAuditTasks: asNumber(record.pendingAuditTasks),
     auditedTasks: asNumber(record.auditedTasks),
@@ -285,8 +312,12 @@ function normalizeProcess(record: BackendRecord): ProcessPerformanceRow {
     generatedUntilDate: asStringOrNull(record.generatedUntilDate),
     evidenceRequired: Boolean(record.evidenceRequired),
     totalTasks: asNumber(record.totalTasks),
+    pendingTasks: asNumber(record.pendingTasks),
+    inProgressTasks: asNumber(record.inProgressTasks),
+    pausedTasks: asNumber(record.pausedTasks),
     openTasks: asNumber(record.openTasks),
     completedTasks: asNumber(record.completedTasks),
+    closedTasks: asNumber(record.closedTasks),
     overdueTasks: asNumber(record.overdueTasks),
     pendingAuditTasks: asNumber(record.pendingAuditTasks),
     auditedTasks: asNumber(record.auditedTasks),
@@ -307,8 +338,12 @@ function normalizeProject(record: BackendRecord): ProjectPerformanceRow {
     projectStatus: asStringOrNull(record.projectStatus),
     dueDate: asStringOrNull(record.dueDate),
     totalTasks: asNumber(record.totalTasks),
+    pendingTasks: asNumber(record.pendingTasks),
+    inProgressTasks: asNumber(record.inProgressTasks),
+    pausedTasks: asNumber(record.pausedTasks),
     openTasks: asNumber(record.openTasks),
     completedTasks: asNumber(record.completedTasks),
+    closedTasks: asNumber(record.closedTasks),
     overdueTasks: asNumber(record.overdueTasks),
     pendingAuditTasks: asNumber(record.pendingAuditTasks),
     auditedTasks: asNumber(record.auditedTasks),
@@ -351,6 +386,15 @@ export async function listProcessTaskKpis(params: ProcessTaskKpiParams) {
   }
   if (params.collaboratorId) {
     query.set('collaboratorId', String(params.collaboratorId));
+  }
+  if (params.projectId) {
+    query.set('projectId', String(params.projectId));
+  }
+  if (params.focus) {
+    query.set('focus', params.focus);
+  }
+  if (params.status && params.status !== 'all') {
+    query.set('status', params.status);
   }
 
   const response = await apiClient<BackendRecord>(`/api/v1/process-task-kpis?${query.toString()}`);

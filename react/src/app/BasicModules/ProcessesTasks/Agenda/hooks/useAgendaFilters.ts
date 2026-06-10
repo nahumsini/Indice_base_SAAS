@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
-  AuditPendingStatusFilter,
   AgendaFocusFilter,
-  DisplayTaskStatus,
-  OpenStatusFilter,
+  AgendaStatus,
   OptionFilter,
   PeriodFilter,
   StatusFilter,
@@ -19,20 +17,17 @@ import {
   toDateInputValue,
 } from '../utils/agendaDateUtils';
 
-export const agendaStatusFilterValues: Array<DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter> = [
-  'open',
+export const agendaStatusFilterValues: AgendaStatus[] = [
   'pending',
   'in_progress',
   'paused',
   'completed',
-  'pending_audit',
-  'audited',
   'overdue',
-  'cancelled',
+  'audited',
 ];
 
 const agendaPeriodFilterValues: PeriodFilter[] = ['today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
-const agendaFocusFilterValues: AgendaFocusFilter[] = ['mine', 'delegated', 'team', 'pendingAudit'];
+export const agendaFocusFilterValues: AgendaFocusFilter[] = ['mine', 'delegated', 'team'];
 const agendaFiltersStorageKey = 'processes-tasks-agenda-filters-v1';
 const agendaTodayLookbackDays = 365;
 
@@ -57,10 +52,23 @@ function isAgendaFocusFilter(value: string | null | undefined): value is AgendaF
 }
 
 function isAgendaStatusFilter(value: string | null | undefined): value is StatusFilter {
-  return (
-    value === 'all' ||
-    agendaStatusFilterValues.includes(value as DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter)
-  );
+  return value === 'all' || agendaStatusFilterValues.includes(value as AgendaStatus);
+}
+
+function normalizeLegacyStatus(value: string | null | undefined): StatusFilter | null {
+  if (isAgendaStatusFilter(value)) {
+    return value;
+  }
+
+  switch (value) {
+    case 'pending_audit':
+      return 'completed';
+    case 'open':
+    case 'cancelled':
+      return 'all';
+    default:
+      return null;
+  }
 }
 
 function normalizeLegacyFocus(
@@ -78,6 +86,7 @@ function normalizeLegacyFocus(
       return 'delegated';
     case 'team':
     case 'overdue':
+    case 'pendingAudit':
       return 'team';
     default:
       return null;
@@ -95,7 +104,7 @@ function agendaDeepLinkFilters(search: string) {
   return {
     focus: normalizeLegacyFocus(period, focus),
     period: isAgendaPeriodFilter(period) ? period : null,
-    status: isAgendaStatusFilter(status) ? status : null,
+    status: normalizeLegacyStatus(status),
     unit: params.get('unit'),
     business: params.get('business'),
     collaborator: params.get('collaborator'),
@@ -124,7 +133,7 @@ function getStoredAgendaFilters(): StoredAgendaFilters {
     return {
       focus: legacyFocus ?? undefined,
       period: isAgendaPeriodFilter(period) ? period : undefined,
-      status: isAgendaStatusFilter(status) ? status : undefined,
+      status: normalizeLegacyStatus(status) ?? undefined,
       unit: parsedFilters.unit || undefined,
       business: parsedFilters.business || undefined,
       project: parsedFilters.project || undefined,

@@ -153,7 +153,7 @@ export const esCO: AgendaTranslations = {
       pending: { label: 'Pendientes', description: 'Aun sin iniciar' },
       in_progress: { label: 'En progreso', description: 'Trabajo activo' },
       paused: { label: 'Pausadas', description: 'Detenidas temporalmente' },
-      completed: { label: 'Por auditar', description: 'Cerradas por responsable' },
+      completed: { label: 'Completadas', description: 'Terminadas por responsable' },
       audited: { label: 'Auditadas', description: 'Revisadas por jefe' },
       cancelled: { label: 'Canceladas', description: 'Fuera del flujo activo' },
     },

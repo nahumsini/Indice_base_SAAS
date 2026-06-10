@@ -15,7 +15,6 @@ import {
   ListChecks,
   Printer,
   Repeat2,
-  Search,
   Timer,
   Trophy,
   Users,
@@ -59,8 +58,10 @@ import {
 import { FilterSelect, KpiSkeleton } from './components/KpiControls';
 import { printKpisDashboardPdf } from './kpisPdf';
 import { useKpisTranslations, type KpisTranslations } from './translations';
-
-type PeriodFilter = 'day' | 'week' | 'month' | 'overdue' | 'custom';
+import { agendaFocusFilterValues, agendaStatusFilterValues } from '../Agenda/hooks/useAgendaFilters';
+import { useAgendaTranslations, type AgendaTranslations } from '../Agenda/translations';
+import type { AgendaFocusFilter, PeriodFilter as AgendaPeriodFilter, StatusFilter } from '../Agenda/types';
+import { listProjects, type ProjectRecord } from '../Projects/projectsApi';
 
 interface UnitOption {
   id: number;
@@ -126,8 +127,44 @@ function endOfWeek(date: Date) {
   return nextDate;
 }
 
-function dateRangeForPeriod(period: PeriodFilter, customFrom: string, customTo: string) {
+function addDays(date: Date, amount: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + amount);
+  return nextDate;
+}
+
+function dateRangeForPeriod(period: AgendaPeriodFilter, customFrom: string, customTo: string) {
   const today = new Date();
+  const todayText = localDateString(today);
+
+  if (period === 'today') {
+    return {
+      from: todayText,
+      to: todayText,
+      includeOverdueBacklog: true,
+      overdueOnly: false,
+    };
+  }
+
+  if (period === 'tomorrow') {
+    const tomorrowText = localDateString(addDays(today, 1));
+    return {
+      from: tomorrowText,
+      to: tomorrowText,
+      includeOverdueBacklog: true,
+      overdueOnly: false,
+    };
+  }
+
+  if (period === 'yesterday') {
+    const yesterdayText = localDateString(addDays(today, -1));
+    return {
+      from: yesterdayText,
+      to: yesterdayText,
+      includeOverdueBacklog: true,
+      overdueOnly: false,
+    };
+  }
 
   if (period === 'week') {
     return {
@@ -147,31 +184,19 @@ function dateRangeForPeriod(period: PeriodFilter, customFrom: string, customTo: 
     };
   }
 
-  if (period === 'overdue') {
-    const todayText = localDateString(today);
-    return {
-      from: todayText,
-      to: todayText,
-      includeOverdueBacklog: false,
-      overdueOnly: true,
-    };
-  }
-
   if (period === 'custom') {
-    const fallback = localDateString(today);
     return {
-      from: customFrom || fallback,
-      to: customTo || customFrom || fallback,
-      includeOverdueBacklog: false,
+      from: customFrom || todayText,
+      to: customTo || customFrom || todayText,
+      includeOverdueBacklog: true,
       overdueOnly: false,
     };
   }
 
-  const todayText = localDateString(today);
   return {
     from: todayText,
     to: todayText,
-    includeOverdueBacklog: true,
+    includeOverdueBacklog: false,
     overdueOnly: false,
   };
 }
@@ -208,6 +233,12 @@ function normalizeCollaborator(user: BackendHrUser): CollaboratorOption | null {
     businessId: user.business_id ?? null,
     businessName: compactText(user.business_name),
   };
+}
+
+function projectOptionLabel(project: ProjectRecord) {
+  const folio = compactText(project.folio);
+  const name = compactText(project.name);
+  return name ? `${folio ? `${folio} - ` : ''}${name}` : `${folio || `Proyecto #${project.id}`}`;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -253,22 +284,15 @@ function formatSignedValue(value: number, suffix = '') {
   return `${value > 0 ? '+' : ''}${value}${suffix}`;
 }
 
-function agendaPeriodParams(period: PeriodFilter, range: ProcessTaskKpiDashboard['range']) {
+function agendaPeriodParams(period: AgendaPeriodFilter, range: ProcessTaskKpiDashboard['range']) {
   const params = new URLSearchParams();
-
-  if (period === 'week' || period === 'month' || period === 'overdue') {
-    params.set('period', period);
-    return params;
-  }
+  params.set('period', period);
 
   if (period === 'custom') {
-    params.set('period', 'custom');
     params.set('from', range.from);
     params.set('to', range.to);
-    return params;
   }
 
-  params.set('period', 'team');
   return params;
 }
 
@@ -306,7 +330,7 @@ function localizeKpiCard(
       return {
         ...card,
         title: copy.cards.compliance.title,
-        target: copy.cards.compliance.target(summary.completedTasks),
+        target: copy.cards.compliance.target(summary.closedTasks),
         description: copy.cards.compliance.description,
       };
     case 'timeliness':
@@ -595,7 +619,7 @@ function OperationalSignals({
             <ListChecks className="h-5 w-5 text-violet-500" />
           </div>
           <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            {copy.signals.pendingAudit.description(summary.pendingAuditTasks, summary.completedTasks)}
+            {copy.signals.pendingAudit.description(summary.pendingAuditTasks, summary.closedTasks)}
           </p>
           <SignalAction
             disabled={summary.pendingAuditTasks === 0}
@@ -608,14 +632,23 @@ function OperationalSignals({
   );
 }
 
-function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: ProcessTaskKpiDashboard }) {
+function SummaryStrip({
+  agendaCopy,
+  copy,
+  dashboard,
+}: {
+  agendaCopy: AgendaTranslations;
+  copy: KpisTranslations;
+  dashboard: ProcessTaskKpiDashboard;
+}) {
   const summary = dashboard.summary;
   const statusSegments = [
-    { label: copy.summary.segments.inProgress, count: summary.openTasks, className: 'bg-blue-500' },
-    { label: copy.summary.segments.closed, count: summary.completedTasks, className: 'bg-emerald-500' },
-    { label: copy.summary.segments.audited, count: summary.auditedTasks, className: 'bg-violet-500' },
-    { label: copy.summary.segments.overdue, count: summary.overdueTasks, className: 'bg-rose-500' },
-    { label: copy.summary.segments.cancelled, count: summary.cancelledTasks, className: 'bg-slate-400' },
+    { label: agendaCopy.statuses.pending, count: summary.pendingTasks, className: 'bg-slate-400' },
+    { label: agendaCopy.statuses.in_progress, count: summary.inProgressTasks, className: 'bg-blue-500' },
+    { label: agendaCopy.statuses.paused, count: summary.pausedTasks, className: 'bg-amber-500' },
+    { label: agendaCopy.statuses.completed, count: summary.completedTasks, className: 'bg-emerald-500' },
+    { label: agendaCopy.statuses.audited, count: summary.auditedTasks, className: 'bg-violet-500' },
+    { label: agendaCopy.statuses.overdue, count: summary.overdueTasks, className: 'bg-rose-500' },
   ];
   const totalSegments = statusSegments.reduce((sum, segment) => sum + segment.count, 0);
   const status = scoreStatus(summary.productivityScore);
@@ -628,21 +661,42 @@ function SummaryStrip({ copy, dashboard }: { copy: KpisTranslations; dashboard: 
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <KpiMetric
             icon={<Timer className="h-4 w-4" />}
-            label={copy.summary.labels.open}
-            value={summary.openTasks}
+            label={agendaCopy.statuses.pending}
+            value={summary.pendingTasks}
+            valueClassName="text-slate-700 dark:text-slate-200"
+          />
+          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
+          <KpiMetric
+            icon={<Clock3 className="h-4 w-4" />}
+            label={agendaCopy.statuses.in_progress}
+            value={summary.inProgressTasks}
             valueClassName="text-blue-600 dark:text-blue-300"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <KpiMetric
+            icon={<Timer className="h-4 w-4" />}
+            label={agendaCopy.statuses.paused}
+            value={summary.pausedTasks}
+            valueClassName="text-amber-600 dark:text-amber-300"
+          />
+          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
+          <KpiMetric
             icon={<CheckCircle2 className="h-4 w-4" />}
-            label={copy.summary.labels.closed}
+            label={agendaCopy.statuses.completed}
             value={summary.completedTasks}
             valueClassName="text-emerald-600 dark:text-emerald-400"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <KpiMetric
+            icon={<ClipboardCheck className="h-4 w-4" />}
+            label={agendaCopy.statuses.audited}
+            value={summary.auditedTasks}
+            valueClassName="text-violet-600 dark:text-violet-300"
+          />
+          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
+          <KpiMetric
             icon={<AlertTriangle className="h-4 w-4" />}
-            label={copy.summary.labels.overdue}
+            label={agendaCopy.statuses.overdue}
             value={summary.overdueTasks}
             valueClassName="text-rose-600 dark:text-rose-300"
           />
@@ -744,7 +798,7 @@ function CollaboratorsTable({ copy, rows }: { copy: KpisTranslations; rows: Coll
                   <ScoreBar score={row.productivityScore} status={row.status} />
                 </TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {row.completedTasks}/{row.totalTasks}
+                  {row.closedTasks}/{row.totalTasks}
                 </TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">{row.completionRate}%</TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">{row.timelinessRate}%</TableCell>
@@ -806,7 +860,7 @@ function ProcessesTable({ copy, rows }: { copy: KpisTranslations; rows: ProcessP
                   <ScoreBar score={row.productivityScore} status={row.status} />
                 </TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {copy.processesTable.details.tasks(row.completedTasks, row.totalTasks, row.overdueTasks)}
+                  {copy.processesTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)}
                 </TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
                   {copy.processesTable.details.audit(row.auditRate, formatWeighting(row.averageWeighting, copy.common.notApplicable))}
@@ -868,7 +922,7 @@ function ProjectsTable({ copy, rows }: { copy: KpisTranslations; rows: ProjectPe
                 </TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">{row.averageCompletion}%</TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {copy.projectsTable.details.tasks(row.completedTasks, row.totalTasks, row.overdueTasks)}
+                  {copy.projectsTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)}
                 </TableCell>
                 <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
                   {copy.projectsTable.details.audit(row.auditRate, row.pendingAuditTasks)}
@@ -896,25 +950,30 @@ export default function KPIs() {
   const navigate = useNavigate();
   const { pageId } = useParams();
   const copy = useKpisTranslations();
+  const agendaCopy = useAgendaTranslations();
   const headerCopy = copy.header;
-  const periodLabels = copy.periods;
+  const periodLabels = agendaCopy.periods;
   const [dashboard, setDashboard] = useState<ProcessTaskKpiDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrintingPdf, setIsPrintingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<PeriodFilter>('day');
+  const [period, setPeriod] = useState<AgendaPeriodFilter>('today');
+  const [focusFilter, setFocusFilter] = useState<AgendaFocusFilter>('mine');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [customFrom, setCustomFrom] = useState(localDateString(new Date()));
   const [customTo, setCustomTo] = useState(localDateString(new Date()));
   const [unitFilter, setUnitFilter] = useState(allValue);
   const [businessFilter, setBusinessFilter] = useState(allValue);
+  const [projectFilter, setProjectFilter] = useState(allValue);
   const [collaboratorFilter, setCollaboratorFilter] = useState(allValue);
-  const [searchQuery, setSearchQuery] = useState('');
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [businesses, setBusinesses] = useState<BusinessOption[]>([]);
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [collaborators, setCollaborators] = useState<CollaboratorOption[]>([]);
 
   const selectedUnitId = unitFilter === allValue ? null : Number(unitFilter);
   const selectedBusinessId = businessFilter === allValue ? null : Number(businessFilter);
+  const selectedProjectId = projectFilter === allValue ? null : Number(projectFilter);
   const selectedCollaboratorId = collaboratorFilter === allValue ? null : Number(collaboratorFilter);
 
   const scopedBusinesses = useMemo(
@@ -937,6 +996,20 @@ export default function KPIs() {
     [collaborators, selectedBusinessId, selectedUnitId],
   );
 
+  const scopedProjects = useMemo(
+    () =>
+      projects.filter((project) => {
+        if (selectedBusinessId != null) {
+          return project.businessId === selectedBusinessId;
+        }
+        if (selectedUnitId != null) {
+          return project.unitId === selectedUnitId;
+        }
+        return true;
+      }),
+    [projects, selectedBusinessId, selectedUnitId],
+  );
+
   const selectedUnitName = useMemo(
     () => (selectedUnitId == null ? null : units.find((unit) => unit.id === selectedUnitId)?.name ?? null),
     [selectedUnitId, units],
@@ -950,11 +1023,28 @@ export default function KPIs() {
     [businesses, selectedBusinessId],
   );
 
+  const selectedProjectName = useMemo(
+    () => {
+      if (selectedProjectId == null) {
+        return null;
+      }
+
+      const selectedProject = projects.find((project) => project.id === selectedProjectId);
+      return selectedProject ? projectOptionLabel(selectedProject) : `${agendaCopy.form.labels.project} #${selectedProjectId}`;
+    },
+    [agendaCopy.form.labels.project, projects, selectedProjectId],
+  );
+
   const range = useMemo(() => dateRangeForPeriod(period, customFrom, customTo), [customFrom, customTo, period]);
 
   const openAgendaDrilldown = useCallback(
     (params: Record<string, string>) => {
       const nextParams = agendaPeriodParams(period, range);
+      nextParams.set('focus', focusFilter);
+
+      if (statusFilter !== 'all') {
+        nextParams.set('status', statusFilter);
+      }
 
       if (selectedUnitName) {
         nextParams.set('unit', selectedUnitName);
@@ -965,6 +1055,9 @@ export default function KPIs() {
       if (selectedCollaboratorId != null) {
         nextParams.set('collaborator', `user-company:${selectedCollaboratorId}`);
       }
+      if (selectedProjectId != null) {
+        nextParams.set('project', `project:${selectedProjectId}`);
+      }
 
       Object.entries(params).forEach(([key, value]) => {
         nextParams.set(key, value);
@@ -972,7 +1065,18 @@ export default function KPIs() {
 
       navigate(`/${pageId ?? 'processes-tasks'}/calendar?${nextParams.toString()}`);
     },
-    [navigate, pageId, period, range, selectedBusinessName, selectedCollaboratorId, selectedUnitName],
+    [
+      focusFilter,
+      navigate,
+      pageId,
+      period,
+      range,
+      selectedBusinessName,
+      selectedCollaboratorId,
+      selectedProjectId,
+      selectedUnitName,
+      statusFilter,
+    ],
   );
 
   useEffect(() => {
@@ -980,9 +1084,10 @@ export default function KPIs() {
 
     async function loadCatalogs() {
       try {
-        const [unitItems, businessItems, hrUsers] = await Promise.all([
+        const [unitItems, businessItems, projectItems, hrUsers] = await Promise.all([
           dashboardApi.listUnits(),
           dashboardApi.listBusinesses(),
+          listProjects(),
           humanResourcesApi.listHrUsers(),
         ]);
 
@@ -1001,6 +1106,11 @@ export default function KPIs() {
             .map(normalizeBusiness)
             .filter((business) => business.name)
             .sort((left, right) => left.name.localeCompare(right.name)),
+        );
+        setProjects(
+          projectItems
+            .filter((project) => project.id > 0 && project.name)
+            .sort((left, right) => projectOptionLabel(left).localeCompare(projectOptionLabel(right))),
         );
         setCollaborators(
           hrUsers.items
@@ -1038,6 +1148,9 @@ export default function KPIs() {
           unitId: selectedUnitId,
           businessId: selectedBusinessId,
           collaboratorId: selectedCollaboratorId,
+          projectId: selectedProjectId,
+          focus: focusFilter,
+          status: statusFilter,
         });
 
         if (isActive) {
@@ -1067,35 +1180,32 @@ export default function KPIs() {
     range.to,
     selectedBusinessId,
     selectedCollaboratorId,
+    selectedProjectId,
     selectedUnitId,
+    focusFilter,
+    statusFilter,
     copy.messages.loadKpis,
   ]);
 
-  const normalizedSearch = searchQuery.trim().toLowerCase();
   const visibleCollaborators = useMemo(() => {
-    if (!dashboard) {
-      return [];
-    }
-
-    return dashboard.collaborators.filter((row) => {
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      return [row.collaboratorName, row.unitName, row.businessName]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalizedSearch));
-    });
-  }, [dashboard, normalizedSearch]);
+    return dashboard?.collaborators ?? [];
+  }, [dashboard]);
 
   const handleUnitChange = (value: string) => {
     setUnitFilter(value);
     setBusinessFilter(allValue);
+    setProjectFilter(allValue);
     setCollaboratorFilter(allValue);
   };
 
   const handleBusinessChange = (value: string) => {
     setBusinessFilter(value);
+    setProjectFilter(allValue);
+    setCollaboratorFilter(allValue);
+  };
+
+  const handleFocusChange = (value: AgendaFocusFilter) => {
+    setFocusFilter(value);
     setCollaboratorFilter(allValue);
   };
 
@@ -1108,17 +1218,32 @@ export default function KPIs() {
     setError(null);
 
     try {
+      const rangeLabel = `${formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} - ${formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}`;
+      const statusLabel = statusFilter === 'all' ? copy.common.all : agendaCopy.statuses[statusFilter];
+
       printKpisDashboardPdf({
         dashboard,
         copy,
         periodLabel: periodLabels[period],
-        rangeLabel: `${formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} - ${formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}`,
+        rangeLabel,
         unitLabel: selectedUnitName ?? copy.common.allFemale,
         businessLabel: selectedBusinessName ?? copy.common.all,
+        projectLabel: selectedProjectName ?? copy.common.all,
+        focusLabel: agendaCopy.focus[focusFilter],
+        statusLabel,
         collaboratorLabel:
           selectedCollaboratorId == null
             ? copy.common.all
             : collaborators.find((collaborator) => collaborator.userCompanyId === selectedCollaboratorId)?.name ?? copy.common.unassigned,
+        filterLines: [
+          `${agendaCopy.filters.focus}: ${agendaCopy.focus[focusFilter]} | ${agendaCopy.filters.period}: ${periodLabels[period]} | ${rangeLabel}`,
+          `${agendaCopy.filters.unit}: ${selectedUnitName ?? copy.common.allFemale} | ${agendaCopy.filters.business}: ${selectedBusinessName ?? copy.common.all}`,
+          `${agendaCopy.form.labels.project}: ${selectedProjectName ?? copy.common.all} | ${agendaCopy.filters.collaborator}: ${
+            selectedCollaboratorId == null
+              ? copy.common.all
+              : collaborators.find((collaborator) => collaborator.userCompanyId === selectedCollaboratorId)?.name ?? copy.common.unassigned
+          } | ${agendaCopy.filters.status}: ${statusLabel}`,
+        ],
       });
     } catch (printError) {
       setError(getErrorMessage(printError, copy.messages.printKpis));
@@ -1152,22 +1277,26 @@ export default function KPIs() {
               <Printer className="h-4 w-4" />
               {copy.pdf.print}
             </Button>
-            {dashboard ? (
-              <div className="rounded-xl border border-white/80 bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                <p className="font-semibold text-slate-900 dark:text-white">{periodLabels[period]}</p>
-                <p>
-                  {formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} - {formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}
-                </p>
-              </div>
-            ) : null}
           </div>
         </div>
       </section>
 
-      <section className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{copy.filters.title}</h3>
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-          <FilterSelect label={copy.filters.period} value={period} onChange={(value) => setPeriod(value as PeriodFilter)}>
+      <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+        <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white sm:mb-5">{agendaCopy.filters.title}</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-7">
+          <FilterSelect
+            label={agendaCopy.filters.focus}
+            value={focusFilter}
+            onChange={(value) => handleFocusChange(value as AgendaFocusFilter)}
+          >
+            {agendaFocusFilterValues.map((value) => (
+              <SelectItem key={value} value={value}>
+                {agendaCopy.focus[value]}
+              </SelectItem>
+            ))}
+          </FilterSelect>
+
+          <FilterSelect label={agendaCopy.filters.period} value={period} onChange={(value) => setPeriod(value as AgendaPeriodFilter)}>
             {Object.entries(periodLabels).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
@@ -1175,7 +1304,32 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <FilterSelect label={copy.filters.unit} value={unitFilter} onChange={handleUnitChange}>
+          {period === 'custom' ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.from}</label>
+                <Input
+                  type="date"
+                  value={customFrom}
+                  max={customTo}
+                  onChange={(event) => setCustomFrom(event.target.value)}
+                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.to}</label>
+                <Input
+                  type="date"
+                  value={customTo}
+                  min={customFrom}
+                  onChange={(event) => setCustomTo(event.target.value)}
+                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                />
+              </div>
+            </>
+          ) : null}
+
+          <FilterSelect label={agendaCopy.filters.unit} value={unitFilter} onChange={handleUnitChange}>
             <SelectItem value={allValue}>{copy.common.allFemale}</SelectItem>
             {units.map((unit) => (
               <SelectItem key={unit.id} value={String(unit.id)}>
@@ -1184,7 +1338,7 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <FilterSelect label={copy.filters.business} value={businessFilter} onChange={handleBusinessChange}>
+          <FilterSelect label={agendaCopy.filters.business} value={businessFilter} onChange={handleBusinessChange}>
             <SelectItem value={allValue}>{copy.common.all}</SelectItem>
             {scopedBusinesses.map((business) => (
               <SelectItem key={business.id} value={String(business.id)}>
@@ -1193,7 +1347,16 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <FilterSelect label={copy.filters.collaborator} value={collaboratorFilter} onChange={setCollaboratorFilter}>
+          <FilterSelect label={agendaCopy.form.labels.project} value={projectFilter} onChange={setProjectFilter}>
+            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
+            {scopedProjects.map((project) => (
+              <SelectItem key={project.id} value={String(project.id)}>
+                {projectOptionLabel(project)}
+              </SelectItem>
+            ))}
+          </FilterSelect>
+
+          <FilterSelect label={agendaCopy.filters.collaborator} value={collaboratorFilter} onChange={setCollaboratorFilter}>
             <SelectItem value={allValue}>{copy.common.all}</SelectItem>
             {scopedCollaborators.map((collaborator) => (
               <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
@@ -1202,42 +1365,15 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={copy.filters.searchPlaceholder}
-                className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              />
-            </div>
-          </div>
+          <FilterSelect label={agendaCopy.filters.status} value={statusFilter} onChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
+            {agendaStatusFilterValues.map((value) => (
+              <SelectItem key={value} value={value}>
+                {agendaCopy.statuses[value]}
+              </SelectItem>
+            ))}
+          </FilterSelect>
         </div>
-
-        {period === 'custom' ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.from}</label>
-              <Input
-                type="date"
-                value={customFrom}
-                onChange={(event) => setCustomFrom(event.target.value)}
-                className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.to}</label>
-              <Input
-                type="date"
-                value={customTo}
-                onChange={(event) => setCustomTo(event.target.value)}
-                className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              />
-            </div>
-          </div>
-        ) : null}
       </section>
 
       {error ? (
@@ -1250,17 +1386,17 @@ export default function KPIs() {
 
       {!isLoading && dashboard ? (
         <>
-          <SummaryStrip copy={copy} dashboard={dashboard} />
+          <SummaryStrip agendaCopy={agendaCopy} copy={copy} dashboard={dashboard} />
 
           <OperationalSignals
             copy={copy}
             dashboard={dashboard}
             onOpenOverdue={() => openAgendaDrilldown({ status: 'overdue' })}
-            onOpenPendingAudit={() => openAgendaDrilldown({ status: 'pending_audit' })}
+            onOpenPendingAudit={() => openAgendaDrilldown({ status: 'completed' })}
             onOpenUnassigned={() =>
               openAgendaDrilldown({
                 collaborator: agendaUnassignedFilterValue,
-                status: 'open',
+                status: 'all',
               })
             }
           />

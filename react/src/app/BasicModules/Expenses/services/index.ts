@@ -13,3 +13,11 @@ export {
   generateInsights,
   normalizeExpenseInsightInput,
 } from './insights.engine';
+export { expensesService } from './expenses.service';
+export { accountingAccountsService } from './accounting-accounts.service';
+export { budgetsService } from './budgets.service';
+export { budgetLinesService } from './budget-lines.service';
+export { financeReferenceDataService } from './finance-reference-data.service';
+export { paymentAccountsService } from './payment-accounts.service';
+export { providersService } from './providers.service';
+export { shouldUseMockFallback, toFinanceApiErrorMessage } from './finance-api.errors';
