@@ -3,26 +3,46 @@ import {
   EXPENSE_TABLE_HEADERS,
   type ExpenseSortField,
 } from '../../constants/expenseTableConfig';
+import { Checkbox } from '../../../../components/ui/checkbox';
 
 type ExpenseTableHeaderRowProps = {
+  allVisibleSelected: boolean;
   columnWidths: Record<string, number>;
   getSortIcon: (field: ExpenseSortField) => ReactNode;
   isColumnVisible: (key: string) => boolean;
   onResizeStart: (event: ReactMouseEvent, columnKey: string) => void;
   onSort: (field: ExpenseSortField) => void;
+  onToggleAllVisible: (selected: boolean) => void;
   resizingColumn: string | null;
+  selectionColumnWidth: number;
+  someVisibleSelected: boolean;
 };
 
 export function ExpenseTableHeaderRow({
+  allVisibleSelected,
   columnWidths,
   getSortIcon,
   isColumnVisible,
   onResizeStart,
   onSort,
+  onToggleAllVisible,
   resizingColumn,
+  selectionColumnWidth,
+  someVisibleSelected,
 }: ExpenseTableHeaderRowProps) {
   return (
     <tr>
+      <th
+        className="px-5 py-4 text-left align-middle"
+        style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}
+      >
+        <Checkbox
+          aria-label="Seleccionar gastos visibles"
+          checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+          onCheckedChange={(checked) => onToggleAllVisible(checked === true)}
+          className="border-slate-300 data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514]"
+        />
+      </th>
       {EXPENSE_TABLE_HEADERS.map((header) => {
         if (!isColumnVisible(header.visibleWhen ?? header.key)) return null;
         if (header.sortable) {

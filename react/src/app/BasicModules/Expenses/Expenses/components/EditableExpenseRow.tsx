@@ -1,4 +1,5 @@
 import { Paperclip } from 'lucide-react';
+import { Checkbox } from '../../../../components/ui/checkbox';
 import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../types/expenses.types';
 import { formatDate, getPaymentMethodName, getStatusLabel } from '../../utils/expenses.utils';
 import {
@@ -41,7 +42,9 @@ type EditableExpenseRowProps = {
   isColumnVisible: (key: string) => boolean;
   options: EditableExpenseRowOptions;
   workflow: ExpenseWorkflowState;
+  isSelected: boolean;
   onStartEdit: (expenseId: string) => void;
+  onSelectionChange: (expenseId: string, selected: boolean) => void;
   onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
   onUpdateWorkflow: (expenseId: string, updates: Partial<ExpenseWorkflowState>) => void;
   onOpenAttachments: (expense: Expense) => void;
@@ -64,9 +67,11 @@ export function EditableExpenseRow({
   columnWidths,
   isEditing,
   isColumnVisible,
+  isSelected,
   options,
   workflow,
   onStartEdit,
+  onSelectionChange,
   onUpdateExpense,
   onUpdateWorkflow,
   onOpenAttachments,
@@ -80,6 +85,8 @@ export function EditableExpenseRow({
   const startActionEdit = onActionEdit ?? startEditing;
   const rowHighlightClass = isEditing
     ? 'bg-slate-50/80 ring-1 ring-inset ring-slate-200 dark:bg-slate-800/45 dark:ring-slate-700'
+    : isSelected
+      ? 'bg-[#147514]/5 dark:bg-[#147514]/10'
     : '';
   const statusClass = getStatusBadgeColor(expense.status);
   const selectedProvider = expense.providerId ?? '';
@@ -116,6 +123,15 @@ export function EditableExpenseRow({
         ${expense.amount > 5000 ? 'border-l-2 border-l-yellow-400' : ''}
       `}
     >
+      <td className="px-5 py-4 whitespace-nowrap align-middle">
+        <Checkbox
+          aria-label={`Seleccionar ${expense.folio}`}
+          checked={isSelected}
+          onCheckedChange={(checked) => onSelectionChange(expense.id, checked === true)}
+          className="border-slate-300 data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514]"
+        />
+      </td>
+
       {isColumnVisible('folio') && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
           <span className="font-mono font-medium">{expense.folio}</span>

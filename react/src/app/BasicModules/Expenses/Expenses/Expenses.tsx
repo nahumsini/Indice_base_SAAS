@@ -349,6 +349,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       <ExpensesSummary expenses={filteredExpenses} totals={totals} />
 
       <ExpenseTable
+        actionVisibility={{ showAudit: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={columns}
         expenses={filteredExpenses}
@@ -405,8 +406,8 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
 
       <Button
         type="button"
-        title="Gasto rapido"
-        aria-label="Gasto rapido"
+        title="Gasto rápido"
+        aria-label="Gasto rápido"
         className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 h-12 w-12 rounded-full border border-[#147514]/50 bg-[#147514] p-0 text-white shadow-lg shadow-[#147514]/25 hover:bg-[#105010] sm:bottom-6 sm:right-6"
         onClick={openQuickExpenseModal}
       >

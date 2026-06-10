@@ -72,6 +72,6 @@ export const EXPENSE_TABLE_HEADERS: ExpenseHeaderConfig[] = [
   { key: 'status', label: 'Estado', sortable: 'status' },
   { key: 'attachments', label: 'Archivos Adjuntos', sortable: 'attachments' },
   { key: 'authorizer', label: 'Autoriza' },
-  { key: 'performer', label: 'Realiza' },
+  { key: 'performer', label: 'Responsable' },
   { key: 'audit', label: 'Auditoría' },
 ];
