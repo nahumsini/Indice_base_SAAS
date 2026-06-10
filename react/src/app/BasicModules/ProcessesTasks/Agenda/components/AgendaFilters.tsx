@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../../components/ui/select';
-import { agendaStatusFilterValues } from '../hooks/useAgendaFilters';
+import { agendaFocusFilterValues, agendaStatusFilterValues } from '../hooks/useAgendaFilters';
 import type { AgendaTranslations } from '../translations';
 import type {
   AgendaParticipantFilterOption,
@@ -82,9 +82,9 @@ export function AgendaFilters({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(focusLabels).map(([value, label]) => (
+              {agendaFocusFilterValues.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {label}
+                  {focusLabels[value]}
                 </SelectItem>
               ))}
             </SelectContent>

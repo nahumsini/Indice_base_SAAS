@@ -11,7 +11,7 @@ export interface SuspendedSale {
 }
 
 function formatTime(date: Date) {
-  return new Intl.DateTimeFormat('en-CA', {
+  return new Intl.DateTimeFormat('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
@@ -42,9 +42,9 @@ export function SuspendedSalesPanel({
             <Archive className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Suspended sales</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Tickets pausados</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {hasSuspendedSales ? `${suspendedSales.length} open ticket${suspendedSales.length === 1 ? '' : 's'}` : 'No parked tickets'}
+              {hasSuspendedSales ? `${suspendedSales.length} ticket${suspendedSales.length === 1 ? '' : 's'} en espera` : 'Sin tickets en espera'}
             </p>
           </div>
         </div>
@@ -55,7 +55,7 @@ export function SuspendedSalesPanel({
           disabled={!canSuspend}
           className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Suspend ticket
+          Pausar
         </button>
       </div>
 
@@ -68,7 +68,7 @@ export function SuspendedSalesPanel({
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{sale.title}</p>
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                     <Clock className="h-3 w-3" />
-                    {formatTime(sale.createdAt)} · {sale.items.length} line{sale.items.length === 1 ? '' : 's'}
+                    {formatTime(sale.createdAt)} · {sale.items.length} linea{sale.items.length === 1 ? '' : 's'}
                   </p>
                 </div>
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(sale.total)}</p>
@@ -81,13 +81,13 @@ export function SuspendedSalesPanel({
                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-gray-800 dark:bg-white dark:text-gray-900"
                 >
                   <Play className="h-3.5 w-3.5" />
-                  Resume
+                  Reanudar
                 </button>
                 <button
                   type="button"
                   onClick={() => onDiscard(sale.id)}
                   className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-red-50 hover:text-red-700 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-red-900/20 dark:hover:text-red-300"
-                  aria-label="Discard suspended sale"
+                  aria-label="Descartar ticket pausado"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>

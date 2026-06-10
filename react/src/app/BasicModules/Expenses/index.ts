@@ -93,3 +93,28 @@ export { default as PaymentAccounts } from './PaymentAccounts';
 export { default as ExpensesList } from './Expenses';
 export { default as BudgetsList } from './Budgets';
 export { default as ProvidersList } from './Providers';
+
+export {
+  FINANCE_CURRENT_UI_TAB_MIGRATION,
+  FINANCE_TAB_ALIGNMENT,
+  FINANCE_TAB_ALIGNMENT_LIST,
+} from './constants/financeTabAlignment';
+
+export type {
+  FinanceRowNature,
+  FinanceTableCoherence,
+  FinanceTableColumnKey,
+  FinanceTableSourceKey,
+  FinanceTabAlignment,
+  FinanceTabBudgetEffect,
+  FinanceTabCashEffect,
+  FinanceTabEntityName,
+  FinanceTabFinancialOverviewEffect,
+  FinanceTabKey,
+  FinanceTabPurpose,
+  FinanceTabReadinessLevel,
+  FinanceTabSourceOfTruth,
+  FinanceTabStatusKey,
+  FinanceUiTabMigration,
+  FinanceUiTabRouteKey,
+} from './types/finance-tab-alignment.types';

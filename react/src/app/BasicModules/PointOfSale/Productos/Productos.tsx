@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Package, AlertCircle, TrendingUp, DollarSign, Box, Layers } from 'lucide-react';
-import { Product, ProductStatus } from './types/product.types';
-import { mockProducts } from './data/products.mock';
+import { pointOfSaleCatalogProducts as mockProducts, type Product, type ProductStatus } from '../shared/commercial/products';
 import { AddProductModal } from './components/AddProductModal';
 import { AddCompositeProductModal } from './components/AddCompositeProductModal';
 

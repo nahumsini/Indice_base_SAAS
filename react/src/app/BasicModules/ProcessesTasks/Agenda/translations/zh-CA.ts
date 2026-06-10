@@ -153,7 +153,7 @@ export const zhCA: AgendaTranslations = {
       pending: { label: '待处理', description: '尚未开始' },
       in_progress: { label: '进行中', description: '正在执行' },
       paused: { label: '已暂停', description: '临时停止' },
-      completed: { label: '待审核', description: '负责人已关闭' },
+      completed: { label: '已完成', description: '负责人已完成' },
       audited: { label: '已审核', description: '经理已复核' },
       cancelled: { label: '已取消', description: '不在活动流程中' },
     },

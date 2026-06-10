@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Users, UserCheck, UserX, DollarSign, User, CreditCard, FileText } from 'lucide-react';
-import { Customer, CustomerStatus } from './types/customer.types';
-import { mockCustomers } from './data/customers.mock';
+import { commercialCustomers as mockCustomers, type Customer, type CustomerStatus } from '../shared/commercial/customers';
 import { AddCustomerModal } from './components/AddCustomerModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
 

@@ -1,6 +1,28 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { isBackendId } from '../adapters/adapter.utils';
+import { mockProviderRecords } from '../data/providerRecords.mock';
+import { providersService, toFinanceApiErrorMessage } from '../services';
 
-export type ProviderType = 'Servicios' | 'Productos' | 'Logística' | 'Tecnología' | 'Otros';
+export type ProviderType =
+  | 'Arrendamiento'
+  | 'Construcción'
+  | 'Consultoría'
+  | 'Contabilidad'
+  | 'Financiero'
+  | 'Gobierno'
+  | 'Insumos'
+  | 'Legal'
+  | 'Logística'
+  | 'Mantenimiento'
+  | 'Marketing'
+  | 'Nómina'
+  | 'Productos'
+  | 'Seguros'
+  | 'Servicios'
+  | 'Servicios básicos'
+  | 'Tecnología'
+  | 'Viajes'
+  | 'Otros';
 export type ProviderStatus = 'active' | 'inactive';
 
 export type ProviderRecord = {
@@ -26,33 +48,54 @@ export type ProviderRecord = {
   updatedAt: Date;
 };
 
+export type ProviderFormValues = Pick<
+  ProviderRecord,
+  | 'accountingAccount'
+  | 'authorizer'
+  | 'business'
+  | 'businessUnit'
+  | 'company'
+  | 'contactName'
+  | 'email'
+  | 'name'
+  | 'performer'
+  | 'phone'
+  | 'status'
+  | 'taxId'
+  | 'type'
+  | 'address'
+>;
+
 export const providerTypeOptions: Array<{ value: ProviderType; label: string }> = [
   { value: 'Servicios', label: 'Servicios' },
   { value: 'Productos', label: 'Productos' },
   { value: 'Logística', label: 'Logística' },
   { value: 'Tecnología', label: 'Tecnología' },
+  { value: 'Arrendamiento', label: 'Arrendamiento' },
+  { value: 'Mantenimiento', label: 'Mantenimiento' },
+  { value: 'Marketing', label: 'Marketing' },
+  { value: 'Consultoría', label: 'Consultoría' },
+  { value: 'Legal', label: 'Legal' },
+  { value: 'Contabilidad', label: 'Contabilidad' },
+  { value: 'Financiero', label: 'Financiero' },
+  { value: 'Seguros', label: 'Seguros' },
+  { value: 'Construcción', label: 'Construcción' },
+  { value: 'Insumos', label: 'Insumos' },
+  { value: 'Servicios básicos', label: 'Servicios básicos' },
+  { value: 'Gobierno', label: 'Gobierno / impuestos' },
+  { value: 'Viajes', label: 'Viajes' },
+  { value: 'Nómina', label: 'Nómina / contratistas' },
   { value: 'Otros', label: 'Otros' },
 ];
 
 export const providerFilterTypeOptions: Array<{ value: ProviderType | 'all'; label: string }> = [
   { value: 'all', label: 'Todos' },
-  { value: 'Servicios', label: 'Servicios' },
-  { value: 'Productos', label: 'Productos' },
-  { value: 'Logística', label: 'Logística' },
-  { value: 'Tecnología', label: 'Tecnología' },
+  ...providerTypeOptions,
 ];
 
 export const providerStatusOptions: Array<{ value: ProviderStatus; label: string }> = [
   { value: 'active', label: 'Activo' },
   { value: 'inactive', label: 'Inactivo' },
-];
-
-export const providerAccountingAccountOptions = [
-  { value: 'Gastos operativos', label: 'Gastos operativos' },
-  { value: 'Servicios', label: 'Servicios' },
-  { value: 'Marketing', label: 'Marketing' },
-  { value: 'Nómina', label: 'Nómina' },
-  { value: 'Activos', label: 'Activos' },
 ];
 
 export const providerBusinessUnitOptions = [
@@ -81,184 +124,6 @@ export const providerUserOptions = [
   'CFO',
 ];
 
-export const mockProviderRecords: ProviderRecord[] = [
-  {
-    id: 'provider-1',
-    folio: 'PROV-0001',
-    name: 'Office Supplies Inc.',
-    company: 'Office Supplies Inc.',
-    type: 'Productos',
-    contactName: 'Laura Mendoza',
-    email: 'laura@officesupplies.example',
-    phone: '+1 555 0101',
-    taxId: 'OSI860215AB1',
-    address: '120 Business Ave, Toronto',
-    accountingAccount: 'Gastos operativos',
-    status: 'active',
-    businessUnit: 'Operations',
-    business: 'Restaurante',
-    attachments: ['contrato-office-supplies.pdf'],
-    authorizer: 'Finance Manager',
-    performer: 'Procurement Lead',
-    auditNotes: 'Contrato revisado para compras recurrentes.',
-    createdAt: new Date(2026, 0, 12),
-    updatedAt: new Date(2026, 3, 20),
-  },
-  {
-    id: 'provider-2',
-    folio: 'PROV-0002',
-    name: 'Tech Solutions LLC',
-    company: 'Tech Solutions LLC',
-    type: 'Tecnología',
-    contactName: 'Marco Silva',
-    email: 'marco@techsolutions.example',
-    phone: '+1 555 0102',
-    taxId: 'TSL910704CD2',
-    address: '88 Software Park, Montreal',
-    accountingAccount: 'Servicios',
-    status: 'active',
-    businessUnit: 'IT',
-    business: 'Hotel',
-    attachments: ['nda-tech-solutions.pdf', 'sla-2026.pdf'],
-    authorizer: 'CFO',
-    performer: 'John Admin',
-    auditNotes: 'SLA vigente hasta Q4.',
-    createdAt: new Date(2026, 1, 5),
-    updatedAt: new Date(2026, 3, 18),
-  },
-  {
-    id: 'provider-3',
-    folio: 'PROV-0003',
-    name: 'Marketing Pro Agency',
-    company: 'Marketing Pro Agency',
-    type: 'Servicios',
-    contactName: 'Ana Rojas',
-    email: 'ana@marketingpro.example',
-    phone: '+1 555 0103',
-    taxId: 'MPA780923EF3',
-    address: '45 Creative St, Vancouver',
-    accountingAccount: 'Marketing',
-    status: 'active',
-    businessUnit: 'Marketing',
-    business: 'Retail',
-    attachments: [],
-    authorizer: 'Jane Doe',
-    performer: 'Usuario Demo',
-    auditNotes: 'Pendiente validar tarifas por campaña.',
-    createdAt: new Date(2026, 2, 2),
-    updatedAt: new Date(2026, 3, 10),
-  },
-  {
-    id: 'provider-4',
-    folio: 'PROV-0004',
-    name: 'Legal Advisors Group',
-    company: 'Legal Advisors Group',
-    type: 'Servicios',
-    contactName: 'Emma Wilson',
-    email: 'emma@legaladvisors.example',
-    phone: '+1 555 0104',
-    taxId: 'LAG780402GH4',
-    address: '321 Law St, Boston',
-    accountingAccount: 'Servicios',
-    status: 'active',
-    businessUnit: 'Finance',
-    business: 'Servicios',
-    attachments: ['contrato-legal.pdf'],
-    authorizer: 'CFO',
-    performer: 'Finance Manager',
-    auditNotes: 'Proveedor validado para consultas contractuales.',
-    createdAt: new Date(2026, 2, 18),
-    updatedAt: new Date(2026, 3, 2),
-  },
-  {
-    id: 'provider-5',
-    folio: 'PROV-0005',
-    name: 'Global Logistics Co.',
-    company: 'Global Logistics Co.',
-    type: 'Logística',
-    contactName: 'Carlos Mendez',
-    email: 'carlos@globallogistics.example',
-    phone: '+1 555 0105',
-    taxId: 'GLC660118GH5',
-    address: '9 Distribution Road, Ottawa',
-    accountingAccount: 'Gastos operativos',
-    status: 'active',
-    businessUnit: 'Operations',
-    business: 'Servicios',
-    attachments: ['contrato-logistica.pdf'],
-    authorizer: 'Operations Manager',
-    performer: 'Procurement Lead',
-    auditNotes: 'Tarifas logísticas actualizadas para 2026.',
-    createdAt: new Date(2026, 2, 18),
-    updatedAt: new Date(2026, 3, 2),
-  },
-  {
-    id: 'provider-6',
-    folio: 'PROV-0006',
-    name: 'Clean & Shine Services',
-    company: 'Clean & Shine Services',
-    type: 'Servicios',
-    contactName: 'Maria Garcia',
-    email: 'maria@cleanshine.example',
-    phone: '+1 555 0106',
-    taxId: 'CSS556677AA6',
-    address: '25 Cleaning St, Toronto',
-    accountingAccount: 'Servicios',
-    status: 'active',
-    businessUnit: 'Operations',
-    business: 'Hotel',
-    attachments: ['cleaning-sla.pdf'],
-    authorizer: 'Operations Manager',
-    performer: 'Procurement Lead',
-    auditNotes: 'Servicio recurrente validado.',
-    createdAt: new Date(2026, 1, 14),
-    updatedAt: new Date(2026, 3, 28),
-  },
-  {
-    id: 'provider-7',
-    folio: 'PROV-0007',
-    name: 'Security Plus',
-    company: 'Security Plus',
-    type: 'Servicios',
-    contactName: 'Roberto Sánchez',
-    email: 'roberto@securityplus.example',
-    phone: '+1 555 0107',
-    taxId: 'SP998877BB7',
-    address: '100 Security Blvd, Monterrey',
-    accountingAccount: 'Servicios',
-    status: 'active',
-    businessUnit: 'Operations',
-    business: 'Retail',
-    attachments: ['security-contract.pdf'],
-    authorizer: 'Operations Manager',
-    performer: 'Procurement Lead',
-    auditNotes: 'Cobertura mensual activa.',
-    createdAt: new Date(2026, 0, 22),
-    updatedAt: new Date(2026, 3, 22),
-  },
-  {
-    id: 'provider-8',
-    folio: 'PROV-0008',
-    name: 'Food Wholesale Inc.',
-    company: 'Food Wholesale Inc.',
-    type: 'Productos',
-    contactName: 'Ana López',
-    email: 'ana@foodwholesale.example',
-    phone: '+1 555 0108',
-    taxId: 'FWI334455CC8',
-    address: '45 Central Market, Guadalajara',
-    accountingAccount: 'Gastos operativos',
-    status: 'active',
-    businessUnit: 'Operations',
-    business: 'Restaurante',
-    attachments: ['food-supply-agreement.pdf'],
-    authorizer: 'Operations Manager',
-    performer: 'Procurement Lead',
-    auditNotes: 'Proveedor crítico de alimentos.',
-    createdAt: new Date(2026, 0, 8),
-    updatedAt: new Date(2026, 3, 30),
-  },
-];
 
 const getNextProviderFolio = (providers: ProviderRecord[]) => {
   const nextNumber = providers.reduce((maxNumber, provider) => {
@@ -270,27 +135,27 @@ const getNextProviderFolio = (providers: ProviderRecord[]) => {
   return `PROV-${String(nextNumber).padStart(4, '0')}`;
 };
 
-const createEmptyProvider = (providers: ProviderRecord[]): ProviderRecord => {
+const createProviderFromValues = (providers: ProviderRecord[], values: ProviderFormValues): ProviderRecord => {
   const now = new Date();
 
   return {
     id: `prov-${Date.now()}`,
     folio: getNextProviderFolio(providers),
-    name: 'Nuevo proveedor',
-    company: '',
-    type: 'Servicios',
-    contactName: '',
-    email: '',
-    phone: '',
-    taxId: '',
-    address: '',
-    accountingAccount: 'Gastos operativos',
-    status: 'active',
-    businessUnit: providerBusinessUnitOptions[0],
-    business: providerBusinessOptions[0],
+    name: values.name.trim(),
+    company: values.company,
+    type: values.type,
+    contactName: values.contactName,
+    email: values.email,
+    phone: values.phone,
+    taxId: values.taxId,
+    address: values.address,
+    accountingAccount: values.accountingAccount,
+    status: values.status,
+    businessUnit: values.businessUnit,
+    business: values.business,
     attachments: [],
-    authorizer: '',
-    performer: '',
+    authorizer: values.authorizer,
+    performer: values.performer,
     auditNotes: '',
     createdAt: now,
     updatedAt: now,
@@ -298,17 +163,22 @@ const createEmptyProvider = (providers: ProviderRecord[]): ProviderRecord => {
 };
 
 interface UseProveedoresLogicParams {
+  onError?: (message: string) => void;
   onProvidersChange?: Dispatch<SetStateAction<ProviderRecord[]>>;
+  onSuccess?: (message: string) => void;
   providers?: ProviderRecord[];
 }
 
 export function useProveedoresLogic({
+  onError,
   onProvidersChange,
+  onSuccess,
   providers: controlledProviders,
 }: UseProveedoresLogicParams = {}) {
   const [internalProviders, setInternalProviders] = useState<ProviderRecord[]>(mockProviderRecords);
   const providers = controlledProviders ?? internalProviders;
   const setProviders = onProvidersChange ?? setInternalProviders;
+  const saveTimeoutsRef = useRef<Record<string, number>>({});
   const [businessFilter, setBusinessFilter] = useState('all');
   const [businessUnitFilter, setBusinessUnitFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -332,47 +202,92 @@ export function useProveedoresLogic({
     });
   }, [businessFilter, businessUnitFilter, providers, searchTerm, statusFilter, typeFilter]);
 
-  const addProvider = () => {
-    const provider = createEmptyProvider(providers);
-    setProviders(currentProviders => [provider, ...currentProviders]);
-    return provider.id;
+  useEffect(() => () => {
+    Object.values(saveTimeoutsRef.current).forEach(timeoutId => window.clearTimeout(timeoutId));
+  }, []);
+
+  const reportError = useCallback((error: unknown, fallbackMessage: string) => {
+    onError?.(toFinanceApiErrorMessage(error, fallbackMessage));
+  }, [onError]);
+
+  const persistProvider = useCallback((provider: ProviderRecord) => {
+    if (!isBackendId(provider.id)) return;
+    window.clearTimeout(saveTimeoutsRef.current[provider.id]);
+    saveTimeoutsRef.current[provider.id] = window.setTimeout(() => {
+      providersService.updateProvider(provider)
+        .then(savedProvider => {
+          setProviders(currentProviders => currentProviders.map(item => (
+            item.id === provider.id ? savedProvider : item
+          )));
+        })
+        .catch(error => reportError(error, 'No se pudo guardar el proveedor. Se conservaron los cambios locales.'));
+    }, 700);
+  }, [reportError, setProviders]);
+
+  const addProvider = async (values: ProviderFormValues) => {
+    const provider = createProviderFromValues(providers, values);
+    try {
+      const savedProvider = await providersService.createProvider(provider);
+      setProviders(currentProviders => [savedProvider, ...currentProviders]);
+      onSuccess?.('Proveedor creado en Finance.');
+      return savedProvider.id;
+    } catch (error) {
+      setProviders(currentProviders => [provider, ...currentProviders]);
+      reportError(error, 'No se pudo crear el proveedor en Finance. Se agregó como dato local.');
+      return provider.id;
+    }
   };
 
   const updateProvider = (providerId: string, updates: Partial<ProviderRecord>) => {
+    const currentProvider = providers.find(provider => provider.id === providerId);
+    const nextProvider = currentProvider
+      ? { ...currentProvider, ...updates, updatedAt: new Date() }
+      : null;
+
     setProviders(currentProviders =>
       currentProviders.map(provider =>
         provider.id === providerId
-          ? {
-              ...provider,
-              ...updates,
-              updatedAt: new Date(),
-            }
+          ? { ...provider, ...updates, updatedAt: nextProvider?.updatedAt ?? new Date() }
           : provider,
       ),
     );
+    if (nextProvider) persistProvider(nextProvider);
   };
 
   const duplicateProvider = (providerId: string) => {
-    setProviders(currentProviders => {
-      const provider = currentProviders.find(item => item.id === providerId);
-      if (!provider) return currentProviders;
+    const provider = providers.find(item => item.id === providerId);
+    if (!provider) return;
+    const copy = {
+      ...provider,
+      id: `prov-${Date.now()}`,
+      folio: getNextProviderFolio(providers),
+      name: `${provider.name} copia`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-      return [
-        {
-          ...provider,
-          id: `prov-${Date.now()}`,
-          folio: getNextProviderFolio(currentProviders),
-          name: `${provider.name} copia`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        ...currentProviders,
-      ];
-    });
+    providersService.createProvider(copy)
+      .then(savedProvider => {
+        setProviders(currentProviders => [savedProvider, ...currentProviders]);
+        onSuccess?.('Proveedor duplicado en Finance.');
+      })
+      .catch(error => {
+        setProviders(currentProviders => [copy, ...currentProviders]);
+        reportError(error, 'No se pudo duplicar el proveedor en Finance. Se agregó como dato local.');
+      });
   };
 
   const deleteProvider = (providerId: string) => {
+    const provider = providers.find(item => item.id === providerId);
     setProviders(currentProviders => currentProviders.filter(provider => provider.id !== providerId));
+    if (!provider || !isBackendId(providerId)) return;
+
+    providersService.deleteProvider(providerId)
+      .then(() => onSuccess?.('Proveedor eliminado de Finance.'))
+      .catch(error => {
+        setProviders(currentProviders => [provider, ...currentProviders]);
+        reportError(error, 'No se pudo eliminar el proveedor en Finance.');
+      });
   };
 
   const activateProvider = (providerId: string) => {

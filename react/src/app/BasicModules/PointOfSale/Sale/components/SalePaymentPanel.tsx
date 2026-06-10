@@ -1,4 +1,6 @@
-import { AlertCircle, Check, Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import { AlertCircle, Banknote, Check, ChevronDown, ChevronUp, CreditCard, Plus, Smartphone, X, Zap } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { OperationalActivity } from './OperationalActivityFeed';
 import { OperationalActivityFeed } from './OperationalActivityFeed';
 import { SuspendedSalesPanel, type SuspendedSale } from './SuspendedSalesPanel';
@@ -47,42 +49,44 @@ export function SalePaymentPanel({
   onCompleteSale,
   formatCurrency,
 }: SalePaymentPanelProps) {
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+
   return (
-    <div className="w-96 flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-      <div className={`px-6 py-6 ${
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className={`px-5 py-5 ${
         totals.isPaid
-          ? 'bg-gradient-to-br from-green-500 to-green-600'
-          : 'bg-gradient-to-br from-orange-500 to-orange-600'
-      } text-white transition-all`}>
-        <p className="text-sm font-medium opacity-90 mb-1">Total a Cobrar</p>
-        <p className="text-5xl font-bold tracking-tight">
+          ? 'bg-emerald-600'
+          : 'bg-gray-950'
+      } text-white transition`}>
+        <p className="mb-1 text-sm font-semibold opacity-90">Resumen de cobro</p>
+        <p className="break-words text-4xl font-black leading-none">
           {formatCurrency(totals.total)}
         </p>
       </div>
 
-      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 space-y-2">
+      <div className="space-y-3 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Total Pagado:</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Total pagado:</span>
           <span className="text-lg font-bold text-gray-900 dark:text-white">
             {formatCurrency(totals.paid)}
           </span>
         </div>
 
         {totals.isPaid ? (
-          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-500 rounded-lg">
-            <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 p-3 dark:bg-emerald-900/20">
+            <Check className="h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-green-700 dark:text-green-400">Pago Completo</p>
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Pago completo</p>
               {totals.change > 0 && (
-                <p className="text-xs text-green-600 dark:text-green-500">
+                <p className="text-xs text-emerald-600 dark:text-emerald-500">
                   Cambio: {formatCurrency(totals.change)}
                 </p>
               )}
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-500 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 rounded-lg border border-orange-500 bg-orange-50 p-3 dark:bg-orange-900/20">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-orange-600 dark:text-orange-400" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">Falta por pagar</p>
               <p className="text-lg font-bold text-orange-600 dark:text-orange-500">
@@ -105,49 +109,56 @@ export function SalePaymentPanel({
       </div>
 
       {payments.length > 0 && (
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">Pagos Agregados</p>
+        <div className="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+          <p className="mb-3 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Pagos agregados</p>
           <div className="space-y-2">
-            {payments.map((payment) => (
-              <div
-                key={payment.id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white dark:bg-gray-600 rounded-lg flex items-center justify-center">
-                    {payment.method === 'cash' && <span className="text-xl">💵</span>}
-                    {payment.method === 'card' && <span className="text-xl">💳</span>}
-                    {payment.method === 'transfer' && <span className="text-xl">📱</span>}
+            {payments.map((payment) => {
+              const PaymentIcon = payment.method === 'cash'
+                ? Banknote
+                : payment.method === 'card'
+                ? CreditCard
+                : Smartphone;
+
+              return (
+                <div
+                  key={payment.id}
+                  className="group flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-gray-700 shadow-sm dark:bg-gray-600 dark:text-gray-100">
+                      <PaymentIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {payment.method === 'cash' && 'Efectivo'}
+                        {payment.method === 'card' && 'Tarjeta'}
+                        {payment.method === 'transfer' && 'Transferencia'}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {payment.reference || 'Sin referencia'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
-                      {payment.method === 'cash' && 'Efectivo'}
-                      {payment.method === 'card' && 'Tarjeta'}
-                      {payment.method === 'transfer' && 'Transferencia'}
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-bold text-gray-900 dark:text-white">
+                      {formatCurrency(payment.amount)}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {payment.reference || 'Sin referencia'}
-                    </p>
+                    <button
+                      onClick={() => onRemovePayment(payment.id)}
+                      className="rounded p-1 text-red-600 opacity-100 transition hover:bg-red-50 dark:hover:bg-red-900/20 xl:opacity-0 xl:group-hover:opacity-100"
+                      aria-label="Quitar pago"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-base font-bold text-gray-900 dark:text-white">
-                    {formatCurrency(payment.amount)}
-                  </p>
-                  <button
-                    onClick={() => onRemovePayment(payment.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
-      <div className="flex-1 p-6 space-y-3 overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
         <TouchKeypad
           selectedQuantity={selectedQuickQuantity}
           suspendedCount={suspendedSales.length}
@@ -163,10 +174,10 @@ export function SalePaymentPanel({
           <button
             onClick={onExactPayment}
             disabled={cartItemCount === 0}
-            className="w-full p-5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-98"
+            className="w-full rounded-lg bg-orange-600 p-5 text-white shadow-lg transition hover:bg-orange-700 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <div className="flex items-center justify-center gap-3">
-              <span className="text-3xl">⚡</span>
+              <Zap className="h-7 w-7" />
               <div className="text-left">
                 <p className="text-xl font-bold">COBRAR EXACTO</p>
                 <p className="text-sm opacity-90">Efectivo • Sin cambio</p>
@@ -175,14 +186,14 @@ export function SalePaymentPanel({
           </button>
         )}
 
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+        <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
           {payments.length > 0 ? 'O agregar otro pago' : 'Pago personalizado'}
         </p>
 
         <PaymentMethodButton
           label="Efectivo"
           shortcut="F1"
-          icon="💵"
+          icon={Banknote}
           tone="green"
           disabled={cartItemCount === 0 || totals.isPaid}
           onClick={() => onAddPayment('cash')}
@@ -190,7 +201,7 @@ export function SalePaymentPanel({
         <PaymentMethodButton
           label="Tarjeta"
           shortcut="F2"
-          icon="💳"
+          icon={CreditCard}
           tone="blue"
           disabled={cartItemCount === 0 || totals.isPaid}
           onClick={() => onAddPayment('card')}
@@ -198,27 +209,27 @@ export function SalePaymentPanel({
         <PaymentMethodButton
           label="Transferencia"
           shortcut="F3"
-          icon="📱"
+          icon={Smartphone}
           tone="purple"
           disabled={cartItemCount === 0 || totals.isPaid}
           onClick={() => onAddPayment('transfer')}
         />
       </div>
 
-      <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+      <div className="border-t border-gray-200 p-5 dark:border-gray-700">
         <button
           onClick={onCompleteSale}
           disabled={!totals.isPaid}
-          className={`w-full p-4 rounded-xl font-bold text-lg shadow-lg transition-all ${
+          className={`w-full rounded-lg p-4 text-lg font-bold shadow-lg transition ${
             totals.isPaid
-              ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-xl active:scale-98'
+              ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-xl active:scale-[0.98]'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
           }`}
         >
           {totals.isPaid ? (
             <div className="flex items-center justify-center gap-2">
-              <Check className="w-6 h-6" />
-              <span>COMPLETAR VENTA (F4)</span>
+              <Check className="h-6 w-6" />
+              <span>COBRAR VENTA (F4)</span>
             </div>
           ) : (
             <span>AGREGAR PAGOS PARA CONTINUAR</span>
@@ -226,8 +237,20 @@ export function SalePaymentPanel({
         </button>
       </div>
 
-      <div className="border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-        <OperationalActivityFeed activities={recentActivities} />
+      <div className="border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
+        <button
+          onClick={() => setIsActivityOpen((current) => !current)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+          aria-expanded={isActivityOpen}
+        >
+          <span>Actividad reciente</span>
+          {isActivityOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        {isActivityOpen && (
+          <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+            <OperationalActivityFeed activities={recentActivities} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -236,39 +259,38 @@ export function SalePaymentPanel({
 function PaymentMethodButton({
   label,
   shortcut,
-  icon,
+  icon: Icon,
   tone,
   disabled,
   onClick,
 }: {
   label: string;
   shortcut: string;
-  icon: string;
+  icon: LucideIcon;
   tone: 'green' | 'blue' | 'purple';
   disabled: boolean;
   onClick: () => void;
 }) {
   const toneClasses = {
-    green: 'from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:hover:from-green-500',
-    blue: 'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:hover:from-blue-500',
-    purple: 'from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 disabled:hover:from-purple-500',
+    green: 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30',
+    blue: 'border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/30',
+    purple: 'border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-200 dark:hover:bg-purple-900/30',
   }[tone];
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full p-4 bg-gradient-to-r ${toneClasses} text-white rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-3`}
+      className={`flex w-full items-center gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 ${toneClasses}`}
     >
-      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-        <span className="text-2xl">{icon}</span>
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-sm dark:bg-gray-900/60">
+        <Icon className="h-5 w-5" />
       </div>
       <div className="flex-1 text-left">
         <p className="font-bold">{label}</p>
-        <p className="text-xs opacity-90">{shortcut}</p>
+        <p className="text-xs opacity-80">{shortcut}</p>
       </div>
-      <Plus className="w-5 h-5" />
+      <Plus className="h-5 w-5" />
     </button>
   );
 }
-

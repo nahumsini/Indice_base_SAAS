@@ -2,10 +2,12 @@ import { useCallback } from 'react';
 import type { TaskPayload } from '../../Tasks/tasksApi';
 import type { AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
-import type { AgendaKanbanColumnId } from '../types';
+import type { AgendaKanbanColumnId, AgendaLoadRange } from '../types';
 import { getTaskKanbanColumnId } from '../utils/agendaTaskStatus';
 
 type UseAgendaKanbanDropOptions = {
+  activeRange: AgendaLoadRange;
+  agendaStatusDate: string;
   agendaCopy: AgendaTranslations;
   draggingTaskId: number | null;
   handleAuditTask: (task: AgendaTaskItem) => void;
@@ -17,6 +19,8 @@ type UseAgendaKanbanDropOptions = {
 };
 
 export function useAgendaKanbanDrop({
+  activeRange,
+  agendaStatusDate,
   agendaCopy,
   draggingTaskId,
   handleAuditTask,
@@ -36,7 +40,7 @@ export function useAgendaKanbanDrop({
         return;
       }
 
-      if (columnId === getTaskKanbanColumnId(draggedTask)) {
+      if (columnId === getTaskKanbanColumnId(draggedTask, agendaStatusDate, activeRange)) {
         return;
       }
 
@@ -71,6 +75,8 @@ export function useAgendaKanbanDrop({
       });
     },
     [
+      activeRange,
+      agendaStatusDate,
       agendaCopy.messages.closeBeforeAudit,
       agendaCopy.messages.overdueDragBlocked,
       draggingTaskId,

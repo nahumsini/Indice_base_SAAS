@@ -1,4 +1,4 @@
-import type { Product } from '../../Productos/types/product.types';
+import type { Product } from '../../shared/commercial/products';
 import { QUICK_PRODUCTS_LIMIT } from '../constants/sale.constants';
 
 export interface StockSignals {
@@ -52,4 +52,3 @@ export function getProductStockState(product?: Product) {
     isOutOfStock,
   };
 }
-

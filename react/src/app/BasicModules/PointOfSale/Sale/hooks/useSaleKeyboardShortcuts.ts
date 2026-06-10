@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from 'react';
-import type { Product } from '../../Productos/types/product.types';
+import type { Product } from '../../shared/commercial/products';
 import type { PaymentMethod } from '../types/sale.types';
 
 interface UseSaleKeyboardShortcutsOptions {
@@ -78,4 +78,3 @@ export function useSaleKeyboardShortcuts({
     onClearCart,
   ]);
 }
-

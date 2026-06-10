@@ -1,0 +1,43 @@
+import type { CreditRule } from '../types';
+
+export const creditRules: CreditRule[] = [
+  {
+    id: 'credit-001',
+    customerGroup: 'Frequent retail',
+    creditLimit: 10000,
+    paymentTermDays: 15,
+    lateInterestRate: 3.5,
+    penaltyFee: 250,
+    gracePeriodDays: 3,
+    blockWhenOverdue: true,
+    riskLevel: 'low',
+    status: 'active',
+    notes: 'Regla base para clientes frecuentes.',
+  },
+  {
+    id: 'credit-002',
+    customerId: '3',
+    creditLimit: 50000,
+    paymentTermDays: 30,
+    lateInterestRate: 2.5,
+    penaltyFee: 500,
+    gracePeriodDays: 5,
+    blockWhenOverdue: true,
+    riskLevel: 'medium',
+    status: 'active',
+    notes: 'Cuenta corporativa con autorizacion comercial.',
+  },
+  {
+    id: 'credit-003',
+    customerId: '8',
+    creditLimit: 100000,
+    paymentTermDays: 15,
+    lateInterestRate: 4,
+    penaltyFee: 750,
+    gracePeriodDays: 2,
+    blockWhenOverdue: true,
+    riskLevel: 'high',
+    status: 'suspended',
+    notes: 'Bloqueado hasta regularizar saldo vencido.',
+  },
+];

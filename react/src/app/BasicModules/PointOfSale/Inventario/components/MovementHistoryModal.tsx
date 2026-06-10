@@ -1,6 +1,6 @@
 import { X, TrendingUp, TrendingDown, Edit, ShoppingCart, RotateCcw, Download } from 'lucide-react';
-import { Product } from '../../Productos/types/product.types';
-import { InventoryMovement, MovementType } from '../types/inventory.types';
+import type { Product } from '../../shared/commercial/products';
+import type { InventoryMovement, MovementType } from '../../shared/commercial/inventory';
 
 interface MovementHistoryModalProps {
   isOpen: boolean;

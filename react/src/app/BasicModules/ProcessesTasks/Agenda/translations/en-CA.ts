@@ -151,7 +151,7 @@ export const enCA = {
       pending: { label: 'Pending', description: 'Not started yet' },
       in_progress: { label: 'In progress', description: 'Active work' },
       paused: { label: 'Paused', description: 'Temporarily stopped' },
-      completed: { label: 'Pending audit', description: 'Closed by responsible user' },
+      completed: { label: 'Completed', description: 'Finished by the responsible user' },
       audited: { label: 'Audited', description: 'Reviewed by manager' },
       cancelled: { label: 'Cancelled', description: 'Outside the active flow' },
     },

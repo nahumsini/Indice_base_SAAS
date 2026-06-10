@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Product } from '../../Productos/types/product.types';
+import type { Product } from '../../shared/commercial/products';
 import type { SmartAlert } from '../components/SmartAlertsStrip';
 import type { Shift } from '../types/shift.types';
 import type { StockSignals } from '../utils/saleCatalog';
@@ -25,10 +25,10 @@ export function useSaleSmartAlerts({
       alerts.push({
         id: 'out-of-stock',
         category: 'Risk',
-        title: 'Product out of stock',
-        description: `${outOfStockProducts[0].name} cannot be sold without override.`,
+        title: 'Producto agotado',
+        description: `${outOfStockProducts[0].name} no puede venderse sin autorizacion.`,
         tone: 'critical',
-        actionLabel: 'Open decision panel',
+        actionLabel: 'Abrir panel',
         onAction: () => onOpenProductPanel(outOfStockProducts[0]),
       });
     }
@@ -37,10 +37,10 @@ export function useSaleSmartAlerts({
       alerts.push({
         id: 'low-stock',
         category: 'Risk',
-        title: 'Critical stock',
-        description: `${lowStockProducts.length} product${lowStockProducts.length === 1 ? '' : 's'} need replenishment.`,
+        title: 'Stock critico',
+        description: `${lowStockProducts.length} producto${lowStockProducts.length === 1 ? '' : 's'} requiere${lowStockProducts.length === 1 ? '' : 'n'} reposicion.`,
         tone: 'warning',
-        actionLabel: 'Open decision panel',
+        actionLabel: 'Abrir panel',
         onAction: () => onOpenProductPanel(lowStockProducts[0]),
       });
     }
@@ -49,10 +49,10 @@ export function useSaleSmartAlerts({
       alerts.push({
         id: 'top-product',
         category: 'Opportunity',
-        title: 'Top seller detected',
-        description: `${topProduct.name} is moving faster than usual.`,
+        title: 'Producto con alta rotacion',
+        description: `${topProduct.name} se esta vendiendo mas rapido de lo habitual.`,
         tone: 'hot',
-        actionLabel: 'Open decision panel',
+        actionLabel: 'Abrir panel',
         onAction: () => onOpenProductPanel(topProduct),
       });
     }
@@ -61,8 +61,8 @@ export function useSaleSmartAlerts({
       alerts.push({
         id: 'sales-trend',
         category: 'Opportunity',
-        title: 'Sales trend up',
-        description: 'Current shift is pacing above the usual morning baseline.',
+        title: 'Ritmo de venta arriba',
+        description: 'El turno avanza por encima de la linea base de la mañana.',
         tone: 'success',
       });
     }
@@ -71,8 +71,8 @@ export function useSaleSmartAlerts({
       alerts.push({
         id: 'suspended-sales',
         category: 'Control',
-        title: 'Open tickets waiting',
-        description: `${suspendedSalesCount} suspended sale${suspendedSalesCount === 1 ? '' : 's'} need follow-up.`,
+        title: 'Tickets pausados',
+        description: `${suspendedSalesCount} venta${suspendedSalesCount === 1 ? '' : 's'} pausada${suspendedSalesCount === 1 ? '' : 's'} requiere${suspendedSalesCount === 1 ? '' : 'n'} seguimiento.`,
         tone: 'info',
       });
     }
@@ -80,4 +80,3 @@ export function useSaleSmartAlerts({
     return alerts.slice(0, 4);
   }, [currentShift, onOpenProductPanel, stockSignals, suspendedSalesCount]);
 }
-

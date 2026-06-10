@@ -1,27 +1,40 @@
 import { useMemo } from 'react';
 import type { AgendaKpiMetrics } from '../components/AgendaKpiStrip';
 import type { AgendaTaskItem } from '../agendaApi';
+import type { AgendaLoadRange } from '../types';
 import {
   clampPercent,
-  isTaskOverdue,
+  getTaskAgendaStatusInRange,
   normalizeWeighting,
 } from '../utils/agendaTaskStatus';
 
-export function useAgendaKpiMetrics(filteredTasks: AgendaTaskItem[]) {
+export function useAgendaKpiMetrics(
+  filteredTasks: AgendaTaskItem[],
+  agendaStatusDate: string,
+  agendaStatusRange: AgendaLoadRange,
+) {
   return useMemo<AgendaKpiMetrics>(() => {
-    const totalCount = filteredTasks.length;
-    const actionableTasks = filteredTasks.filter((task) => task.status !== 'cancelled');
+    const agendaEntries = filteredTasks
+      .map((task) => ({
+        task,
+        status: getTaskAgendaStatusInRange(task, agendaStatusRange, agendaStatusDate),
+      }))
+      .filter((entry) => entry.status != null);
+    const totalCount = agendaEntries.length;
+    const actionableTasks = agendaEntries.map((entry) => entry.task);
     const actionableCount = actionableTasks.length;
-    const overdueCount = filteredTasks.filter(isTaskOverdue).length;
-    const completedTasks = filteredTasks.filter((task) => task.status === 'completed');
-    const completedCount = completedTasks.length;
-    const auditedCount = filteredTasks.filter((task) => task.audited).length;
-    const pendingAuditCount = completedTasks.filter((task) => !task.audited).length;
-    const cancelledCount = filteredTasks.filter((task) => task.status === 'cancelled').length;
-    const openCount = filteredTasks.filter((task) =>
-      ['pending', 'in_progress', 'paused'].includes(task.status),
+    const overdueCount = agendaEntries.filter((entry) => entry.status === 'overdue').length;
+    const completedAgendaCount = agendaEntries.filter((entry) => entry.status === 'completed').length;
+    const auditedCount = agendaEntries.filter((entry) => entry.status === 'audited').length;
+    const completedCount = completedAgendaCount + auditedCount;
+    const pendingAuditCount = completedAgendaCount;
+    const cancelledCount = 0;
+    const openCount = agendaEntries.filter((entry) =>
+      ['pending', 'in_progress', 'paused', 'overdue'].includes(entry.status ?? ''),
     ).length;
-    const activeOnTrackCount = Math.max(0, openCount - overdueCount);
+    const activeOnTrackCount = agendaEntries.filter((entry) =>
+      ['pending', 'in_progress', 'paused'].includes(entry.status ?? ''),
+    ).length;
     const averageCompletion =
       actionableCount > 0
         ? Math.round(
@@ -29,13 +42,13 @@ export function useAgendaKpiMetrics(filteredTasks: AgendaTaskItem[]) {
               actionableCount,
           )
         : 0;
-    const auditedTasksWithWeighting = filteredTasks.filter(
-      (task) => task.audited && typeof task.weighting === 'number',
+    const auditedTasksWithWeighting = agendaEntries.filter(
+      (entry) => entry.status === 'audited' && typeof entry.task.weighting === 'number',
     );
     const averageWeighting =
       auditedTasksWithWeighting.length > 0
         ? Math.round(
-            auditedTasksWithWeighting.reduce((sum, task) => sum + (normalizeWeighting(task.weighting) ?? 0), 0) /
+            auditedTasksWithWeighting.reduce((sum, entry) => sum + (normalizeWeighting(entry.task.weighting) ?? 0), 0) /
               auditedTasksWithWeighting.length,
           )
         : null;
@@ -67,5 +80,5 @@ export function useAgendaKpiMetrics(filteredTasks: AgendaTaskItem[]) {
       productivityScore: clampPercent(productivityScore),
       totalCount,
     };
-  }, [filteredTasks]);
+  }, [agendaStatusDate, agendaStatusRange, filteredTasks]);
 }

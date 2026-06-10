@@ -1,4 +1,4 @@
-import { Clock, User, DollarSign, TrendingUp, TrendingDown, LogOut, RotateCcw } from 'lucide-react';
+import { Building2, Clock, DollarSign, LogOut, Monitor, RotateCcw, Store, TrendingUp, User } from 'lucide-react';
 import { Shift } from '../types/shift.types';
 import { useEffect, useState } from 'react';
 
@@ -39,35 +39,27 @@ export function ShiftBar({ shift, onOpenCashMovement, onCloseShift, onOpenReturn
   if (!shift) return null;
 
   return (
-    <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-4 py-2 flex items-center justify-between shadow-sm">
-      {/* Left: Shift Info */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4 opacity-80" />
-          <span className="font-semibold text-sm">{shift.cashierName}</span>
-        </div>
-
-        <div className="h-4 w-px bg-white/30" />
-
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 opacity-80" />
-          <span className="text-sm opacity-90">{elapsed}</span>
-        </div>
-
-        <div className="h-4 w-px bg-white/30" />
-
-        <div className="flex items-center gap-2">
-          <DollarSign className="w-4 h-4 opacity-80" />
-          <span className="text-sm font-mono">{formatCurrency(shift.expectedCash)}</span>
-        </div>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950 px-4 py-3 text-white shadow-sm">
+      <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        <ShiftMetric icon={Monitor} label="Caja" value={`${shift.cashRegisterCode} · ${shift.cashRegisterName}`} strong />
+        <ShiftMetric icon={Building2} label="Empresa" value={shift.companyName} />
+        <ShiftMetric icon={Building2} label="Unidad" value={shift.businessUnitName} />
+        <ShiftMetric icon={Store} label="Sucursal" value={shift.businessName} />
+        <ShiftMetric icon={User} label="Responsable" value={shift.cashierName} />
+        <ShiftMetric icon={Clock} label="Estado" value={`Abierta · ${elapsed}`} />
+        <ShiftMetric
+          icon={DollarSign}
+          label="Fondo apertura"
+          value={`${formatCurrency(shift.initialCash)} · esperado ${formatCurrency(shift.expectedCash)}`}
+          strong
+        />
       </div>
 
-      {/* Right: Actions */}
       <div className="flex items-center gap-2">
         {onOpenReturn && (
           <button
             onClick={onOpenReturn}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm font-medium"
+            className="flex min-h-9 items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20"
             title="Procesar devolución"
           >
             <RotateCcw className="w-4 h-4" />
@@ -77,7 +69,7 @@ export function ShiftBar({ shift, onOpenCashMovement, onCloseShift, onOpenReturn
 
         <button
           onClick={onOpenCashMovement}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm font-medium"
+          className="flex min-h-9 items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20"
           title="Entradas/Salidas de efectivo"
         >
           <TrendingUp className="w-4 h-4" />
@@ -86,12 +78,36 @@ export function ShiftBar({ shift, onOpenCashMovement, onCloseShift, onOpenReturn
 
         <button
           onClick={onCloseShift}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/80 hover:bg-red-600 rounded-lg transition-colors text-sm font-medium"
+          className="flex min-h-9 items-center gap-1.5 rounded-lg bg-red-500/90 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-red-600"
           title="Cerrar turno"
         >
           <LogOut className="w-4 h-4" />
-          <span className="hidden sm:inline">Cerrar Turno</span>
+          <span className="hidden sm:inline">Cerrar turno</span>
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ShiftMetric({
+  icon: Icon,
+  label,
+  value,
+  strong = false,
+}: {
+  icon: typeof Monitor;
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-md bg-white/10 px-2.5 py-2">
+      <Icon className="h-4 w-4 shrink-0 opacity-80" />
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-normal text-white/55">{label}</p>
+        <p className={`truncate text-xs ${strong ? 'font-bold text-white' : 'font-medium text-white/90'}`}>
+          {value}
+        </p>
       </div>
     </div>
   );

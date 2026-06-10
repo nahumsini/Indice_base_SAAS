@@ -52,9 +52,9 @@ export function useSuspendedSales({
     setCashReceived(0);
     pushActivity({
       type: 'sale',
-      title: 'Sale suspended',
-      description: `${suspendedSale.items.length} lines parked for later recovery`,
-      actor: currentShift?.cashierName ?? 'Cashier',
+      title: 'Venta pausada',
+      description: `${suspendedSale.items.length} linea${suspendedSale.items.length === 1 ? '' : 's'} en espera para recuperacion`,
+      actor: currentShift?.cashierName ?? 'Cajero',
       badge: formatCurrency(suspendedSale.total),
       tone: 'info',
     });
@@ -66,7 +66,7 @@ export function useSuspendedSales({
       return;
     }
 
-    if ((cart.length > 0 || payments.length > 0) && !confirm('Replace the current ticket with this suspended sale?')) {
+    if ((cart.length > 0 || payments.length > 0) && !confirm('¿Reemplazar el ticket actual con esta venta pausada?')) {
       return;
     }
 
@@ -75,9 +75,9 @@ export function useSuspendedSales({
     setSuspendedSales(suspendedSales.filter((sale) => sale.id !== saleId));
     pushActivity({
       type: 'sale',
-      title: 'Suspended sale resumed',
-      description: `${suspendedSale.title} returned to the selling surface`,
-      actor: currentShift?.cashierName ?? 'Cashier',
+      title: 'Venta pausada reanudada',
+      description: `${suspendedSale.title} regreso a la caja`,
+      actor: currentShift?.cashierName ?? 'Cajero',
       badge: formatCurrency(suspendedSale.total),
       tone: 'success',
     });
@@ -94,4 +94,3 @@ export function useSuspendedSales({
     discardSuspendedSale,
   };
 }
-

@@ -1,13 +1,16 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
+import { FailureToast } from '../../components/FailureToast';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useGastosTranslations } from '../../hooks/useGastosTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { mockExpenses } from './data/expenses.mock';
+import { mockProviderRecords } from './data/providerRecords.mock';
+import { budgetLinesService, expensesService, providersService, toFinanceApiErrorMessage } from './services';
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
-import { mockProviderRecords, type ProviderRecord } from './Providers/useProveedoresLogic';
+import type { ProviderRecord } from './Providers/useProveedoresLogic';
 
 const Expenses = lazy(() => import('./Expenses'));
 const Budgets = lazy(() => import('./Budgets'));
@@ -41,6 +44,42 @@ const legacyExpenseTabAliases: Partial<Record<string, TabId>> = {
   cuentas_pago: 'payment_accounts',
 };
 
+const createInitialExpenseState = () => [
+  ...mockExpenses.map(expense => ({
+    ...expense,
+    projected: expense.projected ?? false,
+    type: expense.type ?? 'real',
+  })),
+  ...generateProjectedBudgetEntries({
+    businessUnit: 'Operations',
+    business: 'Restaurante',
+    concept: 'Monthly cleaning supplies budget',
+    description: 'Projected recurring spend for cleaning and hygiene supplies.',
+    duration: 4,
+    frequency: 'monthly',
+    amount: 2750,
+    providerId: 'provider-6',
+    providerName: 'Clean & Shine Services',
+    startDate: new Date(2026, 5, 1),
+    taxes: 450,
+    total: 3200,
+  }, mockExpenses.length),
+  ...generateProjectedBudgetEntries({
+    businessUnit: 'IT',
+    business: 'Hotel',
+    concept: 'Quarterly software renewals budget',
+    description: 'Forecast for SaaS tools and operational subscriptions.',
+    duration: 3,
+    frequency: 'quarterly',
+    amount: 3900,
+    providerId: 'provider-2',
+    providerName: 'Tech Solutions LLC',
+    startDate: new Date(2026, 6, 15),
+    taxes: 600,
+    total: 4500,
+  }, mockExpenses.length + 4),
+];
+
 export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
   const t = useGastosTranslations();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<TabId>(
@@ -49,43 +88,9 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
     legacyExpenseTabAliases,
   );
   const [providers, setProviders] = useState<ProviderRecord[]>(mockProviderRecords);
-  const [expenses, setExpenses] = useState<Expense[]>(() =>
-    [
-      ...mockExpenses.map(expense => ({
-        ...expense,
-        projected: expense.projected ?? false,
-        type: expense.type ?? 'real',
-      })),
-      ...generateProjectedBudgetEntries({
-        businessUnit: 'Operations',
-        business: 'Restaurante',
-        concept: 'Monthly cleaning supplies budget',
-        description: 'Projected recurring spend for cleaning and hygiene supplies.',
-        duration: 4,
-        frequency: 'monthly',
-        amount: 2750,
-        providerId: 'provider-6',
-        providerName: 'Clean & Shine Services',
-        startDate: new Date(2026, 5, 1),
-        taxes: 450,
-        total: 3200,
-      }, mockExpenses.length),
-      ...generateProjectedBudgetEntries({
-        businessUnit: 'IT',
-        business: 'Hotel',
-        concept: 'Quarterly software renewals budget',
-        description: 'Forecast for SaaS tools and operational subscriptions.',
-        duration: 3,
-        frequency: 'quarterly',
-        amount: 3900,
-        providerId: 'provider-2',
-        providerName: 'Tech Solutions LLC',
-        startDate: new Date(2026, 6, 15),
-        taxes: 600,
-        total: 4500,
-      }, mockExpenses.length + 4),
-    ],
-  );
+  const [expenses, setExpenses] = useState<Expense[]>(createInitialExpenseState);
+  const [isFinanceDataLoading, setIsFinanceDataLoading] = useState(false);
+  const [failureToastMessage, setFailureToastMessage] = useState('');
   const tabs = [
     { id: 'expenses' as TabId, label: t.tabs.gastos, emoji: '💰' },
     { id: 'budgets' as TabId, label: t.tabs.presupuestos, emoji: '📋' },
@@ -95,10 +100,62 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
     { id: 'kpis' as TabId, label: t.tabs.kpis, emoji: '📊' },
   ];
 
+  useEffect(() => {
+    let isMounted = true;
+    const fallbackExpenses = createInitialExpenseState();
+
+    const loadFinanceData = async () => {
+      setIsFinanceDataLoading(true);
+      let nextProviders = mockProviderRecords;
+      let nextFailureMessage = '';
+
+      try {
+        nextProviders = await providersService.getProviderRecords();
+      } catch (error) {
+        nextFailureMessage = toFinanceApiErrorMessage(error);
+      }
+
+      const [expenseResult, budgetResult] = await Promise.allSettled([
+        expensesService.getExpenses(nextProviders),
+        budgetLinesService.getBudgetExpenses(),
+      ]);
+
+      if (!isMounted) return;
+
+      const nextRealExpenses = expenseResult.status === 'fulfilled'
+        ? expenseResult.value
+        : fallbackExpenses.filter(expense => expense.type !== 'budget');
+      const nextBudgetExpenses = budgetResult.status === 'fulfilled'
+        ? budgetResult.value
+        : fallbackExpenses.filter(expense => expense.type === 'budget');
+
+      if (expenseResult.status === 'rejected') {
+        nextFailureMessage = toFinanceApiErrorMessage(expenseResult.reason);
+      } else if (budgetResult.status === 'rejected') {
+        nextFailureMessage = toFinanceApiErrorMessage(budgetResult.reason);
+      }
+
+      setProviders(nextProviders);
+      setExpenses([...nextRealExpenses, ...nextBudgetExpenses]);
+      setFailureToastMessage(nextFailureMessage);
+      setIsFinanceDataLoading(false);
+    };
+
+    loadFinanceData().catch((error) => {
+      if (!isMounted) return;
+      setFailureToastMessage(toFinanceApiErrorMessage(error));
+      setIsFinanceDataLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'budgets':
-        return <Budgets expenses={expenses} onExpensesChange={setExpenses} />;
+        return <Budgets expenses={expenses} providers={providers} onExpensesChange={setExpenses} />;
       case 'providers':
         return <Providers providers={providers} onProvidersChange={setProviders} />;
       case 'kpis':
@@ -109,7 +166,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
         return <PaymentAccounts onNavigate={onNavigate} />;
       case 'expenses':
       default:
-        return <Expenses expenses={expenses} onExpensesChange={setExpenses} />;
+        return <Expenses expenses={expenses} providers={providers} onExpensesChange={setExpenses} />;
     }
   };
 
@@ -119,6 +176,16 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
         isVisible={isTabLoading}
         title="Loading expenses tab"
         description="Opening the selected expenses workspace."
+      />
+      <LoadingBarOverlay
+        isVisible={isFinanceDataLoading}
+        title="Loading finance data"
+        description="Connecting Expenses with Finance APIs."
+      />
+      <FailureToast
+        isVisible={Boolean(failureToastMessage)}
+        message={failureToastMessage}
+        onClose={() => setFailureToastMessage('')}
       />
 
       {/* Module Header */}

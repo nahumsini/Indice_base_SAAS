@@ -1,9 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Search, TrendingDown, TrendingUp, Package, AlertTriangle, DollarSign, Activity, History } from 'lucide-react';
-import { Product } from '../Productos/types/product.types';
-import { mockProducts } from '../Productos/data/products.mock';
-import { InventoryMovement, StockStatus } from './types/inventory.types';
-import { mockMovements } from './data/movements.mock';
+import { pointOfSaleCatalogProducts as mockProducts, type Product } from '../shared/commercial/products';
+import {
+  commercialInventoryMovements as mockMovements,
+  getCommercialStockStatus,
+  type InventoryMovement,
+  type StockStatus,
+} from '../shared/commercial/inventory';
 import { AdjustInventoryModal } from './components/AdjustInventoryModal';
 import { MovementHistoryModal } from './components/MovementHistoryModal';
 
@@ -24,13 +27,7 @@ export default function Inventario() {
   }, [products]);
 
   // Get stock status for a product
-  const getStockStatus = (product: Product): StockStatus => {
-    if (!product.useInventory) return 'normal';
-    if (product.currentStock === 0) return 'agotado';
-    if (product.currentStock < product.minStock) return 'bajo';
-    if (product.currentStock >= product.maxStock) return 'exceso';
-    return 'normal';
-  };
+  const getStockStatus = getCommercialStockStatus;
 
   // Filter products
   const filteredProducts = useMemo(() => {
