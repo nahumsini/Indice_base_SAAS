@@ -26,10 +26,11 @@ export const agendaStatusFilterValues: AgendaStatus[] = [
   'audited',
 ];
 
-const agendaPeriodFilterValues: PeriodFilter[] = ['today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
+const agendaPeriodFilterValues: PeriodFilter[] = ['all', 'today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
 export const agendaFocusFilterValues: AgendaFocusFilter[] = ['mine', 'delegated', 'team'];
 const agendaFiltersStorageKey = 'processes-tasks-agenda-filters-v1';
 const agendaTodayLookbackDays = 365;
+const agendaAllRange = { from: '1900-01-01', to: '2999-12-31' };
 
 type StoredAgendaFilters = {
   focus?: AgendaFocusFilter;
@@ -150,6 +151,8 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
   const today = new Date();
 
   switch (period) {
+    case 'all':
+      return agendaAllRange;
     case 'today':
       return {
         from: toDateInputValue(addDays(today, -agendaTodayLookbackDays)),

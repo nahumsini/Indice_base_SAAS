@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import { Input } from '../../../../components/ui/input';
@@ -49,22 +49,30 @@ export function TableActionButton({
 
 export function SortableHead<TColumnId extends string>({
   column,
+  onResizeStart,
   onSort,
+  resizeLabel,
+  resizingColumn,
   sortState,
+  width,
 }: {
   column: ColumnConfig;
+  onResizeStart?: (event: ReactMouseEvent, columnId: TColumnId) => void;
   onSort: (columnId: TColumnId) => void;
+  resizeLabel?: string;
+  resizingColumn?: string | null;
   sortState: {
     columnId: TColumnId;
     direction: SortDirection;
   };
+  width?: number;
 }) {
   const columnId = column.id as TColumnId;
   const isActiveSort = sortState.columnId === columnId;
   const SortIcon = isActiveSort ? (sortState.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
 
   return (
-    <TableHead className="px-5 py-5">
+    <TableHead className="group relative px-5 py-5" style={width ? { width, minWidth: width } : undefined}>
       <button
         type="button"
         className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
@@ -75,6 +83,16 @@ export function SortableHead<TColumnId extends string>({
           className={cn('h-4 w-4 shrink-0', isActiveSort ? 'text-[#9A6B05]' : 'text-slate-400')}
         />
       </button>
+      {onResizeStart ? (
+        <div
+          role="separator"
+          aria-label={resizeLabel}
+          aria-orientation="vertical"
+          onMouseDown={(event) => onResizeStart(event, columnId)}
+          className="absolute bottom-0 right-0 top-0 w-1 cursor-col-resize bg-transparent transition-colors hover:bg-[#F4C84A] group-hover:bg-[#F4C84A]/30"
+          style={{ background: resizingColumn === columnId ? '#F4C84A' : undefined }}
+        />
+      ) : null}
     </TableHead>
   );
 }

@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import {
@@ -19,6 +19,8 @@ import type {
   AgendaTableColumnId,
 } from '../types';
 import { AgendaSortableTableHead, AgendaStaticTableHead } from './AgendaTablePrimitives';
+
+const agendaPageSizeOptions = [20, 50, 100] as const;
 
 interface AgendaTableViewProps {
   agendaColumnWidths: Record<AgendaTableColumnId, number>;
@@ -43,11 +45,6 @@ interface AgendaTableViewProps {
   sortState: AgendaSortState;
   sortedTasks: AgendaTaskItem[];
   visibleAgendaColumns: ColumnConfig[];
-  visibleTaskIds: number[];
-  visibleTaskSelection: {
-    allVisibleSelected: boolean;
-    someVisibleSelected: boolean;
-  };
 }
 
 export function AgendaTableView({
@@ -69,12 +66,42 @@ export function AgendaTableView({
   sortState,
   sortedTasks,
   visibleAgendaColumns,
-  visibleTaskIds,
-  visibleTaskSelection,
 }: AgendaTableViewProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof agendaPageSizeOptions)[number]>(20);
   const primaryMobileColumn = visibleAgendaColumns[0];
   const secondaryMobileColumns = visibleAgendaColumns.slice(1);
   const actionsMobileLabel = fixedAgendaColumns[0]?.label ?? agendaCopy.columns.actions.label;
+  const totalRows = sortedTasks.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
+  const paginatedTasks = useMemo(
+    () => sortedTasks.slice(pageStartIndex, pageEndIndex),
+    [pageEndIndex, pageStartIndex, sortedTasks],
+  );
+  const pageTaskIds = useMemo(() => paginatedTasks.map((task) => task.taskId), [paginatedTasks]);
+  const pageSelection = useMemo(() => {
+    const selectedCount = pageTaskIds.filter((taskId) => rowSelection.isSelected(taskId)).length;
+
+    return {
+      allVisibleSelected: pageTaskIds.length > 0 && selectedCount === pageTaskIds.length,
+      someVisibleSelected: selectedCount > 0 && selectedCount < pageTaskIds.length,
+    };
+  }, [pageTaskIds, rowSelection]);
+  const paginationStart = totalRows === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = totalRows === 0 ? 0 : Math.min(pageEndIndex, totalRows);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize, sortedTasks]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -91,9 +118,9 @@ export function AgendaTableView({
           </div>
         ) : null}
 
-        {!isAgendaViewLoading && sortedTasks.length > 0 ? (
+        {!isAgendaViewLoading && paginatedTasks.length > 0 ? (
           <div className="space-y-3 p-3">
-            {sortedTasks.map((task) => {
+            {paginatedTasks.map((task) => {
               const selected = rowSelection.isSelected(task.taskId);
 
               return (
@@ -164,13 +191,13 @@ export function AgendaTableView({
                 <Checkbox
                   aria-label="Seleccionar tareas visibles"
                   checked={
-                    visibleTaskSelection.allVisibleSelected
+                    pageSelection.allVisibleSelected
                       ? true
-                      : visibleTaskSelection.someVisibleSelected
+                      : pageSelection.someVisibleSelected
                         ? 'indeterminate'
                         : false
                   }
-                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
+                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(pageTaskIds, checked === true)}
                   className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                 />
               </TableHead>
@@ -204,7 +231,7 @@ export function AgendaTableView({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedTasks.map((task) => {
+            {paginatedTasks.map((task) => {
               const selected = rowSelection.isSelected(task.taskId);
 
               return (
@@ -287,6 +314,105 @@ export function AgendaTableView({
           </TableBody>
         </Table>
       </div>
+      {!isAgendaViewLoading && totalRows > 0 ? (
+        <AgendaTablePagination
+          copy={agendaCopy.table}
+          currentPage={safeCurrentPage}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setCurrentPage(1);
+          }}
+          pageEnd={paginationEnd}
+          pageSize={pageSize}
+          pageStart={paginationStart}
+          totalPages={totalPages}
+          totalRows={totalRows}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function AgendaTablePagination({
+  copy,
+  currentPage,
+  onPageChange,
+  onPageSizeChange,
+  pageEnd,
+  pageSize,
+  pageStart,
+  totalPages,
+  totalRows,
+}: {
+  copy: AgendaTranslations['table'];
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: (typeof agendaPageSizeOptions)[number]) => void;
+  pageEnd: number;
+  pageSize: (typeof agendaPageSizeOptions)[number];
+  pageStart: number;
+  totalPages: number;
+  totalRows: number;
+}) {
+  const hasPreviousPage = currentPage > 1;
+  const hasNextPage = currentPage < totalPages;
+
+  return (
+    <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-4 dark:border-slate-700 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+        {copy.showing(pageStart, pageEnd, totalRows)}
+      </p>
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <label className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
+          <span>{copy.rowsPerPage}</span>
+          <select
+            aria-label={copy.rowsPerPage}
+            value={pageSize}
+            onChange={(event) => onPageSizeChange(Number(event.target.value) as (typeof agendaPageSizeOptions)[number])}
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition focus:border-[#F4C84A] focus:ring-2 focus:ring-[#F4C84A]/30 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          >
+            {agendaPageSizeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <PaginationButton disabled={!hasPreviousPage} onClick={() => onPageChange(currentPage - 1)}>
+            {copy.previous}
+          </PaginationButton>
+          <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-extrabold text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+            {currentPage} / {totalPages}
+          </span>
+          <PaginationButton disabled={!hasNextPage} onClick={() => onPageChange(currentPage + 1)}>
+            {copy.next}
+          </PaginationButton>
+          {hasNextPage ? (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage + 1)}
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-[#F4C84A]/50 bg-[#F4C84A] px-4 text-sm font-extrabold text-slate-950 shadow-sm transition hover:bg-[#E5B835]"
+            >
+              {copy.loadMore}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaginationButton({ children, disabled, onClick }: { children: ReactNode; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+    >
+      {children}
+    </button>
   );
 }

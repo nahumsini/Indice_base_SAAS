@@ -45,6 +45,7 @@ export const enCA = {
     status: 'Status',
   },
   periods: {
+    all: 'All',
     today: 'Today',
     tomorrow: 'Tomorrow',
     yesterday: 'Yesterday',
@@ -94,6 +95,7 @@ export const enCA = {
     createdAt: { label: 'Creation date', description: 'Date when the task was registered.' },
     startDate: { label: 'Start date', description: 'Scheduled start date.' },
     dueDate: { label: 'Due date', description: 'Deadline for completion.' },
+    predecessor: { label: 'Predecessor', description: 'Task that should finish before this task.' },
     agendaTime: { label: 'Time', description: 'Scheduled agenda time used to order daily work.' },
     status: { label: 'Status', description: 'Current status, including overdue as a visual status.' },
     creator: { label: 'Creator', description: 'User who created the task.' },
@@ -112,6 +114,11 @@ export const enCA = {
     empty: 'No tasks match the current filters.',
     resizeColumn: 'Adjust width',
     noWeighting: 'No weighting',
+    showing: (start: number, end: number, total: number) => `Showing ${start}-${end} of ${total}`,
+    rowsPerPage: 'View',
+    previous: 'Previous',
+    next: 'Next',
+    loadMore: 'Load more',
   },
   quickAdd: {
     buttonLabel: 'Add quick task',

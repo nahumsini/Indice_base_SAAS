@@ -280,6 +280,8 @@ export function matchesAgendaPeriod(
   referenceDate: string = todayValue,
 ) {
   switch (period) {
+    case 'all':
+      return true;
     case 'today':
       return getTaskAgendaStatus(task, todayValue) != null;
     case 'tomorrow':

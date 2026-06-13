@@ -137,6 +137,15 @@ function dateRangeForPeriod(period: AgendaPeriodFilter, customFrom: string, cust
   const today = new Date();
   const todayText = localDateString(today);
 
+  if (period === 'all') {
+    return {
+      from: '1900-01-01',
+      to: '2999-12-31',
+      includeOverdueBacklog: true,
+      overdueOnly: false,
+    };
+  }
+
   if (period === 'today') {
     return {
       from: todayText,

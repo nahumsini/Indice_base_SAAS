@@ -47,6 +47,7 @@ export const zhCA: AgendaTranslations = {
     status: '状态',
   },
   periods: {
+    all: '全部',
     today: '今天',
     tomorrow: '明天',
     yesterday: '昨天',
@@ -96,6 +97,7 @@ export const zhCA: AgendaTranslations = {
     createdAt: { label: '创建日期', description: '任务登记日期。' },
     startDate: { label: '开始日期', description: '计划开始日期。' },
     dueDate: { label: '到期日期', description: '完成截止日期。' },
+    predecessor: { label: '前置任务', description: '应在此任务之前完成的任务。' },
     agendaTime: { label: '时间', description: '用于排序当天工作的计划时间。' },
     status: { label: '状态', description: '当前状态，逾期作为视觉状态显示。' },
     creator: { label: '创建者', description: '创建任务的用户。' },
@@ -114,6 +116,11 @@ export const zhCA: AgendaTranslations = {
     empty: '没有符合当前筛选条件的任务。',
     resizeColumn: '调整宽度',
     noWeighting: '无权重',
+    showing: (start: number, end: number, total: number) => `显示 ${start}-${end} / ${total}`,
+    rowsPerPage: '视图',
+    previous: '上一页',
+    next: '下一页',
+    loadMore: '加载更多',
   },
   quickAdd: {
     buttonLabel: '添加快速任务',
