@@ -47,6 +47,7 @@ export const koCA: AgendaTranslations = {
     status: '상태',
   },
   periods: {
+    all: '전체',
     today: '오늘',
     tomorrow: '내일',
     yesterday: '어제',
@@ -96,6 +97,7 @@ export const koCA: AgendaTranslations = {
     createdAt: { label: '생성일', description: '작업이 등록된 날짜입니다.' },
     startDate: { label: '시작일', description: '예정 시작일입니다.' },
     dueDate: { label: '마감일', description: '완료 기한입니다.' },
+    predecessor: { label: '선행 작업', description: '이 작업 전에 완료되어야 하는 작업입니다.' },
     agendaTime: { label: '시간', description: '일일 작업 순서를 정하는 예정 시간입니다.' },
     status: { label: '상태', description: '현재 상태이며 기한 초과는 시각 상태로 표시됩니다.' },
     creator: { label: '생성자', description: '작업을 만든 사용자입니다.' },
@@ -114,6 +116,11 @@ export const koCA: AgendaTranslations = {
     empty: '현재 필터와 일치하는 작업이 없습니다.',
     resizeColumn: '너비 조정',
     noWeighting: '가중치 없음',
+    showing: (start: number, end: number, total: number) => `${start}-${end} / ${total}`,
+    rowsPerPage: '보기',
+    previous: '이전',
+    next: '다음',
+    loadMore: '더 보기',
   },
   quickAdd: {
     buttonLabel: '빠른 작업 추가',

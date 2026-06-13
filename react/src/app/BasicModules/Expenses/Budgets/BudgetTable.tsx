@@ -15,6 +15,7 @@ import { BudgetCreateModal } from '../components/modals/BudgetCreateModal';
 import { BudgetFiltersPanel } from '../components/filters/BudgetFiltersPanel';
 import { ColumnConfigurationModal } from '../components/table/ColumnConfigurationModal';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
+import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
 import { buildBudgetLineDraft, buildBudgetMasterDraft, createBudgetDraftStateFromExpense, createInitialBudgetDraftState } from './budgetDraftState';
 import { generateProjectedBudgetEntries, getBudgetScheduleDates } from './budgetUtils';
 import { BudgetSummaryBar } from './components/BudgetSummaryBar';
@@ -30,6 +31,7 @@ interface BudgetTableProps {
 }
 
 export default function BudgetTable({ columns, expenses, onExpensesChange, providers: providerRecords }: BudgetTableProps) {
+  const t = useFinanceTranslations();
   const [activeAccountingAccountOptions, setActiveAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
   const [attachmentsByExpenseId, setAttachmentsByExpenseId] = useState<Record<string, string[]>>({});
   const [attachmentsExpense, setAttachmentsExpense] = useState<Expense | null>(null);
@@ -98,14 +100,14 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       })
       .catch(error => {
         if (isMounted) {
-          setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudieron cargar las cuentas contables activas.'));
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.accountLoadFailed));
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t.expenses.messages.accountLoadFailed]);
 
   const unitOptions = useMemo(() => (
     referenceUnitOptions.length > 0
@@ -117,8 +119,8 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       ? referenceBusinessOptions
       : Array.from(new Set(expenses.map(expense => expense.business))).map(value => ({ value, label: value }))
   ), [expenses, referenceBusinessOptions]);
-  const businessUnitFilterOptions = useMemo(() => [{ value: 'all', label: 'Todas' }, ...unitOptions], [unitOptions]);
-  const businessFilterOptions = useMemo(() => [{ value: 'all', label: 'Todos' }, ...businessOptions], [businessOptions]);
+  const businessUnitFilterOptions = useMemo(() => [{ value: 'all', label: t.common.all }, ...unitOptions], [t.common.all, unitOptions]);
+  const businessFilterOptions = useMemo(() => [{ value: 'all', label: t.common.all }, ...businessOptions], [businessOptions, t.common.all]);
   const fallbackAccountingAccountOptions = useMemo<FinanceReferenceOption[]>(() => {
     const accounts = new Set<string>();
 
@@ -150,11 +152,11 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
     });
 
     return [
-      { value: 'all', label: 'Todas' },
+      { value: 'all', label: t.common.all },
       ...Array.from(accounts).sort((first, second) => first.localeCompare(second)).map(account => ({ value: account, label: account })),
-      ...(hasMissingAccount ? [{ value: MISSING_ACCOUNTING_ACCOUNT_FILTER, label: 'Sin cuenta contable' }] : []),
+      ...(hasMissingAccount ? [{ value: MISSING_ACCOUNTING_ACCOUNT_FILTER, label: t.budgets.columns.accountingAccount.label }] : []),
     ];
-  }, [expenses]);
+  }, [expenses, t.budgets.columns.accountingAccount.label, t.common.all]);
 
   const getExpenseAttachments = (expense: Expense) => {
     return attachmentsByExpenseId[expense.id] ?? expense.attachments ?? [];
@@ -189,6 +191,24 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
     setDraft(current => ({ ...current, ...updates }));
   };
 
+  const revealCreatedBudgetEntries = (entries: Expense[]) => {
+    const scheduledDates = entries
+      .map(entry => entry.dueDate)
+      .filter(date => !Number.isNaN(date.getTime()))
+      .sort((left, right) => left.getTime() - right.getTime());
+
+    if (scheduledDates.length === 0) return;
+
+    setFutureFilter('custom');
+    setCustomStartDate(formatDateInputValue(scheduledDates[0]));
+    setCustomEndDate(formatDateInputValue(scheduledDates[scheduledDates.length - 1]));
+    setSearchTerm('');
+    setBusinessUnitFilter('all');
+    setBusinessFilter('all');
+    setProviderFilter('all');
+    setAccountingAccountFilter('all');
+  };
+
   const openEditBudgetExpense = (expense: Expense) => {
     setDraft(createBudgetDraftStateFromExpense(expense));
     setEditingBudgetExpense(expense);
@@ -215,16 +235,17 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
         .filter((entry): entry is (typeof localBudgetEntries)[number] => Boolean(entry));
 
       onExpensesChange(currentExpenses => [...savedEntries, ...failedEntries, ...currentExpenses]);
+      revealCreatedBudgetEntries([...savedEntries, ...failedEntries]);
 
       if (failedEntries.length > 0) {
-        setFailureToastMessage('No se pudieron guardar todas las órdenes presupuestadas en Finance. Se conservaron localmente.');
+        setFailureToastMessage(t.budgets.messages.partialSaveFailed);
       } else {
-        setSuccessToastMessage(`Presupuesto creado con ${savedEntries.length} órdenes presupuestadas.`);
+        setSuccessToastMessage(t.budgets.messages.created(savedEntries.length));
       }
       setDraft(createInitialBudgetDraftState());
       setIsCreateModalOpen(false);
     } catch (error) {
-      setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo crear el presupuesto en Finance.'));
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.createFailed));
     }
   };
 
@@ -273,7 +294,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       expense.id === editingBudgetExpense.id ? nextExpense : expense
     )));
     persistBudgetExpense(nextExpense);
-    setSuccessToastMessage('Presupuesto actualizado.');
+    setSuccessToastMessage(t.budgets.messages.updated);
     closeBudgetModal();
   };
 
@@ -288,10 +309,10 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
           )));
         })
         .catch(error => {
-          setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo actualizar la línea de presupuesto en Finance.'));
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.lineSaveFailed));
         });
     }, 700);
-  }, [onExpensesChange]);
+  }, [onExpensesChange, t.budgets.messages.lineSaveFailed]);
 
   const deleteBudgetExpense = (expenseId: string) => {
     const expense = expenses.find(item => item.id === expenseId);
@@ -299,10 +320,10 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
     if (!expense || !expense.id.startsWith('budget-line-')) return;
 
     budgetLinesService.deleteBudgetLine(expenseId)
-      .then(() => setSuccessToastMessage('Línea de presupuesto eliminada de Finance.'))
+      .then(() => setSuccessToastMessage(t.budgets.messages.deleted))
       .catch(error => {
         onExpensesChange(currentExpenses => [expense, ...currentExpenses]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo eliminar la línea de presupuesto en Finance.'));
+        setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.deleteFailed));
       });
   };
 
@@ -339,7 +360,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
 
   return (
     <div className="space-y-6">
-      <LoadingBarOverlay isVisible={isLoadingBudgets} title="Cargando presupuestos" description="Conectando líneas presupuestales con Finance." />
+      <LoadingBarOverlay isVisible={isLoadingBudgets} title={t.budgets.loadingTitle} description={t.budgets.loadingDescription} />
       <BudgetTableHeader onConfigureColumns={() => setIsColumnModalOpen(true)} onCreate={openCreateModal} />
 
       <BudgetFiltersPanel
@@ -383,10 +404,10 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       )}
 
       <ExpenseTable
-        actionVisibility={{ showAudit: false, showMarkPaid: false }}
+        actionVisibility={{ showAudit: false, showMarkPaid: false, showRecordPayment: false }}
         columns={tableColumns}
-        emptyTitle="No hay presupuestos para el rango seleccionado"
-        emptyMessage="Agrega un gasto al presupuesto o cambia el filtro futuro."
+        emptyTitle={t.budgets.messages.emptyTitle}
+        emptyMessage={t.budgets.messages.emptyMessage}
         expenses={filteredBudgetExpenses}
         getAttachments={getExpenseAttachments}
         onDeleteExpense={deleteBudgetExpense}
@@ -403,7 +424,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       {isColumnModalOpen && (
         <ColumnConfigurationModal
           columns={tableColumns}
-          description="Personaliza la tabla de presupuestos."
+          description={t.budgets.headerSubtitle}
           onApply={() => setIsColumnModalOpen(false)}
           onClose={() => setIsColumnModalOpen(false)}
           onDragEnd={handleColumnDragEnd}
@@ -476,4 +497,11 @@ function areColumnConfigsEqual(leftColumns: ColumnConfig[], rightColumns: Column
 
 function toDateFromInput(value: string) {
   return value ? new Date(`${value}T00:00:00`) : new Date('');
+}
+
+function formatDateInputValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

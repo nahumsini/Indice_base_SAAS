@@ -8,6 +8,7 @@ import {
 import type { ProviderColumnKey } from '../providerTableConfig';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { getProviderStatusClass, getProviderStatusLabel } from '../providerTableUtils';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import { EditableSelect, ReadonlyPill } from './ProviderInlineControls';
 import { ProviderRowActions } from './ProviderRowActions';
 
@@ -46,23 +47,35 @@ export function EditableProviderRow({
   userOptions,
   visibleColumns,
 }: EditableProviderRowProps) {
+  const t = useFinanceTranslations();
   const startEditing = () => onEditProvider(provider.id);
   const canShow = (column: ProviderColumnKey) => visibleColumns.includes(column);
+  const typeOptions = providerTypeOptions.map(option => ({
+    ...option,
+    label: t.providers.types[option.value] ?? option.label,
+  }));
+  const statusOptions = providerStatusOptions.map(option => ({
+    ...option,
+    label: option.value === 'active' ? t.common.active : t.common.inactive,
+  }));
+  const statusLabel = provider.status === 'active'
+    ? t.common.active
+    : provider.status === 'inactive' ? t.common.inactive : getProviderStatusLabel(provider.status);
 
   return (
     <tr className={`group relative transition-colors ${isEditing ? 'bg-slate-50/80 ring-1 ring-inset ring-slate-200 dark:bg-slate-800/45 dark:ring-slate-700' : 'hover:bg-slate-50 dark:hover:bg-slate-700/35'} ${!isEditing && provider.status === 'inactive' ? 'bg-slate-50/70 dark:bg-slate-900/20' : ''}`}>
       {canShow('folio') ? <td className="px-5 py-5 whitespace-nowrap text-sm text-slate-900 dark:text-slate-100"><span className="font-mono font-medium">{provider.folio}</span></td> : null}
       {canShow('name') ? <ReadonlyTextCell field="name" provider={provider} columnWidths={columnWidths} /> : null}
       {canShow('company') ? <ReadonlyTextCell field="company" provider={provider} columnWidths={columnWidths} /> : null}
-      {canShow('type') ? <SelectCell field="type" label="Tipo de proveedor" options={providerTypeOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
-      {canShow('businessUnit') ? <SelectCell field="businessUnit" label="Unidad" options={unitOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
-      {canShow('business') ? <SelectCell field="business" label="Negocio" options={businessOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
+      {canShow('type') ? <SelectCell field="type" label={t.providers.filters.type} options={typeOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
+      {canShow('businessUnit') ? <SelectCell field="businessUnit" label={t.filters.unit} options={unitOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
+      {canShow('business') ? <SelectCell field="business" label={t.filters.business} options={businessOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
       {(['contactName', 'email', 'phone', 'taxId', 'address'] as const).map(field => (
         canShow(field) ? <ReadonlyTextCell key={field} field={field} provider={provider} columnWidths={columnWidths} /> : null
       ))}
-      {canShow('accountingAccount') ? <SelectCell field="accountingAccount" label="Cuenta contable" options={accountingAccountOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
-      {canShow('status') ? <StatusCell provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
-      {canShow('attachments') ? <AttachmentsCell provider={provider} columnWidths={columnWidths} onOpenAttachments={onOpenAttachments} /> : null}
+      {canShow('accountingAccount') ? <SelectCell field="accountingAccount" label={t.providers.columns.accountingAccount.label} options={accountingAccountOptions} provider={provider} columnWidths={columnWidths} isEditing={isEditing} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
+      {canShow('status') ? <StatusCell label={t.filters.status} provider={provider} columnWidths={columnWidths} isEditing={isEditing} statusLabel={statusLabel} statusOptions={statusOptions} onStartEdit={startEditing} onUpdateProvider={onUpdateProvider} /> : null}
+      {canShow('attachments') ? <AttachmentsCell addLabel={t.common.addFiles} provider={provider} columnWidths={columnWidths} viewLabel={t.common.viewAttachedFiles} onOpenAttachments={onOpenAttachments} /> : null}
       {canShow('authorizer') ? <ReadonlyMappedCell field="authorizer" provider={provider} columnWidths={columnWidths} options={userOptions} /> : null}
       {canShow('performer') ? <ReadonlyMappedCell field="performer" provider={provider} columnWidths={columnWidths} options={userOptions} /> : null}
       <td className="px-5 py-5 whitespace-nowrap text-right" style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>
@@ -143,27 +156,30 @@ function ReadonlyValue({ children }: { children: ReactNode }) {
   );
 }
 
-function StatusCell({ columnWidths, isEditing, onStartEdit, onUpdateProvider, provider }: {
+function StatusCell({ columnWidths, isEditing, label, onStartEdit, onUpdateProvider, provider, statusLabel, statusOptions }: {
   columnWidths: Record<string, number>;
   isEditing: boolean;
+  label: string;
   onStartEdit: () => void;
   onUpdateProvider: (providerId: string, updates: Partial<ProviderRecord>) => void;
   provider: ProviderRecord;
+  statusLabel: string;
+  statusOptions: typeof providerStatusOptions;
 }) {
   return (
     <td className="px-5 py-5" style={{ width: columnWidths.status, minWidth: columnWidths.status }}>
-      {isEditing ? <EditableSelect ariaLabel={`Estado ${provider.folio}`} value={provider.status} options={providerStatusOptions} onChange={(status) => onUpdateProvider(provider.id, { status })} /> : (
-        <button type="button" onClick={onStartEdit} className={`w-full rounded-full border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${getProviderStatusClass(provider.status)}`}>{getProviderStatusLabel(provider.status)}</button>
+      {isEditing ? <EditableSelect ariaLabel={`${label} ${provider.folio}`} value={provider.status} options={statusOptions} onChange={(status) => onUpdateProvider(provider.id, { status })} /> : (
+        <button type="button" onClick={onStartEdit} className={`w-full rounded-full border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${getProviderStatusClass(provider.status)}`}>{statusLabel}</button>
       )}
     </td>
   );
 }
 
-function AttachmentsCell({ columnWidths, onOpenAttachments, provider }: { columnWidths: Record<string, number>; onOpenAttachments: (provider: ProviderRecord) => void; provider: ProviderRecord }) {
+function AttachmentsCell({ addLabel, columnWidths, onOpenAttachments, provider, viewLabel }: { addLabel: string; columnWidths: Record<string, number>; onOpenAttachments: (provider: ProviderRecord) => void; provider: ProviderRecord; viewLabel: string }) {
   const hasAttachments = provider.attachments.length > 0;
   return (
     <td className="px-5 py-5 whitespace-nowrap text-center" style={{ width: columnWidths.attachments, minWidth: columnWidths.attachments }}>
-      <button type="button" onClick={() => onOpenAttachments(provider)} className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${hasAttachments ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/60 dark:bg-green-950/60 dark:text-green-300 dark:hover:bg-green-900/60' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-800'}`} title={hasAttachments ? 'Ver archivos adjuntos' : 'Agregar archivos'} aria-label={hasAttachments ? 'Ver archivos adjuntos' : 'Agregar archivos'}>
+      <button type="button" onClick={() => onOpenAttachments(provider)} className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${hasAttachments ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/60 dark:bg-green-950/60 dark:text-green-300 dark:hover:bg-green-900/60' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-800'}`} title={hasAttachments ? viewLabel : addLabel} aria-label={hasAttachments ? viewLabel : addLabel}>
         <Paperclip className="h-4 w-4" />
         <span>{provider.attachments.length}</span>
       </button>

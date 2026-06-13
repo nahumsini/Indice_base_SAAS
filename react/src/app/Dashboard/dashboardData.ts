@@ -25,6 +25,9 @@ export interface DashboardKpiModuleLabels {
 export const defaultDashboardKpiIds = [
   'activeEmployees',
   'pendingTasks',
+  'monthlyExpenses',
+  'pendingExpenses',
+  'overdueExpenses',
   'completedTasks',
   'taskCompletionRate',
   'overdueTasks',
@@ -32,6 +35,12 @@ export const defaultDashboardKpiIds = [
 ] as const;
 
 const liveDashboardKpiIds = new Set<string>([
+  'monthlyExpenses',
+  'pendingExpenses',
+  'overdueExpenses',
+  'budgetAvailable',
+  'budgetUtilization',
+  'cashDue7Days',
   'activeEmployees',
   'newHires',
   'absenteeismRate',
@@ -54,6 +63,10 @@ export function buildDashboardKpiDataMap(copy: MainDashboardTranslations): Recor
     monthlyExpenses: { title: kpis.monthlyExpenses.title, value: '$15,320', change: kpis.monthlyExpenses.change, isPositive: false },
     expensesByCategory: { title: kpis.expensesByCategory.title, value: '$8,450', change: kpis.expensesByCategory.change, isPositive: false },
     pendingExpenses: { title: kpis.pendingExpenses.title, value: '8', change: kpis.pendingExpenses.change, isPositive: false },
+    overdueExpenses: { title: kpis.overdueExpenses.title, value: '$0', change: kpis.overdueExpenses.change, isPositive: true },
+    budgetAvailable: { title: kpis.budgetAvailable.title, value: '$0', change: kpis.budgetAvailable.change, isPositive: true },
+    budgetUtilization: { title: kpis.budgetUtilization.title, value: '0%', change: kpis.budgetUtilization.change, isPositive: true },
+    cashDue7Days: { title: kpis.cashDue7Days.title, value: '$0', change: kpis.cashDue7Days.change, isPositive: true },
     pettyCashBalance: { title: kpis.pettyCashBalance.title, value: '$2,500', change: kpis.pettyCashBalance.change, isPositive: false },
     pettyCashExpenses: { title: kpis.pettyCashExpenses.title, value: '$1,800', change: kpis.pettyCashExpenses.change, isPositive: false },
     monthlyRevenue: { title: kpis.monthlyRevenue.title, value: '$180,500', change: kpis.monthlyRevenue.change, isPositive: true },
@@ -94,8 +107,12 @@ export function buildDashboardAvailableKpis(
 
   const items: KPIItem[] = [
     { id: 'monthlyExpenses', title: kpis.monthlyExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
-    { id: 'expensesByCategory', title: kpis.expensesByCategory.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
     { id: 'pendingExpenses', title: kpis.pendingExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'overdueExpenses', title: kpis.overdueExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'budgetAvailable', title: kpis.budgetAvailable.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'budgetUtilization', title: kpis.budgetUtilization.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'cashDue7Days', title: kpis.cashDue7Days.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'expensesByCategory', title: kpis.expensesByCategory.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
     { id: 'pettyCashBalance', title: kpis.pettyCashBalance.title, module: modules.pettyCash, moduleEmoji: '💳', moduleColor: 'green', category: 'financial' },
     { id: 'pettyCashExpenses', title: kpis.pettyCashExpenses.title, module: modules.pettyCash, moduleEmoji: '💳', moduleColor: 'green', category: 'financial' },
     { id: 'weeklyRevenue', title: kpis.weeklyRevenue.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },

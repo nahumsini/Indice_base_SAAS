@@ -15,6 +15,7 @@ import {
 import type { Expense, ExpenseStatus, PaymentMethod } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 export type ExpenseFormValues = {
   accountingAccount: string;
@@ -59,6 +60,7 @@ export function ExpenseFormModal({
   preferredCurrency = DEFAULT_FINANCE_CURRENCY,
   onSubmitExpense,
 }: ExpenseFormModalProps) {
+  const t = useFinanceTranslations();
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);
@@ -121,36 +123,36 @@ export function ExpenseFormModal({
               {isEditMode ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
             </span>
             <div>
-              <h3 className="text-xl font-bold text-white">{isEditMode ? 'Editar gasto' : 'Agregar gasto'}</h3>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">Captura rápida del gasto base.</p>
+              <h3 className="text-xl font-bold text-white">{isEditMode ? t.expenses.modal.edit : t.expenses.headerButton}</h3>
+              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{t.expenses.modal.subtitle}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label="Cerrar modal de gasto">
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
-          <StepCard>
-            <FieldGroup title="Gasto base">
-              <TextInput label="Concepto" required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder="Ej. Renta mensual" />
-              <MoneyInput label="Monto" required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
-              <SelectInput label="Moneda" required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
+          <StepCard description={t.expenses.modal.description} title={t.expenses.modal.mainTitle}>
+            <FieldGroup title={t.expenses.modal.groupTitle}>
+              <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
+              <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
+              <SelectInput label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
               <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
               <div className="md:col-span-2 grid gap-3 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4 md:grid-cols-3">
-                <SummaryMetric label="Subtotal" value={formatCurrency(subtotal, draft.budgetCurrencyCode)} />
-                <SummaryMetric label="Impuestos" value={formatCurrency(taxes, draft.budgetCurrencyCode)} />
-                <SummaryMetric label="Total" value={formatCurrency(total, draft.budgetCurrencyCode)} strong />
+                <SummaryMetric label={t.expenses.modal.summarySubtotal} value={formatCurrency(subtotal, draft.budgetCurrencyCode)} />
+                <SummaryMetric label={t.expenses.modal.summaryTaxes} value={formatCurrency(taxes, draft.budgetCurrencyCode)} />
+                <SummaryMetric label={t.expenses.modal.summaryTotal} value={formatCurrency(total, draft.budgetCurrencyCode)} strong />
               </div>
             </FieldGroup>
           </StepCard>
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-[#0b3f1b]">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">Cancelar</button>
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
           <button type="submit" disabled={!canSubmit} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
             <Check className="h-4 w-4" />
-            {isEditMode ? 'Guardar cambios' : 'Crear gasto'}
+            {isEditMode ? t.common.saveChanges : t.expenses.modal.create}
           </button>
         </div>
       </form>
@@ -158,7 +160,7 @@ export function ExpenseFormModal({
   );
 }
 
-function StepCard({ children }: { children: ReactNode }) {
+function StepCard({ children, description, title }: { children: ReactNode; description: string; title: string }) {
   return (
     <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-6 flex items-start gap-3">
@@ -166,8 +168,8 @@ function StepCard({ children }: { children: ReactNode }) {
           <FileText className="h-5 w-5" />
         </span>
         <div>
-          <h3 className="text-base font-bold text-slate-950 dark:text-white">Datos principales</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">Concepto, monto y moneda.</p>
+          <h3 className="text-base font-bold text-slate-950 dark:text-white">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
         </div>
       </div>
       {children}

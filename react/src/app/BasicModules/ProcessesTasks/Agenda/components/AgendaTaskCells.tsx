@@ -99,6 +99,14 @@ export function AgendaTaskCell({
       return <ReadonlyValue muted={!task.startDate}>{task.startDate ? formatDate(task.startDate) : copy.common.noDate}</ReadonlyValue>;
     case 'dueDate':
       return <ReadonlyValue muted={!task.dueDate}>{task.dueDate ? formatDate(task.dueDate) : copy.common.noDate}</ReadonlyValue>;
+    case 'predecessor':
+      return (
+        <ReadonlyValue muted={!task.predecessorTaskFolio && !task.predecessorTaskTitle}>
+          {task.predecessorTaskFolio
+            ? `${task.predecessorTaskFolio}${task.predecessorTaskTitle ? ` · ${task.predecessorTaskTitle}` : ''}`
+            : copy.common.noRecord}
+        </ReadonlyValue>
+      );
     case 'agendaTime':
       return (
         <ReadonlyValue muted={!getTaskScheduleHour(task, todayAgendaValue)}>

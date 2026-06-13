@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
   type FormEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -72,6 +73,7 @@ import {
   createProcessTask,
   deleteProcessTask,
   updateProcessTask,
+  updateProcessTaskDependencies,
   type TaskPayload,
   type TaskPriority,
   type TaskRecord,
@@ -103,6 +105,7 @@ type AuditPendingStatusFilter = 'pending_audit';
 type StatusFilter = 'all' | DisplayTaskStatus | AuditPendingStatusFilter;
 type OptionFilter = 'all' | string;
 type WorkspaceViewMode = 'table' | 'diagram';
+type TaskGanttDragMode = 'move' | 'resize-start' | 'resize-end';
 type ProjectTaskColumnId =
   | 'folio'
   | 'type'
@@ -113,6 +116,7 @@ type ProjectTaskColumnId =
   | 'createdAt'
   | 'startDate'
   | 'dueDate'
+  | 'predecessor'
   | 'status'
   | 'creator'
   | 'responsible'
@@ -125,10 +129,23 @@ type ProjectTaskColumnId =
   | 'auditNotes';
 type ProjectTaskSortDirection = 'asc' | 'desc';
 type ProjectTaskSortValue = string | number | null;
+type ProjectTaskFixedColumnId = 'actions';
+type ProjectTaskTableColumnId = ProjectTaskColumnId | ProjectTaskFixedColumnId;
 
 interface ProjectTaskSortState {
   columnId: ProjectTaskColumnId;
   direction: ProjectTaskSortDirection;
+}
+
+interface TaskGanttDragState {
+  taskId: number;
+  mode: TaskGanttDragMode;
+  originClientX: number;
+  dayWidth: number;
+  originalStart: string;
+  originalEnd: string;
+  previewStart: string;
+  previewEnd: string;
 }
 
 interface ProjectTasksWorkspaceProps {
@@ -169,10 +186,34 @@ const statusClasses: Record<DisplayTaskStatus, string> = {
 
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
+const NO_PREDECESSOR_VALUE = '__no_predecessor__';
 const UNASSIGNED_RESPONSIBLE_VALUE = '__unassigned__';
 const projectTaskColumnsStorageKey = 'processes-tasks-project-task-columns-v1';
 const projectTaskSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
 const selectionColumnWidth = 64;
+const projectTaskDefaultColumnWidths: Record<ProjectTaskTableColumnId, number> = {
+  folio: 140,
+  type: 150,
+  unit: 220,
+  business: 230,
+  title: 240,
+  description: 320,
+  createdAt: 190,
+  startDate: 180,
+  dueDate: 180,
+  predecessor: 250,
+  status: 180,
+  creator: 220,
+  responsible: 260,
+  priority: 160,
+  attachments: 150,
+  project: 220,
+  completion: 200,
+  notes: 280,
+  weighting: 170,
+  auditNotes: 280,
+  actions: 260,
+};
 const prioritySortRank: Record<TaskPriority, number> = {
   high: 3,
   medium: 2,
@@ -201,6 +242,7 @@ function createDefaultProjectTaskColumns(columnCopy: AgendaTranslations['columns
     { id: 'createdAt', label: columnCopy.createdAt.label, visible: false, description: columnCopy.createdAt.description },
     { id: 'startDate', label: columnCopy.startDate.label, visible: false, description: columnCopy.startDate.description },
     { id: 'dueDate', label: columnCopy.dueDate.label, visible: true, description: columnCopy.dueDate.description },
+    { id: 'predecessor', label: columnCopy.predecessor.label, visible: true, description: columnCopy.predecessor.description },
     { id: 'status', label: columnCopy.status.label, visible: true, description: columnCopy.status.description },
     { id: 'creator', label: columnCopy.creator.label, visible: false, description: columnCopy.creator.description },
     { id: 'responsible', label: columnCopy.responsible.label, visible: true, description: columnCopy.responsible.description },
@@ -327,10 +369,85 @@ function addTaskTimelineDays(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
 }
 
+function shiftTaskTimelineValue(value: string, amount: number) {
+  const date = dateFromTaskTimelineValue(value);
+
+  return date ? toDateInputValue(addTaskTimelineDays(date, amount)) : value;
+}
+
 function taskTimelineDaysBetween(start: Date, end: Date) {
   const startAtMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   const endAtMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
   return Math.round((endAtMidnight.getTime() - startAtMidnight.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function compareTaskTimelineValues(left: string, right: string) {
+  const leftDate = dateFromTaskTimelineValue(left);
+  const rightDate = dateFromTaskTimelineValue(right);
+
+  if (!leftDate || !rightDate) {
+    return 0;
+  }
+
+  return taskTimelineDaysBetween(rightDate, leftDate);
+}
+
+function getTaskGanttDates(task: AgendaTaskItem) {
+  const startDate = dateFromTaskTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate);
+  const endDate = dateFromTaskTimelineValue(task.dueDate ?? task.agendaDate ?? task.startDate ?? task.createdAt);
+
+  if (!startDate && !endDate) {
+    return null;
+  }
+
+  const rawStart = startDate ?? endDate!;
+  const rawEnd = endDate ?? startDate!;
+  const normalizedStart = rawStart <= rawEnd ? rawStart : rawEnd;
+  const normalizedEnd = rawEnd >= rawStart ? rawEnd : rawStart;
+
+  return {
+    start: toDateInputValue(normalizedStart),
+    end: toDateInputValue(normalizedEnd),
+  };
+}
+
+function getTaskGanttPreview(dragState: TaskGanttDragState, dayDelta: number) {
+  let previewStart = dragState.originalStart;
+  let previewEnd = dragState.originalEnd;
+
+  if (dragState.mode === 'move') {
+    previewStart = shiftTaskTimelineValue(dragState.originalStart, dayDelta);
+    previewEnd = shiftTaskTimelineValue(dragState.originalEnd, dayDelta);
+  }
+
+  if (dragState.mode === 'resize-start') {
+    previewStart = shiftTaskTimelineValue(dragState.originalStart, dayDelta);
+
+    if (compareTaskTimelineValues(previewStart, dragState.originalEnd) > 0) {
+      previewStart = dragState.originalEnd;
+    }
+  }
+
+  if (dragState.mode === 'resize-end') {
+    previewEnd = shiftTaskTimelineValue(dragState.originalEnd, dayDelta);
+
+    if (compareTaskTimelineValues(previewEnd, dragState.originalStart) < 0) {
+      previewEnd = dragState.originalStart;
+    }
+  }
+
+  return { previewStart, previewEnd };
+}
+
+function getTaskGanttDuration(start: string, end: string) {
+  const startDate = dateFromTaskTimelineValue(start);
+  const endDate = dateFromTaskTimelineValue(end);
+
+  if (!startDate || !endDate) {
+    return 1;
+  }
+
+  return Math.max(1, taskTimelineDaysBetween(startDate, endDate) + 1);
 }
 
 function buildTaskTimelineDays(start: Date, end: Date, maxDays = 31) {
@@ -399,6 +516,8 @@ function getSortValue(task: AgendaTaskItem, columnId: ProjectTaskColumnId, copy:
       return sortableDateValue(task.startDate);
     case 'dueDate':
       return sortableDateValue(task.dueDate);
+    case 'predecessor':
+      return task.predecessorTaskFolio ?? task.predecessorTaskTitle ?? '';
     case 'status':
       return copy.statuses[getTaskDisplayStatus(task)];
     case 'creator':
@@ -636,6 +755,12 @@ function normalizeProjectTask(task: TaskRecord, project: ProjectRecord): AgendaT
     creator: task.creator,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
+    predecessorDependencyId: task.predecessorDependencyId,
+    predecessorTaskId: task.predecessorTaskId,
+    predecessorTaskFolio: task.predecessorTaskFolio,
+    predecessorTaskTitle: task.predecessorTaskTitle,
+    dependencyType: task.dependencyType,
+    dependencyLagDays: task.dependencyLagDays,
     attachments: task.attachments,
     isOverdue: isPastDate(task.dueDate) && task.status !== 'completed' && task.status !== 'cancelled',
   };
@@ -705,13 +830,18 @@ export function ProjectTasksWorkspace({
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [workspaceViewMode, setWorkspaceViewMode] = useState<WorkspaceViewMode>('table');
+  const [workspaceViewMode, setWorkspaceViewMode] = useState<WorkspaceViewMode>('diagram');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [responsibleFilter, setResponsibleFilter] = useState<OptionFilter>('all');
   const [columns, setColumns] = useState<ColumnConfig[]>(() => getInitialColumns(defaultColumns));
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [sortState, setSortState] = useState<ProjectTaskSortState>({ columnId: 'dueDate', direction: 'asc' });
+  const [columnWidths, setColumnWidths] = useState<Record<ProjectTaskTableColumnId, number>>(projectTaskDefaultColumnWidths);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizingColumn, setResizingColumn] = useState<ProjectTaskTableColumnId | null>(null);
+  const [taskGanttDrag, setTaskGanttDrag] = useState<TaskGanttDragState | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [taskDialogMode, setTaskDialogMode] = useState<'create' | 'edit'>('create');
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
@@ -806,6 +936,30 @@ export function ProjectTasksWorkspace({
     );
   }, [defaultColumns]);
 
+  useEffect(() => {
+    if (!resizingColumn) {
+      return undefined;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const diff = event.clientX - resizeStartX;
+      setColumnWidths((currentWidths) => ({
+        ...currentWidths,
+        [resizingColumn]: Math.max(96, resizeStartWidth + diff),
+      }));
+    };
+
+    const handleMouseUp = () => setResizingColumn(null);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizeStartWidth, resizeStartX, resizingColumn]);
+
   const currentUserCollaborator = useMemo(
     () =>
       currentUserId == null
@@ -894,6 +1048,13 @@ export function ProjectTasksWorkspace({
       ),
     [tasks],
   );
+  const predecessorOptions = useMemo(
+    () =>
+      tasks
+        .slice()
+        .sort((left, right) => projectTaskSortCollator.compare(left.folio || left.title, right.folio || right.title)),
+    [tasks],
+  );
 
   useEffect(() => {
     if (responsibleFilter !== 'all' && !responsibleOptions.includes(responsibleFilter)) {
@@ -945,12 +1106,12 @@ export function ProjectTasksWorkspace({
     const latestDate = taskDates.length > 0
       ? new Date(Math.max(...taskDates.map((date) => date.getTime())))
       : addTaskTimelineDays(fallbackStart, 13);
-    const timelineEnd = taskTimelineDaysBetween(earliestDate, latestDate) > 30
-      ? addTaskTimelineDays(earliestDate, 30)
+    const timelineEnd = taskTimelineDaysBetween(earliestDate, latestDate) > 89
+      ? addTaskTimelineDays(earliestDate, 89)
       : latestDate;
 
     return {
-      days: buildTaskTimelineDays(earliestDate, timelineEnd),
+      days: buildTaskTimelineDays(earliestDate, timelineEnd, 90),
       start: earliestDate,
       end: timelineEnd,
     };
@@ -1009,7 +1170,19 @@ export function ProjectTasksWorkspace({
 
   const visibleColumns = useMemo(() => columns.filter((column) => column.visible), [columns]);
   const tableColumnCount = visibleColumns.length + fixedColumns.length + 1;
-  const tableMinWidth = Math.max(1280, selectionColumnWidth + visibleColumns.length * 180 + 360);
+  const tableMinWidth = useMemo(
+    () =>
+      Math.max(
+        1280,
+        selectionColumnWidth +
+          columnWidths.actions +
+          visibleColumns.reduce(
+            (totalWidth, column) => totalWidth + columnWidths[column.id as ProjectTaskColumnId],
+            0,
+          ),
+      ),
+    [columnWidths, visibleColumns],
+  );
 
   const reloadEverything = async () => {
     await loadTasks();
@@ -1040,6 +1213,46 @@ export function ProjectTasksWorkspace({
   };
 
   const isTaskPending = (taskId: number) => pendingTaskIds.includes(taskId);
+
+  const handleColumnResizeStart = (event: ReactMouseEvent, columnId: ProjectTaskTableColumnId) => {
+    event.preventDefault();
+    setResizingColumn(columnId);
+    setResizeStartX(event.clientX);
+    setResizeStartWidth(columnWidths[columnId]);
+  };
+
+  const handleTaskGanttDragStart = (
+    event: ReactMouseEvent<HTMLElement>,
+    task: AgendaTaskItem,
+    mode: TaskGanttDragMode,
+    dayCount: number,
+  ) => {
+    if (isTaskPending(task.taskId)) {
+      return;
+    }
+
+    const ganttDates = getTaskGanttDates(task);
+
+    if (!ganttDates) {
+      return;
+    }
+
+    const trackElement = event.currentTarget.closest('[data-task-gantt-track="true"]') as HTMLElement | null;
+    const trackWidth = trackElement?.getBoundingClientRect().width ?? dayCount * 56;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setTaskGanttDrag({
+      taskId: task.taskId,
+      mode,
+      originClientX: event.clientX,
+      dayWidth: Math.max(24, trackWidth / Math.max(dayCount, 1)),
+      originalStart: ganttDates.start,
+      originalEnd: ganttDates.end,
+      previewStart: ganttDates.start,
+      previewEnd: ganttDates.end,
+    });
+  };
 
   const handleSort = (columnId: ProjectTaskColumnId) => {
     setSortState((currentState) =>
@@ -1106,6 +1319,44 @@ export function ProjectTasksWorkspace({
     }
   };
 
+  const buildValidatedTaskPayloadFromRecord = (
+    task: AgendaTaskItem,
+    patch: Partial<TaskPayload> = {},
+  ): TaskPayload => {
+    const payload = buildTaskPayloadFromRecord(task, patch);
+    const unitExists = payload.unitId == null || unitOptions.some((unit) => unit.id === payload.unitId);
+    const selectedBusiness =
+      payload.businessId == null
+        ? null
+        : businessOptions.find((business) => business.id === payload.businessId) ?? null;
+    const selectedCollaborator =
+      payload.assignedUserCompanyId == null
+        ? null
+        : collaboratorOptions.find(
+            (collaborator) => collaborator.userCompanyId === payload.assignedUserCompanyId,
+          ) ?? null;
+
+    let unitId = unitExists ? payload.unitId : null;
+    let businessId = selectedBusiness ? payload.businessId : null;
+
+    if (selectedBusiness?.unitId != null) {
+      const businessUnitExists = unitOptions.some((unit) => unit.id === selectedBusiness.unitId);
+      unitId = businessUnitExists ? selectedBusiness.unitId : unitId;
+    }
+
+    if (selectedBusiness && unitId != null && !businessMatchesUnit(selectedBusiness, unitId)) {
+      businessId = null;
+    }
+
+    return {
+      ...payload,
+      unitId,
+      businessId,
+      assignedUserCompanyId: payload.assignedUserCompanyId == null || selectedCollaborator ? payload.assignedUserCompanyId : null,
+      assignedName: payload.assignedUserCompanyId == null || selectedCollaborator ? payload.assignedName : null,
+    };
+  };
+
   const persistTaskChange = async (task: AgendaTaskItem, patch: Partial<TaskPayload>) => {
     const nextTitle = 'title' in patch ? patch.title : task.title;
     if (!nextTitle?.trim()) {
@@ -1117,7 +1368,7 @@ export function ProjectTasksWorkspace({
     setTasksError(null);
 
     try {
-      await updateProcessTask(task.taskId, buildTaskPayloadFromRecord(task, patch));
+      await updateProcessTask(task.taskId, buildValidatedTaskPayloadFromRecord(task, patch));
       await reloadEverything();
     } catch (error) {
       setTasksError(getErrorMessage(error, copy.messages.updateTask));
@@ -1125,6 +1376,108 @@ export function ProjectTasksWorkspace({
       setTaskPendingState(task.taskId, false);
     }
   };
+
+  const handleTaskPredecessorChange = async (task: AgendaTaskItem, value: string) => {
+    const predecessorTaskId = value === NO_PREDECESSOR_VALUE ? null : Number(value);
+    if (predecessorTaskId != null && (!Number.isFinite(predecessorTaskId) || predecessorTaskId === task.taskId)) {
+      setTasksError(copy.messages.updateTask);
+      return;
+    }
+
+    setTaskPendingState(task.taskId, true);
+    setTasksError(null);
+
+    try {
+      await updateProcessTaskDependencies(task.taskId, {
+        predecessorTaskId,
+        dependencyType: 'finish_to_start',
+        lagDays: 0,
+      });
+      await reloadEverything();
+    } catch (error) {
+      setTasksError(getErrorMessage(error, copy.messages.updateTask));
+    } finally {
+      setTaskPendingState(task.taskId, false);
+    }
+  };
+
+  const handleTaskGanttDateInputChange = (
+    task: AgendaTaskItem,
+    field: 'startDate' | 'dueDate',
+    value: string,
+  ) => {
+    if (!value) {
+      void persistTaskChange(task, { [field]: null });
+      return;
+    }
+
+    const ganttDates = getTaskGanttDates(task) ?? { start: value, end: value };
+    const currentStart = task.startDate ?? ganttDates.start;
+    const currentEnd = task.dueDate ?? ganttDates.end;
+
+    if (field === 'startDate') {
+      void persistTaskChange(task, {
+        startDate: value,
+        dueDate: compareTaskTimelineValues(value, currentEnd) > 0 ? value : currentEnd,
+      });
+      return;
+    }
+
+    void persistTaskChange(task, {
+      startDate: compareTaskTimelineValues(value, currentStart) < 0 ? value : currentStart,
+      dueDate: value,
+    });
+  };
+
+  useEffect(() => {
+    if (!taskGanttDrag) {
+      return undefined;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      event.preventDefault();
+      const dayDelta = Math.round((event.clientX - taskGanttDrag.originClientX) / taskGanttDrag.dayWidth);
+      const preview = getTaskGanttPreview(taskGanttDrag, dayDelta);
+
+      setTaskGanttDrag((currentDrag) =>
+        currentDrag && currentDrag.taskId === taskGanttDrag.taskId
+          ? {
+              ...currentDrag,
+              ...preview,
+            }
+          : currentDrag,
+      );
+    };
+
+    const handleMouseUp = (event: MouseEvent) => {
+      event.preventDefault();
+      const dayDelta = Math.round((event.clientX - taskGanttDrag.originClientX) / taskGanttDrag.dayWidth);
+      const finalPreview = getTaskGanttPreview(taskGanttDrag, dayDelta);
+      const task = tasks.find((currentTask) => currentTask.taskId === taskGanttDrag.taskId);
+      const hasChanged =
+        finalPreview.previewStart !== taskGanttDrag.originalStart ||
+        finalPreview.previewEnd !== taskGanttDrag.originalEnd;
+
+      setTaskGanttDrag(null);
+
+      if (task && hasChanged) {
+        void persistTaskChange(task, {
+          startDate: finalPreview.previewStart,
+          dueDate: finalPreview.previewEnd,
+        });
+      }
+    };
+
+    document.body.classList.add('select-none');
+    window.addEventListener('mousemove', handleMouseMove, true);
+    window.addEventListener('mouseup', handleMouseUp, true);
+
+    return () => {
+      document.body.classList.remove('select-none');
+      window.removeEventListener('mousemove', handleMouseMove, true);
+      window.removeEventListener('mouseup', handleMouseUp, true);
+    };
+  }, [taskGanttDrag, tasks]);
 
   const scopeResponsiblePatch = (
     task: AgendaTaskItem,
@@ -1631,6 +1984,33 @@ export function ProjectTasksWorkspace({
             onChange={(event) => void persistTaskChange(task, { dueDate: event.target.value || null })}
           />
         );
+      case 'predecessor': {
+        const predecessorSelectValue =
+          task.predecessorTaskId != null ? String(task.predecessorTaskId) : NO_PREDECESSOR_VALUE;
+        const availablePredecessors = predecessorOptions.filter((option) => option.taskId !== task.taskId);
+
+        return (
+          <Select
+            value={predecessorSelectValue}
+            disabled={pending || availablePredecessors.length === 0}
+            onValueChange={(value) => {
+              void handleTaskPredecessorChange(task, value);
+            }}
+          >
+            <SelectTrigger className={cn(tableSelectTriggerClass, 'w-full min-w-[220px]')}>
+              <SelectValue placeholder={taskCopy.columns.predecessor.label} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_PREDECESSOR_VALUE}>Sin predecesora</SelectItem>
+              {availablePredecessors.map((option) => (
+                <SelectItem key={option.taskId} value={String(option.taskId)}>
+                  {option.folio} · {option.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      }
       case 'status': {
         const displayStatus = getTaskDisplayStatus(task);
 
@@ -1806,6 +2186,7 @@ export function ProjectTasksWorkspace({
 
   const renderTaskDiagram = () => {
     const dayCount = Math.max(taskTimeline.days.length, 1);
+    const ganttDateFormatter = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short' });
 
     if (isLoadingTasks) {
       return (
@@ -1825,12 +2206,12 @@ export function ProjectTasksWorkspace({
 
     return (
       <div className="overflow-x-auto">
-        <div className="min-w-[980px]">
-          <div className="grid border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" style={{ gridTemplateColumns: 'minmax(280px, 340px) 1fr' }}>
+        <div className="min-w-[1080px]">
+          <div className="grid border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr' }}>
             <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
               {taskCopy.columns.title.label}
             </div>
-            <div className="grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(56px, 1fr))` }}>
               {taskTimeline.days.map((day) => (
                 <div key={day.toISOString()} className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700">
                   <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
@@ -1843,17 +2224,28 @@ export function ProjectTasksWorkspace({
           </div>
 
           {sortedTasks.map((task) => {
-            const range = getTaskTimelineRange(task, taskTimeline.start, taskTimeline.end, dayCount);
+            const activeDrag = taskGanttDrag?.taskId === task.taskId ? taskGanttDrag : null;
+            const ganttDates = activeDrag
+              ? { start: activeDrag.previewStart, end: activeDrag.previewEnd }
+              : getTaskGanttDates(task);
+            const taskForRange = ganttDates ? { ...task, startDate: ganttDates.start, dueDate: ganttDates.end } : task;
+            const range = getTaskTimelineRange(taskForRange, taskTimeline.start, taskTimeline.end, dayCount);
             const displayStatus = getTaskDisplayStatus(task);
+            const isDragging = taskGanttDrag?.taskId === task.taskId;
+            const isPending = isTaskPending(task.taskId);
+            const duration = ganttDates ? getTaskGanttDuration(ganttDates.start, ganttDates.end) : 0;
+            const predecessorSelectValue =
+              task.predecessorTaskId != null ? String(task.predecessorTaskId) : NO_PREDECESSOR_VALUE;
+            const availablePredecessors = predecessorOptions.filter((option) => option.taskId !== task.taskId);
 
             return (
               <div
                 key={task.taskId}
                 className={cn(
-                  'grid min-h-[88px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
+                  'grid min-h-[104px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
                   rowSelection.isSelected(task.taskId) && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                 )}
-                style={{ gridTemplateColumns: 'minmax(280px, 340px) 1fr' }}
+                style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr' }}
               >
                 <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1866,25 +2258,122 @@ export function ProjectTasksWorkspace({
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{task.title}</p>
                   <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                    {task.assignedName ?? taskCopy.common.unassigned} · {task.dueDate ? formatDate(task.dueDate, false, taskCopy.common.noDate) : taskCopy.common.noDate}
+                    {task.assignedName ?? taskCopy.common.unassigned} ·{' '}
+                    {ganttDates
+                      ? `${ganttDateFormatter.format(dateFromTaskTimelineValue(ganttDates.start)!)} - ${ganttDateFormatter.format(dateFromTaskTimelineValue(ganttDates.end)!)}`
+                      : taskCopy.common.noDate}
                   </p>
+                  {ganttDates ? (
+                    <p className="mt-2 text-xs font-semibold text-[#9A6B05] dark:text-[#FEF3C7]">
+                      {duration}d
+                    </p>
+                  ) : null}
+                  {ganttDates ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                          {taskCopy.columns.startDate.label}
+                        </span>
+                        <Input
+                          type="date"
+                          value={ganttDates.start}
+                          disabled={isPending}
+                          className="h-8 rounded-lg border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          onChange={(event) => handleTaskGanttDateInputChange(task, 'startDate', event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                          {taskCopy.columns.dueDate.label}
+                        </span>
+                        <Input
+                          type="date"
+                          value={ganttDates.end}
+                          disabled={isPending}
+                          className="h-8 rounded-lg border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          onChange={(event) => handleTaskGanttDateInputChange(task, 'dueDate', event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  <Select
+                    value={predecessorSelectValue}
+                    disabled={isPending || availablePredecessors.length === 0}
+                    onValueChange={(value) => {
+                      void handleTaskPredecessorChange(task, value);
+                    }}
+                  >
+                    <SelectTrigger className="mt-3 h-9 w-full rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+                      <SelectValue placeholder="Predecesora" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_PREDECESSOR_VALUE}>Sin predecesora</SelectItem>
+                      {availablePredecessors.map((option) => (
+                        <SelectItem key={option.taskId} value={String(option.taskId)}>
+                          {option.folio} · {option.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="relative grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
+                <div
+                  className="relative grid"
+                  data-task-gantt-track="true"
+                  style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(56px, 1fr))` }}
+                >
                   {taskTimeline.days.map((day) => (
                     <div key={`${task.taskId}-${day.toISOString()}`} className="border-r border-slate-200 last:border-r-0 dark:border-slate-700" />
                   ))}
                   {range ? (
                     <div
-                      className="pointer-events-none absolute inset-y-4 rounded-xl border border-[#F4C84A]/40 bg-[#F4C84A]/20 px-3 py-2 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/25"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={task.title}
+                      className={cn(
+                        'absolute inset-y-5 rounded-xl border border-[#F4C84A]/45 bg-[#F4C84A]/20 px-4 py-2 shadow-sm outline-none transition-shadow dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/25',
+                        isDragging ? 'z-20 cursor-grabbing shadow-lg ring-2 ring-[#F4C84A]/35' : 'cursor-grab hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#F4C84A]/35',
+                        isPending && 'cursor-not-allowed opacity-60',
+                      )}
+                      onMouseDown={(event) => handleTaskGanttDragStart(event, task, 'move', dayCount)}
                       style={{
                         left: `calc(${(range.startOffset / dayCount) * 100}% + 6px)`,
                         width: `calc(${(range.span / dayCount) * 100}% - 12px)`,
                       }}
                     >
+                      <button
+                        type="button"
+                        aria-label="Adjust start date"
+                        title="Ajustar fecha de inicio"
+                        disabled={isPending}
+                        className="absolute bottom-1 left-1 top-1 flex w-6 cursor-ew-resize items-center justify-center rounded-full bg-transparent transition-colors hover:bg-white/45 disabled:cursor-not-allowed dark:hover:bg-slate-900/35"
+                        onMouseDown={(event) => handleTaskGanttDragStart(event, task, 'resize-start', dayCount)}
+                      >
+                        <span className="h-full w-2 rounded-full bg-[#9A6B05]/35 transition-colors hover:bg-[#9A6B05]/70 dark:bg-[#FEF3C7]/35 dark:hover:bg-[#FEF3C7]/70" />
+                      </button>
                       <div className="flex h-full items-center justify-between gap-3">
-                        <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{task.title}</span>
+                        <div className="min-w-0 pl-6">
+                          <span className="block truncate text-xs font-semibold text-slate-900 dark:text-white">{task.title}</span>
+                          {task.predecessorTaskFolio ? (
+                            <span className="mt-1 inline-flex max-w-full items-center rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-semibold text-[#9A6B05] dark:bg-slate-900/45 dark:text-[#FEF3C7]">
+                              Depende de {task.predecessorTaskFolio}
+                            </span>
+                          ) : null}
+                          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/70 dark:bg-slate-900/40">
+                            <span className="block h-full rounded-full bg-[#F4C84A]" style={{ width: `${clampPercent(task.completionPercent)}%` }} />
+                          </span>
+                        </div>
                         <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">{clampPercent(task.completionPercent)}%</span>
                       </div>
+                      <button
+                        type="button"
+                        aria-label="Adjust due date"
+                        title="Ajustar fecha de vencimiento"
+                        disabled={isPending}
+                        className="absolute bottom-1 right-1 top-1 flex w-6 cursor-ew-resize items-center justify-center rounded-full bg-transparent transition-colors hover:bg-white/45 disabled:cursor-not-allowed dark:hover:bg-slate-900/35"
+                        onMouseDown={(event) => handleTaskGanttDragStart(event, task, 'resize-end', dayCount)}
+                      >
+                        <span className="h-full w-2 rounded-full bg-[#9A6B05]/35 transition-colors hover:bg-[#9A6B05]/70 dark:bg-[#FEF3C7]/35 dark:hover:bg-[#FEF3C7]/70" />
+                      </button>
                     </div>
                   ) : (
                     <div className="absolute inset-y-0 left-4 flex items-center text-xs font-medium text-slate-400 dark:text-slate-500">
@@ -1944,7 +2433,7 @@ export function ProjectTasksWorkspace({
                 onClick={() => setWorkspaceViewMode('diagram')}
               >
                 <CalendarRange className="h-4 w-4" />
-                {taskCopy.header.actions.diagram}
+                Gantt
               </button>
             </div>
             <Button
@@ -2174,11 +2663,35 @@ export function ProjectTasksWorkspace({
                   className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                 />
               </TableHead>
-              {visibleColumns.map((column) => (
-                <SortableHead key={column.id} column={column} sortState={sortState} onSort={handleSort} />
-              ))}
-              <TableHead className="px-5 py-5">
+              {visibleColumns.map((column) => {
+                const columnId = column.id as ProjectTaskColumnId;
+
+                return (
+                  <SortableHead
+                    key={column.id}
+                    column={column}
+                    resizeLabel={taskCopy.table.resizeColumn}
+                    resizingColumn={resizingColumn}
+                    sortState={sortState}
+                    width={columnWidths[columnId]}
+                    onResizeStart={handleColumnResizeStart}
+                    onSort={handleSort}
+                  />
+                );
+              })}
+              <TableHead
+                className="group relative px-5 py-5"
+                style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}
+              >
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.columns.actions.label}</span>
+                <div
+                  role="separator"
+                  aria-label={taskCopy.table.resizeColumn}
+                  aria-orientation="vertical"
+                  onMouseDown={(event) => handleColumnResizeStart(event, 'actions')}
+                  className="absolute bottom-0 right-0 top-0 w-1 cursor-col-resize bg-transparent transition-colors hover:bg-[#F4C84A] group-hover:bg-[#F4C84A]/30"
+                  style={{ background: resizingColumn === 'actions' ? '#F4C84A' : undefined }}
+                />
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -2207,12 +2720,21 @@ export function ProjectTasksWorkspace({
                   const columnId = column.id as ProjectTaskColumnId;
 
                   return (
-                    <TableCell key={`${task.taskId}-${column.id}`} className="px-5 py-5 align-middle">
+                    <TableCell
+                      key={`${task.taskId}-${column.id}`}
+                      className="px-5 py-5 align-middle"
+                      style={{ width: columnWidths[columnId], minWidth: columnWidths[columnId] }}
+                    >
                       {renderTaskCell(task, columnId)}
                     </TableCell>
                   );
                 })}
-                <TableCell className="px-5 py-5 align-middle">{renderTaskActions(task)}</TableCell>
+                <TableCell
+                  className="px-5 py-5 align-middle"
+                  style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}
+                >
+                  {renderTaskActions(task)}
+                </TableCell>
               </TableRow>
               );
             })}

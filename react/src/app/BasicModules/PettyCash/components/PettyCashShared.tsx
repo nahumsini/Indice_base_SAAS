@@ -1,0 +1,217 @@
+import type { LucideIcon } from 'lucide-react';
+import { Columns3, Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
+import {
+  pettyCashFundStatusClasses,
+  pettyCashFundStatusLabels,
+  pettyCashSettlementLineStatusClasses,
+  pettyCashSettlementLineStatusLabels,
+  pettyCashStatementStatusClasses,
+  pettyCashStatementStatusLabels,
+} from '../utils/pettyCash.utils';
+import type { PettyCashFundStatus, PettyCashSettlementLineStatus, PettyCashStatementStatus } from '../types/pettyCash.types';
+
+type StatusKind = 'fund' | 'statement' | 'line';
+
+const getStatusCopy = (kind: StatusKind, status: string) => {
+  if (kind === 'fund') {
+    return {
+      className: pettyCashFundStatusClasses[status as PettyCashFundStatus],
+      label: pettyCashFundStatusLabels[status as PettyCashFundStatus],
+    };
+  }
+  if (kind === 'line') {
+    return {
+      className: pettyCashSettlementLineStatusClasses[status as PettyCashSettlementLineStatus],
+      label: pettyCashSettlementLineStatusLabels[status as PettyCashSettlementLineStatus],
+    };
+  }
+  return {
+    className: pettyCashStatementStatusClasses[status as PettyCashStatementStatus],
+    label: pettyCashStatementStatusLabels[status as PettyCashStatementStatus],
+  };
+};
+
+export function PettyCashHeaderBanner({
+  actionLabel,
+  description,
+  emoji,
+  onAction,
+  onColumns,
+  onSecondaryAction,
+  onTertiaryAction,
+  secondaryActionIcon: SecondaryActionIcon,
+  secondaryActionLabel,
+  tertiaryActionIcon: TertiaryActionIcon,
+  tertiaryActionLabel,
+  title,
+}: {
+  actionLabel?: string;
+  description: string;
+  emoji: string;
+  onAction?: () => void;
+  onColumns?: () => void;
+  onSecondaryAction?: () => void;
+  onTertiaryAction?: () => void;
+  secondaryActionIcon?: LucideIcon;
+  secondaryActionLabel?: string;
+  tertiaryActionIcon?: LucideIcon;
+  tertiaryActionLabel?: string;
+  title: string;
+}) {
+  return (
+    <section className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6 sm:py-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white sm:text-[28px]">
+            <span className="text-3xl leading-none" aria-hidden="true">{emoji}</span>
+            {title}
+          </h2>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{description}</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
+          {secondaryActionLabel && onSecondaryAction ? (
+            <button
+              type="button"
+              onClick={onSecondaryAction}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white"
+            >
+              {SecondaryActionIcon ? <SecondaryActionIcon className="h-4 w-4" /> : null}
+              {secondaryActionLabel}
+            </button>
+          ) : null}
+          {tertiaryActionLabel && onTertiaryAction ? (
+            <button
+              type="button"
+              onClick={onTertiaryAction}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white"
+            >
+              {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
+              {tertiaryActionLabel}
+            </button>
+          ) : null}
+          {onColumns ? (
+            <button
+              type="button"
+              onClick={onColumns}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white"
+            >
+              <Columns3 className="h-4 w-4" />
+              Columnas
+            </button>
+          ) : null}
+          {actionLabel && onAction ? (
+            <button
+              type="button"
+              onClick={onAction}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#105010]"
+            >
+              <Plus className="h-4 w-4" />
+              {actionLabel}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function PettyCashFilterShell({
+  children,
+  resultLabel,
+  subtitle,
+}: {
+  children: ReactNode;
+  resultLabel: string;
+  subtitle?: string;
+}) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Filtros</h3>
+          {subtitle ? <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
+        </div>
+        <span className="rounded-full bg-[#147514]/10 px-3 py-1 text-sm font-bold text-[#147514]">
+          {resultLabel}
+        </span>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-4">{children}</div>
+    </section>
+  );
+}
+
+export function PettyCashField({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <label className="space-y-1.5">
+      <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+export const pettyCashInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+
+export function PettyCashMetric({
+  icon: Icon,
+  label,
+  tone = 'neutral',
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+  value: string;
+}) {
+  const toneClass = {
+    danger: 'text-red-600',
+    info: 'text-sky-600',
+    neutral: 'text-slate-900',
+    success: 'text-[#147514]',
+    warning: 'text-amber-600',
+  }[tone];
+
+  return (
+    <div className="inline-flex min-w-0 items-center gap-3">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[#147514] shadow-sm">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className={`truncate text-base font-black ${toneClass}`}>{value}</p>
+        <p className="truncate text-sm font-semibold text-slate-500">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+export function PettyCashStatusPill({ kind, status }: { kind: StatusKind; status: string }) {
+  const copy = getStatusCopy(kind, status);
+  return (
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${copy.className}`}>
+      {copy.label}
+    </span>
+  );
+}
+
+export function PettyCashTableShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="overflow-x-auto">{children}</div>
+    </div>
+  );
+}
+
+export function PettyCashEmptyState({ label }: { label: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm font-semibold text-slate-500">
+      {label}
+    </div>
+  );
+}

@@ -6,18 +6,96 @@ export interface FinancialOverviewAmount {
   currency: FinanceCurrency;
 }
 
-export interface FinancialOverviewCostDriver {
-  id: string;
-  name: string;
-  total: number;
-  percentage: number;
-  currency: FinanceCurrency;
-  driverType: 'PROVIDER' | 'ACCOUNTING_ACCOUNT' | 'BUDGET_LINE' | 'EXPENSE_TYPE';
-}
-
 export interface FinancialOverviewPeriod {
   from: string;
   to: string;
+}
+
+export type FinancialOverviewCostDriverType =
+  | 'ACCOUNTING_ACCOUNT'
+  | 'BUSINESS'
+  | 'PAYMENT_ACCOUNT'
+  | 'PROVIDER'
+  | 'UNIT';
+
+export type FinancialOverviewAlertTone = 'critical' | 'info' | 'success' | 'warning';
+
+export interface FinancialOverviewMetrics {
+  actual: number;
+  actualFallbackUsed: boolean;
+  available: number;
+  budgetLineCount: number;
+  committed: number;
+  dueIn7Days: number;
+  dueIn30Days: number;
+  expenseCount: number;
+  overdueAmount: number;
+  overdueExpenseCount: number;
+  pendingPayments: number;
+  planned: number;
+  unpaidExpenseCount: number;
+}
+
+export interface FinancialOverviewBudgetHealthRow {
+  actual: number;
+  available: number;
+  budgetId: string;
+  budgetName?: string;
+  committed: number;
+  currency: FinanceCurrency;
+  healthStatus: BudgetHealthStatus;
+  id: string;
+  name: string;
+  planned: number;
+  usagePercent: number;
+}
+
+export interface FinancialOverviewCashRequirement {
+  amount: number;
+  count: number;
+  description: string;
+  id: 'due7' | 'due30' | 'overdue' | 'pending';
+  label: string;
+  tone: FinancialOverviewAlertTone;
+}
+
+export interface FinancialOverviewCostDriver {
+  count: number;
+  currency: FinanceCurrency;
+  driverType: FinancialOverviewCostDriverType;
+  id: string;
+  name: string;
+  percentage: number;
+  total: number;
+}
+
+export interface FinancialOverviewConcentrationRisk {
+  driverType: FinancialOverviewCostDriverType;
+  id: string;
+  name: string;
+  percentage: number;
+  tone: FinancialOverviewAlertTone;
+  total: number;
+}
+
+export interface FinancialOverviewAlert {
+  id: string;
+  message: string;
+  recommendation: string;
+  title: string;
+  tone: FinancialOverviewAlertTone;
+}
+
+export interface FinancialOverviewDataSet {
+  alerts: FinancialOverviewAlert[];
+  budgetHealthRows: FinancialOverviewBudgetHealthRow[];
+  cashRequirements: FinancialOverviewCashRequirement[];
+  concentrationRisks: FinancialOverviewConcentrationRisk[];
+  costDrivers: Record<FinancialOverviewCostDriverType, FinancialOverviewCostDriver[]>;
+  currencies: FinanceCurrency[];
+  currency: FinanceCurrency;
+  generatedAt: string;
+  metrics: FinancialOverviewMetrics;
 }
 
 export interface FinancialOverview {
@@ -47,7 +125,7 @@ const zeroAmount = (currency: FinanceCurrency): FinancialOverviewAmount => ({
 
 export const createEmptyFinancialOverview = (
   companyId = 'mock-company',
-  currency: FinanceCurrency = 'CAD',
+  currency: FinanceCurrency = 'MXN',
 ): FinancialOverview => ({
   companyId,
   period: { from: '', to: '' },

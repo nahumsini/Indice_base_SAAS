@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseTotals } from '../../types/expenseView.types';
 import { formatCurrency } from '../../utils/expenses.utils';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 type ExpensesSummaryProps = {
   expenses: Expense[];
@@ -20,14 +21,15 @@ type StatusMetric = {
   valueClassName: string;
 };
 
-const statusConfig: Array<Omit<StatusMetric, 'amount' | 'count' | 'percentage'>> = [
-  { status: 'paid', label: 'Pagado', dotClass: 'bg-[#147514]', barClass: 'bg-[#147514]', valueClassName: 'text-[#147514]' },
-  { status: 'pending', label: 'Pendiente', dotClass: 'bg-amber-500', barClass: 'bg-amber-500', valueClassName: 'text-amber-600 dark:text-amber-400' },
-  { status: 'partial', label: 'Parcial', dotClass: 'bg-sky-500', barClass: 'bg-sky-500', valueClassName: 'text-sky-600 dark:text-sky-400' },
-  { status: 'overdue', label: 'Vencido', dotClass: 'bg-rose-500', barClass: 'bg-rose-500', valueClassName: 'text-rose-600 dark:text-rose-400' },
+const statusConfig: Array<Omit<StatusMetric, 'amount' | 'count' | 'label' | 'percentage'>> = [
+  { status: 'paid', dotClass: 'bg-[#147514]', barClass: 'bg-[#147514]', valueClassName: 'text-[#147514]' },
+  { status: 'pending', dotClass: 'bg-amber-500', barClass: 'bg-amber-500', valueClassName: 'text-amber-600 dark:text-amber-400' },
+  { status: 'partial', dotClass: 'bg-sky-500', barClass: 'bg-sky-500', valueClassName: 'text-sky-600 dark:text-sky-400' },
+  { status: 'overdue', dotClass: 'bg-rose-500', barClass: 'bg-rose-500', valueClassName: 'text-rose-600 dark:text-rose-400' },
 ];
 
 export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
+  const t = useFinanceTranslations();
   const totalAmount = Math.max(totals.total, 0);
   const statusMetrics = statusConfig.map(config => {
     const statusExpenses = expenses.filter(expense => expense.status === config.status);
@@ -36,16 +38,17 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
       ...config,
       amount,
       count: statusExpenses.length,
+      label: t.expenses.table.statuses[config.status] ?? config.status,
       percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
     };
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <Metric icon={<CircleDollarSign className="h-4 w-4" />} label="Total" value={formatCurrency(totalAmount)} />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.expenses.summary.total} value={formatCurrency(totalAmount)} />
+          <div className="flex gap-x-4 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
             {statusMetrics.map(metric => (
               <StatusMetricItem key={metric.status} metric={metric} />
             ))}
@@ -107,16 +110,18 @@ function StatusMetricItem({ metric }: { metric: StatusMetric }) {
 }
 
 function StatusNotes({ expensesCount, totals }: { expensesCount: number; totals: ExpenseTotals }) {
+  const t = useFinanceTranslations();
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {totals.overdueCount > 0 ? (
         <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">
           <AlertTriangle className="h-3.5 w-3.5" />
-          {totals.overdueCount} vencido{totals.overdueCount !== 1 ? 's' : ''}
+          {t.expenses.summary.overdue(totals.overdueCount)}
         </span>
       ) : null}
       <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-        {expensesCount} registro{expensesCount !== 1 ? 's' : ''}
+        {t.expenses.summary.records(expensesCount)}
       </span>
     </div>
   );

@@ -10,6 +10,140 @@ export type CashFundStatus = 'active' | 'low_balance' | 'needs_reconciliation' |
 export type PettyCashAuditStatus = 'not_reviewed' | 'in_review' | 'audited' | 'flagged';
 
 export type PettyCashPaymentMethod = 'cash' | 'debit_card' | 'transfer';
+export type PettyCashCurrency = 'CAD' | 'MXN' | 'COP' | 'USD' | 'BRL';
+
+export type PettyCashFundStatus = 'OPEN' | 'LOW_BALANCE' | 'NEEDS_RECONCILIATION' | 'CLOSED';
+export type PettyCashStatementStatus =
+  | 'OPEN'
+  | 'CUT_PENDING'
+  | 'PARTIALLY_SETTLED'
+  | 'SETTLED'
+  | 'SHORTAGE'
+  | 'FORGIVEN_SHORTAGE'
+  | 'CHARGED_TO_EMPLOYEE'
+  | 'TRANSFERRED_TO_NEXT_CUT'
+  | 'CLOSED';
+export type PettyCashMovementType =
+  | 'INITIAL_FUNDING'
+  | 'ADDITIONAL_DEPOSIT'
+  | 'RETURN_TO_SOURCE'
+  | 'CARRY_FORWARD'
+  | 'SHORTAGE_ADJUSTMENT'
+  | 'FORGIVEN_SHORTAGE'
+  | 'EMPLOYEE_CHARGE';
+export type PettyCashSettlementLineStatus =
+  | 'DRAFT'
+  | 'RECEIPT_ATTACHED'
+  | 'VALIDATED'
+  | 'EXPENSE_CREATED'
+  | 'REJECTED';
+
+export interface PettyCashFund {
+  id: string;
+  companyId: string;
+  unitId: string;
+  unitName: string;
+  businessId: string;
+  businessName: string;
+  budgetId?: string;
+  budgetLineId?: string;
+  budgetLineName?: string;
+  paymentAccountId: string;
+  fundingSourcePaymentAccountId?: string;
+  responsibleUserId: string;
+  responsibleName: string;
+  createdByUserId: string;
+  createdByName: string;
+  name: string;
+  currencyCode: PettyCashCurrency;
+  limitAmount: number;
+  currentBalanceAmount: number;
+  cutOffDay: number;
+  fundingSourceName: string;
+  fundingMethods: string[];
+  spendingMethods: string[];
+  kioskEnabled: boolean;
+  kioskUsesUniversalPin?: boolean;
+  kioskPin?: string;
+  kioskAccessUrl?: string;
+  kioskPublicToken?: string;
+  status: PettyCashFundStatus;
+}
+
+export interface PettyCashStatement {
+  id: string;
+  companyId: string;
+  pettyCashFundId: string;
+  folio: string;
+  periodKey: string;
+  periodStart: string;
+  periodEnd: string;
+  cutOffDate: string;
+  openingBalanceAmount: number;
+  assignedAmount: number;
+  additionalDepositAmount: number;
+  declaredClosingBalanceAmount: number;
+  estimatedUsageAmount: number;
+  verifiedExpenseAmount: number;
+  returnedAmount: number;
+  shortageAmount: number;
+  carryForwardAmount: number;
+  currencyCode: PettyCashCurrency;
+  status: PettyCashStatementStatus;
+  responsibleUserId: string;
+  responsibleName: string;
+  reviewedByName?: string;
+  attachmentCount: number;
+}
+
+export interface PettyCashMovement {
+  id: string;
+  companyId: string;
+  pettyCashFundId: string;
+  pettyCashStatementId?: string;
+  fromPaymentAccountId?: string;
+  fromPaymentAccountName?: string;
+  toPaymentAccountId?: string;
+  toPaymentAccountName?: string;
+  type: PettyCashMovementType;
+  amount: number;
+  currencyCode: PettyCashCurrency;
+  movementDate: string;
+  reference: string;
+}
+
+export interface PettyCashSettlementLine {
+  id: string;
+  companyId: string;
+  pettyCashFundId: string;
+  pettyCashStatementId: string;
+  expenseId?: string;
+  providerId?: string;
+  providerName?: string;
+  accountingAccountId?: string;
+  accountingAccountName?: string;
+  description: string;
+  receiptReference?: string;
+  subtotalAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  currencyCode: PettyCashCurrency;
+  expenseDate: string;
+  attachmentCount: number;
+  status: PettyCashSettlementLineStatus;
+}
+
+export interface PettyCashAttachment {
+  id: number;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  objectKey: string;
+  downloadUrl: string | null;
+  uploadedByUserId: number | null;
+  uploadedByName: string | null;
+  createdAt: string | null;
+}
 
 export interface CashFund {
   id: string;

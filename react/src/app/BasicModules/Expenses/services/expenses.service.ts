@@ -1,6 +1,9 @@
 import { apiClient } from '../../../lib/apiClient';
-import { toExpense, toExpenseApiRequest, toFinanceExpense } from '../adapters/expense.adapter';
-import { mockExpenses } from '../data/expenses.mock';
+import {
+  toExpense,
+  toExpenseApiRequest,
+  toFinanceExpenseFromApi,
+} from '../adapters/expense.adapter';
 import { EXPENSE_COLUMN_CONTRACT } from '../types/expense-column-contract.types';
 import { createEmptyFinancialOverview } from '../types/financial-overview.types';
 import type { Expense } from '../types/expenses.types';
@@ -10,7 +13,6 @@ import type { FinanceExpense, FinancePurchaseOrder } from '../types/finance-doma
 import type { ExpenseApiDto, ExpenseListApiResponse } from '../types/finance-api.types';
 
 const expensesPath = '/api/v1/finance/expenses';
-const mockFinanceExpenses = mockExpenses.map(expense => toFinanceExpense(expense));
 
 const jsonMutation = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
   method,
@@ -24,7 +26,8 @@ export const expensesService = {
   },
 
   async getFinanceExpenses(): Promise<FinanceExpense[]> {
-    return mockFinanceExpenses.map(expense => ({ ...expense, attachments: [...expense.attachments] }));
+    const response = await apiClient<ExpenseListApiResponse>(expensesPath);
+    return response.expenses.map(toFinanceExpenseFromApi);
   },
 
   async getExpenseById(expenseId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense | null> {

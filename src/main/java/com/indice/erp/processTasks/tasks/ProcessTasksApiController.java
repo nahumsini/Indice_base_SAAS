@@ -100,6 +100,43 @@ public class ProcessTasksApiController {
         }
     }
 
+    @GetMapping("/{taskId}/dependencies")
+    public ResponseEntity<?> listDependencies(HttpSession session, @PathVariable long taskId) {
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processTasksService.listTaskDependencies(
+                    access.user().companyId(), access.user().userId(), taskId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/{taskId}/dependencies")
+    public ResponseEntity<?> updateDependencies(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long taskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processTasksService.updateTaskDependencies(
+                    access.user().companyId(),
+                    access.user().userId(),
+                    taskId,
+                    payload == null ? Map.of() : payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @DeleteMapping("/{taskId}")
     public ResponseEntity<?> delete(
             HttpSession session,

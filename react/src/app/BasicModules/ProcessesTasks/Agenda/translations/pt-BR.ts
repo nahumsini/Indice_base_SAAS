@@ -47,6 +47,7 @@ export const ptBR: AgendaTranslations = {
     status: 'Status',
   },
   periods: {
+    all: 'Todos',
     today: 'Hoje',
     tomorrow: 'Amanha',
     yesterday: 'Ontem',
@@ -96,6 +97,7 @@ export const ptBR: AgendaTranslations = {
     createdAt: { label: 'Data de criação', description: 'Data em que a tarefa foi registrada.' },
     startDate: { label: 'Data de início', description: 'Data programada de início.' },
     dueDate: { label: 'Data de vencimento', description: 'Prazo para conclusão.' },
+    predecessor: { label: 'Predecessora', description: 'Tarefa que deve terminar antes desta tarefa.' },
     agendaTime: { label: 'Hora', description: 'Hora programada usada para ordenar a agenda do dia.' },
     status: { label: 'Status', description: 'Status atual, incluindo vencida como status visual.' },
     creator: { label: 'Criador', description: 'Usuário que criou a tarefa.' },
@@ -114,6 +116,11 @@ export const ptBR: AgendaTranslations = {
     empty: 'Nenhuma tarefa corresponde aos filtros atuais.',
     resizeColumn: 'Ajustar largura',
     noWeighting: 'Sem ponderação',
+    showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total}`,
+    rowsPerPage: 'Vista',
+    previous: 'Anterior',
+    next: 'Próximo',
+    loadMore: 'Carregar mais',
   },
   quickAdd: {
     buttonLabel: 'Adicionar tarefa rapida',

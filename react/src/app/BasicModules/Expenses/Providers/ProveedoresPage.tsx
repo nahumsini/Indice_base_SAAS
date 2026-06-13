@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { AttachmentsModal } from '../Expenses/components/AttachmentsModal';
+import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { accountingAccountsService, toFinanceApiErrorMessage } from '../services';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
@@ -40,6 +41,7 @@ const toProviderFormValues = (provider: ProviderRecord): ProviderFormValues => (
 });
 
 export default function ProveedoresPage({ onProvidersChange, providers: controlledProviders }: ProveedoresPageProps) {
+  const t = useFinanceTranslations();
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const {
@@ -77,7 +79,25 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
   const [editingProvider, setEditingProvider] = useState<ProviderRecord | null>(null);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState(() => defaultProviderColumns.map(column => ({ ...column })));
+  const translatedProviderColumns = useMemo(() => defaultProviderColumns.map(column => {
+    const copy = t.providers.columns[column.key];
+    return {
+      ...column,
+      description: copy?.description ?? column.description,
+      label: copy?.label ?? column.label,
+    };
+  }), [t]);
+  const [visibleColumns, setVisibleColumns] = useState(() => translatedProviderColumns.map(column => ({ ...column })));
+
+  useEffect(() => {
+    setVisibleColumns(currentColumns => translatedProviderColumns.map(column => {
+      const current = currentColumns.find(item => item.key === column.key);
+      return {
+        ...column,
+        visible: current?.visible ?? column.visible,
+      };
+    }));
+  }, [translatedProviderColumns]);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,14 +114,14 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
       })
       .catch(error => {
         if (isMounted) {
-          setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudieron cargar las cuentas contables activas.'));
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.accountLoadFailed));
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t.expenses.messages.accountLoadFailed]);
 
   const effectiveUnitOptions = useMemo<FinanceReferenceOption[]>(() => (
     unitOptions.length > 0
@@ -117,8 +137,8 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
     const scopedOptions = businessUnitFilter === 'all'
       ? effectiveBusinessOptions
       : effectiveBusinessOptions.filter(option => !option.unitId || option.unitId === businessUnitFilter);
-    return [{ value: 'all', label: 'Todos' }, ...scopedOptions];
-  }, [businessUnitFilter, effectiveBusinessOptions]);
+    return [{ value: 'all', label: t.common.all }, ...scopedOptions];
+  }, [businessUnitFilter, effectiveBusinessOptions, t.common.all]);
 
   useEffect(() => {
     if (businessFilter === 'all') return;
@@ -160,7 +180,7 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
         businessFilter={businessFilter}
         businessOptions={businessFilterOptions}
         businessUnitFilter={businessUnitFilter}
-        businessUnitOptions={[{ value: 'all', label: 'Todas' }, ...effectiveUnitOptions]}
+        businessUnitOptions={[{ value: 'all', label: t.common.all }, ...effectiveUnitOptions]}
         filteredCount={filteredProviders.length}
         searchTerm={searchTerm}
         statusFilter={statusFilter}
@@ -175,10 +195,10 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
         accountingAccountOptions={accountingAccountOptions}
         editingProviderId={editingProviderId}
         businessOptions={effectiveBusinessOptions}
+        columns={visibleColumns}
         providers={filteredProviders}
         unitOptions={effectiveUnitOptions}
         userOptions={userOptions}
-        visibleColumns={visibleColumns.filter(column => column.visible).map(column => column.key)}
         onActivateProvider={activateProvider}
         onDeleteProvider={deleteProvider}
         onDuplicateProvider={duplicateProvider}
@@ -212,9 +232,9 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
           accountingAccountOptions={accountingAccountOptions}
           businessOptions={effectiveBusinessOptions}
           initialValues={toProviderFormValues(editingProvider)}
-          submitLabel="Guardar cambios"
+          submitLabel={t.common.saveChanges}
           subtitle={editingProvider.folio}
-          title="Editar proveedor"
+          title={t.providers.edit}
           unitOptions={effectiveUnitOptions}
           userOptions={userOptions}
           onClose={() => setEditingProvider(null)}
@@ -227,7 +247,7 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
           onApply={() => setIsColumnsModalOpen(false)}
           onClose={() => setIsColumnsModalOpen(false)}
           onHideOptional={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: Boolean(column.fixed) })))}
-          onRestoreDefault={() => setVisibleColumns(defaultProviderColumns.map(column => ({ ...column })))}
+          onRestoreDefault={() => setVisibleColumns(translatedProviderColumns.map(column => ({ ...column })))}
           onShowAll={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
           onToggleColumn={handleToggleColumn}
         />

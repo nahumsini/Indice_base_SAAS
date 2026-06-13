@@ -21,7 +21,7 @@ export const DEFAULT_EXPENSE_COLUMN_WIDTHS: Record<string, number> = {
   authorizer: 180,
   performer: 180,
   audit: 180,
-  actions: 270,
+  actions: 320,
 };
 
 export const EXPENSE_USER_OPTIONS = [

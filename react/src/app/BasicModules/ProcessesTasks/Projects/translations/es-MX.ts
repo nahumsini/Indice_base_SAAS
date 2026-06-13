@@ -23,7 +23,7 @@ export const esMX: ProjectsTranslations = {
     subtitle: 'Portafolio operativo con tareas reales, evidencia, cierre, auditoria y avance calculado desde la agenda.',
     actions: {
       table: 'Tareas',
-      diagram: 'Diagrama',
+      diagram: 'Gantt',
       columns: 'Columnas',
       create: 'Crear proyecto',
     },

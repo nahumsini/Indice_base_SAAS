@@ -35,6 +35,7 @@ export interface Expense {
   date: Date;
   paymentMethod: PaymentMethod;
   accountingAccount?: string;
+  paymentAccountId?: string;
   status: ExpenseStatus;
   approver?: string;
   requestedByUserId?: string;

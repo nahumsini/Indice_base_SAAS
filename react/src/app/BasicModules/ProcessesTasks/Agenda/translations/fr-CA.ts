@@ -47,6 +47,7 @@ export const frCA: AgendaTranslations = {
     status: "Etat",
   },
   periods: {
+    all: "Tous",
     today: "Aujourd hui",
     tomorrow: "Demain",
     yesterday: "Hier",
@@ -96,6 +97,7 @@ export const frCA: AgendaTranslations = {
     createdAt: { label: "Date de creation", description: "Date d enregistrement de la tache." },
     startDate: { label: "Date de debut", description: "Date de debut planifiee." },
     dueDate: { label: "Date d echeance", description: "Date limite de realisation." },
+    predecessor: { label: "Predecesseur", description: "Tache qui doit se terminer avant celle-ci." },
     agendaTime: { label: "Heure", description: "Heure planifiee utilisee pour ordonner l agenda du jour." },
     status: { label: "Etat", description: "Etat actuel, incluant le retard comme etat visuel." },
     creator: { label: "Createur", description: "Utilisateur qui a cree la tache." },
@@ -114,6 +116,11 @@ export const frCA: AgendaTranslations = {
     empty: "Aucune tache ne correspond aux filtres actuels.",
     resizeColumn: "Ajuster la largeur",
     noWeighting: "Sans ponderation",
+    showing: (start: number, end: number, total: number) => `${start}-${end} sur ${total}`,
+    rowsPerPage: "Vue",
+    previous: "Precedent",
+    next: "Suivant",
+    loadMore: "Charger plus",
   },
   quickAdd: {
     buttonLabel: "Ajouter une tache rapide",

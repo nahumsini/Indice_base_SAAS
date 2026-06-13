@@ -1,6 +1,7 @@
 import { Banknote, Check, ChevronLeft, ChevronRight, CreditCard, Landmark, MapPinned, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { PaymentAccount, PaymentAccountType } from '../types';
 
@@ -24,22 +25,12 @@ type PaymentFormValues = {
   unitId: string;
 };
 
-const steps: Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }> = [
-  { id: 0, label: 'Cuenta', icon: CreditCard, title: 'Datos de la cuenta de pago', description: 'Define el nombre, tipo, moneda y estado operativo.' },
-  { id: 1, label: 'Alcance', icon: MapPinned, title: 'Alcance organizacional', description: 'Asigna unidad y negocio cuando esta cuenta sea específica.' },
-  { id: 2, label: 'Detalle', icon: Landmark, title: 'Institución y saldo', description: 'Registra banco, terminación visible y saldo inicial.' },
-];
-const typeOptions: Array<{ value: PaymentAccountType; label: string }> = [
-  { value: 'bank', label: 'Cuenta bancaria' },
-  { value: 'cash', label: 'Efectivo' },
-  { value: 'credit_card', label: 'Tarjeta de crédito' },
-  { value: 'debit_card', label: 'Tarjeta de débito' },
-  { value: 'digital_wallet', label: 'Billetera digital' },
-];
+const paymentAccountTypeValues: PaymentAccountType[] = ['bank', 'cash', 'credit_card', 'debit_card', 'digital_wallet'];
 const currencyOptions = ['MXN', 'USD', 'CAD', 'COP', 'BRL', 'EUR'].map(currency => ({ value: currency, label: currency }));
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function PaymentAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit }: PaymentAccountModalProps) {
+  const t = useFinanceTranslations();
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<PaymentFormValues>({
     accountNumber: account?.accountNumber ?? '',
@@ -55,6 +46,29 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
   const availableBusinessOptions = useMemo(() => (
     businessOptions.filter(option => !option.unitId || !values.unitId || option.unitId === values.unitId)
   ), [businessOptions, values.unitId]);
+  const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
+    {
+      id: 0,
+      label: t.paymentAccounts.columns.name.label,
+      icon: CreditCard,
+      title: t.paymentAccounts.headerTitle,
+      description: t.paymentAccounts.headerSubtitle,
+    },
+    {
+      id: 1,
+      label: t.filters.unit,
+      icon: MapPinned,
+      title: `${t.filters.unit} / ${t.filters.business}`,
+      description: t.paymentAccounts.columns.unitId.description ?? t.filters.unit,
+    },
+    {
+      id: 2,
+      label: t.paymentAccounts.columns.balance.label,
+      icon: Landmark,
+      title: `${t.paymentAccounts.columns.bank.label} / ${t.paymentAccounts.columns.balance.label}`,
+      description: t.paymentAccounts.columns.balance.description ?? t.paymentAccounts.columns.balance.label,
+    },
+  ], [t]);
   const canContinue = values.name.trim().length > 0;
   const currentStep = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -103,18 +117,18 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
               <Banknote className="h-5 w-5" />
             </span>
             <div>
-              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">Paso {stepIndex + 1} de {steps.length}</div>
-              <h2 className="text-xl font-bold text-white">{account ? 'Editar cuenta de pago' : 'Agregar cuenta de pago'}</h2>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{account ? account.name : 'Registra bancos, efectivo, tarjetas o billeteras en un solo flujo.'}</p>
+              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</div>
+              <h2 className="text-xl font-bold text-white">{account ? `${t.common.edit} ${t.paymentAccounts.headerTitle}` : t.paymentAccounts.add}</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{account ? account.name : t.paymentAccounts.headerSubtitle}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-          <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Paso {stepIndex + 1} de {steps.length}</p>
+          <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</p>
           <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div className="h-full rounded-full bg-[#147514] transition-all duration-300 ease-out" style={{ width: progressPercentage }} />
           </div>
@@ -144,12 +158,12 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
         </div>
 
         <div className="flex flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">Cancelar</button>
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
           <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-            <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50"><ChevronLeft className="h-4 w-4" />Atrás</button>
+            <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50"><ChevronLeft className="h-4 w-4" />{t.common.previous}</button>
             <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
               {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              {isLastStep ? (account ? 'Guardar cambios' : 'Crear cuenta') : 'Siguiente'}
+              {isLastStep ? (account ? t.common.saveChanges : t.paymentAccounts.add) : t.common.next}
             </button>
           </div>
         </div>
@@ -159,35 +173,45 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
 }
 
 function AccountStep({ values, update }: StepProps) {
+  const t = useFinanceTranslations();
+  const typeOptions = useMemo(() => paymentAccountTypeValues.map(value => ({
+    value,
+    label: t.paymentAccounts.types[value] ?? value,
+  })), [t]);
+
   return (
     <div className="space-y-4">
-      <FieldGroup title="Identidad">
-        <TextField label="Nombre de la cuenta" required value={values.name} onChange={(value) => update('name', value)} placeholder="Ej. Cuenta principal" />
-        <SelectField label="Tipo de cuenta" value={values.type} options={typeOptions} onChange={(value) => update('type', value as PaymentAccountType)} />
+      <FieldGroup title={t.paymentAccounts.columns.name.label}>
+        <TextField label={t.paymentAccounts.columns.name.label} required value={values.name} onChange={(value) => update('name', value)} placeholder={t.paymentAccounts.columns.name.label} />
+        <SelectField label={t.paymentAccounts.filters.type} value={values.type} options={typeOptions} onChange={(value) => update('type', value as PaymentAccountType)} />
       </FieldGroup>
-      <FieldGroup title="Operación">
-        <SelectField label="Moneda" value={values.currency} options={currencyOptions} onChange={(value) => update('currency', value)} />
-        <SelectField label="Estado" value={values.isActive} options={[{ value: 'true', label: 'Activa' }, { value: 'false', label: 'Inactiva' }]} onChange={(value) => update('isActive', value)} />
+      <FieldGroup title={t.paymentAccounts.columns.currency.label}>
+        <SelectField label={t.paymentAccounts.columns.currency.label} value={values.currency} options={currencyOptions} onChange={(value) => update('currency', value)} />
+        <SelectField label={t.paymentAccounts.columns.isActive.label} value={values.isActive} options={[{ value: 'true', label: t.common.active }, { value: 'false', label: t.common.inactive }]} onChange={(value) => update('isActive', value)} />
       </FieldGroup>
     </div>
   );
 }
 
 function ScopeStep({ businessOptions, unitOptions, values, update }: StepProps & { businessOptions: FinanceReferenceOption[]; unitOptions: FinanceReferenceOption[] }) {
+  const t = useFinanceTranslations();
+
   return (
-    <FieldGroup title="Asignación">
-      <SelectField label="Unidad" value={values.unitId} options={unitOptions} onChange={(value) => update('unitId', value)} includeEmpty />
-      <SelectField label="Negocio" value={values.businessId} options={businessOptions} onChange={(value) => update('businessId', value)} includeEmpty />
+    <FieldGroup title={`${t.filters.unit} / ${t.filters.business}`}>
+      <SelectField label={t.filters.unit} value={values.unitId} options={unitOptions} onChange={(value) => update('unitId', value)} includeEmpty />
+      <SelectField label={t.filters.business} value={values.businessId} options={businessOptions} onChange={(value) => update('businessId', value)} includeEmpty />
     </FieldGroup>
   );
 }
 
 function DetailStep({ values, update }: StepProps) {
+  const t = useFinanceTranslations();
+
   return (
-    <FieldGroup title="Detalle financiero">
-      <TextField label="Banco / emisor" value={values.bank} onChange={(value) => update('bank', value)} placeholder="Ej. BBVA, Chase, efectivo" />
-      <TextField label="Número / terminación" value={values.accountNumber} onChange={(value) => update('accountNumber', value)} placeholder="****1234" />
-      <MoneyField label="Saldo inicial" value={values.balance} onChange={(value) => update('balance', value)} />
+    <FieldGroup title={t.paymentAccounts.columns.balance.label}>
+      <TextField label={t.paymentAccounts.columns.bank.label} value={values.bank} onChange={(value) => update('bank', value)} placeholder={t.paymentAccounts.columns.bank.label} />
+      <TextField label={t.paymentAccounts.columns.accountNumber.label} value={values.accountNumber} onChange={(value) => update('accountNumber', value)} placeholder="****1234" />
+      <MoneyField label={t.paymentAccounts.columns.balance.label} value={values.balance} onChange={(value) => update('balance', value)} />
     </FieldGroup>
   );
 }
@@ -227,11 +251,13 @@ function TextField({ label, onChange, placeholder, required, value }: { label: s
 }
 
 function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
+  const t = useFinanceTranslations();
+
   return (
     <label>
       <FieldLabel label={label} />
       <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
-        {includeEmpty ? <option value="">Sin asignar</option> : null}
+        {includeEmpty ? <option value="">{t.common.unassigned}</option> : null}
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>

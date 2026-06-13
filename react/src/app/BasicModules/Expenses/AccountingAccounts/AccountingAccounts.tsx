@@ -3,6 +3,7 @@ import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { isBackendId } from '../adapters/adapter.utils';
+import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { accountingAccountsService, toFinanceApiErrorMessage } from '../services';
 import { mockAccounts } from './accountingAccounts.mock';
@@ -23,6 +24,7 @@ import { AccountingAccountsSummary } from './components/AccountingAccountsSummar
 import { AccountingAccountsTable } from './components/AccountingAccountsTable';
 
 export default function AccountingAccounts() {
+  const t = useFinanceTranslations();
   const [accounts, setAccounts] = useState<AccountingAccount[]>(mockAccounts);
   const [editingAccount, setEditingAccount] = useState<AccountingAccount | null>(null);
   const [failureToastMessage, setFailureToastMessage] = useState('');
@@ -37,11 +39,29 @@ export default function AccountingAccounts() {
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isCatalogImportOpen, setIsCatalogImportOpen] = useState(false);
   const [isImportingCatalog, setIsImportingCatalog] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState(() => defaultAccountingColumns.map(column => ({ ...column })));
+  const translatedAccountingColumns = useMemo(() => defaultAccountingColumns.map(column => {
+    const copy = t.accountingAccounts.columns[column.key];
+    return {
+      ...column,
+      description: copy?.description ?? column.description,
+      label: copy?.label ?? column.label,
+    };
+  }), [t]);
+  const [visibleColumns, setVisibleColumns] = useState(() => translatedAccountingColumns.map(column => ({ ...column })));
   const {
     businessOptions,
     unitOptions,
   } = useFinanceReferenceData(setFailureToastMessage);
+
+  useEffect(() => {
+    setVisibleColumns(currentColumns => translatedAccountingColumns.map(column => {
+      const current = currentColumns.find(item => item.key === column.key);
+      return {
+        ...column,
+        visible: current?.visible ?? column.visible,
+      };
+    }));
+  }, [translatedAccountingColumns]);
 
   useEffect(() => {
     let isMounted = true;
@@ -95,17 +115,17 @@ export default function AccountingAccounts() {
     try {
       const savedAccount = await accountingAccountsService.updateAccountingAccount(nextAccount);
       setAccounts(currentAccounts => currentAccounts.map(item => (item.id === account.id ? savedAccount : item)));
-      setSuccessToastMessage(savedAccount.isActive ? 'Cuenta contable activada.' : 'Cuenta contable desactivada.');
+      setSuccessToastMessage(savedAccount.isActive ? t.accountingAccounts.messages.activated : t.accountingAccounts.messages.deactivated);
     } catch (error) {
       setAccounts(currentAccounts => currentAccounts.map(item => (item.id === account.id ? account : item)));
-      setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo actualizar el estado de la cuenta contable.'));
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.accountingAccounts.messages.statusUpdateFailed));
     }
   };
 
   const handleImportCatalogTemplates = async (templates: AccountingCatalogTemplate[]) => {
     const templatesToImport = templates.filter(template => !accounts.some(account => accountMatchesCatalogTemplate(account, template)));
     if (templatesToImport.length === 0) {
-      setFailureToastMessage('No hay cuentas nuevas para importar.');
+      setFailureToastMessage(t.accountingAccounts.messages.noNewAccounts);
       return;
     }
 
@@ -123,11 +143,11 @@ export default function AccountingAccounts() {
         ...savedAccounts,
         ...currentAccounts.filter(account => !savedAccounts.some(savedAccount => savedAccount.id === account.id)),
       ]);
-      setSuccessToastMessage(`${savedAccounts.length} cuentas contables importadas.`);
+      setSuccessToastMessage(t.accountingAccounts.messages.imported(savedAccounts.length));
       setIsCatalogImportOpen(false);
     }
     if (failedResult) {
-      setFailureToastMessage(toFinanceApiErrorMessage(failedResult.reason, 'Algunas cuentas no se pudieron importar.'));
+      setFailureToastMessage(toFinanceApiErrorMessage(failedResult.reason, t.accountingAccounts.messages.importFailed));
     }
     setIsImportingCatalog(false);
   };
@@ -148,7 +168,7 @@ export default function AccountingAccounts() {
           ? currentAccounts.map(item => (item.id === account.id ? savedAccount : item))
           : [savedAccount, ...currentAccounts];
       });
-      setSuccessToastMessage(isBackendId(account.id) ? 'Cuenta contable actualizada en Finance.' : 'Cuenta contable creada en Finance.');
+      setSuccessToastMessage(isBackendId(account.id) ? t.accountingAccounts.messages.updated : t.accountingAccounts.messages.created);
     } catch (error) {
       setAccounts(currentAccounts => {
         const exists = currentAccounts.some(item => item.id === account.id);
@@ -156,7 +176,7 @@ export default function AccountingAccounts() {
           ? currentAccounts.map(item => (item.id === account.id ? account : item))
           : [account, ...currentAccounts];
       });
-      setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo guardar la cuenta contable en Finance. Se conservó localmente.'));
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.accountingAccounts.messages.saveFailed));
     } finally {
       closeModal();
     }
@@ -168,10 +188,10 @@ export default function AccountingAccounts() {
     if (!account || !isBackendId(accountId)) return;
 
     accountingAccountsService.deleteAccountingAccount(accountId)
-      .then(() => setSuccessToastMessage('Cuenta contable eliminada de Finance.'))
+      .then(() => setSuccessToastMessage(t.accountingAccounts.messages.deleted))
       .catch(error => {
         setAccounts(currentAccounts => [account, ...currentAccounts]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo eliminar la cuenta contable en Finance.'));
+        setFailureToastMessage(toFinanceApiErrorMessage(error, t.accountingAccounts.messages.deleteFailed));
       });
   };
 
@@ -179,8 +199,8 @@ export default function AccountingAccounts() {
     <div className="space-y-6">
       <LoadingBarOverlay
         isVisible={isLoading}
-        title="Cargando cuentas contables"
-        description="Conectando el catálogo con Finance."
+        title={t.accountingAccounts.headerTitle}
+        description={t.module.loadingFinanceDescription}
       />
       <AccountingAccountsHeaderBanner
         onAddAccount={() => setIsAddModalOpen(true)}
@@ -201,6 +221,7 @@ export default function AccountingAccounts() {
       <AccountingAccountsTable
         accounts={filteredAccounts}
         businessOptions={businessOptions}
+        columns={visibleColumns}
         onDelete={handleDeleteAccount}
         onEdit={(account) => {
           setEditingAccount(account);
@@ -209,7 +230,6 @@ export default function AccountingAccounts() {
         sortDirection={sortDirection}
         sortField={sortField}
         unitOptions={unitOptions}
-        visibleColumns={visibleColumns.filter(column => column.visible).map(column => column.key)}
         onSort={handleSort}
         onToggleActive={handleToggleActive}
       />
@@ -220,7 +240,7 @@ export default function AccountingAccounts() {
           onApply={() => setIsColumnsModalOpen(false)}
           onClose={() => setIsColumnsModalOpen(false)}
           onHideOptional={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: Boolean(column.fixed) })))}
-          onRestoreDefault={() => setVisibleColumns(defaultAccountingColumns.map(column => ({ ...column })))}
+          onRestoreDefault={() => setVisibleColumns(translatedAccountingColumns.map(column => ({ ...column })))}
           onShowAll={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
           onToggleColumn={handleToggleColumn}
         />

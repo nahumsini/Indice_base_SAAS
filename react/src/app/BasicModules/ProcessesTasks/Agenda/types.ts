@@ -1,6 +1,6 @@
 import type { TaskStatus } from '../Tasks/tasksApi';
 
-export type PeriodFilter = 'today' | 'tomorrow' | 'yesterday' | 'week' | 'month' | 'custom';
+export type PeriodFilter = 'all' | 'today' | 'tomorrow' | 'yesterday' | 'week' | 'month' | 'custom';
 export type AgendaFocusFilter = 'mine' | 'delegated' | 'team';
 export type AgendaStatus = 'pending' | 'in_progress' | 'paused' | 'completed' | 'overdue' | 'audited';
 export type DisplayTaskStatus = AgendaStatus | Extract<TaskStatus, 'cancelled'>;
@@ -24,6 +24,7 @@ export type AgendaColumnId =
   | 'createdAt'
   | 'startDate'
   | 'dueDate'
+  | 'predecessor'
   | 'agendaTime'
   | 'status'
   | 'creator'

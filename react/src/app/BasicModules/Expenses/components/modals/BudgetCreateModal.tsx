@@ -8,6 +8,8 @@ import type { FinanceReferenceOption } from '../../types/finance-reference.types
 import type { Provider } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls } from './BudgetTaxControls';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import type { FinanceTranslations } from '../../translations';
 
 type BudgetCreateModalProps = {
   accountingAccountOptions: FinanceReferenceOption[];
@@ -20,11 +22,6 @@ type BudgetCreateModalProps = {
   onDraftChange: (updates: Partial<BudgetDraftState>) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
-
-const steps: Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }> = [
-  { id: 0, label: 'Costo', icon: FileText, title: 'Costo presupuestado', description: 'Define el costo fijo, proveedor, cuenta contable y alcance operativo.' },
-  { id: 1, label: 'Programación', icon: CalendarDays, title: 'Programación de órdenes', description: 'Configura el periodo y la periodicidad para crear órdenes presupuestadas.' },
-];
 
 const currencyOptions = ['MXN', 'USD', 'CAD', 'COP', 'BRL'].map(currency => ({ value: currency, label: currency }));
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
@@ -40,7 +37,12 @@ export function BudgetCreateModal({
   onDraftChange,
   onSubmit,
 }: BudgetCreateModalProps) {
+  const t = useFinanceTranslations();
   const [stepIndex, setStepIndex] = useState(0);
+  const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
+    { id: 0, label: t.budgets.modal.stepCost, icon: FileText, title: t.budgets.modal.titleCost, description: t.budgets.modal.subtitle },
+    { id: 1, label: t.budgets.modal.stepSchedule, icon: CalendarDays, title: t.budgets.modal.scheduleTitle, description: t.budgets.modal.scheduleDescription },
+  ], [t]);
   const currentStep = steps[stepIndex];
   const isEditMode = mode === 'edit';
   const isLastStep = stepIndex === steps.length - 1;
@@ -112,18 +114,18 @@ export function BudgetCreateModal({
               <Plus className="h-5 w-5" />
             </span>
             <div>
-              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">Paso {stepIndex + 1} de {steps.length}</div>
-              <h3 className="text-xl font-bold text-white">{isEditMode ? 'Editar presupuesto' : 'Crear presupuesto'}</h3>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{isEditMode ? 'Actualiza la línea presupuestada seleccionada.' : 'Programa costos fijos y genera sus órdenes futuras.'}</p>
+              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</div>
+              <h3 className="text-xl font-bold text-white">{isEditMode ? t.budgets.modal.editTitle : t.budgets.modal.createTitle}</h3>
+              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{isEditMode ? t.budgets.modal.editSubtitle : t.budgets.modal.subtitle}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label="Cerrar modal de presupuesto">
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-          <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Paso {stepIndex + 1} de {steps.length}</p>
+          <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</p>
           <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div className="h-full rounded-full bg-[#147514] transition-all duration-300 ease-out" style={{ width: progressPercentage }} />
           </div>
@@ -164,6 +166,7 @@ export function BudgetCreateModal({
                 providerOptions={providerOptions}
                 unitOptions={unitOptions}
                 onDraftChange={onDraftChange}
+                t={t}
               />
             ) : null}
             {stepIndex === 1 ? (
@@ -175,21 +178,22 @@ export function BudgetCreateModal({
                 currency={draft.budgetCurrencyCode}
                 mode={mode}
                 onDraftChange={onDraftChange}
+                t={t}
               />
             ) : null}
           </StepCard>
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-[#0b3f1b]">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">Cancelar</button>
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
           <div className="flex flex-wrap items-center gap-3 sm:justify-end">
             <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50">
               <ChevronLeft className="h-4 w-4" />
-              Atrás
+              {t.budgets.modal.back}
             </button>
             <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
               {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              {isLastStep ? (isEditMode ? 'Guardar cambios' : 'Crear presupuesto') : 'Continuar'}
+              {isLastStep ? (isEditMode ? t.budgets.modal.finishEdit : t.budgets.modal.finishCreate) : t.common.continue}
             </button>
           </div>
         </div>
@@ -205,6 +209,7 @@ function BudgetCostStep({
   providerOptions,
   unitOptions,
   onDraftChange,
+  t,
 }: {
   accountingAccountOptions: FinanceReferenceOption[];
   businessOptions: FinanceReferenceOption[];
@@ -212,6 +217,7 @@ function BudgetCostStep({
   providerOptions: FinanceReferenceOption[];
   unitOptions: FinanceReferenceOption[];
   onDraftChange: (updates: Partial<BudgetDraftState>) => void;
+  t: FinanceTranslations;
 }) {
   const updateConcept = (concept: string) => onDraftChange({ budgetName: concept, concept });
   const updateCurrency = (budgetCurrencyCode: string) => {
@@ -227,20 +233,20 @@ function BudgetCostStep({
 
   return (
     <div className="space-y-4">
-      <FieldGroup title="Costo">
-        <BudgetTextInput label="Concepto" required value={draft.concept} onChange={updateConcept} placeholder="Ej. Renta mensual" />
-        <BudgetSelect label="Proveedor" includeEmpty value={draft.providerId} onChange={(providerId) => onDraftChange({ providerId })} options={providerOptions} />
-        <BudgetSelect label="Cuenta contable" required value={draft.accountingAccount} onChange={(accountingAccount) => onDraftChange({ accountingAccount })} options={accountingAccountOptions} />
-        <BudgetSelect label="Moneda" required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={currencyOptions} />
-        <BudgetMoneyInput label="Monto base" required value={draft.amount} onChange={(amount) => onDraftChange({ amount })} placeholder="0.00" />
+      <FieldGroup title={t.budgets.modal.fieldGroupCost}>
+        <BudgetTextInput label={t.budgets.modal.concept} required value={draft.concept} onChange={updateConcept} placeholder={t.expenses.modal.placeholderConcept} />
+        <BudgetSelect label={t.budgets.modal.provider} includeEmpty value={draft.providerId} onChange={(providerId) => onDraftChange({ providerId })} options={providerOptions} t={t} />
+        <BudgetSelect label={t.budgets.modal.account} required value={draft.accountingAccount} onChange={(accountingAccount) => onDraftChange({ accountingAccount })} options={accountingAccountOptions} t={t} />
+        <BudgetSelect label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={currencyOptions} t={t} />
+        <BudgetMoneyInput label={t.budgets.modal.amount} required value={draft.amount} onChange={(amount) => onDraftChange({ amount })} placeholder="0.00" />
         <BudgetTaxControls draft={draft} onDraftChange={onDraftChange} />
         <div className="md:col-span-2">
-          <BudgetTextInput label="Descripción" value={draft.description} onChange={(description) => onDraftChange({ budgetDescription: description, description })} placeholder="Notas internas del presupuesto" />
+          <BudgetTextInput label={t.budgets.modal.description} value={draft.description} onChange={(description) => onDraftChange({ budgetDescription: description, description })} placeholder={t.budgets.modal.description} />
         </div>
       </FieldGroup>
-      <FieldGroup title="Alcance">
-        <BudgetSelect label="Unidad" required value={draft.businessUnit} onChange={(businessUnit) => onDraftChange({ businessUnit, business: '' })} options={unitOptions} />
-        <BudgetSelect label="Negocio" required value={draft.business} onChange={(business) => onDraftChange({ business })} options={businessOptions} />
+      <FieldGroup title={t.budgets.modal.unit}>
+        <BudgetSelect label={t.budgets.modal.unit} required value={draft.businessUnit} onChange={(businessUnit) => onDraftChange({ businessUnit, business: '' })} options={unitOptions} t={t} />
+        <BudgetSelect label={t.budgets.modal.business} required value={draft.business} onChange={(business) => onDraftChange({ business })} options={businessOptions} t={t} />
       </FieldGroup>
     </div>
   );
@@ -254,6 +260,7 @@ function BudgetScheduleStep({
   scheduleCount,
   totalPerOrder,
   onDraftChange,
+  t,
 }: {
   currency: string;
   draft: BudgetDraftState;
@@ -262,25 +269,33 @@ function BudgetScheduleStep({
   scheduleCount: number;
   totalPerOrder: number;
   onDraftChange: (updates: Partial<BudgetDraftState>) => void;
+  t: FinanceTranslations;
 }) {
   return (
     <div className="space-y-4">
-      <FieldGroup title="Periodo">
-        <BudgetDateInput label="Inicio" required value={draft.budgetPeriodStart} onChange={(budgetPeriodStart) => onDraftChange({ budgetPeriodStart, startDate: budgetPeriodStart })} />
-        <BudgetDateInput label="Fin" required value={draft.budgetPeriodEnd} onChange={(budgetPeriodEnd) => onDraftChange({ budgetPeriodEnd })} />
-        <BudgetSelect label="Periodicidad" required value={draft.frequency} onChange={(frequency) => onDraftChange({ frequency: frequency as BudgetDraftState['frequency'] })} options={budgetFrequencyOptions} />
+      <FieldGroup title={t.budgets.modal.fieldGroupPeriod}>
+        <BudgetDateInput label={t.budgets.modal.periodStart} required value={draft.budgetPeriodStart} onChange={(budgetPeriodStart) => onDraftChange({ budgetPeriodStart, startDate: budgetPeriodStart })} />
+        <BudgetDateInput label={t.budgets.modal.periodEnd} required value={draft.budgetPeriodEnd} onChange={(budgetPeriodEnd) => onDraftChange({ budgetPeriodEnd })} />
+        <BudgetSelect
+          label={t.budgets.modal.frequency}
+          required
+          value={draft.frequency}
+          onChange={(frequency) => onDraftChange({ frequency: frequency as BudgetDraftState['frequency'] })}
+          options={budgetFrequencyOptions.map(option => ({ ...option, label: t.budgets.frequencies[option.value] ?? option.label }))}
+          t={t}
+        />
       </FieldGroup>
       <div className="rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4">
-        <p className="text-sm font-extrabold text-slate-900">Resumen de generación</p>
+        <p className="text-sm font-extrabold text-slate-900">{t.budgets.modal.scheduleSummary}</p>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <SummaryMetric label="Órdenes presupuestadas" value={String(scheduleCount)} />
-          <SummaryMetric label="Total por orden" value={formatCurrency(totalPerOrder, currency)} />
-          <SummaryMetric label="Total del periodo" value={formatCurrency(plannedTotal, currency)} />
+          <SummaryMetric label={t.budgets.budgetLine} value={String(scheduleCount)} />
+          <SummaryMetric label={t.budgets.columns.total.label} value={formatCurrency(totalPerOrder, currency)} />
+          <SummaryMetric label={t.budgets.period} value={formatCurrency(plannedTotal, currency)} />
         </div>
         <p className="mt-3 text-xs font-semibold text-slate-500">
           {scheduleCount > 0
-            ? (mode === 'edit' ? 'Al guardar se actualizará la línea presupuestada seleccionada.' : 'Al crear el presupuesto se generarán las órdenes futuras para el periodo configurado.')
-            : 'Revisa fecha de inicio, fecha de fin y periodicidad para generar órdenes.'}
+            ? (mode === 'edit' ? t.budgets.modal.editSubtitle : t.budgets.modal.scheduleDescription)
+            : t.budgets.modal.scheduleEmpty}
         </p>
       </div>
     </div>
@@ -350,6 +365,7 @@ function BudgetSelect({
   onChange,
   options,
   required,
+  t,
   value,
 }: {
   includeEmpty?: boolean;
@@ -358,12 +374,13 @@ function BudgetSelect({
   options: Array<string | { value: string; label: string }>;
   required?: boolean;
   value: string;
+  t: FinanceTranslations;
 }) {
   return (
     <label>
       <FieldLabel label={label} required={required} />
       <select required={required} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
-        {(includeEmpty || !required || value === '' || options.length === 0) && <option value="">{options.length === 0 ? 'Sin opciones disponibles' : 'Seleccionar'}</option>}
+        {(includeEmpty || !required || value === '' || options.length === 0) && <option value="">{options.length === 0 ? t.common.noOptions : t.common.select}</option>}
         {options.map(option => {
           const optionValue = typeof option === 'string' ? option : option.value;
           const labelText = typeof option === 'string' ? option : option.label;

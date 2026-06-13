@@ -47,6 +47,7 @@ export const esCO: AgendaTranslations = {
     status: 'Estado',
   },
   periods: {
+    all: 'Todos',
     today: 'Hoy',
     tomorrow: 'Manana',
     yesterday: 'Ayer',
@@ -96,6 +97,7 @@ export const esCO: AgendaTranslations = {
     createdAt: { label: 'Fecha de creacion', description: 'Fecha en que se registro la tarea.' },
     startDate: { label: 'Fecha de inicio', description: 'Fecha programada para iniciar.' },
     dueDate: { label: 'Fecha de vencimiento', description: 'Fecha limite de cumplimiento.' },
+    predecessor: { label: 'Predecesora', description: 'Tarea que debe terminar antes de esta tarea.' },
     agendaTime: { label: 'Hora', description: 'Hora programada usada para ordenar la agenda del dia.' },
     status: { label: 'Estado', description: 'Estado actual, incluyendo vencida como estado visual.' },
     creator: { label: 'Creador', description: 'Usuario que creo la tarea.' },
@@ -114,6 +116,11 @@ export const esCO: AgendaTranslations = {
     empty: 'No hay tareas que coincidan con los filtros actuales.',
     resizeColumn: 'Ajustar ancho',
     noWeighting: 'Sin ponderacion',
+    showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total}`,
+    rowsPerPage: 'Vista',
+    previous: 'Anterior',
+    next: 'Siguiente',
+    loadMore: 'Cargar mas',
   },
   quickAdd: {
     buttonLabel: 'Agregar tarea rapida',

@@ -1,12 +1,13 @@
 import { Banknote, Building2, CreditCard } from 'lucide-react';
+import type { FinanceLocale } from '../translations';
 import type { PaymentAccount, PaymentSortField, SortDirection } from './types';
 
 export const getTypeLabel = (type: string) => ({
-  bank: 'Cuenta Bancaria',
-  cash: 'Efectivo',
-  credit_card: 'Tarjeta de Crédito',
-  debit_card: 'Tarjeta de Débito',
-  digital_wallet: 'Billetera Digital',
+  bank: 'Bank account',
+  cash: 'Cash',
+  credit_card: 'Credit card',
+  debit_card: 'Debit card',
+  digital_wallet: 'Digital wallet',
 }[type] || type);
 
 export const getTypeBadgeColor = (type: string) => ({
@@ -23,11 +24,11 @@ export const getTypeIcon = (type: string) => {
   return <Building2 className="w-4 h-4" />;
 };
 
-export const formatPaymentCurrency = (amount: number, currency: string) =>
-  new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'es-MX', { currency, style: 'currency' }).format(amount);
+export const formatPaymentCurrency = (amount: number, currency: string, locale: FinanceLocale = 'en-CA') =>
+  new Intl.NumberFormat(locale, { currency, style: 'currency' }).format(amount);
 
-export const formatPaymentDate = (date: string) =>
-  new Date(date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+export const formatPaymentDate = (date: string, locale: FinanceLocale = 'en-CA') =>
+  new Date(date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 
 export const filterPaymentAccounts = (
   accounts: PaymentAccount[],

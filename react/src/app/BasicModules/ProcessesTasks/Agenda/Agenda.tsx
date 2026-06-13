@@ -493,8 +493,6 @@ export default function Agenda() {
     sortState,
     sortedTasks,
     unitOptions,
-    visibleTaskIds,
-    visibleTaskSelection,
   } = useAgendaDerivedTasks({
     agendaCopy,
     agendaKanbanColumns,
@@ -941,8 +939,6 @@ export default function Agenda() {
           sortState={sortState}
           sortedTasks={sortedTasks}
           visibleAgendaColumns={visibleAgendaColumns}
-          visibleTaskIds={visibleTaskIds}
-          visibleTaskSelection={visibleTaskSelection}
         />
       ) : viewMode === 'kanban' ? (
         renderKanbanBoard()

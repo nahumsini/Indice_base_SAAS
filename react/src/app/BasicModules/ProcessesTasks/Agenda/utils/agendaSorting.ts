@@ -55,6 +55,8 @@ export function getAgendaSortValue(
       return sortableDateValue(task.startDate);
     case 'dueDate':
       return sortableDateValue(task.dueDate);
+    case 'predecessor':
+      return task.predecessorTaskFolio ?? task.predecessorTaskTitle ?? '';
     case 'agendaTime':
       return getTaskScheduleHour(task, todayValue) ?? null;
     case 'status':

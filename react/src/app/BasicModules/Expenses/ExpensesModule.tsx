@@ -3,11 +3,11 @@ import { Button } from '../../components/ui/button';
 import { FailureToast } from '../../components/FailureToast';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
-import { useGastosTranslations } from '../../hooks/useGastosTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { mockExpenses } from './data/expenses.mock';
 import { mockProviderRecords } from './data/providerRecords.mock';
 import { budgetLinesService, expensesService, providersService, toFinanceApiErrorMessage } from './services';
+import { useFinanceTranslations } from './hooks/useFinanceTranslations';
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
 import type { ProviderRecord } from './Providers/useProveedoresLogic';
@@ -81,7 +81,7 @@ const createInitialExpenseState = () => [
 ];
 
 export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
-  const t = useGastosTranslations();
+  const t = useFinanceTranslations();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<TabId>(
     'expenses',
     expenseTabIds,
@@ -92,12 +92,12 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
   const [isFinanceDataLoading, setIsFinanceDataLoading] = useState(false);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const tabs = [
-    { id: 'expenses' as TabId, label: t.tabs.gastos, emoji: '💰' },
-    { id: 'budgets' as TabId, label: t.tabs.presupuestos, emoji: '📋' },
-    { id: 'providers' as TabId, label: t.tabs.proveedores, emoji: '🏢' },
-    { id: 'accounting' as TabId, label: t.tabs.accountingAccounts, emoji: '📊' },
-    { id: 'payment_accounts' as TabId, label: t.tabs.paymentAccounts, emoji: '💳' },
-    { id: 'kpis' as TabId, label: t.tabs.kpis, emoji: '📊' },
+    { id: 'expenses' as TabId, label: t.module.tabs.expenses, emoji: '💰' },
+    { id: 'budgets' as TabId, label: t.module.tabs.budgets, emoji: '📋' },
+    { id: 'providers' as TabId, label: t.module.tabs.providers, emoji: '🏢' },
+    { id: 'accounting' as TabId, label: t.module.tabs.accountingAccounts, emoji: '📊' },
+    { id: 'payment_accounts' as TabId, label: t.module.tabs.paymentAccounts, emoji: '💳' },
+    { id: 'kpis' as TabId, label: t.module.tabs.kpis, emoji: '📊' },
   ];
 
   useEffect(() => {
@@ -174,13 +174,13 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
         isVisible={isTabLoading}
-        title="Loading expenses tab"
-        description="Opening the selected expenses workspace."
+        title={t.module.loadingTabTitle}
+        description={t.module.loadingTabDescription}
       />
       <LoadingBarOverlay
         isVisible={isFinanceDataLoading}
-        title="Loading finance data"
-        description="Connecting Expenses with Finance APIs."
+        title={t.module.loadingFinanceTitle}
+        description={t.module.loadingFinanceDescription}
       />
       <FailureToast
         isVisible={Boolean(failureToastMessage)}
@@ -189,7 +189,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       />
 
       {/* Module Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
+      <div className="border-b border-gray-200 bg-white px-4 py-5 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8 lg:py-6">
         <div className="max-w-[1600px] mx-auto">
           {/* Favorites Bar */}
           <FavoritesBar 
@@ -200,31 +200,31 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
             currentModule="expenses" 
           />
           
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {t.title}
+              <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                {t.module.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {t.subtitle}
+                {t.module.subtitle}
               </p>
             </div>
             <Button 
               variant="outline" 
               onClick={() => onNavigate()}
-              className="text-sm gap-2"
+              className="w-full gap-2 text-sm sm:w-auto"
             >
-              <span className="text-lg">🏠</span> {t.back}
+              <span className="text-lg">🏠</span> {t.module.back}
             </Button>
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
+          <div className="-mx-4 mt-4 flex snap-x items-center gap-2 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+                className={`flex snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
@@ -239,13 +239,13 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       </div>
 
       {/* Active Tab Content */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
+      <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
               isVisible
-              title="Loading expenses tab"
-              description="Downloading only the selected expenses workspace."
+              title={t.module.loadingTabTitle}
+              description={t.module.loadingTabDescription}
             />
           )}
         >

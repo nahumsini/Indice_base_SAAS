@@ -35,6 +35,7 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -57,6 +58,7 @@ public class ProcessTasksService {
             "cancelled",
             "paused");
     private static final Set<String> ALLOWED_PRIORITIES = Set.of("low", "medium", "high");
+    private static final Set<String> ALLOWED_DEPENDENCY_TYPES = Set.of("finish_to_start");
     private static final long MAX_ATTACHMENT_SIZE_BYTES = 10L * 1024L * 1024L;
 
     private final JdbcTemplate jdbcTemplate;
@@ -123,6 +125,12 @@ public class ProcessTasksService {
                    ) AS resolved_created_by_name,
                    pt.created_at,
                    pt.updated_at,
+                   task_dependency.id AS predecessor_dependency_id,
+                   task_dependency.predecessor_task_id,
+                   task_dependency.dependency_type,
+                   task_dependency.lag_days AS dependency_lag_days,
+                   predecessor_task.folio AS predecessor_task_folio,
+                   predecessor_task.title AS predecessor_task_title,
                    (
                        SELECT COUNT(*)
                        FROM process_task_attachments attachment
@@ -145,6 +153,17 @@ public class ProcessTasksService {
                 AND (business.company_id = pt.company_id OR business.company_id IS NULL)
             LEFT JOIN units unit ON unit.id = pt.unit_id
                 AND (unit.company_id = pt.company_id OR unit.company_id IS NULL)
+            LEFT JOIN (
+                SELECT company_id, successor_task_id, MIN(id) AS dependency_id
+                FROM process_task_dependencies
+                WHERE deleted_at IS NULL
+                GROUP BY company_id, successor_task_id
+            ) main_dependency ON main_dependency.company_id = pt.company_id
+                AND main_dependency.successor_task_id = pt.id
+            LEFT JOIN process_task_dependencies task_dependency ON task_dependency.id = main_dependency.dependency_id
+            LEFT JOIN process_tasks predecessor_task ON predecessor_task.id = task_dependency.predecessor_task_id
+                AND predecessor_task.company_id = pt.company_id
+                AND predecessor_task.deleted_at IS NULL
             """;
 
     public ProcessTasksService(
@@ -431,6 +450,98 @@ public class ProcessTasksService {
             statement.setLong(6, taskId);
             return statement;
         });
+
+        return getTask(companyId, taskId);
+    }
+
+    public Map<String, Object> listTaskDependencies(long companyId, long userId, long taskId) {
+        requireTaskAccess(companyId, userId, taskId);
+
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT dependency.id,
+                               dependency.company_id,
+                               dependency.predecessor_task_id,
+                               dependency.successor_task_id,
+                               dependency.dependency_type,
+                               dependency.lag_days,
+                               predecessor.folio AS predecessor_task_folio,
+                               predecessor.title AS predecessor_task_title,
+                               successor.folio AS successor_task_folio,
+                               successor.title AS successor_task_title,
+                               dependency.created_by,
+                               dependency.created_at,
+                               dependency.updated_at
+                        FROM process_task_dependencies dependency
+                        JOIN process_tasks predecessor ON predecessor.id = dependency.predecessor_task_id
+                            AND predecessor.company_id = dependency.company_id
+                            AND predecessor.deleted_at IS NULL
+                        JOIN process_tasks successor ON successor.id = dependency.successor_task_id
+                            AND successor.company_id = dependency.company_id
+                            AND successor.deleted_at IS NULL
+                        WHERE dependency.company_id = ?
+                          AND dependency.successor_task_id = ?
+                          AND dependency.deleted_at IS NULL
+                        ORDER BY dependency.id ASC
+                        """,
+                (rs, rowNum) -> mapTaskDependencyRow(rs),
+                companyId,
+                taskId);
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", rows);
+        body.put("count", rows.size());
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> updateTaskDependencies(
+            long companyId,
+            long userId,
+            long taskId,
+            Map<String, Object> payload) {
+        requireTaskAccess(companyId, userId, taskId);
+        var successor = requireTaskDependencyRef(companyId, taskId);
+        var predecessorTaskId = parseLong(payload, "predecessorTaskId", "predecessor_task_id");
+        var dependencyType = dependencyType(payload);
+        var lagDays = dependencyLagDays(payload);
+
+        jdbcTemplate.update(
+                """
+                        UPDATE process_task_dependencies
+                        SET deleted_at = CURRENT_TIMESTAMP
+                        WHERE company_id = ?
+                          AND successor_task_id = ?
+                          AND deleted_at IS NULL
+                        """,
+                companyId,
+                taskId);
+
+        if (predecessorTaskId == null) {
+            return getTask(companyId, taskId);
+        }
+
+        if (predecessorTaskId == taskId) {
+            throw new IllegalArgumentException("A task cannot depend on itself.");
+        }
+
+        requireTaskAccess(companyId, userId, predecessorTaskId);
+        var predecessor = requireTaskDependencyRef(companyId, predecessorTaskId);
+        validateSameProjectDependency(successor, predecessor);
+        validateNoDependencyCycle(companyId, taskId, predecessorTaskId);
+
+        jdbcTemplate.update(
+                """
+                        INSERT INTO process_task_dependencies
+                        (company_id, predecessor_task_id, successor_task_id, dependency_type, lag_days, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                companyId,
+                predecessorTaskId,
+                taskId,
+                dependencyType,
+                lagDays,
+                userId);
 
         return getTask(companyId, taskId);
     }
@@ -786,6 +897,96 @@ public class ProcessTasksService {
         }
 
         return null;
+    }
+
+    private String dependencyType(Map<String, Object> payload) {
+        var rawType = firstPayloadValue(payload, "dependencyType", "dependency_type");
+        if (rawType == null || String.valueOf(rawType).trim().isBlank()) {
+            return "finish_to_start";
+        }
+
+        var normalized = String.valueOf(rawType).trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        if (!ALLOWED_DEPENDENCY_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("dependencyType is not supported.");
+        }
+
+        return normalized;
+    }
+
+    private int dependencyLagDays(Map<String, Object> payload) {
+        var value = optionalInteger(payload, "lagDays", "lag_days");
+        if (value == null) {
+            return 0;
+        }
+
+        if (value < 0 || value > 365) {
+            throw new IllegalArgumentException("lagDays must be between 0 and 365.");
+        }
+
+        return value;
+    }
+
+    private DependencyTaskRef requireTaskDependencyRef(long companyId, long taskId) {
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT id, project_id
+                        FROM process_tasks
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                (rs, rowNum) -> new DependencyTaskRef(
+                        rs.getLong("id"),
+                        rs.getObject("project_id", Long.class)),
+                companyId,
+                taskId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Task not found.");
+        }
+
+        return rows.getFirst();
+    }
+
+    private void validateSameProjectDependency(DependencyTaskRef successor, DependencyTaskRef predecessor) {
+        if (successor.projectId() == null || predecessor.projectId() == null) {
+            throw new IllegalArgumentException("Task dependencies are only supported inside a project.");
+        }
+
+        if (!successor.projectId().equals(predecessor.projectId())) {
+            throw new IllegalArgumentException("Task dependencies must stay inside the same project.");
+        }
+    }
+
+    private void validateNoDependencyCycle(long companyId, long successorTaskId, long predecessorTaskId) {
+        var visited = new HashSet<Long>();
+        var currentTaskId = predecessorTaskId;
+
+        while (visited.add(currentTaskId)) {
+            if (currentTaskId == successorTaskId) {
+                throw new IllegalArgumentException("Task dependency creates a cycle.");
+            }
+
+            var nextRows = jdbcTemplate.query(
+                    """
+                            SELECT predecessor_task_id
+                            FROM process_task_dependencies
+                            WHERE company_id = ?
+                              AND successor_task_id = ?
+                              AND deleted_at IS NULL
+                            ORDER BY id ASC
+                            LIMIT 1
+                            """,
+                    (rs, rowNum) -> rs.getLong("predecessor_task_id"),
+                    companyId,
+                    currentTaskId);
+
+            if (nextRows.isEmpty()) {
+                return;
+            }
+
+            currentTaskId = nextRows.getFirst();
+        }
     }
 
     private TaskMutationRecord requireTaskForMutation(long companyId, long taskId) {
@@ -1379,6 +1580,24 @@ public class ProcessTasksService {
         return value == null ? "" : value;
     }
 
+    private Map<String, Object> mapTaskDependencyRow(ResultSet rs) throws SQLException {
+        var row = new LinkedHashMap<String, Object>();
+        row.put("id", rs.getLong("id"));
+        row.put("companyId", rs.getLong("company_id"));
+        row.put("predecessorTaskId", rs.getLong("predecessor_task_id"));
+        row.put("successorTaskId", rs.getLong("successor_task_id"));
+        row.put("dependencyType", rs.getString("dependency_type"));
+        row.put("lagDays", rs.getInt("lag_days"));
+        row.put("predecessorTaskFolio", rs.getString("predecessor_task_folio"));
+        row.put("predecessorTaskTitle", rs.getString("predecessor_task_title"));
+        row.put("successorTaskFolio", rs.getString("successor_task_folio"));
+        row.put("successorTaskTitle", rs.getString("successor_task_title"));
+        row.put("createdBy", rs.getObject("created_by", Long.class));
+        row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
+        row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
+        return row;
+    }
+
     private Map<String, Object> mapTaskRow(ResultSet rs) throws SQLException {
         Long processId = rs.getObject("process_id", Long.class);
         Long projectId = rs.getObject("project_id", Long.class);
@@ -1435,6 +1654,12 @@ public class ProcessTasksService {
         row.put("creator", rs.getString("resolved_created_by_name"));
         row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
         row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
+        row.put("predecessorDependencyId", rs.getObject("predecessor_dependency_id", Long.class));
+        row.put("predecessorTaskId", rs.getObject("predecessor_task_id", Long.class));
+        row.put("predecessorTaskFolio", rs.getString("predecessor_task_folio"));
+        row.put("predecessorTaskTitle", rs.getString("predecessor_task_title"));
+        row.put("dependencyType", rs.getString("dependency_type"));
+        row.put("dependencyLagDays", rs.getObject("dependency_lag_days", Integer.class));
         row.put("attachments", rs.getInt("attachments"));
         return row;
     }
@@ -1512,5 +1737,8 @@ public class ProcessTasksService {
     }
 
     private record AttachmentRef(long id, String objectKey, String fileName) {
+    }
+
+    private record DependencyTaskRef(long id, Long projectId) {
     }
 }

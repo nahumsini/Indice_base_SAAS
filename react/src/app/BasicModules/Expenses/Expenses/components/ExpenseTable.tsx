@@ -17,12 +17,15 @@ import {
 import { useExpenseRowSelection } from '../../hooks/useExpenseRowSelection';
 import { ExpenseBulkActionsBar } from '../../components/table/ExpenseBulkActionsBar';
 import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeaderRow';
+import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import {
   EditableExpenseRow,
   type EditableExpenseRowOptions,
   type ExpenseRowActionVisibility,
   type ExpenseWorkflowState,
 } from './EditableExpenseRow';
+import { ExpenseMobileCards } from './ExpenseMobileCards';
 
 type ExpenseTableProps = {
   actionVisibility?: ExpenseRowActionVisibility;
@@ -48,8 +51,8 @@ export function ExpenseTable({
   actionVisibility,
   accountingAccountOptions = [],
   columns,
-  emptyMessage = 'Intenta ajustar los filtros de búsqueda',
-  emptyTitle = 'No se encontraron gastos',
+  emptyMessage,
+  emptyTitle,
   expenses,
   getAttachments,
   onDeleteExpense,
@@ -63,6 +66,7 @@ export function ExpenseTable({
   unitOptions = [],
   userOptions = [],
 }: ExpenseTableProps) {
+  const t = useFinanceTranslations();
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_EXPENSE_COLUMN_WIDTHS);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
@@ -70,9 +74,12 @@ export function ExpenseTable({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [sortField, setSortField] = useState<ExpenseSortField | null>(null);
+  const [paymentExpenseId, setPaymentExpenseId] = useState<string | null>(null);
   const [workflowByExpenseId, setWorkflowByExpenseId] = useState<Record<string, ExpenseWorkflowState>>({});
   const rowSelection = useExpenseRowSelection<string>();
 
+  const effectiveEmptyMessage = emptyMessage ?? t.expenses.emptyMessage;
+  const effectiveEmptyTitle = emptyTitle ?? t.expenses.emptyTitle;
   const editableRowOptions = useEditableRowOptions(expenses, providers, unitOptions, businessOptions, userOptions, accountingAccountOptions);
   const sortedExpenses = useMemo(() => {
     if (!sortField || !sortDirection) return expenses;
@@ -83,6 +90,10 @@ export function ExpenseTable({
   const visibleColumnCount = useMemo(() => (
     columns.filter(column => column.key !== 'actions' && column.visible).length + 2
   ), [columns]);
+  const paymentExpense = useMemo(
+    () => expenses.find(expense => expense.id === paymentExpenseId) ?? null,
+    [expenses, paymentExpenseId],
+  );
 
   useEffect(() => {
     if (!resizingColumn) return undefined;
@@ -269,7 +280,20 @@ export function ExpenseTable({
   const handlePay = (id: string) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
-    updateExpense(id, { amountPaid: expense.amount, paymentDate: new Date(), status: 'paid' });
+    updateExpense(id, { amountPaid: expense.total, paymentDate: new Date(), status: 'paid' });
+  };
+
+  const handleRecordPayment = (id: string, amount: number, paymentDate: Date) => {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense) return;
+
+    const nextAmountPaid = Math.min(expense.total, (expense.amountPaid ?? 0) + amount);
+    updateExpense(id, {
+      amountPaid: nextAmountPaid,
+      paymentDate,
+      status: nextAmountPaid >= expense.total ? 'paid' : 'partial',
+    });
+    setPaymentExpenseId(null);
   };
 
   return (
@@ -295,9 +319,34 @@ export function ExpenseTable({
         />
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <ExpenseMobileCards
+        actionVisibility={actionVisibility}
+        emptyMessage={effectiveEmptyMessage}
+        emptyTitle={effectiveEmptyTitle}
+        expenses={sortedExpenses}
+        getAttachments={getAttachments}
+        isColumnVisible={isColumnVisible}
+        isSelected={rowSelection.isSelected}
+        options={editableRowOptions}
+        onAudit={setEditingRowId}
+        onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
+        onEdit={(expense) => {
+          if (onEditExpense) {
+            onEditExpense(expense);
+            return;
+          }
+          setEditingRowId(expense.id);
+        }}
+        onMarkPaid={handlePay}
+        onOpenAttachments={onOpenAttachments}
+        onRecordPayment={(expenseId) => setPaymentExpenseId(expenseId)}
+        onSelectionChange={rowSelection.toggleSelection}
+      />
+
+      <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 md:block">
         <div className="overflow-x-auto">
-          <table className="min-w-full">
+          <table className="min-w-[1280px]">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <ExpenseTableHeaderRow
               allVisibleSelected={visibleSelection.allVisibleSelected}
@@ -314,7 +363,7 @@ export function ExpenseTable({
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {sortedExpenses.length === 0 ? (
-              <EmptyExpenseTableRow colSpan={visibleColumnCount} emptyMessage={emptyMessage} emptyTitle={emptyTitle} />
+              <EmptyExpenseTableRow colSpan={visibleColumnCount} emptyMessage={effectiveEmptyMessage} emptyTitle={effectiveEmptyTitle} />
             ) : (
               sortedExpenses.map(expense => (
                 <EditableExpenseRow
@@ -337,6 +386,7 @@ export function ExpenseTable({
                   onDelete={handleDelete}
                   onActionEdit={onEditExpense ? () => onEditExpense(expense) : undefined}
                   onMarkPaid={handlePay}
+                  onRecordPayment={(expenseId) => setPaymentExpenseId(expenseId)}
                   onAudit={setEditingRowId}
                 />
               ))
@@ -345,6 +395,14 @@ export function ExpenseTable({
           </table>
         </div>
       </div>
+
+      {paymentExpense && (
+        <ExpensePaymentModal
+          expense={paymentExpense}
+          onClose={() => setPaymentExpenseId(null)}
+          onSubmit={handleRecordPayment}
+        />
+      )}
     </div>
   );
 }
@@ -357,44 +415,46 @@ function useEditableRowOptions(
   userOptions: FinanceReferenceOption[],
   accountingAccountOptions: FinanceReferenceOption[],
 ): EditableExpenseRowOptions {
+  const t = useFinanceTranslations();
+
   return useMemo(() => {
-    const baseAccounts = ['', 'Gastos Operativos', 'Marketing', 'Nómina', 'Servicios', 'Impuestos', 'Activos'];
+    const baseAccounts = t.expenses.table.fallbackAccounts;
     const existingAccounts = Array.from(new Set(expenses.map(expense => expense.accountingAccount).filter(Boolean) as string[]));
 
     return {
       accountingAccounts: accountingAccountOptions.length > 0
-        ? [{ value: '', label: 'Seleccionar' }, ...accountingAccountOptions]
+        ? [{ value: '', label: t.common.select }, ...accountingAccountOptions]
         : Array.from(new Set([...baseAccounts, ...existingAccounts])).map(account => ({
           value: account,
-          label: account || 'Seleccionar',
+          label: account || t.common.select,
         })),
       businessUnits: unitOptions.length > 0
         ? unitOptions
         : Array.from(new Set(expenses.map(expense => expense.businessUnit))).map(value => ({ value, label: value })),
       businesses: [
-        { value: '', label: 'Seleccionar' },
+        { value: '', label: t.common.select },
         ...(businessOptions.length > 0
           ? businessOptions
           : Array.from(new Set(expenses.map(expense => expense.business))).map(value => ({ value, label: value }))),
       ],
       paymentMethods: [
-        { value: 'credit_card', label: 'Tarjeta de crédito' },
-        { value: 'transfer', label: 'Transferencia' },
-        { value: 'cash', label: 'Efectivo' },
-        { value: 'debit_card', label: 'Tarjeta de débito' },
-        { value: 'check', label: 'Cheque' },
+        { value: 'credit_card', label: t.expenses.table.paymentMethods.credit_card },
+        { value: 'transfer', label: t.expenses.table.paymentMethods.transfer },
+        { value: 'cash', label: t.expenses.table.paymentMethods.cash },
+        { value: 'debit_card', label: t.expenses.table.paymentMethods.debit_card },
+        { value: 'check', label: t.expenses.table.paymentMethods.check },
       ],
       providers,
       statuses: [
-        { value: 'paid', label: 'Pagado' },
-        { value: 'pending', label: 'Pendiente' },
-        { value: 'overdue', label: 'Vencido' },
-        { value: 'partial', label: 'Pago Parcial' },
-        { value: 'audited', label: 'Auditado' },
+        { value: 'paid', label: t.expenses.table.statuses.paid },
+        { value: 'pending', label: t.expenses.table.statuses.pending },
+        { value: 'overdue', label: t.expenses.table.statuses.overdue },
+        { value: 'partial', label: t.expenses.table.statuses.partial },
+        { value: 'audited', label: t.expenses.table.statuses.audited },
       ],
-      users: [{ value: '', label: 'Seleccionar' }, ...(userOptions.length > 0 ? userOptions : EXPENSE_USER_OPTIONS.map(user => ({ value: user, label: user })))],
+      users: [{ value: '', label: t.common.select }, ...(userOptions.length > 0 ? userOptions : EXPENSE_USER_OPTIONS.map(user => ({ value: user, label: user })))],
     };
-  }, [accountingAccountOptions, businessOptions, expenses, providers, unitOptions, userOptions]);
+  }, [accountingAccountOptions, businessOptions, expenses, providers, t, unitOptions, userOptions]);
 }
 
 function EmptyExpenseTableRow({ colSpan, emptyMessage, emptyTitle }: { colSpan: number; emptyMessage: string; emptyTitle: string }) {

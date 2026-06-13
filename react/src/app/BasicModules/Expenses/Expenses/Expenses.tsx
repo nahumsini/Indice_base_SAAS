@@ -16,6 +16,7 @@ import { calculateExpenseTotals, filterExpenses } from '../utils/expenseFilters'
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
+import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
 import { ExpensesHeader } from '../components/header/ExpensesHeader';
 import { ExpensesFilters } from '../components/filters/ExpensesFilters';
 import { ExpensesSummary } from '../components/kpis/ExpensesSummary';
@@ -58,6 +59,7 @@ const createExpenseFolio = (currentExpenses: Expense[]) => {
 };
 
 export default function Expenses({ expenses: controlledExpenses, onExpensesChange, providers: providerRecords }: ExpensesProps = {}) {
+  const t = useFinanceTranslations();
   const [localExpenses, setLocalExpenses] = useState<Expense[]>(mockExpenses);
   const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
   const [failureToastMessage, setFailureToastMessage] = useState('');
@@ -80,6 +82,12 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     useExpenseAttachments();
   const { columns, handleDragEnd, handleDragOver, handleDragStart, hideOptionalColumns, showAllColumns, updateColumnVisibility } =
     useExpenseColumns();
+  const translatedColumns = useMemo(() => (
+    columns.map(column => ({
+      ...column,
+      label: t.expenses.columns[column.key]?.label ?? column.label,
+    }))
+  ), [columns, t.expenses.columns]);
 
   const unitOptions = useMemo<FinanceReferenceOption[]>(() => (
     referenceUnitOptions.length > 0
@@ -91,19 +99,19 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       ? referenceBusinessOptions
       : toFallbackOptions(expenses.map(expense => expense.business))
   ), [expenses, referenceBusinessOptions]);
-  const businessUnitFilterOptions = useMemo<FinanceReferenceOption[]>(() => [{ value: 'all', label: 'Todas' }, ...unitOptions], [unitOptions]);
+  const businessUnitFilterOptions = useMemo<FinanceReferenceOption[]>(() => [{ value: 'all', label: t.common.all }, ...unitOptions], [t.common.all, unitOptions]);
   const businessFilterOptions = useMemo<FinanceReferenceOption[]>(() => {
     const scopedBusinesses = filters.businessUnitFilter === 'all'
       ? businessOptions
       : businessOptions.filter(option => !option.unitId || option.unitId === filters.businessUnitFilter);
-    return [{ value: 'all', label: 'Todos' }, ...scopedBusinesses];
-  }, [businessOptions, filters.businessUnitFilter]);
+    return [{ value: 'all', label: t.common.all }, ...scopedBusinesses];
+  }, [businessOptions, filters.businessUnitFilter, t.common.all]);
   const providers = useMemo<Provider[]>(() => (
     providerRecords?.length ? providerRecordsToExpenseProviders(providerRecords) : mockProviders
   ), [providerRecords]);
-  const providerOptions = useMemo(() => [{ id: 'all', name: 'Todos los proveedores' }, ...providers], [providers]);
+  const providerOptions = useMemo(() => [{ id: 'all', name: t.common.all }, ...providers], [providers, t.common.all]);
   const createExpenseDisabled = isLoadingReferenceData;
-  const createExpenseDisabledReason = 'Cargando referencias de organización';
+  const createExpenseDisabledReason = t.expenses.createDisabledReason;
   const filteredExpenses = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
   const totals = useMemo(() => calculateExpenseTotals(filteredExpenses), [filteredExpenses]);
 
@@ -133,14 +141,14 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       })
       .catch(error => {
         if (isMounted) {
-          setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudieron cargar las cuentas contables activas.'));
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.accountLoadFailed));
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t.expenses.messages.accountLoadFailed]);
 
   useEffect(() => {
     if (filters.businessFilter === 'all') return;
@@ -212,10 +220,10 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
           )));
         })
         .catch(error => {
-          setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo guardar el gasto en Finance. Se conservaron los cambios locales.'));
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
         });
     }, 700);
-  }, [providers, setExpenses]);
+  }, [providers, setExpenses, t.expenses.messages.saveFailed]);
 
   const handleExpenseSubmit = async (values: ExpenseFormValues) => {
     const provider = providers.find(item => item.id === values.providerId);
@@ -278,14 +286,14 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
           ? currentExpenses.map(item => (item.id === editingExpense.id ? savedExpense : item))
           : [savedExpense, ...currentExpenses]
       ));
-      setSuccessToastMessage(editingExpense ? 'Gasto actualizado en Finance.' : 'Gasto creado en Finance.');
+      setSuccessToastMessage(editingExpense ? t.expenses.messages.saved : t.expenses.messages.created);
     } catch (error) {
       setExpenses(currentExpenses => (
         editingExpense
           ? currentExpenses.map(item => (item.id === editingExpense.id ? draftExpense : item))
           : [draftExpense, ...currentExpenses]
       ));
-      setFailureToastMessage(toFinanceApiErrorMessage(error, editingExpense ? 'No se pudo actualizar el gasto en Finance. Se conservaron los cambios locales.' : 'No se pudo crear el gasto en Finance. Se agregó como dato local.'));
+      setFailureToastMessage(toFinanceApiErrorMessage(error, editingExpense ? t.expenses.messages.updateFailed : t.expenses.messages.createFailed));
     } finally {
       closeExpenseModal();
     }
@@ -297,10 +305,10 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     if (!expense || !isBackendId(id) || expense.type === 'budget') return;
 
     expensesService.deleteExpense(id)
-      .then(() => setSuccessToastMessage('Gasto eliminado de Finance.'))
+      .then(() => setSuccessToastMessage(t.expenses.messages.deleted))
       .catch(error => {
         setExpenses(currentExpenses => [expense, ...currentExpenses]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo eliminar el gasto en Finance.'));
+        setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.deleteFailed));
       });
   };
 
@@ -318,11 +326,11 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     expensesService.createExpense(copy, providers)
       .then(savedExpense => {
         setExpenses(currentExpenses => [savedExpense, ...currentExpenses]);
-        setSuccessToastMessage('Gasto duplicado en Finance.');
+        setSuccessToastMessage(t.expenses.messages.duplicated);
       })
       .catch(error => {
         setExpenses(currentExpenses => [copy, ...currentExpenses]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo duplicar el gasto en Finance. Se agregó como dato local.'));
+        setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.duplicateFailed));
       });
   };
 
@@ -351,7 +359,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       <ExpenseTable
         actionVisibility={{ showAudit: false }}
         accountingAccountOptions={accountingAccountOptions}
-        columns={columns}
+        columns={translatedColumns}
         expenses={filteredExpenses}
         getAttachments={getExpenseAttachments}
         onDeleteExpense={handleDelete}
@@ -372,7 +380,8 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
 
       {isColumnModalOpen && (
         <ColumnConfigurationModal
-          columns={columns}
+          columns={translatedColumns}
+          description={t.expenses.columnModalDescription}
           onApply={() => setIsColumnModalOpen(false)}
           onClose={() => setIsColumnModalOpen(false)}
           onDragEnd={handleDragEnd}
@@ -406,8 +415,8 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
 
       <Button
         type="button"
-        title="Gasto rápido"
-        aria-label="Gasto rápido"
+        title={t.expenses.quick.title}
+        aria-label={t.expenses.quick.title}
         className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 h-12 w-12 rounded-full border border-[#147514]/50 bg-[#147514] p-0 text-white shadow-lg shadow-[#147514]/25 hover:bg-[#105010] sm:bottom-6 sm:right-6"
         onClick={openQuickExpenseModal}
       >

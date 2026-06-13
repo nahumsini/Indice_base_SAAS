@@ -8,6 +8,7 @@ import { SalesCrmProvider } from './BasicModules/Sales/salesCrmContext';
 const App = lazy(() => import('./App'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
+const PettyCashKiosk = lazy(() => import('./BasicModules/PettyCash/Kiosk/PublicPettyCashKioskPage'));
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
 
 function KioskRoute() {
@@ -38,6 +39,22 @@ function TaskKioskRoute() {
       )}
     >
       <ProcessTasksKiosk />
+    </Suspense>
+  );
+}
+
+function PettyCashKioskRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading petty cash"
+          description="Preparing the petty cash kiosk."
+        />
+      )}
+    >
+      <PettyCashKiosk />
     </Suspense>
   );
 }
@@ -118,6 +135,10 @@ export const router = createBrowserRouter([
   {
     path: '/task-kiosk/:deviceToken',
     element: <TaskKioskRoute />,
+  },
+  {
+    path: '/petty-cash/kiosk/:fundToken',
+    element: <PettyCashKioskRoute />,
   },
   {
     path: '/public-catalog/:publicAccessToken',

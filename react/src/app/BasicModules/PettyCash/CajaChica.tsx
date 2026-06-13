@@ -1,14 +1,12 @@
-import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useCajaChicaTranslations } from '../../hooks/useCajaChicaTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { PettyCashFinancialViewWorkspace } from './components/PettyCashFinancialViewWorkspace';
+import { PettyCashFundsWorkspace } from './components/PettyCashFundsWorkspace';
+import { PettyCashReconciliationWorkspace } from './components/PettyCashReconciliationWorkspace';
 import { usePettyCash } from './context/PettyCashContext';
-
-const Caja = lazy(() => import('./Caja'));
-const Control = lazy(() => import('./Control'));
-const KPIs = lazy(() => import('./KPIs'));
 
 interface CajaChicaProps {
   onNavigate: (page?: string) => void;
@@ -29,10 +27,14 @@ const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
 export default function CajaChica({ onNavigate }: CajaChicaProps) {
   const t = useCajaChicaTranslations();
   const {
-    pettyCashExpenses,
-    cashFunds,
-    setPettyCashExpenses,
-    setCashFunds,
+    pettyCashFunds,
+    pettyCashMovements,
+    pettyCashSettlementLines,
+    pettyCashStatements,
+    setPettyCashFunds,
+    setPettyCashMovements,
+    setPettyCashSettlementLines,
+    setPettyCashStatements,
   } = usePettyCash();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PettyCashTabId>(
     'cash',
@@ -40,7 +42,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
     legacyPettyCashTabAliases,
   );
 
-  const tabs = [
+  const tabs: Array<{ id: PettyCashTabId; label: string; emoji: string }> = [
     { id: 'cash', label: t.tabs.caja, emoji: '💵' },
     { id: 'control', label: t.tabs.control, emoji: '📝' },
     { id: 'kpis', label: t.tabs.kpis, emoji: '📊' },
@@ -50,27 +52,33 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
     switch (activeTab) {
       case 'control':
         return (
-          <Control
-            expenses={pettyCashExpenses}
-            funds={cashFunds}
-            onFundsChange={setCashFunds}
+          <PettyCashReconciliationWorkspace
+            funds={pettyCashFunds}
+            movements={pettyCashMovements}
+            onFundsChange={setPettyCashFunds}
+            onMovementsChange={setPettyCashMovements}
+            onSettlementLinesChange={setPettyCashSettlementLines}
+            onStatementsChange={setPettyCashStatements}
+            settlementLines={pettyCashSettlementLines}
+            statements={pettyCashStatements}
           />
         );
       case 'kpis':
         return (
-          <KPIs
-            expenses={pettyCashExpenses}
-            funds={cashFunds}
+          <PettyCashFinancialViewWorkspace
+            funds={pettyCashFunds}
+            movements={pettyCashMovements}
+            settlementLines={pettyCashSettlementLines}
+            statements={pettyCashStatements}
           />
         );
       case 'cash':
       default:
         return (
-          <Caja
-            expenses={pettyCashExpenses}
-            funds={cashFunds}
-            onExpensesChange={setPettyCashExpenses}
-            onFundsChange={setCashFunds}
+          <PettyCashFundsWorkspace
+            funds={pettyCashFunds}
+            onFundsChange={setPettyCashFunds}
+            statements={pettyCashStatements}
           />
         );
     }
@@ -119,7 +127,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as PettyCashTabId)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'
@@ -136,17 +144,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
 
       {/* Contenido del tab activo */}
       <div className="max-w-[1600px] mx-auto px-8 py-6">
-        <Suspense
-          fallback={(
-            <LoadingBarOverlay
-              isVisible
-              title="Loading petty cash tab"
-              description="Downloading only the selected cash control workspace."
-            />
-          )}
-        >
-          {renderActiveTab()}
-        </Suspense>
+        {renderActiveTab()}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { Eye, EyeOff, GripVertical, Search, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { ColumnConfig } from '../../types/expenseView.types';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 type ColumnConfigurationModalProps = {
   columns: ColumnConfig[];
@@ -17,7 +18,7 @@ type ColumnConfigurationModalProps = {
 
 export function ColumnConfigurationModal({
   columns,
-  description = 'Personaliza la tabla de gastos.',
+  description,
   onApply,
   onClose,
   onDragEnd,
@@ -27,6 +28,7 @@ export function ColumnConfigurationModal({
   onShowAllColumns,
   onUpdateVisibility,
 }: ColumnConfigurationModalProps) {
+  const t = useFinanceTranslations();
   const [searchTerm, setSearchTerm] = useState('');
   const visibleCount = columns.filter(column => column.visible).length;
   const filteredColumns = useMemo(() => {
@@ -42,10 +44,10 @@ export function ColumnConfigurationModal({
       <div className="flex h-[min(86vh,820px)] max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.32)]">
         <div className="flex shrink-0 items-center justify-between bg-[#147514] px-6 py-5 text-white">
           <div className="min-w-0">
-            <h2 className="text-2xl font-extrabold tracking-normal">Configurar columnas</h2>
-            <p className="mt-1 text-sm font-medium text-white/85">{description}</p>
+            <h2 className="text-2xl font-extrabold tracking-normal">{t.columnModal.title}</h2>
+            <p className="mt-1 text-sm font-medium text-white/85">{description ?? t.expenses.columnModalDescription}</p>
           </div>
-          <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/10 text-white transition hover:bg-white/20" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/10 text-white transition hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -55,20 +57,20 @@ export function ColumnConfigurationModal({
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
               <div>
                 <p className="max-w-xl text-sm font-semibold leading-6 text-slate-600">
-                  Selecciona y ordena las columnas que deseas visualizar en la tabla.
+                  {t.columnModal.selectionInstructions}
                 </p>
                 <div className="mt-3 inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-extrabold text-slate-700">
-                  {visibleCount} de {columns.length} columnas visibles
+                  {t.columnModal.visibleCount(visibleCount, columns.length)}
                 </div>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[320px]">
-                <ToolbarButton icon={<Eye className="h-4 w-4" />} onClick={onShowAllColumns}>Seleccionar todas</ToolbarButton>
-                <ToolbarButton icon={<EyeOff className="h-4 w-4" />} onClick={onHideOptionalColumns}>Deseleccionar todas</ToolbarButton>
+                <ToolbarButton icon={<Eye className="h-4 w-4" />} onClick={onShowAllColumns}>{t.columnModal.selectAll}</ToolbarButton>
+                <ToolbarButton icon={<EyeOff className="h-4 w-4" />} onClick={onHideOptionalColumns}>{t.common.deselectAll}</ToolbarButton>
               </div>
             </div>
             <div className="relative mt-4">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Nombre de columna" className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#147514]/45 focus:ring-4 focus:ring-[#147514]/10" />
+              <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={t.columnModal.searchPlaceholder} className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#147514]/45 focus:ring-4 focus:ring-[#147514]/10" />
             </div>
           </div>
 
@@ -89,20 +91,20 @@ export function ColumnConfigurationModal({
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2 text-base font-extrabold text-slate-900">
                         {column.label}
-                        {column.fixed ? <span className="text-xs font-bold text-slate-500">(Fija)</span> : null}
+                        {column.fixed ? <span className="text-xs font-bold text-slate-500">({t.columnModal.fixed})</span> : null}
                       </span>
                     </span>
                   </label>
                 </div>
               ))}
-              {filteredColumns.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">No se encontraron columnas.</div> : null}
+              {filteredColumns.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">{t.columnModal.empty}</div> : null}
             </div>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-3 bg-[#147514] px-6 py-4">
-          <button type="button" onClick={onClose} className="h-12 rounded-2xl border border-white/35 bg-white/10 px-7 text-sm font-extrabold text-white transition hover:bg-white/18">Cancelar</button>
-          <button type="button" onClick={onApply} className="h-12 rounded-2xl bg-white px-7 text-sm font-extrabold text-[#147514] shadow-lg shadow-slate-900/15 transition hover:bg-slate-50">Aplicar cambios</button>
+          <button type="button" onClick={onClose} className="h-12 rounded-2xl border border-white/35 bg-white/10 px-7 text-sm font-extrabold text-white transition hover:bg-white/18">{t.columnModal.cancel}</button>
+          <button type="button" onClick={onApply} className="h-12 rounded-2xl bg-white px-7 text-sm font-extrabold text-[#147514] shadow-lg shadow-slate-900/15 transition hover:bg-slate-50">{t.columnModal.applyChanges}</button>
         </div>
       </div>
     </div>
