@@ -6,6 +6,7 @@ import { SuccessToast } from '../../../components/SuccessToast';
 import { usePettyCash } from '../../PettyCash/context/PettyCashContext';
 import { isBackendId } from '../adapters/adapter.utils';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
+import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
 import { paymentAccountsService, toFinanceApiErrorMessage } from '../services';
 import { mockPaymentAccounts } from './paymentAccounts.mock';
 import type { PaymentAccount, PaymentSortField, SortDirection } from './types';
@@ -23,6 +24,7 @@ interface PaymentAccountsProps {
 }
 
 export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {}) {
+  const t = useFinanceTranslations();
   const { cashFunds } = usePettyCash();
   const [accounts, setAccounts] = useState<PaymentAccount[]>(mockPaymentAccounts.filter(account => account.id !== '3'));
   const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
@@ -41,6 +43,25 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
     businessOptions,
     unitOptions,
   } = useFinanceReferenceData(setFailureToastMessage);
+
+  const translatedPaymentColumns = useMemo(() => defaultPaymentColumns.map(column => {
+    const copy = t.paymentAccounts.columns[column.key];
+    return {
+      ...column,
+      description: copy?.description ?? column.description,
+      label: copy?.label ?? column.label,
+    };
+  }), [t]);
+
+  useEffect(() => {
+    setVisibleColumns(currentColumns => translatedPaymentColumns.map(column => {
+      const currentColumn = currentColumns.find(item => item.key === column.key);
+      return {
+        ...column,
+        visible: currentColumn ? (column.fixed ? true : currentColumn.visible) : column.visible,
+      };
+    }));
+  }, [translatedPaymentColumns]);
 
   useEffect(() => {
     let isMounted = true;
@@ -120,10 +141,10 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
     try {
       const savedAccount = await paymentAccountsService.updatePaymentAccount(nextAccount);
       setAccounts(currentAccounts => currentAccounts.map(item => (item.id === account.id ? savedAccount : item)));
-      setSuccessToastMessage(savedAccount.isActive ? 'Cuenta de pago activada.' : 'Cuenta de pago desactivada.');
+      setSuccessToastMessage(savedAccount.isActive ? t.paymentAccounts.messages.activated : t.paymentAccounts.messages.deactivated);
     } catch (error) {
       setAccounts(currentAccounts => currentAccounts.map(item => (item.id === account.id ? account : item)));
-      setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo actualizar el estado de la cuenta de pago.'));
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.statusUpdateFailed));
     }
   };
 
@@ -143,7 +164,7 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
           ? currentAccounts.map(item => (item.id === account.id ? savedAccount : item))
           : [savedAccount, ...currentAccounts];
       });
-      setSuccessToastMessage(isBackendId(account.id) ? 'Cuenta de pago actualizada en Finance.' : 'Cuenta de pago creada en Finance.');
+      setSuccessToastMessage(isBackendId(account.id) ? t.paymentAccounts.messages.updated : t.paymentAccounts.messages.created);
     } catch (error) {
       setAccounts(currentAccounts => {
         const exists = currentAccounts.some(item => item.id === account.id);
@@ -151,7 +172,7 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
           ? currentAccounts.map(item => (item.id === account.id ? account : item))
           : [account, ...currentAccounts];
       });
-      setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo guardar la cuenta de pago en Finance. Se conservó localmente.'));
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.saveFailed));
     } finally {
       closeModal();
     }
@@ -163,10 +184,10 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
     if (!account || !isBackendId(accountId)) return;
 
     paymentAccountsService.deletePaymentAccount(accountId)
-      .then(() => setSuccessToastMessage('Cuenta de pago eliminada de Finance.'))
+      .then(() => setSuccessToastMessage(t.paymentAccounts.messages.deleted))
       .catch(error => {
         setAccounts(currentAccounts => [account, ...currentAccounts]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo eliminar la cuenta de pago en Finance.'));
+        setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.deleteFailed));
       });
   };
 
@@ -174,8 +195,8 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
     <div className="space-y-6">
       <LoadingBarOverlay
         isVisible={isLoading}
-        title="Cargando cuentas de pago"
-        description="Conectando cuentas financieras con Finance."
+        title={t.module.loadingFinanceTitle}
+        description={t.module.loadingFinanceDescription}
       />
       <PaymentAccountsHeaderBanner
         onAddAccount={() => setIsAddModalOpen(true)}
@@ -196,7 +217,7 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
         <div className="flex gap-3">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#147514]" />
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-            Las cajas chicas aparecen aquí para visibilidad financiera. Su conciliación, comprobantes y auditoría se gestionan dentro de Petty Cash.
+            {t.paymentAccounts.pettyCashNotice}
           </p>
         </div>
       </div>
@@ -213,7 +234,7 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
         sortDirection={sortDirection}
         sortField={sortField}
         unitOptions={unitOptions}
-        visibleColumns={visibleColumns.filter(column => column.visible).map(column => column.key)}
+        columns={visibleColumns}
         onNavigate={onNavigate}
         onSort={handleSort}
         onToggleActive={handleToggleActive}
@@ -225,7 +246,7 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
           onApply={() => setIsColumnsModalOpen(false)}
           onClose={() => setIsColumnsModalOpen(false)}
           onHideOptional={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: Boolean(column.fixed) })))}
-          onRestoreDefault={() => setVisibleColumns(defaultPaymentColumns.map(column => ({ ...column })))}
+          onRestoreDefault={() => setVisibleColumns(translatedPaymentColumns.map(column => ({ ...column })))}
           onShowAll={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
           onToggleColumn={handleToggleColumn}
         />

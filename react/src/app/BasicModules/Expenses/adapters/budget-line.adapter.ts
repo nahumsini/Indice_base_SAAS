@@ -20,6 +20,13 @@ const getDefaultBudgetDate = () => {
   return new Date(now.getFullYear(), now.getMonth() + 1, 1);
 };
 
+const toLocalBudgetDate = (value?: string | Date | null, fallback = getDefaultBudgetDate()) => {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T00:00:00`);
+  }
+  return toDate(value, fallback);
+};
+
 export const getBudgetLineApiId = (budgetLineId: string) => {
   const prefixedId = budgetLineId.startsWith('budget-line-')
     ? budgetLineId.replace('budget-line-', '')
@@ -44,8 +51,12 @@ const toBudgetLineName = (expense: Expense) => {
 export const toFinanceBudgetLine = (budgetLine: BudgetLineApiDto): FinanceBudgetLine => ({
   id: String(budgetLine.id),
   companyId: String(budgetLine.companyId),
+  unitId: budgetLine.unitId ? String(budgetLine.unitId) : undefined,
+  businessId: budgetLine.businessId ? String(budgetLine.businessId) : undefined,
   budgetId: String(budgetLine.budgetId),
   name: budgetLine.name,
+  categoryKey: budgetLine.categoryKey ?? undefined,
+  description: budgetLine.description ?? undefined,
   period: asString(asObject(budgetLine.customFields).period, ''),
   plannedAmount: asNumber(budgetLine.plannedAmount),
   committedAmount: asNumber(budgetLine.committedAmount),
@@ -53,6 +64,7 @@ export const toFinanceBudgetLine = (budgetLine: BudgetLineApiDto): FinanceBudget
   pettyCashIssuedAmount: asNumber(budgetLine.pettyCashIssuedAmount),
   pettyCashSettledAmount: asNumber(budgetLine.pettyCashSettledAmount),
   availableAmount: asNumber(budgetLine.availableAmount),
+  currencyCode: budgetLine.currencyCode,
   healthStatus: (budgetLine.healthStatus ?? BudgetHealthStatus.ON_TRACK) as BudgetHealthStatus,
   status: (budgetLine.status ?? BudgetStatus.ACTIVE) as BudgetStatus,
   createdAt: budgetLine.createdAt ?? undefined,
@@ -61,7 +73,7 @@ export const toFinanceBudgetLine = (budgetLine: BudgetLineApiDto): FinanceBudget
 
 export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
   const customFields = asObject(budgetLine.customFields);
-  const scheduledDate = toDate(asString(customFields.dueDate, customFields.startDate as string | undefined), getDefaultBudgetDate());
+  const scheduledDate = toLocalBudgetDate(asString(customFields.dueDate, customFields.startDate as string | undefined), getDefaultBudgetDate());
   const plannedAmount = asNumber(budgetLine.plannedAmount);
 
   return {
@@ -98,7 +110,7 @@ export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
     type: 'budget',
     frequency: asString(customFields.frequency, 'once') as Expense['frequency'],
     duration: asNumber(customFields.duration, 1),
-    startDate: customFields.startDate ? toDate(asString(customFields.startDate)) : scheduledDate,
+    startDate: customFields.startDate ? toLocalBudgetDate(asString(customFields.startDate)) : scheduledDate,
     projected: true,
     createdAt: toDate(budgetLine.createdAt, scheduledDate),
     updatedAt: toDate(budgetLine.updatedAt ?? budgetLine.createdAt, scheduledDate),

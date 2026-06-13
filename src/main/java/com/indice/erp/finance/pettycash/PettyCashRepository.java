@@ -1,0 +1,712 @@
+package com.indice.erp.finance.pettycash;
+
+import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceJsonSupport;
+import com.indice.erp.finance.shared.FinanceScope;
+import com.indice.erp.finance.shared.FinanceSqlSupport;
+import com.indice.erp.finance.expenses.ExpenseType;
+import com.indice.erp.finance.status.ExpenseStatus;
+import com.indice.erp.finance.status.PaymentStatus;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Statement;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.stereotype.Repository;
+
+@Repository
+class PettyCashRepository {
+
+    private final JdbcTemplate jdbcTemplate;
+    private final PettyCashMapper mapper;
+
+    PettyCashRepository(JdbcTemplate jdbcTemplate, PettyCashMapper mapper) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.mapper = mapper;
+    }
+
+    List<PettyCashFundRecord> findFunds(FinanceContext context) {
+        var params = scopedParams(context);
+        return jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.FUND_COLUMNS + """
+            FROM finance_petty_cash_funds fund
+            WHERE fund.company_id = ?
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            ORDER BY fund.name ASC, fund.id ASC
+            """,
+            mapper::mapFund,
+            params.toArray()
+        );
+    }
+
+    Optional<PettyCashFundRecord> findFundById(FinanceContext context, long fundId) {
+        var params = scopedParams(context);
+        params.add(1, fundId);
+        var rows = jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.FUND_COLUMNS + """
+            FROM finance_petty_cash_funds fund
+            WHERE fund.company_id = ?
+              AND fund.id = ?
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            """,
+            mapper::mapFund,
+            params.toArray()
+        );
+        return rows.stream().findFirst();
+    }
+
+    List<PettyCashStatementRecord> findStatements(FinanceContext context) {
+        var params = scopedParams(context);
+        return jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.STATEMENT_COLUMNS + """
+            FROM finance_petty_cash_statements statement
+            JOIN finance_petty_cash_funds fund ON fund.id = statement.petty_cash_fund_id
+            WHERE statement.company_id = ?
+              AND statement.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            ORDER BY statement.period_start DESC, statement.id DESC
+            """,
+            mapper::mapStatement,
+            params.toArray()
+        );
+    }
+
+    Optional<PettyCashStatementRecord> findStatementById(FinanceContext context, long statementId) {
+        var params = scopedParams(context);
+        params.add(1, statementId);
+        var rows = jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.STATEMENT_COLUMNS + """
+            FROM finance_petty_cash_statements statement
+            JOIN finance_petty_cash_funds fund ON fund.id = statement.petty_cash_fund_id
+            WHERE statement.company_id = ?
+              AND statement.id = ?
+              AND statement.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            """,
+            mapper::mapStatement,
+            params.toArray()
+        );
+        return rows.stream().findFirst();
+    }
+
+    Optional<PettyCashStatementRecord> findOpenStatementForFund(
+            FinanceContext context,
+            long fundId,
+            String periodKey) {
+        var rows = jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.STATEMENT_COLUMNS + """
+            FROM finance_petty_cash_statements statement
+            JOIN finance_petty_cash_funds fund ON fund.id = statement.petty_cash_fund_id
+            WHERE statement.company_id = ?
+              AND statement.petty_cash_fund_id = ?
+              AND statement.period_key = ?
+              AND statement.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            """,
+            mapper::mapStatement,
+            scopedParams(context, fundId, periodKey).toArray()
+        );
+        return rows.stream().findFirst();
+    }
+
+    List<PettyCashMovementRecord> findMovements(FinanceContext context) {
+        var params = scopedParams(context);
+        return jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.MOVEMENT_COLUMNS + """
+            FROM finance_petty_cash_movements movement
+            JOIN finance_petty_cash_funds fund ON fund.id = movement.petty_cash_fund_id
+            WHERE movement.company_id = ?
+              AND movement.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            ORDER BY movement.movement_date DESC, movement.id DESC
+            """,
+            mapper::mapMovement,
+            params.toArray()
+        );
+    }
+
+    List<PettyCashSettlementLineRecord> findSettlementLines(FinanceContext context) {
+        var params = scopedParams(context);
+        return jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.SETTLEMENT_LINE_COLUMNS + """
+            FROM finance_petty_cash_settlement_lines settlement_line
+            JOIN finance_petty_cash_funds fund ON fund.id = settlement_line.petty_cash_fund_id
+            WHERE settlement_line.company_id = ?
+              AND settlement_line.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            ORDER BY settlement_line.expense_date DESC, settlement_line.id DESC
+            """,
+            mapper::mapSettlementLine,
+            params.toArray()
+        );
+    }
+
+    PettyCashFundRecord insertFund(FinanceContext context, PettyCashFundCommand command) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(PettyCashSql.INSERT_FUND, Statement.RETURN_GENERATED_KEYS);
+            var index = 1;
+            statement.setLong(index++, context.companyId());
+            statement.setObject(index++, command.unitId());
+            statement.setObject(index++, command.businessId());
+            statement.setObject(index++, command.budgetId());
+            statement.setObject(index++, command.budgetLineId());
+            statement.setObject(index++, command.paymentAccountId());
+            statement.setObject(index++, command.fundingSourcePaymentAccountId());
+            statement.setObject(index++, command.responsibleUserId());
+            statement.setString(index++, command.name());
+            statement.setString(index++, command.currencyCode());
+            statement.setBigDecimal(index++, command.limitAmount());
+            statement.setBigDecimal(index++, command.currentBalanceAmount());
+            statement.setInt(index++, command.cutOffDay());
+            statement.setString(index++, command.fundingSourceName());
+            statement.setString(index++, command.fundingMethodsJson());
+            statement.setString(index++, command.spendingMethodsJson());
+            statement.setBoolean(index++, command.kioskEnabled());
+            statement.setBoolean(index++, command.kioskUsesUniversalPin());
+            statement.setString(index++, command.kioskAccessUrl());
+            statement.setString(index++, command.kioskPublicToken());
+            statement.setString(index++, command.status().name());
+            statement.setObject(index++, command.createdByUserId());
+            statement.setString(index++, command.customFieldsJson());
+            statement.setString(index, command.metadataJson());
+            return statement;
+        }, keyHolder);
+        var fundId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+        return findFundById(context, fundId).orElseThrow();
+    }
+
+    boolean updateFund(FinanceContext context, long fundId, PettyCashFundCommand command) {
+        var updated = jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(PettyCashSql.UPDATE_FUND);
+            var index = 1;
+            statement.setObject(index++, command.unitId());
+            statement.setObject(index++, command.businessId());
+            statement.setObject(index++, command.budgetId());
+            statement.setObject(index++, command.budgetLineId());
+            statement.setObject(index++, command.paymentAccountId());
+            statement.setObject(index++, command.fundingSourcePaymentAccountId());
+            statement.setObject(index++, command.responsibleUserId());
+            statement.setString(index++, command.name());
+            statement.setString(index++, command.currencyCode());
+            statement.setBigDecimal(index++, command.limitAmount());
+            statement.setInt(index++, command.cutOffDay());
+            statement.setString(index++, command.fundingSourceName());
+            statement.setString(index++, command.fundingMethodsJson());
+            statement.setString(index++, command.spendingMethodsJson());
+            statement.setBoolean(index++, command.kioskEnabled());
+            statement.setBoolean(index++, command.kioskUsesUniversalPin());
+            statement.setString(index++, command.kioskAccessUrl());
+            statement.setString(index++, command.kioskPublicToken());
+            statement.setString(index++, command.status().name());
+            statement.setObject(index++, command.updatedByUserId());
+            statement.setString(index++, command.customFieldsJson());
+            statement.setString(index++, command.metadataJson());
+            statement.setLong(index++, context.companyId());
+            statement.setLong(index, fundId);
+            return statement;
+        });
+        return updated > 0;
+    }
+
+    boolean rotateKioskPublicToken(
+            FinanceContext context,
+            long fundId,
+            String kioskPublicToken,
+            String kioskAccessUrl) {
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_funds
+            SET kiosk_public_token = ?,
+                kiosk_access_url = ?,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            kioskPublicToken,
+            kioskAccessUrl,
+            context.userId(),
+            context.companyId(),
+            fundId
+        );
+        return updated > 0;
+    }
+
+    boolean softDeleteFund(FinanceContext context, long fundId) {
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_funds
+            SET deleted_at = CURRENT_TIMESTAMP,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            context.userId(),
+            context.companyId(),
+            fundId
+        );
+        return updated > 0;
+    }
+
+    PettyCashStatementRecord insertStatement(
+            FinanceContext context,
+            PettyCashFundRecord fund,
+            String folio,
+            String periodKey,
+            LocalDate periodStart,
+            LocalDate periodEnd) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(PettyCashSql.INSERT_STATEMENT, Statement.RETURN_GENERATED_KEYS);
+            var index = 1;
+            statement.setLong(index++, context.companyId());
+            statement.setLong(index++, fund.id());
+            statement.setString(index++, folio);
+            statement.setString(index++, periodKey);
+            statement.setDate(index++, Date.valueOf(periodStart));
+            statement.setDate(index++, Date.valueOf(periodEnd));
+            statement.setDate(index++, Date.valueOf(periodEnd));
+            statement.setBigDecimal(index++, fund.currentBalanceAmount());
+            statement.setBigDecimal(index++, BigDecimal.ZERO);
+            statement.setBigDecimal(index++, BigDecimal.ZERO);
+            statement.setBigDecimal(index++, fund.currentBalanceAmount());
+            statement.setBigDecimal(index++, BigDecimal.ZERO);
+            statement.setBigDecimal(index++, BigDecimal.ZERO);
+            statement.setBigDecimal(index++, BigDecimal.ZERO);
+            statement.setBigDecimal(index++, BigDecimal.ZERO);
+            statement.setBigDecimal(index++, BigDecimal.ZERO);
+            statement.setString(index++, fund.currencyCode());
+            statement.setString(index++, PettyCashStatementStatus.OPEN.name());
+            statement.setObject(index++, fund.responsibleUserId());
+            statement.setInt(index++, 0);
+            statement.setObject(index++, context.userId());
+            statement.setString(index++, null);
+            statement.setString(index, null);
+            return statement;
+        }, keyHolder);
+        var statementId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+        return findStatementById(context, statementId).orElseThrow();
+    }
+
+    PettyCashMovementRecord insertMovement(
+            FinanceContext context,
+            long fundId,
+            PettyCashMovementCommand command) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(PettyCashSql.INSERT_MOVEMENT, Statement.RETURN_GENERATED_KEYS);
+            var index = 1;
+            statement.setLong(index++, context.companyId());
+            statement.setLong(index++, fundId);
+            statement.setObject(index++, command.pettyCashStatementId());
+            statement.setObject(index++, command.fromPaymentAccountId());
+            statement.setObject(index++, command.toPaymentAccountId());
+            statement.setString(index++, command.type().name());
+            statement.setBigDecimal(index++, command.amount());
+            statement.setString(index++, command.currencyCode());
+            statement.setDate(index++, Date.valueOf(command.movementDate()));
+            statement.setString(index++, command.reference());
+            statement.setObject(index++, command.createdByUserId());
+            statement.setString(index++, command.customFieldsJson());
+            statement.setString(index, command.metadataJson());
+            return statement;
+        }, keyHolder);
+        var movementId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+        return findMovementById(context, movementId).orElseThrow();
+    }
+
+    PettyCashSettlementLineRecord insertSettlementLine(
+            FinanceContext context,
+            long fundId,
+            PettyCashSettlementLineCommand command) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(PettyCashSql.INSERT_SETTLEMENT_LINE, Statement.RETURN_GENERATED_KEYS);
+            var index = 1;
+            statement.setLong(index++, context.companyId());
+            statement.setLong(index++, fundId);
+            statement.setLong(index++, command.pettyCashStatementId());
+            statement.setObject(index++, command.expenseId());
+            statement.setObject(index++, command.providerId());
+            statement.setObject(index++, command.accountingAccountId());
+            statement.setString(index++, command.description());
+            statement.setString(index++, command.receiptReference());
+            statement.setBigDecimal(index++, command.subtotalAmount());
+            statement.setBigDecimal(index++, command.taxAmount());
+            statement.setBigDecimal(index++, command.totalAmount());
+            statement.setString(index++, command.currencyCode());
+            statement.setDate(index++, Date.valueOf(command.expenseDate()));
+            statement.setInt(index++, command.attachmentCount());
+            statement.setString(index++, command.status().name());
+            statement.setObject(index++, command.createdByUserId());
+            statement.setString(index++, command.customFieldsJson());
+            statement.setString(index, command.metadataJson());
+            return statement;
+        }, keyHolder);
+        var lineId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+        return findSettlementLineById(context, lineId).orElseThrow();
+    }
+
+    Long insertExpenseFromSettlementLine(
+            FinanceContext context,
+            PettyCashFundRecord fund,
+            PettyCashStatementRecord statementRecord,
+            PettyCashSettlementLineRecord line) {
+        var folio = "PCX-" + statementRecord.periodKey().replace("-", "") + "-" + line.id();
+        var customFields = new LinkedHashMap<String, Object>();
+        customFields.put("source", "PETTY_CASH");
+        customFields.put("pettyCashFundId", fund.id());
+        customFields.put("pettyCashStatementId", statementRecord.id());
+        customFields.put("pettyCashSettlementLineId", line.id());
+        customFields.put("receiptReference", line.receiptReference());
+
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("source", "petty_cash_settlement");
+        metadata.put("generatedBy", "FinancePettyCashService");
+
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var sql = """
+                INSERT INTO finance_expenses
+                (company_id, unit_id, business_id, folio, provider_id, budget_line_id, accounting_account_id,
+                 payment_account_id, concept, description, expense_type, subtotal_amount, tax_amount, total_amount,
+                 paid_amount, balance_amount, currency_code, expense_date, due_date, payment_date, close_date,
+                 requested_by_user_id, approved_by_user_id, performed_by_user_id, status, payment_status,
+                 audit_status, attachment_count, created_by_user_id, custom_fields_json, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+            var prepared = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            var index = 1;
+            prepared.setLong(index++, context.companyId());
+            prepared.setObject(index++, fund.unitId());
+            prepared.setObject(index++, fund.businessId());
+            prepared.setString(index++, folio);
+            prepared.setObject(index++, line.providerId());
+            prepared.setObject(index++, fund.budgetLineId());
+            prepared.setObject(index++, line.accountingAccountId());
+            prepared.setObject(index++, fund.paymentAccountId());
+            prepared.setString(index++, line.description());
+            prepared.setString(index++, line.description());
+            prepared.setString(index++, ExpenseType.VARIABLE.name());
+            prepared.setBigDecimal(index++, line.subtotalAmount());
+            prepared.setBigDecimal(index++, line.taxAmount());
+            prepared.setBigDecimal(index++, line.totalAmount());
+            prepared.setBigDecimal(index++, line.totalAmount());
+            prepared.setBigDecimal(index++, BigDecimal.ZERO);
+            prepared.setString(index++, line.currencyCode());
+            prepared.setDate(index++, Date.valueOf(line.expenseDate()));
+            prepared.setDate(index++, Date.valueOf(line.expenseDate()));
+            prepared.setDate(index++, Date.valueOf(line.expenseDate()));
+            prepared.setDate(index++, Date.valueOf(line.expenseDate()));
+            prepared.setObject(index++, fund.responsibleUserId());
+            prepared.setObject(index++, context.userId());
+            prepared.setObject(index++, fund.responsibleUserId());
+            prepared.setString(index++, ExpenseStatus.PAID.name());
+            prepared.setString(index++, PaymentStatus.PAID.name());
+            prepared.setString(index++, "PETTY_CASH");
+            prepared.setInt(index++, line.attachmentCount());
+            prepared.setLong(index++, context.userId());
+            prepared.setString(index++, FinanceJsonSupport.toJson(customFields));
+            prepared.setString(index, FinanceJsonSupport.toJson(metadata));
+            return prepared;
+        }, keyHolder);
+        return keyHolder.getKey() == null ? null : keyHolder.getKey().longValue();
+    }
+
+    void linkSettlementLineExpense(FinanceContext context, long lineId, Long expenseId) {
+        if (expenseId == null) {
+            return;
+        }
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_settlement_lines
+            SET expense_id = ?,
+                status = ?,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            expenseId,
+            PettyCashSettlementLineStatus.EXPENSE_CREATED.name(),
+            context.userId(),
+            context.companyId(),
+            lineId
+        );
+    }
+
+    void adjustFundBalance(FinanceContext context, long fundId, BigDecimal delta) {
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_funds
+            SET current_balance_amount = GREATEST(0, current_balance_amount + ?),
+                status = CASE
+                  WHEN limit_amount > 0 AND GREATEST(0, current_balance_amount + ?) <= (limit_amount * 0.15) THEN 'LOW_BALANCE'
+                  ELSE 'OPEN'
+                END,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            delta,
+            delta,
+            context.userId(),
+            context.companyId(),
+            fundId
+        );
+    }
+
+    void applyMovementToStatement(
+            FinanceContext context,
+            long statementId,
+            PettyCashMovementType type,
+            BigDecimal amount,
+            BigDecimal balanceDelta) {
+        var assignedDelta = type == PettyCashMovementType.INITIAL_FUNDING ? amount : BigDecimal.ZERO;
+        var depositDelta = type == PettyCashMovementType.ADDITIONAL_DEPOSIT ? amount : BigDecimal.ZERO;
+        var returnedDelta = type == PettyCashMovementType.RETURN_TO_SOURCE ? amount : BigDecimal.ZERO;
+        var carryForwardDelta = type == PettyCashMovementType.CARRY_FORWARD ? amount : BigDecimal.ZERO;
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_statements
+            SET assigned_amount = assigned_amount + ?,
+                additional_deposit_amount = additional_deposit_amount + ?,
+                returned_amount = returned_amount + ?,
+                carry_forward_amount = carry_forward_amount + ?,
+                declared_closing_balance_amount = GREATEST(0, declared_closing_balance_amount + ?),
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            assignedDelta,
+            depositDelta,
+            returnedDelta,
+            carryForwardDelta,
+            balanceDelta,
+            context.userId(),
+            context.companyId(),
+            statementId
+        );
+    }
+
+    void applyMovementToBudgetLine(
+            FinanceContext context,
+            Long budgetLineId,
+            PettyCashMovementType type,
+            BigDecimal amount) {
+        if (budgetLineId == null || amount == null || amount.signum() == 0) {
+            return;
+        }
+        var issuedDelta = switch (type) {
+            case INITIAL_FUNDING, ADDITIONAL_DEPOSIT, CARRY_FORWARD -> amount;
+            case RETURN_TO_SOURCE -> amount.negate();
+            case SHORTAGE_ADJUSTMENT, FORGIVEN_SHORTAGE, EMPLOYEE_CHARGE -> BigDecimal.ZERO;
+        };
+        if (issuedDelta.signum() == 0) {
+            return;
+        }
+        adjustBudgetLinePettyCash(context, budgetLineId, issuedDelta, BigDecimal.ZERO, BigDecimal.ZERO);
+    }
+
+    void applySettlementLineToStatement(
+            FinanceContext context,
+            long statementId,
+            BigDecimal totalAmount,
+            int attachmentCount) {
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_statements
+            SET estimated_usage_amount = estimated_usage_amount + ?,
+                declared_closing_balance_amount = GREATEST(0, declared_closing_balance_amount - ?),
+                attachment_count = attachment_count + ?,
+                status = CASE WHEN status = 'SETTLED' THEN 'PARTIALLY_SETTLED' ELSE 'CUT_PENDING' END,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            totalAmount,
+            totalAmount,
+            attachmentCount,
+            context.userId(),
+            context.companyId(),
+            statementId
+        );
+    }
+
+    void applySettlementLineToBudgetLine(FinanceContext context, Long budgetLineId, BigDecimal totalAmount) {
+        if (budgetLineId == null || totalAmount == null || totalAmount.signum() == 0) {
+            return;
+        }
+        adjustBudgetLinePettyCash(context, budgetLineId, BigDecimal.ZERO, totalAmount, totalAmount);
+    }
+
+    boolean existsByName(FinanceContext context, String name, Long excludedFundId) {
+        var sql = "SELECT COUNT(*) FROM finance_petty_cash_funds WHERE company_id = ? AND deleted_at IS NULL AND name = ?";
+        var params = new ArrayList<Object>();
+        params.add(context.companyId());
+        params.add(name);
+        if (excludedFundId != null) {
+            sql += " AND id <> ?";
+            params.add(excludedFundId);
+        }
+        var count = jdbcTemplate.queryForObject(sql, Long.class, params.toArray());
+        return count != null && count > 0;
+    }
+
+    boolean kioskPublicTokenExists(String kioskPublicToken, Long excludedFundId) {
+        var sql = "SELECT COUNT(*) FROM finance_petty_cash_funds WHERE kiosk_public_token = ?";
+        var params = new ArrayList<Object>();
+        params.add(kioskPublicToken);
+        if (excludedFundId != null) {
+            sql += " AND id <> ?";
+            params.add(excludedFundId);
+        }
+        var count = jdbcTemplate.queryForObject(sql, Long.class, params.toArray());
+        return count != null && count > 0;
+    }
+
+    private Optional<PettyCashMovementRecord> findMovementById(FinanceContext context, long movementId) {
+        var rows = jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.MOVEMENT_COLUMNS + """
+            FROM finance_petty_cash_movements movement
+            JOIN finance_petty_cash_funds fund ON fund.id = movement.petty_cash_fund_id
+            WHERE movement.company_id = ?
+              AND movement.id = ?
+              AND movement.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            """,
+            mapper::mapMovement,
+            scopedParams(context, movementId).toArray()
+        );
+        return rows.stream().findFirst();
+    }
+
+    Optional<PettyCashSettlementLineRecord> findSettlementLineById(FinanceContext context, long lineId) {
+        var rows = jdbcTemplate.query(
+            """
+            SELECT
+            """ + PettyCashSql.SETTLEMENT_LINE_COLUMNS + """
+            FROM finance_petty_cash_settlement_lines settlement_line
+            JOIN finance_petty_cash_funds fund ON fund.id = settlement_line.petty_cash_fund_id
+            WHERE settlement_line.company_id = ?
+              AND settlement_line.id = ?
+              AND settlement_line.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            """,
+            mapper::mapSettlementLine,
+            scopedParams(context, lineId).toArray()
+        );
+        return rows.stream().findFirst();
+    }
+
+    private void adjustBudgetLinePettyCash(
+            FinanceContext context,
+            long budgetLineId,
+            BigDecimal issuedDelta,
+            BigDecimal settledDelta,
+            BigDecimal actualDelta) {
+        var availableExpression = """
+            (planned_amount
+              - committed_amount
+              - GREATEST(0, actual_expense_amount + ?)
+              - (GREATEST(0, petty_cash_issued_amount + ?) - GREATEST(0, petty_cash_settled_amount + ?)))
+            """;
+        jdbcTemplate.update(
+            """
+            UPDATE finance_budget_lines
+            SET actual_expense_amount = GREATEST(0, actual_expense_amount + ?),
+                petty_cash_issued_amount = GREATEST(0, petty_cash_issued_amount + ?),
+                petty_cash_settled_amount = GREATEST(0, petty_cash_settled_amount + ?),
+                available_amount = """ + availableExpression + """
+                ,
+                health_status = CASE
+                  WHEN """ + availableExpression + """
+                       < 0 THEN 'EXCEEDED'
+                  WHEN """ + availableExpression + """
+                       > (planned_amount * 0.20) THEN 'ON_TRACK'
+                  ELSE 'WARNING'
+                END,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            actualDelta,
+            issuedDelta,
+            settledDelta,
+            actualDelta,
+            issuedDelta,
+            settledDelta,
+            actualDelta,
+            issuedDelta,
+            settledDelta,
+            actualDelta,
+            issuedDelta,
+            settledDelta,
+            context.userId(),
+            context.companyId(),
+            budgetLineId
+        );
+    }
+
+    private ArrayList<Object> scopedParams(FinanceContext context, Object... afterCompany) {
+        var params = new ArrayList<Object>();
+        params.add(context.companyId());
+        for (var value : afterCompany) {
+            params.add(value);
+        }
+        appendScopeParam(params, context.scope());
+        return params;
+    }
+
+    private void appendScopeParam(List<Object> params, FinanceScope scope) {
+        switch (scope.type()) {
+            case CORPORATE_OFFICE -> {
+            }
+            case UNIT_HEADQUARTERS -> params.add(scope.unitId());
+            case BUSINESS_OFFICE -> params.add(scope.businessId());
+        }
+    }
+}

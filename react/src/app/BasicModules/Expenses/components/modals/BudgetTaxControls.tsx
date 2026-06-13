@@ -12,6 +12,7 @@ import {
   type BudgetTaxCountry,
   type BudgetTaxMode,
 } from '../../Budgets/budgetTaxCatalog';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 export type TaxControlDraft = {
   amount: string;
@@ -34,6 +35,7 @@ type BudgetTaxControlsProps<TDraft extends TaxControlDraft> = {
 const fieldClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDraftChange }: BudgetTaxControlsProps<TDraft>) {
+  const t = useFinanceTranslations();
   const applyDraftChange = (updates: Partial<TaxControlDraft>) => {
     onDraftChange(updates as Partial<TDraft>);
   };
@@ -44,10 +46,10 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDra
   const selectedProfileId = selectedProfile?.id ?? '';
   const rate = selectedProfile?.manualRate ? parsePercentInput(draft.taxRate) : selectedProfile?.rate ?? 0;
   const taxAmount = draft.taxEnabled ? roundMoney(calculateBudgetTaxAmount(enteredAmount, rate, draft.taxIncluded)) : 0;
-  const availableTaxLabel = profiles.length > 1 ? `${profiles.length} impuestos disponibles` : '1 impuesto disponible';
+  const availableTaxLabel = profiles.length > 1 ? t.tax.availablePlural(profiles.length) : t.tax.availableSingular;
   const selectedTaxLabel = selectedProfile
     ? `${selectedProfile.shortName} · ${formatTaxRate(rate)}`
-    : `Sin impuesto para ${draft.budgetCurrencyCode}`;
+    : t.tax.noTaxForCurrency(draft.budgetCurrencyCode);
 
   useEffect(() => {
     if (!draft.taxEnabled) {
@@ -130,7 +132,7 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDra
     <section className="md:col-span-2 rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-bold text-slate-950 dark:text-white">Impuestos de consumo</p>
+          <p className="text-sm font-bold text-slate-950 dark:text-white">{t.tax.consumptionTaxes}</p>
           <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {draft.taxEnabled ? `${draft.budgetCurrencyCode} · ${selectedTaxLabel}` : `${draft.budgetCurrencyCode} · ${availableTaxLabel}`}
           </p>
@@ -143,7 +145,7 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDra
               onChange={(event) => toggleTax(event.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-[#147514] focus:ring-[#147514]"
             />
-            Aplicar impuesto
+            {t.tax.applyTax}
           </label>
           <label className="inline-flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
             <input
@@ -152,7 +154,7 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDra
               onChange={(event) => applyDraftChange({ taxIncluded: event.target.checked })}
               className="h-4 w-4 rounded border-slate-300 text-[#147514] focus:ring-[#147514]"
             />
-            Monto incluye impuesto
+            {t.tax.amountIncludesTax}
           </label>
         </div>
       </div>
@@ -160,14 +162,14 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDra
       {draft.taxEnabled ? (
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <BudgetTaxSelect
-            label="Impuesto disponible"
+            label={t.tax.taxAvailable}
             value={selectedProfileId}
             onChange={updateProfile}
             options={profiles.map(profile => ({ value: profile.id, label: profile.label }))}
           />
           {selectedProfile?.manualRate ? (
             <label>
-              <FieldLabel label="Tasa %" />
+              <FieldLabel label={t.tax.rate} />
               <input
                 value={draft.taxRate}
                 onChange={(event) => applyDraftChange({ taxRate: event.target.value, taxMode: 'auto', taxSpecialAmount: '' })}

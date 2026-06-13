@@ -4,6 +4,7 @@ import {
   type ExpenseSortField,
 } from '../../constants/expenseTableConfig';
 import { Checkbox } from '../../../../components/ui/checkbox';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 type ExpenseTableHeaderRowProps = {
   allVisibleSelected: boolean;
@@ -30,6 +31,8 @@ export function ExpenseTableHeaderRow({
   selectionColumnWidth,
   someVisibleSelected,
 }: ExpenseTableHeaderRowProps) {
+  const t = useFinanceTranslations();
+
   return (
     <tr>
       <th
@@ -37,7 +40,7 @@ export function ExpenseTableHeaderRow({
         style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}
       >
         <Checkbox
-          aria-label="Seleccionar gastos visibles"
+          aria-label={t.expenses.table.allVisibleSelection}
           checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
           onCheckedChange={(checked) => onToggleAllVisible(checked === true)}
           className="border-slate-300 data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514]"
@@ -45,12 +48,13 @@ export function ExpenseTableHeaderRow({
       </th>
       {EXPENSE_TABLE_HEADERS.map((header) => {
         if (!isColumnVisible(header.visibleWhen ?? header.key)) return null;
+        const label = t.expenses.columns[header.key]?.label ?? header.label;
         if (header.sortable) {
           return (
             <SortableHeader
               key={header.key}
               columnKey={header.sortable}
-              label={header.label}
+              label={label}
               width={columnWidths[header.key]}
               resizingColumn={resizingColumn}
               onResizeStart={onResizeStart}
@@ -64,7 +68,7 @@ export function ExpenseTableHeaderRow({
           <StaticHeader
             key={header.key}
             columnKey={header.key}
-            label={header.label}
+            label={label}
             width={columnWidths[header.key]}
             resizingColumn={resizingColumn}
             onResizeStart={onResizeStart}
@@ -75,7 +79,7 @@ export function ExpenseTableHeaderRow({
         className="px-5 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400"
         style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}
       >
-        Acciones
+        {t.common.actions}
       </th>
     </tr>
   );

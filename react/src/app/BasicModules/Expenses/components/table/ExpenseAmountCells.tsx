@@ -9,7 +9,7 @@ type ExpenseAmountCellsProps = {
 };
 
 export function ExpenseAmountCells({ columnWidths, expense, isColumnVisible }: ExpenseAmountCellsProps) {
-  const balance = expense.amount - (expense.amountPaid || 0);
+  const balance = Math.max(expense.total - (expense.amountPaid || 0), 0);
 
   return (
     <>

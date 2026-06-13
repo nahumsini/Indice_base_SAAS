@@ -49,6 +49,8 @@ export interface FinanceBudgetLine extends FinanceBaseEntity {
   businessId?: string;
   budgetId: string;
   name: string;
+  categoryKey?: string;
+  description?: string;
   period: string;
   plannedAmount: number;
   committedAmount: number;
@@ -56,6 +58,7 @@ export interface FinanceBudgetLine extends FinanceBaseEntity {
   pettyCashIssuedAmount: number;
   pettyCashSettledAmount: number;
   availableAmount: number;
+  currencyCode?: FinanceCurrency;
   healthStatus: BudgetHealthStatus;
   status: BudgetStatus;
 }

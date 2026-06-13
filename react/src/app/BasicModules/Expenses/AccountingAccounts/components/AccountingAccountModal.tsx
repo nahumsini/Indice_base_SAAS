@@ -1,6 +1,7 @@
 import { BookOpen, Check, ChevronLeft, ChevronRight, FileText, Layers3, MapPinned, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { typeOptions } from '../accountingAccounts.utils';
 import type { AccountingAccount, AccountingAccountType } from '../types';
@@ -23,14 +24,10 @@ type AccountingFormValues = {
   unitId: string;
 };
 
-const steps: Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }> = [
-  { id: 0, label: 'Catálogo', icon: BookOpen, title: 'Datos de la cuenta contable', description: 'Define el código, nombre, tipo y estado de la cuenta.' },
-  { id: 1, label: 'Alcance', icon: MapPinned, title: 'Alcance financiero', description: 'Asigna unidad, negocio y descripción operativa cuando aplique.' },
-];
-
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function AccountingAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit }: AccountingAccountModalProps) {
+  const t = useFinanceTranslations();
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<AccountingFormValues>({
     businessId: account?.businessId ?? '',
@@ -44,6 +41,10 @@ export function AccountingAccountModal({ account, businessOptions, unitOptions, 
   const availableBusinessOptions = useMemo(() => (
     businessOptions.filter(option => !option.unitId || !values.unitId || option.unitId === values.unitId)
   ), [businessOptions, values.unitId]);
+  const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
+    { id: 0, label: t.accountingAccounts.modal.catalog, icon: BookOpen, title: t.accountingAccounts.modal.title, description: t.accountingAccounts.headerSubtitle },
+    { id: 1, label: t.accountingAccounts.modal.scope, icon: MapPinned, title: t.accountingAccounts.modal.scope, description: t.accountingAccounts.modal.scopeDescription },
+  ], [t]);
   const canContinue = values.code.trim().length > 0 && values.name.trim().length > 0;
   const currentStep = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -95,21 +96,21 @@ export function AccountingAccountModal({ account, businessOptions, unitOptions, 
             </span>
             <div>
               <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">
-                Paso {stepIndex + 1} de {steps.length}
+                {t.budgets.modal.stepOf(stepIndex + 1, steps.length)}
               </div>
-              <h2 className="text-xl font-bold text-white">{account ? 'Editar cuenta contable' : 'Agregar cuenta contable'}</h2>
+              <h2 className="text-xl font-bold text-white">{account ? `${t.common.edit} ${t.accountingAccounts.headerTitle}` : t.accountingAccounts.add}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
-                {account ? account.code : 'Clasifica operaciones financieras con una cuenta clara y reutilizable.'}
+                {account ? account.code : t.accountingAccounts.modal.defaultSubtitle}
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.accountingAccounts.modal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-          <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Paso {stepIndex + 1} de {steps.length}</p>
+          <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</p>
           <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div className="h-full rounded-full bg-[#147514] transition-all duration-300 ease-out" style={{ width: progressPercentage }} />
           </div>
@@ -141,15 +142,15 @@ export function AccountingAccountModal({ account, businessOptions, unitOptions, 
         </div>
 
         <div className="flex flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">Cancelar</button>
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
           <div className="flex flex-wrap items-center gap-3 sm:justify-end">
             <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50">
               <ChevronLeft className="h-4 w-4" />
-              Atrás
+              {t.common.previous}
             </button>
             <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
               {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              {isLastStep ? (account ? 'Guardar cambios' : 'Crear cuenta') : 'Siguiente'}
+              {isLastStep ? (account ? t.common.saveChanges : t.accountingAccounts.add) : t.common.next}
             </button>
           </div>
         </div>
@@ -159,29 +160,37 @@ export function AccountingAccountModal({ account, businessOptions, unitOptions, 
 }
 
 function CatalogStep({ values, update }: StepProps) {
+  const t = useFinanceTranslations();
+  const localizedTypeOptions = useMemo(() => typeOptions.map(option => ({
+    ...option,
+    label: t.accountingAccounts.types[option.value] ?? option.label,
+  })), [t]);
+
   return (
     <div className="space-y-4">
-      <FieldGroup title="Identidad">
-        <TextField label="Código" required value={values.code} onChange={(value) => update('code', value)} placeholder="Ej. 5110" />
-        <TextField label="Nombre" required value={values.name} onChange={(value) => update('name', value)} placeholder="Ej. Gastos de oficina" />
+      <FieldGroup title={t.accountingAccounts.modal.identity}>
+        <TextField label={t.accountingAccounts.modal.code} required value={values.code} onChange={(value) => update('code', value)} placeholder="5110" />
+        <TextField label={t.accountingAccounts.columns.name.label} required value={values.name} onChange={(value) => update('name', value)} placeholder={t.accountingAccounts.columns.name.label} />
       </FieldGroup>
-      <FieldGroup title="Clasificación">
-        <SelectField label="Tipo de cuenta" value={values.type} options={typeOptions} onChange={(value) => update('type', value as AccountingAccountType)} />
-        <SelectField label="Estado" value={values.isActive} options={[{ value: 'true', label: 'Activa' }, { value: 'false', label: 'Inactiva' }]} onChange={(value) => update('isActive', value)} />
+      <FieldGroup title={t.accountingAccounts.modal.classification}>
+        <SelectField label={t.accountingAccounts.modal.type} value={values.type} options={localizedTypeOptions} onChange={(value) => update('type', value as AccountingAccountType)} />
+        <SelectField label={t.accountingAccounts.modal.status} value={values.isActive} options={[{ value: 'true', label: t.common.active }, { value: 'false', label: t.common.inactive }]} onChange={(value) => update('isActive', value)} />
       </FieldGroup>
     </div>
   );
 }
 
 function ScopeStep({ businessOptions, unitOptions, values, update }: StepProps & { businessOptions: FinanceReferenceOption[]; unitOptions: FinanceReferenceOption[] }) {
+  const t = useFinanceTranslations();
+
   return (
     <div className="space-y-4">
-      <FieldGroup title="Asignación">
-        <SelectField label="Unidad" value={values.unitId} options={unitOptions} onChange={(value) => update('unitId', value)} includeEmpty />
-        <SelectField label="Negocio" value={values.businessId} options={businessOptions} onChange={(value) => update('businessId', value)} includeEmpty />
+      <FieldGroup title={t.accountingAccounts.modal.assignment}>
+        <SelectField label={t.filters.unit} value={values.unitId} options={unitOptions} onChange={(value) => update('unitId', value)} includeEmpty />
+        <SelectField label={t.filters.business} value={values.businessId} options={businessOptions} onChange={(value) => update('businessId', value)} includeEmpty />
       </FieldGroup>
-      <FieldGroup title="Uso">
-        <TextareaField label="Descripción" value={values.description} onChange={(value) => update('description', value)} />
+      <FieldGroup title={t.accountingAccounts.modal.fieldGroupUsage}>
+        <TextareaField label={t.accountingAccounts.modal.description} value={values.description} onChange={(value) => update('description', value)} />
       </FieldGroup>
     </div>
   );
@@ -235,11 +244,13 @@ function TextField({ label, onChange, placeholder, required, value }: { label: s
 }
 
 function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
+  const t = useFinanceTranslations();
+
   return (
     <label>
       <FieldLabel label={label} />
       <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
-        {includeEmpty ? <option value="">Sin asignar</option> : null}
+        {includeEmpty ? <option value="">{t.common.unassigned}</option> : null}
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
@@ -247,10 +258,12 @@ function SelectField({ includeEmpty = false, label, onChange, options, value }: 
 }
 
 function TextareaField({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+  const t = useFinanceTranslations();
+
   return (
     <label className="md:col-span-2">
       <FieldLabel label={label} />
-      <textarea rows={4} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Uso esperado de esta cuenta contable" className={`${inputClass} h-auto resize-none`} />
+      <textarea rows={4} value={value} onChange={(event) => onChange(event.target.value)} placeholder={t.accountingAccounts.modal.descriptionPlaceholder} className={`${inputClass} h-auto resize-none`} />
     </label>
   );
 }

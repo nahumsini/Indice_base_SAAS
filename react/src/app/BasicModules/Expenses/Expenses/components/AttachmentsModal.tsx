@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { X, Upload, File, Image as ImageIcon, Trash2, Download, Paperclip } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, Upload, File, Image as ImageIcon, Trash2, Download, Paperclip, ExternalLink } from 'lucide-react';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 interface Attachment {
   id: string;
@@ -7,6 +8,7 @@ interface Attachment {
   size: number;
   type: string;
   url?: string;
+  isLocalObjectUrl?: boolean;
   uploadedAt: Date;
 }
 
@@ -27,16 +29,19 @@ export function AttachmentsModal({
   attachments,
   onSave,
 }: AttachmentsModalProps) {
+  const t = useFinanceTranslations();
+  const objectUrlsRef = useRef<Set<string>>(new Set());
+  const didSaveRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<Attachment[]>(
-    attachments.map((name, index) => ({
-      id: `file-${index}`,
-      name,
-      size: Math.floor(Math.random() * 5000000) + 100000, // Mock size
-      type: name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
-      uploadedAt: new Date(),
-    }))
+    attachments.map((name, index) => createStoredAttachment(name, index))
   );
+
+  useEffect(() => () => {
+    if (didSaveRef.current) return;
+    objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    objectUrlsRef.current.clear();
+  }, []);
 
   if (!isOpen) return null;
 
@@ -70,6 +75,8 @@ export function AttachmentsModal({
       name: file.name,
       size: file.size,
       type: file.type,
+      url: createObjectUrl(file, objectUrlsRef.current),
+      isLocalObjectUrl: true,
       uploadedAt: new Date(),
     }));
 
@@ -77,6 +84,8 @@ export function AttachmentsModal({
   };
 
   const removeFile = (id: string) => {
+    const fileToRemove = files.find(file => file.id === id);
+    revokeLocalObjectUrl(fileToRemove, objectUrlsRef.current);
     setFiles(files.filter(f => f.id !== id));
   };
 
@@ -94,8 +103,25 @@ export function AttachmentsModal({
   };
 
   const handleSave = () => {
-    onSave(files.map(f => f.name));
+    didSaveRef.current = true;
+    onSave(files.map(serializeAttachment));
     onClose();
+  };
+
+  const openFile = (file: Attachment) => {
+    if (!file.url) return;
+    window.open(file.url, '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadFile = (file: Attachment) => {
+    if (!file.url) return;
+    const anchor = document.createElement('a');
+    anchor.href = file.url;
+    anchor.download = file.name;
+    anchor.rel = 'noopener noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   };
 
   return (
@@ -108,7 +134,7 @@ export function AttachmentsModal({
               <Paperclip className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Archivos Adjuntos</h2>
+              <h2 className="text-xl font-bold text-white">{t.expenses.attachments.title}</h2>
               <p className="text-sm text-white/90">
                 {expenseFolio} - {expenseConcept}
               </p>
@@ -117,6 +143,7 @@ export function AttachmentsModal({
           <button
             onClick={onClose}
             className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+            aria-label={t.columnModal.close}
             type="button"
           >
             <X className="w-5 h-5" />
@@ -143,10 +170,10 @@ export function AttachmentsModal({
                 <Upload className="w-8 h-8 text-[#147514]" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Arrastra archivos aquí
+                {t.expenses.attachments.dragTitle}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                o haz clic para seleccionar archivos
+                {t.expenses.attachments.dragDescription}
               </p>
               <label className="cursor-pointer">
                 <input
@@ -158,11 +185,11 @@ export function AttachmentsModal({
                 />
                 <span className="px-4 py-2 text-sm font-medium text-white bg-[#147514] hover:bg-[#0f5e0f] rounded-lg transition-colors inline-flex items-center gap-2">
                   <Upload className="w-4 h-4" />
-                  Seleccionar archivos
+                  {t.expenses.attachments.selectFiles}
                 </span>
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                Formatos soportados: PDF, imágenes, documentos (máx. 10MB)
+                {t.expenses.attachments.supportedFormats}
               </p>
             </div>
           </div>
@@ -172,10 +199,10 @@ export function AttachmentsModal({
             <div className="mt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Archivos adjuntos ({files.length})
+                  {t.expenses.attachments.attachedFiles(files.length)}
                 </h3>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Total: {formatFileSize(files.reduce((sum, f) => sum + f.size, 0))}
+                  {t.expenses.attachments.total}: {formatFileSize(files.reduce((sum, f) => sum + f.size, 0))}
                 </span>
               </div>
 
@@ -196,17 +223,30 @@ export function AttachmentsModal({
                         {file.name}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatFileSize(file.size)} • {file.uploadedAt.toLocaleDateString()}
+                        {formatFileSize(file.size)} • {file.uploadedAt.toLocaleDateString(t.locale)}
                       </p>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={() => console.log('Download', file.id)}
+                        onClick={() => openFile(file)}
                         type="button"
-                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                        title="Descargar"
+                        disabled={!file.url}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 dark:border-blue-900/40 dark:bg-slate-800 dark:text-blue-300 dark:hover:bg-blue-900/30 dark:disabled:border-slate-700 dark:disabled:bg-slate-800/60 dark:disabled:text-slate-500"
+                        title={file.url ? t.expenses.attachments.open : t.expenses.attachments.previewUnavailable}
+                        aria-label={file.url ? t.expenses.attachments.open : t.expenses.attachments.previewUnavailable}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>{t.expenses.attachments.open}</span>
+                      </button>
+                      <button
+                        onClick={() => downloadFile(file)}
+                        type="button"
+                        disabled={!file.url}
+                        className="p-2 text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent dark:hover:bg-blue-900/30 dark:disabled:text-slate-500 rounded-lg transition-colors"
+                        title={file.url ? t.expenses.attachments.download : t.expenses.attachments.previewUnavailable}
+                        aria-label={file.url ? t.expenses.attachments.download : t.expenses.attachments.previewUnavailable}
                       >
                         <Download className="w-4 h-4" />
                       </button>
@@ -214,7 +254,8 @@ export function AttachmentsModal({
                         onClick={() => removeFile(file.id)}
                         type="button"
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                        title="Eliminar"
+                        title={t.common.delete}
+                        aria-label={t.common.delete}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -231,7 +272,7 @@ export function AttachmentsModal({
                 <Paperclip className="w-8 h-8 text-gray-400" />
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                No hay archivos adjuntos
+                {t.expenses.attachments.empty}
               </p>
             </div>
           )}
@@ -240,7 +281,7 @@ export function AttachmentsModal({
         {/* Footer */}
         <div className="flex justify-between items-center gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl flex-shrink-0">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Los cambios se guardarán al presionar guardar
+            {t.expenses.attachments.saveHint}
           </p>
           <div className="flex gap-3">
             <button
@@ -248,7 +289,7 @@ export function AttachmentsModal({
               type="button"
               className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               onClick={handleSave}
@@ -256,11 +297,111 @@ export function AttachmentsModal({
               className="px-5 py-2 text-sm font-medium text-white bg-[#147514] hover:bg-[#0f5e0f] rounded-lg transition-colors shadow-sm flex items-center gap-2"
             >
               <Paperclip className="w-4 h-4" />
-              Guardar archivos ({files.length})
+              {t.expenses.attachments.saveFiles(files.length)}
             </button>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+const LOCAL_ATTACHMENT_PREFIX = 'indice-local-attachment:';
+
+function createStoredAttachment(value: string, index: number): Attachment {
+  const serializedAttachment = parseSerializedAttachment(value);
+  if (serializedAttachment) {
+    return {
+      ...serializedAttachment,
+      id: `file-${index}`,
+      uploadedAt: serializedAttachment.uploadedAt,
+    };
+  }
+
+  const name = value;
+  const url = isOpenableUrl(name) ? name : undefined;
+  const displayName = url ? getFileNameFromUrl(url) : name;
+
+  return {
+    id: `file-${index}`,
+    name: displayName,
+    size: Math.floor(Math.random() * 5000000) + 100000,
+    type: getFileType(displayName),
+    url,
+    uploadedAt: new Date(),
+  };
+}
+
+function serializeAttachment(file: Attachment) {
+  if (!file.url || !file.isLocalObjectUrl) return file.url && isOpenableUrl(file.url) ? file.url : file.name;
+  return `${LOCAL_ATTACHMENT_PREFIX}${encodeURIComponent(JSON.stringify({
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    url: file.url,
+    uploadedAt: file.uploadedAt.toISOString(),
+  }))}`;
+}
+
+function parseSerializedAttachment(value: string): Attachment | null {
+  if (!value.startsWith(LOCAL_ATTACHMENT_PREFIX)) return null;
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value.slice(LOCAL_ATTACHMENT_PREFIX.length))) as {
+      name?: string;
+      size?: number;
+      type?: string;
+      url?: string;
+      uploadedAt?: string;
+    };
+
+    if (!parsed.name || !parsed.url) return null;
+
+    const uploadedAt = parsed.uploadedAt ? new Date(parsed.uploadedAt) : new Date();
+    return {
+      id: '',
+      name: parsed.name,
+      size: Number.isFinite(parsed.size) ? Number(parsed.size) : 0,
+      type: parsed.type || getFileType(parsed.name),
+      url: parsed.url,
+      isLocalObjectUrl: parsed.url.startsWith('blob:'),
+      uploadedAt: Number.isNaN(uploadedAt.getTime()) ? new Date() : uploadedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function createObjectUrl(file: File, objectUrls: Set<string>) {
+  const url = URL.createObjectURL(file);
+  objectUrls.add(url);
+  return url;
+}
+
+function revokeLocalObjectUrl(file: Attachment | undefined, objectUrls: Set<string>) {
+  if (!file?.isLocalObjectUrl || !file.url) return;
+  URL.revokeObjectURL(file.url);
+  objectUrls.delete(file.url);
+}
+
+function isOpenableUrl(value: string) {
+  return /^(https?:|blob:|data:)/i.test(value);
+}
+
+function getFileNameFromUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    const lastSegment = parsedUrl.pathname.split('/').filter(Boolean).pop();
+    return lastSegment ? decodeURIComponent(lastSegment) : url;
+  } catch {
+    return url;
+  }
+}
+
+function getFileType(name: string) {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.endsWith('.pdf')) return 'application/pdf';
+  if (normalizedName.endsWith('.png')) return 'image/png';
+  if (normalizedName.endsWith('.jpg') || normalizedName.endsWith('.jpeg') || normalizedName.endsWith('.webp')) return 'image/jpeg';
+  return 'application/octet-stream';
 }

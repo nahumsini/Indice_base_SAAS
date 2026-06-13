@@ -5,9 +5,9 @@ export const cajaChicaTranslations = {
     subtitle: 'Gestión de caja chica, control de cajas y análisis financiero',
     back: 'Regresar',
     tabs: {
-      caja: 'Caja',
-      control: 'Control de Cajas',
-      kpis: 'KPIs',
+      caja: 'Fondos',
+      control: 'Operación del fondo',
+      kpis: 'Vista financiera',
     },
   },
   'es-CO': {
@@ -15,29 +15,29 @@ export const cajaChicaTranslations = {
     subtitle: 'Gestión de caja chica, control de cajas y análisis financiero',
     back: 'Regresar',
     tabs: {
-      caja: 'Caja',
-      control: 'Control de Cajas',
-      kpis: 'KPIs',
+      caja: 'Fondos',
+      control: 'Operación del fondo',
+      kpis: 'Vista financiera',
     },
   },
   'en-US': {
     title: 'Petty Cash',
-    subtitle: 'Petty cash management, cash control and financial analysis',
+    subtitle: 'Operational funds, cut-offs, reconciliation, and financial visibility',
     back: 'Back',
     tabs: {
-      caja: 'Cash',
-      control: 'Cash Control',
-      kpis: 'KPIs',
+      caja: 'Funds',
+      control: 'Fund operation',
+      kpis: 'Financial view',
     },
   },
   'en-CA': {
     title: 'Petty Cash',
-    subtitle: 'Petty cash management, cash control and financial analysis',
+    subtitle: 'Operational funds, cut-offs, reconciliation, and financial visibility',
     back: 'Back',
     tabs: {
-      caja: 'Cash',
-      control: 'Cash Control',
-      kpis: 'KPIs',
+      caja: 'Funds',
+      control: 'Fund operation',
+      kpis: 'Financial view',
     },
   },
   'fr-CA': {

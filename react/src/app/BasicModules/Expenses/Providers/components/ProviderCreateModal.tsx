@@ -2,6 +2,7 @@ import { Building2, Check, ChevronLeft, ChevronRight, FileText, MapPinned, Phone
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import {
   providerStatusOptions,
   providerTypeOptions,
@@ -23,12 +24,6 @@ type ProviderCreateModalProps = {
   onSubmit: (values: ProviderFormValues) => void | Promise<void>;
 };
 
-const steps: Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }> = [
-  { id: 0, label: 'Datos', icon: Building2, title: 'Información básica del proveedor', description: 'Empieza con los datos necesarios para identificar al proveedor.' },
-  { id: 1, label: 'Alcance', icon: MapPinned, title: 'Alcance financiero', description: 'Asigna unidad, negocio y cuenta contable cuando aplique.' },
-  { id: 2, label: 'Contacto', icon: Phone, title: 'Datos de contacto', description: 'Registra la información de comunicación y fiscal.' },
-  { id: 3, label: 'Responsables', icon: UserCheck, title: 'Responsables internos', description: 'Define quién autoriza y quién es responsable de este proveedor.' },
-];
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 const initialValues: ProviderFormValues = {
@@ -52,25 +47,42 @@ export function ProviderCreateModal({
   accountingAccountOptions,
   businessOptions,
   initialValues: formInitialValues = initialValues,
-  submitLabel = 'Guardar proveedor',
+  submitLabel,
   subtitle,
-  title = 'Agregar proveedor',
+  title,
   unitOptions,
   userOptions,
   onClose,
   onSubmit,
 }: ProviderCreateModalProps) {
+  const t = useFinanceTranslations();
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<ProviderFormValues>(formInitialValues);
+  const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
+    { id: 0, label: t.providers.modal.stepData, icon: Building2, title: t.providers.modal.titleMain, description: t.providers.modal.titleDescription },
+    { id: 1, label: t.providers.modal.stepScope, icon: MapPinned, title: t.providers.modal.scopeTitle, description: t.providers.modal.scopeDescription },
+    { id: 2, label: t.providers.modal.stepContact, icon: Phone, title: t.providers.modal.contactTitle, description: t.providers.modal.contactDescription },
+    { id: 3, label: t.providers.modal.stepOwners, icon: UserCheck, title: t.providers.modal.ownersTitle, description: t.providers.modal.ownersDescription },
+  ], [t]);
   const availableBusinessOptions = useMemo(() => (
     businessOptions.filter(option => !option.unitId || !values.businessUnit || option.unitId === values.businessUnit)
   ), [businessOptions, values.businessUnit]);
   const selectableAccountingAccountOptions = useMemo(() => (
-    accountingAccountOptions.length > 0 ? accountingAccountOptions : [{ value: '', label: 'Sin cuentas activas' }]
-  ), [accountingAccountOptions]);
+    accountingAccountOptions.length > 0 ? accountingAccountOptions : [{ value: '', label: t.providers.modal.noActiveAccounts }]
+  ), [accountingAccountOptions, t.providers.modal.noActiveAccounts]);
+  const localizedProviderTypeOptions = useMemo(() => providerTypeOptions.map(option => ({
+    ...option,
+    label: t.providers.types[option.value] ?? option.label,
+  })), [t.providers.types]);
+  const localizedProviderStatusOptions = useMemo(() => providerStatusOptions.map(option => ({
+    ...option,
+    label: option.value === 'active' ? t.common.active : t.common.inactive,
+  })), [t.common.active, t.common.inactive]);
   const canContinue = values.name.trim().length > 0;
   const currentStep = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
+  const effectiveSubmitLabel = submitLabel ?? t.providers.modal.finish;
+  const effectiveTitle = title ?? t.providers.add;
   const progressPercentage = `${((stepIndex + 1) / steps.length) * 100}%`;
 
   useEffect(() => {
@@ -109,22 +121,22 @@ export function ProviderCreateModal({
             </span>
             <div>
               <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">
-                Paso {stepIndex + 1} de {steps.length}
+                {t.providers.modal.stepOf(stepIndex + 1, steps.length)}
               </div>
-              <h2 className="text-xl font-bold text-white">{title}</h2>
+              <h2 className="text-xl font-bold text-white">{effectiveTitle}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
-                {subtitle ?? 'Registra alcance, contacto y responsables en un solo flujo.'}
+                {subtitle ?? t.providers.modal.defaultSubtitle}
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
           <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-            Paso {stepIndex + 1} de {steps.length}
+            {t.providers.modal.stepOf(stepIndex + 1, steps.length)}
           </p>
           <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div className="h-full rounded-full bg-[#147514] transition-all duration-300 ease-out" style={{ width: progressPercentage }} />
@@ -153,7 +165,7 @@ export function ProviderCreateModal({
 
         <div className="flex-1 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
           <StepCard description={currentStep.description} icon={currentStep.icon} title={currentStep.title}>
-            {stepIndex === 0 ? <BasicStep values={values} update={update} /> : null}
+            {stepIndex === 0 ? <BasicStep statusOptions={localizedProviderStatusOptions} typeOptions={localizedProviderTypeOptions} values={values} update={update} /> : null}
             {stepIndex === 1 ? <ScopeStep accountingAccountOptions={selectableAccountingAccountOptions} businessOptions={availableBusinessOptions} unitOptions={unitOptions} values={values} update={update} /> : null}
             {stepIndex === 2 ? <ContactStep values={values} update={update} /> : null}
             {stepIndex === 3 ? <OwnerStep userOptions={userOptions} values={values} update={update} /> : null}
@@ -161,15 +173,15 @@ export function ProviderCreateModal({
         </div>
 
         <div className="flex flex-col gap-3 bg-[#147514] px-6 py-3 dark:bg-[#147514] sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">Cancelar</button>
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
           <div className="flex flex-wrap items-center gap-3 sm:justify-end">
             <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50">
               <ChevronLeft className="h-4 w-4" />
-              Atrás
+              {t.providers.modal.back}
             </button>
             <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
               {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              {isLastStep ? submitLabel : 'Siguiente'}
+              {isLastStep ? effectiveSubmitLabel : t.providers.modal.next}
             </button>
           </div>
         </div>
@@ -195,52 +207,60 @@ function StepCard({ children, description, icon: Icon, title }: { children: Reac
   );
 }
 
-function BasicStep({ values, update }: StepProps) {
+function BasicStep({ statusOptions, typeOptions, values, update }: StepProps & { statusOptions: Array<{ value: ProviderStatus; label: string }>; typeOptions: Array<{ value: ProviderType; label: string }> }) {
+  const t = useFinanceTranslations();
+
   return (
     <div className="space-y-4">
-      <FieldGroup title="Identidad">
-        <TextField label="Nombre del proveedor" required value={values.name} onChange={(value) => update('name', value)} />
-        <TextField label="Empresa / razón social" value={values.company} onChange={(value) => update('company', value)} />
+      <FieldGroup title={t.providers.modal.identity}>
+        <TextField label={t.providers.columns.name.label} required value={values.name} onChange={(value) => update('name', value)} />
+        <TextField label={t.providers.columns.company.label} value={values.company} onChange={(value) => update('company', value)} />
       </FieldGroup>
-      <FieldGroup title="Clasificación">
-        <SelectField label="Tipo de proveedor" value={values.type} options={providerTypeOptions} onChange={(value) => update('type', value as ProviderType)} />
-        <SelectField label="Estado" value={values.status} options={providerStatusOptions} onChange={(value) => update('status', value as ProviderStatus)} />
+      <FieldGroup title={t.providers.modal.classification}>
+        <SelectField label={t.providers.filters.type} value={values.type} options={typeOptions} onChange={(value) => update('type', value as ProviderType)} />
+        <SelectField label={t.filters.status} value={values.status} options={statusOptions} onChange={(value) => update('status', value as ProviderStatus)} />
       </FieldGroup>
     </div>
   );
 }
 
 function ScopeStep({ accountingAccountOptions, businessOptions, unitOptions, values, update }: StepProps & { accountingAccountOptions: FinanceReferenceOption[]; businessOptions: FinanceReferenceOption[]; unitOptions: FinanceReferenceOption[] }) {
+  const t = useFinanceTranslations();
+
   return (
-    <FieldGroup title="Asignación">
-      <SelectField label="Unidad" value={values.businessUnit} options={unitOptions} onChange={(value) => update('businessUnit', value)} includeEmpty />
-      <SelectField label="Negocio" value={values.business} options={businessOptions} onChange={(value) => update('business', value)} includeEmpty />
-      <SelectField label="Cuenta contable" value={values.accountingAccount} options={accountingAccountOptions} onChange={(value) => update('accountingAccount', value)} />
+    <FieldGroup title={t.providers.modal.assignment}>
+      <SelectField label={t.filters.unit} value={values.businessUnit} options={unitOptions} onChange={(value) => update('businessUnit', value)} includeEmpty />
+      <SelectField label={t.filters.business} value={values.business} options={businessOptions} onChange={(value) => update('business', value)} includeEmpty />
+      <SelectField label={t.providers.columns.accountingAccount.label} value={values.accountingAccount} options={accountingAccountOptions} onChange={(value) => update('accountingAccount', value)} />
     </FieldGroup>
   );
 }
 
 function ContactStep({ values, update }: StepProps) {
+  const t = useFinanceTranslations();
+
   return (
     <div className="space-y-4">
-      <FieldGroup title="Contacto">
-        <TextField label="Contacto principal" value={values.contactName} onChange={(value) => update('contactName', value)} />
-        <TextField label="Correo" type="email" value={values.email} onChange={(value) => update('email', value)} />
-        <TextField label="Teléfono" value={values.phone} onChange={(value) => update('phone', value)} />
-        <TextField label="RFC / ID fiscal" value={values.taxId} onChange={(value) => update('taxId', value)} />
+      <FieldGroup title={t.providers.modal.contact}>
+        <TextField label={t.providers.columns.contactName.label} value={values.contactName} onChange={(value) => update('contactName', value)} />
+        <TextField label={t.providers.columns.email.label} type="email" value={values.email} onChange={(value) => update('email', value)} />
+        <TextField label={t.providers.columns.phone.label} value={values.phone} onChange={(value) => update('phone', value)} />
+        <TextField label={t.providers.columns.taxId.label} value={values.taxId} onChange={(value) => update('taxId', value)} />
       </FieldGroup>
-      <FieldGroup title="Ubicación">
-        <TextField label="Dirección" value={values.address} onChange={(value) => update('address', value)} />
+      <FieldGroup title={t.providers.modal.location}>
+        <TextField label={t.providers.columns.address.label} value={values.address} onChange={(value) => update('address', value)} />
       </FieldGroup>
     </div>
   );
 }
 
 function OwnerStep({ userOptions, values, update }: StepProps & { userOptions: FinanceReferenceOption[] }) {
+  const t = useFinanceTranslations();
+
   return (
-    <FieldGroup title="Responsables">
-      <SelectField label="Autoriza" value={values.authorizer} options={userOptions} onChange={(value) => update('authorizer', value)} includeEmpty />
-      <SelectField label="Responsable" value={values.performer} options={userOptions} onChange={(value) => update('performer', value)} includeEmpty />
+    <FieldGroup title={t.providers.modal.owners}>
+      <SelectField label={t.providers.columns.authorizer.label} value={values.authorizer} options={userOptions} onChange={(value) => update('authorizer', value)} includeEmpty />
+      <SelectField label={t.providers.columns.performer.label} value={values.performer} options={userOptions} onChange={(value) => update('performer', value)} includeEmpty />
     </FieldGroup>
   );
 }
@@ -273,11 +293,13 @@ function TextField({ label, onChange, required, type = 'text', value }: { label:
 }
 
 function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
+  const t = useFinanceTranslations();
+
   return (
     <label>
       <FieldLabel label={label} />
       <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
-        {includeEmpty ? <option value="">Sin asignar</option> : null}
+        {includeEmpty ? <option value="">{t.common.unassigned}</option> : null}
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>

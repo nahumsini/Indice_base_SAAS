@@ -64,6 +64,52 @@ const providerNameFrom = (providerId: string | undefined, providers: Array<{ id:
   providers.find(provider => provider.id === providerId)?.name
 );
 
+export const toFinanceExpenseFromApi = (expense: ExpenseApiDto): FinanceExpense => {
+  const customFields = asObject(expense.customFields);
+  const attachments = asStringArray(customFields.attachments);
+  const total = asNumber(expense.totalAmount);
+  const paidAmount = asNumber(expense.paidAmount);
+
+  return {
+    id: String(expense.id),
+    companyId: String(expense.companyId),
+    unitId: expense.unitId ? String(expense.unitId) : undefined,
+    businessId: expense.businessId ? String(expense.businessId) : undefined,
+    providerId: expense.providerId ? String(expense.providerId) : undefined,
+    categoryId: asString(customFields.categoryId, undefined),
+    budgetLineId: expense.budgetLineId ? String(expense.budgetLineId) : undefined,
+    purchaseOrderId: expense.purchaseOrderId ? String(expense.purchaseOrderId) : undefined,
+    accountingAccountId: expense.accountingAccountId ? String(expense.accountingAccountId) : undefined,
+    paymentAccountId: expense.paymentAccountId ? String(expense.paymentAccountId) : undefined,
+    folio: expense.folio,
+    concept: expense.concept,
+    description: expense.description ?? asString(customFields.description, expense.concept),
+    reference: asString(customFields.reference, expense.folio),
+    expenseType: expense.expenseType,
+    subtotal: asNumber(expense.subtotalAmount),
+    tax: asNumber(expense.taxAmount),
+    total,
+    paidAmount,
+    balance: asNumber(expense.balanceAmount, Math.max(total - paidAmount, 0)),
+    currency: expense.currencyCode,
+    expenseDate: expense.expenseDate,
+    dueDate: expense.dueDate ?? undefined,
+    paidDate: expense.paymentDate ?? undefined,
+    closeDate: expense.closeDate ?? undefined,
+    requestedByUserId: expense.requestedByUserId ? String(expense.requestedByUserId) : undefined,
+    approvedByUserId: expense.approvedByUserId ? String(expense.approvedByUserId) : undefined,
+    performedByUserId: expense.performedByUserId ? String(expense.performedByUserId) : undefined,
+    status: expense.status as CanonicalExpenseStatus,
+    paymentStatus: expense.paymentStatus as PaymentStatus,
+    createdBy: expense.createdByUserId ? String(expense.createdByUserId) : undefined,
+    approvedBy: expense.approvedByUserId ? String(expense.approvedByUserId) : undefined,
+    attachments: attachments.length > 0 ? attachments : Array.from({ length: expense.attachmentCount ?? 0 }, (_, index) => `Archivo ${index + 1}`),
+    auditStatus: expense.auditStatus ?? undefined,
+    createdAt: expense.createdAt ?? undefined,
+    updatedAt: expense.updatedAt ?? undefined,
+  };
+};
+
 export const toFinanceExpense = (expense: Expense, companyId = 'mock-company'): FinanceExpense => {
   const paidAmount = expense.amountPaid ?? (expense.status === 'paid' || expense.status === 'audited' ? expense.total : 0);
 
@@ -75,7 +121,7 @@ export const toFinanceExpense = (expense: Expense, companyId = 'mock-company'): 
     providerId: expense.providerId,
     categoryId: expense.category?.id ?? defaultCategory.id,
     accountingAccountId: expense.accountingAccount,
-    paymentAccountId: undefined,
+    paymentAccountId: expense.paymentAccountId,
     folio: expense.folio,
     concept: expense.concept,
     description: expense.description ?? expense.concept,
@@ -148,6 +194,7 @@ export const toExpense = (
     date: expenseDate,
     paymentMethod: asString(customFields.paymentMethod, 'transfer') as Expense['paymentMethod'],
 	    accountingAccount: expense.accountingAccountId ? String(expense.accountingAccountId) : asString(customFields.accountingAccount, undefined),
+    paymentAccountId: expense.paymentAccountId ? String(expense.paymentAccountId) : asString(customFields.paymentAccountId, undefined),
 	    status,
 	    approver: approvedByUserId,
 	    requestedByUserId,
@@ -172,7 +219,7 @@ export const toExpenseApiRequest = (expense: Expense): ExpenseApiRequest => ({
   providerId: numericId(expense.providerId) ?? null,
   budgetLineId: numericId(expense.id.startsWith('budget-line-') ? expense.id : undefined) ?? null,
   accountingAccountId: numericId(expense.accountingAccount) ?? null,
-  paymentAccountId: null,
+  paymentAccountId: numericId(expense.paymentAccountId) ?? null,
   folio: expense.folio.trim(),
   concept: expense.concept.trim(),
   description: expense.description?.trim() || null,
@@ -197,6 +244,7 @@ export const toExpenseApiRequest = (expense: Expense): ExpenseApiRequest => ({
     legacyStatus: expense.status,
     notes: expense.notes,
     paymentDate: toDateInputValue(expense.paymentDate),
+    paymentAccountId: expense.paymentAccountId,
     paymentMethod: expense.paymentMethod,
     projected: expense.projected,
     providerId: expense.providerId,

@@ -26,12 +26,17 @@ const getCurrentMonthRange = () => {
 const formatNumber = (value: number, locale: string) =>
   new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value);
 
-const formatCurrency = (value: number, locale: string) =>
-  new Intl.NumberFormat(locale, {
-    currency: 'USD',
-    maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(value);
+const formatCurrency = (value: number, locale: string, currency = 'USD') => {
+  try {
+    return new Intl.NumberFormat(locale, {
+      currency,
+      maximumFractionDigits: 0,
+      style: 'currency',
+    }).format(value);
+  } catch {
+    return `${currency} ${formatNumber(value, locale)}`;
+  }
+};
 
 const formatPercent = (value: number, locale: string) =>
   new Intl.NumberFormat(locale, {
@@ -48,17 +53,23 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
 
     const loadLiveKpis = async () => {
       const monthRange = getCurrentMonthRange();
-      const [{ humanResourcesApi }, { listProcessTaskKpis }] = await Promise.all([
+      const [{ humanResourcesApi }, { listProcessTaskKpis }, { loadFinanceDashboardOverview }] = await Promise.all([
         import('../../api/humanResources'),
         import('../../BasicModules/ProcessesTasks/KPIs/kpisApi'),
+        import('../../BasicModules/Expenses/KPIs/financeDashboardOverview'),
       ]);
-      const [hrUsersResult, attendanceResult, processTasksResult] = await Promise.allSettled([
+      const [hrUsersResult, attendanceResult, processTasksResult, financeOverviewResult] = await Promise.allSettled([
         humanResourcesApi.listHrUsers(),
         humanResourcesApi.getAttendanceControlOverview(today),
         listProcessTaskKpis({
           from: monthRange.from,
           to: monthRange.to,
           includeOverdueBacklog: true,
+        }),
+        loadFinanceDashboardOverview({
+          currentDate: new Date(),
+          locale,
+          periodFilter: 'this_month',
         }),
       ]);
 
@@ -135,6 +146,51 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
           value: formatNumber(summary.overdueTasks, locale),
           change: copy.kpis.overdueTasks.change,
           isPositive: summary.overdueTasks === 0,
+        };
+      }
+
+      if (financeOverviewResult.status === 'fulfilled') {
+        const { currency, metrics } = financeOverviewResult.value;
+        const consumed = metrics.planned - metrics.available;
+        const budgetUtilization = metrics.planned > 0
+          ? Math.max(0, (consumed / metrics.planned) * 100)
+          : 0;
+
+        nextKpis.monthlyExpenses = {
+          title: copy.kpis.monthlyExpenses.title,
+          value: formatCurrency(metrics.actual, locale, currency),
+          change: copy.kpis.monthlyExpenses.change,
+          isPositive: metrics.planned <= 0 || metrics.actual <= metrics.planned,
+        };
+        nextKpis.pendingExpenses = {
+          title: copy.kpis.pendingExpenses.title,
+          value: formatCurrency(metrics.pendingPayments, locale, currency),
+          change: copy.kpis.pendingExpenses.change,
+          isPositive: metrics.pendingPayments <= 0,
+        };
+        nextKpis.overdueExpenses = {
+          title: copy.kpis.overdueExpenses.title,
+          value: formatCurrency(metrics.overdueAmount, locale, currency),
+          change: copy.kpis.overdueExpenses.change,
+          isPositive: metrics.overdueAmount <= 0,
+        };
+        nextKpis.budgetAvailable = {
+          title: copy.kpis.budgetAvailable.title,
+          value: formatCurrency(metrics.available, locale, currency),
+          change: copy.kpis.budgetAvailable.change,
+          isPositive: metrics.available >= 0,
+        };
+        nextKpis.budgetUtilization = {
+          title: copy.kpis.budgetUtilization.title,
+          value: formatPercent(budgetUtilization, locale),
+          change: copy.kpis.budgetUtilization.change,
+          isPositive: budgetUtilization <= 85,
+        };
+        nextKpis.cashDue7Days = {
+          title: copy.kpis.cashDue7Days.title,
+          value: formatCurrency(metrics.dueIn7Days, locale, currency),
+          change: copy.kpis.cashDue7Days.change,
+          isPositive: metrics.dueIn7Days <= 0,
         };
       }
 

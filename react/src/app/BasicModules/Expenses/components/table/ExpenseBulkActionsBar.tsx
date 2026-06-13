@@ -1,5 +1,6 @@
 import { CheckCircle2, Trash2, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { ExpenseStatus } from '../../types/expenses.types';
 import type { SelectOption } from './ExpenseInlineControls';
 
@@ -33,13 +34,6 @@ const bulkSelectClass =
 const bulkPlaceholderValue = '__bulk_placeholder__';
 const bulkEmptyValue = '__bulk_empty__';
 
-const statusOptions: Array<{ value: ExpenseStatus; label: string }> = [
-  { value: 'pending', label: 'Pendiente' },
-  { value: 'paid', label: 'Pagado' },
-  { value: 'partial', label: 'Parcial' },
-  { value: 'overdue', label: 'Vencido' },
-];
-
 export function ExpenseBulkActionsBar({
   accountingAccountOptions,
   businessOptions,
@@ -59,24 +53,32 @@ export function ExpenseBulkActionsBar({
   unitOptions,
   userOptions,
 }: ExpenseBulkActionsBarProps) {
+  const t = useFinanceTranslations();
+  const statusOptions: Array<{ value: ExpenseStatus; label: string }> = [
+    { value: 'pending', label: t.statuses.pending },
+    { value: 'paid', label: t.statuses.paid },
+    { value: 'partial', label: t.statuses.partial },
+    { value: 'overdue', label: t.statuses.overdue },
+  ];
+
   return (
     <section className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mb-4 rounded-2xl border border-[#147514]/25 bg-[#147514]/10 px-4 py-3 shadow-lg shadow-slate-950/10 backdrop-blur dark:border-[#147514]/40 dark:bg-[#147514]/15 sm:static sm:shadow-sm sm:backdrop-blur-0">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <span className="rounded-full border border-[#147514]/30 bg-white px-3 py-1 text-sm font-extrabold text-[#147514] dark:bg-slate-800 dark:text-emerald-200">
-            {selectedCount} seleccionados
+            {t.expenses.bulk.selected(selectedCount)}
           </span>
-          <span className="text-slate-500 dark:text-slate-400">Edición múltiple</span>
+          <span className="text-slate-500 dark:text-slate-400">{t.expenses.bulk.title}</span>
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-          <BulkSelect disabled={isDisabled} label="Unidad" onChange={onUnitChange} options={[{ value: '', label: 'Sin unidad' }, ...unitOptions]} />
-          <BulkSelect disabled={isDisabled} label="Negocio" onChange={onBusinessChange} options={[{ value: '', label: 'Sin negocio' }, ...businessOptions]} />
-          <BulkSelect disabled={isDisabled} label="Proveedor" onChange={onProviderChange} options={[{ value: '', label: 'Sin proveedor' }, ...providers.map(provider => ({ value: provider.id, label: provider.name }))]} />
-          <BulkSelect disabled={isDisabled} label="Cuenta contable" onChange={onAccountingAccountChange} options={accountingAccountOptions} />
-          <BulkSelect disabled={isDisabled} label="Estado" onChange={(value) => onStatusChange(value as ExpenseStatus)} options={statusOptions} />
-          <BulkSelect disabled={isDisabled} label="Autoriza" onChange={onAuthorizerChange} options={userOptions} />
-          <BulkSelect disabled={isDisabled} label="Responsable" onChange={onResponsibleChange} options={userOptions} />
+          <BulkSelect disabled={isDisabled} label={t.filters.unit} onChange={onUnitChange} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
+          <BulkSelect disabled={isDisabled} label={t.filters.business} onChange={onBusinessChange} options={[{ value: '', label: t.common.unassigned }, ...businessOptions]} />
+          <BulkSelect disabled={isDisabled} label={t.filters.provider} onChange={onProviderChange} options={[{ value: '', label: t.common.unassigned }, ...providers.map(provider => ({ value: provider.id, label: provider.name }))]} />
+          <BulkSelect disabled={isDisabled} label={t.budgets.columns.accountingAccount.label} onChange={onAccountingAccountChange} options={accountingAccountOptions} />
+          <BulkSelect disabled={isDisabled} label={t.filters.status} onChange={(value) => onStatusChange(value as ExpenseStatus)} options={statusOptions} />
+          <BulkSelect disabled={isDisabled} label={t.budgets.columns.authorizer.label} onChange={onAuthorizerChange} options={userOptions} />
+          <BulkSelect disabled={isDisabled} label={t.budgets.columns.performer.label} onChange={onResponsibleChange} options={userOptions} />
 
           <Button
             type="button"
@@ -86,7 +88,7 @@ export function ExpenseBulkActionsBar({
             onClick={onMarkPaidSelected}
           >
             <CheckCircle2 className="h-4 w-4" />
-            Pagado
+            {t.statuses.paid}
           </Button>
           <Button
             type="button"
@@ -96,7 +98,7 @@ export function ExpenseBulkActionsBar({
             onClick={onDeleteSelected}
           >
             <Trash2 className="h-4 w-4" />
-            Eliminar
+            {t.common.delete}
           </Button>
           <Button
             type="button"
@@ -106,7 +108,7 @@ export function ExpenseBulkActionsBar({
             onClick={onClearSelection}
           >
             <X className="h-4 w-4" />
-            Cancelar
+            {t.common.cancel}
           </Button>
         </div>
       </div>

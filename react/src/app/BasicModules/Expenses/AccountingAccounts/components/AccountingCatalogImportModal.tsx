@@ -1,15 +1,14 @@
 import { Check, Globe2, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { AccountingAccount, AccountingCountryCode } from '../types';
 import {
   accountMatchesCatalogTemplate,
   accountingCatalogTemplates,
   accountingCountryOptions,
   catalogTemplateKey,
-  statementSectionLabels,
   type AccountingCatalogTemplate,
 } from '../accountingCatalogSeed';
-import { getTypeLabel } from '../accountingAccounts.utils';
 
 type AccountingCatalogImportModalProps = {
   accounts: AccountingAccount[];
@@ -24,6 +23,7 @@ export function AccountingCatalogImportModal({
   onClose,
   onImport,
 }: AccountingCatalogImportModalProps) {
+  const t = useFinanceTranslations();
   const [activeCountry, setActiveCountry] = useState<AccountingCountryCode>('MX');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -75,13 +75,13 @@ export function AccountingCatalogImportModal({
               <Globe2 className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-2xl font-extrabold tracking-normal">Cargar catálogo base</h2>
+              <h2 className="text-2xl font-extrabold tracking-normal">{t.accountingAccounts.importCatalog}</h2>
               <p className="mt-1 max-w-2xl text-sm font-medium text-white/85">
-                Elige país y selecciona las cuentas que quieres importar como registros reales.
+                {t.accountingAccounts.catalog.description}
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/10 text-white transition hover:bg-white/20" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/10 text-white transition hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -91,7 +91,7 @@ export function AccountingCatalogImportModal({
             <div className="flex flex-wrap gap-2">
               {accountingCountryOptions.map(country => (
                 <button key={country.code} type="button" onClick={() => setActiveCountry(country.code)} className={`h-10 rounded-xl border px-4 text-sm font-extrabold transition ${activeCountry === country.code ? 'border-[#147514] bg-[#147514] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#147514]/30 hover:text-[#147514]'}`}>
-                  {country.label}
+                  {t.accountingAccounts.catalog.countryLabels[country.code] ?? country.label}
                 </button>
               ))}
             </div>
@@ -99,17 +99,17 @@ export function AccountingCatalogImportModal({
               <div>
                 <p className="text-sm font-semibold text-slate-600">{activeCountryMeta?.standard}</p>
                 <p className="mt-2 text-sm text-slate-500">
-                  {selectedTemplates.length} seleccionadas · {availableTemplates.length} disponibles en esta vista.
+                  {t.accountingAccounts.catalog.selectedCount(selectedTemplates.length)} · {t.accountingAccounts.catalog.availableInView(availableTemplates.length)}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={selectVisible} className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-[#147514]/30 hover:text-[#147514]">Seleccionar visibles</button>
-                <button type="button" onClick={clearVisible} className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-[#147514]/30 hover:text-[#147514]">Limpiar visibles</button>
+                <button type="button" onClick={selectVisible} className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-[#147514]/30 hover:text-[#147514]">{t.accountingAccounts.catalog.selectVisible}</button>
+                <button type="button" onClick={clearVisible} className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-[#147514]/30 hover:text-[#147514]">{t.accountingAccounts.catalog.clearVisible}</button>
               </div>
             </div>
             <div className="relative mt-4">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar por código, cuenta o descripción" className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#147514]/45 focus:ring-4 focus:ring-[#147514]/10" />
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={t.accountingAccounts.catalog.searchPlaceholder} className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#147514]/45 focus:ring-4 focus:ring-[#147514]/10" />
             </div>
           </div>
 
@@ -127,12 +127,12 @@ export function AccountingCatalogImportModal({
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-sm font-extrabold text-slate-900">{template.code}</span>
                         <span className="text-base font-extrabold text-slate-900">{template.name}</span>
-                        {exists ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">Ya existe</span> : null}
+                        {exists ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{t.accountingAccounts.catalog.alreadyExists}</span> : null}
                       </span>
                       <span className="mt-1 block text-sm font-semibold leading-5 text-slate-600">{template.description}</span>
                       <span className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1">{getTypeLabel(template.type)}</span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1">{statementSectionLabels[template.statementSection]}</span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">{t.accountingAccounts.types[template.type] ?? template.type}</span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">{t.accountingAccounts.catalog.sectionLabels[template.statementSection] ?? template.statementSection}</span>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1">{template.localReferenceCode}</span>
                       </span>
                     </span>
@@ -144,9 +144,9 @@ export function AccountingCatalogImportModal({
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={onClose} className="h-12 rounded-2xl border border-white/35 bg-white/10 px-7 text-sm font-extrabold text-white transition hover:bg-white/18">Cancelar</button>
+          <button type="button" onClick={onClose} className="h-12 rounded-2xl border border-white/35 bg-white/10 px-7 text-sm font-extrabold text-white transition hover:bg-white/18">{t.common.cancel}</button>
           <button type="button" onClick={() => void onImport(selectedTemplates)} disabled={isImporting || selectedTemplates.length === 0} className="h-12 rounded-2xl bg-white px-7 text-sm font-extrabold text-[#147514] shadow-lg shadow-slate-900/15 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-white/45 disabled:text-[#147514]/50">
-            {isImporting ? 'Importando...' : `Importar seleccionadas (${selectedTemplates.length})`}
+            {isImporting ? t.accountingAccounts.catalog.importing : t.accountingAccounts.catalog.importSelected(selectedTemplates.length)}
           </button>
         </div>
       </div>

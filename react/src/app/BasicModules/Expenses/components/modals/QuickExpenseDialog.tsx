@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 export type QuickExpenseValues = {
   amount: number;
@@ -30,6 +31,7 @@ export function QuickExpenseDialog({
   onSubmit,
   open,
 }: QuickExpenseDialogProps) {
+  const t = useFinanceTranslations();
   const [amount, setAmount] = useState('');
   const [concept, setConcept] = useState('');
   const parsedAmount = toMoneyNumber(amount);
@@ -55,30 +57,30 @@ export function QuickExpenseDialog({
         className="max-w-[460px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
       >
         <div className="bg-[#147514] px-5 py-4 text-white">
-          <DialogTitle className="text-lg font-bold text-white">Gasto rápido</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-white">{t.expenses.quick.title}</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-white/80">
-            Registra concepto y monto. La divisa favorita se aplica automáticamente.
+            {t.expenses.quick.description}
           </DialogDescription>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 px-5 py-5">
             <div className="rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Divisa favorita</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{t.expenses.quick.currency}</p>
               <p className="mt-1 text-base font-extrabold text-[#147514]">{currency}</p>
             </div>
             <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              <span>Concepto</span>
+              <span>{t.expenses.modal.concept}</span>
               <Input
                 autoFocus
                 maxLength={160}
                 value={concept}
                 onChange={(event) => setConcept(event.target.value)}
-                placeholder="Ej. Renta mensual"
+                placeholder={t.expenses.modal.placeholderConcept}
                 className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
               />
             </label>
             <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              <span>Monto</span>
+              <span>{t.expenses.modal.amount}</span>
               <Input
                 min={0.01}
                 step="0.01"
@@ -98,7 +100,7 @@ export function QuickExpenseDialog({
               disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {t.common.cancel}
             </Button>
             <Button
               type="submit"
@@ -106,7 +108,7 @@ export function QuickExpenseDialog({
               disabled={!canSubmit}
             >
               <Plus className="h-4 w-4" />
-              {isSubmitting ? 'Guardando' : 'Crear gasto'}
+              {isSubmitting ? t.expenses.quick.saving : t.expenses.quick.create}
             </Button>
           </DialogFooter>
         </form>

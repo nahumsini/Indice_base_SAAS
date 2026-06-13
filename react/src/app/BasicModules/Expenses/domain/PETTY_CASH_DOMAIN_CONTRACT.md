@@ -1,42 +1,130 @@
-# Petty Cash Domain Contract
+# Petty Cash Operational Fund Contract
 
-Phase 5A defines Petty Cash before implementation. This contract does not create UI, backend endpoints, database migrations, approval workflows, or navigation changes.
+Phase 5B defines Petty Cash as an operational fund model before backend implementation.
+
+This contract does not create backend endpoints, database migrations, approval workflows, permissions, or navigation changes.
 
 ## Decision
 
-Petty Cash is a separate Finance aggregate linked to a `PaymentAccount` with type `PETTY_CASH`.
+Petty Cash is a controlled operational fund assigned to a responsible user.
 
-Petty Cash is not an `Expense`.
+Petty Cash is not an Expense.
 
-Issuing petty cash is a fund movement from a source `PaymentAccount` into a petty cash `PaymentAccount`.
+Petty Cash becomes a source of Expenses only through reconciliation lines backed by receipts, invoices, tickets, or supporting documents.
 
-Settlement can create or link `Expense` records only when valid receipts or proofs exist.
+Funding, deposits, returns, shortages, and carry-forward movements are fund movements. They must not be counted as Expenses.
+
+## Core Principle
+
+```text
+Petty Cash Fund -> Statement / Cut-Off -> Settlement Lines -> Expenses
+```
+
+The fund holds operational money.
+
+The statement controls one period.
+
+Settlement lines validate receipts.
+
+Expenses are created only from validated settlement lines.
+
+## Shared Finance References
+
+Petty Cash must not create duplicate catalogs.
+
+It consumes the same Finance references used by Expenses:
+
+- Providers come from Finance Providers.
+- Funding source accounts come from Finance Payment Accounts.
+- Spending/payment methods are constrained by the fund configuration and payment account capabilities.
+- Receipt accounting classification comes from active Finance Accounting Accounts.
+- The fund limit is a Finance budget allocation, not an isolated petty cash-only number.
+
+The frontend may show the fund limit as "presupuesto del fondo", but the backend model should persist it through a `Budget` / `BudgetLine` relationship so Expenses and Financial Overview can see the same amount.
+
+Kiosk access is enabled per Petty Cash Fund, but authentication uses the collaborator universal PIN. Petty Cash should not store a separate fund PIN.
 
 ## Aggregate Boundary
 
-`PettyCash` owns the custody cycle:
+### PettyCashFund
 
-- issued amount
-- settled amount
-- returned amount
-- settlement balance
-- custodian
-- issue date
-- settlement due date
-- settlement date
+The fund is the permanent operational cash container.
+
+Examples:
+
+- Maintenance petty cash
+- Front desk petty cash
+- Restaurant petty cash
+
+The fund owns:
+
+- responsible user
+- payment account with type `PETTY_CASH`
+- unit and business scope
+- currency
+- budget limit / fund limit
+- current balance
 - status
-- settlement lines
-- attachments
+- cut-off policy
 
-`PaymentAccount` owns account balances.
+The fund does not own actual business spend.
 
-`Expense` owns actual business consumption.
+### PettyCashStatement
 
-`BudgetLine` owns planned, committed, actual, issued, settled, available, and health amounts.
+The statement is the period cut-off and accountability document.
+
+Examples:
+
+- Maintenance petty cash - 2026-06
+- Restaurant petty cash - 2026-06
+
+The statement owns:
+
+- opening balance
+- assigned amount
+- additional deposits
+- declared closing balance
+- estimated usage
+- verified expense amount
+- returned amount
+- shortage amount
+- carry-forward amount
+- period start
+- period end
+- cut-off date
+- settlement status
+
+### PettyCashMovement
+
+The movement records money moving between payment accounts or changing the statement balance.
+
+Movement examples:
+
+- initial funding
+- additional deposit
+- return to bank
+- carry-forward to next statement
+- shortage adjustment
+- forgiven shortage adjustment
+- employee charge
+
+Movements are not Expenses.
+
+### PettyCashSettlementLine
+
+The settlement line is the receipt-level proof.
+
+Rule:
+
+```text
+1 receipt = 1 settlement line = 0 or 1 Expense
+```
+
+A settlement line may create an Expense only when it has the required amount, date, company scope, and supporting document.
 
 ## Core Entities
 
-### PettyCash
+### PettyCashFund
 
 Fields:
 
@@ -44,24 +132,22 @@ Fields:
 - companyId
 - unitId
 - businessId
-- pettyCashAccountId
-- sourcePaymentAccountId
+- budgetId
 - budgetLineId
-- custodianUserId
-- requestedByUserId
-- approvedByUserId
-- issuedByUserId
-- settledByUserId
-- issuedAmount
-- settledAmount
-- returnedAmount
-- settlementBalance
+- paymentAccountId
+- responsibleUserId
+- fundingSourcePaymentAccountId
+- name
 - currencyCode
-- issuedDate
-- settlementDueDate
-- settledDate
+- limitAmount
+- currentBalanceAmount
+- cutOffDay
+- fundingMethods
+- spendingMethods
+- kioskEnabled
+- kioskUsesUniversalPin
+- kioskAccessToken
 - status
-- attachmentCount
 - createdByUserId
 - updatedByUserId
 - createdAt
@@ -70,13 +156,71 @@ Fields:
 - customFields
 - metadata
 
+### PettyCashStatement
+
+Fields:
+
+- id
+- companyId
+- unitId
+- businessId
+- pettyCashFundId
+- periodKey
+- periodStart
+- periodEnd
+- cutOffDate
+- openingBalanceAmount
+- assignedAmount
+- additionalDepositAmount
+- declaredClosingBalanceAmount
+- estimatedUsageAmount
+- verifiedExpenseAmount
+- returnedAmount
+- shortageAmount
+- forgivenShortageAmount
+- employeeChargeAmount
+- carryForwardAmount
+- currencyCode
+- status
+- responsibleUserId
+- reviewedByUserId
+- closedByUserId
+- createdByUserId
+- updatedByUserId
+- createdAt
+- updatedAt
+- deletedAt
+- customFields
+- metadata
+
+### PettyCashMovement
+
+Fields:
+
+- id
+- companyId
+- unitId
+- businessId
+- pettyCashFundId
+- pettyCashStatementId
+- fromPaymentAccountId
+- toPaymentAccountId
+- type
+- amount
+- currencyCode
+- movementDate
+- reference
+- createdByUserId
+- createdAt
+
 ### PettyCashSettlementLine
 
 Fields:
 
 - id
 - companyId
-- pettyCashId
+- pettyCashFundId
+- pettyCashStatementId
 - expenseId
 - providerId
 - accountingAccountId
@@ -95,136 +239,283 @@ Fields:
 - updatedAt
 - deletedAt
 
-### FinanceFundMovement
-
-Fields:
-
-- id
-- companyId
-- unitId
-- businessId
-- fromPaymentAccountId
-- toPaymentAccountId
-- pettyCashId
-- type
-- amount
-- currencyCode
-- movementDate
-- reference
-- createdByUserId
-- createdAt
-
 ## Status Contract
 
-Canonical statuses:
+### PettyCashFundStatus
 
-- `ISSUED`
+- `OPEN`
+- `LOW_BALANCE`
+- `NEEDS_RECONCILIATION`
+- `CLOSED`
+
+### PettyCashStatementStatus
+
+- `OPEN`
+- `CUT_PENDING`
 - `PARTIALLY_SETTLED`
 - `SETTLED`
-- `OVERDUE`
-- `CANCELLED`
+- `SHORTAGE`
+- `FORGIVEN_SHORTAGE`
+- `CHARGED_TO_EMPLOYEE`
+- `CLOSED`
 
-Status rules:
+Carry-forward is not a primary status. It is a closing result stored in `carryForwardAmount` and represented by a movement.
 
-- `ISSUED`: funds were moved into petty cash custody.
-- `PARTIALLY_SETTLED`: at least one receipt or return was reconciled, but settlement balance remains.
-- `SETTLED`: issued amount is fully supported by receipt-backed expenses and/or returned cash.
-- `OVERDUE`: settlement due date passed while settlement balance remains.
-- `CANCELLED`: issuance was voided before active custody or reversed by an approved cancellation.
+### PettyCashMovementType
+
+- `INITIAL_FUNDING`
+- `ADDITIONAL_DEPOSIT`
+- `RETURN_TO_SOURCE`
+- `CARRY_FORWARD`
+- `SHORTAGE_ADJUSTMENT`
+- `FORGIVEN_SHORTAGE`
+- `EMPLOYEE_CHARGE`
+
+### PettyCashSettlementLineStatus
+
+- `DRAFT`
+- `RECEIPT_ATTACHED`
+- `VALIDATED`
+- `EXPENSE_CREATED`
+- `REJECTED`
 
 ## Money Rules
 
-```text
-settlementBalance = issuedAmount - settledAmount - returnedAmount
-```
-
-`issuedAmount` is the amount transferred into custody.
-
-`settledAmount` is the total supported by valid settlement receipts that create or link expenses.
-
-`returnedAmount` is cash returned from the custodian to a payment account.
-
-`settlementBalance` must be zero before a petty cash record can be `SETTLED`.
-
-Amounts must use one currency per petty cash record.
-
-## Budget Rules
-
-Petty Cash issuance increases `BudgetLine.pettyCashIssuedAmount` when a `budgetLineId` exists.
-
-Settlement receipt lines increase `BudgetLine.pettyCashSettledAmount`.
-
-Receipt-backed expenses increase actual expense consumption according to the normal Expense ledger rules.
-
-Issuance must not increase `actualExpenseAmount`.
-
-Returns reduce open petty cash exposure but do not create expenses.
-
-The BudgetLine available amount formula remains:
+Estimated usage:
 
 ```text
-availableAmount =
-  plannedAmount
-  - committedAmount
-  - actualExpenseAmount
-  - (pettyCashIssuedAmount - pettyCashSettledAmount)
+estimatedUsageAmount =
+  openingBalanceAmount
+  + assignedAmount
+  + additionalDepositAmount
+  - declaredClosingBalanceAmount
 ```
+
+Settlement balance:
+
+```text
+settlementBalance =
+  estimatedUsageAmount
+  - verifiedExpenseAmount
+  - returnedAmount
+  - shortageAmount
+```
+
+Verified expense amount is the sum of validated settlement lines that created or linked Expense records.
+
+Petty Cash must use one currency per fund and per statement.
+
+## Fund Administration Rules
+
+The Funds workspace administers permanent fund configuration.
+
+It owns:
+
+- fund name
+- responsible user
+- creating user
+- unit and business scope
+- payment account with type `PETTY_CASH`
+- funding source payment account
+- allowed funding methods
+- allowed spending methods
+- operational limit
+- cut-off day
+- kiosk access settings
+
+Creating a fund does not create an Expense.
+
+Creating a fund does not consume budget.
+
+Creating a fund may create or link a PaymentAccount of type `PETTY_CASH`.
+
+## Fund Operation Rules
+
+The Fund Operation workspace is for the responsible user or authorized operator.
+
+It should be simpler than Expenses and focused on:
+
+- selecting an assigned fund
+- entering money into the fund
+- registering cash outflows with receipt support
+- attaching receipts, tickets, invoices, or supporting files
+- seeing current balance, entries, exits, and pending reconciliation
+
+Operational entries are PettyCashMovements.
+
+Operational exits with proof are PettyCashSettlementLines.
+
+Entering money increases fund balance.
+
+Uploading a receipt can reduce operational balance, but it still does not create an Expense until validation.
+
+The basic receipt capture should stay compatible with Expenses:
+
+- providerId
+- accountingAccountId
+- description
+- receiptReference
+- subtotalAmount
+- taxAmount
+- totalAmount
+- currencyCode
+- expenseDate
+- attachmentIds
+
+This allows a validated settlement line to become an Expense without re-entering core data.
+
+## Kiosk Rules
+
+Kiosk access belongs to a specific PettyCashFund.
+
+The kiosk should expose only the limited operation needed by the assigned responsible user:
+
+- view assigned fund
+- enter money when allowed
+- upload receipt
+- view recent entries and receipts
+- never edit company-wide Finance configuration
+
+Kiosk access should require:
+
+- fund-specific link or access token
+- PIN
+- company scope validation
+- fund scope validation
+- active fund status
+
+Kiosk PIN must be stored hashed in backend, never as plain text.
+
+Kiosk does not replace the normal authenticated ERP session. It is a narrow operational entry point for assigned fund work.
+
+## Expense Rules
+
+Petty Cash itself never becomes an Expense.
+
+Only a validated settlement line can create or link an Expense.
+
+The created Expense should preserve traceability:
+
+- `source = PETTY_CASH`
+- `pettyCashFundId`
+- `pettyCashStatementId`
+- `pettyCashSettlementLineId`
+
+The backend must prevent the same settlement line from creating more than one Expense.
 
 ## Payment Account Rules
 
-Issuance creates a fund movement:
+Petty Cash uses a `PaymentAccount` with type `PETTY_CASH`.
+
+Funding movements affect PaymentAccount balances.
+
+Funding movements do not create Expenses.
+
+Examples:
 
 ```text
-sourcePaymentAccount -> pettyCashPaymentAccount
+BANK -> PETTY_CASH_ACCOUNT
+PETTY_CASH_ACCOUNT -> BANK
+PETTY_CASH_ACCOUNT -> NEXT_STATEMENT_CARRY_FORWARD
 ```
 
-Return creates a fund movement:
+## Budget Rules
+
+Petty Cash needs two budget views:
+
+- verified expense: actual Expenses created from validated receipts
+- estimated expense: operational usage pending reconciliation
+
+Recommended available budget views:
 
 ```text
-pettyCashPaymentAccount -> sourcePaymentAccount
+accountingAvailable =
+  plannedAmount
+  - committedAmount
+  - verifiedExpenseAmount
 ```
 
-Settlement receipts do not create a transfer between bank and petty cash. They consume issued custody and may create or link expenses.
+```text
+operationalAvailable =
+  plannedAmount
+  - committedAmount
+  - verifiedExpenseAmount
+  - pendingPettyCashEstimatedAmount
+```
 
-Transfers between payment accounts are not expenses.
+Estimated usage should affect operational visibility, not accounting expense totals.
 
-## Expense Creation Rule
+When a settlement line creates an Expense, that amount moves from estimated/pending exposure into verified expense.
 
-A settlement line may create an `Expense` only when:
+## Financial Overview Rules
 
-- it has a valid receipt or proof attachment
-- it has a valid amount
-- it has an expense date
-- it has company scope
-- optional provider/accounting/budget references are valid for the same company
+Financial Overview should distinguish:
 
-The created Expense should use `expenseType = PETTY_CASH_SETTLEMENT`.
+- verified petty cash expenses
+- estimated petty cash usage
+- pending reconciliation
+- shortages
+- forgiven shortages
+- employee charges
+- upcoming cut-offs
 
-The Expense must reference the settlement line or petty cash record so it is not counted twice.
+Shortages should not automatically become Expenses.
 
-## Scope Rules
+If a shortage is forgiven, it may create an adjustment according to accounting policy.
 
-Every Petty Cash record must support:
+If a shortage is charged to an employee, it should become an employee receivable or payroll deduction path, not a normal operating Expense.
 
-- companyId
-- unitId
-- businessId
+## Cut-Off Rules
 
-`custodianUserId`, `requestedByUserId`, `approvedByUserId`, `issuedByUserId`, and `settledByUserId` must reference active users inside the same company.
+Petty Cash supports automatic monthly cut-off.
 
-`pettyCashAccountId` must reference a `PaymentAccount` with type `PETTY_CASH`.
+Each fund may define:
 
-`sourcePaymentAccountId` must reference an active non-petty-cash `PaymentAccount`.
+- cut-off day
+- default statement period
+- default responsible user
+- default review policy
+
+At cut-off, the system generates a PettyCashStatement.
+
+The responsible user declares closing balance and attaches receipts.
+
+The statement can be closed only after the settlement outcome is known.
+
+## Carry-Forward Rules
+
+Carry-forward remains linked to the original fund.
+
+The next statement should reference the previous statement when carrying a balance forward.
+
+Recommended fields:
+
+- previousStatementId
+- carryForwardAmount
+- openingBalanceAmount
+
+## User Rules
+
+A user may manage multiple Petty Cash funds when permissions allow it.
+
+Each fund still needs:
+
+- responsibleUserId
+- company scope
+- unit scope
+- business scope
+- clear limit
+
+Multiple funds for one user should be visible in KPIs and control alerts.
 
 ## Attachment Rules
 
-Issuance attachments are optional unless company policy requires authorization proof.
+Settlement receipt attachments are required before creating an Expense.
 
-Settlement receipt attachments are required before creating an Expense from a settlement line.
+Attachment ownership must support:
 
-Attachment ownership must allow:
-
-- `PETTY_CASH`
+- `PETTY_CASH_FUND`
+- `PETTY_CASH_STATEMENT`
 - `PETTY_CASH_SETTLEMENT_LINE`
 - `EXPENSE`
 
@@ -232,37 +523,34 @@ Attachment ownership must allow:
 
 Future backend endpoints should be shaped around the aggregate:
 
-- list petty cash records
-- get petty cash record
-- issue petty cash
+- list funds
+- create fund
+- update fund
+- close fund
+- configure fund kiosk
+- list statements
+- create or generate statement
+- declare statement closing balance
+- add movement
 - add settlement line
-- settle petty cash
-- return unused cash
-- cancel issued petty cash when allowed
-- list settlement lines
+- validate settlement line
 - create expense from settlement line
+- close statement
+- carry forward statement balance
 
-These endpoints are not part of Phase 5A.
+These endpoints are not part of Phase 5B.
 
 ## Non-Goals
 
-Phase 5A does not:
+Phase 5B does not:
 
 - create backend controllers
 - create migrations
 - create repositories
 - add routes
-- add UI tabs
 - implement approvals
+- implement permissions
 - implement payments
 - implement MinIO attachment upload
 - change existing Expenses behavior
-- change auth, CSRF, sessions, or permissions
-
-## Open Questions Before Implementation
-
-- Should returned cash always go back to the original source account, or can finance choose another account?
-- Should each settlement line create an Expense immediately, or only after final settlement approval?
-- Should company policy require approval before issuance, before settlement, or both?
-- Should settlement line attachments be copied to the created Expense or linked by shared ownership?
-- Should overdue status be calculated dynamically or persisted by a scheduled job?
+- change auth, CSRF, sessions, or cookies

@@ -2,24 +2,26 @@ import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type 
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Search } from 'lucide-react';
 import type { ProviderRecord } from '../useProveedoresLogic';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import {
   defaultProviderColumnWidths,
-  providerHeaders,
+  type ProviderColumnConfig,
   type ProviderColumnKey,
   type ProviderSortField,
   type SortDirection,
 } from '../providerTableConfig';
 import { compareProviderSortValues } from '../providerTableUtils';
 import { EditableProviderRow } from './EditableProviderRow';
+import { ProvidersMobileCards } from './ProvidersMobileCards';
 
 type ProvidersTableProps = {
   accountingAccountOptions: FinanceReferenceOption[];
+  columns: ProviderColumnConfig[];
   editingProviderId: string | null;
   businessOptions: FinanceReferenceOption[];
   providers: ProviderRecord[];
   unitOptions: FinanceReferenceOption[];
   userOptions: FinanceReferenceOption[];
-  visibleColumns: ProviderColumnKey[];
   onActivateProvider: (providerId: string) => void;
   onDeleteProvider: (providerId: string) => void;
   onDuplicateProvider: (providerId: string) => void;
@@ -31,6 +33,7 @@ type ProvidersTableProps = {
 
 export function ProvidersTable({
   accountingAccountOptions,
+  columns,
   editingProviderId,
   businessOptions,
   onActivateProvider,
@@ -43,8 +46,8 @@ export function ProvidersTable({
   providers,
   unitOptions,
   userOptions,
-  visibleColumns,
 }: ProvidersTableProps) {
+  const t = useFinanceTranslations();
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(defaultProviderColumnWidths);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   const [resizeStartX, setResizeStartX] = useState(0);
@@ -53,11 +56,12 @@ export function ProvidersTable({
   const [sortField, setSortField] = useState<ProviderSortField | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const selectableUserOptions = useMemo(() => [{ value: '', label: 'Seleccionar' }, ...userOptions], [userOptions]);
+  const selectableUserOptions = useMemo(() => [{ value: '', label: t.common.select }, ...userOptions], [t.common.select, userOptions]);
   const selectableAccountingAccountOptions = useMemo(() => (
-    accountingAccountOptions.length > 0 ? accountingAccountOptions : [{ value: '', label: 'Sin cuentas activas' }]
-  ), [accountingAccountOptions]);
-  const tableColumns = useMemo(() => providerHeaders.filter(header => visibleColumns.includes(header.key)), [visibleColumns]);
+    accountingAccountOptions.length > 0 ? accountingAccountOptions : [{ value: '', label: t.common.noOptions }]
+  ), [accountingAccountOptions, t.common.noOptions]);
+  const tableColumns = useMemo(() => columns.filter(column => column.visible), [columns]);
+  const visibleColumnKeys = useMemo(() => tableColumns.map(column => column.key), [tableColumns]);
   const sortedProviders = useMemo(() => {
     if (!sortField || !sortDirection) return providers;
     return [...providers].sort((left, right) => compareProviderSortValues(left[sortField], right[sortField], sortDirection));
@@ -87,7 +91,7 @@ export function ProvidersTable({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize, providers, visibleColumns]);
+  }, [pageSize, providers, tableColumns]);
 
   const handleResizeStart = (event: ReactMouseEvent, columnKey: string) => {
     event.preventDefault();
@@ -116,18 +120,28 @@ export function ProvidersTable({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
+      <ProvidersMobileCards
+        businessOptions={businessOptions}
+        providers={paginatedProviders}
+        unitOptions={unitOptions}
+        onActivateProvider={onActivateProvider}
+        onDeleteProvider={onDeleteProvider}
+        onDuplicateProvider={onDuplicateProvider}
+        onOpenAttachments={onOpenAttachments}
+        onOpenEditProvider={onOpenEditProvider}
+      />
+      <div className="hidden overflow-x-auto md:block">
+        <table className="min-w-[1180px]">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
               {tableColumns.map(header => (
                 <SortableHeader key={header.key} columnKey={header.sortField} label={header.label} width={columnWidths[header.key]} resizingColumn={resizingColumn} onResizeStart={handleResizeStart} onSort={handleSort} sortIcon={getSortIcon(header.sortField)} />
               ))}
-              <th className="px-5 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400" style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>Acciones</th>
+              <th className="px-5 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400" style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>{t.common.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-            {paginatedProviders.length === 0 ? <EmptyProvidersRow colSpan={tableColumns.length + 1} /> : paginatedProviders.map(provider => (
+            {paginatedProviders.length === 0 ? <EmptyProvidersRow colSpan={tableColumns.length + 1} message={t.common.noOptions} /> : paginatedProviders.map(provider => (
               <EditableProviderRow
                 key={provider.id}
                 accountingAccountOptions={selectableAccountingAccountOptions}
@@ -137,7 +151,7 @@ export function ProvidersTable({
                 provider={provider}
                 unitOptions={unitOptions}
                 userOptions={selectableUserOptions}
-                visibleColumns={visibleColumns}
+                visibleColumns={visibleColumnKeys}
                 onActivateProvider={onActivateProvider}
                 onDeleteProvider={onDeleteProvider}
                 onDuplicateProvider={onDuplicateProvider}
@@ -162,6 +176,7 @@ export function ProvidersTable({
         pageStart={paginationStart}
         totalCount={sortedProviders.length}
         totalPages={totalPages}
+        translations={t.common}
       />
     </div>
   );
@@ -186,13 +201,13 @@ function SortableHeader({ columnKey, label, onResizeStart, onSort, resizingColum
   );
 }
 
-function EmptyProvidersRow({ colSpan }: { colSpan: number }) {
+function EmptyProvidersRow({ colSpan, message }: { colSpan: number; message: string }) {
   return (
     <tr>
       <td colSpan={colSpan} className="px-6 py-12 text-center">
         <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
           <Search className="w-12 h-12 mb-4 opacity-50" />
-          <p className="text-lg font-medium">No se encontraron proveedores</p>
+          <p className="text-lg font-medium">{message}</p>
         </div>
       </td>
     </tr>
@@ -217,6 +232,7 @@ function ProvidersPagination({
   pageStart,
   totalCount,
   totalPages,
+  translations,
 }: {
   currentPage: number;
   onPageChange: (page: number) => void;
@@ -226,6 +242,7 @@ function ProvidersPagination({
   pageStart: number;
   totalCount: number;
   totalPages: number;
+  translations: ReturnType<typeof useFinanceTranslations>['common'];
 }) {
   if (totalCount === 0) return null;
   const changePage = (page: number) => {
@@ -234,17 +251,17 @@ function ProvidersPagination({
   };
 
   return (
-    <div className="flex flex-col gap-4 border-t border-slate-200 px-6 py-4 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
-      <p className="text-sm text-slate-500 dark:text-slate-400">Mostrando {pageStart}-{pageEnd} de {totalCount}</p>
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <select value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))} aria-label="Filas por página" className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+    <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-4 dark:border-slate-700 sm:px-6 md:flex-row md:items-center md:justify-between">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{translations.showing(pageStart, pageEnd, totalCount)}</p>
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <select value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))} aria-label={translations.rowsPerPage} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
           {[10, 25, 50].map(option => <option key={option} value={option}>{option}</option>)}
         </select>
         <p className="text-sm text-slate-500 dark:text-slate-400">{currentPage} / {totalPages}</p>
-        <div className="flex items-center gap-2">
-          <PageButton disabled={currentPage === 1} onClick={() => changePage(currentPage - 1)}><ChevronLeft className="h-4 w-4" />Anterior</PageButton>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
+          <PageButton disabled={currentPage === 1} onClick={() => changePage(currentPage - 1)}><ChevronLeft className="h-4 w-4" />{translations.previous}</PageButton>
           <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">{currentPage}</span>
-          <PageButton disabled={currentPage === totalPages} onClick={() => changePage(currentPage + 1)}>Siguiente<ChevronRight className="h-4 w-4" /></PageButton>
+          <PageButton disabled={currentPage === totalPages} onClick={() => changePage(currentPage + 1)}>{translations.next}<ChevronRight className="h-4 w-4" /></PageButton>
         </div>
       </div>
     </div>

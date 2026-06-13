@@ -1,7 +1,8 @@
 import { Paperclip } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
+import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../types/expenses.types';
-import { formatDate, getPaymentMethodName, getStatusLabel } from '../../utils/expenses.utils';
+import { formatDate } from '../../utils/expenses.utils';
 import {
   EditableDatePicker,
   EditableSelect,
@@ -52,12 +53,14 @@ type EditableExpenseRowProps = {
   onDelete: (expenseId: string) => void;
   onActionEdit?: () => void;
   onMarkPaid: (expenseId: string) => void;
+  onRecordPayment: (expenseId: string) => void;
   onAudit: (expenseId: string) => void;
 };
 
 export type ExpenseRowActionVisibility = {
   showAudit?: boolean;
   showMarkPaid?: boolean;
+  showRecordPayment?: boolean;
 };
 
 export function EditableExpenseRow({
@@ -79,8 +82,10 @@ export function EditableExpenseRow({
   onDelete,
   onActionEdit,
   onMarkPaid,
+  onRecordPayment,
   onAudit,
 }: EditableExpenseRowProps) {
+  const t = useFinanceTranslations();
   const startEditing = () => onStartEdit(expense.id);
   const startActionEdit = onActionEdit ?? startEditing;
   const rowHighlightClass = isEditing
@@ -125,7 +130,7 @@ export function EditableExpenseRow({
     >
       <td className="px-5 py-4 whitespace-nowrap align-middle">
         <Checkbox
-          aria-label={`Seleccionar ${expense.folio}`}
+          aria-label={t.expenses.table.selectExpense(expense.folio)}
           checked={isSelected}
           onCheckedChange={(checked) => onSelectionChange(expense.id, checked === true)}
           className="border-slate-300 data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514]"
@@ -141,7 +146,7 @@ export function EditableExpenseRow({
       {isColumnVisible('businessUnit') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.businessUnit, minWidth: columnWidths.businessUnit }}>
           {isEditing ? (
-            <EditableSelect ariaLabel={`Unidad de ${expense.folio}`} value={expense.businessUnit} options={options.businessUnits} onChange={handleBusinessUnitChange} />
+            <EditableSelect ariaLabel={t.expenses.table.unitFor(expense.folio)} value={expense.businessUnit} options={options.businessUnits} onChange={handleBusinessUnitChange} />
           ) : (
             <ReadonlySelectPill onClick={startEditing}>{businessUnitLabel || '-'}</ReadonlySelectPill>
           )}
@@ -151,7 +156,7 @@ export function EditableExpenseRow({
       {isColumnVisible('business') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.business, minWidth: columnWidths.business }}>
           {isEditing ? (
-            <EditableSelect ariaLabel={`Negocio de ${expense.folio}`} value={expense.business} options={businessOptionsForUnit} onChange={(business) => onUpdateExpense(expense.id, { business })} />
+            <EditableSelect ariaLabel={t.expenses.table.businessFor(expense.folio)} value={expense.business} options={businessOptionsForUnit} onChange={(business) => onUpdateExpense(expense.id, { business })} />
           ) : (
             <ReadonlySelectPill onClick={startEditing}>{businessLabel || '-'}</ReadonlySelectPill>
           )}
@@ -162,10 +167,10 @@ export function EditableExpenseRow({
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.providerName, minWidth: columnWidths.providerName }}>
           {isEditing ? (
             <EditableSelect
-              ariaLabel={`Proveedor de ${expense.folio}`}
+              ariaLabel={t.expenses.table.providerFor(expense.folio)}
               value={selectedProvider}
               options={[
-                { value: '', label: 'Sin proveedor' },
+                { value: '', label: t.common.unassigned },
                 ...options.providers.map((provider) => ({ value: provider.id, label: provider.name })),
               ]}
               onChange={handleProviderChange}
@@ -180,7 +185,7 @@ export function EditableExpenseRow({
         <td className="px-6 py-4" style={{ width: columnWidths.concept, minWidth: columnWidths.concept }}>
           {isEditing ? (
             <EditableTextInput
-              ariaLabel={`Concepto de ${expense.folio}`}
+              ariaLabel={t.expenses.table.conceptFor(expense.folio)}
               value={expense.concept}
               onChange={(concept) => onUpdateExpense(expense.id, { concept })}
             />
@@ -193,8 +198,8 @@ export function EditableExpenseRow({
         <td className="px-6 py-4" style={{ width: columnWidths.description, minWidth: columnWidths.description }}>
           {isEditing ? (
             <EditableTextarea
-              ariaLabel={`Descripción de ${expense.folio}`}
-              placeholder="Agregar descripción"
+              ariaLabel={`${t.expenses.columns.description.label} ${expense.folio}`}
+              placeholder={t.expenses.table.addDescription}
               value={expense.description ?? ''}
               onChange={(description) => onUpdateExpense(expense.id, { description })}
             />
@@ -214,7 +219,7 @@ export function EditableExpenseRow({
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.dueDate, minWidth: columnWidths.dueDate }}>
           {isEditing ? (
             <EditableDatePicker
-              ariaLabel={`Fecha de vencimiento de ${expense.folio}`}
+              ariaLabel={`${t.expenses.columns.dueDate.label} ${expense.folio}`}
               value={formatDateInputValue(expense.dueDate)}
               onChange={(value) => onUpdateExpense(expense.id, { dueDate: toDateValue(value) ?? expense.dueDate })}
             />
@@ -227,7 +232,7 @@ export function EditableExpenseRow({
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.paymentDate, minWidth: columnWidths.paymentDate }}>
           {isEditing ? (
             <EditableDatePicker
-              ariaLabel={`Fecha de pago de ${expense.folio}`}
+              ariaLabel={`${t.expenses.columns.paymentDate.label} ${expense.folio}`}
               value={formatDateInputValue(expense.paymentDate)}
               onChange={(value) => onUpdateExpense(expense.id, { paymentDate: toDateValue(value) })}
             />
@@ -239,16 +244,16 @@ export function EditableExpenseRow({
       {isColumnVisible('paymentMethod') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.paymentMethod, minWidth: columnWidths.paymentMethod }}>
           {isEditing ? (
-            <EditableSelect ariaLabel={`Método de pago de ${expense.folio}`} value={expense.paymentMethod} options={options.paymentMethods} onChange={(paymentMethod) => onUpdateExpense(expense.id, { paymentMethod })} />
+            <EditableSelect ariaLabel={`${t.expenses.columns.paymentMethod.label} ${expense.folio}`} value={expense.paymentMethod} options={options.paymentMethods} onChange={(paymentMethod) => onUpdateExpense(expense.id, { paymentMethod })} />
           ) : (
-            <ReadonlySelectPill onClick={startEditing}>{getPaymentMethodName(expense.paymentMethod)}</ReadonlySelectPill>
+            <ReadonlySelectPill onClick={startEditing}>{t.expenses.table.paymentMethods[expense.paymentMethod] ?? expense.paymentMethod}</ReadonlySelectPill>
           )}
         </td>
       )}
       {isColumnVisible('accountingAccount') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.accountingAccount, minWidth: columnWidths.accountingAccount }}>
           {isEditing ? (
-            <EditableSelect ariaLabel={`Cuenta contable de ${expense.folio}`} value={expense.accountingAccount ?? ''} options={options.accountingAccounts} onChange={(accountingAccount) => onUpdateExpense(expense.id, { accountingAccount })} />
+            <EditableSelect ariaLabel={`${t.expenses.columns.accountingAccount.label} ${expense.folio}`} value={expense.accountingAccount ?? ''} options={options.accountingAccounts} onChange={(accountingAccount) => onUpdateExpense(expense.id, { accountingAccount })} />
           ) : (
             <ReadonlySelectPill onClick={startEditing}>{accountingAccountLabel || '-'}</ReadonlySelectPill>
           )}
@@ -257,14 +262,14 @@ export function EditableExpenseRow({
       {isColumnVisible('status') && (
         <td className="px-6 py-4" style={{ width: columnWidths.status, minWidth: columnWidths.status }}>
           {isEditing ? (
-            <EditableSelect ariaLabel={`Estado de ${expense.folio}`} value={expense.status} options={options.statuses} onChange={(status) => onUpdateExpense(expense.id, { status })} />
+            <EditableSelect ariaLabel={`${t.expenses.columns.status.label} ${expense.folio}`} value={expense.status} options={options.statuses} onChange={(status) => onUpdateExpense(expense.id, { status })} />
           ) : (
             <button
               type="button"
               onClick={startEditing}
               className={`w-full rounded-full border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${statusClass}`}
             >
-              {getStatusLabel(expense.status)}
+              {t.expenses.table.statuses[expense.status] ?? expense.status}
             </button>
           )}
         </td>
@@ -280,8 +285,8 @@ export function EditableExpenseRow({
                 ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/60 dark:bg-green-950/60 dark:text-green-300 dark:hover:bg-green-900/60'
                 : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-800'
             }`}
-            title={attachmentsCount > 0 ? 'Ver archivos adjuntos' : 'Agregar archivos'}
-            aria-label={attachmentsCount > 0 ? 'Ver archivos adjuntos' : 'Agregar archivos'}
+            title={attachmentsCount > 0 ? t.common.viewAttachedFiles : t.common.addFiles}
+            aria-label={attachmentsCount > 0 ? t.common.viewAttachedFiles : t.common.addFiles}
           >
             <Paperclip className="h-4 w-4" />
             <span>{attachmentsCount}</span>
@@ -292,7 +297,7 @@ export function EditableExpenseRow({
       {isColumnVisible('authorizer') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.authorizer, minWidth: columnWidths.authorizer }}>
           <EditableSelect
-            ariaLabel={`Usuario que autoriza ${expense.folio}`}
+            ariaLabel={t.expenses.table.authorizerFor(expense.folio)}
             value={workflow.authorizer}
             options={options.users}
             onChange={(authorizer) => onUpdateWorkflow(expense.id, { authorizer })}
@@ -303,7 +308,7 @@ export function EditableExpenseRow({
       {isColumnVisible('performer') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.performer, minWidth: columnWidths.performer }}>
           <EditableSelect
-            ariaLabel={`Usuario que realiza ${expense.folio}`}
+            ariaLabel={t.expenses.table.responsibleFor(expense.folio)}
             value={workflow.performer}
             options={options.users}
             onChange={(performer) => onUpdateWorkflow(expense.id, { performer })}
@@ -314,8 +319,8 @@ export function EditableExpenseRow({
       {isColumnVisible('audit') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.audit, minWidth: columnWidths.audit }}>
           <EditableTextInput
-            ariaLabel={`Notas de auditoría ${expense.folio}`}
-            placeholder="Agregar auditoría"
+            ariaLabel={t.expenses.table.auditNotesFor(expense.folio)}
+            placeholder={t.expenses.table.addAudit}
             value={workflow.auditNotes}
             onChange={(auditNotes) => onUpdateWorkflow(expense.id, { auditNotes })}
           />
@@ -329,9 +334,11 @@ export function EditableExpenseRow({
           onDelete={onDelete}
           onDuplicate={onDuplicate}
           onMarkPaid={onMarkPaid}
+          onRecordPayment={onRecordPayment}
           onStartEdit={startActionEdit}
           showAudit={actionVisibility?.showAudit}
           showMarkPaid={actionVisibility?.showMarkPaid}
+          showRecordPayment={actionVisibility?.showRecordPayment}
         />
       </td>
     </tr>
