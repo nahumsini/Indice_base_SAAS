@@ -14,6 +14,7 @@ export const esCO = {
     cotizacion: 'Cotizaciones',
     sales: 'Ventas',
     productos: 'Productos',
+    proveedores: 'Proveedores',
     inventario: 'Inventario',
     contrato: 'Contratos',
     postventa: 'Posventa',

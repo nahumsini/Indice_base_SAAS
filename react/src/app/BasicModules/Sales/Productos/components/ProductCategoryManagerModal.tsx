@@ -12,7 +12,12 @@ import {
 import { productCategoryLibraries } from '../mocks/categoryLibraries';
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig, ProductCategoryLibrary } from '../types/productCategoryTypes';
-import { createCategoriesFromLibrary, createProductCategory, normalizeCategoryName } from '../utils/productCategories';
+import {
+  createCategoriesFromLibrary,
+  createProductCategory,
+  normalizeCategoryName,
+  normalizeProductCategoryDirectory,
+} from '../utils/productCategories';
 import { ActiveCategoriesList } from './category-directory/ActiveCategoriesList';
 import { CategoryLibraryPanel } from './category-directory/CategoryLibraryPanel';
 import { CategoryQuickCreate } from './category-directory/CategoryQuickCreate';
@@ -146,7 +151,15 @@ export function ProductCategoryManagerModal({
   };
 
   const handleSave = () => {
-    onCategoriesChange(draftCategories);
+    const pendingImportCategories = selectedLibrary
+      ? createCategoriesFromLibrary(
+          selectedLibrary,
+          selectedLibraryCategories.filter((name) => !duplicateNames.has(name)),
+          draftCategories,
+        )
+      : [];
+
+    onCategoriesChange(normalizeProductCategoryDirectory([...draftCategories, ...pendingImportCategories]));
     onOpenChange(false);
   };
 

@@ -14,6 +14,7 @@ export const zhCA = {
     cotizacion: '报价',
     sales: '销售记录',
     productos: '产品',
+    proveedores: '供应商',
     inventario: '库存',
     contrato: '合同',
     postventa: '售后',

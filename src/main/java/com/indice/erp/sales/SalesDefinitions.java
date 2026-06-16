@@ -15,6 +15,7 @@ final class SalesDefinitions {
         add(definitions, opportunities());
         add(definitions, products());
         add(definitions, quotes());
+        add(definitions, sales());
         add(definitions, postSales());
         add(definitions, contracts());
         return Map.copyOf(definitions);
@@ -172,6 +173,56 @@ final class SalesDefinitions {
                         f("metadata", "metadata_json", SalesFieldType.JSON)),
                 List.of("clientName"),
                 List.of("quoteNumber", "clientName", "contactPerson", "status", "assignedSellerName"),
+                "updated_at DESC, id DESC");
+    }
+
+    private static SalesEntityDefinition sales() {
+        return new SalesEntityDefinition(
+                "sales",
+                "sale",
+                "sales_records",
+                "id",
+                "saleNumber",
+                "sale_number",
+                "SAL",
+                List.of(
+                        f("saleNumber", "sale_number", SalesFieldType.STRING),
+                        f("contactId", "contact_id", SalesFieldType.LONG),
+                        f("opportunityId", "opportunity_id", SalesFieldType.LONG),
+                        f("quoteId", "quote_id", SalesFieldType.LONG),
+                        f("unitId", "unit_id", SalesFieldType.LONG),
+                        f("businessId", "business_id", SalesFieldType.LONG),
+                        f("sellerUserCompanyId", "seller_user_company_id", SalesFieldType.LONG),
+                        f("quoteReference", "quote_reference", SalesFieldType.STRING),
+                        f("saleDocumentReference", "sale_document_reference", SalesFieldType.STRING),
+                        f("customerName", "customer_name", SalesFieldType.STRING),
+                        f("sellerName", "seller_name", SalesFieldType.STRING),
+                        f("saleDate", "sale_date", SalesFieldType.DATE),
+                        f("totalAmount", "total_amount", SalesFieldType.DECIMAL),
+                        f("subtotal", "subtotal", SalesFieldType.DECIMAL),
+                        f("discountTotal", "discount_total", SalesFieldType.DECIMAL),
+                        f("taxTotal", "tax_total", SalesFieldType.DECIMAL),
+                        f("marginTotal", "margin_total", SalesFieldType.DECIMAL),
+                        f("currency", "currency", SalesFieldType.STRING),
+                        f("paymentMethod", "payment_method", SalesFieldType.STRING),
+                        f("paymentReference", "payment_reference", SalesFieldType.STRING),
+                        f("paymentEvidenceStatus", "payment_evidence_status", SalesFieldType.STRING),
+                        f("commercialStatus", "commercial_status", SalesFieldType.STRING),
+                        f("financeStatus", "finance_status", SalesFieldType.STRING),
+                        f("inventoryStatus", "inventory_status", SalesFieldType.STRING),
+                        f("deliveryStatus", "delivery_status", SalesFieldType.STRING),
+                        f("commissionStatus", "commission_status", SalesFieldType.STRING),
+                        f("inventoryMovementStatus", "inventory_movement_status", SalesFieldType.STRING),
+                        f("inventoryMovementReference", "inventory_movement_reference", SalesFieldType.STRING),
+                        f("commissionRate", "commission_rate", SalesFieldType.DECIMAL),
+                        f("commissionAmount", "commission_amount", SalesFieldType.DECIMAL),
+                        f("commissionNotes", "commission_notes", SalesFieldType.STRING),
+                        f("saleLines", "sale_lines_json", SalesFieldType.JSON),
+                        f("notes", "notes", SalesFieldType.STRING),
+                        f("customFields", "custom_fields_json", SalesFieldType.JSON),
+                        f("metadata", "metadata_json", SalesFieldType.JSON)),
+                List.of("customerName"),
+                List.of("saleNumber", "quoteReference", "saleDocumentReference", "customerName", "sellerName", "paymentMethod", "paymentReference"),
                 "updated_at DESC, id DESC");
     }
 

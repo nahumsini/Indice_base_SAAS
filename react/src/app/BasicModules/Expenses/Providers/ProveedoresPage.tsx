@@ -10,7 +10,7 @@ import { defaultProviderColumns, type ProviderColumnKey } from './providerTableC
 import { ProviderColumnsModal } from './components/ProviderColumnsModal';
 import { ProviderCreateModal } from './components/ProviderCreateModal';
 import { ProvidersFilterBar } from './components/ProvidersFilterBar';
-import { ProvidersHeaderBanner } from './components/ProvidersHeaderBanner';
+import { ProvidersHeaderBanner, type ProvidersHeaderVariant } from './components/ProvidersHeaderBanner';
 import { ProvidersTable } from './components/ProvidersTable';
 import {
   type ProviderRecord,
@@ -19,8 +19,12 @@ import {
 } from './useProveedoresLogic';
 
 interface ProveedoresPageProps {
+  headerIcon?: string;
+  headerSubtitle?: string;
+  headerTitle?: string;
   onProvidersChange?: Dispatch<SetStateAction<ProviderRecord[]>>;
   providers?: ProviderRecord[];
+  variant?: ProvidersHeaderVariant;
 }
 
 const toProviderFormValues = (provider: ProviderRecord): ProviderFormValues => ({
@@ -40,7 +44,14 @@ const toProviderFormValues = (provider: ProviderRecord): ProviderFormValues => (
   type: provider.type,
 });
 
-export default function ProveedoresPage({ onProvidersChange, providers: controlledProviders }: ProveedoresPageProps) {
+export default function ProveedoresPage({
+  headerIcon,
+  headerSubtitle,
+  headerTitle,
+  onProvidersChange,
+  providers: controlledProviders,
+  variant = 'finance',
+}: ProveedoresPageProps) {
   const t = useFinanceTranslations();
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
@@ -173,8 +184,12 @@ export default function ProveedoresPage({ onProvidersChange, providers: controll
   return (
     <div className="space-y-6">
       <ProvidersHeaderBanner
+        icon={headerIcon}
         onAddProvider={() => setIsCreateModalOpen(true)}
         onConfigureColumns={() => setIsColumnsModalOpen(true)}
+        subtitle={headerSubtitle}
+        title={headerTitle}
+        variant={variant}
       />
       <ProvidersFilterBar
         businessFilter={businessFilter}

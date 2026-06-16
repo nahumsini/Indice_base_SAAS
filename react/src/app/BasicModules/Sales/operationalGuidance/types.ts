@@ -8,6 +8,7 @@ export type SalesGuidanceIcon =
   | 'quotes'
   | 'sales'
   | 'products'
+  | 'providers'
   | 'inventory'
   | 'contracts'
   | 'afterSales'

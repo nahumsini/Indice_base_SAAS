@@ -23,6 +23,11 @@ export function InventoryHeader({
 }) {
   const title = isMovementsView ? t.operational.movementsTitle : t.operational.title;
   const subtitle = isMovementsView ? t.operational.movementsSubtitle : t.operational.subtitle;
+  const warehouseActionLabel = t.operational.actions.createWarehouse === 'Crear almacén'
+    ? 'Administrar almacenes'
+    : t.operational.actions.createWarehouse === 'Create warehouse'
+      ? 'Manage warehouses'
+      : t.operational.actions.createWarehouse;
 
   return (
     <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-6 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
@@ -53,7 +58,7 @@ export function InventoryHeader({
               onClick={onCreateWarehouse}
             >
               <Warehouse className="h-4 w-4" />
-              {t.operational.actions.createWarehouse}
+              {warehouseActionLabel}
             </Button>
           ) : null}
           <Button

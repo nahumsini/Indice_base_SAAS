@@ -39,6 +39,10 @@ export type SalesProductImage = {
   id: string;
   url: string;
   alt?: string;
+  objectKey?: string;
+  fileName?: string;
+  contentType?: string;
+  sizeBytes?: number;
 };
 
 export type SalesProductBundleItem = {
@@ -66,6 +70,8 @@ export type SalesProductPackaging = {
 
 export type SalesCatalogItem = {
   id: string;
+  backendId?: number;
+  productCode?: string;
   name: string;
   sku: string;
   category: SalesProductCategory;
@@ -73,6 +79,7 @@ export type SalesCatalogItem = {
   description: string;
   price: number;
   cost: number;
+  currency?: string;
   taxCategory: SalesProductTaxCategory;
   status: SalesProductStatus;
   visibility: SalesProductVisibility;
@@ -88,6 +95,7 @@ export type SalesCatalogItem = {
   posPrepared: boolean;
   variantsPrepared: boolean;
   lastUpdated: string;
+  filesCount?: number;
 };
 
 export const productTypes: SalesProductType[] = ['Product', 'Service', 'Package', 'Subscription', 'Operational item'];

@@ -72,6 +72,18 @@ export const frCA = {
         { title: 'Utiliser des categories coherentes', description: 'Des categories propres facilitent filtrage du catalogue et rapports commerciaux.' },
       ],
     },
+    providers: {
+      label: 'Fournisseurs',
+      ctaLabel: 'Reviser les fournisseurs',
+      title: 'Garder un repertoire fournisseur partage',
+      summary: 'Utilisez Fournisseurs comme catalogue commun pour ventes, inventaire, depenses et futurs flux POS.',
+      value: 'Un fournisseur unique evite les doublons fiscaux et aligne le contexte d achat.',
+      steps: [
+        { title: 'Eviter les doublons', description: 'Creez un seul fournisseur par relation commerciale et reutilisez-le partout.' },
+        { title: 'Completer le contexte', description: 'Fiscalite, contact, compte, unite, activite et statut doivent rester sur le fournisseur partage.' },
+        { title: 'Reutiliser dans depenses et inventaire', description: 'Les depenses et le stock lisent le meme catalogue fournisseur.' },
+      ],
+    },
     inventory: {
       label: 'Inventaire',
       ctaLabel: 'Reviser l inventaire',

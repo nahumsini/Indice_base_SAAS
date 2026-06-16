@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSalesCrm } from '../salesCrmContext';
+import { financeReferenceDataService, providersService } from '../../Expenses/services';
+import type { ProviderRecord } from '../../Expenses/Providers/useProveedoresLogic';
+import type { FinanceReferenceUser } from '../../Expenses/types/finance-reference.types';
 import { inventoryBusinesses, inventoryBusinessUnits } from './mocks/inventoryBusinessStructureMocks';
 import { InventoryColumnsModal } from './components/InventoryColumnsModal';
 import { InventoryFilters } from './components/InventoryFilters';
@@ -55,6 +58,8 @@ export default function Inventory() {
   const [activeView, setActiveView] = useState<InventoryOperationalView>('stock');
   const [movementViewMode, setMovementViewMode] = useState<'table' | 'kanban'>('table');
   const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>(initialInventoryWarehouses);
+  const [providers, setProviders] = useState<ProviderRecord[]>([]);
+  const [referenceUsers, setReferenceUsers] = useState<FinanceReferenceUser[]>([]);
   const [stockRows, setStockRows] = useState<InventoryStockRow[]>(() => buildInventoryStockRows(products, initialInventoryWarehouses));
   const [movements, setMovements] = useState<InventoryOperationalMovement[]>(() => buildInitialInventoryMovements(buildInventoryStockRows(products, initialInventoryWarehouses), initialInventoryWarehouses));
   const [visibleColumns, setVisibleColumns] = useState<InventoryOperationalColumnId[]>(defaultOperationalColumns);
@@ -71,16 +76,79 @@ export default function Inventory() {
   const [movementFilters, setMovementFilters] = useState<InventoryOperationalMovementFiltersState>(defaultMovementFilters);
   const selection = useInventorySelection<string>();
 
+  useEffect(() => {
+    let isMounted = true;
+
+    providersService.getProviderRecords()
+      .then((records) => {
+        if (!isMounted) return;
+        setProviders(records);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setProviders([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    financeReferenceDataService.getReferenceData()
+      .then((referenceData) => {
+        if (!isMounted) return;
+        setReferenceUsers(referenceData.users);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setReferenceUsers([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const supplierOptions = useMemo(() => (
+    providers
+      .filter((provider) => provider.status === 'active')
+      .map((provider) => ({ id: provider.id, name: provider.name }))
+      .sort((first, second) => first.name.localeCompare(second.name))
+  ), [providers]);
+
+  const warehouseResponsibleOptions = useMemo(() => (
+    referenceUsers
+      .filter((user) => {
+        const status = user.status?.toLowerCase();
+        return !status || status === 'active';
+      })
+      .map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      }))
+      .sort((first, second) => first.name.localeCompare(second.name))
+  ), [referenceUsers]);
+
   const filteredStockRows = useMemo(() => stockRows.filter((row) => {
     const search = normalizeInventoryText(stockFilters.search);
     const matchesSearch = !search || [row.name, row.sku, row.category, row.type, row.description].some((value) => normalizeInventoryText(value).includes(search));
+    const matchesWarehouse = stockFilters.warehouseId === 'all'
+      || row.distributions.some((distribution) => distribution.warehouseId === stockFilters.warehouseId);
     const matchesCategory = stockFilters.category === 'all' || row.category === stockFilters.category;
     const matchesType = stockFilters.itemType === 'all' || row.type === stockFilters.itemType;
     const matchesUnit = stockFilters.businessUnitId === 'all' || row.businessUnitId === stockFilters.businessUnitId;
     const matchesBusiness = stockFilters.businessId === 'all' || row.businessId === stockFilters.businessId;
     const matchesTracking = stockFilters.tracking === 'all' || (stockFilters.tracking === 'tracked' ? row.usesInventory : !row.usesInventory);
-    return matchesSearch && matchesCategory && matchesType && matchesUnit && matchesBusiness && matchesTracking;
+    return matchesSearch && matchesWarehouse && matchesCategory && matchesType && matchesUnit && matchesBusiness && matchesTracking;
   }), [stockFilters, stockRows]);
+
+  const categoryOptions = useMemo(() => Array.from(new Set(
+    stockRows.map((row) => row.category).filter(Boolean),
+  )).sort((first, second) => first.localeCompare(second)), [stockRows]);
 
   const filteredWarehouseRows = useMemo(() => stockRows.filter((row) => {
     const matchesCategory = stockFilters.category === 'all' || row.category === stockFilters.category;
@@ -97,6 +165,7 @@ export default function Inventory() {
     const needsProductMatch = stockFilters.category !== 'all' || stockFilters.itemType !== 'all' || stockFilters.tracking !== 'all';
     return (matchesWarehouseSearch || matchesProductSearch)
       && (!needsProductMatch || entries.length > 0)
+      && (stockFilters.warehouseId === 'all' || warehouse.id === stockFilters.warehouseId)
       && (stockFilters.businessUnitId === 'all' || warehouse.businessUnitId === stockFilters.businessUnitId)
       && (stockFilters.businessId === 'all' || warehouse.businessId === stockFilters.businessId);
   }), [filteredWarehouseRows, stockFilters, warehouses]);
@@ -184,7 +253,63 @@ export default function Inventory() {
   const handleCreateWarehouse = (draft: CreateWarehouseDraft) => {
     const id = `wh-${draft.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || warehouses.length + 1}`;
     setWarehouses((current) => [{ ...draft, id, lastMovementAt: new Date().toISOString().slice(0, 10) }, ...current]);
-    setIsWarehouseOpen(false);
+  };
+
+  const handleDeleteWarehouse = (warehouseId: string) => {
+    setStockRows((current) => current.map((row) => ({
+      ...row,
+      distributions: row.distributions.filter((distribution) => distribution.warehouseId !== warehouseId),
+    })));
+    setWarehouses((current) => current.filter((warehouse) => warehouse.id !== warehouseId));
+    setStockFilters((current) => current.warehouseId === warehouseId ? { ...current, warehouseId: 'all' } : current);
+  };
+
+  const handleTransferAndDeleteWarehouse = (sourceWarehouseId: string, targetWarehouseId: string) => {
+    if (sourceWarehouseId === targetWarehouseId) return;
+    const targetWarehouse = warehouses.find((warehouse) => warehouse.id === targetWarehouseId);
+    if (!targetWarehouse) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    setStockRows((current) => current.map((row) => {
+      const sourceDistribution = row.distributions.find((distribution) => distribution.warehouseId === sourceWarehouseId);
+      if (!sourceDistribution) return row;
+
+      const remainingDistributions = row.distributions.filter((distribution) => distribution.warehouseId !== sourceWarehouseId);
+      const hasTargetDistribution = remainingDistributions.some((distribution) => distribution.warehouseId === targetWarehouseId);
+      const distributions = hasTargetDistribution
+        ? remainingDistributions.map((distribution) => (
+          distribution.warehouseId === targetWarehouseId
+            ? {
+              ...distribution,
+              available: distribution.available + sourceDistribution.available,
+              reserved: distribution.reserved + sourceDistribution.reserved,
+              minimum: Math.max(distribution.minimum, sourceDistribution.minimum),
+            }
+            : distribution
+        ))
+        : [
+          ...remainingDistributions,
+          {
+            warehouseId: targetWarehouse.id,
+            warehouseName: targetWarehouse.name,
+            available: sourceDistribution.available,
+            reserved: sourceDistribution.reserved,
+            minimum: sourceDistribution.minimum,
+          },
+        ];
+
+      return {
+        ...row,
+        distributions,
+        businessUnitId: targetWarehouse.businessUnitId ?? row.businessUnitId,
+        businessUnitName: targetWarehouse.businessUnitName ?? row.businessUnitName,
+        businessId: targetWarehouse.businessId ?? row.businessId,
+        businessName: targetWarehouse.businessName ?? row.businessName,
+        lastMovementAt: today,
+      };
+    }));
+    setWarehouses((current) => current.filter((warehouse) => warehouse.id !== sourceWarehouseId));
+    setStockFilters((current) => current.warehouseId === sourceWarehouseId ? { ...current, warehouseId: 'all' } : current);
   };
 
   const openAddInventoryModal = (productId?: string, warehouseId?: string) => {
@@ -266,6 +391,7 @@ export default function Inventory() {
         warehouses={warehouses}
         businessUnits={inventoryBusinessUnits}
         businesses={inventoryBusinesses}
+        categoryOptions={categoryOptions}
         responsibleOptions={movementResponsibleOptions}
         t={t}
         onFiltersChange={(filters) => {
@@ -345,8 +471,7 @@ export default function Inventory() {
         open={isAddInventoryOpen}
         rows={stockRows}
         warehouses={warehouses}
-        businessUnits={inventoryBusinessUnits}
-        businesses={inventoryBusinesses}
+        suppliers={supplierOptions}
         t={t}
         initialProductId={initialProductId}
         initialWarehouseId={initialWarehouseId}
@@ -362,6 +487,7 @@ export default function Inventory() {
         open={isTransferOpen || Boolean(editingMovement)}
         rows={stockRows}
         warehouses={warehouses}
+        suppliers={supplierOptions}
         t={t}
         initialProductId={initialProductId}
         initialMovementType={initialMovementType}
@@ -379,7 +505,19 @@ export default function Inventory() {
         onSubmit={handleTransferStock}
         onSaveEdit={handleSaveMovementEdit}
       />
-      <CreateWarehouseModal open={isWarehouseOpen} businessUnits={inventoryBusinessUnits} businesses={inventoryBusinesses} t={t} onOpenChange={setIsWarehouseOpen} onSubmit={handleCreateWarehouse} />
+      <CreateWarehouseModal
+        open={isWarehouseOpen}
+        warehouses={warehouses}
+        rows={stockRows}
+        businessUnits={inventoryBusinessUnits}
+        businesses={inventoryBusinesses}
+        responsibleOptions={warehouseResponsibleOptions}
+        t={t}
+        onOpenChange={setIsWarehouseOpen}
+        onSubmit={handleCreateWarehouse}
+        onDeleteWarehouse={handleDeleteWarehouse}
+        onTransferAndDeleteWarehouse={handleTransferAndDeleteWarehouse}
+      />
       <MovementPrintModal
         movement={printingMovement}
         movementLines={getOperationalMovementGroupLines(movements, printingMovement)}

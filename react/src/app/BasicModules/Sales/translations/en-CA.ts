@@ -14,6 +14,7 @@ export const enCA = {
     cotizacion: 'Quotes',
     sales: 'Sales',
     productos: 'Products',
+    proveedores: 'Providers',
     inventario: 'Inventory',
     contrato: 'Contracts',
     postventa: 'After-sales',

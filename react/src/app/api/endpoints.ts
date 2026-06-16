@@ -89,6 +89,8 @@ export const endpoints = {
     payrollRuns: '/api/v1/hr/payroll/runs',
   },
   sales: {
+    base: '/api/v1/sales',
     context: '/api/v1/sales/context',
+    kpis: '/api/v1/sales/kpis',
   },
 } as const;

@@ -72,6 +72,18 @@ export const ptBR = {
         { title: 'Use categorias consistentes', description: 'Categorias limpas facilitam filtros de catalogo e relatorios comerciais.' },
       ],
     },
+    providers: {
+      label: 'Fornecedores',
+      ctaLabel: 'Revisar fornecedores',
+      title: 'Mantenha um diretorio compartilhado de fornecedores',
+      summary: 'Use Fornecedores como catalogo comum para vendas, estoque, despesas e futuros fluxos POS.',
+      value: 'Um unico fornecedor evita dados fiscais duplicados e alinha o contexto de compras.',
+      steps: [
+        { title: 'Evite fornecedores duplicados', description: 'Crie um fornecedor por relacao comercial e reutilize em todos os modulos.' },
+        { title: 'Complete o contexto', description: 'Dados fiscais, contato, conta, unidade, negocio e status ficam no fornecedor compartilhado.' },
+        { title: 'Reutilize em despesas e estoque', description: 'Despesas e estoque leem o mesmo catalogo de fornecedores.' },
+      ],
+    },
     inventory: {
       label: 'Estoque',
       ctaLabel: 'Revisar estoque',

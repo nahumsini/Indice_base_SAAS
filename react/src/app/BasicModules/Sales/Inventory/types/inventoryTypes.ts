@@ -88,6 +88,7 @@ export type InventoryWarehouse = {
   businessId?: string;
   businessName?: string;
   jurisdiction: string;
+  responsibleUserId?: string;
   responsibleName: string;
   addressNote?: string;
   status: InventoryWarehouseStatus;

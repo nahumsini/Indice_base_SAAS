@@ -32,6 +32,8 @@ export function ProductCreateModal({
   mode = 'create',
   catalogItems = [],
   categories,
+  isSaving = false,
+  saveError = null,
   onOpenChange,
   onFormChange,
   onSubmit,
@@ -43,9 +45,11 @@ export function ProductCreateModal({
   mode?: 'create' | 'edit';
   catalogItems?: SalesCatalogItem[];
   categories: ProductCategoryConfig[];
+  isSaving?: boolean;
+  saveError?: string | null;
   onOpenChange: (open: boolean) => void;
   onFormChange: Dispatch<SetStateAction<ProductFormState>>;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
   onQuickCreateCategory: (name: string) => void;
 }) {
   const [isLabelGeneratorOpen, setIsLabelGeneratorOpen] = useState(false);
@@ -101,11 +105,16 @@ export function ProductCreateModal({
           </div>
 
           <DialogFooter className="border-t border-[#FF6B5E]/20 bg-[#FF6B5E] px-6 py-3">
+            {saveError ? (
+              <p className="mr-auto max-w-lg text-sm font-bold text-white" role="alert">
+                {saveError}
+              </p>
+            ) : null}
             <Button variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white" onClick={() => onOpenChange(false)}>
               <Archive className="h-4 w-4" />
               {t.common.cancel}
             </Button>
-            <Button className="bg-white text-[#B63B32] hover:bg-white/90" onClick={onSubmit}>
+            <Button className="bg-white text-[#B63B32] hover:bg-white/90" disabled={isSaving} onClick={() => void onSubmit()}>
               <Plus className="h-4 w-4" />
               {isEditMode ? t.form.updateSubmit : t.form.submit}
             </Button>

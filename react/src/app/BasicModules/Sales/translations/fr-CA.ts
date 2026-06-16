@@ -14,6 +14,7 @@ export const frCA = {
     cotizacion: 'Devis',
     sales: 'Ventes',
     productos: 'Produits',
+    proveedores: 'Fournisseurs',
     inventario: 'Inventaire',
     contrato: 'Contrats',
     postventa: 'Service après-vente',

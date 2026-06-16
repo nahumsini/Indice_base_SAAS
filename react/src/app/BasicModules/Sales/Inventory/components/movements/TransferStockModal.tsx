@@ -14,6 +14,7 @@ export type TransferStockDraft = {
   items: MovementProductLineDraft[];
   fromWarehouseId: string;
   toWarehouseId: string;
+  supplierName?: string;
   reason: string;
   reference: string;
   date: string;
@@ -44,10 +45,16 @@ const locationLabels = {
   writeOff: 'Write off',
 };
 
+type SupplierOption = {
+  id: string;
+  name: string;
+};
+
 export function TransferStockModal({
   open,
   rows,
   warehouses,
+  suppliers,
   t,
   initialProductId,
   initialMovementType = 'transfer',
@@ -61,6 +68,7 @@ export function TransferStockModal({
   open: boolean;
   rows: InventoryStockRow[];
   warehouses: InventoryWarehouse[];
+  suppliers: SupplierOption[];
   t: InventoryTranslations;
   initialProductId?: string;
   initialMovementType?: InventoryMovementEntryType;
@@ -72,6 +80,7 @@ export function TransferStockModal({
   onSaveEdit?: (movementId: string, draft: TransferStockDraft) => void;
 }) {
   const activeWarehouses = useMemo(() => warehouses.filter((warehouse) => warehouse.status === 'active'), [warehouses]);
+  const supplierOptions = useMemo(() => suppliers.filter((supplier) => supplier.name.trim()), [suppliers]);
   const isEditing = Boolean(editingMovement);
   const [draft, setDraft] = useState<TransferStockDraft>({
     movementType: 'transfer',
@@ -111,6 +120,7 @@ export function TransferStockModal({
         })),
         fromWarehouseId: editingMovement.fromWarehouseId ?? (editableMovementType === 'supplierReceipt' ? SUPPLIER_SOURCE_ID : activeWarehouses[0]?.id ?? ''),
         toWarehouseId: editingMovement.toWarehouseId ?? activeWarehouses[0]?.id ?? '',
+        supplierName: editingMovement.supplierName ?? supplierOptions[0]?.name ?? '',
         reason: editingMovement.reason,
         reference: editingMovement.reference ?? '',
         date: editingMovement.movementDate,
@@ -128,11 +138,12 @@ export function TransferStockModal({
       items: [createMovementProductLine(firstProductId)],
       fromWarehouseId: shouldUseSupplierSource ? SUPPLIER_SOURCE_ID : firstWarehouseId,
       toWarehouseId: shouldUseSupplierSource ? firstWarehouseId : alternateWarehouseId,
+      supplierName: shouldUseSupplierSource ? supplierOptions[0]?.name ?? '' : undefined,
       reason: t.operational.movementTypes[initialMovementType],
       reference: '',
       date: new Date().toISOString().slice(0, 10),
     });
-  }, [activeWarehouses, editingMovement, editingMovementLines, initialMovementType, initialProductId, initialWarehouseId, open, rows, t]);
+  }, [activeWarehouses, editingMovement, editingMovementLines, initialMovementType, initialProductId, initialWarehouseId, open, rows, supplierOptions, t]);
 
   const hasValidItems = draft.items.length > 0 && draft.items.every((item) => item.productId && item.quantity > 0);
   const hasValidLocations = (!usesFromWarehouse || draft.fromWarehouseId)
@@ -143,12 +154,15 @@ export function TransferStockModal({
     const available = row?.distributions.find((distribution) => distribution.warehouseId === draft.fromWarehouseId)?.available ?? 0;
     return item.quantity <= available;
   });
-  const canSubmit = hasValidItems && hasValidLocations && hasValidStock;
+  const hasValidSupplier = draft.movementType !== 'supplierReceipt' || Boolean(draft.supplierName);
+  const canSubmit = hasValidItems && hasValidLocations && hasValidStock && hasValidSupplier;
 
   const handleTypeChange = (movementType: InventoryMovementEntryType) => {
     setDraft((current) => ({
       ...current,
       movementType,
+      fromWarehouseId: movementType === 'supplierReceipt' ? SUPPLIER_SOURCE_ID : current.fromWarehouseId,
+      supplierName: movementType === 'supplierReceipt' ? current.supplierName ?? supplierOptions[0]?.name ?? '' : current.supplierName,
       reason: t.operational.movementTypes[movementType],
     }));
   };
@@ -188,9 +202,16 @@ export function TransferStockModal({
             <SelectField label={t.operational.modals.movementType} value={draft.movementType} options={movementTypes.map((type) => ({ value: type, label: t.operational.movementTypes[type] }))} onValueChange={(movementType) => handleTypeChange(movementType as InventoryMovementEntryType)} />
             <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses[displayedStatus]} />
             <InputField label={t.operational.modals.date} type="date" value={draft.date} onChange={(date) => setDraft({ ...draft, date })} />
+            {draft.movementType === 'supplierReceipt' ? (
+              supplierOptions.length > 0 ? (
+                <SelectField label={t.operational.modals.supplier} value={draft.supplierName ?? ''} options={supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name }))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
+              ) : (
+                <ReadOnlyField label={t.operational.modals.supplier} value={t.common.notAvailable} />
+              )
+            ) : null}
             {usesFromWarehouse ? (
               <SelectField label={t.operational.modals.fromWarehouse} value={draft.fromWarehouseId} options={fromLocationOptions} onValueChange={(fromWarehouseId) => setDraft({ ...draft, fromWarehouseId })} />
-            ) : (
+            ) : draft.movementType === 'supplierReceipt' ? null : (
               <ReadOnlyField label={t.operational.modals.source} value={locationLabels[rules.from]} />
             )}
             {usesToWarehouse ? (

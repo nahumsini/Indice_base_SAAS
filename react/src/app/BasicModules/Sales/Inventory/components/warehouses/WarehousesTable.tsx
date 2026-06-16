@@ -8,7 +8,7 @@ import { getWarehouseInventoryEntries, getWarehouseInventorySummary } from '../.
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
 import { WarehouseInventoryProducts } from './WarehouseInventoryProducts';
 
-const headerClass = 'h-10 whitespace-nowrap px-5 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500';
+const headerClass = 'h-12 px-5 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500';
 const actionButtonClass = 'h-9 w-9 rounded-xl border transition-colors';
 const healthTone = {
   healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -89,15 +89,40 @@ export function WarehousesTable({
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <Table className="min-w-[1160px]">
+        <Table className="min-w-[1280px]">
           <TableHeader className="bg-slate-50/90">
             <TableRow>
-              <TableHead className={headerClass}>{t.operational.columns.warehouse}</TableHead>
-              <TableHead className={headerClass}>{t.operational.columns.businessUnit}</TableHead>
-              <TableHead className={headerClass}>{t.operational.warehouseInventory}</TableHead>
-              <TableHead className={headerClass}>{t.operational.columns.stockHealth}</TableHead>
-              <TableHead className={headerClass}>{t.operational.columns.lastMovement}</TableHead>
-              <TableHead className={`${headerClass} text-right`}>{t.operational.columns.actions}</TableHead>
+              <TableHead className={headerClass}>
+                <GroupedHeader
+                  title={t.operational.columns.warehouse}
+                  labels={[t.operational.columns.warehouseType, t.operational.columns.responsible]}
+                />
+              </TableHead>
+              <TableHead className={headerClass}>
+                <GroupedHeader
+                  title={t.operational.columns.businessUnit}
+                  labels={[t.operational.columns.businessUnit, t.operational.columns.business]}
+                />
+              </TableHead>
+              <TableHead className={headerClass}>
+                <GroupedHeader
+                  title={t.operational.warehouseInventory}
+                  labels={[t.operational.columns.storedItems, t.operational.columns.totalUnits, t.operational.columns.estimatedValue]}
+                  columns={3}
+                />
+              </TableHead>
+              <TableHead className={headerClass}>
+                <GroupedHeader
+                  title={t.operational.columns.stockHealth}
+                  labels={[t.operational.columns.stockHealth, t.operational.columns.status]}
+                />
+              </TableHead>
+              <TableHead className={headerClass}>
+                <GroupedHeader title={t.operational.columns.lastMovement} labels={[t.operational.columns.date]} />
+              </TableHead>
+              <TableHead className={`${headerClass} text-center`}>
+                <GroupedHeader title={t.operational.columns.actions} labels={[t.operational.columns.actions]} align="center" />
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,8 +163,8 @@ export function WarehousesTable({
                       <p className="text-sm font-black text-slate-800">{warehouse.businessUnitName ?? t.common.notAvailable}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{warehouse.businessName ?? t.common.notAvailable}</p>
                     </TableCell>
-                    <TableCell className="min-w-[230px] px-5 py-4 align-top">
-                      <div className="grid grid-cols-3 gap-2 text-center">
+                    <TableCell className="min-w-[300px] px-5 py-4 align-top">
+                      <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-left">
                         <Metric value={formatInventoryNumber(summary.storedItems)} label={t.operational.columns.storedItems} />
                         <Metric value={formatInventoryNumber(summary.totalUnits)} label={t.operational.columns.totalUnits} />
                         <Metric value={formatInventoryCurrency(summary.estimatedValue)} label={t.operational.columns.estimatedValue} />
@@ -159,7 +184,7 @@ export function WarehousesTable({
                       {summary.lastMovement ?? t.common.notAvailable}
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
-                      <div className="flex justify-end gap-2 rounded-lg border border-slate-200 bg-white p-2">
+                      <div className="flex justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
                         <ActionButton className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title={t.operational.actions.addStock} icon={<PackagePlus className="h-4 w-4" />} onClick={() => onAddStock(warehouse)} />
                         <ActionButton className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100" title={t.operational.actions.transferStock} icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => onTransferStock(warehouse)} />
                         <ActionButton className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} onClick={() => onViewMovements(warehouse)} />
@@ -184,11 +209,39 @@ export function WarehousesTable({
   );
 }
 
+function GroupedHeader({
+  title,
+  labels,
+  columns = labels.length,
+  align = 'left',
+}: {
+  title: string;
+  labels: string[];
+  columns?: number;
+  align?: 'left' | 'center';
+}) {
+  return (
+    <div className={align === 'center' ? 'text-center' : 'text-left'}>
+      <p className="whitespace-nowrap">{title}</p>
+      <div
+        className={`mt-1 grid gap-2 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400 ${align === 'center' ? 'justify-center' : ''}`}
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {labels.map((label) => (
+          <span key={label} className="truncate">
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Metric({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">
-      <p className="truncate text-xs font-black text-slate-950">{value}</p>
-      <p className="mt-1 truncate text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
+    <div className="border-r border-slate-200 px-3 py-2 last:border-r-0">
+      <p className="text-sm font-black leading-5 text-slate-950">{value}</p>
+      <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
     </div>
   );
 }

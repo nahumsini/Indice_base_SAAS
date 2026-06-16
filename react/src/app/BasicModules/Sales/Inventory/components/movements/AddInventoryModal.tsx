@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { FileUp, PackagePlus, Plus, X } from 'lucide-react';
+import { FileUp, PackagePlus, X } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
-import type { InventoryBusiness, InventoryBusinessUnit, InventoryMovementAttachment, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
+import type { InventoryMovementAttachment, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { MovementProductLines, createMovementProductLine, type MovementProductLineDraft } from './MovementProductLines';
 
@@ -20,14 +20,16 @@ export type AddInventoryDraft = {
   attachments: InventoryMovementAttachment[];
 };
 
-const defaultSuppliers = ['Samsung Supplier', 'Central Pharmacy Distributor', 'Moda Norte Wholesale', 'Sportline Distribution'];
+type SupplierOption = {
+  id: string;
+  name: string;
+};
 
 export function AddInventoryModal({
   open,
   rows,
   warehouses,
-  businessUnits,
-  businesses,
+  suppliers,
   t,
   initialProductId,
   initialWarehouseId,
@@ -37,8 +39,7 @@ export function AddInventoryModal({
   open: boolean;
   rows: InventoryStockRow[];
   warehouses: InventoryWarehouse[];
-  businessUnits: InventoryBusinessUnit[];
-  businesses: InventoryBusiness[];
+  suppliers: SupplierOption[];
   t: InventoryTranslations;
   initialProductId?: string;
   initialWarehouseId?: string;
@@ -46,11 +47,10 @@ export function AddInventoryModal({
   onSubmit: (draft: AddInventoryDraft) => void;
 }) {
   const activeWarehouses = useMemo(() => warehouses.filter((warehouse) => warehouse.status === 'active'), [warehouses]);
-  const [suppliers, setSuppliers] = useState(defaultSuppliers);
-  const [supplierDraft, setSupplierDraft] = useState('');
+  const supplierOptions = useMemo(() => suppliers.filter((supplier) => supplier.name.trim()), [suppliers]);
   const [draft, setDraft] = useState<AddInventoryDraft>({
     items: [createMovementProductLine()],
-    supplierName: defaultSuppliers[0],
+    supplierName: '',
     destinationWarehouseId: '',
     businessUnitId: '',
     businessId: '',
@@ -66,25 +66,20 @@ export function AddInventoryModal({
     setDraft((current) => ({
       ...current,
       items: [createMovementProductLine(initialProductId ?? rows[0]?.productId ?? '')],
+      supplierName: supplierOptions.some((supplier) => supplier.name === current.supplierName)
+        ? current.supplierName
+        : supplierOptions[0]?.name ?? '',
       destinationWarehouseId: warehouse?.id ?? '',
       businessUnitId: warehouse?.businessUnitId ?? '',
       businessId: warehouse?.businessId ?? '',
       date: new Date().toISOString().slice(0, 10),
     }));
-  }, [activeWarehouses, initialProductId, initialWarehouseId, open, rows]);
+  }, [activeWarehouses, initialProductId, initialWarehouseId, open, rows, supplierOptions]);
 
   const canSubmit = draft.supplierName
     && draft.destinationWarehouseId
     && draft.items.length > 0
     && draft.items.every((item) => item.productId && item.quantity > 0);
-
-  const handleAddSupplier = () => {
-    const name = supplierDraft.trim();
-    if (!name) return;
-    setSuppliers((current) => current.includes(name) ? current : [...current, name]);
-    setDraft((current) => ({ ...current, supplierName: name }));
-    setSupplierDraft('');
-  };
 
   const handleFilesChange = (files: FileList | null) => {
     if (!files) return;
@@ -121,16 +116,11 @@ export function AddInventoryModal({
           <div className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
             <ReadOnlyField label={t.operational.modals.movementType} value={t.operational.movementTypes.supplierReceipt} />
             <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses.received} />
-            <SelectField label={t.operational.modals.supplier} value={draft.supplierName} options={suppliers.map((supplier) => ({ value: supplier, label: supplier }))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
-            <label className="grid gap-2">
-              <FieldLabel>{t.operational.modals.quickAddSupplier}</FieldLabel>
-              <span className="flex gap-2">
-                <Input value={supplierDraft} placeholder={t.operational.modals.newSupplier} onChange={(event) => setSupplierDraft(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
-                <Button type="button" size="icon" className="h-11 w-11 rounded-xl bg-[#FF6B5E] text-white hover:bg-[#E85C50]" onClick={handleAddSupplier}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </span>
-            </label>
+            {supplierOptions.length > 0 ? (
+              <SelectField label={t.operational.modals.supplier} value={draft.supplierName} options={supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name }))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
+            ) : (
+              <ReadOnlyField label={t.operational.modals.supplier} value={t.common.notAvailable} />
+            )}
             <label className="grid gap-2">
               <FieldLabel>{t.operational.modals.destinationWarehouse}</FieldLabel>
               <Select value={draft.destinationWarehouseId} onValueChange={(destinationWarehouseId) => {
@@ -142,8 +132,6 @@ export function AddInventoryModal({
               </Select>
             </label>
             <InputField label={t.operational.modals.referenceNote} value={draft.reference} onChange={(reference) => setDraft({ ...draft, reference })} />
-            <SelectField label={t.operational.modals.businessUnit} value={draft.businessUnitId} options={businessUnits.map((unit) => ({ value: unit.id, label: unit.name }))} onValueChange={(businessUnitId) => setDraft({ ...draft, businessUnitId })} />
-            <SelectField label={t.operational.modals.business} value={draft.businessId} options={businesses.map((business) => ({ value: business.id, label: business.name }))} onValueChange={(businessId) => setDraft({ ...draft, businessId })} />
             <InputField label={t.operational.modals.reason} value={draft.reason} onChange={(reason) => setDraft({ ...draft, reason })} />
             <InputField label={t.operational.modals.date} type="date" value={draft.date} onChange={(date) => setDraft({ ...draft, date })} />
           </div>

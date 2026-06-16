@@ -1,4 +1,4 @@
-import { productCategories, productTypes } from '../../types';
+import { productTypes } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig, ProductCategoryLibrary } from '../types/productCategoryTypes';
 
@@ -26,7 +26,9 @@ function getCategoryConfigLabel(category: ProductCategoryConfig, t: ProductsTran
 }
 
 export function buildInitialProductCategories(t: ProductsTranslations): ProductCategoryConfig[] {
-  return productCategories.map((category, index) => ({
+  const defaultCategories = ['Technology', 'Consulting', 'Hospitality', 'Services'];
+
+  return defaultCategories.map((category, index) => ({
     id: createCategoryId(category),
     name: getCategoryLabel(category, t),
     value: category,
@@ -57,19 +59,9 @@ export function buildCatalogProductCategories({
   managedCategories: ProductCategoryConfig[];
   extraValues?: string[];
 }) {
-  const baseCategories = buildInitialProductCategories(t);
-
-  return [...managedCategories, ...extraValues.map((value, index) => ({
-    id: `existing-${createCategoryId(value)}-${index}`,
-    name: getCategoryLabel(value, t),
-    value,
-    color: defaultCategoryColors[(baseCategories.length + index) % defaultCategoryColors.length],
-    icon: 'tag',
-    isActive: true,
-    supportedTypes: [...productTypes],
-  }))]
+  return [...managedCategories, ...extraValues.map((value, index) => createCategoryConfigFromValue(value, t, managedCategories.length + index))]
     .filter((category) => category.value.trim())
-    .reduce(addUniqueCategory, baseCategories);
+    .reduce(addUniqueCategory, []);
 }
 
 export function buildProductCategoryOptions(
@@ -96,6 +88,45 @@ export function createProductCategory(name: string, index = 0): ProductCategoryC
     isActive: true,
     supportedTypes: [...productTypes],
   };
+}
+
+export function createCategoryConfigFromValue(
+  value: string,
+  t: ProductsTranslations,
+  index = 0,
+): ProductCategoryConfig {
+  const normalizedValue = value.trim();
+
+  return {
+    id: `existing-${createCategoryId(normalizedValue)}-${index}`,
+    name: getCategoryLabel(normalizedValue, t),
+    value: normalizedValue,
+    color: defaultCategoryColors[index % defaultCategoryColors.length],
+    icon: 'tag',
+    isActive: true,
+    supportedTypes: [...productTypes],
+  };
+}
+
+export function normalizeProductCategoryDirectory(categories: ProductCategoryConfig[]) {
+  return categories
+    .filter((category) => category.value.trim() || category.name.trim())
+    .map((category, index) => {
+      const name = category.name.trim() || category.value.trim();
+      const value = category.value.trim() || name;
+
+      return {
+        ...category,
+        id: category.id || `${createCategoryId(value)}-${index}`,
+        name,
+        value,
+        icon: category.icon || 'tag',
+        color: category.color || defaultCategoryColors[index % defaultCategoryColors.length],
+        isActive: category.isActive !== false,
+        supportedTypes: category.supportedTypes?.length ? category.supportedTypes : [...productTypes],
+      };
+    })
+    .reduce(addUniqueCategory, []);
 }
 
 export function createCategoriesFromLibrary(

@@ -79,7 +79,7 @@ export function ProductCardsView({
           <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
             {products.map((product) => {
               const galleryImages = getProductGalleryImages(product);
-              const galleryCount = Math.max(galleryImages.length, 1);
+              const galleryCount = galleryImages.length;
 
               return (
                 <article key={product.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-[#FF6B5E]/35 hover:shadow-md">
@@ -91,10 +91,12 @@ export function ProductCardsView({
                       aria-label={t.gallery.open(product.name)}
                     >
                       <ProductThumbnail product={product} size="hero" className="aspect-[4/3] min-h-[220px] transition group-hover:scale-[1.01]" />
-                      <span className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full border border-white/40 bg-slate-950/75 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur">
-                        <Images className="h-3.5 w-3.5" />
-                        {galleryCount}
-                      </span>
+                      {galleryCount > 0 ? (
+                        <span className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full border border-white/40 bg-slate-950/75 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur">
+                          <Images className="h-3.5 w-3.5" />
+                          {galleryCount}
+                        </span>
+                      ) : null}
                     </button>
 
                     <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2">

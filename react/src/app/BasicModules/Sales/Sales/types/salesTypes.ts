@@ -23,12 +23,14 @@ export type SaleInventoryMovementDraft = SalesWorkflowInventoryMovementDraft;
 
 export type SaleRecord = {
   id: string;
+  backendId?: number;
   saleNumber: string;
   quoteId?: string;
   prospectId?: string;
   contactId?: string;
   customerId?: string;
   sellerId?: string;
+  sellerUserCompanyId?: number | null;
   quoteReference: string;
   saleDocumentReference?: string;
   businessUnitId?: string;
@@ -59,6 +61,7 @@ export type SaleRecord = {
   commissionNotes: string;
   saleLines: SaleLine[];
   notes: string;
+  filesCount?: number;
 };
 
 export type SaleRecordDraft = Omit<SaleRecord, 'id' | 'saleNumber' | 'commissionAmount'> & {

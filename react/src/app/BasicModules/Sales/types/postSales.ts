@@ -19,6 +19,7 @@ export type PostSaleRiskLevel = 'Low' | 'Medium' | 'High';
 
 export type SalesPostSaleCase = {
   id: string;
+  backendId?: number;
   clientId?: string;
   clientName: string;
   contactPerson: string;
@@ -39,6 +40,7 @@ export type SalesPostSaleCase = {
   riskLevel: PostSaleRiskLevel;
   commercialHistory: string[];
   lastUpdated: string;
+  filesCount?: number;
 };
 
 export const postSaleTypes: PostSaleType[] = ['Standard post-sale', 'Recurrent post-sale'];

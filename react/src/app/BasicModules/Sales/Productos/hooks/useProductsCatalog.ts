@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type SetStateAction } from 'react';
 import {
   productStatuses,
   productTypes,
@@ -13,20 +13,58 @@ import {
   buildCatalogProductCategories,
   buildProductCategoryOptions,
   createProductCategory,
+  normalizeProductCategoryDirectory,
 } from '../utils/productCategories';
+import { getProductGalleryImages, persistProductImageDrafts, registerPersistedProductImages } from '../utils/productImages';
 import { buildProductForm, buildProductInput, initialProductForm } from '../utils/productForm';
 import { sortProducts } from '../utils/productFormatters';
 import { getProductAvailability, getProductInventoryValue, getProductProfit } from '../utils/productOperationalStatus';
 
 type FilterValue = 'all' | string;
+const productCategoriesStorageKey = 'indice.sales.products.categoryDirectory';
+
+function readStoredProductCategories(): ProductCategoryConfig[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(productCategoriesStorageKey);
+    const parsedValue: unknown = storedValue ? JSON.parse(storedValue) : [];
+
+    return Array.isArray(parsedValue)
+      ? normalizeProductCategoryDirectory(parsedValue as ProductCategoryConfig[])
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistProductCategories(categories: ProductCategoryConfig[]) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(
+    productCategoriesStorageKey,
+    JSON.stringify(normalizeProductCategoryDirectory(categories)),
+  );
+}
 
 export function useProductsCatalog(t: ProductsTranslations) {
-  const { products, addProduct, updateProduct } = useSalesCrm();
+  const {
+    products,
+    addProduct,
+    updateProduct,
+    createProductRecord,
+    updateProductRecord,
+    reloadProducts,
+  } = useSalesCrm();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPublicCatalogOpen, setIsPublicCatalogOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
-  const [managedCategories, setManagedCategories] = useState<ProductCategoryConfig[]>([]);
+  const [managedCategories, setManagedCategoriesState] = useState<ProductCategoryConfig[]>(readStoredProductCategories);
   const [deletedProductIds, setDeletedProductIds] = useState<string[]>([]);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [carouselProduct, setCarouselProduct] = useState<SalesCatalogItem | null>(null);
@@ -38,6 +76,8 @@ export function useProductsCatalog(t: ProductsTranslations) {
   const [sortState, setSortState] = useState<ProductSortState>({ columnId: 'name', direction: 'asc' });
   const [visibleColumns, setVisibleColumns] = useState<ProductTableColumnId[]>(defaultProductTableVisibleColumns);
   const [form, setForm] = useState<ProductFormState>(initialProductForm);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [productSaveError, setProductSaveError] = useState<string | null>(null);
 
   const availableProducts = useMemo(
     () => products.filter((product) => !deletedProductIds.includes(product.id)),
@@ -68,7 +108,9 @@ export function useProductsCatalog(t: ProductsTranslations) {
   const estimatedProfit = filteredProducts.reduce((total, product) => total + getProductProfit(product), 0);
   const readyForSalesCount = filteredProducts.filter((product) => getProductAvailability(product).includes('sales')).length;
   const posReadyCount = filteredProducts.filter((product) => getProductAvailability(product).includes('pos')).length;
-  const publicCatalogCount = filteredProducts.filter((product) => getProductAvailability(product).includes('sales') && Boolean(product.imageUrl || product.gallery?.length)).length;
+  const publicCatalogCount = filteredProducts.filter((product) => (
+    getProductAvailability(product).includes('sales') && getProductGalleryImages(product).length > 0
+  )).length;
   const typeCounts = productTypes.map((type) => ({
     type,
     count: filteredProducts.filter((product) => product.type === type).length,
@@ -86,11 +128,26 @@ export function useProductsCatalog(t: ProductsTranslations) {
     }),
     [existingCategoryValues, managedCategories, t],
   );
+  const updateManagedCategories = useCallback((nextValue: SetStateAction<ProductCategoryConfig[]>) => {
+    setManagedCategoriesState((currentCategories) => {
+      const resolvedCategories = typeof nextValue === 'function'
+        ? nextValue(currentCategories)
+        : nextValue;
+      const normalizedCategories = normalizeProductCategoryDirectory(resolvedCategories);
+
+      persistProductCategories(normalizedCategories);
+      return normalizedCategories;
+    });
+  }, []);
 
   const categoryOptions = [
     { value: 'all', label: t.filters.allCategories },
     ...buildProductCategoryOptions(catalogCategories, t),
   ];
+  const defaultCategoryValue = useMemo(
+    () => catalogCategories.find((category) => category.isActive)?.value ?? initialProductForm.category,
+    [catalogCategories],
+  );
   const typeOptions = [
     { value: 'all', label: t.filters.allTypes },
     ...productTypes.map((type) => ({ value: type, label: t.typeLabels[type] })),
@@ -109,7 +166,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
 
   const resetProductModal = () => {
     setEditingProductId(null);
-    setForm(initialProductForm);
+    setForm({ ...initialProductForm, category: defaultCategoryValue });
   };
 
   const handleProductModalOpenChange = (open: boolean) => {
@@ -117,17 +174,20 @@ export function useProductsCatalog(t: ProductsTranslations) {
 
     if (!open) {
       resetProductModal();
+      setProductSaveError(null);
     }
   };
 
   const handleOpenCreateProduct = () => {
     resetProductModal();
+    setProductSaveError(null);
     setIsCreateOpen(true);
   };
 
   const handleEditProduct = (product: SalesCatalogItem) => {
     setEditingProductId(product.id);
     setForm(buildProductForm(product));
+    setProductSaveError(null);
     setIsCreateOpen(true);
   };
 
@@ -156,8 +216,12 @@ export function useProductsCatalog(t: ProductsTranslations) {
   };
 
   const handleUpdateProductCategory = (product: SalesCatalogItem, category: string) => {
-    updateProduct(product.id, {
+    void updateProductRecord(product.id, {
       category: category as SalesCatalogItem['category'],
+    }).catch(() => {
+      updateProduct(product.id, {
+        category: category as SalesCatalogItem['category'],
+      });
     });
   };
 
@@ -201,24 +265,44 @@ export function useProductsCatalog(t: ProductsTranslations) {
     }
 
     const nextCategory = createProductCategory(normalizedName, managedCategories.length);
-    setManagedCategories((current) => [...current, nextCategory]);
+    updateManagedCategories((current) => [...current, nextCategory]);
     setForm((current) => ({ ...current, category: nextCategory.value }));
   };
 
-  const handleSaveProduct = () => {
+  const handleSaveProduct = async () => {
     if (!form.name.trim() || !form.sku.trim()) {
       return;
     }
 
-    const productInput = buildProductInput(form, editingProduct?.thumbnailTone ?? 'coral');
+    setIsSavingProduct(true);
+    setProductSaveError(null);
 
-    if (editingProductId) {
-      updateProduct(editingProductId, productInput);
-    } else {
-      addProduct(productInput);
+    try {
+      const uploadedImages = await persistProductImageDrafts(form.uploadedImages);
+      const productInput = buildProductInput(
+        { ...form, uploadedImages },
+        editingProduct?.thumbnailTone ?? 'coral',
+      );
+      const savedProduct = editingProductId
+        ? await updateProductRecord(editingProductId, productInput)
+        : await createProductRecord(productInput);
+      const persistedProductId = savedProduct.backendId ?? Number(savedProduct.id);
+
+      const hasNewUploads = uploadedImages.some((image) => image.source === 'upload' && image.objectKey);
+      if (Number.isFinite(persistedProductId)) {
+        await registerPersistedProductImages(persistedProductId, uploadedImages);
+        if (hasNewUploads) {
+          await reloadProducts();
+        }
+      }
+
+      handleProductModalOpenChange(false);
+    } catch (error) {
+      console.warn('[Sales] product image save failed', error);
+      setProductSaveError('No se pudo guardar el producto con sus imagenes. Intenta de nuevo.');
+    } finally {
+      setIsSavingProduct(false);
     }
-
-    handleProductModalOpenChange(false);
   };
 
   return {
@@ -237,10 +321,12 @@ export function useProductsCatalog(t: ProductsTranslations) {
     isCategoryManagerOpen,
     isColumnsOpen,
     isCreateOpen,
+    isSavingProduct,
     isPublicCatalogOpen,
     managedCategories,
     posReadyCount,
     products,
+    productSaveError,
     publicCatalogCount,
     readyForSalesCount,
     search,
@@ -272,7 +358,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
     setIsCategoryManagerOpen,
     setIsColumnsOpen,
     setIsPublicCatalogOpen,
-    setManagedCategories,
+    setManagedCategories: updateManagedCategories,
     setForm,
     setSearch,
     setStatusFilter,

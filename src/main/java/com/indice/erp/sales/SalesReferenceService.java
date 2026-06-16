@@ -17,6 +17,7 @@ class SalesReferenceService {
         validateBusiness(companyId, SalesPayloadSupport.longValue(payload, "businessId"));
         validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "ownerUserCompanyId"));
         validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "assignedSellerUserCompanyId"));
+        validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "sellerUserCompanyId"));
 
         validateSalesReference(companyId, "sales_contacts", SalesPayloadSupport.longValue(payload, "contactId"), "contactId");
         validateSalesReference(companyId, "sales_opportunities", SalesPayloadSupport.longValue(payload, "opportunityId"), "opportunityId");
@@ -38,6 +39,7 @@ class SalesReferenceService {
             case "opportunity", "opportunities" -> "sales_opportunities";
             case "product", "products" -> "sales_products";
             case "quote", "quotes" -> "sales_quotes";
+            case "sale", "sales" -> "sales_records";
             case "contract", "contracts" -> "sales_contracts";
             case "post_sale", "post-sales", "postSale", "post_sale_case" -> "sales_post_sale_cases";
             default -> null;
