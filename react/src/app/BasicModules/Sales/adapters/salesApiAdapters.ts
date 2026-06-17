@@ -8,6 +8,7 @@ import type {
   SalesQuoteItem,
 } from '../types';
 import type { SaleRecord } from '../Sales/types/salesTypes';
+import { defaultSalesCurrency, normalizeSalesCurrencyCode } from '../utils/salesCurrency';
 
 type ApiRow = Record<string, unknown>;
 type EntityWithBackendId = { id: string; backendId?: number };
@@ -232,6 +233,7 @@ export function toFrontendOpportunity(row: ApiRow): SalesOpportunity {
     ownerUserCompanyId: toOptionalNumber(row.ownerUserCompanyId) ?? null,
     owner: toStringValue(row.ownerName),
     estimatedValue: toStringValue(row.estimatedValue, '0'),
+    currency: normalizeSalesCurrencyCode(toStringValue(row.currency), defaultSalesCurrency),
     probability: `${toNumber(row.probabilityPercent, 10)}%` as SalesOpportunity['probability'],
     expectedCloseDate: dateOnly(row.expectedCloseDate),
     nextAction: apiLabel(row.nextAction, 'Follow up') as SalesOpportunity['nextAction'],
@@ -262,6 +264,7 @@ export function toBackendOpportunity(opportunity: Partial<SalesOpportunity>, con
     ownerUserCompanyId: opportunity.ownerUserCompanyId ?? undefined,
     ownerName: opportunity.owner,
     estimatedValue: toNumber(opportunity.estimatedValue),
+    currency: normalizeSalesCurrencyCode(opportunity.currency),
     probabilityPercent: Number.parseInt(toStringValue(opportunity.probability).replace('%', ''), 10) || undefined,
     expectedCloseDate: opportunity.expectedCloseDate || undefined,
     nextAction: toApiToken(opportunity.nextAction),
@@ -285,7 +288,7 @@ export function toFrontendProduct(row: ApiRow): SalesCatalogItem {
     description: toStringValue(row.description),
     price: toNumber(row.price),
     cost: toNumber(row.cost),
-    currency: toStringValue(row.currency, 'MXN'),
+    currency: normalizeSalesCurrencyCode(toStringValue(row.currency), defaultSalesCurrency),
     taxCategory: apiLabel(row.taxCategory, 'Standard VAT') as SalesCatalogItem['taxCategory'],
     status: apiLabel(row.status, 'Active') as SalesCatalogItem['status'],
     visibility: apiLabel(row.visibility, 'Commercial') as SalesCatalogItem['visibility'],
@@ -315,7 +318,7 @@ export function toBackendProduct(product: Partial<SalesCatalogItem>) {
     type: toApiToken(product.type),
     price: product.price,
     cost: product.cost,
-    currency: product.currency ?? 'MXN',
+    currency: normalizeSalesCurrencyCode(product.currency),
     taxCategory: toApiToken(product.taxCategory),
     status: toApiToken(product.status),
     visibility: toApiToken(product.visibility),
@@ -345,6 +348,9 @@ export function toFrontendQuoteItem(row: ApiRow): SalesQuoteItem {
   const discountPercent = toNumber(row.discountPercent);
   const taxPercent = toNumber(row.taxPercent);
   const subtotal = quantity * unitPrice;
+  const originalCurrency = toStringValue(metadata.originalCurrency);
+  const quoteCurrency = toStringValue(metadata.quoteCurrency);
+  const unitCost = toNumber(metadata.unitCost);
   return {
     id: toStringValue(row.id),
     backendId: toOptionalNumber(row.id),
@@ -354,7 +360,16 @@ export function toFrontendQuoteItem(row: ApiRow): SalesQuoteItem {
     section: toStringValue(row.section, 'General'),
     quantity,
     unitPrice,
-    unitCost: toNumber(metadata.unitCost),
+    unitCost,
+    originalCurrency: originalCurrency ? normalizeSalesCurrencyCode(originalCurrency) : undefined,
+    originalUnitPrice: toOptionalNumber(metadata.originalUnitPrice),
+    originalUnitCost: toOptionalNumber(metadata.originalUnitCost),
+    quoteCurrency: quoteCurrency ? normalizeSalesCurrencyCode(quoteCurrency) : undefined,
+    exchangeRate: toOptionalNumber(metadata.exchangeRate),
+    exchangeRateDate: toStringValue(metadata.exchangeRateDate),
+    exchangeRateSource: toStringValue(metadata.exchangeRateSource),
+    convertedUnitPrice: toOptionalNumber(metadata.convertedUnitPrice),
+    convertedUnitCost: toOptionalNumber(metadata.convertedUnitCost),
     discountPercent,
     taxPercent,
     subtotal,
@@ -385,6 +400,15 @@ export function toBackendQuoteItem(item: Partial<SalesQuoteItem>, products: Sale
     sortOrder: item.backendId,
     metadata: {
       unitCost: item.unitCost,
+      originalCurrency: item.originalCurrency,
+      originalUnitPrice: item.originalUnitPrice,
+      originalUnitCost: item.originalUnitCost,
+      quoteCurrency: item.quoteCurrency,
+      exchangeRate: item.exchangeRate,
+      exchangeRateDate: item.exchangeRateDate,
+      exchangeRateSource: item.exchangeRateSource,
+      convertedUnitPrice: item.convertedUnitPrice,
+      convertedUnitCost: item.convertedUnitCost,
       subtotal: item.subtotal,
       marginAmount: item.marginAmount,
       businessUnitId: item.businessUnitId,
@@ -427,6 +451,7 @@ export function toFrontendQuote(row: ApiRow): SalesQuote {
     discountTotal,
     taxTotal,
     total,
+    currency: normalizeSalesCurrencyCode(toStringValue(row.currency), defaultSalesCurrency),
     notes: toStringValue(row.notes),
     terms: toStringValue(row.terms),
     files: toStringArray(customFields.files),
@@ -449,7 +474,7 @@ export function toBackendQuote(
     contactPerson: quote.contactPerson,
     status: toApiToken(quote.status),
     amount: quote.total,
-    currency: 'MXN',
+    currency: normalizeSalesCurrencyCode(quote.currency),
     createdDate: quote.createdDate || undefined,
     expirationDate: quote.expirationDate || undefined,
     assignedSellerUserCompanyId: quote.assignedSellerUserCompanyId ?? undefined,
@@ -492,7 +517,7 @@ export function toFrontendSaleRecord(row: ApiRow): SaleRecord {
     discountTotal: toNumber(row.discountTotal),
     taxTotal: toNumber(row.taxTotal),
     marginTotal: toNumber(row.marginTotal),
-    currency: toStringValue(row.currency, 'MXN'),
+    currency: normalizeSalesCurrencyCode(toStringValue(row.currency), defaultSalesCurrency),
     paymentMethod: toStringValue(row.paymentMethod),
     paymentReference: toStringValue(row.paymentReference),
     paymentEvidenceStatus: toStringValue(row.paymentEvidenceStatus, 'missing') as SaleRecord['paymentEvidenceStatus'],
@@ -536,7 +561,7 @@ export function toBackendSaleRecord(
     discountTotal: sale.discountTotal,
     taxTotal: sale.taxTotal,
     marginTotal: sale.marginTotal,
-    currency: sale.currency,
+    currency: normalizeSalesCurrencyCode(sale.currency),
     paymentMethod: sale.paymentMethod,
     paymentReference: sale.paymentReference,
     paymentEvidenceStatus: sale.paymentEvidenceStatus,
@@ -581,6 +606,7 @@ export function toFrontendPostSaleCase(row: ApiRow): SalesPostSaleCase {
     nextFollowUpDate: dateOnly(row.nextFollowUpDate),
     renewalDate: dateOnly(row.renewalDate),
     lifetimeValue: toNumber(row.lifetimeValue),
+    currency: normalizeSalesCurrencyCode(toStringValue(row.currency), defaultSalesCurrency),
     notes: toStringValue(row.notes),
     files: [],
     lostReason: apiLabel(row.lostReason) as SalesPostSaleCase['lostReason'],
@@ -606,6 +632,7 @@ export function toBackendPostSaleCase(postSaleCase: Partial<SalesPostSaleCase>, 
     nextFollowUpDate: postSaleCase.nextFollowUpDate,
     renewalDate: postSaleCase.renewalDate,
     lifetimeValue: postSaleCase.lifetimeValue,
+    currency: normalizeSalesCurrencyCode(postSaleCase.currency),
     riskLevel: toApiToken(postSaleCase.riskLevel),
     lostReason: postSaleCase.lostReason ? toApiToken(postSaleCase.lostReason) : undefined,
     nextAction: postSaleCase.nextAction,

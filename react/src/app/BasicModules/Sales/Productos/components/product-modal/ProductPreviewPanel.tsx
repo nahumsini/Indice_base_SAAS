@@ -63,7 +63,7 @@ export function ProductPreviewPanel({
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                 <p className="font-semibold text-slate-500">{t.labels.price}</p>
-                <p className="mt-1 font-black text-slate-950">{formatProductCurrency(product.price)}</p>
+                <p className="mt-1 font-black text-slate-950">{formatProductCurrency(product.price, product.currency)}</p>
               </div>
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                 <p className="font-semibold text-slate-500">{t.labels.margin}</p>
@@ -87,7 +87,7 @@ export function ProductPreviewPanel({
                   {t.packaging.previewTitle}
                 </p>
                 <p className="mt-2 text-sm font-black text-slate-950">
-                  {t.packaging.priceSummary(formatProductCurrency(presentationPrice), t.packaging.saleUnitLabels[product.packaging.saleUnit])}
+                  {t.packaging.priceSummary(formatProductCurrency(presentationPrice, product.currency), t.packaging.saleUnitLabels[product.packaging.saleUnit])}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
                   {t.packaging.contentSummary(

@@ -44,7 +44,7 @@ export function resolveSalesGuidanceLocale(locale: string | null | undefined): S
     return 'es-CO';
   }
 
-  if (loweredLocale.startsWith('es')) {
+  if (loweredLocale.startsWith('es-')) {
     return 'es-MX';
   }
 

@@ -3,7 +3,7 @@ import { Badge } from '../../../../components/ui/badge';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
-import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import type { ProspectosCopy } from '../translations';
 import { setOpportunityDragData } from '../utils/prospectosFormatters';
 import { temperatureClasses } from '../utils/prospectosStatus';
 
@@ -22,7 +22,7 @@ export function ProspectosAgendaSidebar({
 }) {
   return (
     <aside
-      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+      className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm"
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => onScheduleDrop(event, '', '')}
     >
@@ -37,7 +37,7 @@ export function ProspectosAgendaSidebar({
             key={opportunity.id}
             draggable
             onDragStart={(event) => setOpportunityDragData(event, opportunity.id)}
-            className="cursor-grab rounded-lg border border-slate-200 bg-slate-50 p-3 transition hover:border-[#FF6B5E]/35 hover:bg-white hover:shadow-sm active:cursor-grabbing"
+            className="cursor-grab rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-[#FF6B5E]/35 hover:bg-white hover:shadow-sm active:cursor-grabbing"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -53,18 +53,18 @@ export function ProspectosAgendaSidebar({
                 type="date"
                 value={opportunitySchedules.get(opportunity.id)?.date ?? ''}
                 onChange={(event) => onDraftChange(opportunity, 'date', event.target.value)}
-                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-semibold shadow-none"
+                className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold shadow-none"
               />
               <Input
                 type="time"
                 value={opportunitySchedules.get(opportunity.id)?.time ?? ''}
                 onChange={(event) => onDraftChange(opportunity, 'time', event.target.value)}
-                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-semibold shadow-none"
+                className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold shadow-none"
               />
             </div>
           </article>
         )) : (
-          <div className="rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm font-medium text-slate-400">
+          <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm font-medium text-slate-400">
             {copy.agenda.allScheduled}
           </div>
         )}

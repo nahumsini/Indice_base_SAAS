@@ -1,4 +1,5 @@
 import type { PaymentAccount, PaymentAccountType } from '../PaymentAccounts/types';
+import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import {
   asNumber,
   asObject,
@@ -52,7 +53,7 @@ export const toCreatePaymentAccountApiRequest = (
 	  businessId: numericId(account.businessId) ?? null,
 	  name: account.name.trim(),
   type: legacyToBackendType(account.type),
-  currencyCode: (account.currency || 'MXN').slice(0, 3).toUpperCase(),
+  currencyCode: (account.currency || DEFAULT_FINANCE_CURRENCY).slice(0, 3).toUpperCase(),
   openingBalance: account.balance,
   currentBalance: null,
   status: account.isActive ? 'ACTIVE' : 'INACTIVE',

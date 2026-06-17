@@ -23,6 +23,7 @@ export type SalesOpportunity = {
   ownerUserCompanyId?: number | null;
   owner: string;
   estimatedValue: string;
+  currency?: string;
   probability: OpportunityProbability;
   expectedCloseDate: string;
   nextAction: OpportunityNextAction;

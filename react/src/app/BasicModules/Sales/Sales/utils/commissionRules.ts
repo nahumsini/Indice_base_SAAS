@@ -1,4 +1,5 @@
 import type { SaleLine, SaleRecord } from '../types/salesTypes';
+import { formatSalesCurrencyBreakdown } from '../../utils/salesCurrency';
 import type {
   CommissionCalculationInput,
   CommissionKpis,
@@ -149,6 +150,7 @@ function createCommissionRecord({
     commissionValue,
     saleAmount: line?.subtotal ?? sale.totalAmount,
     commissionAmount,
+    currency: sale.currency,
     status,
     createdDate: sale.saleDate,
     approvedDate: ['approved', 'paid'].includes(status) ? sale.saleDate : undefined,
@@ -222,18 +224,19 @@ export function calculateCommissionRecords(sales: SaleRecord[], rules: Commissio
 export function calculateCommissionKpis(records: CommissionRecord[]): CommissionKpis {
   const totalCommissions = records.reduce((total, record) => total + record.commissionAmount, 0);
   const totalSaleAmount = records.reduce((total, record) => total + record.saleAmount, 0);
+  const pendingRecords = records.filter((record) => record.status === 'pending');
+  const approvedRecords = records.filter((record) => record.status === 'approved');
+  const paidRecords = records.filter((record) => record.status === 'paid');
 
   return {
     totalCommissions,
-    pendingCommissions: records
-      .filter((record) => record.status === 'pending')
-      .reduce((total, record) => total + record.commissionAmount, 0),
-    approvedCommissions: records
-      .filter((record) => record.status === 'approved')
-      .reduce((total, record) => total + record.commissionAmount, 0),
-    paidCommissions: records
-      .filter((record) => record.status === 'paid')
-      .reduce((total, record) => total + record.commissionAmount, 0),
+    totalCommissionsLabel: formatSalesCurrencyBreakdown(records, (record) => record.commissionAmount, (record) => record.currency),
+    pendingCommissions: pendingRecords.reduce((total, record) => total + record.commissionAmount, 0),
+    pendingCommissionsLabel: formatSalesCurrencyBreakdown(pendingRecords, (record) => record.commissionAmount, (record) => record.currency),
+    approvedCommissions: approvedRecords.reduce((total, record) => total + record.commissionAmount, 0),
+    approvedCommissionsLabel: formatSalesCurrencyBreakdown(approvedRecords, (record) => record.commissionAmount, (record) => record.currency),
+    paidCommissions: paidRecords.reduce((total, record) => total + record.commissionAmount, 0),
+    paidCommissionsLabel: formatSalesCurrencyBreakdown(paidRecords, (record) => record.commissionAmount, (record) => record.currency),
     commissionRate: totalSaleAmount > 0 ? (totalCommissions / totalSaleAmount) * 100 : 0,
     commissionCount: records.length,
   };

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLanguage } from '../../../../shared/context';
 
-const enCA = {
+export const enCA = {
   eyebrow: 'Learning mode',
   title: 'Opportunity operating guide',
   subtitle: 'Use Opportunities to control active commercial work before it becomes a quote, sale, or operational commitment.',
@@ -45,7 +45,7 @@ type WidenLiterals<T> =
 
 type ProspectosLearningCopy = WidenLiterals<typeof enCA>;
 
-const esMX: ProspectosLearningCopy = {
+export const esMX: ProspectosLearningCopy = {
   eyebrow: 'Modo Aprendiz',
   title: 'Guía operativa de oportunidades',
   subtitle: 'Usa Oportunidades para controlar trabajo comercial activo antes de que se convierta en cotización, venta o compromiso operativo.',
@@ -74,17 +74,17 @@ const esMX: ProspectosLearningCopy = {
   footer: 'Una oportunidad no garantiza ingreso. Es una hipótesis comercial controlada que debe ganarse el paso a cotización.',
 };
 
-const enUS: ProspectosLearningCopy = {
+export const enUS: ProspectosLearningCopy = {
   ...enCA,
   footer: 'An opportunity is not guaranteed revenue. It is a controlled commercial hypothesis that must earn its way into a quote.',
 };
 
-const esCO: ProspectosLearningCopy = {
+export const esCO: ProspectosLearningCopy = {
   ...esMX,
   footer: 'Una oportunidad no garantiza ingreso. Es una hipótesis comercial controlada que debe ganarse el paso a cotización.',
 };
 
-const frCA: ProspectosLearningCopy = {
+export const frCA: ProspectosLearningCopy = {
   ...enCA,
   eyebrow: 'Mode apprentissage',
   title: 'Guide operationnel des occasions',
@@ -114,7 +114,7 @@ const frCA: ProspectosLearningCopy = {
   footer: 'Une occasion ne garantit pas le revenu. C est une hypothese commerciale controlee qui doit meriter son passage au devis.',
 };
 
-const ptBR: ProspectosLearningCopy = {
+export const ptBR: ProspectosLearningCopy = {
   ...enCA,
   eyebrow: 'Modo aprendiz',
   title: 'Guia operacional de oportunidades',
@@ -144,7 +144,7 @@ const ptBR: ProspectosLearningCopy = {
   footer: 'Uma oportunidade nao garante receita. E uma hipotese comercial controlada que deve merecer a cotacao.',
 };
 
-const koCA: ProspectosLearningCopy = {
+export const koCA: ProspectosLearningCopy = {
   ...enCA,
   eyebrow: '학습 모드',
   title: '기회 운영 가이드',
@@ -174,7 +174,7 @@ const koCA: ProspectosLearningCopy = {
   footer: '기회는 매출 보장이 아닙니다. 견적으로 이동할 자격을 얻어야 하는 통제된 영업 가설입니다.',
 };
 
-const zhCA: ProspectosLearningCopy = {
+export const zhCA: ProspectosLearningCopy = {
   ...enCA,
   eyebrow: '学习模式',
   title: '机会运营指南',
@@ -204,7 +204,7 @@ const zhCA: ProspectosLearningCopy = {
   footer: '机会不是收入保证。它是一个受控的商业假设，必须证明自己值得进入报价。',
 };
 
-const prospectosLearningTranslations = {
+export const prospectosLearningTranslations = {
   'en-CA': enCA,
   'en-US': enUS,
   'es-MX': esMX,
@@ -215,7 +215,7 @@ const prospectosLearningTranslations = {
   'zh-CA': zhCA,
 } satisfies Record<string, ProspectosLearningCopy>;
 
-function resolveProspectosLearningLocale(locale: string | null | undefined) {
+export function resolveProspectosLearningLocale(locale: string | null | undefined) {
   if (!locale) {
     return 'en-CA';
   }
@@ -227,7 +227,7 @@ function resolveProspectosLearningLocale(locale: string | null | undefined) {
   const loweredLocale = locale.toLowerCase();
 
   if (loweredLocale.startsWith('es-co')) return 'es-CO';
-  if (loweredLocale.startsWith('es')) return 'es-MX';
+  if (loweredLocale.startsWith('es-')) return 'es-MX';
   if (loweredLocale.startsWith('fr')) return 'fr-CA';
   if (loweredLocale.startsWith('pt')) return 'pt-BR';
   if (loweredLocale.startsWith('ko')) return 'ko-CA';

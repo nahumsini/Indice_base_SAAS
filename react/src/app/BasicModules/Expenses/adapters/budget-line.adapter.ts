@@ -1,4 +1,5 @@
 import { expenseCategories } from '../data/categories.data';
+import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import type { Expense } from '../types/expenses.types';
 import { BudgetHealthStatus, BudgetStatus } from '../types/finance-status.types';
 import type { FinanceBudgetLine } from '../types/finance-domain.types';
@@ -124,7 +125,7 @@ export const toBudgetLineApiRequest = (expense: Expense): BudgetLineApiRequest =
   name: toBudgetLineName(expense),
   categoryKey: expense.category.id,
   plannedAmount: expense.total || expense.amount,
-  currencyCode: (expense.currency || 'USD').slice(0, 3).toUpperCase(),
+  currencyCode: (expense.currency || DEFAULT_FINANCE_CURRENCY).slice(0, 3).toUpperCase(),
   status: expense.status === 'paid' || expense.status === 'audited' ? 'CLOSED' : 'ACTIVE',
   description: optionalString(expense.description),
   customFields: compactObject({

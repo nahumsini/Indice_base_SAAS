@@ -37,6 +37,71 @@ export const esMX: QuotesTranslations = {
     expiringSoon: 'por vencer',
     summary: '{expiring} cotizaciones por vencer; el valor visible es de {value} y el margen promedio es {margin}%.',
   },
+  kpiEngine: {
+    labels: {
+      visible: 'visibles',
+      live: 'vivas',
+      quotedValue: 'valor cotizado',
+      readyToSend: 'listas',
+      averageMargin: 'margen prom.',
+      expiringSoon: 'por vencer',
+    },
+    alerts: {
+      expiringSoon: (count: number) => `${count} por vencer`,
+      expired: (count: number) => `${count} vencidas`,
+      lowMargin: (count: number) => `${count} margen bajo`,
+      readinessIssues: (count: number) => `${count} requieren revisión`,
+    },
+    segments: {
+      Draft: 'Borrador',
+      Sent: 'Enviada',
+      Viewed: 'Vista',
+      Negotiation: 'Negociación',
+      Approved: 'Aprobada',
+      Rejected: 'Rechazada',
+      Expired: 'Vencida',
+      'Closed Won': 'Ganada',
+    },
+    insight: ({
+      averageMargin,
+      expiringSoon,
+      expired,
+      lowMargin,
+      quotedValue,
+      readinessIssues,
+      visible,
+    }: {
+      averageMargin: number;
+      expiringSoon: number;
+      expired: number;
+      lowMargin: number;
+      quotedValue: string;
+      readinessIssues: number;
+      visible: number;
+    }) => {
+      if (visible === 0) {
+        return 'No hay cotizaciones visibles con los filtros actuales; ajusta la vista antes de actuar.';
+      }
+
+      if (expired > 0) {
+        return `${expired} cotizaciones están vencidas y deben renovarse, cerrarse o salir del seguimiento activo.`;
+      }
+
+      if (expiringSoon > 0) {
+        return `${expiringSoon} cotizaciones vencen pronto; revisa vigencia antes de que la promesa comercial pierda fuerza.`;
+      }
+
+      if (readinessIssues > 0) {
+        return `${readinessIssues} cotizaciones requieren revisión de preparación antes de enviarse con confianza.`;
+      }
+
+      if (lowMargin > 0) {
+        return `${lowMargin} cotizaciones tienen margen bajo; revisa precio, descuento o costo antes de aprobar.`;
+      }
+
+      return `El valor cotizado visible es ${quotedValue} con ${averageMargin}% de margen promedio.`;
+    },
+  },
   sections: {
     tableTitle: 'Tabla operativa de cotizaciones',
     tableDescription: 'Las cotizaciones se mantienen independientes, pero pueden conectarse a una o varias oportunidades en el tiempo.',
@@ -94,6 +159,7 @@ export const esMX: QuotesTranslations = {
     opportunity: 'Oportunidad',
     status: 'Estado',
     seller: 'Vendedor asignado',
+    currency: 'Moneda',
     createdDate: 'Fecha de creación',
     expirationDate: 'Fecha de vigencia',
     notes: 'Notas',
@@ -120,6 +186,8 @@ export const esMX: QuotesTranslations = {
     removeItem: 'Eliminar item',
     emptyItems: 'Agrega productos o servicios desde el catálogo para construir la cotización.',
     submit: 'Crear cotización',
+    submitAndPrint: 'Crear e imprimir',
+    saveAndPrint: 'Guardar e imprimir',
     clientPlaceholder: 'Seleccionar contacto',
     temporaryClientPlaceholder: 'Cliente o cuenta',
     contactPlaceholder: 'Persona de contacto',
@@ -132,11 +200,11 @@ export const esMX: QuotesTranslations = {
     expirationWarning: (days: number) => `Esta cotización vence en ${days} día(s). Revisa la vigencia antes de enviarla.`,
   },
   builderSections: {
-    customer: 'Cliente y oportunidad',
+    customer: 'Cliente y configuración',
     items: 'Agregar items',
-    pricing: 'Precios e impuestos',
+    pricing: 'Divisa e impuestos',
     conditions: 'Condiciones',
-    summary: 'Resumen',
+    summary: 'Revisión final',
   },
   catalog: {
     description: 'Los items reutilizables listos para cotizar aparecen por defecto.',
@@ -155,7 +223,10 @@ export const esMX: QuotesTranslations = {
     description: 'Ajusta cantidad, precio final, descuento, impuesto y notas de cada item cotizado.',
   },
   pricing: {
-    taxHelper: 'Elige una sola jurisdicción fiscal para esta cotización. Los impuestos de cada partida salen de ese país o de un perfil personalizado.',
+    taxHelper: 'Define la divisa final de la cotización y el país fiscal. Los productos en otra divisa se convierten a esta moneda y cada partida toma impuestos del país seleccionado.',
+    catalogPrice: 'Precio de catálogo',
+    convertedPrice: 'Precio en cotización',
+    exchangeRate: 'Tipo de cambio',
     taxableSubtotal: 'Subtotal después de descuento',
     estimatedCost: 'Costo estimado',
     estimatedProfit: 'Utilidad estimada',
@@ -182,8 +253,8 @@ export const esMX: QuotesTranslations = {
     custom: 'Personalizado',
   },
   taxBuilder: {
-    title: 'Lector de jurisdicción fiscal',
-    description: 'Una cotización solo debe operar bajo una jurisdicción fiscal. Primero elige país y después selecciona el impuesto legal o configurable que aplica a cada partida.',
+    title: 'Configuración fiscal y moneda',
+    description: 'Elige el país fiscal antes de agregar items. La moneda se asigna automáticamente por país y los impuestos disponibles se preparan para las partidas.',
     jurisdiction: 'Jurisdicción fiscal',
     singleJurisdictionNote: (jurisdiction: string) => `Esta cotización se prepara bajo ${jurisdiction}. Cambia la jurisdicción solo si toda la cotización se facturará ahí.`,
     customJurisdictionName: 'Nombre de jurisdicción personalizada',

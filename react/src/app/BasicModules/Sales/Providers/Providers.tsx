@@ -3,8 +3,10 @@ import { FailureToast } from '../../../components/FailureToast';
 import ProveedoresPage from '../../Expenses/Providers/ProveedoresPage';
 import type { ProviderRecord } from '../../Expenses/Providers/useProveedoresLogic';
 import { providersService, toFinanceApiErrorMessage } from '../../Expenses/services';
+import { useSalesProvidersTranslations } from './hooks/useSalesProvidersTranslations';
 
 export default function SalesProviders() {
+  const copy = useSalesProvidersTranslations();
   const [providers, setProviders] = useState<ProviderRecord[]>([]);
   const [failureToastMessage, setFailureToastMessage] = useState('');
 
@@ -34,9 +36,9 @@ export default function SalesProviders() {
         onClose={() => setFailureToastMessage('')}
       />
       <ProveedoresPage
-        headerIcon="🏢"
-        headerSubtitle="Directorio compartido para proveedores comerciales, inventario y gastos."
-        headerTitle="Proveedores"
+        headerIcon={copy.header.icon}
+        headerSubtitle={copy.header.subtitle}
+        headerTitle={copy.header.title}
         onProvidersChange={setProviders}
         providers={providers}
         variant="sales"

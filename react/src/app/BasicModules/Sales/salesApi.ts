@@ -24,6 +24,9 @@ export type SalesApiCollection =
   | 'products'
   | 'quotes'
   | 'sales'
+  | 'inventory-warehouses'
+  | 'inventory-balances'
+  | 'inventory-movements'
   | 'post-sales'
   | 'contracts';
 

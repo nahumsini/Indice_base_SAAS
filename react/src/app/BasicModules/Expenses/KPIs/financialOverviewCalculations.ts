@@ -2,6 +2,7 @@ import type { AccountingAccount } from '../AccountingAccounts/types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import type { FinanceBudget, FinanceBudgetLine, FinanceCurrency, FinanceExpense } from '../types/finance-domain.types';
+import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import type { FinanceReferenceData } from '../types/finance-reference.types';
 import type {
   FinancialOverviewCostDriver,
@@ -78,11 +79,11 @@ export const deriveBudgetHealthStatus = (
 
 const dominantCurrency = (expenses: FinanceExpense[], budgetLines: FinanceBudgetLine[]): FinanceCurrency => {
   const counts = new Map<FinanceCurrency, number>();
-  [...expenses.map(expense => expense.currency), ...budgetLines.map(line => line.currencyCode ?? 'MXN')]
+  [...expenses.map(expense => expense.currency), ...budgetLines.map(line => line.currencyCode ?? DEFAULT_FINANCE_CURRENCY)]
     .filter(Boolean)
     .forEach(currency => counts.set(currency, (counts.get(currency) ?? 0) + 1));
 
-  return Array.from(counts.entries()).sort((left, right) => right[1] - left[1])[0]?.[0] ?? 'MXN';
+  return Array.from(counts.entries()).sort((left, right) => right[1] - left[1])[0]?.[0] ?? DEFAULT_FINANCE_CURRENCY;
 };
 
 const labelFrom = <T extends { id: string; name: string }>(

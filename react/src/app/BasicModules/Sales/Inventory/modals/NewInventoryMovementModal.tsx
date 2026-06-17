@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PackagePlus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -18,6 +10,7 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type {
   InventoryLocation,
   InventoryMovementDraft,
@@ -39,6 +32,8 @@ const emptyMovementDraft: InventoryMovementDraft = {
   responsibleUserId: '',
   responsibleName: '',
 };
+
+const movementActionClassNames = getSalesModalActionClassNames('coral');
 
 function FieldLabel({ children }: { children: string }) {
   return <label className="text-sm font-bold text-slate-700">{children}</label>;
@@ -105,17 +100,25 @@ export function NewInventoryMovementModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-4xl overflow-hidden rounded-xl border-slate-200 bg-white p-0 shadow-2xl">
-        <DialogHeader className="rounded-t-xl bg-[#FF6B5E] px-6 py-5 text-left text-white">
-          <DialogTitle className="flex items-center gap-2 text-xl font-black">
-            <PackagePlus className="h-5 w-5" />
-            {t.modal.title}
-          </DialogTitle>
-          <DialogDescription className="text-sm font-medium text-white/85">{t.modal.subtitle}</DialogDescription>
-        </DialogHeader>
-
-        <div className="max-h-[68vh] overflow-y-auto p-6">
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t.modal.title}
+      description={t.modal.subtitle}
+      icon={<PackagePlus className="h-6 w-6" />}
+      contentClassName="flex max-h-[92vh] max-w-4xl flex-col"
+      bodyClassName="!max-h-none flex-1 overflow-y-auto bg-slate-50/70 p-6"
+      footer={(
+        <>
+          <Button variant="outline" className={movementActionClassNames.secondary} onClick={() => onOpenChange(false)}>
+            {t.common.cancel}
+          </Button>
+          <Button className={movementActionClassNames.primary} onClick={handleSubmit}>
+            {t.modal.submit}
+          </Button>
+        </>
+      )}
+    >
           <div className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-slate-700">
             {t.modal.helper}
           </div>
@@ -218,17 +221,6 @@ export function NewInventoryMovementModal({
               {selectedItem.name} · {selectedItem.locationName} · {selectedItem.availableStock} {selectedItem.unit}
             </p>
           ) : null}
-        </div>
-
-        <DialogFooter className="rounded-b-xl bg-[#FF6B5E] px-6 py-4">
-          <Button variant="outline" className="h-10 rounded-lg border-white/30 bg-transparent px-4 font-semibold text-white hover:bg-white/10" onClick={() => onOpenChange(false)}>
-            {t.common.cancel}
-          </Button>
-          <Button className="h-10 rounded-lg bg-white px-4 font-semibold text-[#B63B32] hover:bg-white/90" onClick={handleSubmit}>
-            {t.modal.submit}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

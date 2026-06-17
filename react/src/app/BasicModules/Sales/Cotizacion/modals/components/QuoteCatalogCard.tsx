@@ -21,7 +21,7 @@ export function QuoteCatalogCard({
 }: {
   product: SalesCatalogItem;
   t: QuotesTranslations;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number, currency?: string | null) => string;
   onAdd: () => void;
 }) {
   const readiness = getProductCatalogReadiness(product);
@@ -59,7 +59,7 @@ export function QuoteCatalogCard({
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
               <p className="text-xs font-bold text-slate-500">{t.labels.unitPrice}</p>
-              <p className="font-black text-slate-950">{formatCurrency(product.price)}</p>
+              <p className="font-black text-slate-950">{formatCurrency(product.price, product.currency)}</p>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
               <p className="text-xs font-bold text-slate-500">{t.labels.margin}</p>

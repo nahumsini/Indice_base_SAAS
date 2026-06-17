@@ -1,13 +1,11 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { Button } from '../../../../components/ui/button';
+import { History } from 'lucide-react';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { InventoryMovement, InventoryStockItem } from '../types/inventoryTypes';
 import type { InventoryTranslations } from '../translations';
 import { InventoryMovementHistory } from '../components/InventoryMovementHistory';
+
+const itemMovementsActionClassNames = getSalesModalActionClassNames('coral');
 
 export function InventoryItemMovementsModal({
   open,
@@ -23,16 +21,27 @@ export function InventoryItemMovementsModal({
   onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-xl border-slate-200 bg-white p-0 shadow-2xl">
-        <DialogHeader className="rounded-t-xl bg-[#FF6B5E] px-6 py-5 text-left text-white">
-          <DialogTitle className="text-xl font-black">{t.movementHistory.itemMovementsTitle}</DialogTitle>
-          <DialogDescription className="text-sm font-medium text-white/85">{item?.name ?? t.common.notAvailable}</DialogDescription>
-        </DialogHeader>
-        <div className="p-6">
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t.movementHistory.itemMovementsTitle}
+      description={item?.name ?? t.common.notAvailable}
+      icon={<History className="h-5 w-5" />}
+      contentClassName="flex max-h-[90vh] max-w-3xl flex-col"
+      bodyClassName="!max-h-none min-h-0 flex-1 overflow-y-auto bg-slate-50/70 p-6"
+      footerClassName="sm:justify-end"
+      footer={(
+        <Button
+          type="button"
+          variant="outline"
+          className={itemMovementsActionClassNames.secondary}
+          onClick={() => onOpenChange(false)}
+        >
+          {t.common.close}
+        </Button>
+      )}
+    >
           <InventoryMovementHistory movements={movements} t={t} />
-        </div>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

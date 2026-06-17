@@ -25,18 +25,17 @@ import {
 } from '../../../../components/ui/select';
 import { TableCell, TableRow } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
+import { OpportunityCommercialValueCell } from '../components/OpportunityCommercialValueCell';
+import { OpportunityPipelineCell } from '../components/OpportunityPipelineCell';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
 import { OpportunityQuoteSignalBadge } from '../components/OpportunityQuoteSignalBadge';
-import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId } from '../types/prospectosTypes';
 import {
-  formatCurrencyAmount,
   getOpportunityStatusForStage,
   getOpportunitySchedule,
-  normalizeEstimatedValueInput,
-  parseMoney,
-  toEstimatedValueInputValue,
 } from '../utils/prospectosFormatters';
+import { getOpportunityPipelineTotals } from '../utils/prospectosPipeline';
 import { getOpportunityQuoteSignal } from '../utils/prospectosQuoteSignals';
 import { stageClasses, statusClasses, temperatureClasses } from '../utils/prospectosStatus';
 
@@ -57,7 +56,7 @@ function OpportunityInlineSelect<TValue extends string>({
     <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as TValue)}>
       <SelectTrigger
         className={cn(
-          'h-9 min-w-[138px] rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:ring-[#2563EB]/20',
+          'h-9 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate',
           className,
         )}
       >
@@ -95,7 +94,7 @@ function OpportunityOwnerSelect({
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
         className={cn(
-          'h-9 min-w-[172px] rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:ring-[#2563EB]/20',
+          'h-9 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate',
           className,
         )}
       >
@@ -122,18 +121,18 @@ function OpportunityScheduleInlineEditor({
   const schedule = getOpportunitySchedule(opportunity);
 
   return (
-    <div className="grid min-w-[256px] grid-cols-[minmax(132px,1fr)_104px] gap-2">
+    <div className="flex max-w-full min-w-0 flex-wrap gap-2">
       <Input
         type="date"
         value={schedule.date}
         onChange={(event) => onScheduleChange(opportunity, event.target.value, schedule.time)}
-        className="h-9 rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20"
+        className="h-9 min-w-0 flex-[1_1_132px] rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
       />
       <Input
         type="time"
         value={schedule.time}
         onChange={(event) => onScheduleChange(opportunity, schedule.date, event.target.value)}
-        className="h-9 rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20"
+        className="h-9 min-w-0 flex-[1_1_104px] rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
       />
     </div>
   );
@@ -144,6 +143,8 @@ export function ProspectosTableRow({
   opportunity,
   quotes,
   visibleColumns,
+  columnWidths,
+  preferredCurrency,
   ownerSelectOptions,
   resolveOpportunityOwnerValue,
   getOwnerPayloadFromValue,
@@ -158,6 +159,8 @@ export function ProspectosTableRow({
   opportunity: SalesOpportunity;
   quotes: SalesQuote[];
   visibleColumns: Array<{ id: string }>;
+  columnWidths: Record<OpportunityColumnId, number>;
+  preferredCurrency: string;
   ownerSelectOptions: Array<{ value: string; label: string }>;
   resolveOpportunityOwnerValue: (opportunity: SalesOpportunity) => string;
   getOwnerPayloadFromValue: (value: string) => { ownerUserCompanyId: number | null; owner: string };
@@ -169,23 +172,25 @@ export function ProspectosTableRow({
   onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
 }) {
   const quoteSignal = getOpportunityQuoteSignal(opportunity, quotes);
+  const pipeline = getOpportunityPipelineTotals(opportunity, quotes, preferredCurrency);
+  const commercialFilesCount = opportunity.files.length + quoteSignal.quoteCount;
 
   const renderOpportunityCell = (columnId: OpportunityColumnId) => {
     switch (columnId) {
       case 'opportunity':
         return (
-          <div className="min-w-[260px] space-y-1 whitespace-normal">
-            <p className="text-sm font-bold text-slate-950">{opportunity.opportunityName}</p>
-            <p className="text-xs font-semibold text-[#2563EB]">{opportunity.company}</p>
-            <p className="text-xs text-slate-500">{opportunity.id}</p>
+          <div className="min-w-0 max-w-full space-y-1 whitespace-normal">
+            <p className="break-words text-sm font-bold text-slate-950 dark:text-white">{opportunity.opportunityName}</p>
+            <p className="break-words text-xs font-semibold text-[#2563EB]">{opportunity.company}</p>
+            <p className="break-all text-xs text-slate-500">{opportunity.id}</p>
           </div>
         );
       case 'contact':
-        return <span className="text-sm font-semibold text-slate-900">{opportunity.contactPerson}</span>;
+        return <span className="block min-w-0 break-words text-sm font-semibold text-slate-900 dark:text-slate-200">{opportunity.contactPerson}</span>;
       case 'phone':
-        return <span className="text-sm text-slate-700">{opportunity.phone}</span>;
+        return <span className="block min-w-0 break-all text-sm text-slate-700 dark:text-slate-300">{opportunity.phone}</span>;
       case 'email':
-        return <span className="text-sm text-slate-700">{opportunity.email}</span>;
+        return <span className="block min-w-0 break-all text-sm leading-6 text-slate-700 dark:text-slate-300">{opportunity.email}</span>;
       case 'source':
         return (
           <OpportunityInlineSelect<OpportunitySource>
@@ -229,12 +234,11 @@ export function ProspectosTableRow({
         );
       case 'estimatedValue':
         return (
-          <Input
-            value={toEstimatedValueInputValue(opportunity.estimatedValue)}
-            inputMode="decimal"
-            onChange={(event) => onUpdateOpportunity(opportunity.id, { estimatedValue: normalizeEstimatedValueInput(event.target.value) })}
-            placeholder={copy.table.zeroPlaceholder}
-            className="h-9 min-w-[148px] rounded-full border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20"
+          <OpportunityCommercialValueCell
+            copy={copy.table.commercialValue}
+            opportunity={opportunity}
+            pipeline={pipeline}
+            onEstimatedValueChange={(estimatedValue) => onUpdateOpportunity(opportunity.id, { estimatedValue })}
           />
         );
       case 'probability':
@@ -248,13 +252,15 @@ export function ProspectosTableRow({
         );
       case 'quoteSignal':
         return <OpportunityQuoteSignalBadge signal={quoteSignal} copy={copy.quoteSignal} />;
+      case 'pipeline':
+        return <OpportunityPipelineCell pipeline={pipeline} copy={copy.kpis} />;
       case 'expectedCloseDate':
         return (
           <Input
             type="date"
             value={opportunity.expectedCloseDate}
             onChange={(event) => onUpdateOpportunity(opportunity.id, { expectedCloseDate: event.target.value })}
-            className="h-9 min-w-[150px] rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none"
+            className="h-9 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 shadow-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
         );
       case 'nextAction':
@@ -269,12 +275,12 @@ export function ProspectosTableRow({
       case 'nextActionDate':
         return <OpportunityScheduleInlineEditor opportunity={opportunity} onScheduleChange={onScheduleChange} />;
       case 'lastContact':
-        return <span className="text-sm text-slate-700">{opportunity.lastContact || copy.table.noLastContact}</span>;
+        return <span className="block min-w-0 break-words text-sm text-slate-700 dark:text-slate-300">{opportunity.lastContact || copy.table.noLastContact}</span>;
       case 'files':
         return (
-          <button type="button" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100" onClick={() => onOpenFiles(opportunity)}>
+          <button type="button" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => onOpenFiles(opportunity)}>
             <Paperclip className="h-3.5 w-3.5" />
-            {opportunity.files.length}
+            {commercialFilesCount}
           </button>
         );
       case 'status':
@@ -293,13 +299,25 @@ export function ProspectosTableRow({
   };
 
   return (
-    <TableRow className="border-slate-200 hover:bg-slate-50/80">
-      {visibleColumns.map((column) => (
-        <TableCell key={column.id} className="px-5 py-5">
-          {renderOpportunityCell(column.id as OpportunityColumnId)}
-        </TableCell>
-      ))}
-      <TableCell className="px-5 py-5">
+    <TableRow className="border-slate-100 hover:bg-[#FF6B5E]/[0.025] dark:border-slate-700 dark:hover:bg-slate-700/40">
+      {visibleColumns.map((column) => {
+        const columnId = column.id as OpportunityColumnId;
+        const columnWidth = columnWidths[columnId] ?? 160;
+
+        return (
+          <TableCell
+            key={column.id}
+            className="overflow-hidden whitespace-normal px-5 py-5 align-top"
+            style={{ width: `${columnWidth}px`, minWidth: `${columnWidth}px`, maxWidth: `${columnWidth}px` }}
+          >
+            {renderOpportunityCell(columnId)}
+          </TableCell>
+        );
+      })}
+      <TableCell
+        className="whitespace-normal px-4 py-5 align-top"
+        style={{ width: '240px', minWidth: '240px', maxWidth: '240px' }}
+      >
         <ProspectosQuickActions
           copy={copy.quickActions}
           opportunity={opportunity}

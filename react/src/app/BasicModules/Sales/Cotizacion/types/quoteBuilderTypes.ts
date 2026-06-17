@@ -14,6 +14,7 @@ export type QuoteFormState = {
   expirationDate: string;
   assignedSellerValue: string;
   assignedSeller: string;
+  currency: string;
   taxJurisdiction: QuoteTaxJurisdiction;
   customJurisdictionName: string;
   customTaxLabel: string;

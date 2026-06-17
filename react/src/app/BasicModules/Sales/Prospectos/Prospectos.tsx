@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { useLanguage } from '../../../shared/context';
 import {
   salesOwners,
   type OpportunityStage,
@@ -16,10 +18,14 @@ import {
   ownerOptionValue,
   type SalesOwnerOption,
 } from '../utils/salesOwnerOptions';
+import { defaultSalesCurrency, isSalesCurrencyCode } from '../utils/salesCurrency';
 import { normalizeTextKey } from '../utils/salesTextUtils';
+import { useQuotesTranslations } from '../Cotizacion/translations';
+import { SalesDetailModal } from '../Sales/components/SalesDetailModal';
+import { useSalesRecords } from '../Sales/hooks/useSalesRecords';
+import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
 import { ProspectosHeader } from './components/ProspectosHeader';
 import { ProspectosFilters } from './components/ProspectosFilters';
-import { ProspectosInsightBar } from './components/ProspectosInsightBar';
 import { ProspectosKpiStrip } from './components/ProspectosKpiStrip';
 import { ProspectosLearningGuide } from './components/ProspectosLearningGuide';
 import { ProspectosViewTabs } from './components/ProspectosViewTabs';
@@ -29,47 +35,76 @@ import { useProspectosViewState } from './hooks/useProspectosViewState';
 import { ProspectosAgenda } from './agenda/ProspectosAgenda';
 import { ProspectosKanban } from './kanban/ProspectosKanban';
 import { CreateOpportunityModal } from './modals/CreateOpportunityModal';
+import { OpportunityDeleteDialog } from './modals/OpportunityDeleteDialog';
 import { OpportunityDetailModal } from './modals/OpportunityDetailModal';
 import { OpportunityFilesModal } from './modals/OpportunityFilesModal';
 import { ProspectosColumnsModal } from './table/ProspectosColumnsModal';
 import { ProspectosTable } from './table/ProspectosTable';
-import type { OpportunityColumnId, OpportunityFormState } from './types/prospectosTypes';
+import type {
+  OpportunityColumnId,
+  OpportunityFocusFilter,
+  OpportunityFormState,
+  OpportunityPeriodFilter,
+} from './types/prospectosTypes';
 import { canViewAllOpportunities, getContactById, getOwnerSelectValue } from './utils/prospectosFilters';
 import {
   formatOpportunitySchedule,
   getOpportunityStatusForStage,
+  getTodayInputValue,
   normalizeEstimatedValueInput,
   toEstimatedValueInputValue,
 } from './utils/prospectosFormatters';
-import { sortOpportunities } from './utils/prospectosMetrics';
+import { filterOpportunitiesForPeriodView, sortOpportunities } from './utils/prospectosMetrics';
 import { initialOpportunityForm } from './utils/prospectosStatus';
-import { useProspectosLearningCopy } from './translations/prospectosLearning';
-import { useProspectosTranslations } from './translations/prospectosTranslations';
+import {
+  useProspectosLearningTranslations,
+  useProspectosTranslations,
+} from './hooks/useProspectosTranslations';
 
 interface ProspectosProps {
   learningModeActive?: boolean;
 }
 
 export default function Prospectos({ learningModeActive = false }: ProspectosProps) {
+  const { currentLanguage } = useLanguage();
   const t = useProspectosTranslations();
-  const learningCopy = useProspectosLearningCopy();
-  const { contacts, opportunities, quotes, addOpportunity, updateOpportunity, deleteOpportunity } = useSalesCrm();
+  const quoteCopy = useQuotesTranslations();
+  const salesCopy = useSalesTranslations();
+  const learningCopy = useProspectosLearningTranslations();
+  const {
+    contacts,
+    opportunities,
+    products,
+    quotes,
+    addOpportunity,
+    updateOpportunity,
+    deleteOpportunity,
+    updateQuoteStatus,
+  } = useSalesCrm();
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<SalesOpportunity | null>(null);
   const [filesOpportunity, setFilesOpportunity] = useState<SalesOpportunity | null>(null);
   const [historyOpportunity, setHistoryOpportunity] = useState<SalesOpportunity | null>(null);
+  const [pendingDeleteOpportunity, setPendingDeleteOpportunity] = useState<SalesOpportunity | null>(null);
   const [ownerOptions, setOwnerOptions] = useState<SalesOwnerOption[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [contextCurrentUserCompanyId, setContextCurrentUserCompanyId] = useState<number | null>(null);
   const [currentUserName, setCurrentUserName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [focusFilter, setFocusFilter] = useState<OpportunityFocusFilter>('all');
+  const [periodFilter, setPeriodFilter] = useState<OpportunityPeriodFilter>('all');
   const [stageFilter, setStageFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [temperatureFilter, setTemperatureFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
+    'indice.sales.pipelinePreferredCurrency',
+    defaultSalesCurrency,
+  );
   const [form, setForm] = useState<OpportunityFormState>({
     ...initialOpportunityForm,
     contactId: contacts[0]?.id ?? '',
@@ -83,9 +118,11 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     columns,
     setColumns,
     visibleColumns,
+    columnWidths,
     tableMinWidth,
     sortState,
     handleSort,
+    handleResizeColumn,
   } = useProspectosViewState();
 
   useEffect(() => {
@@ -195,6 +232,13 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   const canViewAllVisibleOpportunities = canViewAllOpportunities(currentUserRole);
   const shouldScopeOpportunitiesByOwner = currentUserRole !== null && !canViewAllVisibleOpportunities;
+  const preferredPipelineCurrency = isSalesCurrencyCode(storedPreferredCurrency)
+    ? storedPreferredCurrency
+    : defaultSalesCurrency;
+  const {
+    createSaleRecord,
+    updateSaleRecord,
+  } = useSalesRecords(preferredPipelineCurrency);
   const defaultOwnerValue = currentUserCompanyId
     ? `user-company:${currentUserCompanyId}`
     : ownerSelectOptions[0]?.value ?? fallbackOwnerValue(initialOpportunityForm.owner);
@@ -209,7 +253,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   const filteredOpportunities = useProspectosFilters({
     opportunities,
+    quotes,
     searchQuery,
+    focusFilter,
     stageFilter,
     ownerFilter,
     temperatureFilter,
@@ -221,12 +267,21 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     resolveOpportunityOwnerValue,
   });
 
-  const tableOpportunities = useMemo(
-    () => sortOpportunities(filteredOpportunities, sortState, quotes),
-    [filteredOpportunities, quotes, sortState],
+  const periodScopedOpportunities = useMemo(
+    () => filterOpportunitiesForPeriodView(filteredOpportunities, periodFilter),
+    [filteredOpportunities, periodFilter],
   );
 
-  const metrics = useProspectosMetrics(filteredOpportunities);
+  const tableOpportunities = useMemo(
+    () => sortOpportunities(periodScopedOpportunities, sortState, quotes, preferredPipelineCurrency),
+    [periodScopedOpportunities, preferredPipelineCurrency, quotes, sortState],
+  );
+
+  const metrics = useProspectosMetrics(filteredOpportunities, quotes, preferredPipelineCurrency, periodFilter);
+  const showConvertedPipeline = metrics.pipelineQuoteCount > 0 && (
+    metrics.hasMultiplePipelineCurrencies
+    || metrics.pipelineCurrencyTotals.some((total) => total.currency !== preferredPipelineCurrency)
+  );
 
   const getOwnerPayloadFromValue = (value: string) => {
     const userCompanyId = getOwnerUserCompanyIdFromValue(value);
@@ -287,7 +342,11 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   };
 
   const handleOpenCreateQuote = () => {
-    navigate('/sales/quotes?create=quote');
+    navigate('/sales/quotes?create=quote&returnTo=opportunities');
+  };
+
+  const handleOpenCreateSale = () => {
+    setIsSaleModalOpen(true);
   };
 
   const handleOpenEditOpportunity = (opportunity: SalesOpportunity) => {
@@ -313,28 +372,53 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     setIsCreateOpen(true);
   };
 
+  const withClosureDatePatch = (
+    opportunity: SalesOpportunity,
+    patch: Partial<Omit<SalesOpportunity, 'id'>>,
+  ) => {
+    const nextStage = patch.stage ?? opportunity.stage;
+    const isClosingStage = nextStage === 'Won' || nextStage === 'Lost';
+    const wasClosed = opportunity.stage === 'Won' || opportunity.stage === 'Lost';
+
+    if (!isClosingStage || wasClosed || patch.lastContact) {
+      return patch;
+    }
+
+    return {
+      ...patch,
+      lastContact: getTodayInputValue(),
+    };
+  };
+
+  const handleUpdateOpportunity = (
+    opportunityId: string,
+    patch: Partial<Omit<SalesOpportunity, 'id'>>,
+  ) => {
+    const opportunity = opportunities.find((item) => item.id === opportunityId);
+    updateOpportunity(opportunityId, opportunity ? withClosureDatePatch(opportunity, patch) : patch);
+  };
+
   const handleDeleteOpportunity = (opportunity: SalesOpportunity) => {
-    const linkedQuotesCount = quotes.filter((quote) => quote.opportunityId === opportunity.id).length;
-    const shouldDelete = window.confirm(
-      linkedQuotesCount > 0
-        ? t.deleteConfirm.withQuotes(opportunity.opportunityName, linkedQuotesCount)
-        : t.deleteConfirm.simple(opportunity.opportunityName),
-    );
-    if (!shouldDelete) {
+    setPendingDeleteOpportunity(opportunity);
+  };
+
+  const handleConfirmDeleteOpportunity = () => {
+    if (!pendingDeleteOpportunity) {
       return;
     }
 
-    deleteOpportunity(opportunity.id);
-    if (editingOpportunity?.id === opportunity.id) {
+    deleteOpportunity(pendingDeleteOpportunity.id);
+    if (editingOpportunity?.id === pendingDeleteOpportunity.id) {
       setEditingOpportunity(null);
       setIsCreateOpen(false);
     }
-    if (filesOpportunity?.id === opportunity.id) {
+    if (filesOpportunity?.id === pendingDeleteOpportunity.id) {
       setFilesOpportunity(null);
     }
-    if (historyOpportunity?.id === opportunity.id) {
+    if (historyOpportunity?.id === pendingDeleteOpportunity.id) {
       setHistoryOpportunity(null);
     }
+    setPendingDeleteOpportunity(null);
   };
 
   const handleOpportunityModalOpenChange = (open: boolean) => {
@@ -349,6 +433,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     const contact = getContactById(contacts, form.contactId);
     if (!contact || !form.opportunityName.trim()) return;
     const ownerPayload = getOwnerPayloadFromValue(form.ownerValue);
+    const closesOpportunity = form.stage === 'Won' || form.stage === 'Lost';
+    const isClosingTransition = closesOpportunity && (!editingOpportunity || !['Won', 'Lost'].includes(editingOpportunity.stage));
 
     const opportunityPayload = {
       opportunityName: form.opportunityName.trim(),
@@ -367,7 +453,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       expectedCloseDate: form.expectedCloseDate,
       nextAction: form.nextAction,
       nextActionDate: form.nextActionDate,
-      lastContact: form.lastContact,
+      lastContact: isClosingTransition ? getTodayInputValue() : form.lastContact,
       files: form.files.split(',').map((file) => file.trim()).filter(Boolean),
       status: getOpportunityStatusForStage(form.stage, form.status),
       notes: form.notes.trim(),
@@ -387,19 +473,31 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   };
 
   const handleKanbanStageChange = (opportunity: SalesOpportunity, stage: OpportunityStage) => {
-    updateOpportunity(opportunity.id, {
+    handleUpdateOpportunity(opportunity.id, {
       stage,
       status: getOpportunityStatusForStage(stage, opportunity.status),
     });
   };
+
+  const pendingDeleteQuotesCount = pendingDeleteOpportunity
+    ? quotes.filter((quote) => quote.opportunityId === pendingDeleteOpportunity.id).length
+    : 0;
+  const pendingDeleteDescription = pendingDeleteOpportunity
+    ? pendingDeleteQuotesCount > 0
+      ? t.deleteConfirm.withQuotes(pendingDeleteOpportunity.opportunityName, pendingDeleteQuotesCount)
+      : t.deleteConfirm.simple(pendingDeleteOpportunity.opportunityName)
+    : '';
 
   return (
     <section className="space-y-5">
       <ProspectosHeader
         copy={t.header}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
+        onCreateSale={handleOpenCreateSale}
         onCreateQuote={handleOpenCreateQuote}
         onCreateOpportunity={handleOpenCreateOpportunity}
+        onPreferredCurrencyChange={setStoredPreferredCurrency}
+        preferredCurrency={preferredPipelineCurrency}
       />
 
       {learningModeActive ? <ProspectosLearningGuide copy={learningCopy} /> : null}
@@ -409,6 +507,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       <ProspectosFilters
         copy={t}
         searchQuery={searchQuery}
+        focusFilter={focusFilter}
+        periodFilter={periodFilter}
         stageFilter={stageFilter}
         ownerFilter={ownerFilter}
         temperatureFilter={temperatureFilter}
@@ -416,6 +516,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         statusFilter={statusFilter}
         ownerSelectOptions={ownerSelectOptions}
         onSearchChange={setSearchQuery}
+        onFocusFilterChange={setFocusFilter}
+        onPeriodFilterChange={setPeriodFilter}
         onStageFilterChange={setStageFilter}
         onOwnerFilterChange={setOwnerFilter}
         onTemperatureFilterChange={setTemperatureFilter}
@@ -427,17 +529,26 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         copy={t}
         visibleCount={metrics.visibleCount}
         openCount={metrics.openCount}
+        hotCount={metrics.hotCount}
         weightedProbability={metrics.weightedProbability}
         proposalCount={metrics.proposalCount}
+        scheduledCount={metrics.scheduledCount}
+        unscheduledCount={metrics.unscheduledCount}
+        overdueCount={metrics.overdueCount}
+        periodFilter={metrics.periodFilter}
+        periodClosedCount={metrics.periodClosedCount}
+        periodWonCount={metrics.periodWonCount}
+        periodLostCount={metrics.periodLostCount}
+        periodWonValueLabel={metrics.periodWonValueLabel}
+        periodWonConvertedLabel={metrics.periodWonConvertedLabel}
+        periodLostValueLabel={metrics.periodLostValueLabel}
+        periodLostConvertedLabel={metrics.periodLostConvertedLabel}
+        periodConversionRate={metrics.periodConversionRate}
         formattedPipelineValue={metrics.formattedPipelineValue}
+        convertedPipelineLabel={metrics.convertedPipelineLabel}
+        showConvertedPipeline={showConvertedPipeline}
+        pipelineExchangeRateDate={metrics.pipelineExchangeRateDate}
         stageCounts={metrics.stageCounts}
-      />
-
-      <ProspectosInsightBar
-        copy={t.insight}
-        hotCount={metrics.hotCount}
-        formattedPipelineValue={metrics.formattedPipelineValue}
-        weightedProbability={metrics.weightedProbability}
       />
 
       {activeView === 'table' ? (
@@ -446,25 +557,28 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           opportunities={tableOpportunities}
           quotes={quotes}
           visibleColumns={localizedVisibleColumns}
+          columnWidths={columnWidths}
+          preferredCurrency={preferredPipelineCurrency}
           tableMinWidth={tableMinWidth}
           sortState={sortState}
           ownerSelectOptions={ownerSelectOptions}
           resolveOpportunityOwnerValue={resolveOpportunityOwnerValue}
           getOwnerPayloadFromValue={getOwnerPayloadFromValue}
           onSort={handleSort}
-          onUpdateOpportunity={updateOpportunity}
+          onUpdateOpportunity={handleUpdateOpportunity}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
           onEdit={handleOpenEditOpportunity}
           onDelete={handleDeleteOpportunity}
           onScheduleChange={handleScheduleChange}
+          onResizeColumn={handleResizeColumn}
         />
       ) : null}
 
       {activeView === 'kanban' ? (
         <ProspectosKanban
           copy={t}
-          opportunities={filteredOpportunities}
+          opportunities={periodScopedOpportunities}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
           onEdit={handleOpenEditOpportunity}
@@ -475,7 +589,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       {activeView === 'agenda' ? (
         <ProspectosAgenda
           copy={t}
-          opportunities={filteredOpportunities}
+          opportunities={periodScopedOpportunities}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
           onEdit={handleOpenEditOpportunity}
@@ -514,8 +628,48 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
       <OpportunityFilesModal
         copy={t.filesModal}
+        contact={filesOpportunity ? getContactById(contacts, filesOpportunity.contactId) : null}
+        locale={currentLanguage.code}
         opportunity={filesOpportunity}
+        quoteCopy={quoteCopy}
+        quotes={quotes}
         onClose={() => setFilesOpportunity(null)}
+      />
+
+      <SalesDetailModal
+        open={isSaleModalOpen}
+        record={null}
+        quotes={quotes}
+        products={products}
+        contacts={contacts}
+        opportunities={opportunities}
+        t={salesCopy}
+        onOpenChange={setIsSaleModalOpen}
+        onCreate={createSaleRecord}
+        onUpdate={updateSaleRecord}
+        onQuoteConverted={(quoteId, opportunityId) => {
+          const convertedQuote = quotes.find((quote) => quote.id === quoteId);
+          updateQuoteStatus(quoteId, 'Closed Won');
+          if (opportunityId) {
+            handleUpdateOpportunity(opportunityId, {
+              stage: 'Won',
+              status: 'Closed',
+              probability: '100%',
+              ...(convertedQuote ? {
+                estimatedValue: String(convertedQuote.total),
+                currency: convertedQuote.currency,
+              } : {}),
+            });
+          }
+        }}
+      />
+
+      <OpportunityDeleteDialog
+        copy={t.deleteConfirm}
+        description={pendingDeleteDescription}
+        opportunity={pendingDeleteOpportunity}
+        onConfirm={handleConfirmDeleteOpportunity}
+        onCancel={() => setPendingDeleteOpportunity(null)}
       />
     </section>
   );

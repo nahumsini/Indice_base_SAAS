@@ -19,6 +19,7 @@ export const zhCA = {
     subtitle: '跟踪已成交销售、付款凭证、验证进度、库存准备和佣金。',
     columnsAction: '列',
     commissionRulesAction: 'Commission Rules',
+    preferredCurrencyAction: '首选货币',
     primaryAction: '新销售',
   },
   filters: {
@@ -165,6 +166,7 @@ export const zhCA = {
       notes: '备注',
     },
     placeholders: {
+      opportunitySelector: '选择商机',
       quoteSelector: '选择已接受报价',
       quoteReference: 'Q-2026-000',
       saleDocumentReference: '保存后生成',

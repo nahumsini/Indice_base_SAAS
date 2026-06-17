@@ -192,7 +192,13 @@ export function useProductsCatalog(t: ProductsTranslations) {
   };
 
   const handleDuplicateProduct = (product: SalesCatalogItem) => {
-    const { id: _id, lastUpdated: _lastUpdated, ...productInput } = product;
+    const {
+      id: _id,
+      backendId: _backendId,
+      productCode: _productCode,
+      lastUpdated: _lastUpdated,
+      ...productInput
+    } = product;
     const suffix = String(availableProducts.length + 1).padStart(2, '0');
 
     addProduct({
@@ -269,8 +275,23 @@ export function useProductsCatalog(t: ProductsTranslations) {
     setForm((current) => ({ ...current, category: nextCategory.value }));
   };
 
+  const validateProductForm = () => {
+    const missingFields = [
+      !form.name.trim() ? t.form.fields.name : '',
+      !form.sku.trim() ? t.form.fields.sku : '',
+      !form.category.trim() ? t.form.fields.category : '',
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      setProductSaveError(t.form.validationMissingRequired(missingFields.join(', ')));
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSaveProduct = async () => {
-    if (!form.name.trim() || !form.sku.trim()) {
+    if (!validateProductForm()) {
       return;
     }
 
@@ -299,10 +320,18 @@ export function useProductsCatalog(t: ProductsTranslations) {
       handleProductModalOpenChange(false);
     } catch (error) {
       console.warn('[Sales] product image save failed', error);
-      setProductSaveError('No se pudo guardar el producto con sus imagenes. Intenta de nuevo.');
+      setProductSaveError(t.form.saveFailed);
     } finally {
       setIsSavingProduct(false);
     }
+  };
+
+  const handleProductFormChange = (nextValue: SetStateAction<ProductFormState>) => {
+    if (productSaveError) {
+      setProductSaveError(null);
+    }
+
+    setForm(nextValue);
   };
 
   return {
@@ -359,7 +388,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
     setIsColumnsOpen,
     setIsPublicCatalogOpen,
     setManagedCategories: updateManagedCategories,
-    setForm,
+    setForm: handleProductFormChange,
     setSearch,
     setStatusFilter,
     setTypeFilter,

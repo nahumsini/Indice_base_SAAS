@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, FolderCog } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import { productCategoryLibraries } from '../mocks/categoryLibraries';
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig, ProductCategoryLibrary } from '../types/productCategoryTypes';
@@ -21,6 +14,8 @@ import {
 import { ActiveCategoriesList } from './category-directory/ActiveCategoriesList';
 import { CategoryLibraryPanel } from './category-directory/CategoryLibraryPanel';
 import { CategoryQuickCreate } from './category-directory/CategoryQuickCreate';
+
+const categoryActionClassNames = getSalesModalActionClassNames('coral');
 
 function moveCategory(categories: ProductCategoryConfig[], categoryId: string, direction: 'up' | 'down') {
   const index = categories.findIndex((category) => category.id === categoryId);
@@ -164,22 +159,31 @@ export function ProductCategoryManagerModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="grid grid-rows-[auto,minmax(0,1fr),auto] gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl"
-        closeButtonClassName="text-white hover:bg-white/15 hover:text-white"
-        style={{ width: 'min(94vw, 1180px)', maxWidth: 'min(94vw, 1180px)', height: 'min(84vh, 780px)' }}
-      >
-        <DialogHeader className="border-b border-slate-200 bg-[#FF6B5E] px-6 py-4 text-white">
-          <DialogTitle className="flex items-center gap-2 text-2xl font-black">
-            <FolderCog className="h-6 w-6" />
-            {t.categoryManager.title}
-          </DialogTitle>
-          <DialogDescription className="max-w-3xl text-sm font-semibold leading-6 text-white/90">
-            {t.categoryManager.description}
-          </DialogDescription>
-        </DialogHeader>
-
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t.categoryManager.title}
+      description={t.categoryManager.description}
+      icon={<FolderCog className="h-6 w-6" />}
+      contentClassName="flex h-[min(84vh,780px)] w-[min(94vw,1180px)] max-w-[min(94vw,1180px)] flex-col"
+      bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-slate-50 p-0"
+      footer={(
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className={categoryActionClassNames.secondary}
+            onClick={() => onOpenChange(false)}
+          >
+            {t.common.cancel}
+          </Button>
+          <Button className={categoryActionClassNames.primary} onClick={handleSave}>
+            <Check className="h-4 w-4" />
+            {t.common.save}
+          </Button>
+        </>
+      )}
+    >
         <div className="grid min-h-0 gap-5 overflow-hidden bg-slate-50 p-5 lg:grid-cols-[minmax(0,3fr)_minmax(340px,2fr)]">
           <CategoryLibraryPanel
             selectedLibraryId={selectedLibraryId}
@@ -212,14 +216,6 @@ export function ProductCategoryManagerModal({
             />
           </section>
         </div>
-
-        <DialogFooter className="border-t border-slate-200 bg-white px-6 py-3">
-          <Button className="gap-2 bg-[#FF6B5E] text-white hover:bg-[#E85C50]" onClick={handleSave}>
-            <Check className="h-4 w-4" />
-            {t.common.save}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

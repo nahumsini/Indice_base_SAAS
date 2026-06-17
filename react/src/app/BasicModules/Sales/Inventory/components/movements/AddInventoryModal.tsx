@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { FileUp, PackagePlus, X } from 'lucide-react';
+import { FileUp, PackagePlus } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../../components/SalesModalFrame';
 import type { InventoryMovementAttachment, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { MovementProductLines, createMovementProductLine, type MovementProductLineDraft } from './MovementProductLines';
@@ -24,6 +24,8 @@ type SupplierOption = {
   id: string;
   name: string;
 };
+
+const addInventoryActionClassNames = getSalesModalActionClassNames('coral');
 
 export function AddInventoryModal({
   open,
@@ -93,26 +95,21 @@ export function AddInventoryModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] flex-col overflow-hidden rounded-[30px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:max-w-[980px] [&>button]:hidden">
-        <DialogHeader className="bg-[#FF6B5E] px-6 py-4 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/15">
-                <PackagePlus className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <DialogTitle className="text-xl font-bold text-white">{t.operational.modals.addInventoryTitle}</DialogTitle>
-                <DialogDescription className="mt-1 text-sm font-medium leading-5 text-white/80">{t.operational.modals.addInventorySubtitle}</DialogDescription>
-              </div>
-            </div>
-            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-2xl border border-white/30 bg-white/10 text-white hover:bg-white/20" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5">
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t.operational.modals.addInventoryTitle}
+      description={t.operational.modals.addInventorySubtitle}
+      icon={<PackagePlus className="h-5 w-5" />}
+      contentClassName="flex max-h-[88vh] flex-col sm:max-w-[980px]"
+      bodyClassName="!max-h-none flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5"
+      footer={(
+        <>
+          <Button type="button" variant="outline" className={addInventoryActionClassNames.secondary} onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
+          <Button type="button" className={addInventoryActionClassNames.primary} disabled={!canSubmit} onClick={() => onSubmit(draft)}>{t.operational.modals.addStock}</Button>
+        </>
+      )}
+    >
           <div className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
             <ReadOnlyField label={t.operational.modals.movementType} value={t.operational.movementTypes.supplierReceipt} />
             <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses.received} />
@@ -156,14 +153,7 @@ export function AddInventoryModal({
               ))}
             </div>
           </section>
-        </div>
-
-        <DialogFooter className="bg-[#FF6B5E] px-6 py-4">
-          <Button type="button" variant="outline" className="h-10 rounded-xl border-white/40 bg-transparent px-4 font-semibold text-white hover:bg-white/10 hover:text-white" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
-          <Button type="button" className="h-10 rounded-xl bg-white px-4 font-bold text-[#B63B32] shadow-sm hover:bg-white/90" disabled={!canSubmit} onClick={() => onSubmit(draft)}>{t.operational.modals.addStock}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }
 

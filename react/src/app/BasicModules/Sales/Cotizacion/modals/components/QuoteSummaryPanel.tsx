@@ -23,7 +23,7 @@ export function QuoteSummaryPanel({
   itemCount: number;
   totals: QuoteTotals;
   health: QuoteHealthState;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number, currency?: string | null) => string;
   t: QuotesTranslations;
 }) {
   const customer = form.clientMode === 'contact'
@@ -60,8 +60,8 @@ export function QuoteSummaryPanel({
                 <p className="mt-1 truncate font-black text-slate-950">{form.assignedSeller || t.common.unassigned}</p>
               </div>
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                <p className="font-bold text-slate-500">{t.labels.status}</p>
-                <p className="mt-1 font-black text-slate-950">{t.statusLabels[form.status]}</p>
+                <p className="font-bold text-slate-500">{t.labels.currency}</p>
+                <p className="mt-1 font-black text-slate-950">{form.currency}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -85,23 +85,23 @@ export function QuoteSummaryPanel({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="font-semibold text-slate-500">{t.labels.subtotal}</span>
-              <span className="font-black text-slate-950">{formatCurrency(totals.subtotal)}</span>
+              <span className="font-black text-slate-950">{formatCurrency(totals.subtotal, form.currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-semibold text-slate-500">{t.labels.discountTotal}</span>
-              <span className="font-black text-slate-950">{formatCurrency(totals.discountTotal)}</span>
+              <span className="font-black text-slate-950">{formatCurrency(totals.discountTotal, form.currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-semibold text-slate-500">{t.pricing.taxableSubtotal}</span>
-              <span className="font-black text-slate-950">{formatCurrency(totals.taxableSubtotal)}</span>
+              <span className="font-black text-slate-950">{formatCurrency(totals.taxableSubtotal, form.currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-semibold text-slate-500">{t.labels.taxTotal}</span>
-              <span className="font-black text-slate-950">{formatCurrency(totals.taxTotal)}</span>
+              <span className="font-black text-slate-950">{formatCurrency(totals.taxTotal, form.currency)}</span>
             </div>
             <div className="mt-2 flex justify-between border-t border-slate-200 pt-3 text-lg">
               <span className="font-black text-slate-950">{t.labels.total}</span>
-              <span className="font-black text-[#B63B32]">{formatCurrency(totals.total)}</span>
+              <span className="font-black text-[#B63B32]">{formatCurrency(totals.total, form.currency)}</span>
             </div>
           </div>
         </section>
@@ -109,7 +109,7 @@ export function QuoteSummaryPanel({
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-2 gap-2">
             <Badge className="justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
-              {t.pricing.estimatedProfit}: {formatCurrency(totals.estimatedProfit)}
+              {t.pricing.estimatedProfit}: {formatCurrency(totals.estimatedProfit, form.currency)}
             </Badge>
             <Badge className="justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-2 text-[#B63B32]">
               {t.pricing.estimatedMargin}: {getRoundedMargin(totals.estimatedMargin)}%

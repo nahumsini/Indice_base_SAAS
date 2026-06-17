@@ -42,10 +42,10 @@ export function PublicCatalogCard({
         {config.showPrices ? (
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-xs font-semibold text-slate-500">{t.publicCatalog.publicPrice}</p>
-            <p className="text-xl font-black text-slate-950">{formatProductCurrency(item.publicPrice ?? 0)}</p>
+            <p className="text-xl font-black text-slate-950">{formatProductCurrency(item.publicPrice ?? 0, item.currency)}</p>
             {config.showWholesalePrices && item.wholesalePrice ? (
               <p className="mt-1 text-xs font-semibold text-[#8a5f04]">
-                {t.publicCatalog.wholesaleAvailable}: {formatProductCurrency(item.wholesalePrice)}
+                {t.publicCatalog.wholesaleAvailable}: {formatProductCurrency(item.wholesalePrice, item.currency)}
               </p>
             ) : null}
           </div>

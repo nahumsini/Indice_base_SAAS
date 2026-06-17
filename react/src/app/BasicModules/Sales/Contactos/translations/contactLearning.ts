@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLanguage } from '../../../../shared/context';
 
-const enCA = {
+export const enCA = {
   eyebrow: 'Learning mode',
   title: 'Contact operating guide',
   subtitle: 'Use Contacts as the commercial relationship base for opportunities, quotes, fiscal context, and customer follow-up.',
@@ -66,7 +66,7 @@ type WidenLiterals<T> =
 
 type ContactLearningCopy = WidenLiterals<typeof enCA>;
 
-const esMX: ContactLearningCopy = {
+export const esMX: ContactLearningCopy = {
   eyebrow: 'Modo Aprendiz',
   title: 'Guía operativa de contactos',
   subtitle: 'Usa Contactos como la base de relación comercial para oportunidades, cotizaciones, datos fiscales y seguimiento al cliente.',
@@ -116,13 +116,13 @@ const esMX: ContactLearningCopy = {
   footer: 'Un contacto no es solo una entrada de agenda. Es el registro de relación que sostiene oportunidades, cotizaciones, ventas, finanzas y postventa.',
 };
 
-const esCO: ContactLearningCopy = {
+export const esCO: ContactLearningCopy = {
   ...esMX,
   subtitle: 'Usa Contactos como la base de relación comercial para oportunidades, cotizaciones, datos fiscales y seguimiento posventa.',
   footer: 'Un contacto no es solo una entrada de agenda. Es el registro de relación que sostiene oportunidades, cotizaciones, ventas, cartera y posventa.',
 };
 
-const enUS: ContactLearningCopy = {
+export const enUS: ContactLearningCopy = {
   ...enCA,
   subtitle: 'Use Contacts as the commercial relationship base for opportunities, quotes, tax context, and customer follow-up.',
   cards: [
@@ -135,7 +135,7 @@ const enUS: ContactLearningCopy = {
   ],
 };
 
-const frCA: ContactLearningCopy = {
+export const frCA: ContactLearningCopy = {
   eyebrow: 'Mode apprentissage',
   title: 'Guide operationnel des contacts',
   subtitle: 'Utilisez Contacts comme base de relation commerciale pour occasions, devis, contexte fiscal et suivi client.',
@@ -164,7 +164,7 @@ const frCA: ContactLearningCopy = {
   footer: 'Un contact n est pas seulement une entree de carnet. C est le dossier relationnel qui soutient occasions, devis, ventes, finance et apres-vente.',
 };
 
-const ptBR: ContactLearningCopy = {
+export const ptBR: ContactLearningCopy = {
   eyebrow: 'Modo aprendiz',
   title: 'Guia operacional de contatos',
   subtitle: 'Use Contatos como base de relacionamento comercial para oportunidades, cotacoes, contexto fiscal e follow-up.',
@@ -193,7 +193,7 @@ const ptBR: ContactLearningCopy = {
   footer: 'Um contato nao e apenas uma entrada de agenda. E o registro de relacionamento que sustenta oportunidades, cotacoes, vendas, financeiro e pos-venda.',
 };
 
-const koCA: ContactLearningCopy = {
+export const koCA: ContactLearningCopy = {
   eyebrow: '학습 모드',
   title: '연락처 운영 가이드',
   subtitle: '연락처를 기회, 견적, 세무 맥락, 고객 후속 조치의 관계 기반으로 사용합니다.',
@@ -222,7 +222,7 @@ const koCA: ContactLearningCopy = {
   footer: '연락처는 단순한 주소록이 아닙니다. 기회, 견적, 판매, 재무, 사후 관리를 받치는 관계 기록입니다.',
 };
 
-const zhCA: ContactLearningCopy = {
+export const zhCA: ContactLearningCopy = {
   eyebrow: '学习模式',
   title: '联系人运营指南',
   subtitle: '把联系人作为机会、报价、税务背景和客户跟进的商业关系基础。',
@@ -251,7 +251,7 @@ const zhCA: ContactLearningCopy = {
   footer: '联系人不只是通讯录条目。它是支撑机会、报价、销售、财务和售后的关系记录。',
 };
 
-const contactLearningTranslations = {
+export const contactLearningTranslations = {
   'en-CA': enCA,
   'en-US': enUS,
   'es-MX': esMX,
@@ -262,7 +262,7 @@ const contactLearningTranslations = {
   'zh-CA': zhCA,
 } satisfies Record<string, ContactLearningCopy>;
 
-function resolveContactLearningLocale(locale: string | null | undefined) {
+export function resolveContactLearningLocale(locale: string | null | undefined) {
   if (!locale) {
     return 'en-CA';
   }
@@ -277,7 +277,7 @@ function resolveContactLearningLocale(locale: string | null | undefined) {
     return 'es-CO';
   }
 
-  if (loweredLocale.startsWith('es')) {
+  if (loweredLocale.startsWith('es-')) {
     return 'es-MX';
   }
 

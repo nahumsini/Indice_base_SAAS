@@ -1,15 +1,13 @@
-// Utility functions for Expenses module
+import { defaultBusinessCurrency, formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 
 /**
  * Format currency with proper symbol and locale
  */
-export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
+export const formatCurrency = (amount: number, currency: string = defaultBusinessCurrency): string => {
+  return formatBusinessCurrencyAmount(amount, currency, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
+  });
 };
 
 /**

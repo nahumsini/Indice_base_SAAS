@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ArrowRightLeft, CheckCircle2, PackageOpen, Plus, Trash2, Warehouse, X } from 'lucide-react';
+import { ArrowRightLeft, CheckCircle2, PackageOpen, Plus, Trash2, Warehouse } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../../components/SalesModalFrame';
 import type { InventoryBusiness, InventoryBusinessUnit, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { getWarehouseInventorySummary } from '../../utils/inventoryCalculations';
@@ -24,6 +24,7 @@ const warehouseTypes: InventoryWarehouse['type'][] = [
   'temporaryStorage',
   'vehicleStorage',
 ];
+const warehouseActionClassNames = getSalesModalActionClassNames('coral');
 
 function createEmptyDraft(): CreateWarehouseDraft {
   return {
@@ -113,34 +114,19 @@ export function CreateWarehouseModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden rounded-[30px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:max-w-[1080px] [&>button]:hidden">
-        <DialogHeader className="bg-[#FF6B5E] px-6 py-4 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/15">
-                <Warehouse className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <DialogTitle className="text-xl font-bold text-white">Administrar almacenes</DialogTitle>
-                <DialogDescription className="mt-1 text-sm font-medium leading-5 text-white/80">
-                  Crea almacenes por unidad y negocio; para borrar, deja el stock en cero o transfiérelo primero.
-                </DialogDescription>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0 rounded-2xl border border-white/30 bg-white/10 text-white hover:bg-white/20"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="max-h-[calc(92vh-144px)] overflow-y-auto bg-slate-50/70 px-6 py-5">
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Administrar almacenes"
+      description="Crea almacenes por unidad y negocio; para borrar, deja el stock en cero o transfiérelo primero."
+      icon={<Warehouse className="h-5 w-5" />}
+      contentClassName="flex max-h-[92vh] flex-col sm:max-w-[1080px]"
+      bodyClassName="!max-h-none flex-1 overflow-y-auto bg-slate-50/70 px-6 py-5"
+      footerClassName="sm:justify-end"
+      footer={(
+        <Button type="button" variant="outline" className={warehouseActionClassNames.secondary} onClick={() => onOpenChange(false)}>{t.common.close}</Button>
+      )}
+    >
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
             <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-start gap-3">
@@ -325,13 +311,7 @@ export function CreateWarehouseModal({
               </div>
             </section>
           </div>
-        </div>
-
-        <DialogFooter className="bg-[#FF6B5E] px-6 py-4">
-          <Button type="button" variant="outline" className="h-10 rounded-xl border-white/40 bg-transparent px-4 font-semibold text-white hover:bg-white/10 hover:text-white" onClick={() => onOpenChange(false)}>{t.common.close}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }
 

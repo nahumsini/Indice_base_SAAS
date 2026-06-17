@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowRightLeft, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../../components/SalesModalFrame';
 import type { InventoryMovementEntryType, InventoryOperationalMovement, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { SUPPLIER_SOURCE_ID, getInventoryMovementEntryStatus, isSupplierSource } from '../../utils/inventoryMovementEntries';
@@ -21,6 +21,7 @@ export type TransferStockDraft = {
 };
 
 const movementTypes: InventoryMovementEntryType[] = ['supplierReceipt', 'transfer', 'storeReplenishment', 'sale', 'return', 'adjustment', 'writeOff'];
+const transferActionClassNames = getSalesModalActionClassNames('coral');
 
 const movementRules: Record<InventoryMovementEntryType, {
   from: 'warehouse' | 'supplier' | 'customer' | 'system' | 'damaged';
@@ -178,26 +179,35 @@ export function TransferStockModal({
   const subtitle = isEditing ? t.operational.modals.editMovementSubtitle : t.operational.modals.movementEntrySubtitle;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[86vh] flex-col overflow-hidden rounded-[30px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:max-w-[920px] [&>button]:hidden">
-        <DialogHeader className="bg-[#FF6B5E] px-6 py-4 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/15">
-                <HeaderIcon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <DialogTitle className="text-xl font-bold text-white">{title}</DialogTitle>
-                <DialogDescription className="mt-1 text-sm font-medium leading-5 text-white/80">{subtitle}</DialogDescription>
-              </div>
-            </div>
-            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-2xl border border-white/30 bg-white/10 text-white hover:bg-white/20" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={subtitle}
+      icon={<HeaderIcon className="h-5 w-5" />}
+      contentClassName="flex max-h-[86vh] flex-col sm:max-w-[920px]"
+      bodyClassName="!max-h-none flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5"
+      footer={(
+        <>
+          <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
+          <Button
+            type="button"
+            className={transferActionClassNames.primary}
+            disabled={!canSubmit}
+            onClick={() => {
+              if (editingMovement && onSaveEdit) {
+                onSaveEdit(editingMovement.id, draft);
+                return;
+              }
 
-        <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5">
+              onSubmit(draft);
+            }}
+          >
+            {isEditing ? t.common.save : t.operational.modals.registerMovement}
+          </Button>
+        </>
+      )}
+    >
           <div className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
             <SelectField label={t.operational.modals.movementType} value={draft.movementType} options={movementTypes.map((type) => ({ value: type, label: t.operational.movementTypes[type] }))} onValueChange={(movementType) => handleTypeChange(movementType as InventoryMovementEntryType)} />
             <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses[displayedStatus]} />
@@ -231,28 +241,7 @@ export function TransferStockModal({
             t={t}
             onItemsChange={(items) => setDraft({ ...draft, items })}
           />
-        </div>
-
-        <DialogFooter className="bg-[#FF6B5E] px-6 py-4">
-          <Button type="button" variant="outline" className="h-10 rounded-xl border-white/40 bg-transparent px-4 font-semibold text-white hover:bg-white/10 hover:text-white" onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
-          <Button
-            type="button"
-            className="h-10 rounded-xl bg-white px-4 font-bold text-[#B63B32] shadow-sm hover:bg-white/90"
-            disabled={!canSubmit}
-            onClick={() => {
-              if (editingMovement && onSaveEdit) {
-                onSaveEdit(editingMovement.id, draft);
-                return;
-              }
-
-              onSubmit(draft);
-            }}
-          >
-            {isEditing ? t.common.save : t.operational.modals.registerMovement}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }
 

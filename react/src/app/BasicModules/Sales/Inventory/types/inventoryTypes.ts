@@ -96,6 +96,7 @@ export type InventoryWarehouse = {
 };
 
 export type InventoryWarehouseDistribution = {
+  balanceId?: string;
   warehouseId: string;
   warehouseName: string;
   available: number;

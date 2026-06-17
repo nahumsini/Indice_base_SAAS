@@ -19,6 +19,7 @@ import {
 } from './adapters/salesApiAdapters';
 import type { SaleRecord } from './Sales/types/salesTypes';
 import type {
+  CreateProductInput,
   SalesCatalogItem,
   SalesContact,
   SalesCrmContextValue,
@@ -102,6 +103,19 @@ const SalesCrmContext = createContext<SalesCrmContextValue | null>(null);
 const logSalesSyncFailure = (action: string, error: unknown) => {
   console.warn(`[Sales] ${action} could not sync with backend. Keeping local state.`, error);
 };
+
+function stripProductIdentityForCreate(
+  product: CreateProductInput & Partial<Pick<SalesCatalogItem, 'id' | 'backendId' | 'productCode'>>,
+): CreateProductInput {
+  const {
+    id: _id,
+    backendId: _backendId,
+    productCode: _productCode,
+    ...productInput
+  } = product;
+
+  return productInput;
+}
 
 export function SalesCrmProvider({ children }: { children: ReactNode }) {
   const [contacts, setContacts] = useState<SalesContact[]>([]);
@@ -268,10 +282,11 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       }
     },
     addProduct: (product) => {
+      const productInput = stripProductIdentityForCreate(product);
       const createdProduct = {
-        ...product,
+        ...productInput,
         id: createSequentialId('PRD', products.length + 1),
-        lastUpdated: product.lastUpdated ?? getTodayIsoDate(),
+        lastUpdated: productInput.lastUpdated ?? getTodayIsoDate(),
       };
 
       setProducts((current) => [createdProduct, ...current]);
@@ -294,21 +309,27 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       )));
       const backendId = backendIdFrom(currentProduct);
       if (backendId !== undefined) {
+        const hasSharedBackendId = products.some((product) => product.id !== productId && product.backendId === backendId);
+        if (hasSharedBackendId) {
+          return;
+        }
+
         void salesApi.update('products', backendId, toBackendProduct({ ...currentProduct, ...patch, lastUpdated: getTodayIsoDate() }))
           .then((savedProduct) => {
             const persistedProduct = toFrontendProduct(savedProduct as Record<string, unknown>);
             setProducts((current) => current.map((product) => (
-              product.id === productId || product.backendId === backendId ? persistedProduct : product
+              product.id === productId ? persistedProduct : product
             )));
           })
           .catch((error) => logSalesSyncFailure('update product', error));
       }
     },
     createProductRecord: async (product) => {
+      const productInput = stripProductIdentityForCreate(product);
       const createdProduct = {
-        ...product,
+        ...productInput,
         id: createSequentialId('PRD', products.length + 1),
-        lastUpdated: product.lastUpdated ?? getTodayIsoDate(),
+        lastUpdated: productInput.lastUpdated ?? getTodayIsoDate(),
       };
 
       setProducts((current) => [createdProduct, ...current]);
@@ -339,12 +360,22 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       if (backendId === undefined) {
         return optimisticProduct;
       }
+      const hasSharedBackendId = products.some((product) => product.id !== productId && product.backendId === backendId);
 
       try {
+        if (hasSharedBackendId) {
+          const savedProduct = await salesApi.create('products', toBackendProduct(stripProductIdentityForCreate(optimisticProduct)));
+          const persistedProduct = toFrontendProduct(savedProduct as Record<string, unknown>);
+          setProducts((current) => current.map((product) => (
+            product.id === productId ? persistedProduct : product
+          )));
+          return persistedProduct;
+        }
+
         const savedProduct = await salesApi.update('products', backendId, toBackendProduct(optimisticProduct));
         const persistedProduct = toFrontendProduct(savedProduct as Record<string, unknown>);
         setProducts((current) => current.map((product) => (
-          product.id === productId || product.backendId === backendId ? persistedProduct : product
+          product.id === productId ? persistedProduct : product
         )));
         return persistedProduct;
       } catch (error) {

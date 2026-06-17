@@ -12,6 +12,15 @@ export type SalesQuoteItem = {
   quantity: number;
   unitPrice: number;
   unitCost?: number;
+  originalCurrency?: string;
+  originalUnitPrice?: number;
+  originalUnitCost?: number;
+  quoteCurrency?: string;
+  exchangeRate?: number;
+  exchangeRateDate?: string;
+  exchangeRateSource?: string;
+  convertedUnitPrice?: number;
+  convertedUnitCost?: number;
   discountPercent: number;
   taxPercent: number;
   subtotal?: number;
@@ -46,6 +55,7 @@ export type SalesQuote = {
   discountTotal: number;
   taxTotal: number;
   total: number;
+  currency?: string;
   notes: string;
   terms: string;
   files: string[];

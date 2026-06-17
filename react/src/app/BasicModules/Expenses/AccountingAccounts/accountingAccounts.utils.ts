@@ -1,4 +1,5 @@
 import type { AccountingAccount, AccountingAccountType, AccountingSortField, SortDirection } from './types';
+import { defaultBusinessCurrency, formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 
 export const typeOptions: Array<{ value: AccountingAccountType; label: string }> = [
   { value: 'asset', label: 'Activo' },
@@ -19,7 +20,7 @@ export const getTypeBadgeColor = (type: string) => ({
 }[type] || 'bg-gray-100 text-gray-800');
 
 export const formatAccountingCurrency = (amount: number) =>
-  new Intl.NumberFormat('es-MX', { currency: 'MXN', style: 'currency' }).format(amount);
+  formatBusinessCurrencyAmount(amount, defaultBusinessCurrency, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const filterAccountingAccounts = (
   accounts: AccountingAccount[],

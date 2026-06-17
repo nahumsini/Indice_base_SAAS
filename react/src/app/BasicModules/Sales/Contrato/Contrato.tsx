@@ -15,14 +15,6 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -46,7 +38,7 @@ import {
   type SalesContact,
   useSalesCrm,
 } from '../salesCrmContext';
-import { getSalesModalStyles } from '../salesModalStyles';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
 import { digitalContractsBackendPreparation } from './services/digitalContractsService';
 import { digitalContractTemplateRegistry } from './templates/contractTemplateRegistry';
 import {
@@ -68,7 +60,7 @@ import { useDigitalContractsTranslations } from './translations';
 type FilterValue = 'all' | string;
 type ExpirationFilter = 'all' | 'next30' | 'expired';
 type CreateMode = 'upload' | 'template';
-const contractModalStyles = getSalesModalStyles('graphite');
+const contractActionClassNames = getSalesModalActionClassNames('coral');
 
 type ContractFormState = {
   mode: CreateMode;
@@ -686,23 +678,30 @@ export default function Contrato() {
         </aside>
       </div>
 
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className={cn(contractModalStyles.content, 'max-h-[90vh] max-w-5xl')} closeButtonClassName={contractModalStyles.close}>
-          <DialogHeader className={contractModalStyles.header}>
-            <DialogTitle className={contractModalStyles.title}>
-              <FileSignature className={cn('h-5 w-5', contractModalStyles.icon)} />
-              {t.forms.create.title}
-            </DialogTitle>
-            <DialogDescription className={contractModalStyles.description}>{t.forms.create.description}</DialogDescription>
-          </DialogHeader>
-
-          <div className={cn(contractModalStyles.body, 'grid gap-4 md:grid-cols-2')}>
+      <SalesModalFrame
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        title={t.forms.create.title}
+        description={t.forms.create.description}
+        icon={<FileSignature className="h-5 w-5" />}
+        contentClassName="max-h-[90vh] max-w-5xl"
+        bodyClassName="grid gap-4 md:grid-cols-2"
+        footer={(
+          <>
+            <Button variant="outline" className={contractActionClassNames.secondary} onClick={() => setIsCreateOpen(false)}>{t.common.cancel}</Button>
+            <Button className={contractActionClassNames.primary} onClick={handleCreateContract}>
+              <Plus className="h-4 w-4" />
+              {t.forms.create.submit}
+            </Button>
+          </>
+        )}
+      >
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-bold text-slate-700">{t.forms.create.mode}</label>
               <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1 sm:grid-cols-2">
                 <Button
                   variant={form.mode === 'upload' ? 'default' : 'ghost'}
-                  className={cn('rounded-lg', form.mode === 'upload' && 'bg-[#222831] text-white hover:bg-slate-700')}
+                  className={cn('rounded-lg', form.mode === 'upload' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
                   onClick={() => setFormMode('upload')}
                 >
                   <FolderOpen className="h-4 w-4" />
@@ -710,7 +709,7 @@ export default function Contrato() {
                 </Button>
                 <Button
                   variant={form.mode === 'template' ? 'default' : 'ghost'}
-                  className={cn('rounded-lg', form.mode === 'template' && 'bg-[#222831] text-white hover:bg-slate-700')}
+                  className={cn('rounded-lg', form.mode === 'template' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
                   onClick={() => setFormMode('template')}
                 >
                   <Sparkles className="h-4 w-4" />
@@ -759,28 +758,22 @@ export default function Contrato() {
                 </div>
               </div>
             ) : null}
-          </div>
+      </SalesModalFrame>
 
-          <DialogFooter className={contractModalStyles.footer}>
-            <Button variant="outline" className={contractModalStyles.secondaryButton} onClick={() => setIsCreateOpen(false)}>{t.common.cancel}</Button>
-            <Button className={contractModalStyles.primaryButton} onClick={handleCreateContract}>
-              <Plus className="h-4 w-4" />
-              {t.forms.create.submit}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isTemplatesOpen} onOpenChange={setIsTemplatesOpen}>
-        <DialogContent className={cn(contractModalStyles.content, 'max-h-[90vh] max-w-5xl')} closeButtonClassName={contractModalStyles.close}>
-          <DialogHeader className={contractModalStyles.header}>
-            <DialogTitle className={contractModalStyles.title}>
-              <FolderOpen className={cn('h-5 w-5', contractModalStyles.icon)} />
-              {t.sections.templateRegistry}
-            </DialogTitle>
-            <DialogDescription className={contractModalStyles.description}>{t.sections.templateRegistryDescription}</DialogDescription>
-          </DialogHeader>
-          <div className={cn(contractModalStyles.body, 'grid gap-4 lg:grid-cols-3')}>
+      <SalesModalFrame
+        open={isTemplatesOpen}
+        onOpenChange={setIsTemplatesOpen}
+        title={t.sections.templateRegistry}
+        description={t.sections.templateRegistryDescription}
+        icon={<FolderOpen className="h-5 w-5" />}
+        contentClassName="max-h-[90vh] max-w-5xl"
+        bodyClassName="space-y-4"
+        footerClassName="sm:justify-end"
+        footer={(
+          <Button className={contractActionClassNames.primary} onClick={() => setIsTemplatesOpen(false)}>{t.common.close}</Button>
+        )}
+      >
+        <div className="grid gap-4 lg:grid-cols-3">
             {digitalContractTemplateRegistry.map((template) => (
               <article key={template.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
@@ -802,8 +795,8 @@ export default function Contrato() {
                 </div>
               </article>
             ))}
-          </div>
-          <div className="mx-6 mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <h3 className="font-black text-slate-950">{t.sections.backendReady}</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {digitalContractsBackendPreparation.entities.map((entity) => (
@@ -813,22 +806,21 @@ export default function Contrato() {
               ))}
             </div>
           </div>
-          <DialogFooter className={contractModalStyles.footer}>
-            <Button className={contractModalStyles.primaryButton} onClick={() => setIsTemplatesOpen(false)}>{t.common.close}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </SalesModalFrame>
 
-      <Dialog open={Boolean(filesContract)} onOpenChange={(open) => !open && setFilesContract(null)}>
-        <DialogContent className={cn(contractModalStyles.content, 'max-w-xl')} closeButtonClassName={contractModalStyles.close}>
-          <DialogHeader className={contractModalStyles.header}>
-            <DialogTitle className={contractModalStyles.smallTitle}>
-              <FolderOpen className={cn('h-5 w-5', contractModalStyles.icon)} />
-              {t.sections.files}
-            </DialogTitle>
-            <DialogDescription className={contractModalStyles.description}>{t.notices.upload}</DialogDescription>
-          </DialogHeader>
-          <div className={cn(contractModalStyles.body, 'space-y-3')}>
+      <SalesModalFrame
+        open={Boolean(filesContract)}
+        onOpenChange={(open) => !open && setFilesContract(null)}
+        title={t.sections.files}
+        description={t.notices.upload}
+        icon={<FolderOpen className="h-5 w-5" />}
+        contentClassName="max-w-xl"
+        bodyClassName="space-y-3"
+        footerClassName="sm:justify-end"
+        footer={(
+          <Button className={contractActionClassNames.primary} onClick={() => setFilesContract(null)}>{t.common.close}</Button>
+        )}
+      >
             {filesContract?.files.map((file) => (
               <div key={file.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center gap-3">
@@ -842,23 +834,26 @@ export default function Contrato() {
                 </div>
               </div>
             ))}
-          </div>
-          <DialogFooter className={contractModalStyles.footer}>
-            <Button className={contractModalStyles.primaryButton} onClick={() => setFilesContract(null)}>{t.common.close}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </SalesModalFrame>
 
-      <Dialog open={Boolean(signatureContract)} onOpenChange={(open) => !open && setSignatureContract(null)}>
-        <DialogContent className={cn(contractModalStyles.content, 'max-w-2xl')} closeButtonClassName={contractModalStyles.close}>
-          <DialogHeader className={contractModalStyles.header}>
-            <DialogTitle className={contractModalStyles.title}>
-              <Send className={cn('h-5 w-5', contractModalStyles.icon)} />
-              {t.forms.signature.title}
-            </DialogTitle>
-            <DialogDescription className={contractModalStyles.description}>{t.forms.signature.description}</DialogDescription>
-          </DialogHeader>
-          <div className={cn(contractModalStyles.body, 'grid gap-4 md:grid-cols-2')}>
+      <SalesModalFrame
+        open={Boolean(signatureContract)}
+        onOpenChange={(open) => !open && setSignatureContract(null)}
+        title={t.forms.signature.title}
+        description={t.forms.signature.description}
+        icon={<Send className="h-5 w-5" />}
+        contentClassName="max-w-2xl"
+        bodyClassName="grid gap-4 md:grid-cols-2"
+        footer={(
+          <>
+            <Button variant="outline" className={contractActionClassNames.secondary} onClick={() => setSignatureContract(null)}>{t.common.cancel}</Button>
+            <Button className={contractActionClassNames.primary} onClick={handlePrepareSignature}>
+              <Send className="h-4 w-4" />
+              {t.forms.signature.submit}
+            </Button>
+          </>
+        )}
+      >
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">{t.forms.signature.recipientName}</label>
               <Input value={signatureForm.recipientName} onChange={(event) => setSignatureForm((current) => ({ ...current, recipientName: event.target.value }))} />
@@ -881,16 +876,7 @@ export default function Contrato() {
             <div className="rounded-lg border border-[#F4C84A]/40 bg-[#F4C84A]/10 p-4">
               <p className="text-sm font-bold text-[#9a6b05]">{t.notices.legalBoundary}</p>
             </div>
-          </div>
-          <DialogFooter className={contractModalStyles.footer}>
-            <Button variant="outline" className={contractModalStyles.secondaryButton} onClick={() => setSignatureContract(null)}>{t.common.cancel}</Button>
-            <Button className={contractModalStyles.primaryButton} onClick={handlePrepareSignature}>
-              <Send className="h-4 w-4" />
-              {t.forms.signature.submit}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </SalesModalFrame>
     </section>
   );
 }

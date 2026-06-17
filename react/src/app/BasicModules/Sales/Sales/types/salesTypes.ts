@@ -17,6 +17,15 @@ export type CommissionStatus = 'pending' | 'calculated' | 'paid';
 export type InventoryMovementStatus = 'not_generated' | 'pending' | 'approved' | 'completed';
 export type PaymentEvidenceStatus = 'missing' | 'uploaded' | 'under_review' | 'approved' | 'rejected';
 export type SalesPeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
+export type SalesFocusFilter =
+  | 'all'
+  | 'open'
+  | 'pending_finance'
+  | 'pending_inventory'
+  | 'to_deliver'
+  | 'delivered'
+  | 'cancelled'
+  | 'at_risk';
 export type SaleLineAvailabilityStatus = SalesAvailabilityStatus;
 export type SaleLine = SalesWorkflowSaleLine;
 export type SaleInventoryMovementDraft = SalesWorkflowInventoryMovementDraft;
@@ -87,12 +96,17 @@ export type SalesOperationalContext = {
   legalName: string;
   fiscalAddress: string;
   taxIdentifier: string;
+  taxIdentifierLabel?: string;
+  companyRegistryNumber?: string;
+  country?: 'MX' | 'CA' | 'CO' | 'US' | 'BR' | string;
+  jurisdictionName?: string;
   currency: string;
   defaultWarehouse: string;
 };
 
 export type SalesFiltersState = {
   search: string;
+  focus: SalesFocusFilter;
   businessUnit: string;
   business: string;
   period: SalesPeriodFilter;
@@ -139,12 +153,28 @@ export type SalesColumnConfig = {
 
 export type SalesMetrics = {
   totalSalesAmount: number;
+  totalSalesAmountLabel: string;
+  totalSalesNativeLabel: string;
+  preferredCurrency: string;
+  preferredRevenueLabel: string;
+  exchangeRateDateLabel: string;
   totalCommissions: number;
   averageTicket: number;
   salesCount: number;
+  openSales: number;
+  activeSales: number;
+  pendingFinanceSales: number;
+  pendingInventorySales: number;
+  completedSales: number;
+  cancelledSales: number;
+  attentionSales: number;
+  deliveryProgress: number;
   recurringRevenue: number;
+  recurringRevenueLabel: string;
   renewalRevenue: number;
+  renewalRevenueLabel: string;
   recoveredRevenue: number;
+  recoveredRevenueLabel: string;
   customersAtRisk: number;
   pendingFinanceValidation: number;
   pendingInventoryMovement: number;

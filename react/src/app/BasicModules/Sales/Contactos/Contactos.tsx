@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  BriefcaseBusiness,
+  Columns3,
+  FileText,
   Mail,
   MessageCircle,
   PencilLine,
@@ -12,19 +16,12 @@ import {
   Trash2,
   UploadCloud,
   UsersRound,
+  type LucideIcon,
 } from 'lucide-react';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -42,7 +39,16 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { Textarea } from '../../../components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/tooltip';
 import { cn } from '../../../components/ui/utils';
+import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
+import { ColumnasConfigModal } from '../../../components/rh/ColumnasConfigModal';
+import {
+  SalesTitleBar,
+  salesTitleBarPrimaryActionClassName,
+  salesTitleBarSecondaryActionClassName,
+} from '../components/SalesTitleBar';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
 import { salesApi } from '../salesApi';
 import {
   opportunitySources,
@@ -51,7 +57,6 @@ import {
   type SalesContact,
   useSalesCrm,
 } from '../salesCrmContext';
-import { getSalesModalStyles } from '../salesModalStyles';
 import { getPhoneHref, getWhatsAppHref } from '../utils/salesCommunicationUtils';
 import {
   fallbackOwnerValue,
@@ -65,13 +70,17 @@ import { ContactFiscalBadge } from './components/ContactFiscalBadge';
 import { ContactLearningGuide } from './components/ContactLearningGuide';
 import { ImportContactsModal } from './components/ImportContactsModal';
 import { ContactRelationshipSignal } from './components/ContactRelationshipSignal';
-import { useContactLearningCopy } from './translations/contactLearning';
-import { useContactTranslations } from './translations/contactTranslations';
+import {
+  useContactosLearningTranslations,
+  useContactosTranslations,
+} from './hooks/useContactosTranslations';
+import type { ContactCopy } from './translations';
 import { getContactFiscalSignal, getContactRelationshipSignal } from './utils/contactTableSignals';
 import type { ImportedContactDraft } from './utils/contactImportUtils';
 
 type ContactSortColumn = 'contact' | 'company' | 'phone' | 'email' | 'source' | 'owner' | 'notes';
 type ContactSortDirection = 'asc' | 'desc';
+type ContactColumnId = ContactSortColumn | 'relationship' | 'fiscal';
 
 type ContactSortState = {
   columnId: ContactSortColumn;
@@ -114,10 +123,21 @@ type FiscalCountryOption = {
   regimeLabel: string;
 };
 
-const contactInputClassName = 'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
-const contactSelectClassName = 'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
-const contactModalStyles = getSalesModalStyles('coral');
-const contactSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
+const defaultContactVisibleColumns: ContactColumnId[] = [
+  'company',
+  'phone',
+  'email',
+  'source',
+  'owner',
+  'relationship',
+  'fiscal',
+  'notes',
+];
+
+const contactInputClassName = 'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
+const contactSelectClassName = 'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
+const contactModalActionClassNames = getSalesModalActionClassNames('coral');
+const contactSortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
 
 const fiscalCountryOptions: FiscalCountryOption[] = [
   {
@@ -170,9 +190,50 @@ function ContactFormField({
 }) {
   return (
     <div className={cn('space-y-2', className)}>
-      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{label}</label>
       {children}
     </div>
+  );
+}
+
+function ContactFormSection({
+  icon: Icon,
+  title,
+  description,
+  tone = 'neutral',
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  tone?: 'neutral' | 'coral';
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className={cn(
+        'rounded-[24px] border bg-white p-5 shadow-sm',
+        tone === 'coral' ? 'border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04]' : 'border-slate-200',
+      )}
+    >
+      <div className="mb-5 flex items-start gap-3">
+        <span
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border',
+            tone === 'coral'
+              ? 'border-[#FF6B5E]/20 bg-white text-[#B63B32]'
+              : 'border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]',
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-lg font-black text-slate-950">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -273,16 +334,15 @@ function ContactActionButton({
   disabled?: boolean;
 }) {
   const controlClassName = cn(
-    'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20',
+    'flex h-9 w-9 items-center justify-center rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20',
     className,
     disabled && 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60 hover:bg-slate-100',
   );
 
-  if (href && !disabled) {
-    return (
+  const control = href && !disabled
+    ? (
       <a
         href={href}
-        title={label}
         aria-label={label}
         className={controlClassName}
         target={href.startsWith('https://') ? '_blank' : undefined}
@@ -290,26 +350,102 @@ function ContactActionButton({
       >
         {icon}
       </a>
+    )
+    : (
+      <button type="button" aria-label={label} className={controlClassName} onClick={onClick} disabled={disabled}>
+        {icon}
+      </button>
     );
-  }
 
   return (
-    <button type="button" title={label} aria-label={label} className={controlClassName} onClick={onClick} disabled={disabled}>
-      {icon}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">{control}</span>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={8}
+        className="max-w-[220px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+      >
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function ContactDeleteDialog({
+  copy,
+  contact,
+  onCancel,
+  onConfirm,
+}: {
+  copy: ContactCopy['actions'];
+  contact: SalesContact | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <SalesModalFrame
+      open={Boolean(contact)}
+      onOpenChange={(open) => {
+        if (!open) {
+          onCancel();
+        }
+      }}
+      title={copy.deleteTitle}
+      description={contact ? copy.deleteConfirm(contact.contactPerson) : copy.deleteTitle}
+      icon={<Trash2 className="h-5 w-5" />}
+      contentClassName="w-[min(92vw,520px)]"
+      bodyClassName="space-y-4 px-7 py-6"
+      footerClassName="sm:justify-end"
+      footer={(
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className={contactModalActionClassNames.secondary}
+            onClick={onCancel}
+          >
+            {copy.deleteCancel}
+          </Button>
+          <Button
+            type="button"
+            className={contactModalActionClassNames.primary}
+            onClick={onConfirm}
+          >
+            {copy.deleteConfirmLabel}
+          </Button>
+        </>
+      )}
+    >
+      <div className="rounded-2xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04] p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-white text-[#B63B32]">
+            <AlertTriangle className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="break-words text-base font-black text-slate-950">{contact?.contactPerson}</p>
+            <p className="mt-1 break-words text-sm font-semibold text-slate-600">{contact?.company}</p>
+          </div>
+        </div>
+      </div>
+    </SalesModalFrame>
   );
 }
 
 export default function Contactos({ learningModeActive = false }: ContactosProps) {
-  const t = useContactTranslations();
-  const learningCopy = useContactLearningCopy();
+  const t = useContactosTranslations();
+  const learningCopy = useContactosLearningTranslations();
   const { contacts, opportunities, quotes, addContact, updateContact, deleteContact } = useSalesCrm();
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<SalesContact | null>(null);
+  const [pendingDeleteContact, setPendingDeleteContact] = useState<SalesContact | null>(null);
   const [form, setForm] = useState<ContactFormState>(initialContactForm);
   const [sortState, setSortState] = useState<ContactSortState>({ columnId: 'contact', direction: 'asc' });
+  const [visibleContactColumns, setVisibleContactColumns] = useState<ContactColumnId[]>(defaultContactVisibleColumns);
+  const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [ownerOptions, setOwnerOptions] = useState<SalesOwnerOption[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [contextCurrentUserCompanyId, setContextCurrentUserCompanyId] = useState<number | null>(null);
@@ -451,17 +587,33 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   };
 
   const renderSortableHead = (columnId: ContactSortColumn, label: string, className?: string) => (
-    <TableHead className={cn('px-5 py-5', className)}>
+    <TableHead className={cn('whitespace-normal px-5 py-5', className)}>
       <button
         type="button"
-        className="inline-flex items-center gap-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-800"
+        className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
         onClick={() => handleSort(columnId)}
       >
-        {label}
+        <span className="min-w-0 whitespace-normal break-words">{label}</span>
         <SortIcon columnId={columnId} sortState={sortState} />
       </button>
     </TableHead>
   );
+  const contactConfigurableColumns = useMemo<ColumnConfig[]>(() => (
+    (['company', 'phone', 'email', 'source', 'owner', 'relationship', 'fiscal', 'notes'] as ContactColumnId[]).map((columnId) => ({
+      id: columnId,
+      label: t.table.columns[columnId],
+      description: t.table.columns[columnId],
+      visible: visibleContactColumns.includes(columnId),
+    }))
+  ), [t.table.columns, visibleContactColumns]);
+  const contactDefaultColumns = useMemo<ColumnConfig[]>(() => (
+    contactConfigurableColumns.map((column) => ({
+      ...column,
+      visible: defaultContactVisibleColumns.includes(column.id as ContactColumnId),
+    }))
+  ), [contactConfigurableColumns]);
+  const canShowContactColumn = (columnId: ContactColumnId) => visibleContactColumns.includes(columnId);
+  const contactTableColumnCount = 2 + visibleContactColumns.length;
 
   const handleOpenCreateContact = () => {
     setEditingContact(null);
@@ -515,16 +667,20 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   };
 
   const handleDeleteContact = (contact: SalesContact) => {
-    const shouldDelete = window.confirm(t.actions.deleteConfirm(contact.contactPerson));
-    if (!shouldDelete) {
+    setPendingDeleteContact(contact);
+  };
+
+  const handleConfirmDeleteContact = () => {
+    if (!pendingDeleteContact) {
       return;
     }
 
-    deleteContact(contact.id);
-    if (editingContact?.id === contact.id) {
+    deleteContact(pendingDeleteContact.id);
+    if (editingContact?.id === pendingDeleteContact.id) {
       setEditingContact(null);
       setIsContactModalOpen(false);
     }
+    setPendingDeleteContact(null);
   };
 
   const handleFormOwnerChange = (value: string) => {
@@ -647,22 +803,25 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
 
   return (
     <section className="space-y-5">
-      <section className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900">
-              <span className="text-2xl leading-none" aria-hidden="true">👥</span>
-              {t.header.title}
-            </h2>
-            <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600">
-              {t.header.subtitle}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
+      <SalesTitleBar
+        icon="🏢"
+        title={t.header.title}
+        subtitle={t.header.subtitle}
+        actions={(
+          <>
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-4 text-sm font-semibold text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10"
+              className={salesTitleBarSecondaryActionClassName}
+              onClick={() => setIsColumnsModalOpen(true)}
+            >
+              <Columns3 className="h-4 w-4" />
+              {t.header.columnsAction}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className={salesTitleBarSecondaryActionClassName}
               onClick={() => setIsImportModalOpen(true)}
             >
               <UploadCloud className="h-4 w-4" />
@@ -670,19 +829,19 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
             </Button>
             <Button
               type="button"
-              className="h-10 gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
+              className={salesTitleBarPrimaryActionClassName}
               onClick={handleOpenCreateContact}
             >
               <Plus className="h-4 w-4" />
               {t.header.addContact}
             </Button>
-          </div>
-        </div>
-      </section>
+          </>
+        )}
+      />
 
       {learningModeActive ? <ContactLearningGuide copy={learningCopy} /> : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -690,39 +849,39 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={t.search.placeholder}
-              className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+              className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             <span>{t.search.visibleContacts}</span>
-            <span className="font-bold text-slate-950">{sortedContacts.length}</span>
+            <span className="font-black text-[#B63B32]">{sortedContacts.length}</span>
           </div>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <Table className="min-w-[1660px]">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <Table className="min-w-[1740px] table-fixed">
           <TableHeader>
-            <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50">
-              {renderSortableHead('contact', t.table.columns.contact)}
-              {renderSortableHead('company', t.table.columns.company)}
-              {renderSortableHead('phone', t.table.columns.phone)}
-              {renderSortableHead('email', t.table.columns.email)}
-              {renderSortableHead('source', t.table.columns.source)}
-              {renderSortableHead('owner', t.table.columns.owner)}
-              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.table.columns.relationship}</TableHead>
-              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.table.columns.fiscal}</TableHead>
-              {renderSortableHead('notes', t.table.columns.notes)}
-              <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t.table.columns.actions}</TableHead>
+            <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
+              {renderSortableHead('contact', t.table.columns.contact, 'w-[230px]')}
+              {canShowContactColumn('company') ? renderSortableHead('company', t.table.columns.company, 'w-[220px]') : null}
+              {canShowContactColumn('phone') ? renderSortableHead('phone', t.table.columns.phone, 'w-[170px]') : null}
+              {canShowContactColumn('email') ? renderSortableHead('email', t.table.columns.email, 'w-[230px]') : null}
+              {canShowContactColumn('source') ? renderSortableHead('source', t.table.columns.source, 'w-[170px]') : null}
+              {canShowContactColumn('owner') ? renderSortableHead('owner', t.table.columns.owner, 'w-[220px]') : null}
+              {canShowContactColumn('relationship') ? <TableHead className="w-[190px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.relationship}</TableHead> : null}
+              {canShowContactColumn('fiscal') ? <TableHead className="w-[170px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.fiscal}</TableHead> : null}
+              {canShowContactColumn('notes') ? renderSortableHead('notes', t.table.columns.notes, 'w-[300px]') : null}
+              <TableHead className="w-[170px] whitespace-normal px-4 py-5 text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedContacts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="px-5 py-12 text-center">
+                <TableCell colSpan={contactTableColumnCount} className="px-5 py-12 text-center">
                   <div className="mx-auto max-w-md space-y-2">
-                    <p className="text-sm font-bold text-slate-900">{t.table.emptyTitle}</p>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-300">
                       {t.table.emptyDescription}
                     </p>
                   </div>
@@ -739,36 +898,36 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
               const relationshipSignal = getContactRelationshipSignal({ contact, opportunities, quotes });
 
               return (
-                <TableRow key={contact.id} className="border-slate-200 hover:bg-slate-50/80">
-                  <TableCell className="px-5 py-5">
-                    <div className="min-w-[210px] whitespace-normal">
-                      <p className="font-bold text-slate-950">{contact.contactPerson}</p>
-                      <p className="mt-1 text-xs font-semibold text-[#B63B32]">{contact.id}</p>
-                      <p className="mt-1 text-xs text-slate-500">{contact.role}</p>
+                <TableRow key={contact.id} className="border-slate-100 hover:bg-[#FF6B5E]/[0.025] dark:border-slate-700 dark:hover:bg-slate-700/40">
+                  <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
+                    <div className="min-w-0 max-w-full space-y-1">
+                      <p className="break-words font-bold text-slate-950 dark:text-white">{contact.contactPerson}</p>
+                      <p className="break-all text-xs font-semibold text-[#B63B32]">{contact.id}</p>
+                      <p className="break-words text-xs text-slate-500">{contact.role}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="px-5 py-5 text-sm font-semibold text-slate-900">
-                    <div className="min-w-[180px]">
-                      <p className={cn(!contact.company && 'text-slate-400')}>{contact.company || t.table.noCompany}</p>
+                  {canShowContactColumn('company') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top text-sm font-semibold text-slate-900 dark:text-slate-200">
+                    <div className="min-w-0 max-w-full">
+                      <p className={cn('break-words', !contact.company && 'text-slate-400')}>{contact.company || t.table.noCompany}</p>
                       {contact.fiscalTaxId ? (
-                        <p className="mt-1 text-xs font-medium text-slate-500">{contact.fiscalTaxId}</p>
+                        <p className="mt-1 break-all text-xs font-medium text-slate-500">{contact.fiscalTaxId}</p>
                       ) : null}
                     </div>
-                  </TableCell>
-                  <TableCell className="px-5 py-5 text-sm text-slate-700">
-                    <span className={cn(!hasPhone && 'font-medium text-slate-400')}>{hasPhone ? contact.phone : t.table.noPhone}</span>
-                  </TableCell>
-                  <TableCell className="px-5 py-5 text-sm text-slate-700">
-                    <span className={cn(!hasEmail && 'font-medium text-slate-400')}>{hasEmail ? contact.email : t.table.noEmail}</span>
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
-                    <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">
+                  </TableCell> : null}
+                  {canShowContactColumn('phone') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top text-sm text-slate-700 dark:text-slate-300">
+                    <span className={cn('block min-w-0 break-all', !hasPhone && 'font-medium text-slate-400')}>{hasPhone ? contact.phone : t.table.noPhone}</span>
+                  </TableCell> : null}
+                  {canShowContactColumn('email') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top text-sm text-slate-700 dark:text-slate-300">
+                    <span className={cn('block min-w-0 break-all leading-6', !hasEmail && 'font-medium text-slate-400')}>{hasEmail ? contact.email : t.table.noEmail}</span>
+                  </TableCell> : null}
+                  {canShowContactColumn('source') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
+                    <Badge variant="outline" className="h-auto max-w-full whitespace-normal rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                       {t.sources[contact.source]}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
+                  </TableCell> : null}
+                  {canShowContactColumn('owner') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                     <Select value={ownerValue} onValueChange={(value) => handleOwnerChange(contact, value)}>
-                      <SelectTrigger className="h-10 min-w-[190px] rounded-full border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-none focus:ring-[#FF6B5E]/20">
+                      <SelectTrigger className="h-10 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-none focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate">
                         <SelectValue placeholder={t.table.ownerPlaceholder} />
                       </SelectTrigger>
                       <SelectContent>
@@ -777,30 +936,30 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
                         ))}
                       </SelectContent>
                     </Select>
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
+                  </TableCell> : null}
+                  {canShowContactColumn('relationship') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                     <ContactRelationshipSignal copy={t.signals.relationship} signal={relationshipSignal} />
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
+                  </TableCell> : null}
+                  {canShowContactColumn('fiscal') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                     <ContactFiscalBadge copy={t.signals.fiscal} signal={fiscalSignal} country={contact.fiscalCountry} />
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
+                  </TableCell> : null}
+                  {canShowContactColumn('notes') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                     <Textarea
                       value={contact.notes}
                       onChange={(event) => updateContact(contact.id, { notes: event.target.value })}
                       placeholder={t.table.notesPlaceholder}
-                      className="min-h-[58px] min-w-[260px] resize-none rounded-lg border-slate-200 bg-white text-sm text-slate-800 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+                      className="min-h-[58px] w-full min-w-0 resize-none rounded-xl border-slate-200 bg-white text-sm text-slate-800 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     />
-                  </TableCell>
-                  <TableCell className="px-5 py-5">
-                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
+                  </TableCell> : null}
+                  <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
+                    <div className="mx-auto grid w-fit grid-cols-[repeat(3,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       <ContactActionButton label={hasPhone ? t.actions.call(contact.contactPerson) : t.actions.noPhone} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" href={hasPhone ? getPhoneHref(contact.phone) : undefined} disabled={!hasPhone} />
                       <ContactActionButton label={hasPhone ? t.actions.whatsapp(contact.contactPerson) : t.actions.noPhone} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" href={hasPhone ? getWhatsAppHref(contact.phone) : undefined} disabled={!hasPhone} />
                       <ContactActionButton label={hasEmail ? t.actions.email(contact.contactPerson) : t.actions.noEmail} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" href={hasEmail ? `mailto:${contact.email}` : undefined} disabled={!hasEmail} />
                       <ContactActionButton
                         label={t.actions.edit(contact.contactPerson)}
                         icon={<PencilLine className="h-4 w-4" />}
-                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                         onClick={() => handleOpenEditContact(contact)}
                       />
                       <ContactActionButton
@@ -818,24 +977,33 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
         </Table>
       </section>
 
-      <Dialog open={isContactModalOpen} onOpenChange={handleContactModalOpenChange}>
-        <DialogContent className={cn(contactModalStyles.content, '!flex max-h-[90vh] max-w-4xl flex-col !gap-0')} closeButtonClassName={contactModalStyles.close}>
-          <DialogHeader className={cn(contactModalStyles.header, 'shrink-0')}>
-            <DialogTitle className={contactModalStyles.title}>
-              <UsersRound className="h-6 w-6" />
-              {editingContact ? t.modal.editTitle : t.modal.createTitle}
-            </DialogTitle>
-            <DialogDescription className={contactModalStyles.description}>
-              {t.modal.description}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-            <section className="space-y-4">
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">{t.modal.commercialTitle}</h3>
-                <p className="mt-1 text-sm text-slate-500">{t.modal.commercialDescription}</p>
-              </div>
+      <SalesModalFrame
+        open={isContactModalOpen}
+        onOpenChange={handleContactModalOpenChange}
+        title={editingContact ? t.modal.editTitle : t.modal.createTitle}
+        description={t.modal.description}
+        icon={<UsersRound className="h-5 w-5" />}
+        contentClassName="flex max-h-[calc(100vh-2rem)] w-[min(94vw,960px)] max-w-none flex-col sm:max-w-none"
+        bodyClassName="!max-h-none min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/70 px-6 py-5"
+        footer={(
+          <>
+            <Button
+              variant="outline"
+              className={contactModalActionClassNames.secondary}
+              onClick={() => handleContactModalOpenChange(false)}
+            >
+              {t.modal.cancel}
+            </Button>
+            <Button
+              className={contactModalActionClassNames.primary}
+              onClick={handleSaveContact}
+            >
+              {editingContact ? t.modal.saveChanges : t.modal.saveContact}
+            </Button>
+          </>
+        )}
+      >
+            <ContactFormSection icon={BriefcaseBusiness} title={t.modal.commercialTitle} description={t.modal.commercialDescription}>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <ContactFormField label={t.modal.fields.company}>
                   <Input value={form.company} onChange={(event) => setForm((current) => ({ ...current, company: event.target.value }))} placeholder={t.modal.placeholders.company} className={contactInputClassName} />
@@ -867,18 +1035,12 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
                   </Select>
                 </ContactFormField>
                 <ContactFormField label={t.modal.fields.notes} className="md:col-span-2">
-                  <Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.modal.placeholders.notes} className="min-h-24 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
+                  <Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.modal.placeholders.notes} className="min-h-24 rounded-xl border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
                 </ContactFormField>
               </div>
-            </section>
+            </ContactFormSection>
 
-            <section className="space-y-4 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-[#B63B32]">{t.modal.fiscalTitle}</h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  {t.modal.fiscalDescription}
-                </p>
-              </div>
+            <ContactFormSection icon={FileText} title={t.modal.fiscalTitle} description={t.modal.fiscalDescription} tone="coral">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <ContactFormField label={t.modal.fields.fiscalCountry}>
                   <Select value={form.fiscalCountry} onValueChange={(value) => setForm((current) => ({ ...current, fiscalCountry: value }))}>
@@ -919,26 +1081,51 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
                   <Input value={form.fiscalRegime} onChange={(event) => setForm((current) => ({ ...current, fiscalRegime: event.target.value }))} placeholder={t.modal.placeholders.fiscalRegime} className={contactInputClassName} />
                 </ContactFormField>
                 <ContactFormField label={t.modal.fields.fiscalNotes} className="md:col-span-2">
-                  <Textarea value={form.fiscalNotes} onChange={(event) => setForm((current) => ({ ...current, fiscalNotes: event.target.value }))} placeholder={t.modal.placeholders.fiscalNotes} className="min-h-20 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
+                  <Textarea value={form.fiscalNotes} onChange={(event) => setForm((current) => ({ ...current, fiscalNotes: event.target.value }))} placeholder={t.modal.placeholders.fiscalNotes} className="min-h-20 rounded-xl border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
                 </ContactFormField>
               </div>
-            </section>
-          </div>
-
-          <DialogFooter className={cn(contactModalStyles.footer, 'shrink-0')}>
-            <Button variant="outline" className={contactModalStyles.secondaryButton} onClick={() => handleContactModalOpenChange(false)}>{t.modal.cancel}</Button>
-            <Button className={contactModalStyles.primaryButton} onClick={handleSaveContact}>
-              {editingContact ? t.modal.saveChanges : t.modal.saveContact}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </ContactFormSection>
+      </SalesModalFrame>
 
       <ImportContactsModal
         copy={t.importModal}
         isOpen={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
         onImportContacts={handleImportContacts}
+      />
+
+      <ContactDeleteDialog
+        copy={t.actions}
+        contact={pendingDeleteContact}
+        onCancel={() => setPendingDeleteContact(null)}
+        onConfirm={handleConfirmDeleteContact}
+      />
+
+      <ColumnasConfigModal
+        isOpen={isColumnsModalOpen}
+        columns={contactConfigurableColumns}
+        defaultColumns={contactDefaultColumns}
+        fixedColumns={[
+          {
+            id: 'contact',
+            label: t.table.columns.contact,
+            description: t.table.columns.contact,
+            locked: true,
+            visible: true,
+          },
+          {
+            id: 'actions',
+            label: t.table.columns.actions,
+            description: t.table.columns.actions,
+            locked: true,
+            visible: true,
+          },
+        ]}
+        theme="sales"
+        onClose={() => setIsColumnsModalOpen(false)}
+        onSave={(columns) => {
+          setVisibleContactColumns(columns.filter((column) => column.visible).map((column) => column.id as ContactColumnId));
+        }}
       />
     </section>
   );

@@ -92,6 +92,7 @@ export const zhCA = {
   labels: {
     price: '价格',
     cost: '成本',
+    currency: '币种',
     margin: '利润率',
     profit: '利润',
     status: '状态',
@@ -322,6 +323,8 @@ export const zhCA = {
     editTitle: '编辑目录项目',
     description: '添加可用于报价、POS 和未来库存连接的可复用商业模块。',
     editDescription: '更新该项目的商业、视觉和运营信息。',
+    validationMissingRequired: (fields: string) => `保存前请完成必填字段：${fields}。`,
+    saveFailed: '无法保存项目。请检查必填信息后重试。',
     fields: {
       name: '产品或服务名称',
       sku: 'SKU / 内部代码',

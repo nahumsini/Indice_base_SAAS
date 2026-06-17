@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { cn } from '../../../../components/ui/utils';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import { ProductThumbnail } from './ProductThumbnail';
 import { getProductGalleryImages } from '../utils/productImages';
+
+const galleryActionClassNames = getSalesModalActionClassNames('coral');
 
 export function ProductImageCarouselModal({
   product,
@@ -57,28 +53,26 @@ export function ProductImageCarouselModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="grid grid-rows-[auto,minmax(0,1fr)] gap-0 overflow-hidden rounded-xl border border-[#FF6B5E]/25 bg-white p-0 shadow-2xl"
-        style={{
-          width: 'min(96vw, 1480px)',
-          maxWidth: 'min(96vw, 1480px)',
-          height: 'min(92vh, 940px)',
-          maxHeight: '92vh',
-        }}
-      >
-        <DialogHeader className="border-b border-[#FF6B5E]/15 bg-[#FF6B5E]/10 px-6 py-5">
-          <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-950">
-            <ImageIcon className="h-5 w-5 text-[#B63B32]" />
-            {product?.name || t.gallery.title}
-          </DialogTitle>
-          <DialogDescription className="text-sm font-semibold text-slate-600">
-            {hasImages
-              ? t.gallery.counter(activeIndex + 1, images.length)
-              : t.gallery.empty}
-          </DialogDescription>
-        </DialogHeader>
-
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={product?.name || t.gallery.title}
+      description={hasImages ? t.gallery.counter(activeIndex + 1, images.length) : t.gallery.empty}
+      icon={<ImageIcon className="h-6 w-6" />}
+      contentClassName="flex h-[min(92vh,940px)] w-[min(96vw,1480px)] max-w-[min(96vw,1480px)] flex-col"
+      bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-white p-0"
+      footerClassName="sm:justify-end"
+      footer={(
+        <Button
+          type="button"
+          variant="outline"
+          className={galleryActionClassNames.secondary}
+          onClick={() => onOpenChange(false)}
+        >
+          {t.common.close}
+        </Button>
+      )}
+    >
         <div className="grid min-h-0 gap-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="relative flex min-h-[520px] items-center justify-center bg-slate-950/95 p-5">
             {hasImages && activeImage ? (
@@ -148,7 +142,6 @@ export function ProductImageCarouselModal({
             </div>
           </aside>
         </div>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

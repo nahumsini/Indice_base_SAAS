@@ -83,10 +83,12 @@ export function updateWarehouseDistribution(rows: InventoryStockRow[], productId
     return {
       ...row,
       distributions,
+      minimumStock: distributions.length > 0 ? Math.max(row.minimumStock, 2) : row.minimumStock,
       businessUnitId: warehouse.businessUnitId ?? row.businessUnitId,
       businessUnitName: warehouse.businessUnitName ?? row.businessUnitName,
       businessId: warehouse.businessId ?? row.businessId,
       businessName: warehouse.businessName ?? row.businessName,
+      usesInventory: true,
       lastMovementAt: new Date().toISOString().slice(0, 10),
     };
   });

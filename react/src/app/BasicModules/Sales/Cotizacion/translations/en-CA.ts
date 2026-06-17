@@ -35,6 +35,71 @@ export const enCA = {
     expiringSoon: 'expiring soon',
     summary: '{expiring} quotes are expiring soon; visible quoted value is {value} and average margin is {margin}%.',
   },
+  kpiEngine: {
+    labels: {
+      visible: 'visible',
+      live: 'live',
+      quotedValue: 'quoted value',
+      readyToSend: 'ready',
+      averageMargin: 'avg. margin',
+      expiringSoon: 'expiring soon',
+    },
+    alerts: {
+      expiringSoon: (count: number) => `${count} expiring soon`,
+      expired: (count: number) => `${count} expired`,
+      lowMargin: (count: number) => `${count} low margin`,
+      readinessIssues: (count: number) => `${count} need review`,
+    },
+    segments: {
+      Draft: 'Draft',
+      Sent: 'Sent',
+      Viewed: 'Viewed',
+      Negotiation: 'Negotiation',
+      Approved: 'Approved',
+      Rejected: 'Rejected',
+      Expired: 'Expired',
+      'Closed Won': 'Closed Won',
+    },
+    insight: ({
+      averageMargin,
+      expiringSoon,
+      expired,
+      lowMargin,
+      quotedValue,
+      readinessIssues,
+      visible,
+    }: {
+      averageMargin: number;
+      expiringSoon: number;
+      expired: number;
+      lowMargin: number;
+      quotedValue: string;
+      readinessIssues: number;
+      visible: number;
+    }) => {
+      if (visible === 0) {
+        return 'No visible quotes match the current filters; adjust the view before acting.';
+      }
+
+      if (expired > 0) {
+        return `${expired} quotes are expired and should be renewed, closed, or removed from active follow-up.`;
+      }
+
+      if (expiringSoon > 0) {
+        return `${expiringSoon} quotes expire soon; review validity before the commercial promise becomes stale.`;
+      }
+
+      if (readinessIssues > 0) {
+        return `${readinessIssues} quotes need readiness review before they can be sent confidently.`;
+      }
+
+      if (lowMargin > 0) {
+        return `${lowMargin} quotes have low margin; review price, discount, or cost before approval.`;
+      }
+
+      return `Visible quoted value is ${quotedValue} with ${averageMargin}% average margin.`;
+    },
+  },
   sections: {
     tableTitle: 'Operational quote table',
     tableDescription: 'Quotes stay independent but can be connected to one or many opportunity cycles over time.',
@@ -92,6 +157,7 @@ export const enCA = {
     opportunity: 'Opportunity',
     status: 'Status',
     seller: 'Assigned seller',
+    currency: 'Currency',
     createdDate: 'Created date',
     expirationDate: 'Expiration date',
     notes: 'Notes',
@@ -118,6 +184,8 @@ export const enCA = {
     removeItem: 'Remove item',
     emptyItems: 'Add products or services from the catalog to build the quote.',
     submit: 'Create quote',
+    submitAndPrint: 'Create & print',
+    saveAndPrint: 'Save & print',
     clientPlaceholder: 'Select contact',
     temporaryClientPlaceholder: 'Client or account name',
     contactPlaceholder: 'Contact person',
@@ -130,11 +198,11 @@ export const enCA = {
     expirationWarning: (days: number) => `This quote expires in ${days} day(s). Review validity before sending.`,
   },
   builderSections: {
-    customer: 'Customer & Opportunity',
+    customer: 'Customer & Setup',
     items: 'Add items',
-    pricing: 'Pricing & Taxes',
+    pricing: 'Currency & Taxes',
     conditions: 'Conditions',
-    summary: 'Summary',
+    summary: 'Final review',
   },
   catalog: {
     description: 'Reusable catalog items that are ready for quotes appear by default.',
@@ -153,7 +221,10 @@ export const enCA = {
     description: 'Adjust quantity, final price, discount, tax and notes for each quoted item.',
   },
   pricing: {
-    taxHelper: 'Choose one tax jurisdiction for this quote. Line taxes are selected from that country or a custom tax profile.',
+    taxHelper: 'Set the final quote currency and fiscal country. Products in another currency are converted to this quote currency and each line uses taxes from the selected country.',
+    catalogPrice: 'Catalog price',
+    convertedPrice: 'Quote unit price',
+    exchangeRate: 'FX rate',
     taxableSubtotal: 'Subtotal after discount',
     estimatedCost: 'Estimated cost',
     estimatedProfit: 'Estimated profit',
@@ -180,8 +251,8 @@ export const enCA = {
     custom: 'Custom',
   },
   taxBuilder: {
-    title: 'Tax jurisdiction reader',
-    description: 'A quote can only operate under one fiscal jurisdiction. Pick the country first, then select the legal or configurable tax that applies to each line.',
+    title: 'Fiscal setup and currency',
+    description: 'Choose the fiscal country before adding items. Currency is assigned automatically by country and available taxes are prepared for the quote lines.',
     jurisdiction: 'Tax jurisdiction',
     singleJurisdictionNote: (jurisdiction: string) => `This quote is being prepared under ${jurisdiction}. Change the jurisdiction only if the whole quote will be invoiced there.`,
     customJurisdictionName: 'Custom jurisdiction name',

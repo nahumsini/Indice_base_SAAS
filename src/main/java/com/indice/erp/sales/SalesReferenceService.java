@@ -27,6 +27,15 @@ class SalesReferenceService {
         if ("quotes".equals(collection)) {
             validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "assignedSellerUserCompanyId"));
         }
+        if ("inventory-balances".equals(collection)) {
+            validateSalesReference(companyId, "sales_products", SalesPayloadSupport.longValue(payload, "productId"), "productId");
+            validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "warehouseId"), "warehouseId");
+        }
+        if ("inventory-movements".equals(collection)) {
+            validateSalesReference(companyId, "sales_products", SalesPayloadSupport.longValue(payload, "productId"), "productId");
+            validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "fromWarehouseId"), "fromWarehouseId");
+            validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "toWarehouseId"), "toWarehouseId");
+        }
     }
 
     void validateQuoteItemPayload(long companyId, Map<String, Object> payload) {

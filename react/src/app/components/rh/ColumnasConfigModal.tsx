@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../../shared/context';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
-import { GripVertical, RotateCcw, Search, X } from 'lucide-react';
+import { Columns3, GripVertical, RotateCcw, Search, X } from 'lucide-react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { cn } from '../ui/utils';
@@ -29,7 +29,7 @@ interface ColumnasConfigModalProps {
   onSave: (columns: ColumnConfig[]) => void;
   defaultColumns?: ColumnConfig[];
   fixedColumns?: ColumnConfig[];
-  theme?: 'default' | 'processes' | 'humanResources';
+  theme?: 'default' | 'processes' | 'humanResources' | 'sales';
 }
 
 interface DraggableColumnItemProps {
@@ -85,7 +85,7 @@ function DraggableColumnItem({
         }
       }}
       className={cn(
-        'flex items-center gap-4 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all dark:border-slate-700 dark:bg-slate-800',
+        'flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800',
         isDragging && 'opacity-50',
         isFixed
           ? 'bg-slate-50 dark:bg-slate-900/60'
@@ -100,7 +100,7 @@ function DraggableColumnItem({
         }}
         className={isFixed ? 'cursor-not-allowed' : 'cursor-grab'}
       >
-        <GripVertical className={cn('h-5 w-5', accentClassName)} />
+        <GripVertical className={cn('h-4 w-4', accentClassName)} />
       </div>
       
       <Checkbox
@@ -113,7 +113,7 @@ function DraggableColumnItem({
       
       <label htmlFor={column.id} className="min-w-0 flex-1 cursor-pointer">
         <span
-          className={`block truncate text-base font-semibold ${
+          className={`block truncate text-sm font-bold ${
             isFixed ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-white'
           }`}
         >
@@ -121,7 +121,7 @@ function DraggableColumnItem({
           {isFixed && <span className="ml-2 text-xs text-slate-400">({fixedLabel})</span>}
         </span>
         {column.description ? (
-          <span className="mt-0.5 block text-sm leading-5 text-slate-600 dark:text-slate-400">
+          <span className="mt-0.5 block text-xs font-medium leading-5 text-slate-600 dark:text-slate-400">
             {column.description}
           </span>
         ) : null}
@@ -168,6 +168,20 @@ export function ColumnasConfigModal({
         interactive: 'hover:border-[#59C3A5]/40 hover:bg-[#59C3A5]/5',
         primary:
           'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#59C3A5] shadow-sm hover:bg-slate-100 hover:text-[#59C3A5] focus-visible:ring-white/40 dark:bg-white dark:text-[#59C3A5] dark:hover:bg-slate-100',
+      };
+    }
+
+    if (theme === 'sales') {
+      return {
+        accent: 'text-[#FF6B5E]',
+        checkbox:
+          'data-[state=checked]:border-[#FF6B5E] data-[state=checked]:bg-[#FF6B5E] focus-visible:ring-[#FF6B5E]/30',
+        content: 'max-w-[760px] rounded-[28px]',
+        footer: 'bg-[#FF6B5E]',
+        header: 'bg-[#FF6B5E]',
+        interactive: 'hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/5',
+        primary:
+          'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#B63B32] shadow-sm hover:bg-slate-100 hover:text-[#B63B32] focus-visible:ring-white/40 dark:bg-white dark:text-[#B63B32] dark:hover:bg-slate-100',
       };
     }
 
@@ -383,10 +397,20 @@ export function ColumnasConfigModal({
         </DialogHeader>
 
         <div className={cn('shrink-0 px-6 py-4 text-white', modalTheme.header)}>
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="pr-4 text-xl font-semibold leading-tight tracking-tight text-white" aria-hidden="true">
-              {copy.title}
-            </h2>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+                <Columns3 className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="pr-4 text-xl font-semibold leading-tight tracking-tight text-white" aria-hidden="true">
+                  {copy.title}
+                </h2>
+                <span className="mt-2 inline-flex items-center rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                  {copy.visibleCount(visibleCount, totalColumns)}
+                </span>
+              </div>
+            </div>
             <button
               onClick={handleCancel}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
@@ -398,35 +422,32 @@ export function ColumnasConfigModal({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-900/60">
-          <div className="shrink-0 border-b border-slate-200/80 bg-white px-6 py-4 sm:px-7 dark:border-slate-700 dark:bg-slate-800">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-2.5">
+          <div className="shrink-0 border-b border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
                 <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400" aria-hidden="true">
                   {copy.description}
                 </p>
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-3.5 py-1.5 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
-                  {copy.visibleCount(visibleCount, totalColumns)}
-                </span>
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                 <Button
                   variant="outline"
-                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   onClick={handleSelectAll}
                 >
                   {copy.selectAll}
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   onClick={handleDeselectAll}
                 >
                   {copy.deselectAll}
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   onClick={handleRestoreDefaults}
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -443,14 +464,14 @@ export function ColumnasConfigModal({
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder={copy.searchPlaceholder}
-                  className="h-10 rounded-xl border-slate-200 bg-white pl-10 text-sm shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-sm shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-            <div className="space-y-3 pr-2 pb-2 sm:pr-3">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            <div className="space-y-3 pr-2 pb-2">
               <DndProvider backend={HTML5Backend}>
                 {visibleFixedColumns.map((column) => (
                   <DraggableColumnItem
@@ -488,7 +509,7 @@ export function ColumnasConfigModal({
           </div>
         </div>
 
-        <div className={cn('sticky bottom-0 z-10 flex shrink-0 items-center justify-end gap-3 px-6 py-3', modalTheme.footer)}>
+        <DialogFooter className={cn('sticky bottom-0 z-10 shrink-0 px-6 py-4', modalTheme.footer)}>
           <Button
             variant="outline"
             className={moduleModalOutlineButtonClassName}
@@ -502,7 +523,7 @@ export function ColumnasConfigModal({
           >
             {copy.apply}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

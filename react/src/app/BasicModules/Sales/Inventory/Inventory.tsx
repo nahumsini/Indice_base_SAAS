@@ -19,9 +19,10 @@ import { StockBulkActionsBar } from './components/stock/StockBulkActionsBar';
 import { StockTable } from './components/stock/StockTable';
 import { CreateWarehouseModal, type CreateWarehouseDraft } from './components/warehouses/CreateWarehouseModal';
 import { WarehousesTable } from './components/warehouses/WarehousesTable';
-import { buildInitialInventoryMovements, buildInventoryStockRows, initialInventoryWarehouses } from './data/inventoryMockData';
+import { buildInitialInventoryMovements, buildInventoryStockRows, initialInventoryWarehouses, syncInventoryStockRows } from './data/inventoryMockData';
 import { useInventorySelection } from './hooks/useInventorySelection';
 import { useInventoryTranslations } from './hooks/useInventoryTranslations';
+import { inventoryApi } from './services/inventoryApi';
 import type {
   InventoryOperationalColumnId,
   InventoryOperationalFiltersState,
@@ -60,8 +61,8 @@ export default function Inventory() {
   const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>(initialInventoryWarehouses);
   const [providers, setProviders] = useState<ProviderRecord[]>([]);
   const [referenceUsers, setReferenceUsers] = useState<FinanceReferenceUser[]>([]);
-  const [stockRows, setStockRows] = useState<InventoryStockRow[]>(() => buildInventoryStockRows(products, initialInventoryWarehouses));
-  const [movements, setMovements] = useState<InventoryOperationalMovement[]>(() => buildInitialInventoryMovements(buildInventoryStockRows(products, initialInventoryWarehouses), initialInventoryWarehouses));
+  const [stockRows, setStockRows] = useState<InventoryStockRow[]>(() => buildInventoryStockRows(products));
+  const [movements, setMovements] = useState<InventoryOperationalMovement[]>(() => buildInitialInventoryMovements());
   const [visibleColumns, setVisibleColumns] = useState<InventoryOperationalColumnId[]>(defaultOperationalColumns);
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
   const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
@@ -75,6 +76,27 @@ export default function Inventory() {
   const [stockFilters, setStockFilters] = useState<InventoryOperationalFiltersState>(defaultStockFilters);
   const [movementFilters, setMovementFilters] = useState<InventoryOperationalMovementFiltersState>(defaultMovementFilters);
   const selection = useInventorySelection<string>();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    inventoryApi.loadWorkspace(products)
+      .then((workspace) => {
+        if (!isMounted) return;
+        setWarehouses(workspace.warehouses);
+        setStockRows(workspace.stockRows);
+        setMovements(workspace.movements);
+      })
+      .catch((error) => {
+        console.warn('[Sales Inventory] backend workspace could not load. Keeping local state.', error);
+        if (!isMounted) return;
+        setStockRows((currentRows) => syncInventoryStockRows(products, currentRows));
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [products]);
 
   useEffect(() => {
     let isMounted = true;
@@ -208,6 +230,26 @@ export default function Inventory() {
   const visibleIds = useMemo(() => filteredStockRows.map((row) => row.id), [filteredStockRows]);
   const visibleSelectionState = selection.visibleSelectionState(visibleIds);
 
+  const persistStockRows = (rows: InventoryStockRow[]) => {
+    void inventoryApi.persistStockRows(rows)
+      .then((persistedRows) => setStockRows((currentRows) => syncInventoryStockRows(products, persistedRows.length > 0 ? persistedRows : currentRows)))
+      .catch((error) => console.warn('[Sales Inventory] stock balances could not sync.', error));
+  };
+
+  const persistMovements = (createdMovements: InventoryOperationalMovement[]) => {
+    const temporaryIds = new Set(createdMovements.map((movement) => movement.id));
+
+    void inventoryApi.createMovements(createdMovements)
+      .then((persistedMovements) => {
+        if (persistedMovements.length === 0) return;
+        setMovements((current) => [
+          ...persistedMovements,
+          ...current.filter((movement) => !temporaryIds.has(movement.id)),
+        ]);
+      })
+      .catch((error) => console.warn('[Sales Inventory] movements could not sync.', error));
+  };
+
   const handleAddInventory = (draft: AddInventoryDraft) => {
     const warehouse = warehouses.find((item) => item.id === draft.destinationWarehouseId);
     if (!warehouse) return;
@@ -224,11 +266,13 @@ export default function Inventory() {
       date: draft.date,
     };
 
-    setStockRows((current) => applyMovementEntryToStockRows(current, receiptDraft, undefined, warehouse));
-    setMovements((current) => [
-      ...createInventoryMovementEntries({ draft: receiptDraft, rows: stockRows, currentLength: current.length, toWarehouse: warehouse }),
-      ...current,
-    ]);
+    const nextStockRows = applyMovementEntryToStockRows(stockRows, receiptDraft, undefined, warehouse);
+    const createdMovements = createInventoryMovementEntries({ draft: receiptDraft, rows: stockRows, currentLength: movements.length, toWarehouse: warehouse });
+
+    setStockRows(nextStockRows);
+    setMovements((current) => [...createdMovements, ...current]);
+    persistStockRows(nextStockRows);
+    persistMovements(createdMovements);
     setIsAddInventoryOpen(false);
     setActiveView('movements');
   };
@@ -241,18 +285,27 @@ export default function Inventory() {
     const needsToWarehouse = ['supplierReceipt', 'transfer', 'storeReplenishment', 'return'].includes(draft.movementType);
     if ((needsFromWarehouse && !fromWarehouse) || (needsToWarehouse && !toWarehouse)) return;
 
-    setStockRows((current) => applyMovementEntryToStockRows(current, draft, fromWarehouse, toWarehouse));
-    setMovements((current) => [
-      ...createInventoryMovementEntries({ draft, rows: stockRows, currentLength: current.length, fromWarehouse, toWarehouse }),
-      ...current,
-    ]);
+    const nextStockRows = applyMovementEntryToStockRows(stockRows, draft, fromWarehouse, toWarehouse);
+    const createdMovements = createInventoryMovementEntries({ draft, rows: stockRows, currentLength: movements.length, fromWarehouse, toWarehouse });
+
+    setStockRows(nextStockRows);
+    setMovements((current) => [...createdMovements, ...current]);
+    persistStockRows(nextStockRows);
+    persistMovements(createdMovements);
     setIsTransferOpen(false);
     setActiveView('movements');
   };
 
   const handleCreateWarehouse = (draft: CreateWarehouseDraft) => {
     const id = `wh-${draft.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || warehouses.length + 1}`;
-    setWarehouses((current) => [{ ...draft, id, lastMovementAt: new Date().toISOString().slice(0, 10) }, ...current]);
+    const localWarehouse = { ...draft, id, lastMovementAt: new Date().toISOString().slice(0, 10) };
+
+    setWarehouses((current) => [localWarehouse, ...current]);
+    void inventoryApi.createWarehouse(localWarehouse)
+      .then((persistedWarehouse) => setWarehouses((current) => current.map((warehouse) => (
+        warehouse.id === localWarehouse.id ? persistedWarehouse : warehouse
+      ))))
+      .catch((error) => console.warn('[Sales Inventory] warehouse could not sync.', error));
   };
 
   const handleDeleteWarehouse = (warehouseId: string) => {
@@ -262,6 +315,8 @@ export default function Inventory() {
     })));
     setWarehouses((current) => current.filter((warehouse) => warehouse.id !== warehouseId));
     setStockFilters((current) => current.warehouseId === warehouseId ? { ...current, warehouseId: 'all' } : current);
+    void inventoryApi.deleteWarehouse(warehouseId)
+      .catch((error) => console.warn('[Sales Inventory] warehouse delete could not sync.', error));
   };
 
   const handleTransferAndDeleteWarehouse = (sourceWarehouseId: string, targetWarehouseId: string) => {
@@ -270,7 +325,7 @@ export default function Inventory() {
     if (!targetWarehouse) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    setStockRows((current) => current.map((row) => {
+    const nextStockRows = stockRows.map((row) => {
       const sourceDistribution = row.distributions.find((distribution) => distribution.warehouseId === sourceWarehouseId);
       if (!sourceDistribution) return row;
 
@@ -307,9 +362,14 @@ export default function Inventory() {
         businessName: targetWarehouse.businessName ?? row.businessName,
         lastMovementAt: today,
       };
-    }));
+    });
+
+    setStockRows(nextStockRows);
     setWarehouses((current) => current.filter((warehouse) => warehouse.id !== sourceWarehouseId));
     setStockFilters((current) => current.warehouseId === sourceWarehouseId ? { ...current, warehouseId: 'all' } : current);
+    persistStockRows(nextStockRows);
+    void inventoryApi.deleteWarehouse(sourceWarehouseId)
+      .catch((error) => console.warn('[Sales Inventory] warehouse transfer delete could not sync.', error));
   };
 
   const openAddInventoryModal = (productId?: string, warehouseId?: string) => {
@@ -326,6 +386,19 @@ export default function Inventory() {
   };
 
   const handleSaveMovementEdit = (movementId: string, draft: TransferStockDraft) => {
+    const nextMovements = updateMovementGroupFromDraft({
+      movements,
+      movementId,
+      draft,
+      warehouses,
+      stockRows,
+    });
+    const targetMovement = movements.find((movement) => movement.id === movementId);
+    const movementGroupId = targetMovement ? getOperationalMovementGroupId(targetMovement) : undefined;
+    const updatedLines = movementGroupId
+      ? nextMovements.filter((movement) => getOperationalMovementGroupId(movement) === movementGroupId)
+      : [];
+
     setMovements((current) => updateMovementGroupFromDraft({
       movements: current,
       movementId,
@@ -333,6 +406,10 @@ export default function Inventory() {
       warehouses,
       stockRows,
     }));
+    updatedLines.forEach((movement) => {
+      void inventoryApi.updateMovement(movement)
+        .catch((error) => console.warn('[Sales Inventory] movement edit could not sync.', error));
+    });
     setEditingMovement(null);
   };
 
@@ -350,23 +427,51 @@ export default function Inventory() {
     }
 
     const movementGroupId = getOperationalMovementGroupId(movement);
+    const updatedLines = movements
+      .filter((item) => getOperationalMovementGroupId(item) === movementGroupId)
+      .map((item) => ({ ...item, status }));
+
     setMovements((current) => current.map((item) => (
       getOperationalMovementGroupId(item) === movementGroupId
         ? { ...item, status }
         : item
     )));
+    updatedLines.forEach((item) => {
+      void inventoryApi.updateMovement(item)
+        .catch((error) => console.warn('[Sales Inventory] movement status could not sync.', error));
+    });
   };
 
   const handleCancelMovement = (movement: InventoryOperationalMovement) => {
     if (movement.status === 'cancelled') return;
     const movementGroupId = getOperationalMovementGroupId(movement);
     const movementLines = movements.filter((item) => getOperationalMovementGroupId(item) === movementGroupId);
-    setStockRows((current) => movementLines.reduce((nextRows, item) => reverseInventoryMovement(nextRows, item, warehouses), current));
+    const nextStockRows = movementLines.reduce((nextRows, item) => reverseInventoryMovement(nextRows, item, warehouses), stockRows);
+    const cancelledLines = movementLines.map((item) => ({ ...item, status: 'cancelled' as const, reason: `${item.reason} ${t.operational.cancelledReturnMessage}` }));
+
+    setStockRows(nextStockRows);
     setMovements((current) => current.map((item) => (
       getOperationalMovementGroupId(item) === movementGroupId
         ? { ...item, status: 'cancelled', reason: `${item.reason} ${t.operational.cancelledReturnMessage}` }
         : item
     )));
+    persistStockRows(nextStockRows);
+    cancelledLines.forEach((item) => {
+      void inventoryApi.updateMovement(item)
+        .catch((error) => console.warn('[Sales Inventory] movement cancel could not sync.', error));
+    });
+  };
+
+  const handleDisableWarehouse = (warehouseId: string) => {
+    const targetWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId);
+    const nextWarehouse = targetWarehouse ? { ...targetWarehouse, status: 'inactive' as const } : undefined;
+
+    setWarehouses((current) => current.map((warehouse) => warehouse.id === warehouseId ? { ...warehouse, status: 'inactive' } : warehouse));
+
+    if (nextWarehouse) {
+      void inventoryApi.updateWarehouse(nextWarehouse)
+        .catch((error) => console.warn('[Sales Inventory] warehouse status could not sync.', error));
+    }
   };
 
   return (
@@ -440,7 +545,7 @@ export default function Inventory() {
             onAddStock={(warehouse) => openAddInventoryModal(undefined, warehouse.id)}
             onTransferStock={(warehouse) => openMovementEntryModal('transfer', undefined, warehouse.id)}
             onViewMovements={(warehouse) => { setMovementFilters({ ...defaultMovementFilters, search: warehouse.name }); setActiveView('movements'); }}
-            onDisableWarehouse={(warehouseId) => setWarehouses((current) => current.map((warehouse) => warehouse.id === warehouseId ? { ...warehouse, status: 'inactive' } : warehouse))}
+            onDisableWarehouse={handleDisableWarehouse}
           />
         )
       ) : null}

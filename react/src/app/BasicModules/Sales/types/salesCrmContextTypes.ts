@@ -16,8 +16,8 @@ export type CreateContactInput = Omit<SalesContact, 'id'>;
 export type UpdateContactInput = Partial<Omit<SalesContact, 'id'>>;
 export type CreateOpportunityInput = Omit<SalesOpportunity, 'id'>;
 export type UpdateOpportunityInput = Partial<Omit<SalesOpportunity, 'id'>>;
-export type CreateProductInput = Omit<SalesCatalogItem, 'id' | 'lastUpdated'> & { lastUpdated?: string };
-export type UpdateProductInput = Partial<Omit<SalesCatalogItem, 'id'>>;
+export type CreateProductInput = Omit<SalesCatalogItem, 'id' | 'backendId' | 'productCode' | 'lastUpdated'> & { lastUpdated?: string };
+export type UpdateProductInput = Partial<Omit<SalesCatalogItem, 'id' | 'backendId'>>;
 export type CreateQuoteInput = Omit<SalesQuote, 'id' | 'quoteNumber' | 'lastUpdated'> & {
   quoteNumber?: string;
   lastUpdated?: string;

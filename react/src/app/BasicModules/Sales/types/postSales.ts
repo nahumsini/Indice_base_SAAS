@@ -33,6 +33,7 @@ export type SalesPostSaleCase = {
   nextFollowUpDate: string;
   renewalDate?: string;
   lifetimeValue: number;
+  currency?: string;
   notes: string;
   files: string[];
   lostReason?: LostReason;

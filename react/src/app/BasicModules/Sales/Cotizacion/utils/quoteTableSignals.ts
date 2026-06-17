@@ -1,4 +1,5 @@
 import type { SalesCatalogItem, SalesContact, SalesQuote } from '../../types';
+import { defaultSalesCurrency } from '../../utils/salesCurrency';
 import type { QuoteFormState, QuoteHealthState, QuoteTotals } from '../types/quoteBuilderTypes';
 import { calculateQuoteBuilderTotals } from './quotePricing';
 import { getDaysUntil, getQuoteHealthState } from './quoteReadiness';
@@ -62,6 +63,7 @@ function buildHealthForm(quote: SalesQuote, contact?: SalesContact | null): Quot
     expirationDate: quote.expirationDate,
     assignedSellerValue: '',
     assignedSeller: quote.assignedSeller,
+    currency: quote.currency ?? defaultSalesCurrency,
     taxJurisdiction: 'mx',
     customJurisdictionName: '',
     customTaxLabel: '',

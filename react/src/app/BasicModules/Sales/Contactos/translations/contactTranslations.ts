@@ -3,10 +3,11 @@ import { useLanguage } from '../../../../shared/context';
 import type { OpportunitySource } from '../../salesCrmContext';
 import type { ContactFiscalState, ContactRelationshipState } from '../utils/contactTableSignals';
 
-const enCA = {
+export const enCA = {
   header: {
     title: 'Contacts',
     subtitle: 'Commercial relationship directory for customers, fiscal data, quotes, and sales opportunities.',
+    columnsAction: 'Columns',
     importContacts: 'Import contacts',
     addContact: 'Add contact',
   },
@@ -43,7 +44,10 @@ const enCA = {
     delete: (name: string) => `Delete ${name}`,
     noPhone: 'No phone available',
     noEmail: 'No email available',
+    deleteTitle: 'Delete contact',
     deleteConfirm: (name: string) => `Delete contact ${name}?`,
+    deleteCancel: 'Cancel',
+    deleteConfirmLabel: 'Delete contact',
   },
   modal: {
     createTitle: 'Add contact',
@@ -225,11 +229,12 @@ type WidenLiterals<T> =
 
 export type ContactCopy = WidenLiterals<typeof enCA>;
 
-const esMX: ContactCopy = {
+export const esMX: ContactCopy = {
   ...enCA,
   header: {
     title: 'Contactos',
     subtitle: 'Directorio de relación comercial para clientes, datos fiscales, cotizaciones y oportunidades de venta.',
+    columnsAction: 'Columnas',
     importContacts: 'Importar contactos',
     addContact: 'Agregar contacto',
   },
@@ -266,7 +271,10 @@ const esMX: ContactCopy = {
     delete: (name) => `Eliminar ${name}`,
     noPhone: 'Sin teléfono disponible',
     noEmail: 'Sin email disponible',
+    deleteTitle: 'Eliminar contacto',
     deleteConfirm: (name) => `¿Eliminar el contacto ${name}?`,
+    deleteCancel: 'Cancelar',
+    deleteConfirmLabel: 'Eliminar contacto',
   },
   modal: {
     createTitle: 'Agregar contacto',
@@ -404,7 +412,7 @@ const esMX: ContactCopy = {
   },
 };
 
-const contactTranslations = {
+export const contactTranslations = {
   'en-CA': enCA,
   'en-US': {
     ...enCA,
@@ -426,6 +434,7 @@ const contactTranslations = {
     header: {
       title: 'Contacts',
       subtitle: 'Répertoire de relations commerciales pour clients, données fiscales, devis et occasions.',
+      columnsAction: 'Colonnes',
       importContacts: 'Importer des contacts',
       addContact: 'Ajouter un contact',
     },
@@ -439,6 +448,7 @@ const contactTranslations = {
     header: {
       title: 'Contatos',
       subtitle: 'Diretório de relacionamento comercial para clientes, dados fiscais, cotações e oportunidades.',
+      columnsAction: 'Colunas',
       importContacts: 'Importar contatos',
       addContact: 'Adicionar contato',
     },
@@ -449,21 +459,21 @@ const contactTranslations = {
   },
   'ko-CA': {
     ...enCA,
-    header: { title: '연락처', subtitle: '고객, 세무 데이터, 견적, 영업 기회를 위한 관계 디렉터리입니다.', importContacts: '연락처 가져오기', addContact: '연락처 추가' },
+    header: { title: '연락처', subtitle: '고객, 세무 데이터, 견적, 영업 기회를 위한 관계 디렉터리입니다.', columnsAction: '열', importContacts: '연락처 가져오기', addContact: '연락처 추가' },
     table: { ...enCA.table, emptyTitle: '연락처가 없습니다', noCompany: '회사 없음', noPhone: '전화 없음', noEmail: '이메일 없음' },
     modal: { ...enCA.modal, createTitle: '연락처 추가', editTitle: '연락처 편집', cancel: '취소', saveChanges: '변경 저장', saveContact: '연락처 저장' },
     importModal: { ...enCA.importModal, title: '연락처 가져오기', cancel: '취소', importContacts: '연락처 가져오기' },
   },
   'zh-CA': {
     ...enCA,
-    header: { title: '联系人', subtitle: '用于客户、税务资料、报价和销售机会的商业关系目录。', importContacts: '导入联系人', addContact: '添加联系人' },
+    header: { title: '联系人', subtitle: '用于客户、税务资料、报价和销售机会的商业关系目录。', columnsAction: '列', importContacts: '导入联系人', addContact: '添加联系人' },
     table: { ...enCA.table, emptyTitle: '未找到联系人', noCompany: '无公司', noPhone: '无电话', noEmail: '无邮箱' },
     modal: { ...enCA.modal, createTitle: '添加联系人', editTitle: '编辑联系人', cancel: '取消', saveChanges: '保存更改', saveContact: '保存联系人' },
     importModal: { ...enCA.importModal, title: '导入联系人', cancel: '取消', importContacts: '导入联系人' },
   },
 } satisfies Record<string, ContactCopy>;
 
-function resolveContactLocale(locale: string | null | undefined) {
+export function resolveContactLocale(locale: string | null | undefined) {
   if (!locale) {
     return 'en-CA';
   }
@@ -475,7 +485,7 @@ function resolveContactLocale(locale: string | null | undefined) {
   const loweredLocale = locale.toLowerCase();
 
   if (loweredLocale.startsWith('es-co')) return 'es-CO';
-  if (loweredLocale.startsWith('es')) return 'es-MX';
+  if (loweredLocale.startsWith('es-')) return 'es-MX';
   if (loweredLocale.startsWith('fr')) return 'fr-CA';
   if (loweredLocale.startsWith('pt')) return 'pt-BR';
   if (loweredLocale.startsWith('ko')) return 'ko-CA';

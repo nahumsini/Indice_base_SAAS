@@ -61,6 +61,7 @@ export type ProductFormState = {
   sku: string;
   category: SalesProductCategory | (string & {});
   type: SalesProductType;
+  currency: string;
   price: string;
   cost: string;
   logisticsCost: string;

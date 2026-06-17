@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { CheckCircle2, Send } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { ProductsTranslations } from '../translations';
 import { formatProductCurrency } from '../utils/productFormatters';
 import type { PublicCatalogCartItem, PublicCatalogContactMethod } from './types/publicCatalogTypes';
+
+const requestActionClassNames = getSalesModalActionClassNames('coral');
 
 export function PublicCatalogRequestModal({
   open,
@@ -29,6 +24,7 @@ export function PublicCatalogRequestModal({
   t: ProductsTranslations;
   onOpenChange: (open: boolean) => void;
 }) {
+  const estimatedCurrency = cartItems.map((item) => item.currency).find(Boolean);
   const [customerName, setCustomerName] = useState('');
   const [contact, setContact] = useState('');
   const [preferredContactMethod, setPreferredContactMethod] = useState<PublicCatalogContactMethod>('whatsapp');
@@ -47,17 +43,28 @@ export function PublicCatalogRequestModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-xl rounded-lg border-slate-200 p-0">
-        <DialogHeader className="rounded-t-lg bg-[#FF6B5E] px-6 py-5 text-white">
-          <DialogTitle className="flex items-center gap-2 text-2xl font-black">
-            <Send className="h-5 w-5" />
-            {t.publicCatalog.requestModal.title}
-          </DialogTitle>
-          <DialogDescription className="font-semibold text-white/85">{t.publicCatalog.requestModal.description}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 p-6">
+    <SalesModalFrame
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={t.publicCatalog.requestModal.title}
+      description={t.publicCatalog.requestModal.description}
+      icon={<Send className="h-5 w-5" />}
+      contentClassName="max-w-xl"
+      bodyClassName="!max-h-none bg-slate-50/70 p-0"
+      footer={(
+        <>
+          <Button variant="outline" className={requestActionClassNames.secondary} onClick={() => handleOpenChange(false)}>
+            {t.common.close ?? t.common.cancel}
+          </Button>
+          {!success ? (
+            <Button className={requestActionClassNames.primary} onClick={handleSubmit}>
+              {t.publicCatalog.sendRequest}
+            </Button>
+          ) : null}
+        </>
+      )}
+    >
+        <div className="space-y-4 bg-slate-50/70 p-6">
           {success ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-emerald-700">
               <h3 className="flex items-center gap-2 font-black">
@@ -96,23 +103,11 @@ export function PublicCatalogRequestModal({
                 <Textarea className="min-h-24 rounded-lg" value={message} onChange={(event) => setMessage(event.target.value)} />
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">
-                {t.publicCatalog.requestModal.estimatedTotal}: {formatProductCurrency(estimatedTotal)} · {cartItems.length} {t.publicCatalog.requestModal.items}
+                {t.publicCatalog.requestModal.estimatedTotal}: {formatProductCurrency(estimatedTotal, estimatedCurrency)} · {cartItems.length} {t.publicCatalog.requestModal.items}
               </div>
             </>
           )}
         </div>
-
-        <DialogFooter className="rounded-b-lg bg-[#FF6B5E] px-6 py-4">
-          <Button variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10" onClick={() => handleOpenChange(false)}>
-            {t.common.close ?? t.common.cancel}
-          </Button>
-          {!success ? (
-            <Button className="bg-white text-[#B63B32] hover:bg-white/90" onClick={handleSubmit}>
-              {t.publicCatalog.sendRequest}
-            </Button>
-          ) : null}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

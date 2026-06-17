@@ -16,6 +16,9 @@ final class SalesDefinitions {
         add(definitions, products());
         add(definitions, quotes());
         add(definitions, sales());
+        add(definitions, inventoryWarehouses());
+        add(definitions, inventoryBalances());
+        add(definitions, inventoryMovements());
         add(definitions, postSales());
         add(definitions, contracts());
         return Map.copyOf(definitions);
@@ -224,6 +227,107 @@ final class SalesDefinitions {
                 List.of("customerName"),
                 List.of("saleNumber", "quoteReference", "saleDocumentReference", "customerName", "sellerName", "paymentMethod", "paymentReference"),
                 "updated_at DESC, id DESC");
+    }
+
+    private static SalesEntityDefinition inventoryWarehouses() {
+        return new SalesEntityDefinition(
+                "inventory-warehouses",
+                "inventory_warehouse",
+                "sales_inventory_warehouses",
+                "id",
+                "warehouseCode",
+                "warehouse_code",
+                "WH",
+                List.of(
+                        f("warehouseCode", "warehouse_code", SalesFieldType.STRING),
+                        f("name", "name", SalesFieldType.STRING),
+                        f("type", "type", SalesFieldType.STRING),
+                        f("businessUnitId", "business_unit_id", SalesFieldType.STRING),
+                        f("businessUnitName", "business_unit_name", SalesFieldType.STRING),
+                        f("businessId", "business_id", SalesFieldType.STRING),
+                        f("businessName", "business_name", SalesFieldType.STRING),
+                        f("jurisdiction", "jurisdiction", SalesFieldType.STRING),
+                        f("responsibleUserId", "responsible_user_id", SalesFieldType.STRING),
+                        f("responsibleName", "responsible_name", SalesFieldType.STRING),
+                        f("addressNote", "address_note", SalesFieldType.STRING),
+                        f("status", "status", SalesFieldType.STRING),
+                        f("lastMovementAt", "last_movement_at", SalesFieldType.DATE),
+                        f("metadata", "metadata_json", SalesFieldType.JSON)),
+                List.of("name"),
+                List.of("warehouseCode", "name", "type", "businessUnitName", "businessName", "jurisdiction", "responsibleName", "status"),
+                "updated_at DESC, id DESC");
+    }
+
+    private static SalesEntityDefinition inventoryBalances() {
+        return new SalesEntityDefinition(
+                "inventory-balances",
+                "inventory_balance",
+                "sales_inventory_balances",
+                "id",
+                "balanceCode",
+                "balance_code",
+                "STK",
+                List.of(
+                        f("balanceCode", "balance_code", SalesFieldType.STRING),
+                        f("productId", "product_id", SalesFieldType.LONG),
+                        f("warehouseId", "warehouse_id", SalesFieldType.LONG),
+                        f("warehouseName", "warehouse_name", SalesFieldType.STRING),
+                        f("availableQuantity", "available_quantity", SalesFieldType.DECIMAL),
+                        f("reservedQuantity", "reserved_quantity", SalesFieldType.DECIMAL),
+                        f("minimumQuantity", "minimum_quantity", SalesFieldType.DECIMAL),
+                        f("unitCost", "unit_cost", SalesFieldType.DECIMAL),
+                        f("usesInventory", "uses_inventory", SalesFieldType.BOOLEAN),
+                        f("businessUnitId", "business_unit_id", SalesFieldType.STRING),
+                        f("businessUnitName", "business_unit_name", SalesFieldType.STRING),
+                        f("businessId", "business_id", SalesFieldType.STRING),
+                        f("businessName", "business_name", SalesFieldType.STRING),
+                        f("lastMovementAt", "last_movement_at", SalesFieldType.DATE),
+                        f("metadata", "metadata_json", SalesFieldType.JSON)),
+                List.of("productId", "warehouseId", "warehouseName"),
+                List.of("balanceCode", "warehouseName", "businessUnitName", "businessName"),
+                "updated_at DESC, id DESC");
+    }
+
+    private static SalesEntityDefinition inventoryMovements() {
+        return new SalesEntityDefinition(
+                "inventory-movements",
+                "inventory_movement",
+                "sales_inventory_movements",
+                "id",
+                "movementNumber",
+                "movement_number",
+                "INV",
+                List.of(
+                        f("movementNumber", "movement_number", SalesFieldType.STRING),
+                        f("groupId", "group_id", SalesFieldType.STRING),
+                        f("productId", "product_id", SalesFieldType.LONG),
+                        f("productName", "product_name", SalesFieldType.STRING),
+                        f("productSku", "product_sku", SalesFieldType.STRING),
+                        f("productImageUrl", "product_image_url", SalesFieldType.STRING),
+                        f("productImageAlt", "product_image_alt", SalesFieldType.STRING),
+                        f("variantLabel", "variant_label", SalesFieldType.STRING),
+                        f("movementType", "movement_type", SalesFieldType.STRING),
+                        f("quantity", "quantity", SalesFieldType.DECIMAL),
+                        f("unitCost", "unit_cost", SalesFieldType.DECIMAL),
+                        f("fromWarehouseId", "from_warehouse_id", SalesFieldType.LONG),
+                        f("fromWarehouseName", "from_warehouse_name", SalesFieldType.STRING),
+                        f("toWarehouseId", "to_warehouse_id", SalesFieldType.LONG),
+                        f("toWarehouseName", "to_warehouse_name", SalesFieldType.STRING),
+                        f("supplierName", "supplier_name", SalesFieldType.STRING),
+                        f("businessUnitId", "business_unit_id", SalesFieldType.STRING),
+                        f("businessUnitName", "business_unit_name", SalesFieldType.STRING),
+                        f("businessId", "business_id", SalesFieldType.STRING),
+                        f("businessName", "business_name", SalesFieldType.STRING),
+                        f("reason", "reason", SalesFieldType.STRING),
+                        f("reference", "reference", SalesFieldType.STRING),
+                        f("responsibleName", "responsible_name", SalesFieldType.STRING),
+                        f("movementDate", "movement_date", SalesFieldType.DATE),
+                        f("status", "status", SalesFieldType.STRING),
+                        f("attachments", "attachments_json", SalesFieldType.JSON),
+                        f("metadata", "metadata_json", SalesFieldType.JSON)),
+                List.of("productName", "movementType", "quantity", "movementDate"),
+                List.of("movementNumber", "productName", "productSku", "movementType", "fromWarehouseName", "toWarehouseName", "supplierName", "reference", "responsibleName", "status"),
+                "movement_date DESC, updated_at DESC, id DESC");
     }
 
     private static SalesEntityDefinition postSales() {

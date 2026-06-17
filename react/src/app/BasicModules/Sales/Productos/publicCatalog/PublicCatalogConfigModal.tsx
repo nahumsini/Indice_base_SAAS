@@ -1,14 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Globe2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { Button } from '../../../../components/ui/button';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import { PublicCatalogCardsPanel } from './PublicCatalogCardsPanel';
@@ -26,6 +19,7 @@ import {
 } from './utils/publicCatalogManagerUtils';
 
 type PublicCatalogEditorMode = 'create' | 'edit';
+const catalogManagerActionClassNames = getSalesModalActionClassNames('coral');
 
 function withCatalogManagerDefaults(config: PublicCatalogConfig): PublicCatalogConfig {
   const token = config.publicAccessToken ?? 'demo-token';
@@ -182,22 +176,27 @@ export function PublicCatalogConfigModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          handleCloseEditor();
-        }
+      <SalesModalFrame
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            handleCloseEditor();
+          }
 
-        onOpenChange(nextOpen);
-      }}>
-        <DialogContent className="grid h-[90vh] max-h-[900px] w-[calc(100vw-3rem)] max-w-[1400px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border-slate-200 p-0 sm:max-w-[1400px]">
-          <DialogHeader className="bg-[#FF6B5E] px-6 py-5 text-white">
-            <DialogTitle className="flex items-center gap-2 text-2xl font-black">
-              <Globe2 className="h-5 w-5" />
-              {t.publicCatalog.managerTitle}
-            </DialogTitle>
-            <DialogDescription className="font-semibold text-white/85">{t.publicCatalog.managerDescription}</DialogDescription>
-          </DialogHeader>
-
+          onOpenChange(nextOpen);
+        }}
+        title={t.publicCatalog.managerTitle}
+        description={t.publicCatalog.managerDescription}
+        icon={<Globe2 className="h-5 w-5" />}
+        contentClassName="flex h-[90vh] max-h-[900px] w-[calc(100vw-3rem)] max-w-[1400px] flex-col sm:max-w-[1400px]"
+        bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-white p-0"
+        footerClassName="sm:justify-end"
+        footer={(
+          <Button variant="outline" className={catalogManagerActionClassNames.secondary} onClick={() => onOpenChange(false)}>
+            {t.common.cancel}
+          </Button>
+        )}
+      >
           <div className="min-h-0 overflow-hidden">
             <PublicCatalogCardsPanel
               catalogs={catalogs}
@@ -209,14 +208,7 @@ export function PublicCatalogConfigModal({
               onDelete={handleDeleteCatalog}
             />
           </div>
-
-          <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4">
-            <Button variant="outline" className="rounded-lg" onClick={() => onOpenChange(false)}>
-              {t.common.cancel}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </SalesModalFrame>
 
       <PublicCatalogEditorModal
         catalog={editingCatalog}
@@ -239,13 +231,25 @@ export function PublicCatalogConfigModal({
         onDownloadQr={() => linkCatalog && downloadQrImage(linkCatalog)}
       />
 
-      <Dialog open={Boolean(previewCatalog)} onOpenChange={(nextOpen) => !nextOpen && setPreviewCatalog(null)}>
-        <DialogContent className="h-[92vh] w-[calc(100vw-2rem)] max-w-[1500px] overflow-hidden rounded-lg border-slate-200 p-0 sm:max-w-[1500px]">
+      <SalesModalFrame
+        open={Boolean(previewCatalog)}
+        onOpenChange={(nextOpen) => !nextOpen && setPreviewCatalog(null)}
+        title={t.publicCatalog.previewAction}
+        description={previewCatalog?.title ?? t.publicCatalog.publicCatalog}
+        icon={<Globe2 className="h-5 w-5" />}
+        contentClassName="flex h-[92vh] w-[calc(100vw-2rem)] max-w-[1500px] flex-col sm:max-w-[1500px]"
+        bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-white p-0"
+        footerClassName="sm:justify-end"
+        footer={(
+          <Button variant="outline" className={catalogManagerActionClassNames.secondary} onClick={() => setPreviewCatalog(null)}>
+            {t.common.close}
+          </Button>
+        )}
+      >
           <div className="h-full overflow-y-auto">
             {previewCatalog ? <PublicCatalogPage config={previewCatalog} products={products} embedded /> : null}
           </div>
-        </DialogContent>
-      </Dialog>
+      </SalesModalFrame>
     </>
   );
 }

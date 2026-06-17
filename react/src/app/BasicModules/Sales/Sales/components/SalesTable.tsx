@@ -1,13 +1,16 @@
+import { useEffect, useMemo, useState } from 'react';
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLifecycleSignals, SaleRecord, SalesColumnId } from '../types/salesTypes';
+import { defaultSalesColumnWidths, sortSalesRecords, sortableSalesColumns, type SalesSortState, type SortableSalesColumnId } from '../utils/salesTableColumns';
+import { SalesBulkActionsBar } from './SalesBulkActionsBar';
+import { SalesTableHeader } from './SalesTableHeader';
 import { SalesTableRow } from './SalesTableRow';
 
 export function SalesTable({
@@ -33,45 +36,144 @@ export function SalesTable({
   onSendToFinance: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
 }) {
+  const [sortState, setSortState] = useState<SalesSortState>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<SalesColumnId, number>>(defaultSalesColumnWidths);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+
+  const visibleRecordIds = useMemo(() => records.map((record) => record.id), [records]);
+  const tableMinWidth = visibleColumns.reduce((total, column) => total + (columnWidths[column] ?? defaultSalesColumnWidths[column]), 56);
+  const sortedRecords = useMemo(
+    () => sortSalesRecords(records, lifecycleByRecordId, sortState),
+    [lifecycleByRecordId, records, sortState],
+  );
+  const selectedRecords = useMemo(
+    () => records.filter((record) => selectedIds.has(record.id)),
+    [records, selectedIds],
+  );
+  const allVisibleSelected = visibleRecordIds.length > 0 && visibleRecordIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = !allVisibleSelected && visibleRecordIds.some((id) => selectedIds.has(id));
+
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const visibleIdSet = new Set(visibleRecordIds);
+      const next = new Set(Array.from(current).filter((id) => visibleIdSet.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [visibleRecordIds]);
+
+  const handleSort = (column: SalesColumnId) => {
+    if (!sortableSalesColumns.has(column)) {
+      return;
+    }
+
+    setSortState((current) => {
+      if (current?.columnId === column) {
+        return {
+          columnId: column as SortableSalesColumnId,
+          direction: current.direction === 'asc' ? 'desc' : 'asc',
+        };
+      }
+
+      return { columnId: column as SortableSalesColumnId, direction: 'asc' };
+    });
+  };
+
+  const handleResizeColumn = (column: SalesColumnId, width: number) => {
+    setColumnWidths((current) => ({ ...current, [column]: width }));
+  };
+
+  const handleToggleSelection = (recordId: string, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(recordId);
+      } else {
+        next.delete(recordId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAllVisible = (checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      visibleRecordIds.forEach((id) => {
+        if (checked) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const runBulkAction = (action: (record: SaleRecord) => void, canRun: (record: SaleRecord) => boolean) => {
+    selectedRecords.filter(canRun).forEach(action);
+    setSelectedIds(new Set());
+  };
+
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <Table className="min-w-[1460px]">
-        <TableHeader>
-          <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
-            {visibleColumns.map((column) => (
-              <TableHead key={column} className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                {t.table.columns[column]}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {records.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={visibleColumns.length} className="px-5 py-12 text-center">
-                <div className="mx-auto max-w-md space-y-2">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{t.table.emptyDescription}</p>
-                </div>
-              </TableCell>
-            </TableRow>
-          ) : records.map((record) => (
-            <SalesTableRow
-              key={record.id}
-              record={record}
-              visibleColumns={visibleColumns}
-              lifecycle={lifecycleByRecordId[record.id]}
-              t={t}
-              onView={onViewRecord}
-              onPreviewSummary={onPreviewSummary}
-              onManageCommission={onManageCommission}
-              onPrepareMovement={onPrepareMovement}
-              onSendToFinance={onSendToFinance}
-              onCancelSale={onCancelSale}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </section>
+    <div className="space-y-3">
+      <SalesBulkActionsBar
+        selectedCount={selectedIds.size}
+        t={t}
+        onPrepareMovement={() => runBulkAction(onPrepareMovement, (record) => (
+          record.commercialStatus !== 'cancelled' && record.inventoryMovementStatus === 'not_generated'
+        ))}
+        onSendToFinance={() => runBulkAction(onSendToFinance, (record) => (
+          record.commercialStatus !== 'cancelled' && record.financeStatus !== 'approved'
+        ))}
+        onClearSelection={() => setSelectedIds(new Set())}
+      />
+
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="overflow-x-auto">
+          <Table className="table-fixed" style={{ minWidth: `${Math.max(tableMinWidth, 960)}px` }}>
+            <TableHeader>
+              <SalesTableHeader
+                visibleColumns={visibleColumns}
+                columnWidths={columnWidths}
+                sortState={sortState}
+                allVisibleSelected={allVisibleSelected}
+                someVisibleSelected={someVisibleSelected}
+                t={t}
+                onSort={handleSort}
+                onResizeColumn={handleResizeColumn}
+                onToggleAllVisible={handleToggleAllVisible}
+              />
+            </TableHeader>
+            <TableBody>
+              {sortedRecords.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={visibleColumns.length + 1} className="px-5 py-12 text-center">
+                    <div className="mx-auto max-w-md space-y-2">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{t.table.emptyDescription}</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : sortedRecords.map((record) => (
+                <SalesTableRow
+                  key={record.id}
+                  record={record}
+                  selected={selectedIds.has(record.id)}
+                  visibleColumns={visibleColumns}
+                  lifecycle={lifecycleByRecordId[record.id]}
+                  t={t}
+                  onSelectionChange={(checked) => handleToggleSelection(record.id, checked)}
+                  onView={onViewRecord}
+                  onPreviewSummary={onPreviewSummary}
+                  onManageCommission={onManageCommission}
+                  onPrepareMovement={onPrepareMovement}
+                  onSendToFinance={onSendToFinance}
+                  onCancelSale={onCancelSale}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+    </div>
   );
 }

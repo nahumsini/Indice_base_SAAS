@@ -1,4 +1,5 @@
 import type { CreateProductInput, SalesCatalogItem } from '../../types';
+import { defaultSalesCurrency, normalizeSalesCurrencyCode } from '../../utils/salesCurrency';
 import type { ProductFormState } from '../types/productosTypes';
 import { createProductImageGallery, getProductGalleryImages } from './productImages';
 
@@ -7,6 +8,7 @@ export const initialProductForm: ProductFormState = {
   sku: '',
   category: 'Software',
   type: 'Service',
+  currency: defaultSalesCurrency,
   price: '',
   cost: '',
   logisticsCost: '',
@@ -56,6 +58,7 @@ export function buildProductForm(product: SalesCatalogItem): ProductFormState {
     sku: product.sku,
     category: product.category,
     type: product.type,
+    currency: normalizeSalesCurrencyCode(product.currency),
     price: String(product.price),
     cost: String(product.cost),
     logisticsCost: '',
@@ -134,6 +137,7 @@ export function buildProductInput(
     description: form.description.trim(),
     price: Number(form.price) || 0,
     cost: Number(form.cost) || 0,
+    currency: normalizeSalesCurrencyCode(form.currency),
     taxCategory: form.taxCategory,
     status: form.status,
     visibility: form.visibility,

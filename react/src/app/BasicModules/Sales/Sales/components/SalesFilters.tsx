@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import type { SalesRecordsTranslations } from '../translations';
-import type { SalesFiltersState } from '../types/salesTypes';
+import type { SalesFiltersState, SalesFocusFilter } from '../types/salesTypes';
 
 function FilterSelect({
   label,
@@ -25,7 +25,7 @@ function FilterSelect({
     <div className="space-y-2">
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -64,6 +64,16 @@ export function SalesFilters({
     onFiltersChange({ ...filters, [key]: value });
   };
   const businessOptions = businesses.filter((business) => filters.businessUnit === 'all' || business.businessUnitId === filters.businessUnit);
+  const focusOptions: Array<{ value: SalesFocusFilter; label: string }> = [
+    { value: 'all', label: t.filters.focusOptions.all },
+    { value: 'open', label: t.filters.focusOptions.open },
+    { value: 'pending_finance', label: t.filters.focusOptions.pendingFinance },
+    { value: 'pending_inventory', label: t.filters.focusOptions.pendingInventory },
+    { value: 'to_deliver', label: t.filters.focusOptions.toDeliver },
+    { value: 'delivered', label: t.filters.focusOptions.delivered },
+    { value: 'cancelled', label: t.filters.focusOptions.cancelled },
+    { value: 'at_risk', label: t.filters.focusOptions.atRisk },
+  ];
   const periodOptions = [
     { value: 'all', label: t.common.all },
     { value: 'today', label: t.filters.periodOptions.today },
@@ -74,9 +84,9 @@ export function SalesFilters({
   ];
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
         <div className="space-y-2 xl:col-span-2">
           <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.filters.search}</label>
           <div className="relative">
@@ -85,14 +95,15 @@ export function SalesFilters({
               value={filters.search}
               onChange={(event) => updateFilter('search', event.target.value)}
               placeholder={t.filters.searchPlaceholder}
-              className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </div>
         </div>
 
+        <FilterSelect label={t.filters.focus} value={filters.focus} onValueChange={(value) => updateFilter('focus', value)} options={focusOptions} />
+        <FilterSelect label={t.filters.period} value={filters.period} onValueChange={(value) => updateFilter('period', value)} options={periodOptions} />
         <FilterSelect label={t.filters.businessUnit} value={filters.businessUnit} onValueChange={(value) => updateFilter('businessUnit', value)} options={[{ value: 'all', label: t.common.all }, ...businessUnits.map((unit) => ({ value: unit.id, label: unit.name }))]} />
         <FilterSelect label={t.filters.business} value={filters.business} onValueChange={(value) => updateFilter('business', value)} options={[{ value: 'all', label: t.common.all }, ...businessOptions.map((business) => ({ value: business.id, label: business.name }))]} />
-        <FilterSelect label={t.filters.period} value={filters.period} onValueChange={(value) => updateFilter('period', value)} options={periodOptions} />
         <FilterSelect label={t.filters.seller} value={filters.seller} onValueChange={(value) => updateFilter('seller', value)} options={[{ value: 'all', label: t.common.all }, ...sellers.map((seller) => ({ value: seller, label: seller }))]} />
         <FilterSelect label={t.filters.customer} value={filters.customer} onValueChange={(value) => updateFilter('customer', value)} options={[{ value: 'all', label: t.common.all }, ...customers.map((customer) => ({ value: customer, label: customer }))]} />
       </div>

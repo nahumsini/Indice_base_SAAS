@@ -1,5 +1,5 @@
 import type { QuoteStatus, SalesOpportunity, SalesQuote } from '../../salesCrmContext';
-import { formatCurrencyAmount } from './prospectosFormatters';
+import { formatSalesCurrencyAmount, formatSalesCurrencyBreakdown } from '../../utils/salesCurrency';
 
 export type OpportunityQuoteSignalState = 'approved' | 'active' | 'draft' | 'expired' | 'rejected' | 'none';
 
@@ -9,6 +9,7 @@ export type OpportunityQuoteSignal = {
   detail: string;
   quoteCount: number;
   totalQuotedValue: number;
+  totalQuotedValueLabel: string;
 };
 
 const quoteStatusPriority: Record<QuoteStatus, number> = {
@@ -43,7 +44,12 @@ function getSignalState(status: QuoteStatus): OpportunityQuoteSignalState {
 }
 
 export function getLinkedQuotesForOpportunity(opportunity: SalesOpportunity, quotes: SalesQuote[]) {
-  return quotes.filter((quote) => quote.opportunityId === opportunity.id);
+  const opportunityIds = new Set([
+    opportunity.id,
+    opportunity.backendId !== undefined ? String(opportunity.backendId) : '',
+  ].filter(Boolean));
+
+  return quotes.filter((quote) => quote.opportunityId && opportunityIds.has(quote.opportunityId));
 }
 
 export function getOpportunityQuoteSignal(opportunity: SalesOpportunity, quotes: SalesQuote[]): OpportunityQuoteSignal {
@@ -56,10 +62,16 @@ export function getOpportunityQuoteSignal(opportunity: SalesOpportunity, quotes:
       detail: 'Sin documento comercial',
       quoteCount: 0,
       totalQuotedValue: 0,
+      totalQuotedValueLabel: formatSalesCurrencyAmount(0),
     };
   }
 
   const totalQuotedValue = linkedQuotes.reduce((total, quote) => total + quote.total, 0);
+  const totalQuotedValueLabel = formatSalesCurrencyBreakdown(
+    linkedQuotes,
+    (quote) => quote.total,
+    (quote) => quote.currency,
+  );
   const primaryQuote = [...linkedQuotes].sort((left, right) => (
     quoteStatusPriority[right.status] - quoteStatusPriority[left.status]
       || right.lastUpdated.localeCompare(left.lastUpdated)
@@ -79,8 +91,9 @@ export function getOpportunityQuoteSignal(opportunity: SalesOpportunity, quotes:
   return {
     state,
     label: labelByState[state],
-    detail: `${formatQuoteCount(linkedQuotes.length)} · ${formatCurrencyAmount(totalQuotedValue)}`,
+    detail: `${formatQuoteCount(linkedQuotes.length)} · ${totalQuotedValueLabel}`,
     quoteCount: linkedQuotes.length,
     totalQuotedValue,
+    totalQuotedValueLabel,
   };
 }

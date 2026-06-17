@@ -1,6 +1,7 @@
 import { Banknote, Check, ChevronLeft, ChevronRight, CreditCard, Landmark, MapPinned, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { DEFAULT_FINANCE_CURRENCY, financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { PaymentAccount, PaymentAccountType } from '../types';
@@ -26,7 +27,6 @@ type PaymentFormValues = {
 };
 
 const paymentAccountTypeValues: PaymentAccountType[] = ['bank', 'cash', 'credit_card', 'debit_card', 'digital_wallet'];
-const currencyOptions = ['MXN', 'USD', 'CAD', 'COP', 'BRL', 'EUR'].map(currency => ({ value: currency, label: currency }));
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function PaymentAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit }: PaymentAccountModalProps) {
@@ -37,7 +37,7 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
     balance: String(account?.balance ?? 0),
     bank: account?.bank ?? '',
     businessId: account?.businessId ?? '',
-    currency: account?.currency ?? 'MXN',
+    currency: account?.currency ?? DEFAULT_FINANCE_CURRENCY,
     isActive: account?.isActive === false ? 'false' : 'true',
     name: account?.name ?? '',
     type: account?.type ?? 'bank',
@@ -186,7 +186,7 @@ function AccountStep({ values, update }: StepProps) {
         <SelectField label={t.paymentAccounts.filters.type} value={values.type} options={typeOptions} onChange={(value) => update('type', value as PaymentAccountType)} />
       </FieldGroup>
       <FieldGroup title={t.paymentAccounts.columns.currency.label}>
-        <SelectField label={t.paymentAccounts.columns.currency.label} value={values.currency} options={currencyOptions} onChange={(value) => update('currency', value)} />
+        <SelectField label={t.paymentAccounts.columns.currency.label} value={values.currency} options={financeCurrencySelectOptions} onChange={(value) => update('currency', value)} />
         <SelectField label={t.paymentAccounts.columns.isActive.label} value={values.isActive} options={[{ value: 'true', label: t.common.active }, { value: 'false', label: t.common.inactive }]} onChange={(value) => update('isActive', value)} />
       </FieldGroup>
     </div>

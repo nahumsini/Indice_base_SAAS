@@ -1,5 +1,6 @@
 import type { DragEvent } from 'react';
 import type { OpportunityStage, OpportunityStatus, SalesOpportunity } from '../../salesCrmContext';
+import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import { opportunityDragDataType, spanishWeekdayAliases } from './prospectosStatus';
 
 export function parseMoney(value: string) {
@@ -16,8 +17,8 @@ export function parseMoney(value: string) {
   return numericValue;
 }
 
-export function formatCurrencyAmount(value: number) {
-  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+export function formatCurrencyAmount(value: number, currency?: string | null) {
+  return formatSalesCurrencyAmount(value, currency);
 }
 
 export function normalizeEstimatedValueInput(value: string) {
@@ -182,4 +183,3 @@ export function formatOpportunitySchedule(date: string, time: string) {
   }
   return [date, time].filter(Boolean).join(' ');
 }
-
