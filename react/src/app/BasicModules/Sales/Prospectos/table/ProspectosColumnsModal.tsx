@@ -1,6 +1,6 @@
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import { ColumnasConfigModal } from '../../../../components/rh/ColumnasConfigModal';
-import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId } from '../types/prospectosTypes';
 import { defaultOpportunityColumns } from '../utils/prospectosStatus';
 
@@ -41,7 +41,7 @@ export function ProspectosColumnsModal({
           description: copy.columnsModal.actionsDescription,
         },
       ]}
-      theme="processes"
+      theme="sales"
       onSave={onSave}
     />
   );

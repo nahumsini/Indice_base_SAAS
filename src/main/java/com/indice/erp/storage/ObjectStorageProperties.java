@@ -37,6 +37,7 @@ public class ObjectStorageProperties {
         private String bucketAttendance = "indice-hr-attendance";
         private String bucketBiometric = "indice-hr-biometric";
         private String bucketDocuments = "indice-hr-documents";
+        private String bucketSalesDocuments = "indice-sales-documents";
         private int presignExpirySeconds = 900;
 
         public String getEndpoint() {
@@ -109,6 +110,14 @@ public class ObjectStorageProperties {
 
         public void setBucketDocuments(String bucketDocuments) {
             this.bucketDocuments = bucketDocuments;
+        }
+
+        public String getBucketSalesDocuments() {
+            return bucketSalesDocuments;
+        }
+
+        public void setBucketSalesDocuments(String bucketSalesDocuments) {
+            this.bucketSalesDocuments = bucketSalesDocuments;
         }
 
         public int getPresignExpirySeconds() {

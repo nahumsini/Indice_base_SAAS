@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SaleRecord } from '../../Sales/types/salesTypes';
+import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { PostSalesTranslations } from '../translations';
 
 const brand = {
@@ -24,12 +25,8 @@ function rgb(color: readonly number[]): [number, number, number] {
   return [color[0], color[1], color[2]];
 }
 
-function formatCurrency(value: number, currency = 'MXN', locale = 'es-MX') {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
+function formatCurrency(value: number, currency?: string | null) {
+  return formatSalesCurrencyAmount(value, currency);
 }
 
 function getSalePdfFileName(sale: SaleRecord) {

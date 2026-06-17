@@ -16,7 +16,7 @@ export function QuoteLineItemsSection({
   products: SalesCatalogItem[];
   form: QuoteFormState;
   t: QuotesTranslations;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number, currency?: string | null) => string;
   onUpdateItem: (itemId: string, patch: Partial<SalesQuoteItem>) => void;
   onRemoveItem: (itemId: string) => void;
 }) {

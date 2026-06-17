@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { getDefaultBudgetTaxProfile, inferTaxCountryFromCurrency, taxRateToPercentInput } from '../../Budgets/budgetTaxCatalog';
 import { budgetFrequencyOptions, getBudgetScheduleDates } from '../../Budgets/budgetUtils';
+import { financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
 import type { BudgetDraftState } from '../../Budgets/budgetDraftState';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { Provider } from '../../types/expenses.types';
@@ -23,7 +24,6 @@ type BudgetCreateModalProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-const currencyOptions = ['MXN', 'USD', 'CAD', 'COP', 'BRL'].map(currency => ({ value: currency, label: currency }));
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function BudgetCreateModal({
@@ -237,7 +237,7 @@ function BudgetCostStep({
         <BudgetTextInput label={t.budgets.modal.concept} required value={draft.concept} onChange={updateConcept} placeholder={t.expenses.modal.placeholderConcept} />
         <BudgetSelect label={t.budgets.modal.provider} includeEmpty value={draft.providerId} onChange={(providerId) => onDraftChange({ providerId })} options={providerOptions} t={t} />
         <BudgetSelect label={t.budgets.modal.account} required value={draft.accountingAccount} onChange={(accountingAccount) => onDraftChange({ accountingAccount })} options={accountingAccountOptions} t={t} />
-        <BudgetSelect label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={currencyOptions} t={t} />
+        <BudgetSelect label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} t={t} />
         <BudgetMoneyInput label={t.budgets.modal.amount} required value={draft.amount} onChange={(amount) => onDraftChange({ amount })} placeholder="0.00" />
         <BudgetTaxControls draft={draft} onDraftChange={onDraftChange} />
         <div className="md:col-span-2">

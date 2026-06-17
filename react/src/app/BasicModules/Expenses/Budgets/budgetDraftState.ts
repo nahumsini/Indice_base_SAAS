@@ -1,12 +1,13 @@
 import type { BudgetMasterDraft } from '../adapters/budget.adapter';
 import type { Expense, ExpenseFrequency } from '../types/expenses.types';
+import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import type { BudgetDraft } from './budgetUtils';
 import { getBudgetTaxProfile, getDefaultBudgetTaxProfile, inferTaxCountryFromCurrency, taxRateToPercentInput, type BudgetTaxCountry, type BudgetTaxMode } from './budgetTaxCatalog';
 
 export const createInitialBudgetDraftState = (budgetId = '') => ({
   accountingAccount: '',
   amount: '',
-  budgetCurrencyCode: 'USD',
+  budgetCurrencyCode: DEFAULT_FINANCE_CURRENCY as string,
   budgetDescription: '',
   budgetId,
   budgetName: '',
@@ -20,11 +21,11 @@ export const createInitialBudgetDraftState = (budgetId = '') => ({
   frequency: 'monthly' as ExpenseFrequency,
   providerId: '',
   taxes: '',
-  taxCountry: 'US',
+  taxCountry: inferTaxCountryFromCurrency(DEFAULT_FINANCE_CURRENCY),
   taxEnabled: false,
   taxIncluded: false,
   taxMode: 'none' as BudgetTaxMode,
-  taxProfileId: 'us_manual_sales_tax',
+  taxProfileId: getDefaultBudgetTaxProfile(inferTaxCountryFromCurrency(DEFAULT_FINANCE_CURRENCY))?.id ?? '',
   taxRate: '',
   taxSpecialAmount: '',
   startDate: '',
@@ -34,7 +35,7 @@ export type BudgetDraftState = ReturnType<typeof createInitialBudgetDraftState>;
 
 export function createBudgetDraftStateFromExpense(expense: Expense): BudgetDraftState {
   const dueDate = formatDateInputValue(expense.dueDate);
-  const taxCountry = normalizeTaxCountry(expense.taxCountry || inferTaxCountryFromCurrency(expense.currency || 'USD'));
+  const taxCountry = normalizeTaxCountry(expense.taxCountry || inferTaxCountryFromCurrency(expense.currency || DEFAULT_FINANCE_CURRENCY));
   const defaultTaxProfile = getDefaultBudgetTaxProfile(taxCountry);
   const hasTaxMetadata = Boolean(expense.taxMode || expense.taxProfileId || expense.taxRate || expense.taxSpecialAmount);
   const hasTaxAmount = (expense.taxes ?? 0) > 0;
@@ -42,7 +43,7 @@ export function createBudgetDraftStateFromExpense(expense: Expense): BudgetDraft
   return {
     accountingAccount: expense.accountingAccount ?? '',
     amount: String(expense.taxIncluded ? expense.total : expense.amount ?? 0),
-    budgetCurrencyCode: expense.currency || 'USD',
+    budgetCurrencyCode: expense.currency || DEFAULT_FINANCE_CURRENCY,
     budgetDescription: expense.description ?? '',
     budgetId: expense.budgetId ?? '',
     budgetName: expense.concept,

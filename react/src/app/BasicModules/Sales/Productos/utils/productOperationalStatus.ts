@@ -1,4 +1,5 @@
 import type { SalesCatalogItem } from '../../types';
+import { getProductGalleryImages } from './productImages';
 
 export type ProductAvailabilityKey = 'sales' | 'pos' | 'inventory' | 'internal';
 export type ProductHealthKey =
@@ -51,7 +52,7 @@ export function getProductAvailability(product: SalesCatalogItem): ProductAvaila
 
 export function getProductHealthWarnings(product: SalesCatalogItem): ProductHealthKey[] {
   const warnings: ProductHealthKey[] = [];
-  const hasImage = Boolean(product.imageUrl || (product.gallery?.length ?? 0) > 0);
+  const hasImage = getProductGalleryImages(product).length > 0;
   const margin = getProductMarginValue(product);
   const availability = getProductAvailability(product);
 

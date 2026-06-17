@@ -4,6 +4,7 @@ export type QuoteStatus = 'Draft' | 'Sent' | 'Viewed' | 'Negotiation' | 'Approve
 
 export type SalesQuoteItem = {
   id: string;
+  backendId?: number;
   productId: string;
   productName: string;
   sku: string;
@@ -11,6 +12,15 @@ export type SalesQuoteItem = {
   quantity: number;
   unitPrice: number;
   unitCost?: number;
+  originalCurrency?: string;
+  originalUnitPrice?: number;
+  originalUnitCost?: number;
+  quoteCurrency?: string;
+  exchangeRate?: number;
+  exchangeRateDate?: string;
+  exchangeRateSource?: string;
+  convertedUnitPrice?: number;
+  convertedUnitCost?: number;
   discountPercent: number;
   taxPercent: number;
   subtotal?: number;
@@ -29,6 +39,7 @@ export type SalesQuoteItem = {
 
 export type SalesQuote = {
   id: string;
+  backendId?: number;
   quoteNumber: string;
   clientId?: string;
   clientName: string;
@@ -44,10 +55,12 @@ export type SalesQuote = {
   discountTotal: number;
   taxTotal: number;
   total: number;
+  currency?: string;
   notes: string;
   terms: string;
   files: string[];
   lastUpdated: string;
+  filesCount?: number;
 };
 
 export const quoteStatuses: QuoteStatus[] = ['Draft', 'Sent', 'Viewed', 'Negotiation', 'Approved', 'Rejected', 'Expired', 'Closed Won'];

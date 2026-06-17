@@ -1,5 +1,6 @@
 import type { Expense } from '../types/expenses.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
+import { defaultBusinessCurrency, formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 export type DecisionType = 'warning' | 'alert' | 'opportunity';
 export type DecisionImpact = 'low' | 'medium' | 'high';
 export type RiskLevel = 'low' | 'medium' | 'high';
@@ -89,12 +90,10 @@ export const mergeDecisionThresholds = (thresholds?: Partial<DecisionThresholds>
   ...thresholds,
 });
 
-export const formatDecisionCurrency = (amount: number, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
-    currency,
+export const formatDecisionCurrency = (amount: number, currency = defaultBusinessCurrency) => {
+  return formatBusinessCurrencyAmount(amount, currency, {
     maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(amount);
+  });
 };
 
 export const formatDecisionPercent = (value: number) => {

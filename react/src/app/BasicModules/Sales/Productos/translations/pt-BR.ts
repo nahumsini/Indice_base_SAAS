@@ -92,6 +92,7 @@ export const ptBR = {
   labels: {
     price: 'Preco',
     cost: 'Custo',
+    currency: 'Moeda',
     margin: 'Margem',
     profit: 'Lucro',
     status: 'Status',
@@ -373,6 +374,8 @@ export const ptBR = {
     editTitle: 'Editar item do catalogo',
     description: 'Adicione um bloco comercial reutilizavel para cotacoes, PDV e futuras conexoes de estoque.',
     editDescription: 'Atualize as informacoes comerciais, visuais e operacionais deste item.',
+    validationMissingRequired: (fields: string) => `Complete os campos obrigatorios antes de salvar: ${fields}.`,
+    saveFailed: 'Nao foi possivel salvar o item. Revise as informacoes obrigatorias e tente novamente.',
     fields: {
       name: 'Nome do produto ou servico',
       sku: 'SKU / codigo interno',

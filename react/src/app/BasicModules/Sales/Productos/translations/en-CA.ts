@@ -88,6 +88,7 @@ export const enCA = {
   labels: {
     price: 'Price',
     cost: 'Cost',
+    currency: 'Currency',
     margin: 'Margin',
     profit: 'Profit',
     status: 'Status',
@@ -471,6 +472,8 @@ export const enCA = {
     editTitle: 'Edit catalog item',
     description: 'Add a reusable commercial block prepared for quotes, POS and future inventory connections.',
     editDescription: 'Update the commercial, visual and operational information for this catalog item.',
+    validationMissingRequired: (fields: string) => `Complete the required fields before saving: ${fields}.`,
+    saveFailed: 'The item could not be saved. Review the required information and try again.',
     fields: {
       name: 'Product or service name',
       sku: 'SKU / internal code',

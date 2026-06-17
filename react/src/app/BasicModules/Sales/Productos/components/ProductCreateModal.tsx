@@ -1,21 +1,14 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useMemo, useState } from 'react';
-import { Archive, Plus, Tags } from 'lucide-react';
+import { AlertTriangle, Archive, Plus, Tags } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import {
   productBaseUnits,
   productSaleUnits,
   productStatuses,
   productTypes,
 } from '../../salesCrmContext';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig } from '../types/productCategoryTypes';
@@ -25,6 +18,8 @@ import { ProductModalTabs } from './product-modal/ProductModalTabs';
 import { buildPreviewProduct } from './product-modal/productModalUtils';
 import { ProductPreviewPanel } from './product-modal/ProductPreviewPanel';
 
+const productActionClassNames = getSalesModalActionClassNames('coral');
+
 export function ProductCreateModal({
   open,
   form,
@@ -32,6 +27,8 @@ export function ProductCreateModal({
   mode = 'create',
   catalogItems = [],
   categories,
+  isSaving = false,
+  saveError = null,
   onOpenChange,
   onFormChange,
   onSubmit,
@@ -43,9 +40,11 @@ export function ProductCreateModal({
   mode?: 'create' | 'edit';
   catalogItems?: SalesCatalogItem[];
   categories: ProductCategoryConfig[];
+  isSaving?: boolean;
+  saveError?: string | null;
   onOpenChange: (open: boolean) => void;
   onFormChange: Dispatch<SetStateAction<ProductFormState>>;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
   onQuickCreateCategory: (name: string) => void;
 }) {
   const [isLabelGeneratorOpen, setIsLabelGeneratorOpen] = useState(false);
@@ -59,29 +58,35 @@ export function ProductCreateModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          className="grid grid-rows-[auto,minmax(0,1fr),auto] gap-0 overflow-hidden rounded-xl border border-[#FF6B5E]/25 bg-white p-0 shadow-2xl"
-          closeButtonClassName="text-white hover:bg-white/15 hover:text-white"
-          style={{
-            width: 'min(96vw, 1500px)',
-            maxWidth: 'min(96vw, 1500px)',
-            height: 'min(88vh, 860px)',
-            maxHeight: '88vh',
-          }}
-        >
-          <DialogHeader className="border-b border-[#FF6B5E]/15 bg-[#FF6B5E] px-6 py-4 text-white">
-            <DialogTitle className="flex items-center gap-2 text-2xl font-black">
-              <Tags className="h-6 w-6" />
-              {isEditMode ? t.form.editTitle : t.form.title}
-            </DialogTitle>
-            <DialogDescription className="max-w-3xl text-sm font-semibold leading-6 text-white/90">
-              {isEditMode ? t.form.editDescription : t.form.description}
-            </DialogDescription>
-          </DialogHeader>
-
+      <SalesModalFrame
+        open={open}
+        onOpenChange={onOpenChange}
+        title={isEditMode ? t.form.editTitle : t.form.title}
+        description={isEditMode ? t.form.editDescription : t.form.description}
+        icon={<Tags className="h-6 w-6" />}
+        contentClassName="flex h-[min(88vh,860px)] w-[min(96vw,1500px)] max-w-[min(96vw,1500px)] flex-col"
+        bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-white p-0"
+        footer={(
+          <>
+            <Button variant="outline" className={productActionClassNames.secondary} onClick={() => onOpenChange(false)}>
+              <Archive className="h-4 w-4" />
+              {t.common.cancel}
+            </Button>
+            <Button className={productActionClassNames.primary} disabled={isSaving} onClick={() => void onSubmit()}>
+              <Plus className="h-4 w-4" />
+              {isEditMode ? t.form.updateSubmit : t.form.submit}
+            </Button>
+          </>
+        )}
+      >
           <div className="grid min-h-0 overflow-hidden xl:grid-cols-[minmax(680px,1fr)_440px]">
-            <div className="min-h-0 overflow-y-auto p-5">
+            <div className="min-h-0 overflow-y-auto bg-slate-50/70 p-5">
+              {saveError ? (
+                <div className="mb-4 flex items-start gap-3 rounded-lg border border-[#F4C84A]/45 bg-[#F4C84A]/10 px-4 py-3 text-sm font-bold leading-6 text-[#7C5604]" role="alert">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              ) : null}
               <ProductModalTabs
                 form={form}
                 t={t}
@@ -99,19 +104,7 @@ export function ProductCreateModal({
 
             <ProductPreviewPanel product={previewProduct} form={form} t={t} />
           </div>
-
-          <DialogFooter className="border-t border-[#FF6B5E]/20 bg-[#FF6B5E] px-6 py-3">
-            <Button variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white" onClick={() => onOpenChange(false)}>
-              <Archive className="h-4 w-4" />
-              {t.common.cancel}
-            </Button>
-            <Button className="bg-white text-[#B63B32] hover:bg-white/90" onClick={onSubmit}>
-              <Plus className="h-4 w-4" />
-              {isEditMode ? t.form.updateSubmit : t.form.submit}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </SalesModalFrame>
 
       <ProductLabelGeneratorModal
         open={isLabelGeneratorOpen}

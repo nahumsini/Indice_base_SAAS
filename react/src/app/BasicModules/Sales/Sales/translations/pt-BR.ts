@@ -19,6 +19,7 @@ export const ptBR = {
     subtitle: 'Acompanhe vendas ganhas, comprovantes de pagamento, validações, preparo de estoque e comissões.',
     columnsAction: 'Colunas',
     commissionRulesAction: 'Commission Rules',
+    preferredCurrencyAction: 'Moeda preferida',
     primaryAction: 'Nova venda',
   },
   filters: {
@@ -165,6 +166,7 @@ export const ptBR = {
       notes: 'Notas',
     },
     placeholders: {
+      opportunitySelector: 'Selecione uma oportunidade',
       quoteSelector: 'Selecione uma cotação aceita',
       quoteReference: 'Q-2026-000',
       saleDocumentReference: 'Gerada após salvar',

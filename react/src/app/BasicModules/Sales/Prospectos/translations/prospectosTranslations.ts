@@ -10,18 +10,40 @@ import type {
 import type { AgendaViewMode, OpportunityColumnId, OpportunityView } from '../types/prospectosTypes';
 import type { OpportunityQuoteSignalState } from '../utils/prospectosQuoteSignals';
 
-const enCA = {
+export const enCA = {
   header: {
     title: 'Commercial opportunities',
     subtitle: 'Control active sales work linked to contacts: stage, value, probability, next action, and files.',
     columns: 'Columns',
+    createSale: 'New sale',
     createQuote: 'Create quote',
     createOpportunity: 'Create opportunity',
+    preferredCurrency: 'Preferred currency',
   },
   filters: {
     title: 'Filters',
     search: 'Search',
     searchPlaceholder: 'Opportunity, company, or contact',
+    focus: 'Focus',
+    focusOptions: {
+      all: 'All opportunities',
+      myPortfolio: 'My portfolio',
+      toContact: 'To contact',
+      withoutQuote: 'Without quote',
+      inProposal: 'In proposal',
+      closedPeriod: 'Period closes',
+      won: 'Won',
+      lost: 'Lost',
+    },
+    period: 'Period',
+    periodOptions: {
+      all: 'All time',
+      today: 'Today',
+      this_week: 'This week',
+      this_month: 'This month',
+      last_month: 'Last month',
+      custom: 'Custom',
+    },
     stage: 'Stage',
     owner: 'Owner',
     temperature: 'Temperature',
@@ -39,7 +61,98 @@ const enCA = {
     active: 'active',
     averageProbability: 'avg. probability',
     inProposal: 'in proposal',
-    pipeline: 'pipeline',
+    pipeline: 'quoted pipeline',
+    finalPipeline: 'final pipeline',
+    exchangeRateDate: 'FX date',
+    pipelineQuotes: (count: number) => `${count} ${count === 1 ? 'quote' : 'quotes'}`,
+  },
+  kpiEngine: {
+    labels: {
+      visible: 'visible',
+      open: 'open',
+      pipeline: 'open pipeline',
+      probability: 'avg. probability',
+      scheduled: 'scheduled',
+      unscheduled: 'unscheduled',
+      wonPeriod: 'won in period',
+      lostPeriod: 'lost in period',
+      closedPeriod: 'closed in period',
+      conversion: 'period conversion',
+    },
+    alerts: {
+      overdue: (count: number) => `${count} overdue`,
+      unscheduled: (count: number) => `${count} to schedule`,
+      hot: (count: number) => `${count} hot`,
+      proposal: (count: number) => `${count} in proposal`,
+      wonPeriod: (count: number, value: string) => `${count} won · ${value}`,
+      lostPeriod: (count: number, value: string) => `${count} lost · ${value}`,
+      finalPipeline: (value: string) => `final pipeline: ${value}`,
+      exchangeRateDate: (date: string) => `FX date: ${date}`,
+    },
+    segments: {
+      New: 'New',
+      Contacted: 'Contacted',
+      Qualified: 'Qualified',
+      Proposal: 'Proposal',
+      Negotiation: 'Negotiation',
+      Won: 'Won',
+      Lost: 'Lost',
+    } satisfies Record<OpportunityStage, string>,
+    insight: ({
+      periodLabel,
+      openCount,
+      periodClosedCount,
+      periodConversionRate,
+      periodLostValueLabel,
+      periodWonValueLabel,
+      formattedPipelineValue,
+      hotCount,
+      overdueCount,
+      proposalCount,
+      unscheduledCount,
+      visibleCount,
+      weightedProbability,
+    }: {
+      periodLabel: string;
+      openCount: number;
+      periodClosedCount: number;
+      periodConversionRate: number;
+      periodLostValueLabel: string;
+      periodWonValueLabel: string;
+      formattedPipelineValue: string;
+      hotCount: number;
+      overdueCount: number;
+      proposalCount: number;
+      unscheduledCount: number;
+      visibleCount: number;
+      weightedProbability: number;
+    }) => {
+      if (visibleCount === 0) {
+        return 'No visible opportunities match the current filters; adjust the view before acting.';
+      }
+
+      if (periodClosedCount > 0) {
+        return `${periodLabel}: ${periodWonValueLabel} won and ${periodLostValueLabel} lost with ${periodConversionRate}% conversion; ${openCount} opportunities remain open with ${formattedPipelineValue} in active pipeline.`;
+      }
+
+      if (overdueCount > 0) {
+        return `${overdueCount} opportunities have overdue follow-up and should be contacted first.`;
+      }
+
+      if (unscheduledCount > 0) {
+        return `${unscheduledCount} open opportunities need a next-action date to protect pipeline rhythm.`;
+      }
+
+      if (hotCount > 0) {
+        return `${hotCount} hot opportunities require priority follow-up; visible pipeline is ${formattedPipelineValue}.`;
+      }
+
+      if (proposalCount > 0) {
+        return `${proposalCount} opportunities are in proposal; review quotes and move the next best deals forward.`;
+      }
+
+      return `${periodLabel}: no closed opportunities yet; active pipeline is ${formattedPipelineValue} across ${openCount} open opportunities with ${weightedProbability}% average probability.`;
+    },
   },
   insight: {
     summary: (hotCount: number, pipeline: string, probability: number) => (
@@ -80,8 +193,8 @@ const enCA = {
       description: 'Seller or executive responsible for follow-up.',
     },
     estimatedValue: {
-      label: 'Estimated value',
-      description: 'Estimated amount of the negotiation.',
+      label: 'Commercial value',
+      description: 'Smart value: estimated, quoted, or closed depending on the commercial stage.',
     },
     probability: {
       label: 'Probability',
@@ -90,6 +203,10 @@ const enCA = {
     quoteSignal: {
       label: 'Quote',
       description: 'Status of quotes linked to the opportunity.',
+    },
+    pipeline: {
+      label: 'Quoted pipeline',
+      description: 'Quoted amount linked to the opportunity by currency.',
     },
     expectedCloseDate: {
       label: 'Expected close',
@@ -122,6 +239,15 @@ const enCA = {
     unlinkedOwner: 'unlinked',
     noLastContact: 'No record',
     zeroPlaceholder: '0',
+    commercialValue: {
+      estimated: 'Estimated',
+      editableEstimate: 'Editable estimate',
+      quoted: 'Quoted',
+      won: 'Closed won',
+      lost: 'Closed lost',
+      quoteCount: (count: number) => `${count} ${count === 1 ? 'quote' : 'quotes'}`,
+      converted: (value: string) => `Converted: ${value}`,
+    },
   },
   quickActions: {
     call: (name: string) => `Call ${name}`,
@@ -174,6 +300,23 @@ const enCA = {
       files: 'Proposal.pdf, contract.docx',
       notes: 'Commercial notes, negotiation context, or pending agreements.',
     },
+    sections: {
+      quickCapture: 'Quick capture',
+      relationship: 'Commercial relationship',
+      pipeline: 'Pipeline',
+      followUp: 'Follow-up',
+      notes: 'Notes and files',
+      summary: 'Live summary',
+    },
+    summary: {
+      contact: 'Contact',
+      noContact: 'Select a contact',
+      value: 'Pipeline value',
+      nextStep: 'Next step',
+      schedule: 'Schedule',
+      noDate: 'No date',
+      owner: 'Owner',
+    },
     cancel: 'Cancel',
     saveChanges: 'Save changes',
     createOpportunity: 'Create opportunity',
@@ -187,6 +330,9 @@ const enCA = {
     title: 'Opportunity files',
     description: 'Commercial documents locally linked to the selected opportunity.',
     local: 'Local',
+    localFilesTitle: 'Local files',
+    quotesTitle: 'Linked quotes',
+    viewQuote: 'View quote',
     empty: 'This opportunity does not have files yet.',
     close: 'Close',
   },
@@ -227,8 +373,11 @@ const enCA = {
     allScheduled: 'All visible opportunities have a scheduled follow-up.',
   },
   deleteConfirm: {
+    title: 'Delete opportunity',
     simple: (name: string) => `Delete opportunity ${name}?`,
     withQuotes: (name: string, count: number) => `Delete opportunity ${name}? It has ${count} linked quote(s).`,
+    confirm: 'Delete opportunity',
+    cancel: 'Cancel',
   },
   quoteSignal: {
     labels: {
@@ -305,19 +454,41 @@ type WidenLiterals<T> =
 
 export type ProspectosCopy = WidenLiterals<typeof enCA>;
 
-const esMX: ProspectosCopy = {
+export const esMX: ProspectosCopy = {
   ...enCA,
   header: {
     title: 'Oportunidades comerciales',
     subtitle: 'Controla ventas activas ligadas a contactos: etapa, valor, probabilidad, siguiente acción y archivos.',
     columns: 'Columnas',
+    createSale: 'Nueva venta',
     createQuote: 'Crear cotización',
     createOpportunity: 'Crear oportunidad',
+    preferredCurrency: 'Divisa preferida',
   },
   filters: {
     title: 'Filtros',
     search: 'Buscar',
     searchPlaceholder: 'Oportunidad, empresa o contacto',
+    focus: 'Enfoque',
+    focusOptions: {
+      all: 'Todas',
+      myPortfolio: 'Mi cartera',
+      toContact: 'Por contactar',
+      withoutQuote: 'Sin cotizar',
+      inProposal: 'En propuesta',
+      closedPeriod: 'Cierres del periodo',
+      won: 'Ganadas',
+      lost: 'Perdidas',
+    },
+    period: 'Periodo',
+    periodOptions: {
+      all: 'Todo el historial',
+      today: 'Hoy',
+      this_week: 'Esta semana',
+      this_month: 'Este mes',
+      last_month: 'Mes anterior',
+      custom: 'Personalizado',
+    },
     stage: 'Etapa',
     owner: 'Responsable',
     temperature: 'Temperatura',
@@ -335,7 +506,84 @@ const esMX: ProspectosCopy = {
     active: 'activas',
     averageProbability: 'probabilidad prom.',
     inProposal: 'en propuesta',
-    pipeline: 'pipeline',
+    pipeline: 'pipeline cotizado',
+    finalPipeline: 'pipeline final',
+    exchangeRateDate: 'tipo de cambio',
+    pipelineQuotes: (count) => `${count} ${count === 1 ? 'cotización' : 'cotizaciones'}`,
+  },
+  kpiEngine: {
+    labels: {
+      visible: 'visibles',
+      open: 'abiertas',
+      pipeline: 'pipeline abierto',
+      probability: 'probabilidad prom.',
+      scheduled: 'programadas',
+      unscheduled: 'sin fecha',
+      wonPeriod: 'ganado periodo',
+      lostPeriod: 'perdido periodo',
+      closedPeriod: 'cerradas periodo',
+      conversion: 'conversión periodo',
+    },
+    alerts: {
+      overdue: (count) => `${count} vencidas`,
+      unscheduled: (count) => `${count} por programar`,
+      hot: (count) => `${count} alta`,
+      proposal: (count) => `${count} en propuesta`,
+      wonPeriod: (count, value) => `${count} ganadas · ${value}`,
+      lostPeriod: (count, value) => `${count} perdidas · ${value}`,
+      finalPipeline: (value) => `pipeline final: ${value}`,
+      exchangeRateDate: (date) => `tipo de cambio: ${date}`,
+    },
+    segments: {
+      New: 'Nueva',
+      Contacted: 'Contactada',
+      Qualified: 'Calificada',
+      Proposal: 'Propuesta',
+      Negotiation: 'Negociación',
+      Won: 'Ganada',
+      Lost: 'Perdida',
+    },
+    insight: ({
+      periodLabel,
+      openCount,
+      periodClosedCount,
+      periodConversionRate,
+      periodLostValueLabel,
+      periodWonValueLabel,
+      formattedPipelineValue,
+      hotCount,
+      overdueCount,
+      proposalCount,
+      unscheduledCount,
+      visibleCount,
+      weightedProbability,
+    }) => {
+      if (visibleCount === 0) {
+        return 'No hay oportunidades visibles con los filtros actuales; ajusta la vista antes de actuar.';
+      }
+
+      if (periodClosedCount > 0) {
+        return `${periodLabel}: ${periodWonValueLabel} ganados y ${periodLostValueLabel} perdidos con ${periodConversionRate}% de conversión; quedan ${openCount} oportunidades abiertas con ${formattedPipelineValue} en pipeline activo.`;
+      }
+
+      if (overdueCount > 0) {
+        return `${overdueCount} oportunidades tienen seguimiento vencido y deberían contactarse primero.`;
+      }
+
+      if (unscheduledCount > 0) {
+        return `${unscheduledCount} oportunidades abiertas necesitan fecha de siguiente acción para proteger el ritmo del pipeline.`;
+      }
+
+      if (hotCount > 0) {
+        return `${hotCount} oportunidades de temperatura alta requieren seguimiento prioritario; el pipeline visible es ${formattedPipelineValue}.`;
+      }
+
+      if (proposalCount > 0) {
+        return `${proposalCount} oportunidades están en propuesta; revisa cotizaciones y empuja los mejores cierres.`;
+      }
+
+      return `${periodLabel}: todavía no hay oportunidades cerradas; el pipeline activo es ${formattedPipelineValue} en ${openCount} oportunidades abiertas con ${weightedProbability}% de probabilidad promedio.`;
+    },
   },
   insight: {
     summary: (hotCount, pipeline, probability) => (
@@ -351,9 +599,10 @@ const esMX: ProspectosCopy = {
     stage: { label: 'Etapa', description: 'Avance dentro del pipeline comercial.' },
     temperature: { label: 'Temperatura', description: 'Prioridad comercial de la oportunidad.' },
     owner: { label: 'Responsable', description: 'Vendedor o ejecutivo responsable.' },
-    estimatedValue: { label: 'Valor estimado', description: 'Monto estimado de la negociación.' },
+    estimatedValue: { label: 'Valor comercial', description: 'Valor inteligente: estimado, cotizado o cerrado según avance comercial.' },
     probability: { label: 'Probabilidad', description: 'Probabilidad estimada de cierre.' },
     quoteSignal: { label: 'Cotización', description: 'Estado de cotizaciones ligadas a la oportunidad.' },
+    pipeline: { label: 'Pipeline cotizado', description: 'Monto cotizado ligado a la oportunidad por divisa.' },
     expectedCloseDate: { label: 'Cierre esperado', description: 'Fecha objetivo de cierre.' },
     nextAction: { label: 'Siguiente acción', description: 'Próximo paso comercial.' },
     nextActionDate: { label: 'Fecha de acción', description: 'Fecha y hora programada para el siguiente contacto.' },
@@ -367,6 +616,15 @@ const esMX: ProspectosCopy = {
     unlinkedOwner: 'sin vincular',
     noLastContact: 'Sin registro',
     zeroPlaceholder: '0',
+    commercialValue: {
+      estimated: 'Estimado',
+      editableEstimate: 'Estimado editable',
+      quoted: 'Cotizado',
+      won: 'Cierre ganado',
+      lost: 'Cierre perdido',
+      quoteCount: (count) => `${count} ${count === 1 ? 'cotización' : 'cotizaciones'}`,
+      converted: (value) => `Convertido: ${value}`,
+    },
   },
   quickActions: {
     call: (name) => `Llamar a ${name}`,
@@ -419,6 +677,23 @@ const esMX: ProspectosCopy = {
       files: 'Propuesta.pdf, contrato.docx',
       notes: 'Notas comerciales, contexto de negociación o acuerdos pendientes.',
     },
+    sections: {
+      quickCapture: 'Captura rápida',
+      relationship: 'Relación comercial',
+      pipeline: 'Pipeline',
+      followUp: 'Seguimiento',
+      notes: 'Notas y archivos',
+      summary: 'Resumen vivo',
+    },
+    summary: {
+      contact: 'Contacto',
+      noContact: 'Selecciona un contacto',
+      value: 'Valor en pipeline',
+      nextStep: 'Próximo paso',
+      schedule: 'Agenda',
+      noDate: 'Sin fecha',
+      owner: 'Responsable',
+    },
     cancel: 'Cancelar',
     saveChanges: 'Guardar cambios',
     createOpportunity: 'Crear oportunidad',
@@ -432,6 +707,9 @@ const esMX: ProspectosCopy = {
     title: 'Archivos de oportunidad',
     description: 'Documentos comerciales ligados localmente a la oportunidad seleccionada.',
     local: 'Local',
+    localFilesTitle: 'Archivos locales',
+    quotesTitle: 'Cotizaciones ligadas',
+    viewQuote: 'Ver cotización',
     empty: 'Esta oportunidad todavía no tiene archivos.',
     close: 'Cerrar',
   },
@@ -472,8 +750,11 @@ const esMX: ProspectosCopy = {
     allScheduled: 'Todas las oportunidades visibles tienen seguimiento programado.',
   },
   deleteConfirm: {
+    title: 'Eliminar oportunidad',
     simple: (name) => `¿Eliminar la oportunidad ${name}?`,
     withQuotes: (name, count) => `¿Eliminar la oportunidad ${name}? Tiene ${count} cotización(es) ligada(s).`,
+    confirm: 'Eliminar oportunidad',
+    cancel: 'Cancelar',
   },
   quoteSignal: {
     labels: {
@@ -533,7 +814,7 @@ const esMX: ProspectosCopy = {
   },
 };
 
-const prospectosTranslations = {
+export const prospectosTranslations = {
   'en-CA': enCA,
   'en-US': {
     ...enCA,
@@ -559,8 +840,10 @@ const prospectosTranslations = {
       title: 'Occasions commerciales',
       subtitle: 'Contrôlez les ventes actives liées aux contacts : étape, valeur, probabilité, prochaine action et fichiers.',
       columns: 'Colonnes',
+      createSale: 'Nouvelle vente',
       createQuote: 'Créer un devis',
       createOpportunity: 'Créer une occasion',
+      preferredCurrency: 'Devise préférée',
     },
     filters: {
       ...enCA.filters,
@@ -579,7 +862,10 @@ const prospectosTranslations = {
       active: 'actives',
       averageProbability: 'probabilité moy.',
       inProposal: 'en proposition',
-      pipeline: 'pipeline',
+      pipeline: 'pipeline devisé',
+      finalPipeline: 'pipeline final',
+      exchangeRateDate: 'date FX',
+      pipelineQuotes: (count) => `${count} ${count === 1 ? 'devis' : 'devis'}`,
     },
     insight: {
       summary: (hotCount, pipeline, probability) => (
@@ -609,7 +895,7 @@ const prospectosTranslations = {
       createOpportunity: 'Créer une occasion',
     },
     detailModal: { title: 'Historique de l’occasion', description: 'Registre opérationnel des événements commerciaux, suivis, fichiers et changements.', close: 'Fermer' },
-    filesModal: { title: 'Fichiers de l’occasion', description: 'Documents commerciaux liés localement à l’occasion sélectionnée.', local: 'Local', empty: 'Cette occasion n’a pas encore de fichiers.', close: 'Fermer' },
+    filesModal: { title: 'Fichiers de l’occasion', description: 'Documents commerciaux liés localement à l’occasion sélectionnée.', local: 'Local', localFilesTitle: 'Fichiers locaux', quotesTitle: 'Devis liés', viewQuote: 'Voir le devis', empty: 'Cette occasion n’a pas encore de fichiers.', close: 'Fermer' },
     kanban: { dragHint: 'Glisser pour changer l’étape', emptyColumn: 'Glissez des occasions ici' },
     agenda: {
       ...enCA.agenda,
@@ -627,8 +913,11 @@ const prospectosTranslations = {
       allScheduled: 'Toutes les occasions visibles ont un suivi programmé.',
     },
     deleteConfirm: {
+      title: 'Supprimer l’occasion',
       simple: (name) => `Supprimer l’occasion ${name}?`,
       withQuotes: (name, count) => `Supprimer l’occasion ${name}? Elle a ${count} devis lié(s).`,
+      confirm: 'Supprimer',
+      cancel: 'Annuler',
     },
     quoteSignal: {
       ...enCA.quoteSignal,
@@ -650,8 +939,10 @@ const prospectosTranslations = {
       title: 'Oportunidades comerciais',
       subtitle: 'Controle vendas ativas ligadas a contatos: etapa, valor, probabilidade, próxima ação e arquivos.',
       columns: 'Colunas',
+      createSale: 'Nova venda',
       createQuote: 'Criar cotação',
       createOpportunity: 'Criar oportunidade',
+      preferredCurrency: 'Moeda preferida',
     },
     filters: {
       ...esMX.filters,
@@ -665,7 +956,10 @@ const prospectosTranslations = {
       active: 'ativas',
       averageProbability: 'probabilidade méd.',
       inProposal: 'em proposta',
-      pipeline: 'pipeline',
+      pipeline: 'pipeline cotado',
+      finalPipeline: 'pipeline final',
+      exchangeRateDate: 'câmbio',
+      pipelineQuotes: (count) => `${count} ${count === 1 ? 'cotação' : 'cotações'}`,
     },
     insight: {
       summary: (hotCount, pipeline, probability) => (
@@ -692,7 +986,7 @@ const prospectosTranslations = {
       createOpportunity: 'Criar oportunidade',
     },
     detailModal: { title: 'Histórico da oportunidade', description: 'Registro operacional de eventos comerciais, follow-up, arquivos e mudanças relevantes.', close: 'Fechar' },
-    filesModal: { title: 'Arquivos da oportunidade', description: 'Documentos comerciais ligados localmente à oportunidade selecionada.', local: 'Local', empty: 'Esta oportunidade ainda não tem arquivos.', close: 'Fechar' },
+    filesModal: { title: 'Arquivos da oportunidade', description: 'Documentos comerciais ligados localmente à oportunidade selecionada.', local: 'Local', localFilesTitle: 'Arquivos locais', quotesTitle: 'Cotações ligadas', viewQuote: 'Ver cotação', empty: 'Esta oportunidade ainda não tem arquivos.', close: 'Fechar' },
     kanban: { dragHint: 'Arraste para mudar etapa', emptyColumn: 'Arraste oportunidades aqui' },
     agenda: {
       ...esMX.agenda,
@@ -705,8 +999,11 @@ const prospectosTranslations = {
       allScheduled: 'Todas as oportunidades visíveis têm follow-up programado.',
     },
     deleteConfirm: {
+      title: 'Excluir oportunidade',
       simple: (name) => `Excluir a oportunidade ${name}?`,
       withQuotes: (name, count) => `Excluir a oportunidade ${name}? Ela tem ${count} cotação(ões) ligada(s).`,
+      confirm: 'Excluir oportunidade',
+      cancel: 'Cancelar',
     },
   },
   'ko-CA': {
@@ -715,14 +1012,16 @@ const prospectosTranslations = {
       title: '영업 기회',
       subtitle: '연락처와 연결된 활성 영업 업무를 단계, 금액, 확률, 다음 행동, 파일로 관리합니다.',
       columns: '열',
+      createSale: '새 판매',
       createQuote: '견적 만들기',
       createOpportunity: '기회 만들기',
+      preferredCurrency: '기본 통화',
     },
     filters: { ...enCA.filters, title: '필터', search: '검색', searchPlaceholder: '기회, 회사 또는 연락처', owner: '담당자', all: '전체' },
     table: { ...enCA.table, actions: '작업', empty: '검색과 일치하는 기회가 없습니다.', noLastContact: '기록 없음' },
     modal: { ...enCA.modal, createTitle: '기회 만들기', editTitle: '기회 편집', cancel: '취소', saveChanges: '변경 저장', createOpportunity: '기회 만들기' },
     detailModal: { title: '기회 이력', description: '영업 이벤트, 후속 조치, 파일, 주요 변경의 운영 기록입니다.', close: '닫기' },
-    filesModal: { title: '기회 파일', description: '선택한 기회에 로컬로 연결된 영업 문서입니다.', local: '로컬', empty: '아직 파일이 없습니다.', close: '닫기' },
+    filesModal: { title: '기회 파일', description: '선택한 기회에 로컬로 연결된 영업 문서입니다.', local: '로컬', localFilesTitle: '로컬 파일', quotesTitle: '연결된 견적', viewQuote: '견적 보기', empty: '아직 파일이 없습니다.', close: '닫기' },
   },
   'zh-CA': {
     ...enCA,
@@ -730,18 +1029,20 @@ const prospectosTranslations = {
       title: '销售机会',
       subtitle: '按阶段、金额、概率、下一步和文件管理与联系人关联的活跃销售工作。',
       columns: '列',
+      createSale: '新销售',
       createQuote: '创建报价',
       createOpportunity: '创建机会',
+      preferredCurrency: '首选货币',
     },
     filters: { ...enCA.filters, title: '筛选', search: '搜索', searchPlaceholder: '机会、公司或联系人', owner: '负责人', all: '全部' },
     table: { ...enCA.table, actions: '操作', empty: '没有符合搜索条件的机会。', noLastContact: '无记录' },
     modal: { ...enCA.modal, createTitle: '创建机会', editTitle: '编辑机会', cancel: '取消', saveChanges: '保存更改', createOpportunity: '创建机会' },
     detailModal: { title: '机会历史', description: '销售事件、跟进、文件和关键变更的运营记录。', close: '关闭' },
-    filesModal: { title: '机会文件', description: '本地链接到所选机会的销售文档。', local: '本地', empty: '此机会还没有文件。', close: '关闭' },
+    filesModal: { title: '机会文件', description: '本地链接到所选机会的销售文档。', local: '本地', localFilesTitle: '本地文件', quotesTitle: '关联报价', viewQuote: '查看报价', empty: '此机会还没有文件。', close: '关闭' },
   },
 } satisfies Record<string, ProspectosCopy>;
 
-function resolveProspectosLocale(locale: string | null | undefined) {
+export function resolveProspectosLocale(locale: string | null | undefined) {
   if (!locale) {
     return 'en-CA';
   }
@@ -753,7 +1054,7 @@ function resolveProspectosLocale(locale: string | null | undefined) {
   const loweredLocale = locale.toLowerCase();
 
   if (loweredLocale.startsWith('es-co')) return 'es-CO';
-  if (loweredLocale.startsWith('es')) return 'es-MX';
+  if (loweredLocale.startsWith('es-')) return 'es-MX';
   if (loweredLocale.startsWith('fr')) return 'fr-CA';
   if (loweredLocale.startsWith('pt')) return 'pt-BR';
   if (loweredLocale.startsWith('ko')) return 'ko-CA';

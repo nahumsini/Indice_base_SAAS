@@ -1,14 +1,22 @@
-export const FINANCE_CURRENCY_OPTIONS = ['MXN', 'USD', 'CAD', 'COP', 'BRL'] as const;
+import {
+  businessCurrencyCodes,
+  businessCurrencyOptions,
+  defaultBusinessCurrency,
+  isBusinessCurrencyCode,
+  type BusinessCurrencyCode,
+} from '../../shared/businessCurrency';
 
-export type FinanceCurrencyOption = typeof FINANCE_CURRENCY_OPTIONS[number];
+export const FINANCE_CURRENCY_OPTIONS = businessCurrencyCodes;
 
-export const DEFAULT_FINANCE_CURRENCY: FinanceCurrencyOption = 'USD';
+export type FinanceCurrencyOption = BusinessCurrencyCode;
 
-export const financeCurrencySelectOptions = FINANCE_CURRENCY_OPTIONS.map(currency => ({
-  value: currency,
-  label: currency,
+export const DEFAULT_FINANCE_CURRENCY: FinanceCurrencyOption = defaultBusinessCurrency;
+
+export const financeCurrencySelectOptions = businessCurrencyOptions.map((currency) => ({
+  value: currency.code,
+  label: currency.code,
 }));
 
 export function isFinanceCurrencyOption(value: string): value is FinanceCurrencyOption {
-  return FINANCE_CURRENCY_OPTIONS.includes(value as FinanceCurrencyOption);
+  return isBusinessCurrencyCode(value);
 }

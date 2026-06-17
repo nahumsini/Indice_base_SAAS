@@ -1,18 +1,13 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { Globe2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import { PublicCatalogEditor } from './PublicCatalogEditor';
 import type { PublicCatalogConfig } from './types/publicCatalogTypes';
 
 type PublicCatalogEditorMode = 'create' | 'edit';
+const editorActionClassNames = getSalesModalActionClassNames('coral');
 
 type PublicCatalogEditorModalProps = {
   catalog: PublicCatalogConfig | null;
@@ -38,33 +33,33 @@ export function PublicCatalogEditorModal({
     : t.publicCatalog.editPublicCatalog;
 
   return (
-    <Dialog open={Boolean(catalog)} onOpenChange={onOpenChange}>
-      <DialogContent className="grid max-h-[84vh] w-[calc(100vw-4rem)] max-w-[980px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-xl border-slate-200 p-0 sm:max-w-[980px]">
-        <DialogHeader className="border-b border-slate-200 bg-white px-5 py-4">
-          <DialogTitle className="text-xl font-black text-slate-950">{title}</DialogTitle>
-          <DialogDescription className="font-semibold text-slate-500">
-            {t.publicCatalog.configDescription}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 overflow-hidden bg-white">
-          <PublicCatalogEditor catalog={catalog} products={products} t={t} onChange={onChange} />
-        </div>
-
-        <DialogFooter className="border-t border-slate-200 bg-white px-5 py-4">
-          <Button type="button" variant="outline" className="rounded-lg" onClick={() => onOpenChange(false)}>
+    <SalesModalFrame
+      open={Boolean(catalog)}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={t.publicCatalog.configDescription}
+      icon={<Globe2 className="h-6 w-6" />}
+      contentClassName="flex max-h-[84vh] w-[calc(100vw-4rem)] max-w-[980px] flex-col sm:max-w-[980px]"
+      bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-white p-0"
+      footer={(
+        <>
+          <Button type="button" variant="outline" className={editorActionClassNames.secondary} onClick={() => onOpenChange(false)}>
             {t.common.cancel}
           </Button>
           <Button
             type="button"
-            className="rounded-lg bg-[#FF6B5E] text-white hover:bg-[#E85C50]"
+            className={editorActionClassNames.primary}
             disabled={!catalog}
             onClick={onSave}
           >
             {t.publicCatalog.saveCatalog}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      )}
+    >
+        <div className="min-h-0 overflow-hidden bg-white">
+          <PublicCatalogEditor catalog={catalog} products={products} t={t} onChange={onChange} />
+        </div>
+    </SalesModalFrame>
   );
 }

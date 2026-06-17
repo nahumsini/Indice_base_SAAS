@@ -7,7 +7,7 @@ import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inve
 import { CancelMovementDialog } from './CancelMovementDialog';
 import { MovementActions, MovementFlow, MovementNumber, MovementQuantity, movementStatusTone } from './movementUi';
 
-const headerClass = 'h-10 whitespace-nowrap px-4 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500';
+const headerClass = 'h-10 whitespace-nowrap px-4 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300';
 const selectableStatuses: InventoryOperationalMovement['status'][] = ['draft', 'inTransit', 'received', 'completed', 'cancelled'];
 
 type MovementGroup = {
@@ -37,12 +37,12 @@ function GroupedProducts({ group, t }: { group: MovementGroup; t: InventoryTrans
   return (
     <div className="min-w-[300px] space-y-2">
       {group.lines.slice(0, 4).map((movement) => (
-        <div key={movement.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+        <div key={movement.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-black uppercase text-slate-400">
             {movement.productImageUrl ? <img src={movement.productImageUrl} alt={movement.productImageAlt ?? movement.productName} className="h-full w-full object-cover" loading="lazy" /> : t.operational.columns.photo}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-black text-slate-950">{movement.productName}</p>
+            <p className="truncate text-sm font-black text-slate-950 dark:text-white">{movement.productName}</p>
             <p className="truncate text-xs font-semibold text-slate-500">SKU: {movement.productSku ?? t.common.notAvailable}</p>
           </div>
           <span className={`text-sm font-black tabular-nums ${movement.quantity >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -91,11 +91,11 @@ export function MovementsTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <Table className="min-w-[1300px]">
-            <TableHeader className="bg-slate-50/90">
-              <TableRow className="border-slate-200">
+            <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
+              <TableRow className="border-slate-200 dark:border-slate-700">
                 <TableHead className={headerClass}>{t.operational.columns.movement}</TableHead>
                 <TableHead className={headerClass}>{t.operational.columns.flow}</TableHead>
                 <TableHead className={headerClass}>{t.operational.columns.product}</TableHead>
@@ -115,7 +115,7 @@ export function MovementsTable({
                 const attachmentCount = movement.attachments?.length ?? 0;
 
                 return (
-                  <TableRow key={group.id} className="border-slate-100 hover:bg-[#FF6B5E]/5">
+                  <TableRow key={group.id} className="border-slate-100 hover:bg-[#FF6B5E]/5 dark:border-slate-700 dark:hover:bg-slate-700/40">
                     <TableCell className="px-4 py-4 align-top">
                       <MovementNumber movement={movement} t={t} />
                       {group.lines.length > 1 ? <p className="mt-2 text-xs font-black text-slate-500">{group.lines.length} products</p> : null}
@@ -131,7 +131,7 @@ export function MovementsTable({
                       <p className="mt-1 text-xs font-semibold text-slate-400">{formatInventoryCurrency(movementValue)}</p>
                     </TableCell>
                     <TableCell className="min-w-[160px] px-4 py-4 align-top">
-                      <p className="text-sm font-black text-slate-800">{movement.responsibleName}</p>
+                      <p className="text-sm font-black text-slate-800 dark:text-white">{movement.responsibleName}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{movement.businessUnitName ?? t.common.notAvailable}</p>
                     </TableCell>
                     <TableCell className="px-4 py-4 align-top">
@@ -148,7 +148,7 @@ export function MovementsTable({
                       />
                     </TableCell>
                     <TableCell className="min-w-[180px] px-4 py-4 align-top">
-                      <p className="text-sm font-black text-slate-800">{movement.reference ?? t.common.notAvailable}</p>
+                      <p className="text-sm font-black text-slate-800 dark:text-white">{movement.reference ?? t.common.notAvailable}</p>
                       <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{movement.reason}</p>
                       {movement.status === 'cancelled' ? (
                         <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black leading-5 text-red-700">

@@ -1,4 +1,8 @@
 import { useMemo, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
 import { CommissionManagementModal } from './components/CommissionManagementModal';
 import { CommissionRulesModal } from './components/CommissionRulesModal';
 import { CommissionsView } from './components/CommissionsView';
@@ -15,6 +19,62 @@ import type { CommissionRule, CommissionViewMode } from './types/commissions';
 import type { SaleRecord } from './types/salesTypes';
 import { calculateCommissionRecords } from './utils/commissionRules';
 import { useSalesCrm } from '../salesCrmContext';
+import { defaultSalesCurrency, isSalesCurrencyCode } from '../utils/salesCurrency';
+
+const cancelDialogActionClassNames = getSalesModalActionClassNames('coral');
+
+function SaleCancelDialog({
+  record,
+  t,
+  onCancel,
+  onConfirm,
+}: {
+  record: SaleRecord | null;
+  t: ReturnType<typeof useSalesTranslations>;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <SalesModalFrame
+      open={Boolean(record)}
+      onOpenChange={(open) => {
+        if (!open) {
+          onCancel();
+        }
+      }}
+      title={t.table.actions.cancelSale}
+      description={t.table.actions.cancelConfirmation}
+      icon={<AlertTriangle className="h-5 w-5" />}
+      contentClassName="w-[min(92vw,520px)]"
+      bodyClassName="px-7 py-6"
+      footerClassName="sm:justify-end"
+      footer={(
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className={cancelDialogActionClassNames.secondary}
+            onClick={onCancel}
+          >
+            {t.common.cancel}
+          </Button>
+          <Button
+            type="button"
+            className={cancelDialogActionClassNames.primary}
+            onClick={onConfirm}
+          >
+            {t.table.actions.cancelSale}
+          </Button>
+        </>
+      )}
+    >
+      <div className="rounded-2xl border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/30 dark:bg-slate-800">
+        <p className="break-all text-base font-black text-slate-950 dark:text-slate-50">{record?.saleNumber}</p>
+        <p className="mt-1 break-words text-sm font-semibold text-slate-600 dark:text-slate-300">{record?.customerName}</p>
+      </div>
+    </SalesModalFrame>
+  );
+}
 
 export default function Sales() {
   const t = useSalesTranslations();
@@ -26,6 +86,13 @@ export default function Sales() {
     updateQuoteStatus,
     updateOpportunity,
   } = useSalesCrm();
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
+    'indice.sales.salesPreferredCurrency',
+    defaultSalesCurrency,
+  );
+  const preferredCurrency = isSalesCurrencyCode(storedPreferredCurrency)
+    ? storedPreferredCurrency
+    : defaultSalesCurrency;
   const {
     records,
     filteredRecords,
@@ -41,7 +108,7 @@ export default function Sales() {
     businesses,
     createSaleRecord,
     updateSaleRecord,
-  } = useSalesRecords();
+  } = useSalesRecords(preferredCurrency);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
@@ -52,6 +119,7 @@ export default function Sales() {
   const [selectedRecord, setSelectedRecord] = useState<SaleRecord | null>(null);
   const [summaryPreviewRecord, setSummaryPreviewRecord] = useState<SaleRecord | null>(null);
   const [commissionRecord, setCommissionRecord] = useState<SaleRecord | null>(null);
+  const [pendingCancelRecord, setPendingCancelRecord] = useState<SaleRecord | null>(null);
   const commissionRecords = useMemo(() => calculateCommissionRecords(records, commissionRules), [commissionRules, records]);
 
   const handleCreateSale = () => {
@@ -95,19 +163,26 @@ export default function Sales() {
   };
 
   const handleCancelSale = (record: SaleRecord) => {
-    if (!window.confirm(t.table.actions.cancelConfirmation)) {
+    setPendingCancelRecord(record);
+  };
+
+  const handleConfirmCancelSale = () => {
+    if (!pendingCancelRecord) {
       return;
     }
 
-    updateSaleRecord(record.id, {
+    updateSaleRecord(pendingCancelRecord.id, {
       commercialStatus: 'cancelled',
     });
+    setPendingCancelRecord(null);
   };
 
   return (
     <section className="space-y-5">
       <SalesHeader
         t={t}
+        preferredCurrency={preferredCurrency}
+        onPreferredCurrencyChange={setStoredPreferredCurrency}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
         onOpenCommissionRules={() => setIsCommissionRulesOpen(true)}
         onCreateSale={handleCreateSale}
@@ -162,12 +237,18 @@ export default function Sales() {
         onCreate={createSaleRecord}
         onUpdate={updateSaleRecord}
         onQuoteConverted={(quoteId, opportunityId) => {
+          const convertedQuote = quotes.find((quote) => quote.id === quoteId);
           updateQuoteStatus(quoteId, 'Closed Won');
           if (opportunityId) {
             updateOpportunity(opportunityId, {
               stage: 'Won',
               status: 'Closed',
               probability: '100%',
+              ...(convertedQuote ? {
+                estimatedValue: String(convertedQuote.total),
+                currency: convertedQuote.currency,
+                lastContact: convertedQuote.lastUpdated || convertedQuote.createdDate,
+              } : {}),
             });
           }
         }}
@@ -196,6 +277,13 @@ export default function Sales() {
         t={t}
         onOpenChange={setIsCommissionRulesOpen}
         onRulesChange={setCommissionRules}
+      />
+
+      <SaleCancelDialog
+        record={pendingCancelRecord}
+        t={t}
+        onCancel={() => setPendingCancelRecord(null)}
+        onConfirm={handleConfirmCancelSale}
       />
     </section>
   );

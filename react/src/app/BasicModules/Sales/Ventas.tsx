@@ -32,6 +32,7 @@ const Contactos = lazy(() => import('./Contactos')) as SalesTabLazyComponent;
 const Cotizacion = lazy(() => import('./Cotizacion')) as SalesTabLazyComponent;
 const Sales = lazy(() => import('./Sales/Sales')) as SalesTabLazyComponent;
 const Productos = lazy(() => import('./Productos')) as SalesTabLazyComponent;
+const Providers = lazy(() => import('./Providers')) as SalesTabLazyComponent;
 const Inventory = lazy(() => import('./Inventory')) as SalesTabLazyComponent;
 const Postventa = lazy(() => import('./Postventa')) as SalesTabLazyComponent;
 const Contrato = lazy(() => import('./Contrato')) as SalesTabLazyComponent;
@@ -43,6 +44,7 @@ const salesTabComponents: Record<SalesTabId, SalesTabLazyComponent> = {
   quotes: Cotizacion,
   sales: Sales,
   products: Productos,
+  providers: Providers,
   inventory: Inventory,
   contracts: Contrato,
   'after-sales': Postventa,
@@ -61,6 +63,8 @@ const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
   ventas: 'sales',
   sales: 'sales',
   productos: 'products',
+  proveedores: 'providers',
+  providers: 'providers',
   inventario: 'inventory',
   postventa: 'after-sales',
   contrato: 'contracts',

@@ -1,19 +1,12 @@
+import { History } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { cn } from '../../../../components/ui/utils';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { SalesOpportunity } from '../../salesCrmContext';
-import { getSalesModalStyles } from '../../salesModalStyles';
-import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import type { ProspectosCopy } from '../translations';
 import { buildOpportunityHistory } from '../utils/prospectosMetrics';
 
-const opportunityModalStyles = getSalesModalStyles('coral');
+const detailActionClassNames = getSalesModalActionClassNames('coral');
 
 export function OpportunityDetailModal({
   copy,
@@ -25,26 +18,31 @@ export function OpportunityDetailModal({
   onClose: () => void;
 }) {
   return (
-    <Dialog open={Boolean(opportunity)} onOpenChange={(open) => {
+    <SalesModalFrame
+      open={Boolean(opportunity)}
+      onOpenChange={(open) => {
       if (!open) onClose();
-    }}>
-      <DialogContent className={cn(opportunityModalStyles.content, 'max-w-3xl')} closeButtonClassName={opportunityModalStyles.close}>
-        <DialogHeader className={opportunityModalStyles.header}>
-          <DialogTitle className={opportunityModalStyles.title}>{copy.title}</DialogTitle>
-          <DialogDescription className={opportunityModalStyles.description}>
-            {copy.description}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className={cn(opportunityModalStyles.body, 'space-y-5')}>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      }}
+      title={copy.title}
+      description={copy.description}
+      icon={<History className="h-5 w-5" />}
+      contentClassName="w-[min(92vw,760px)]"
+      bodyClassName="space-y-5 px-7 py-6"
+      footerClassName="sm:justify-end"
+      footer={(
+        <Button className={detailActionClassNames.primary} onClick={onClose}>
+          {copy.close}
+        </Button>
+      )}
+    >
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="font-bold text-slate-950">{opportunity?.opportunityName}</p>
             <p className="mt-1 text-sm text-slate-600">{opportunity?.company} · {opportunity?.contactPerson}</p>
           </div>
 
           <div className="space-y-3">
             {opportunity ? buildOpportunityHistory(opportunity).map((entry) => (
-              <div key={entry.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-[14px_minmax(0,1fr)_150px] sm:items-start">
+              <div key={entry.id} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[14px_minmax(0,1fr)_150px] sm:items-start">
                 <span
                   className={cn(
                     'mt-1 h-3.5 w-3.5 rounded-full',
@@ -63,14 +61,6 @@ export function OpportunityDetailModal({
               </div>
             )) : null}
           </div>
-        </div>
-
-        <DialogFooter className={opportunityModalStyles.footer}>
-          <Button className={opportunityModalStyles.primaryButton} onClick={onClose}>
-            {copy.close}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

@@ -16,7 +16,7 @@ export function calculateQuoteLinePricing(item: SalesQuoteItem, products: SalesC
   const taxableBase = Math.max(lineSubtotal - discountAmount, 0);
   const taxAmount = taxableBase * (taxPercent / 100);
   const lineTotal = taxableBase + taxAmount;
-  const estimatedUnitCost = product?.cost ?? 0;
+  const estimatedUnitCost = item.unitCost ?? product?.cost ?? 0;
   const estimatedCost = quantity * estimatedUnitCost;
   const estimatedProfit = taxableBase - estimatedCost;
   const estimatedMargin = taxableBase > 0 ? (estimatedProfit / taxableBase) * 100 : 0;

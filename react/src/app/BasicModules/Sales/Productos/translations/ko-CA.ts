@@ -92,6 +92,7 @@ export const koCA = {
   labels: {
     price: '가격',
     cost: '원가',
+    currency: '통화',
     margin: '마진',
     profit: '이익',
     status: '상태',
@@ -322,6 +323,8 @@ export const koCA = {
     editTitle: '카탈로그 항목 수정',
     description: '견적, POS, 향후 재고 연결에 사용할 수 있는 재사용 상업 블록을 추가합니다.',
     editDescription: '이 항목의 상업, 시각, 운영 정보를 업데이트합니다.',
+    validationMissingRequired: (fields: string) => `저장하기 전에 필수 필드를 입력하세요: ${fields}.`,
+    saveFailed: '항목을 저장할 수 없습니다. 필수 정보를 확인하고 다시 시도하세요.',
     fields: {
       name: '제품 또는 서비스 이름',
       sku: 'SKU / 내부 코드',

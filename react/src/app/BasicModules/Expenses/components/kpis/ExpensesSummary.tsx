@@ -2,8 +2,8 @@ import { AlertTriangle, CircleDollarSign } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseTotals } from '../../types/expenseView.types';
-import { formatCurrency } from '../../utils/expenses.utils';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
 
 type ExpensesSummaryProps = {
   expenses: Expense[];
@@ -16,12 +16,13 @@ type StatusMetric = {
   count: number;
   dotClass: string;
   label: string;
+  amountLabel: string;
   percentage: number;
   status: ExpenseStatus;
   valueClassName: string;
 };
 
-const statusConfig: Array<Omit<StatusMetric, 'amount' | 'count' | 'label' | 'percentage'>> = [
+const statusConfig: Array<Omit<StatusMetric, 'amount' | 'amountLabel' | 'count' | 'label' | 'percentage'>> = [
   { status: 'paid', dotClass: 'bg-[#147514]', barClass: 'bg-[#147514]', valueClassName: 'text-[#147514]' },
   { status: 'pending', dotClass: 'bg-amber-500', barClass: 'bg-amber-500', valueClassName: 'text-amber-600 dark:text-amber-400' },
   { status: 'partial', dotClass: 'bg-sky-500', barClass: 'bg-sky-500', valueClassName: 'text-sky-600 dark:text-sky-400' },
@@ -31,12 +32,14 @@ const statusConfig: Array<Omit<StatusMetric, 'amount' | 'count' | 'label' | 'per
 export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
   const t = useFinanceTranslations();
   const totalAmount = Math.max(totals.total, 0);
+  const totalAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.amount, (expense) => expense.currency);
   const statusMetrics = statusConfig.map(config => {
     const statusExpenses = expenses.filter(expense => expense.status === config.status);
     const amount = statusExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     return {
       ...config,
       amount,
+      amountLabel: formatBusinessCurrencyBreakdown(statusExpenses, (expense) => expense.amount, (expense) => expense.currency),
       count: statusExpenses.length,
       label: t.expenses.table.statuses[config.status] ?? config.status,
       percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
@@ -47,7 +50,7 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.expenses.summary.total} value={formatCurrency(totalAmount)} />
+          <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.expenses.summary.total} value={totalAmountLabel} />
           <div className="flex gap-x-4 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
             {statusMetrics.map(metric => (
               <StatusMetricItem key={metric.status} metric={metric} />
@@ -62,7 +65,7 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
                 key={metric.status}
                 className={`${metric.barClass} transition-all duration-300`}
                 style={{ width: `${metric.percentage}%` }}
-                title={`${metric.label}: ${formatCurrency(metric.amount)} · ${metric.percentage.toFixed(1)}%`}
+                title={`${metric.label}: ${metric.amountLabel} · ${metric.percentage.toFixed(1)}%`}
               />
             ))}
           </div>
@@ -100,7 +103,7 @@ function StatusMetricItem({ metric }: { metric: StatusMetric }) {
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
         <span className={`h-3 w-3 rounded-full ${metric.dotClass}`} />
       </span>
-      <span className={`font-extrabold ${metric.valueClassName}`}>{formatCurrency(metric.amount)}</span>
+      <span className={`font-extrabold ${metric.valueClassName}`}>{metric.amountLabel}</span>
       <span>{metric.label}</span>
       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
         {metric.percentage.toFixed(1)}%

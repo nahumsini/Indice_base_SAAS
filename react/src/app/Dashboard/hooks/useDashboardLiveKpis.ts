@@ -44,6 +44,21 @@ const formatPercent = (value: number, locale: string) =>
     style: 'percent',
   }).format(value / 100);
 
+const numericKpiValue = (source: Record<string, number | string | null>, key: string) => {
+  const value = source[key];
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
 export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: string) {
   const [liveKpis, setLiveKpis] = useState<DashboardLiveKpiMap>({});
   const today = useMemo(() => toLocalIsoDate(new Date()), []);
@@ -53,12 +68,13 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
 
     const loadLiveKpis = async () => {
       const monthRange = getCurrentMonthRange();
-      const [{ humanResourcesApi }, { listProcessTaskKpis }, { loadFinanceDashboardOverview }] = await Promise.all([
+      const [{ humanResourcesApi }, { listProcessTaskKpis }, { loadFinanceDashboardOverview }, { salesApi }] = await Promise.all([
         import('../../api/humanResources'),
         import('../../BasicModules/ProcessesTasks/KPIs/kpisApi'),
         import('../../BasicModules/Expenses/KPIs/financeDashboardOverview'),
+        import('../../BasicModules/Sales/salesApi'),
       ]);
-      const [hrUsersResult, attendanceResult, processTasksResult, financeOverviewResult] = await Promise.allSettled([
+      const [hrUsersResult, attendanceResult, processTasksResult, financeOverviewResult, salesKpisResult] = await Promise.allSettled([
         humanResourcesApi.listHrUsers(),
         humanResourcesApi.getAttendanceControlOverview(today),
         listProcessTaskKpis({
@@ -71,6 +87,7 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
           locale,
           periodFilter: 'this_month',
         }),
+        salesApi.kpis(),
       ]);
 
       if (!isMounted) {
@@ -191,6 +208,49 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
           value: formatCurrency(metrics.dueIn7Days, locale, currency),
           change: copy.kpis.cashDue7Days.change,
           isPositive: metrics.dueIn7Days <= 0,
+        };
+      }
+
+      if (salesKpisResult.status === 'fulfilled') {
+        const salesKpis = salesKpisResult.value;
+        const contacts = numericKpiValue(salesKpis, 'contacts');
+        const salesCount = numericKpiValue(salesKpis, 'monthlySales');
+        const monthlySalesValue = numericKpiValue(salesKpis, 'monthlySalesValue');
+        const weeklySalesValue = numericKpiValue(salesKpis, 'weeklySalesValue');
+        const quotes = numericKpiValue(salesKpis, 'quotes');
+        const approvedQuotes = numericKpiValue(salesKpis, 'approvedQuotes');
+        const conversionRate = quotes > 0 ? (approvedQuotes / quotes) * 100 : 0;
+        const averageTicket = salesCount > 0 ? monthlySalesValue / salesCount : 0;
+
+        nextKpis.activeClients = {
+          title: copy.kpis.activeClients.title,
+          value: formatNumber(contacts, locale),
+          change: copy.kpis.activeClients.change,
+          isPositive: contacts > 0,
+        };
+        nextKpis.monthlyRevenue = {
+          title: copy.kpis.monthlyRevenue.title,
+          value: formatCurrency(monthlySalesValue, locale),
+          change: copy.kpis.monthlyRevenue.change,
+          isPositive: monthlySalesValue > 0,
+        };
+        nextKpis.weeklyRevenue = {
+          title: copy.kpis.weeklyRevenue.title,
+          value: formatCurrency(weeklySalesValue, locale),
+          change: copy.kpis.weeklyRevenue.change,
+          isPositive: weeklySalesValue > 0,
+        };
+        nextKpis.averageTicket = {
+          title: copy.kpis.averageTicket.title,
+          value: formatCurrency(averageTicket, locale),
+          change: copy.kpis.averageTicket.change,
+          isPositive: averageTicket > 0,
+        };
+        nextKpis.salesConversion = {
+          title: copy.kpis.salesConversion.title,
+          value: formatPercent(conversionRate, locale),
+          change: copy.kpis.salesConversion.change,
+          isPositive: conversionRate >= 30,
         };
       }
 

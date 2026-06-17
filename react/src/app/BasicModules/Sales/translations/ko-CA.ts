@@ -14,6 +14,7 @@ export const koCA = {
     cotizacion: '견적',
     sales: '매출',
     productos: '제품',
+    proveedores: '공급업체',
     inventario: '재고',
     contrato: '계약',
     postventa: '애프터서비스',

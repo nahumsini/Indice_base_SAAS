@@ -1,5 +1,6 @@
 import { BudgetHealthStatus } from './finance-status.types';
 import type { FinanceCurrency } from './finance-domain.types';
+import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 
 export interface FinancialOverviewAmount {
   amount: number;
@@ -125,7 +126,7 @@ const zeroAmount = (currency: FinanceCurrency): FinancialOverviewAmount => ({
 
 export const createEmptyFinancialOverview = (
   companyId = 'mock-company',
-  currency: FinanceCurrency = 'MXN',
+  currency: FinanceCurrency = DEFAULT_FINANCE_CURRENCY,
 ): FinancialOverview => ({
   companyId,
   period: { from: '', to: '' },

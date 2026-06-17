@@ -1,4 +1,5 @@
 import type { Expense, ExpenseFrequency, PaymentMethod } from '../types/expenses.types';
+import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import { expenseCategories } from '../data/categories.data';
 
 export interface BudgetDraft {
@@ -134,7 +135,7 @@ export const generateProjectedBudgetEntries = (draft: BudgetDraft, existingCount
       taxSpecialAmount: draft.taxSpecialAmount,
       amount: draft.amount ?? 0,
       amountPaid: 0,
-      currency: draft.currency ?? 'USD',
+      currency: draft.currency ?? DEFAULT_FINANCE_CURRENCY,
       dueDate: scheduledDate,
       date: scheduledDate,
       paymentMethod: DEFAULT_PAYMENT_METHOD,

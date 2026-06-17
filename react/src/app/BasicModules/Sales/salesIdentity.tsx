@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import {
   ArrowRight,
   BarChart3,
+  Building2,
   CheckCircle2,
   CircleDollarSign,
   ClipboardCheck,
@@ -25,6 +26,7 @@ export const salesTabIds = [
   'quotes',
   'sales',
   'products',
+  'providers',
   'inventory',
   'contracts',
   'after-sales',
@@ -33,7 +35,7 @@ export const salesTabIds = [
 
 export type SalesTabId = (typeof salesTabIds)[number];
 
-type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'productos' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
+type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'productos' | 'proveedores' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
 
 type SalesTone = 'blue' | 'aqua' | 'yellow' | 'coral' | 'graphite';
 
@@ -89,6 +91,7 @@ export const salesModuleTabs: Array<{
   { id: 'quotes', translationKey: 'cotizacion', icon: Quote, emoji: '💬', tone: 'yellow' },
   { id: 'sales', translationKey: 'sales', icon: CircleDollarSign, emoji: '💼', tone: 'coral' },
   { id: 'products', translationKey: 'productos', icon: PackageCheck, emoji: '📦', tone: 'aqua' },
+  { id: 'providers', translationKey: 'proveedores', icon: Building2, emoji: '🏢', tone: 'coral' },
   { id: 'inventory', translationKey: 'inventario', icon: Warehouse, emoji: '🏬', tone: 'coral' },
   { id: 'contracts', translationKey: 'contrato', icon: FileSignature, emoji: '📝', tone: 'graphite' },
   { id: 'after-sales', translationKey: 'postventa', icon: Handshake, emoji: '🤝', tone: 'coral' },
@@ -261,6 +264,26 @@ const salesCopyEs: SalesWorkspaceCopy = {
       ],
       signalTitle: 'Claridad de oferta',
       signals: ['Separar producto y servicio', 'Alinear precio con margen', 'Marcar disponibilidad comercial'],
+    },
+    providers: {
+      eyebrow: 'Directorio compartido',
+      title: 'Proveedores',
+      description: 'Catálogo compartido con Gastos para mantener proveedores, cuentas, responsables y alcance en una sola fuente.',
+      primaryAction: 'Agregar proveedor',
+      secondaryAction: 'Configurar columnas',
+      metrics: [
+        { label: 'Fuente única', value: '1', detail: 'Sales y Expenses comparten datos' },
+        { label: 'Uso operativo', value: '3', detail: 'cotizaciones, inventario y gastos' },
+        { label: 'Control fiscal', value: 'Listo', detail: 'datos fiscales reutilizables' },
+      ],
+      lanes: [
+        { label: 'Comercial', value: 'Sales', detail: 'Proveedor visible para ventas' },
+        { label: 'Inventario', value: 'Stock', detail: 'Proveedor de productos' },
+        { label: 'Gastos', value: 'Finance', detail: 'Proveedor contable' },
+        { label: 'POS futuro', value: 'Base', detail: 'Catálogo reutilizable' },
+      ],
+      signalTitle: 'Control del proveedor',
+      signals: ['Usar un solo proveedor por empresa', 'Evitar duplicados entre Sales y Gastos', 'Completar datos fiscales desde el mismo directorio'],
     },
     inventory: {
       eyebrow: 'Control de stock',

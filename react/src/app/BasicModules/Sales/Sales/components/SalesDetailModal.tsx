@@ -1,22 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, FileSearch } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
-import { cn } from '../../../../components/ui/utils';
-import { getSalesModalStyles } from '../../salesModalStyles';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import {
   createSaleFromQuote,
   validateSaleDraftForBackendReadiness,
 } from '../../services/salesWorkflowBridge';
 import type { SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuote } from '../../types';
 import type { SalesWorkflowValidationCode } from '../../types/salesWorkflow';
+import { defaultSalesCurrency } from '../../utils/salesCurrency';
 import { salesBusinessOptions, salesBusinessUnitOptions } from '../data/salesBusinessOptions';
 import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
@@ -30,7 +22,7 @@ import { DetailField, SectionCard } from './SalesModalPrimitives';
 import { SalesOperationalContextCard } from './SalesOperationalContextCard';
 import { SalesStatusSelectors } from './SalesStatusSelectors';
 
-const modalStyles = getSalesModalStyles('coral');
+const actionClassNames = getSalesModalActionClassNames('coral');
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -66,7 +58,7 @@ function getInitialDraft(record?: SaleRecord | null): SaleRecordDraft {
     discountTotal: 0,
     taxTotal: 0,
     marginTotal: 0,
-    currency: 'MXN',
+    currency: defaultSalesCurrency,
     paymentMethod: '',
     paymentReference: '',
     paymentEvidenceStatus: 'missing',
@@ -91,6 +83,13 @@ function withBusinessScope(lines: SaleLine[], businessUnitId: string, businessId
     businessId,
     warehouseId,
   }));
+}
+
+function parseOpportunityValue(value?: string) {
+  const normalized = String(value ?? '').replace(/[^\d.-]/g, '');
+  const parsed = Number(normalized);
+
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export function SalesDetailModal({
@@ -140,6 +139,32 @@ export function SalesDetailModal({
     () => quotes.find((quote) => quote.id === form.quoteId) ?? quotes.find((quote) => quote.quoteNumber === form.quoteReference) ?? null,
     [form.quoteId, form.quoteReference, quotes],
   );
+  const selectedOpportunity = useMemo(
+    () => (
+      opportunities.find((opportunity) => opportunity.id === form.prospectId)
+      ?? (selectedQuote?.opportunityId ? opportunities.find((opportunity) => opportunity.id === selectedQuote.opportunityId) : null)
+      ?? null
+    ),
+    [form.prospectId, opportunities, selectedQuote?.opportunityId],
+  );
+  const opportunityOptions = useMemo(() => {
+    const acceptedOpportunityIds = new Set(acceptedQuotes.map((quote) => quote.opportunityId).filter(Boolean));
+
+    return [...opportunities].sort((left, right) => {
+      const leftHasAcceptedQuote = acceptedOpportunityIds.has(left.id) ? 1 : 0;
+      const rightHasAcceptedQuote = acceptedOpportunityIds.has(right.id) ? 1 : 0;
+
+      if (leftHasAcceptedQuote !== rightHasAcceptedQuote) {
+        return rightHasAcceptedQuote - leftHasAcceptedQuote;
+      }
+
+      return left.opportunityName.localeCompare(right.opportunityName);
+    });
+  }, [acceptedQuotes, opportunities]);
+  const opportunityQuoteOptions = useMemo(
+    () => (selectedOpportunity ? quoteOptions.filter((quote) => quote.opportunityId === selectedOpportunity.id) : quoteOptions),
+    [quoteOptions, selectedOpportunity],
+  );
   const businessOptions = useMemo(
     () => salesBusinessOptions.filter((business) => !form.businessUnitId || business.businessUnitId === form.businessUnitId),
     [form.businessUnitId],
@@ -158,38 +183,76 @@ export function SalesDetailModal({
     [form.commissionRate, form.totalAmount],
   );
 
+  const buildFormFromQuote = (current: SaleRecordDraft, quote: SalesQuote) => {
+    const context = getSalesOperationalContext(current.businessId);
+    const contact = contacts.find((item) => item.id === quote.clientId);
+    const prospect = opportunities.find((item) => item.id === quote.opportunityId);
+    const conversion = createSaleFromQuote({
+      quote,
+      products,
+      contact,
+      prospect,
+      businessScope: {
+        businessUnitId: current.businessUnitId ?? '',
+        businessUnitName: current.businessUnitName,
+        businessId: current.businessId ?? '',
+        businessName: current.businessName,
+        warehouseId: context.defaultWarehouse,
+      },
+      saleId: `DRAFT-${quote.id}`,
+      saleDate: current.saleDate || getTodayIsoDate(),
+      currency: quote.currency ?? context.currency,
+      commissionRate: current.commissionRate,
+    });
+
+    return {
+      ...current,
+      ...conversion.saleDraft,
+      notes: t.modal.generatedFromQuote(quote.quoteNumber, quote.notes),
+    };
+  };
+
+  const handleOpportunitySelection = (opportunityId: string) => {
+    const opportunity = opportunityOptions.find((item) => item.id === opportunityId);
+    if (!opportunity) return;
+
+    setForm((current) => {
+      const contact = contacts.find((item) => item.id === opportunity.contactId);
+      const linkedQuotes = quoteOptions.filter((quote) => quote.opportunityId === opportunity.id);
+      const linkedAcceptedQuotes = linkedQuotes.filter((quote) => quote.status === 'Approved' || quote.status === 'Closed Won');
+      const autoSelectedQuote = linkedAcceptedQuotes.length === 1 ? linkedAcceptedQuotes[0] : null;
+      const estimatedValue = parseOpportunityValue(opportunity.estimatedValue);
+      const opportunityPatch: SaleRecordDraft = {
+        ...current,
+        prospectId: opportunity.id,
+        contactId: contact?.id ?? opportunity.contactId ?? current.contactId,
+        customerId: contact?.id ?? opportunity.contactId ?? current.customerId,
+        customerName: contact?.company || opportunity.company || current.customerName,
+        sellerName: opportunity.owner || current.sellerName,
+        totalAmount: autoSelectedQuote ? current.totalAmount : estimatedValue || current.totalAmount,
+        subtotal: autoSelectedQuote ? current.subtotal : estimatedValue || current.subtotal,
+        taxTotal: autoSelectedQuote ? current.taxTotal : 0,
+        discountTotal: autoSelectedQuote ? current.discountTotal : 0,
+        marginTotal: autoSelectedQuote ? current.marginTotal : 0,
+        currency: opportunity.currency || current.currency,
+        quoteId: autoSelectedQuote ? current.quoteId : undefined,
+        quoteReference: autoSelectedQuote ? current.quoteReference : '',
+        saleLines: autoSelectedQuote ? current.saleLines : [],
+        inventoryMovementStatus: autoSelectedQuote ? current.inventoryMovementStatus : 'not_generated',
+        inventoryMovementReference: autoSelectedQuote ? current.inventoryMovementReference : '',
+        notes: t.modal.generatedFromOpportunity(opportunity.opportunityName),
+      };
+
+      return autoSelectedQuote ? buildFormFromQuote(opportunityPatch, autoSelectedQuote) : opportunityPatch;
+    });
+    setValidationErrors([]);
+  };
+
   const handleQuoteSelection = (quoteId: string) => {
     const quote = quoteOptions.find((item) => item.id === quoteId);
     if (!quote) return;
 
-    setForm((current) => {
-      const context = getSalesOperationalContext(current.businessId);
-      const contact = contacts.find((item) => item.id === quote.clientId);
-      const prospect = opportunities.find((item) => item.id === quote.opportunityId);
-      const conversion = createSaleFromQuote({
-        quote,
-        products,
-        contact,
-        prospect,
-        businessScope: {
-          businessUnitId: current.businessUnitId ?? '',
-          businessUnitName: current.businessUnitName,
-          businessId: current.businessId ?? '',
-          businessName: current.businessName,
-          warehouseId: context.defaultWarehouse,
-        },
-        saleId: `DRAFT-${quote.id}`,
-        saleDate: current.saleDate || getTodayIsoDate(),
-        currency: context.currency,
-        commissionRate: current.commissionRate,
-      });
-
-      return {
-        ...current,
-        ...conversion.saleDraft,
-        notes: t.modal.generatedFromQuote(quote.quoteNumber, quote.notes),
-      };
-    });
+    setForm((current) => buildFormFromQuote(current, quote));
     setValidationErrors([]);
   };
 
@@ -278,17 +341,32 @@ export function SalesDetailModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(modalStyles.content, '!flex max-h-[90vh] max-w-[980px] flex-col !gap-0')} closeButtonClassName={modalStyles.close}>
-        <DialogHeader className={cn(modalStyles.header, 'shrink-0')}>
-          <DialogTitle className={modalStyles.title}>
-            <ClipboardCheck className="h-6 w-6" />
-            {isCreateMode ? t.modal.createTitle : t.modal.detailTitle}
-          </DialogTitle>
-          <DialogDescription className={modalStyles.description}>{t.modal.description}</DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+    <>
+      <SalesModalFrame
+        open={open}
+        onOpenChange={onOpenChange}
+        icon={<ClipboardCheck className="h-6 w-6" />}
+        title={isCreateMode ? t.modal.createTitle : t.modal.detailTitle}
+        description={t.modal.description}
+        contentClassName="!flex max-h-[92vh] w-[96vw] !max-w-[1480px] flex-col"
+        bodyClassName="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5"
+        footerClassName="shrink-0"
+        footer={(
+          <>
+            <Button
+              variant="outline"
+              className={actionClassNames.secondary}
+              onClick={() => setIsSummaryPreviewOpen(true)}
+              disabled={!form.customerName.trim()}
+            >
+              <FileSearch className="h-4 w-4" />
+              {t.modal.previewSaleSummary}
+            </Button>
+            <Button variant="outline" className={actionClassNames.secondary} onClick={() => onOpenChange(false)}>{isCreateMode ? t.common.cancel : t.common.close}</Button>
+            {isCreateMode ? <Button className={actionClassNames.primary} onClick={handleCreate}>{t.common.save}</Button> : null}
+          </>
+        )}
+      >
           <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 px-4 py-3 text-sm font-semibold text-[#B63B32]">
             {t.modal.quoteHelper}
           </div>
@@ -306,13 +384,17 @@ export function SalesDetailModal({
             <SalesCreateForm
               form={form}
               acceptedQuotes={acceptedQuotes}
-              quoteOptions={quoteOptions}
+              quoteOptions={opportunityQuoteOptions}
+              opportunities={opportunityOptions}
+              selectedOpportunity={selectedOpportunity}
+              selectedQuote={selectedQuote}
               businessOptions={businessOptions}
               t={t}
               onFormChange={(patch) => {
                 setForm((current) => ({ ...current, ...patch }));
                 setValidationErrors([]);
               }}
+              onOpportunitySelection={handleOpportunitySelection}
               onQuoteSelection={handleQuoteSelection}
               onBusinessUnitSelection={handleBusinessUnitSelection}
               onBusinessSelection={handleBusinessSelection}
@@ -369,7 +451,7 @@ export function SalesDetailModal({
                         <DetailField label={t.commissions.detail.fields.product} value={commission.productName} />
                         <DetailField label={t.commissions.detail.fields.ruleName} value={commission.commissionRuleName} />
                         <DetailField label={t.commissions.detail.fields.commissionType} value={formatCommissionType(commission.commissionType)} />
-                        <DetailField label={t.commissions.detail.fields.commissionAmount} value={formatSalesCurrency(commission.commissionAmount)} />
+                        <DetailField label={t.commissions.detail.fields.commissionAmount} value={formatSalesCurrency(commission.commissionAmount, commission.currency)} />
                         <DetailField label={t.commissions.detail.fields.status} value={t.commissions.statuses[commission.status]} />
                       </div>
                     ))}
@@ -390,22 +472,7 @@ export function SalesDetailModal({
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
             {t.modal.inventoryHelper}
           </div>
-        </div>
-
-        <DialogFooter className={cn(modalStyles.footer, 'shrink-0')}>
-          <Button
-            variant="outline"
-            className={modalStyles.secondaryButton}
-            onClick={() => setIsSummaryPreviewOpen(true)}
-            disabled={!form.quoteReference.trim()}
-          >
-            <FileSearch className="h-4 w-4" />
-            {t.modal.previewSaleSummary}
-          </Button>
-          <Button variant="outline" className={modalStyles.secondaryButton} onClick={() => onOpenChange(false)}>{isCreateMode ? t.common.cancel : t.common.close}</Button>
-          {isCreateMode ? <Button className={modalStyles.primaryButton} onClick={handleCreate}>{t.common.save}</Button> : null}
-        </DialogFooter>
-      </DialogContent>
+      </SalesModalFrame>
       <SaleSummaryPreviewModal
         open={isSummaryPreviewOpen}
         sale={{ ...form, commissionAmount: form.commissionAmount ?? calculatedCommissionAmount }}
@@ -413,6 +480,6 @@ export function SalesDetailModal({
         t={t}
         onOpenChange={setIsSummaryPreviewOpen}
       />
-    </Dialog>
+    </>
   );
 }

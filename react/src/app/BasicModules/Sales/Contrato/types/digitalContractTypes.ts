@@ -86,6 +86,7 @@ export type DigitalContractSignatureRequest = {
 
 export type DigitalContract = {
   id: string;
+  backendId?: number;
   contractNumber: string;
   title: string;
   clientId?: string;
@@ -111,6 +112,7 @@ export type DigitalContract = {
     status: 'done' | 'current' | 'future';
   }>;
   notes: string;
+  filesCount?: number;
 };
 
 export type CreateDigitalContractInput = Omit<DigitalContract, 'id' | 'contractNumber' | 'lastUpdated'> & {

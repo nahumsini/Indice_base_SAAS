@@ -6,7 +6,6 @@ import type { SalesRecordsTranslations } from '../translations';
 import { useCommissionCalculations } from '../hooks/useCommissionCalculations';
 import { CommissionDetailModal } from './CommissionDetailModal';
 import { CommissionFilters } from './CommissionFilters';
-import { CommissionInsightBar } from './CommissionInsightBar';
 import { CommissionKpiStrip } from './CommissionKpiStrip';
 import { CommissionTable } from './CommissionTable';
 
@@ -33,12 +32,12 @@ export function CommissionsView({
 
   return (
     <>
-      <section className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
+      <section className="rounded-[24px] border border-[#FF6B5E]/25 bg-[#FF6B5E]/[0.08] p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-white text-[#B63B32] shadow-sm">
-            <BadgePercent className="h-5 w-5" />
+          <span className="mt-1 shrink-0 text-[#B63B32] dark:text-[#FFB0AA]" aria-hidden="true">
+            <BadgePercent className="h-6 w-6" />
           </span>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-xl font-black text-slate-950 dark:text-white">{t.commissions.view.title}</h3>
             <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{t.commissions.view.subtitle}</p>
           </div>
@@ -55,9 +54,7 @@ export function CommissionsView({
         onFiltersChange={setFilters}
       />
 
-      <CommissionKpiStrip kpis={kpis} t={t} />
-
-      <CommissionInsightBar kpis={kpis} visibleCount={filteredRecords.length} t={t} />
+      <CommissionKpiStrip kpis={kpis} records={filteredRecords} t={t} />
 
       <CommissionTable records={filteredRecords} t={t} onViewRecord={setSelectedRecord} />
 

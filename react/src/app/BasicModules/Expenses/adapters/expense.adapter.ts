@@ -1,4 +1,5 @@
 import { ExpenseStatus as CanonicalExpenseStatus, PaymentStatus } from '../types/finance-status.types';
+import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import type { FinanceExpense } from '../types/finance-domain.types';
 import type { Expense, ExpenseStatus as LegacyExpenseStatus } from '../types/expenses.types';
 import { expenseCategories } from '../data/categories.data';
@@ -227,7 +228,7 @@ export const toExpenseApiRequest = (expense: Expense): ExpenseApiRequest => ({
   subtotalAmount: expense.amount,
   taxAmount: expense.taxes,
   totalAmount: expense.total,
-  currencyCode: (expense.currency || 'USD').slice(0, 3).toUpperCase(),
+  currencyCode: (expense.currency || DEFAULT_FINANCE_CURRENCY).slice(0, 3).toUpperCase(),
   expenseDate: toDateInputValue(expense.date) ?? toDateInputValue(new Date()) ?? '',
   dueDate: toDateInputValue(expense.dueDate) ?? null,
   requestedByUserId: numericId(expense.requestedByUserId) ?? null,

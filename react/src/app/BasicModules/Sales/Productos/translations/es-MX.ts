@@ -90,6 +90,7 @@ export const esMX: ProductsTranslations = {
   labels: {
     price: 'Precio',
     cost: 'Costo',
+    currency: 'Moneda',
     margin: 'Margen',
     profit: 'Utilidad',
     status: 'Estado',
@@ -473,6 +474,8 @@ export const esMX: ProductsTranslations = {
     editTitle: 'Editar item de catálogo',
     description: 'Agrega un bloque comercial reutilizable preparado para cotizaciones, POS y futuras conexiones de inventario.',
     editDescription: 'Actualiza la información comercial, visual y operativa de este item de catálogo.',
+    validationMissingRequired: (fields: string) => `Completa los campos obligatorios antes de guardar: ${fields}.`,
+    saveFailed: 'No se pudo guardar el item. Revisa la información requerida e intenta de nuevo.',
     fields: {
       name: 'Nombre del producto o servicio',
       sku: 'SKU / código interno',

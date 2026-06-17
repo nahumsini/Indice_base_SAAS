@@ -3,7 +3,7 @@ import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
-import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import type { ProspectosCopy } from '../translations';
 import { formatCurrencyAmount, parseMoney, setOpportunityDragData } from '../utils/prospectosFormatters';
 import { stageClasses, temperatureClasses } from '../utils/prospectosStatus';
 
@@ -46,7 +46,7 @@ export function ProspectosAgendaItem({
           </div>
           <p className="mt-1 text-sm text-slate-600">{opportunity.company} · {opportunity.contactPerson}</p>
           <p className="mt-1 text-xs font-semibold text-slate-500">
-            {opportunity.owner} · {formatCurrencyAmount(parseMoney(opportunity.estimatedValue))} · {opportunity.probability}
+            {opportunity.owner} · {formatCurrencyAmount(parseMoney(opportunity.estimatedValue), opportunity.currency)} · {opportunity.probability}
           </p>
         </div>
 

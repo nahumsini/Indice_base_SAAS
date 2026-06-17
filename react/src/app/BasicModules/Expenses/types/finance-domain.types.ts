@@ -6,8 +6,9 @@ import type {
   PettyCashStatus,
   PurchaseOrderStatus,
 } from './finance-status.types';
+import type { BusinessCurrencyCode } from '../../shared/businessCurrency';
 
-export type FinanceCurrency = 'CAD' | 'MXN' | 'USD' | string;
+export type FinanceCurrency = BusinessCurrencyCode | string;
 export type FinanceLifecycleStatus = 'ACTIVE' | 'INACTIVE';
 export type FinanceExpenseType = 'FIXED' | 'VARIABLE' | 'CAPEX' | 'PETTY_CASH_SETTLEMENT';
 export type PaymentAccountType = 'CASH' | 'BANK' | 'CREDIT_CARD' | 'PETTY_CASH';

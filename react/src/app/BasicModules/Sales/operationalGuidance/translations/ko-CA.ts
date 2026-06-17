@@ -72,6 +72,18 @@ export const koCA = {
         { title: '일관된 카테고리 사용', description: '정리된 카테고리는 카탈로그 필터와 보고를 쉽게 합니다.' },
       ],
     },
+    providers: {
+      label: '공급업체',
+      ctaLabel: '공급업체 검토',
+      title: '공유 공급업체 디렉터리 유지',
+      summary: '공급업체는 판매, 재고, 비용, 향후 POS 흐름이 함께 쓰는 카탈로그입니다.',
+      value: '하나의 공급업체 기록은 중복 데이터를 줄이고 구매 맥락을 맞춥니다.',
+      steps: [
+        { title: '중복 공급업체 방지', description: '거래 관계마다 하나의 공급업체를 만들고 모든 모듈에서 재사용합니다.' },
+        { title: '맥락 완성', description: '세금, 연락처, 계정, 단위, 사업, 상태를 공유 공급업체에 유지합니다.' },
+        { title: '비용과 재고에서 재사용', description: '비용과 재고는 같은 공급업체 카탈로그를 읽습니다.' },
+      ],
+    },
     inventory: {
       label: '재고',
       ctaLabel: '재고 검토',

@@ -1,32 +1,35 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../../components/ui/tabs';
-import type { QuoteStatus, SalesCatalogItem, SalesContact, SalesQuoteItem } from '../../../types';
+import type { SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuoteItem } from '../../../types';
 import type { QuotesTranslations } from '../../translations';
-import type { QuoteFormState, QuoteTotals } from '../../types/quoteBuilderTypes';
+import type { QuoteFormState, QuoteHealthState, QuoteTotals } from '../../types/quoteBuilderTypes';
 import { QuoteCatalogSection } from './QuoteCatalogSection';
 import { QuoteConditionsSection } from './QuoteConditionsSection';
 import { QuoteCustomerSection } from './QuoteCustomerSection';
+import { QuoteFinalReviewSection } from './QuoteFinalReviewSection';
 import { QuoteLineItemsSection } from './QuoteLineItemsSection';
-import { QuotePricingTaxesSection } from './QuotePricingTaxesSection';
 
-type QuoteBuilderTabId = 'customer' | 'items' | 'pricing' | 'conditions' | 'summary';
+type QuoteBuilderTabId = 'customer' | 'items' | 'conditions' | 'summary';
 
-const quoteBuilderTabIds: QuoteBuilderTabId[] = ['customer', 'items', 'pricing', 'conditions', 'summary'];
+const quoteBuilderTabIds: QuoteBuilderTabId[] = ['customer', 'items', 'conditions', 'summary'];
 
 export function QuoteBuilderTabs({
   form,
   items,
   contacts,
   products,
+  selectedContact,
+  selectedOpportunity,
   totals,
+  health,
   t,
   opportunityOptions,
-  quoteStatusOptions,
   sellerOptions,
   formatCurrency,
   onFormChange,
   onSellerChange,
+  onCurrencyChange,
   onAddProduct,
   onUpdateItem,
   onRemoveItem,
@@ -35,14 +38,17 @@ export function QuoteBuilderTabs({
   items: SalesQuoteItem[];
   contacts: SalesContact[];
   products: SalesCatalogItem[];
+  selectedContact?: SalesContact | null;
+  selectedOpportunity?: SalesOpportunity | null;
   totals: QuoteTotals;
+  health: QuoteHealthState;
   t: QuotesTranslations;
   opportunityOptions: Array<{ value: string; label: string }>;
-  quoteStatusOptions: Array<{ value: QuoteStatus; label: string }>;
   sellerOptions: Array<{ value: string; label: string }>;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number, currency?: string | null) => string;
   onFormChange: Dispatch<SetStateAction<QuoteFormState>>;
   onSellerChange: (value: string) => void;
+  onCurrencyChange: (value: string) => void;
   onAddProduct: (product: SalesCatalogItem) => void;
   onUpdateItem: (itemId: string, patch: Partial<SalesQuoteItem>) => void;
   onRemoveItem: (itemId: string) => void;
@@ -51,7 +57,7 @@ export function QuoteBuilderTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as QuoteBuilderTabId)} className="min-h-0 gap-4">
-      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 md:grid-cols-3 xl:grid-cols-5">
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 md:grid-cols-4">
         {quoteBuilderTabIds.map((tabId) => (
           <TabsTrigger
             key={tabId}
@@ -68,11 +74,13 @@ export function QuoteBuilderTabs({
           form={form}
           t={t}
           contacts={contacts}
+          items={items}
           opportunityOptions={opportunityOptions}
-          quoteStatusOptions={quoteStatusOptions}
           sellerOptions={sellerOptions}
           onFormChange={onFormChange}
           onSellerChange={onSellerChange}
+          onCurrencyChange={onCurrencyChange}
+          onUpdateItem={onUpdateItem}
         />
       </TabsContent>
 
@@ -96,35 +104,21 @@ export function QuoteBuilderTabs({
         </div>
       </TabsContent>
 
-      <TabsContent value="pricing" className="mt-0 rounded-lg border border-slate-200 bg-white p-4">
-        <QuotePricingTaxesSection
-          form={form}
-          items={items}
-          products={products}
-          totals={totals}
-          t={t}
-          formatCurrency={formatCurrency}
-          onFormChange={onFormChange}
-          onUpdateItem={onUpdateItem}
-          onRemoveItem={onRemoveItem}
-        />
-      </TabsContent>
-
       <TabsContent value="conditions" className="mt-0 rounded-lg border border-slate-200 bg-white p-4">
         <QuoteConditionsSection form={form} t={t} onFormChange={onFormChange} />
       </TabsContent>
 
       <TabsContent value="summary" className="mt-0 rounded-lg border border-slate-200 bg-white p-4">
-        <QuotePricingTaxesSection
+        <QuoteFinalReviewSection
           form={form}
           items={items}
+          selectedContact={selectedContact}
+          selectedOpportunity={selectedOpportunity}
           products={products}
           totals={totals}
+          health={health}
           t={t}
           formatCurrency={formatCurrency}
-          onFormChange={onFormChange}
-          onUpdateItem={onUpdateItem}
-          onRemoveItem={onRemoveItem}
         />
       </TabsContent>
     </Tabs>

@@ -72,6 +72,18 @@ export const zhCA = {
         { title: '使用一致分类', description: '干净分类让目录筛选和商业报告更容易。' },
       ],
     },
+    providers: {
+      label: '供应商',
+      ctaLabel: '查看供应商',
+      title: '维护共享供应商目录',
+      summary: '供应商目录由销售、库存、费用和未来 POS 流程共同使用。',
+      value: '单一供应商记录可以减少重复税务数据并保持采购上下文一致。',
+      steps: [
+        { title: '避免重复供应商', description: '每个商业关系只创建一个供应商，并在所有模块中复用。' },
+        { title: '完善上下文', description: '税务、联系人、账户、单位、业务和状态应保存在共享供应商记录中。' },
+        { title: '在费用和库存中复用', description: '费用和库存读取同一个供应商目录。' },
+      ],
+    },
     inventory: {
       label: '库存',
       ctaLabel: '查看库存',

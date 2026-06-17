@@ -1,7 +1,9 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SalesContact, SalesOpportunity, SalesQuote } from '../types';
+import { formatSalesCurrencyAmount } from '../utils/salesCurrency';
 import type { QuotesTranslations } from './translations';
+import { getQuoteLineExchangeRateLabel } from './utils/quoteCurrencyConversion';
 
 const brand = {
   coral: [255, 107, 94] as const,
@@ -49,26 +51,8 @@ function tableEndY(doc: jsPDF, fallback: number) {
   return (doc as PdfDocumentWithTable).lastAutoTable?.finalY ?? fallback;
 }
 
-function drawIndiceMark(doc: jsPDF, x: number, y: number) {
-  const bars = [
-    { color: brand.coral, height: 6, offset: 9 },
-    { color: brand.yellow, height: 9, offset: 6 },
-    { color: brand.aqua, height: 12, offset: 3 },
-    { color: brand.blue, height: 15, offset: 0 },
-  ];
-
-  bars.forEach((bar, index) => {
-    setFill(doc, bar.color);
-    doc.roundedRect(x + index * 4.2, y + bar.offset, 3.1, bar.height, 1.1, 1.1, 'F');
-  });
-}
-
-function formatCurrency(value: number, locale = 'es-MX') {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(value);
+function formatCurrency(value: number, currency?: string | null) {
+  return formatSalesCurrencyAmount(value, currency);
 }
 
 function getLineTotal(item: SalesQuote['items'][number]) {
@@ -77,6 +61,23 @@ function getLineTotal(item: SalesQuote['items'][number]) {
   const taxable = subtotal - discount;
   const tax = taxable * (item.taxPercent / 100);
   return taxable + tax;
+}
+
+function getQuoteLinePdfLabel(item: SalesQuote['items'][number], copy: QuotesTranslations, quoteCurrency?: string | null) {
+  const originalCurrency = item.originalCurrency ?? item.quoteCurrency ?? quoteCurrency;
+  const targetCurrency = item.quoteCurrency ?? quoteCurrency;
+  const hasConversion = Boolean(originalCurrency && targetCurrency && originalCurrency.toUpperCase() !== targetCurrency.toUpperCase());
+  const baseLabel = `${item.productName}\n${item.sku}`;
+
+  if (!hasConversion) {
+    return baseLabel;
+  }
+
+  return [
+    baseLabel,
+    `${copy.pricing.catalogPrice}: ${formatCurrency(item.originalUnitPrice ?? item.unitPrice, originalCurrency)}`,
+    `${copy.pricing.exchangeRate}: 1 ${originalCurrency} = ${getQuoteLineExchangeRateLabel(item.exchangeRate)} ${targetCurrency} · ${item.exchangeRateDate}`,
+  ].join('\n');
 }
 
 function addFooter(doc: jsPDF, copy: QuotesTranslations) {
@@ -91,75 +92,244 @@ function addFooter(doc: jsPDF, copy: QuotesTranslations) {
     setText(doc, brand.slate);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.text('Indice', 16, pageHeight - 9);
+    doc.text(copy.previewModal.documentTitle, 16, pageHeight - 9);
     doc.text(copy.previewModal.pageLabel(page, pageCount), pageWidth - 16, pageHeight - 9, { align: 'right' });
   }
 }
 
 export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-MX' }: QuotePdfContext) {
-  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const left = 18;
   const right = pageWidth - 18;
   const contentWidth = right - left;
+  const generatedAt = new Date();
+  const isSpanishDocument = locale.toLowerCase().startsWith('es-');
+  const generatedDate = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(generatedAt);
+  const generatedTime = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(generatedAt);
+  const quoteCurrency = quote.currency ?? 'MXN';
+  const itemCount = quote.items.reduce((total, item) => total + item.quantity, 0);
+  const estimatedCost = quote.items.reduce((total, item) => (
+    total + item.quantity * (item.convertedUnitCost ?? item.unitCost ?? item.originalUnitCost ?? 0)
+  ), 0);
+  const estimatedProfit = quote.total - estimatedCost;
+  const estimatedMargin = quote.total > 0 ? Math.round((estimatedProfit / quote.total) * 100) : 0;
+  const taxSummary = quote.items
+    .map((item) => item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`)
+    .filter((value, index, list) => list.indexOf(value) === index)
+    .join(' / ') || copy.common.unassigned;
+  const isExpired = new Date(quote.expirationDate).getTime() < new Date().setHours(0, 0, 0, 0);
+  const hasLowMargin = estimatedMargin < 20;
+  const hasMissingCosts = quote.items.some((item) => !item.unitCost && !item.convertedUnitCost && !item.originalUnitCost);
+  const mainRecommendation = quote.items.length === 0
+    ? copy.builder.emptyItems
+    : isExpired
+      ? `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.previewModal.defaultTerms}`
+      : hasLowMargin
+        ? copy.marginGuidance.messages.warning
+        : copy.marginGuidance.messages.success;
+  const intelligenceLabels = isSpanishDocument
+    ? {
+      happened: '1. Qué pasó',
+      matters: '2. Por qué importa',
+      next: '3. Siguiente acción',
+      decisionSignal: 'Señal de decisión',
+      happenedBody: `${quote.clientName} recibió una cotización por ${formatCurrency(quote.total, quoteCurrency)} con ${quote.items.length} partida(s) comerciales.`,
+      mattersBody: `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.labels.taxTotal}: ${formatCurrency(quote.taxTotal, quoteCurrency)}. ${copy.labels.currency}: ${quoteCurrency}.`,
+    }
+    : {
+      happened: '1. What happened',
+      matters: '2. Why it matters',
+      next: '3. Next action',
+      decisionSignal: 'Decision signal',
+      happenedBody: `${quote.clientName} received a quote for ${formatCurrency(quote.total, quoteCurrency)} covering ${quote.items.length} commercial line(s).`,
+      mattersBody: `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.labels.taxTotal}: ${formatCurrency(quote.taxTotal, quoteCurrency)}. ${copy.labels.currency}: ${quoteCurrency}.`,
+    };
+
+  const drawBrandBar = (x: number, y: number, width: number, height = 2.5) => {
+    const segments = [
+      { color: brand.coral, ratio: 0.34 },
+      { color: brand.yellow, ratio: 0.22 },
+      { color: brand.aqua, ratio: 0.22 },
+      { color: brand.blue, ratio: 0.22 },
+    ];
+    let cursor = x;
+
+    segments.forEach((segment) => {
+      const segmentWidth = width * segment.ratio;
+      setFill(doc, segment.color);
+      doc.rect(cursor, y, segmentWidth, height, 'F');
+      cursor += segmentWidth;
+    });
+  };
+
+  const formatPercent = (value: number) => `${Number.isFinite(value) ? value : 0}%`;
+
+  const ensureSpace = (currentY: number, neededHeight: number) => {
+    if (currentY + neededHeight <= pageHeight - 22) {
+      return currentY;
+    }
+
+    doc.addPage();
+    return 24;
+  };
+
+  const drawSectionTitle = (title: string, y: number) => {
+    setText(doc, brand.graphite);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(title, left, y);
+    setDraw(doc, brand.border);
+    doc.line(left, y + 3, right, y + 3);
+  };
+
+  const drawMetricCard = (
+    x: number,
+    y: number,
+    width: number,
+    label: string,
+    value: string,
+    accent: readonly number[] = brand.coral,
+  ) => {
+    setFill(doc, brand.light);
+    setDraw(doc, brand.border);
+    doc.roundedRect(x, y, width, 22, 3, 3, 'FD');
+    setFill(doc, accent);
+    doc.roundedRect(x, y, 2.2, 22, 1, 1, 'F');
+    setText(doc, brand.slate);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.8);
+    doc.text(label.toUpperCase(), x + 5, y + 7, { maxWidth: width - 10 });
+    setText(doc, brand.graphite);
+    doc.setFontSize(10);
+    doc.text(value, x + 5, y + 16, { maxWidth: width - 10 });
+  };
+
+  const drawInsightCard = (
+    x: number,
+    y: number,
+    width: number,
+    title: string,
+    body: string,
+    accent: readonly number[],
+  ) => {
+    setFill(doc, [255, 255, 255]);
+    setDraw(doc, brand.border);
+    doc.roundedRect(x, y, width, 34, 3, 3, 'FD');
+    setFill(doc, accent);
+    doc.circle(x + 5, y + 7, 1.8, 'F');
+    setText(doc, brand.graphite);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(title, x + 10, y + 8, { maxWidth: width - 14 });
+    setText(doc, brand.slate);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(body, x + 5, y + 16, { maxWidth: width - 10, lineHeightFactor: 1.35 });
+  };
 
   doc.setProperties({
     title: `${copy.previewModal.documentTitle} ${quote.quoteNumber}`,
     subject: copy.header.title,
-    creator: 'Indice',
+    creator: copy.header.title,
   });
 
-  setFill(doc, brand.graphite);
-  doc.rect(0, 0, pageWidth, 37, 'F');
-  drawIndiceMark(doc, left, 10);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(255, 255, 255);
-  doc.text('INDICE', left + 25, 17);
-
-  doc.setFontSize(8);
-  doc.setTextColor(216, 220, 227);
-  doc.text(copy.previewModal.documentEyebrow.toUpperCase(), left + 25, 24);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(255, 255, 255);
-  doc.text(quote.quoteNumber, right, 18, { align: 'right' });
-
-  setFill(doc, brand.coral);
-  doc.rect(0, 36, pageWidth, 1.5, 'F');
-
-  let y = 52;
+  let y = 16;
   setText(doc, brand.graphite);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(24);
-  doc.text(copy.previewModal.documentTitle, left, y);
+  doc.setFontSize(16);
+  doc.text(copy.previewModal.documentTitle, pageWidth / 2, y + 2, { align: 'center' });
+
+  doc.setFontSize(8);
+  doc.text(`${copy.table.columns.number}: ${quote.quoteNumber}`, left, y + 2);
+
+  setText(doc, brand.slate);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text(`${copy.labels.createdDate}: ${generatedDate}`, right, y - 2, { align: 'right' });
+  doc.text(`${generatedTime} · ${quote.quoteNumber}`, right, y + 4, { align: 'right' });
+  drawBrandBar(left, y + 13, contentWidth);
+
+  y += 28;
+  setText(doc, brand.graphite);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text(`${copy.previewModal.documentEyebrow} ${quote.quoteNumber}`, left, y);
 
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(copy.previewModal.documentSubtitle, left, y + 8, { maxWidth: contentWidth * 0.72 });
+  doc.text(copy.previewModal.documentSubtitle, left, y + 8, { maxWidth: contentWidth * 0.68 });
 
   setText(doc, brand.coral);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text(formatCurrency(quote.total, locale), right, y + 1, { align: 'right' });
+  doc.setFontSize(20);
+  doc.text(formatCurrency(quote.total, quoteCurrency), right, y, { align: 'right' });
   setText(doc, brand.slate);
   doc.setFontSize(7);
-  doc.text(copy.labels.total.toUpperCase(), right, y + 8, { align: 'right' });
+  doc.text(`${copy.labels.total.toUpperCase()} · ${quoteCurrency}`, right, y + 7, { align: 'right' });
 
-  y += 24;
-  setDraw(doc, brand.border);
-  doc.line(left, y, right, y);
+  y += 18;
+  const insightWidth = (contentWidth - 8) / 3;
+  drawInsightCard(
+    left,
+    y,
+    insightWidth,
+    intelligenceLabels.happened,
+    intelligenceLabels.happenedBody,
+    brand.coral,
+  );
+  drawInsightCard(
+    left + insightWidth + 4,
+    y,
+    insightWidth,
+    intelligenceLabels.matters,
+    intelligenceLabels.mattersBody,
+    brand.yellow,
+  );
+  drawInsightCard(
+    left + (insightWidth + 4) * 2,
+    y,
+    insightWidth,
+    intelligenceLabels.next,
+    mainRecommendation,
+    hasLowMargin || isExpired ? brand.coral : brand.aqua,
+  );
 
-  y += 10;
+  y += 44;
+  const metricGap = 4;
+  const metricWidth = (contentWidth - metricGap * 3) / 4;
+  const metrics = [
+    { label: copy.labels.total, value: formatCurrency(quote.total, quoteCurrency), accent: brand.coral },
+    { label: copy.labels.currency, value: quoteCurrency, accent: brand.blue },
+    { label: copy.summary.items, value: String(itemCount), accent: brand.blue },
+    { label: copy.pricing.estimatedMargin, value: formatPercent(estimatedMargin), accent: hasLowMargin ? brand.coral : brand.aqua },
+    { label: copy.labels.subtotal, value: formatCurrency(quote.subtotal, quoteCurrency), accent: brand.yellow },
+    { label: copy.labels.taxTotal, value: formatCurrency(quote.taxTotal, quoteCurrency), accent: brand.yellow },
+    { label: copy.pricing.estimatedProfit, value: formatCurrency(estimatedProfit, quoteCurrency), accent: estimatedProfit < 0 ? brand.coral : brand.aqua },
+    { label: copy.labels.expirationDate, value: quote.expirationDate, accent: isExpired ? brand.coral : brand.blue },
+  ];
+
+  metrics.forEach((metric, index) => {
+    const column = index % 4;
+    const row = Math.floor(index / 4);
+    drawMetricCard(
+      left + column * (metricWidth + metricGap),
+      y + row * 27,
+      metricWidth,
+      metric.label,
+      metric.value,
+      metric.accent,
+    );
+  });
+
+  y += 60;
   const columnWidth = (contentWidth - 8) / 2;
   setFill(doc, brand.light);
   setDraw(doc, brand.border);
-  doc.roundedRect(left, y, columnWidth, 38, 3, 3, 'FD');
-  doc.roundedRect(left + columnWidth + 8, y, columnWidth, 38, 3, 3, 'FD');
+  doc.roundedRect(left, y, columnWidth, 48, 3, 3, 'FD');
+  doc.roundedRect(left + columnWidth + 8, y, columnWidth, 48, 3, 3, 'FD');
 
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'bold');
@@ -181,14 +351,12 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
   doc.text(`${copy.labels.createdDate}: ${quote.createdDate}`, left + columnWidth + 13, y + 22, { maxWidth: columnWidth - 10 });
   doc.text(`${copy.labels.expirationDate}: ${quote.expirationDate}`, left + columnWidth + 13, y + 28, { maxWidth: columnWidth - 10 });
   doc.text(`${copy.labels.opportunity}: ${opportunity?.opportunityName ?? copy.common.unassigned}`, left + columnWidth + 13, y + 34, { maxWidth: columnWidth - 10 });
+  doc.text(`${copy.labels.status}: ${copy.statusLabels[quote.status]}`, left + columnWidth + 13, y + 40, { maxWidth: columnWidth - 10 });
+  doc.text(`${copy.labels.currency}: ${quoteCurrency} · ${copy.taxBuilder.taxPreset}: ${taxSummary}`, left + columnWidth + 13, y + 46, { maxWidth: columnWidth - 10 });
 
-  y += 52;
-  setText(doc, brand.graphite);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text(copy.previewModal.itemsTitle, left, y);
-  setDraw(doc, brand.border);
-  doc.line(left, y + 3, right, y + 3);
+  y += 60;
+  y = ensureSpace(y, 70);
+  drawSectionTitle(copy.previewModal.itemsTitle, y);
 
   autoTable(doc, {
     startY: y + 9,
@@ -202,49 +370,46 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
       copy.previewModal.lineTotal,
     ]],
     body: quote.items.map((item) => [
-      `${item.productName}\n${item.sku}`,
+      getQuoteLinePdfLabel(item, copy, quoteCurrency),
       item.section,
       String(item.quantity),
-      formatCurrency(item.unitPrice, locale),
+      formatCurrency(item.unitPrice, quoteCurrency),
       `${item.discountPercent}%`,
-      `${item.taxPercent}%`,
-      formatCurrency(getLineTotal(item), locale),
+      item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`,
+      formatCurrency(getLineTotal(item), quoteCurrency),
     ]),
     theme: 'grid',
     margin: { left, right: pageWidth - right },
     styles: {
       font: 'helvetica',
-      fontSize: 7.5,
-      cellPadding: 2.5,
+      fontSize: 8,
+      cellPadding: 2.6,
       textColor: rgb(brand.graphite),
       lineColor: rgb(brand.border),
       lineWidth: 0.1,
       overflow: 'linebreak',
     },
     headStyles: {
-      fillColor: rgb(brand.graphite),
-      textColor: [255, 255, 255],
+      fillColor: rgb(brand.light),
+      textColor: rgb(brand.graphite),
       fontStyle: 'bold',
     },
     alternateRowStyles: {
       fillColor: rgb(brand.light),
     },
     columnStyles: {
-      0: { cellWidth: 46 },
-      1: { cellWidth: 34 },
-      2: { halign: 'center', cellWidth: 16 },
-      3: { halign: 'right', cellWidth: 24 },
-      4: { halign: 'center', cellWidth: 19 },
-      5: { halign: 'center', cellWidth: 17 },
-      6: { halign: 'right', cellWidth: 26 },
+      0: { cellWidth: 42 },
+      1: { cellWidth: 28 },
+      2: { halign: 'center', cellWidth: 14 },
+      3: { halign: 'right', cellWidth: 22 },
+      4: { halign: 'center', cellWidth: 17 },
+      5: { halign: 'center', cellWidth: 16 },
+      6: { halign: 'right', cellWidth: 24 },
     },
   });
 
   y = tableEndY(doc, y + 48) + 10;
-  if (y > pageHeight - 74) {
-    doc.addPage();
-    y = 24;
-  }
+  y = ensureSpace(y, 82);
 
   const totalsX = right - 70;
   setFill(doc, brand.coralLight);
@@ -263,7 +428,7 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
     doc.setFont('helvetica', index === totalRows.length - 1 ? 'bold' : 'normal');
     doc.setFontSize(index === totalRows.length - 1 ? 10 : 8);
     doc.text(label, totalsX + 5, rowY);
-    doc.text(formatCurrency(value, locale), totalsX + 65, rowY, { align: 'right' });
+    doc.text(formatCurrency(value, quoteCurrency), totalsX + 65, rowY, { align: 'right' });
   });
 
   const notesWidth = contentWidth - 80;
@@ -276,7 +441,8 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
   doc.setFontSize(8);
   doc.text(quote.notes || copy.previewModal.noNotes, left, y + 12, { maxWidth: notesWidth });
 
-  y += 46;
+  y += 42;
+  y = ensureSpace(y, 42);
   setText(doc, brand.graphite);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
@@ -285,6 +451,27 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text(quote.terms || copy.previewModal.defaultTerms, left, y + 7, { maxWidth: contentWidth });
+
+  y += 28;
+  y = ensureSpace(y, 32);
+  setFill(doc, hasMissingCosts || hasLowMargin ? brand.coralLight : [243, 252, 248]);
+  setDraw(doc, hasMissingCosts || hasLowMargin ? [255, 199, 193] : [178, 231, 215]);
+  doc.roundedRect(left, y, contentWidth, 24, 3, 3, 'FD');
+  setText(doc, brand.graphite);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text(intelligenceLabels.decisionSignal, left + 5, y + 8);
+  setText(doc, brand.slate);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(
+    hasMissingCosts
+      ? copy.marginGuidance.messages.missingCost
+      : `${copy.pricing.estimatedMargin}: ${formatPercent(estimatedMargin)}. ${mainRecommendation}`,
+    left + 5,
+    y + 16,
+    { maxWidth: contentWidth - 10 },
+  );
 
   addFooter(doc, copy);
   return doc;

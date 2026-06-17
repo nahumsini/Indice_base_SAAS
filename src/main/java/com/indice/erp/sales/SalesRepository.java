@@ -42,7 +42,9 @@ class SalesRepository {
     }
 
     List<Map<String, Object>> list(long companyId, SalesEntityDefinition definition, Map<String, String> filters) {
-        var sql = new StringBuilder("SELECT entity.*, ")
+        var sql = new StringBuilder("SELECT ")
+                .append(listSelectColumns(definition))
+                .append(", ")
                 .append("(SELECT COUNT(*) FROM sales_files file WHERE file.company_id = entity.company_id ")
                 .append("AND file.entity_type = ? AND file.entity_id = entity.id AND file.deleted_at IS NULL) AS files_count ")
                 .append("FROM ")
@@ -55,6 +57,20 @@ class SalesRepository {
         sql.append(" ORDER BY entity.").append(definition.defaultOrder());
 
         return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> rowToApi(rs, definition), params.toArray());
+    }
+
+    private String listSelectColumns(SalesEntityDefinition definition) {
+        var columns = new ArrayList<String>();
+        columns.add("entity.id");
+        for (var field : definition.fields()) {
+            if ("metadata_json".equals(field.columnName())) {
+                continue;
+            }
+            columns.add("entity." + field.columnName());
+        }
+        columns.add("entity.created_at");
+        columns.add("entity.updated_at");
+        return String.join(", ", columns);
     }
 
     Map<String, Object> get(long companyId, SalesEntityDefinition definition, long id) {
@@ -279,6 +295,13 @@ class SalesRepository {
                 itemId);
     }
 
+    void deleteQuoteItems(long companyId, long quoteId) {
+        jdbcTemplate.update(
+                "DELETE FROM sales_quote_items WHERE company_id = ? AND quote_id = ?",
+                companyId,
+                quoteId);
+    }
+
     BigDecimal quoteItemsTotal(long companyId, long quoteId) {
         var total = jdbcTemplate.queryForObject(
                 "SELECT COALESCE(SUM(line_total), 0) FROM sales_quote_items WHERE company_id = ? AND quote_id = ?",
@@ -444,11 +467,33 @@ class SalesRepository {
         body.put("quotes", count("sales_quotes", companyId));
         body.put("approvedQuotes", countWhere("sales_quotes", companyId, "LOWER(status) IN ('approved', 'closed_won', 'closed won', 'accepted')"));
         body.put("products", count("sales_products", companyId));
+        body.put("sales", count("sales_records", companyId));
         body.put("postSales", count("sales_post_sale_cases", companyId));
         body.put("contracts", count("sales_contracts", companyId));
         body.put("pendingSignatures", countWhere("sales_contracts", companyId, "LOWER(signature_status) IN ('waiting', 'pending_signature', 'pending signature')"));
         body.put("pipelineValue", sum("sales_opportunities", companyId, "estimated_value"));
         body.put("quotedValue", sum("sales_quotes", companyId, "amount"));
+        body.put("salesValue", sum("sales_records", companyId, "total_amount"));
+        body.put("monthlySales", countWhere(
+                "sales_records",
+                companyId,
+                "sale_date >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND sale_date < DATE_ADD(LAST_DAY(CURRENT_DATE()), INTERVAL 1 DAY)"));
+        body.put("monthlySalesValue", sumWhere(
+                "sales_records",
+                companyId,
+                "total_amount",
+                "sale_date >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND sale_date < DATE_ADD(LAST_DAY(CURRENT_DATE()), INTERVAL 1 DAY)"));
+        body.put("weeklySales", countWhere(
+                "sales_records",
+                companyId,
+                "sale_date >= DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY) AND sale_date < DATE_ADD(DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY), INTERVAL 7 DAY)"));
+        body.put("weeklySalesValue", sumWhere(
+                "sales_records",
+                companyId,
+                "total_amount",
+                "sale_date >= DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY) AND sale_date < DATE_ADD(DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY), INTERVAL 7 DAY)"));
+        body.put("pendingFinanceSales", countWhere("sales_records", companyId, "LOWER(finance_status) IN ('pending', 'pending_validation')"));
+        body.put("pendingInventorySales", countWhere("sales_records", companyId, "LOWER(inventory_movement_status) IN ('not_generated', 'pending')"));
         return body;
     }
 
@@ -649,6 +694,14 @@ class SalesRepository {
     private BigDecimal sum(String tableName, long companyId, String column) {
         var total = jdbcTemplate.queryForObject(
                 "SELECT COALESCE(SUM(" + column + "), 0) FROM " + tableName + " WHERE company_id = ? AND deleted_at IS NULL",
+                BigDecimal.class,
+                companyId);
+        return total == null ? BigDecimal.ZERO : total;
+    }
+
+    private BigDecimal sumWhere(String tableName, long companyId, String column, String condition) {
+        var total = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(SUM(" + column + "), 0) FROM " + tableName + " WHERE company_id = ? AND deleted_at IS NULL AND " + condition,
                 BigDecimal.class,
                 companyId);
         return total == null ? BigDecimal.ZERO : total;

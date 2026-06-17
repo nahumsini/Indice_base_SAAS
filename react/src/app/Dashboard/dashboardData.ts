@@ -35,6 +35,11 @@ export const defaultDashboardKpiIds = [
 ] as const;
 
 const liveDashboardKpiIds = new Set<string>([
+  'weeklyRevenue',
+  'monthlyRevenue',
+  'averageTicket',
+  'salesConversion',
+  'activeClients',
   'monthlyExpenses',
   'pendingExpenses',
   'overdueExpenses',

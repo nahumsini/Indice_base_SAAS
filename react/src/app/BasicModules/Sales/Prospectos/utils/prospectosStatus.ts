@@ -5,13 +5,13 @@ import {
   type OpportunityStatus,
   type OpportunityTemperature,
 } from '../../salesCrmContext';
-import type { OpportunityFormState } from '../types/prospectosTypes';
+import type { OpportunityColumnId, OpportunityFormState } from '../types/prospectosTypes';
 
 export const opportunityInputClassName =
-  'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
+  'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
 
 export const opportunitySelectClassName =
-  'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
+  'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
 
 export const initialOpportunityForm: OpportunityFormState = {
   opportunityName: '',
@@ -32,11 +32,12 @@ export const initialOpportunityForm: OpportunityFormState = {
   files: '',
 };
 
-export const opportunityColumnsStorageKey = 'sales-opportunities-columns-v1';
+export const opportunityColumnsStorageKey = 'sales-opportunities-columns-v2';
+export const opportunityColumnWidthsStorageKey = 'sales-opportunities-column-widths-v1';
 export const agendaScheduleStorageKey = 'sales-opportunities-agenda-schedule-v1';
 export const opportunityDragDataType = 'application/x-indice-sales-opportunity-id';
 
-export const opportunitySortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
+export const opportunitySortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
 
 export const agendaWorkHours = Array.from({ length: 12 }, (_, index) => `${String(index + 8).padStart(2, '0')}:00`);
 
@@ -59,7 +60,7 @@ export const defaultOpportunityColumns: ColumnConfig[] = [
   { id: 'stage', label: 'Etapa', visible: true, description: 'Avance dentro del pipeline comercial.' },
   { id: 'temperature', label: 'Temperatura', visible: true, description: 'Prioridad comercial de la oportunidad.' },
   { id: 'owner', label: 'Responsable', visible: true, description: 'Vendedor o ejecutivo responsable.' },
-  { id: 'estimatedValue', label: 'Valor estimado', visible: true, description: 'Monto estimado de la negociación.' },
+  { id: 'estimatedValue', label: 'Valor comercial', visible: true, description: 'Monto inteligente: estimado, cotizado o cerrado según avance comercial.' },
   { id: 'probability', label: 'Probabilidad', visible: true, description: 'Probabilidad estimada de cierre.' },
   { id: 'quoteSignal', label: 'Cotización', visible: true, description: 'Estado de cotizaciones ligadas a la oportunidad.' },
   { id: 'expectedCloseDate', label: 'Cierre esperado', visible: true, description: 'Fecha objetivo de cierre.' },
@@ -68,7 +69,29 @@ export const defaultOpportunityColumns: ColumnConfig[] = [
   { id: 'lastContact', label: 'Último contacto', visible: false, description: 'Último registro de contacto comercial.' },
   { id: 'files', label: 'Archivos', visible: true, description: 'Documentos relacionados con la oportunidad.' },
   { id: 'status', label: 'Estado', visible: true, description: 'Estado operativo de la oportunidad.' },
+  { id: 'pipeline', label: 'Pipeline cotizado', visible: false, description: 'Total cotizado ligado a la oportunidad por divisa.' },
 ];
+
+export const defaultOpportunityColumnWidths: Record<OpportunityColumnId, number> = {
+  opportunity: 280,
+  contact: 180,
+  phone: 150,
+  email: 220,
+  source: 170,
+  stage: 170,
+  temperature: 170,
+  owner: 220,
+  estimatedValue: 170,
+  probability: 160,
+  quoteSignal: 190,
+  pipeline: 210,
+  expectedCloseDate: 170,
+  nextAction: 170,
+  nextActionDate: 260,
+  lastContact: 170,
+  files: 130,
+  status: 170,
+};
 
 export const stageLabels: Record<OpportunityStage, string> = {
   New: 'Nueva',

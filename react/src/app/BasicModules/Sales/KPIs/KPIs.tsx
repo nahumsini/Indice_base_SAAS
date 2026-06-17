@@ -15,7 +15,8 @@ import {
   Warehouse,
 } from 'lucide-react';
 import { useSalesCrm } from '../salesCrmContext';
-import { buildInventoryStockRows, initialInventoryWarehouses } from '../Inventory/data/inventoryMockData';
+import { formatSalesCurrencyAmount } from '../utils/salesCurrency';
+import { buildInventoryStockRows } from '../Inventory/data/inventoryMockData';
 import {
   filterSalesKpiSources,
   getSalesKpiMetrics,
@@ -24,12 +25,9 @@ import {
   parseSalesKpiMoney,
   type SalesKpiDataSources,
 } from './salesKpiSelectors';
+import { useSalesKpisTranslations } from './hooks/useSalesKpisTranslations';
 
-const money = new Intl.NumberFormat('es-MX', {
-  style: 'currency',
-  currency: 'MXN',
-  maximumFractionDigits: 0,
-});
+const formatMoney = (value: number) => formatSalesCurrencyAmount(value);
 
 const percent = (value: number) => `${Math.round(value)}%`;
 
@@ -99,6 +97,7 @@ function ProgressLine({ value, danger = false }: { value: number; danger?: boole
 
 export default function KPIs() {
   const { contacts, opportunities, quotes, products, salesRecords } = useSalesCrm();
+  const copy = useSalesKpisTranslations();
 
   const [businessUnitFilter, setBusinessUnitFilter] = useState('all');
   const [businessFilter, setBusinessFilter] = useState('all');
@@ -111,7 +110,7 @@ export default function KPIs() {
     quotes,
     sales: salesRecords,
     products,
-    inventoryRows: buildInventoryStockRows(products, initialInventoryWarehouses),
+    inventoryRows: buildInventoryStockRows(products),
   }), [contacts, opportunities, products, quotes, salesRecords]);
 
   const options = useMemo(() => getSalesKpiOptions(sources), [sources]);
@@ -132,34 +131,34 @@ export default function KPIs() {
           <div>
             <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
               <BarChart3 className="h-6 w-6 text-[#B63B32]" />
-              KPIs comerciales
+              {copy.header.title}
             </h2>
             <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
-              Tablero real de ventas: prospectos, cotizaciones, cierres, comisiones, productos e inventario comercial.
+              {copy.header.subtitle}
             </p>
           </div>
         </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="mb-4 text-base font-bold text-slate-950">Filtros</h3>
+        <h3 className="mb-4 text-base font-bold text-slate-950">{copy.filters.title}</h3>
         <div className="grid gap-4 md:grid-cols-4">
           <select value={businessUnitFilter} onChange={(event) => setBusinessUnitFilter(event.target.value)} className="rounded-lg border border-slate-200 px-4 py-3 text-sm">
-            <option value="all">Todas las unidades</option>
+            <option value="all">{copy.filters.allUnits}</option>
             {options.businessUnits.map((unit) => (
               <option key={unit.id} value={unit.id}>{unit.name}</option>
             ))}
           </select>
 
           <select value={businessFilter} onChange={(event) => setBusinessFilter(event.target.value)} className="rounded-lg border border-slate-200 px-4 py-3 text-sm">
-            <option value="all">Todos los negocios</option>
+            <option value="all">{copy.filters.allBusinesses}</option>
             {options.businesses.map((business) => (
               <option key={business.id} value={business.id}>{business.name}</option>
             ))}
           </select>
 
           <select value={sellerFilter} onChange={(event) => setSellerFilter(event.target.value)} className="rounded-lg border border-slate-200 px-4 py-3 text-sm">
-            <option value="all">Todos los vendedores</option>
+            <option value="all">{copy.filters.allSellers}</option>
             {options.sellers.map((seller) => (
               <option key={seller} value={seller}>{seller}</option>
             ))}
@@ -170,7 +169,7 @@ export default function KPIs() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar prospecto, cliente o vendedor"
+              placeholder={copy.filters.searchPlaceholder}
               className="w-full bg-transparent outline-none"
             />
           </label>
@@ -178,22 +177,22 @@ export default function KPIs() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={Target} label="Prospectos activos" value={String(kpis.activeProspects)} detail={`${kpis.totalProspects} oportunidades totales`} />
-        <MetricCard icon={FileText} label="Cotizaciones" value={String(kpis.totalQuotes)} detail={`${kpis.approvedQuotes + kpis.closedWonQuotes} aprobadas o ganadas`} tone="yellow" />
-        <MetricCard icon={CircleDollarSign} label="Ingresos por ventas" value={money.format(kpis.salesRevenue)} detail={`${kpis.totalSales} ventas registradas`} tone="green" />
-        <MetricCard icon={BriefcaseBusiness} label="Comisiones" value={money.format(kpis.totalCommissions)} detail="Calculadas desde ventas" tone="purple" />
+        <MetricCard icon={Target} label={copy.cards.activeProspects.label} value={String(kpis.activeProspects)} detail={copy.cards.activeProspects.detail(kpis.totalProspects)} />
+        <MetricCard icon={FileText} label={copy.cards.quotes.label} value={String(kpis.totalQuotes)} detail={copy.cards.quotes.detail(kpis.approvedQuotes + kpis.closedWonQuotes)} tone="yellow" />
+        <MetricCard icon={CircleDollarSign} label={copy.cards.salesRevenue.label} value={formatMoney(kpis.salesRevenue)} detail={copy.cards.salesRevenue.detail(kpis.totalSales)} tone="green" />
+        <MetricCard icon={BriefcaseBusiness} label={copy.cards.commissions.label} value={formatMoney(kpis.totalCommissions)} detail={copy.cards.commissions.detail} tone="purple" />
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-950">Señales comerciales</h3>
+            <h3 className="text-lg font-bold text-slate-950">{copy.signals.title}</h3>
             <p className="text-sm text-slate-500">
-              Lectura rápida del embudo comercial y puntos que pueden frenar cierre o ejecución.
+              {copy.signals.subtitle}
             </p>
           </div>
           <StatusPill
-            label={kpis.commercialRisk ? 'Atención requerida' : 'Operación estable'}
+            label={kpis.commercialRisk ? copy.signals.risk : copy.signals.stable}
             tone={kpis.commercialRisk ? 'red' : 'green'}
           />
         </div>
@@ -201,7 +200,7 @@ export default function KPIs() {
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-xl border border-slate-200 p-5">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-bold text-slate-700">Conversión cotización → venta</p>
+              <p className="font-bold text-slate-700">{copy.signals.conversion}</p>
               <TrendingUp className="h-5 w-5 text-[#B63B32]" />
             </div>
             <p className="mb-4 text-3xl font-bold text-slate-950">{percent(kpis.quoteConversionRate)}</p>
@@ -210,51 +209,51 @@ export default function KPIs() {
 
           <div className="rounded-xl border border-slate-200 p-5">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-bold text-slate-700">Preparación inventario</p>
+              <p className="font-bold text-slate-700">{copy.signals.inventoryReadiness}</p>
               <Warehouse className="h-5 w-5 text-emerald-600" />
             </div>
             <p className="mb-4 text-3xl font-bold text-slate-950">{percent(kpis.inventoryReadiness)}</p>
-            <p className="mb-4 text-sm text-slate-500">{kpis.inventoryPreparedProducts} de {kpis.totalProducts} productos listos</p>
+            <p className="mb-4 text-sm text-slate-500">{copy.signals.inventoryReadyDetail(kpis.inventoryPreparedProducts, kpis.totalProducts)}</p>
             <ProgressLine value={kpis.inventoryReadiness} danger={kpis.inventoryReadiness < 60} />
           </div>
 
           <div className="rounded-xl border border-slate-200 p-5">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-bold text-slate-700">Riesgo comercial</p>
+              <p className="font-bold text-slate-700">{copy.signals.commercialRisk}</p>
               <AlertTriangle className="h-5 w-5 text-rose-600" />
             </div>
             <p className="mb-4 text-3xl font-bold text-slate-950">{kpis.commercialRisk}</p>
             <p className="text-sm text-slate-500">
-              Prospectos vencidos, estancados o sin seguimiento oportuno.
+              {copy.signals.commercialRiskDescription}
             </p>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={UsersRound} label="Contactos" value={String(kpis.totalContacts)} detail={`${kpis.activeCustomers} clientes activos`} />
-        <MetricCard icon={PackageCheck} label="Productos" value={String(kpis.totalProducts)} detail={`${kpis.activeProducts} activos en catálogo`} tone="green" />
-        <MetricCard icon={ClipboardList} label="Ticket promedio" value={money.format(kpis.averageTicket)} detail="Sobre ventas registradas" tone="purple" />
-        <MetricCard icon={CheckCircle2} label="Aprobación de cotizaciones" value={percent(kpis.quoteApprovalRate)} detail={`${percent(kpis.quoteRejectionRate)} rechazadas o expiradas`} tone="yellow" />
+        <MetricCard icon={UsersRound} label={copy.cards.contacts.label} value={String(kpis.totalContacts)} detail={copy.cards.contacts.detail(kpis.activeCustomers)} />
+        <MetricCard icon={PackageCheck} label={copy.cards.products.label} value={String(kpis.totalProducts)} detail={copy.cards.products.detail(kpis.activeProducts)} tone="green" />
+        <MetricCard icon={ClipboardList} label={copy.cards.averageTicket.label} value={formatMoney(kpis.averageTicket)} detail={copy.cards.averageTicket.detail} tone="purple" />
+        <MetricCard icon={CheckCircle2} label={copy.cards.quoteApproval.label} value={percent(kpis.quoteApprovalRate)} detail={copy.cards.quoteApproval.detail(percent(kpis.quoteRejectionRate))} tone="yellow" />
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
-          <h3 className="text-lg font-bold text-slate-950">Rendimiento por vendedor</h3>
-          <p className="text-sm text-slate-500">Ranking por ventas ganadas, conversión, cotizaciones y pipeline.</p>
+          <h3 className="text-lg font-bold text-slate-950">{copy.sellerTable.title}</h3>
+          <p className="text-sm text-slate-500">{copy.sellerTable.subtitle}</p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-4">Rank</th>
-                <th className="px-5 py-4">Vendedor</th>
-                <th className="px-5 py-4">Ventas</th>
-                <th className="px-5 py-4">Pipeline</th>
-                <th className="px-5 py-4">Cotizaciones</th>
-                <th className="px-5 py-4">Cierres</th>
-                <th className="px-5 py-4">Conversión</th>
+                <th className="px-5 py-4">{copy.sellerTable.columns.rank}</th>
+                <th className="px-5 py-4">{copy.sellerTable.columns.seller}</th>
+                <th className="px-5 py-4">{copy.sellerTable.columns.sales}</th>
+                <th className="px-5 py-4">{copy.sellerTable.columns.pipeline}</th>
+                <th className="px-5 py-4">{copy.sellerTable.columns.quotes}</th>
+                <th className="px-5 py-4">{copy.sellerTable.columns.closed}</th>
+                <th className="px-5 py-4">{copy.sellerTable.columns.conversion}</th>
               </tr>
             </thead>
             <tbody>
@@ -262,8 +261,8 @@ export default function KPIs() {
                 <tr key={row.seller} className="border-t border-slate-100">
                   <td className="px-5 py-4 font-bold">#{index + 1}</td>
                   <td className="px-5 py-4 font-semibold text-slate-950">{row.seller}</td>
-                  <td className="px-5 py-4 font-bold">{money.format(row.sales)}</td>
-                  <td className="px-5 py-4">{money.format(row.pipeline)}</td>
+                  <td className="px-5 py-4 font-bold">{formatMoney(row.sales)}</td>
+                  <td className="px-5 py-4">{formatMoney(row.pipeline)}</td>
                   <td className="px-5 py-4">{row.quotes}</td>
                   <td className="px-5 py-4">{row.closed}</td>
                   <td className="px-5 py-4">
@@ -278,9 +277,9 @@ export default function KPIs() {
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
-          <h3 className="text-lg font-bold text-slate-950">Prospectos filtrados</h3>
+          <h3 className="text-lg font-bold text-slate-950">{copy.prospectsTable.title}</h3>
           <p className="text-sm text-slate-500">
-            Operación diaria: seguimiento, etapa, valor estimado y próxima acción.
+            {copy.prospectsTable.subtitle}
           </p>
         </div>
 
@@ -288,13 +287,13 @@ export default function KPIs() {
           <table className="w-full min-w-[950px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-4">Prospecto</th>
-                <th className="px-5 py-4">Cliente</th>
-                <th className="px-5 py-4">Etapa</th>
-                <th className="px-5 py-4">Responsable</th>
-                <th className="px-5 py-4">Valor</th>
-                <th className="px-5 py-4">Próxima acción</th>
-                <th className="px-5 py-4">Estado</th>
+                <th className="px-5 py-4">{copy.prospectsTable.columns.prospect}</th>
+                <th className="px-5 py-4">{copy.prospectsTable.columns.customer}</th>
+                <th className="px-5 py-4">{copy.prospectsTable.columns.stage}</th>
+                <th className="px-5 py-4">{copy.prospectsTable.columns.owner}</th>
+                <th className="px-5 py-4">{copy.prospectsTable.columns.value}</th>
+                <th className="px-5 py-4">{copy.prospectsTable.columns.nextAction}</th>
+                <th className="px-5 py-4">{copy.prospectsTable.columns.status}</th>
               </tr>
             </thead>
             <tbody>
@@ -307,7 +306,7 @@ export default function KPIs() {
                   <td className="px-5 py-4">{item.company}</td>
                   <td className="px-5 py-4">{item.stage}</td>
                   <td className="px-5 py-4">{item.owner}</td>
-                  <td className="px-5 py-4 font-bold">{money.format(parseSalesKpiMoney(item.estimatedValue))}</td>
+                  <td className="px-5 py-4 font-bold">{formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</td>
                   <td className="px-5 py-4">{item.nextAction} · {item.nextActionDate}</td>
                   <td className="px-5 py-4">
                     <StatusPill

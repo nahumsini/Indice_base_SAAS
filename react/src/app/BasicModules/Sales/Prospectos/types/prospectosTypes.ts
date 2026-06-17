@@ -9,6 +9,16 @@ import type {
 } from '../../salesCrmContext';
 
 export type OpportunityView = 'table' | 'kanban' | 'agenda';
+export type OpportunityPeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
+export type OpportunityFocusFilter =
+  | 'all'
+  | 'my_portfolio'
+  | 'to_contact'
+  | 'without_quote'
+  | 'in_proposal'
+  | 'closed_period'
+  | 'won'
+  | 'lost';
 
 export type OpportunityColumnId =
   | 'opportunity'
@@ -22,6 +32,7 @@ export type OpportunityColumnId =
   | 'estimatedValue'
   | 'probability'
   | 'quoteSignal'
+  | 'pipeline'
   | 'expectedCloseDate'
   | 'nextAction'
   | 'nextActionDate'

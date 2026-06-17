@@ -1,13 +1,10 @@
 import type { SalesCatalogItem } from '../../types';
+import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { ProductSortColumn, ProductSortState } from '../types/productosTypes';
 import { getProductProfit } from './productOperationalStatus';
 
-export function formatProductCurrency(value: number) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(value);
+export function formatProductCurrency(value: number, currency?: string | null) {
+  return formatSalesCurrencyAmount(value, currency);
 }
 
 export function getProductMargin(product: SalesCatalogItem) {
@@ -35,7 +32,7 @@ export function sortProducts(products: SalesCatalogItem[], sortState: ProductSor
       return sortState.direction === 'asc' ? leftValue - rightValue : rightValue - leftValue;
     }
 
-    const result = String(leftValue ?? '').localeCompare(String(rightValue ?? ''), 'es', {
+    const result = String(leftValue ?? '').localeCompare(String(rightValue ?? ''), 'es-MX', {
       numeric: true,
       sensitivity: 'base',
     });

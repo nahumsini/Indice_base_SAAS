@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../../components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../../components/ui/tooltip';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesCatalogItem } from '../../types';
 
@@ -35,7 +36,7 @@ export type QuoteSortState = {
   direction: QuoteSortDirection;
 };
 
-const coralFieldClassName = 'border-slate-200 bg-white shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20';
+const coralFieldClassName = 'border-slate-200 bg-white shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
 export function FilterSelect({
   label,
@@ -50,9 +51,9 @@ export function FilterSelect({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className={cn('h-11 rounded-lg px-4 text-base font-semibold text-slate-950', coralFieldClassName)}>
+        <SelectTrigger className={cn('h-11 rounded-xl px-4 text-base font-semibold text-slate-950', coralFieldClassName)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -64,30 +65,6 @@ export function FilterSelect({
         </SelectContent>
       </Select>
     </div>
-  );
-}
-
-export function QuotePipelineMetric({
-  icon,
-  value,
-  label,
-  valueClassName = 'text-slate-950',
-}: {
-  icon: ReactNode;
-  value: string | number;
-  label: string;
-  valueClassName?: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
-        {icon}
-      </span>
-      <span className="text-base font-semibold">
-        <span className={cn('mr-2 font-bold', valueClassName)}>{value}</span>
-        <span className="text-slate-600">{label}</span>
-      </span>
-    </span>
   );
 }
 
@@ -108,10 +85,10 @@ export function QuoteSortableHeader({
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-950"
+      className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
       onClick={() => onSort(columnId)}
     >
-      <span>{label}</span>
+      <span className="min-w-0 whitespace-normal break-words">{label}</span>
       <SortIcon className={cn('h-3.5 w-3.5', isActive ? 'text-[#FF6B5E]' : 'text-slate-400')} />
     </button>
   );
@@ -136,7 +113,7 @@ export function QuoteSellerSelect({
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className="h-10 min-w-[190px] rounded-full border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20">
+      <SelectTrigger className="h-10 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate">
         <SelectValue placeholder={fallbackLabel} />
       </SelectTrigger>
       <SelectContent>
@@ -162,18 +139,28 @@ export function QuoteAction({
   onClick?: () => void;
 }) {
   return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20',
-        className,
-      )}
-    >
-      {icon}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          onClick={onClick}
+          className={cn(
+            'flex h-9 w-9 items-center justify-center rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20',
+            className,
+          )}
+        >
+          {icon}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={8}
+        className="max-w-[220px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+      >
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -191,10 +178,10 @@ export function QuoteProductCard({
   onAdd: () => void;
 }) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <article className="rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-950">{product.name}</p>
+          <p className="truncate text-sm font-black text-slate-950 dark:text-white">{product.name}</p>
           <p className="mt-1 text-xs font-semibold text-slate-500">{product.sku}</p>
         </div>
         <Button size="sm" className="h-8 rounded-lg bg-[#FF6B5E] px-3 text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]" onClick={onAdd}>
@@ -204,7 +191,7 @@ export function QuoteProductCard({
       </div>
       <div className="mt-3 flex items-center justify-between text-sm">
         <span className="font-semibold text-slate-500">{typeLabel}</span>
-        <span className="font-black text-slate-950">{priceLabel}</span>
+        <span className="font-black text-slate-950 dark:text-white">{priceLabel}</span>
       </div>
     </article>
   );

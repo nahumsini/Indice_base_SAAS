@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../../components/ui/tooltip';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord, CommissionStatus } from '../types/commissions';
@@ -46,13 +47,13 @@ export function CommissionTable({
   const columns = t.commissions.table.columns;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
-        <Table className="min-w-[1280px]">
+        <Table className="min-w-[1380px] table-fixed">
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
               {[columns.commissionId, columns.salesRep, columns.customer, columns.sale, columns.product, columns.commissionAmount, columns.status, columns.createdDate, columns.actions].map((column) => (
-                <TableHead key={column} className="px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                <TableHead key={column} className="whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                   {column}
                 </TableHead>
               ))}
@@ -69,33 +70,39 @@ export function CommissionTable({
                 </TableCell>
               </TableRow>
             ) : records.map((record) => (
-              <TableRow key={record.id} className="border-slate-200 hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-800/70">
-                <TableCell className="px-5 py-5">
-                  <p className="font-black text-slate-950 dark:text-white">{record.id}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{record.commissionRuleName}</p>
+              <TableRow key={record.id} className="border-slate-200 align-top hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-800/70">
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
+                  <p className="break-all font-black text-slate-950 dark:text-white">{record.id}</p>
+                  <p className="mt-1 break-words text-xs font-semibold text-slate-500">{record.commissionRuleName}</p>
                 </TableCell>
-                <TableCell className="px-5 py-5 font-bold text-slate-800 dark:text-slate-100">{record.salesRepName}</TableCell>
-                <TableCell className="px-5 py-5 font-bold text-slate-800 dark:text-slate-100">{record.customerName}</TableCell>
-                <TableCell className="px-5 py-5">
-                  <p className="font-black text-slate-950 dark:text-white">{record.saleCode}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{formatSalesCurrency(record.saleAmount)}</p>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-bold text-slate-800 dark:text-slate-100"><span className="block break-words">{record.salesRepName}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-bold text-slate-800 dark:text-slate-100"><span className="block break-words">{record.customerName}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
+                  <p className="break-all font-black text-slate-950 dark:text-white">{record.saleCode}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{formatSalesCurrency(record.saleAmount, record.currency)}</p>
                 </TableCell>
-                <TableCell className="px-5 py-5 font-semibold text-slate-700 dark:text-slate-200">{record.productName}</TableCell>
-                <TableCell className="px-5 py-5 font-black text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount)}</TableCell>
-                <TableCell className="px-5 py-5"><CommissionStatusBadge status={record.status} t={t} /></TableCell>
-                <TableCell className="px-5 py-5 font-semibold text-slate-700 dark:text-slate-200">{formatSalesDate(record.createdDate)}</TableCell>
-                <TableCell className="px-5 py-5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    title={t.commissions.table.actions.viewDetail}
-                    aria-label={t.commissions.table.actions.viewDetail}
-                    className="h-9 w-9 rounded-lg border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20"
-                    onClick={() => onViewRecord(record)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-semibold text-slate-700 dark:text-slate-200"><span className="block break-words">{record.productName}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-black text-slate-950 dark:text-white"><span className="block break-words">{formatSalesCurrency(record.commissionAmount, record.currency)}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top"><CommissionStatusBadge status={record.status} t={t} /></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-semibold text-slate-700 dark:text-slate-200">{formatSalesDate(record.createdDate)}</TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label={t.commissions.table.actions.viewDetail}
+                        className="h-9 w-9 rounded-xl border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20"
+                        onClick={() => onViewRecord(record)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={8} className="max-w-[220px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl">
+                      {t.commissions.table.actions.viewDetail}
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}

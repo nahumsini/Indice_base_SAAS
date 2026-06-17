@@ -48,6 +48,7 @@ export function adaptProductToPublicCatalogItem(product: SalesCatalogItem): Publ
     publicPrice: product.price,
     wholesalePrice: product.packaging?.wholesalePrice,
     wholesaleMinQuantity: product.packaging?.wholesaleMinimumQuantity,
+    currency: product.currency,
     usesInventory: product.stockPrepared || product.warehousePrepared,
     publicInventoryStatus: getPublicInventoryStatus(product),
     readyForSales: isProductReadyForPublicCatalog(product),

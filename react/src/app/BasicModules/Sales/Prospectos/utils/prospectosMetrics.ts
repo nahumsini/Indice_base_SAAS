@@ -4,17 +4,178 @@ import {
   type SalesQuote,
   type SalesOpportunity,
 } from '../../salesCrmContext';
+import {
+  defaultSalesCurrency,
+  formatSalesCurrencyAmount,
+  formatSalesCurrencyBreakdown,
+  normalizeSalesCurrencyCode,
+} from '../../utils/salesCurrency';
+import { convertSalesCurrencyAmount } from '../../utils/salesCurrencyConversion';
 import type {
   OpportunityColumnId,
   OpportunityHistoryEntry,
+  OpportunityPeriodFilter,
   OpportunitySortState,
   OpportunitySortValue,
 } from '../types/prospectosTypes';
-import { formatCurrencyAmount, getOpportunitySchedule, parseMoney, parsePercentage } from './prospectosFormatters';
-import { getOpportunityQuoteSignal } from './prospectosQuoteSignals';
+import {
+  addDaysToInputDate,
+  formatCurrencyAmount,
+  getOpportunitySchedule,
+  getTodayInputValue,
+  getWeekStartInputDate,
+  inputDateToLocalDate,
+  parseMoney,
+  parsePercentage,
+} from './prospectosFormatters';
+import { getOpportunityPipelineTotals, getProspectosPipelineSummary } from './prospectosPipeline';
+import { getLinkedQuotesForOpportunity, getOpportunityQuoteSignal } from './prospectosQuoteSignals';
 import { opportunitySortCollator, stageLabels } from './prospectosStatus';
 
-export function getOpportunitySortValue(opportunity: SalesOpportunity, columnId: OpportunityColumnId, quotes: SalesQuote[] = []): OpportunitySortValue {
+type OpportunityPeriodRange = {
+  start: string;
+  end: string;
+};
+
+type OpportunityCommercialValueLine = {
+  amount: number;
+  currency: string;
+  exchangeDate: string;
+};
+
+function toInputDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getMonthEndInputDate(year: number, monthIndex: number) {
+  return toInputDate(new Date(year, monthIndex + 1, 0));
+}
+
+export function getOpportunityPeriodRange(period: OpportunityPeriodFilter): OpportunityPeriodRange | null {
+  const today = getTodayInputValue();
+  const todayDate = inputDateToLocalDate(today);
+  const year = todayDate.getFullYear();
+  const month = todayDate.getMonth();
+
+  switch (period) {
+    case 'today':
+      return { start: today, end: today };
+    case 'this_week': {
+      const start = getWeekStartInputDate(today);
+      return { start, end: addDaysToInputDate(inputDateToLocalDate(start), 6) };
+    }
+    case 'this_month': {
+      const start = toInputDate(new Date(year, month, 1));
+      return { start, end: getMonthEndInputDate(year, month) };
+    }
+    case 'last_month': {
+      const startDate = new Date(year, month - 1, 1);
+      const start = toInputDate(startDate);
+      return { start, end: getMonthEndInputDate(startDate.getFullYear(), startDate.getMonth()) };
+    }
+    case 'all':
+    case 'custom':
+    default:
+      return null;
+  }
+}
+
+function normalizeInputDateValue(value: string) {
+  return value.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? '';
+}
+
+export function isOpportunityClosed(opportunity: SalesOpportunity) {
+  return opportunity.stage === 'Won' || opportunity.stage === 'Lost';
+}
+
+export function getOpportunityClosureDate(opportunity: SalesOpportunity) {
+  if (!isOpportunityClosed(opportunity)) {
+    return '';
+  }
+
+  return (
+    normalizeInputDateValue(opportunity.lastContact)
+    || normalizeInputDateValue(opportunity.expectedCloseDate)
+    || getTodayInputValue()
+  );
+}
+
+function isDateWithinRange(dateValue: string, range: OpportunityPeriodRange | null) {
+  if (!range || !dateValue) {
+    return true;
+  }
+
+  return dateValue >= range.start && dateValue <= range.end;
+}
+
+export function filterOpportunitiesForPeriodView(
+  opportunities: SalesOpportunity[],
+  period: OpportunityPeriodFilter,
+) {
+  const range = getOpportunityPeriodRange(period);
+
+  if (!range) {
+    return opportunities;
+  }
+
+  return opportunities.filter((opportunity) => (
+    !isOpportunityClosed(opportunity)
+    || isDateWithinRange(getOpportunityClosureDate(opportunity), range)
+  ));
+}
+
+function roundCurrencyTotal(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function getClosedOpportunityValueLines(
+  opportunity: SalesOpportunity,
+  quotes: SalesQuote[],
+): OpportunityCommercialValueLine[] {
+  const closureDate = getOpportunityClosureDate(opportunity);
+  const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
+
+  if (linkedQuotes.length > 0) {
+    return linkedQuotes.map((quote) => ({
+      amount: quote.total,
+      currency: normalizeSalesCurrencyCode(quote.currency),
+      exchangeDate: closureDate || normalizeInputDateValue(quote.lastUpdated) || getTodayInputValue(),
+    }));
+  }
+
+  return [{
+    amount: parseMoney(opportunity.estimatedValue),
+    currency: normalizeSalesCurrencyCode(opportunity.currency),
+    exchangeDate: closureDate || getTodayInputValue(),
+  }];
+}
+
+function summarizeClosedOpportunityValue(
+  opportunities: SalesOpportunity[],
+  quotes: SalesQuote[],
+  preferredCurrency = defaultSalesCurrency,
+) {
+  const currency = normalizeSalesCurrencyCode(preferredCurrency);
+  const lines = opportunities.flatMap((opportunity) => getClosedOpportunityValueLines(opportunity, quotes));
+  const convertedTotal = lines.reduce((total, line) => (
+    total + convertSalesCurrencyAmount(line.amount, line.currency, currency, line.exchangeDate).amount
+  ), 0);
+
+  return {
+    total: roundCurrencyTotal(convertedTotal),
+    totalLabel: lines.length > 0
+      ? formatSalesCurrencyBreakdown(lines, (line) => line.amount, (line) => line.currency)
+      : formatSalesCurrencyAmount(0, currency),
+    convertedLabel: formatSalesCurrencyAmount(convertedTotal, currency),
+  };
+}
+
+export function getOpportunitySortValue(
+  opportunity: SalesOpportunity,
+  columnId: OpportunityColumnId,
+  quotes: SalesQuote[] = [],
+  preferredCurrency = defaultSalesCurrency,
+): OpportunitySortValue {
   switch (columnId) {
     case 'opportunity':
       return `${opportunity.opportunityName} ${opportunity.company} ${opportunity.id}`;
@@ -38,6 +199,8 @@ export function getOpportunitySortValue(opportunity: SalesOpportunity, columnId:
       return parsePercentage(opportunity.probability);
     case 'quoteSignal':
       return getOpportunityQuoteSignal(opportunity, quotes).totalQuotedValue;
+    case 'pipeline':
+      return getOpportunityPipelineTotals(opportunity, quotes, preferredCurrency).convertedTotal;
     case 'expectedCloseDate':
       return opportunity.expectedCloseDate || null;
     case 'nextAction':
@@ -57,10 +220,15 @@ export function getOpportunitySortValue(opportunity: SalesOpportunity, columnId:
   }
 }
 
-export function sortOpportunities(opportunities: SalesOpportunity[], sortState: OpportunitySortState, quotes: SalesQuote[] = []) {
+export function sortOpportunities(
+  opportunities: SalesOpportunity[],
+  sortState: OpportunitySortState,
+  quotes: SalesQuote[] = [],
+  preferredCurrency = defaultSalesCurrency,
+) {
   return [...opportunities].sort((left, right) => {
-    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes);
-    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes);
+    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes, preferredCurrency);
+    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes, preferredCurrency);
 
     if (leftValue === null && rightValue === null) {
       return 0;
@@ -106,7 +274,7 @@ export function buildOpportunityHistory(opportunity: SalesOpportunity): Opportun
     {
       id: 'value',
       title: 'Valor comercial registrado',
-      description: `${opportunity.estimatedValue} con probabilidad de cierre de ${opportunity.probability}.`,
+      description: `${formatCurrencyAmount(parseMoney(opportunity.estimatedValue), opportunity.currency)} con probabilidad de cierre de ${opportunity.probability}.`,
       timestamp: opportunity.expectedCloseDate || 'Sin cierre esperado',
       tone: 'slate',
     },
@@ -122,19 +290,47 @@ export function buildOpportunityHistory(opportunity: SalesOpportunity): Opportun
   ];
 }
 
-export function calculateProspectosMetrics(opportunities: SalesOpportunity[]) {
-  const visibleCount = opportunities.length;
-  const openCount = opportunities.filter((opportunity) => !['Won', 'Lost'].includes(opportunity.stage)).length;
+export function calculateProspectosMetrics(
+  opportunities: SalesOpportunity[],
+  quotes: SalesQuote[] = [],
+  preferredCurrency = defaultSalesCurrency,
+  periodFilter: OpportunityPeriodFilter = 'all',
+) {
+  const periodRange = getOpportunityPeriodRange(periodFilter);
+  const periodOpportunities = filterOpportunitiesForPeriodView(opportunities, periodFilter);
+  const visibleCount = periodOpportunities.length;
+  const openOpportunities = opportunities.filter((opportunity) => !['Won', 'Lost'].includes(opportunity.stage));
+  const periodClosedOpportunities = opportunities.filter((opportunity) => (
+    isOpportunityClosed(opportunity)
+    && isDateWithinRange(getOpportunityClosureDate(opportunity), periodRange)
+  ));
+  const periodWonOpportunities = periodClosedOpportunities.filter((opportunity) => opportunity.stage === 'Won');
+  const periodLostOpportunities = periodClosedOpportunities.filter((opportunity) => opportunity.stage === 'Lost');
+  const openCount = openOpportunities.length;
   const proposalCount = opportunities.filter((opportunity) => opportunity.stage === 'Proposal').length;
   const hotCount = opportunities.filter((opportunity) => opportunity.temperature === 'Hot').length;
-  const pipelineValue = opportunities.reduce((total, opportunity) => total + parseMoney(opportunity.estimatedValue), 0);
-  const formattedPipelineValue = formatCurrencyAmount(pipelineValue);
-  const weightedProbability = visibleCount > 0
-    ? Math.round(opportunities.reduce((total, opportunity) => total + parsePercentage(opportunity.probability), 0) / visibleCount)
+  const todayInputValue = getTodayInputValue();
+  const scheduledCount = openOpportunities.filter((opportunity) => Boolean(getOpportunitySchedule(opportunity).date)).length;
+  const unscheduledCount = openCount - scheduledCount;
+  const overdueCount = openOpportunities.filter((opportunity) => {
+    const schedule = getOpportunitySchedule(opportunity);
+    return opportunity.status === 'Overdue' || Boolean(schedule.date && schedule.date < todayInputValue);
+  }).length;
+  const pipelineSummary = getProspectosPipelineSummary(openOpportunities, quotes, preferredCurrency);
+  const wonSummary = summarizeClosedOpportunityValue(periodWonOpportunities, quotes, preferredCurrency);
+  const lostSummary = summarizeClosedOpportunityValue(periodLostOpportunities, quotes, preferredCurrency);
+  const periodClosedCount = periodClosedOpportunities.length;
+  const periodConversionRate = periodClosedCount > 0
+    ? Math.round((periodWonOpportunities.length / periodClosedCount) * 100)
+    : 0;
+  const weightedProbability = openCount > 0
+    ? Math.round(openOpportunities.reduce((total, opportunity) => total + parsePercentage(opportunity.probability), 0) / openCount)
     : 0;
   const stageCounts = opportunityStages.map((stage) => ({
     stage,
-    count: opportunities.filter((opportunity) => opportunity.stage === stage).length,
+    count: stage === 'Won' || stage === 'Lost'
+      ? periodClosedOpportunities.filter((opportunity) => opportunity.stage === stage).length
+      : openOpportunities.filter((opportunity) => opportunity.stage === stage).length,
   }));
 
   return {
@@ -142,8 +338,29 @@ export function calculateProspectosMetrics(opportunities: SalesOpportunity[]) {
     openCount,
     proposalCount,
     hotCount,
-    pipelineValue,
-    formattedPipelineValue,
+    scheduledCount,
+    unscheduledCount,
+    overdueCount,
+    pipelineValue: pipelineSummary.convertedTotal,
+    formattedPipelineValue: pipelineSummary.totalLabel,
+    convertedPipelineValue: pipelineSummary.convertedTotal,
+    convertedPipelineLabel: pipelineSummary.convertedLabel,
+    pipelineCurrencyTotals: pipelineSummary.totalsByCurrency,
+    pipelineQuoteCount: pipelineSummary.quoteCount,
+    pipelinePreferredCurrency: pipelineSummary.preferredCurrency,
+    pipelineExchangeRateDate: pipelineSummary.exchangeRateDate,
+    hasMultiplePipelineCurrencies: pipelineSummary.hasMultipleCurrencies,
+    periodFilter,
+    periodClosedCount,
+    periodWonCount: periodWonOpportunities.length,
+    periodLostCount: periodLostOpportunities.length,
+    periodWonValue: wonSummary.total,
+    periodLostValue: lostSummary.total,
+    periodWonValueLabel: wonSummary.totalLabel,
+    periodWonConvertedLabel: wonSummary.convertedLabel,
+    periodLostValueLabel: lostSummary.totalLabel,
+    periodLostConvertedLabel: lostSummary.convertedLabel,
+    periodConversionRate,
     weightedProbability,
     stageCounts,
   };

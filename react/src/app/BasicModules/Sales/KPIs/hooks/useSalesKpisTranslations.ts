@@ -1,0 +1,1 @@
+export { useSalesKpisTranslations } from '../translations';
