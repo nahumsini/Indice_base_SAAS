@@ -15,7 +15,7 @@ export function ShiftBar({ shift, onOpenCashMovement, onCloseShift, onOpenReturn
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency: shift?.currencyCode || 'MXN',
     }).format(amount);
   };
 

@@ -12,6 +12,7 @@ export function CashUsdPaymentModal({ isOpen, onClose, totalAmount, onConfirmPay
   const [amountPaidUsd, setAmountPaidUsd] = useState('');
   const [exchangeRate, setExchangeRate] = useState(20.0); // Default exchange rate MXN per USD
   const [change, setChange] = useState(0);
+  const [error, setError] = useState('');
 
   const formatCurrency = (amount: number, currency: 'MXN' | 'USD' = 'MXN') => {
     return new Intl.NumberFormat('es-MX', {
@@ -47,12 +48,13 @@ export function CashUsdPaymentModal({ isOpen, onClose, totalAmount, onConfirmPay
     const paidMxn = paidUsd * exchangeRate;
 
     if (paidMxn < totalAmount) {
-      alert('El monto pagado no puede ser menor al total');
+      setError('El monto pagado no puede ser menor al total.');
       return;
     }
     onConfirmPayment(paidMxn, change);
     setAmountPaidUsd('');
     setChange(0);
+    setError('');
   };
 
   if (!isOpen) return null;
@@ -78,6 +80,12 @@ export function CashUsdPaymentModal({ isOpen, onClose, totalAmount, onConfirmPay
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
           {/* Exchange Rate */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
             <div className="flex items-center justify-between">

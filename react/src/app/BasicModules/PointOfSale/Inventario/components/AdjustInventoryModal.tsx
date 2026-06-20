@@ -15,6 +15,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
   const [quantity, setQuantity] = useState<number>(0);
   const [reason, setReason] = useState('');
   const [reference, setReference] = useState('');
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
@@ -34,17 +35,17 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
     e.preventDefault();
 
     if (quantity <= 0 && adjustmentType !== 'ajuste') {
-      alert('La cantidad debe ser mayor a 0');
+      setError('La cantidad debe ser mayor a 0.');
       return;
     }
 
     if (adjustmentType === 'ajuste' && quantity < 0) {
-      alert('El stock no puede ser negativo');
+      setError('El stock no puede ser negativo.');
       return;
     }
 
     if (!reason.trim()) {
-      alert('Debes especificar un motivo');
+      setError('Debes especificar un motivo.');
       return;
     }
 
@@ -68,6 +69,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
     setQuantity(0);
     setReason('');
     setReference('');
+    setError('');
   };
 
   const getMovementTypeLabel = (type: MovementType) => {
@@ -125,6 +127,12 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6">
           <div className="space-y-6">
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                {error}
+              </div>
+            )}
+
             {/* Current Stock Info */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <div className="grid grid-cols-3 gap-4 text-center">

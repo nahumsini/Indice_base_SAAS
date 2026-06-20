@@ -1,17 +1,35 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Package, AlertCircle, TrendingUp, DollarSign, Box, Layers } from 'lucide-react';
-import { pointOfSaleCatalogProducts as mockProducts, type Product, type ProductStatus } from '../shared/commercial/products';
+import { buildSalesProductInputFromPointOfSale, buildSalesProductPatchFromPointOfSale } from '../../CommerceCore/posProductMutations';
+import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
+import { useSalesCrm } from '../../Sales/salesCrmContext';
+import { type Product, type ProductStatus } from '../shared/commercial/products';
 import { AddProductModal } from './components/AddProductModal';
 import { AddCompositeProductModal } from './components/AddCompositeProductModal';
 
 export default function Productos() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const { addProduct, updateProduct } = useSalesCrm();
+  const { balanceLoadError, products: sharedProducts, saleCurrency } = usePointOfSaleCatalogProducts();
+  const [localProducts, setLocalProducts] = useState<Product[]>([]);
+  const [deletedProductIds, setDeletedProductIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductStatus | 'all'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCompositeModal, setShowCompositeModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+  const [notice, setNotice] = useState('');
+
+  const products = useMemo(() => {
+    const sharedProductIds = new Set(sharedProducts.map((product) => product.id));
+    const localProductById = new Map(localProducts.map((product) => [product.id, product]));
+    const mergedProducts = [
+      ...sharedProducts.map((product) => localProductById.get(product.id) ?? product),
+      ...localProducts.filter((product) => !sharedProductIds.has(product.id)),
+    ];
+
+    return mergedProducts.filter((product) => !deletedProductIds.includes(product.id));
+  }, [deletedProductIds, localProducts, sharedProducts]);
 
   // Get unique departments
   const departments = useMemo(() => {
@@ -45,10 +63,10 @@ export default function Productos() {
     return { total, active, lowStock, totalValue, avgMargin };
   }, [products]);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency = saleCurrency) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(amount);
   };
 
@@ -69,13 +87,45 @@ export default function Productos() {
   };
 
   const handleAddProduct = (productData: Partial<Product>) => {
+    const productId = productData.id ?? selectedProduct?.id;
+    const currentProduct = productId ? products.find((product) => product.id === productId) : undefined;
+
+    if (currentProduct) {
+      const updatedProduct: Product = {
+        ...currentProduct,
+        ...productData,
+        id: currentProduct.id,
+        source: currentProduct.source,
+        createdAt: currentProduct.createdAt,
+        updatedAt: new Date(),
+      };
+
+      if (currentProduct.source === 'sales') {
+        updateProduct(
+          currentProduct.salesProductId ?? currentProduct.id,
+          buildSalesProductPatchFromPointOfSale(updatedProduct, saleCurrency),
+        );
+        setNotice('Producto actualizado en catálogo maestro y preparado para POS.');
+      } else {
+        setLocalProducts((current) => [
+          updatedProduct,
+          ...current.filter((product) => product.id !== updatedProduct.id),
+        ]);
+        setNotice('Producto local POS actualizado.');
+      }
+      return;
+    }
+
     const newProduct: Product = {
       id: `product-${Date.now()}`,
       createdAt: new Date(),
       updatedAt: new Date(),
+      currency: saleCurrency,
+      source: 'pos_mock',
       ...productData as Product,
     };
-    setProducts([...products, newProduct]);
+    addProduct(buildSalesProductInputFromPointOfSale(newProduct, saleCurrency));
+    setNotice('Producto creado en catálogo maestro y preparado para POS.');
   };
 
   const handleEditProduct = (product: Product) => {
@@ -88,9 +138,19 @@ export default function Productos() {
   };
 
   const handleDeleteProduct = (id: string) => {
-    if (confirm('¿Estás seguro de eliminar este producto?')) {
-      setProducts(products.filter(p => p.id !== id));
+    const product = products.find((item) => item.id === id);
+    if (product?.source === 'sales') {
+      updateProduct(product.salesProductId ?? product.id, {
+        visibility: 'Internal',
+        posPrepared: false,
+      });
+      setNotice('Producto retirado del catálogo operativo POS sin borrar el registro maestro.');
+      return;
     }
+
+    setLocalProducts((current) => current.filter((product) => product.id !== id));
+    setDeletedProductIds((current) => Array.from(new Set([...current, id])));
+    setNotice('Producto oculto del catálogo operativo POS.');
   };
 
   return (
@@ -128,6 +188,18 @@ export default function Productos() {
           </button>
         </div>
       </div>
+
+      {notice && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {notice}
+        </div>
+      )}
+
+      {balanceLoadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          {balanceLoadError}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -339,15 +411,15 @@ export default function Productos() {
                           {getSaleTypeLabel(product.saleType)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(product.costPrice)}
-                      </td>
+	                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+	                        {formatCurrency(product.costPrice, product.currency)}
+	                      </td>
                       <td className="px-4 py-3 text-sm font-semibold text-purple-600 dark:text-purple-400">
                         {product.profitMargin.toFixed(2)}%
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(product.salePrice)}
-                      </td>
+	                      <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
+	                        {formatCurrency(product.salePrice, product.currency)}
+	                      </td>
                       <td className="px-4 py-3">
                         {product.useInventory ? (
                           <div className="flex items-center gap-2">

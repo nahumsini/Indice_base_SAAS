@@ -59,7 +59,10 @@ export function CashAuditDetailPanel({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-4">
+            <SummaryItem label="Tickets" value={String(record.salesCount ?? 0)} />
             <SummaryItem label="Ventas" value={formatCurrency(record.totalSales)} />
+            <SummaryItem label="Subtotal" value={formatCurrency(record.subtotalSales ?? Math.max(record.totalSales - (record.taxSales ?? 0), 0))} />
+            <SummaryItem label="Impuesto" value={formatCurrency(record.taxSales ?? 0)} />
             <SummaryItem label="Esperado" value={formatCurrency(record.expectedTotal)} />
             <SummaryItem label="Contado" value={formatCurrency(record.countedTotal)} />
             <SummaryItem

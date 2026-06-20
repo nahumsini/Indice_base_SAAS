@@ -5,8 +5,12 @@ import { DiscountModal } from './DiscountModal';
 import { ReturnModal } from './ReturnModal';
 import { TicketModal } from './TicketModal';
 import type { CashClosingInput } from '../../shared/cashClosing.types';
-import type { Payment, PaymentMethod, SaleItem } from '../types/sale.types';
-import type { Shift, CashMovement } from '../types/shift.types';
+import type { Customer } from '../../shared/commercial/customers';
+import type { CreditRule } from '../../shared/commercial/credit';
+import type { DiscountRule } from '../../shared/commercial/discounts';
+import type { CreditPaymentDetails, Payment, PaymentMethod, SaleItem } from '../types/sale.types';
+import type { Shift } from '../types/shift.types';
+import type { PosCashMovementType, PosShiftClosingSummaryResponse } from '../services/posBackendApi';
 import type { SaleTotals } from '../utils/saleCalculations';
 
 interface SaleModalsProps {
@@ -15,10 +19,20 @@ interface SaleModalsProps {
   remainingAmount: number;
   showCloseShiftModal: boolean;
   currentShift: Shift | null;
+  isClosingShift?: boolean;
+  closingSummary: PosShiftClosingSummaryResponse | null;
+  isLoadingClosingSummary?: boolean;
+  closingSummaryError?: string;
   showCashMovementModal: boolean;
+  isCreatingCashMovement?: boolean;
   selectedItemForDiscount: SaleItem | null;
   showDiscountModal: boolean;
   showGlobalDiscountModal: boolean;
+  itemDiscountRules: DiscountRule[];
+  globalDiscountRules: DiscountRule[];
+  creditRules: CreditRule[];
+  creditCustomers: Customer[];
+  currency: string;
   cart: SaleItem[];
   totals: SaleTotals;
   lastSale: {
@@ -30,11 +44,16 @@ interface SaleModalsProps {
   showTicketModal: boolean;
   showReturnModal: boolean;
   onCloseAddPayment: () => void;
-  onConfirmAddPayment: (amount: number, reference?: string, cashReceived?: number) => void;
+  onConfirmAddPayment: (
+    amount: number,
+    reference?: string,
+    cashReceived?: number,
+    creditDetails?: CreditPaymentDetails,
+  ) => void;
   onCloseShiftModal: () => void;
   onConfirmCloseShift: (closing: CashClosingInput) => void;
   onCloseCashMovementModal: () => void;
-  onConfirmCashMovement: (type: CashMovement['type'], amount: number, reason: string) => void;
+  onConfirmCashMovement: (type: PosCashMovementType, amount: number, reason: string, reference?: string) => void | Promise<void>;
   onCloseItemDiscount: () => void;
   onConfirmItemDiscount: (discount: number, type: SaleItem['discountType']) => void;
   onCloseGlobalDiscount: () => void;
@@ -50,10 +69,20 @@ export function SaleModals({
   remainingAmount,
   showCloseShiftModal,
   currentShift,
+  isClosingShift = false,
+  closingSummary,
+  isLoadingClosingSummary = false,
+  closingSummaryError = '',
   showCashMovementModal,
+  isCreatingCashMovement = false,
   selectedItemForDiscount,
   showDiscountModal,
   showGlobalDiscountModal,
+  itemDiscountRules,
+  globalDiscountRules,
+  creditRules,
+  creditCustomers,
+  currency,
   cart,
   totals,
   lastSale,
@@ -82,6 +111,9 @@ export function SaleModals({
         onClose={onCloseAddPayment}
         paymentMethod={selectedPaymentMethod}
         remainingAmount={remainingAmount}
+        currency={currency}
+        creditRules={creditRules}
+        creditCustomers={creditCustomers}
         onConfirm={onConfirmAddPayment}
       />
 
@@ -89,13 +121,19 @@ export function SaleModals({
         isOpen={showCloseShiftModal}
         onClose={onCloseShiftModal}
         shift={currentShift}
+        summary={closingSummary}
+        isLoadingSummary={isLoadingClosingSummary}
+        summaryError={closingSummaryError}
         onConfirm={onConfirmCloseShift}
+        isSubmitting={isClosingShift}
       />
 
       <CashMovementModal
         isOpen={showCashMovementModal}
         onClose={onCloseCashMovementModal}
         onConfirm={onConfirmCashMovement}
+        isSubmitting={isCreatingCashMovement}
+        currency={currentShift?.currencyCode || currency}
       />
 
       {selectedItemForDiscount && (
@@ -107,6 +145,8 @@ export function SaleModals({
           itemQuantity={selectedItemForDiscount.quantity}
           currentDiscount={selectedItemForDiscount.discount}
           currentDiscountType={selectedItemForDiscount.discountType}
+          currency={currency}
+          eligibleRules={itemDiscountRules}
           onConfirm={onConfirmItemDiscount}
         />
       )}
@@ -119,6 +159,8 @@ export function SaleModals({
         itemQuantity={totalItemQuantity}
         currentDiscount={0}
         currentDiscountType="percentage"
+        currency={currency}
+        eligibleRules={globalDiscountRules}
         onConfirm={onConfirmGlobalDiscount}
       />
 

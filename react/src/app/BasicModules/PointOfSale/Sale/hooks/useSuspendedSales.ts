@@ -66,10 +66,6 @@ export function useSuspendedSales({
       return;
     }
 
-    if ((cart.length > 0 || payments.length > 0) && !confirm('¿Reemplazar el ticket actual con esta venta pausada?')) {
-      return;
-    }
-
     setCart(suspendedSale.items);
     setPayments(suspendedSale.payments);
     setSuspendedSales(suspendedSales.filter((sale) => sale.id !== saleId));

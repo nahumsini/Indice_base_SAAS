@@ -17,11 +17,13 @@ export function calculateLineAmounts({
   quantity,
   discount,
   discountType,
+  taxRate,
 }: {
   price: number;
   quantity: number;
   discount: number;
   discountType: SaleItem['discountType'];
+  taxRate: number;
 }) {
   const baseSubtotal = price * quantity;
   const discountAmount =
@@ -29,7 +31,7 @@ export function calculateLineAmounts({
       ? baseSubtotal * (discount / 100)
       : discount * quantity;
   const subtotal = baseSubtotal - discountAmount;
-  const tax = subtotal * SALE_TAX_RATE;
+  const tax = subtotal * (taxRate / 100);
   const total = subtotal + tax;
 
   return {
@@ -45,13 +47,18 @@ export function buildSaleItem(product: Product, quantity: number): SaleItem {
     quantity,
     discount: 0,
     discountType: 'percentage',
+    taxRate: product.taxRate,
   });
 
   return {
     id: `item-${Date.now()}-${product.id}`,
     productId: product.id,
+    sku: product.sku,
     name: product.name,
     price: product.salePrice,
+    unitCost: product.costPrice,
+    taxRate: product.taxRate,
+    currency: product.currency,
     quantity,
     discount: 0,
     discountType: 'percentage',
@@ -73,6 +80,7 @@ export function recalculateSaleItem(
     quantity: nextItem.quantity,
     discount: nextItem.discount,
     discountType: nextItem.discountType,
+    taxRate: nextItem.taxRate ?? (SALE_TAX_RATE * 100),
   });
 
   return {
@@ -83,7 +91,7 @@ export function recalculateSaleItem(
 
 export function calculateSaleTotals(cart: SaleItem[], payments: Payment[]): SaleTotals {
   const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-  const tax = subtotal * SALE_TAX_RATE;
+  const tax = cart.reduce((sum, item) => sum + item.tax, 0);
   const total = subtotal + tax;
   const paid = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const remaining = total - paid;

@@ -1,3 +1,19 @@
 export { creditRules } from './data';
-export { calculateCreditStatus, getAveragePaymentTerm } from './utils';
-export type { CreditRiskLevel, CreditRule, CreditRuleStatus } from './types';
+export {
+  calculateCreditStatus,
+  evaluateCreditPurchase,
+  findCreditRuleForCustomer,
+  getAveragePaymentTerm,
+  getCreditDueDate,
+  readStoredCreditRules,
+  resetStoredCreditRules,
+  saveStoredCreditRules,
+} from './utils';
+export type {
+  CreditDecisionStatus,
+  CreditEvaluationContext,
+  CreditEvaluationResult,
+  CreditRiskLevel,
+  CreditRule,
+  CreditRuleStatus,
+} from './types';

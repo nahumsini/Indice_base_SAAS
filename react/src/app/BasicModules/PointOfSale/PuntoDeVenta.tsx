@@ -8,6 +8,7 @@ import {
   CreditCard,
   ReceiptText,
   Scissors,
+  ShieldCheck,
   ShoppingBag,
   ShoppingCart,
   Users,
@@ -17,8 +18,10 @@ import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { usePuntoDeVentaTranslations } from '../../hooks/usePuntoDeVentaTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { SalesCrmProvider } from '../Sales/salesCrmContext';
 
 const Sale = lazy(() => import('./Sale/Sale'));
+const Cortes = lazy(() => import('./Cortes'));
 const Arqueos = lazy(() => import('./Arqueos'));
 const Clientes = lazy(() => import('./Clientes'));
 const Productos = lazy(() => import('./Productos'));
@@ -36,6 +39,7 @@ interface PuntoDeVentaProps {
 const pointOfSaleTabIds = [
   'sale',
   'cortes',
+  'arqueos',
   'clientes',
   'productos',
   'inventario',
@@ -50,7 +54,6 @@ type PointOfSaleTabId = (typeof pointOfSaleTabIds)[number];
 
 const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
   venta: 'sale',
-  arqueos: 'cortes',
   productos: 'productos',
   ordenesCompra: 'ordenesCompra',
   ordenes_compra: 'ordenesCompra',
@@ -59,6 +62,14 @@ const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
 };
 
 export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
+  return (
+    <SalesCrmProvider>
+      <PuntoDeVentaContent onNavigate={onNavigate} />
+    </SalesCrmProvider>
+  );
+}
+
+function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
   const t = usePuntoDeVentaTranslations();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
     'sale',
@@ -68,7 +79,8 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
 
   const tabs = [
     { id: 'sale' as const, label: 'Venta', icon: ShoppingCart, component: Sale },
-    { id: 'cortes' as const, label: t.tabs.arqueos, icon: Scissors, component: Arqueos },
+    { id: 'cortes' as const, label: t.tabs.cortes, icon: Scissors, component: Cortes },
+    { id: 'arqueos' as const, label: t.tabs.arqueos, icon: ShieldCheck, component: Arqueos },
     { id: 'clientes' as const, label: t.tabs.clientes, icon: Users, component: Clientes },
     { id: 'productos' as const, label: t.tabs.productos, icon: ShoppingBag, component: Productos },
     { id: 'inventario' as const, label: t.tabs.inventario, icon: Boxes, component: Inventario },
@@ -105,7 +117,7 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="mb-2 inline-flex rounded-md bg-orange-100 px-2 py-1 text-xs font-semibold uppercase text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                Terminal operativo
+                Retail operativo
               </div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                 {t.title}

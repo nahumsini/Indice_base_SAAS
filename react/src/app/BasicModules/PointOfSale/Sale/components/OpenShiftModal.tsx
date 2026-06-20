@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Building2, DollarSign, LogIn, Monitor, StickyNote, Store, User, X } from 'lucide-react';
 import type { CashRegisterContext } from '../../shared/cashClosing.types';
+import type { PosCashRegisterResponse } from '../services/posBackendApi';
 
 interface OpenShiftModalProps {
   isOpen: boolean;
-  registerContext: CashRegisterContext;
+  registerContext: CashRegisterContext | null;
+  cashRegisters?: PosCashRegisterResponse[];
+  selectedCashRegisterId?: string;
+  isSubmitting?: boolean;
   onClose: () => void;
-  onConfirm: (initialCash: number, openingNote?: string) => void;
+  onConfirm: (initialCash: number, openingNote?: string) => void | Promise<void>;
+  onSelectCashRegister?: (cashRegisterId: string) => void;
 }
 
 const quickAmounts = [0, 500, 1000, 2000, 5000];
@@ -18,9 +23,19 @@ const formatCurrency = (amount: number) => (
   }).format(amount)
 );
 
-export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: OpenShiftModalProps) {
+export function OpenShiftModal({
+  isOpen,
+  registerContext,
+  cashRegisters = [],
+  selectedCashRegisterId = '',
+  isSubmitting = false,
+  onClose,
+  onConfirm,
+  onSelectCashRegister,
+}: OpenShiftModalProps) {
   const [initialCash, setInitialCash] = useState('0.00');
   const [openingNote, setOpeningNote] = useState('');
+  const [error, setError] = useState('');
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,13 +45,23 @@ export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: 
 
     setInitialCash('0.00');
     setOpeningNote('');
+    setError('');
     setTimeout(() => amountInputRef.current?.focus(), 100);
   }, [isOpen]);
 
   const handleConfirm = () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    if (!registerContext) {
+      setError('No cash register configured. Create a cash register from POS setup before opening a shift.');
+      return;
+    }
+
     const amount = Number(initialCash);
     if (Number.isNaN(amount) || amount < 0) {
-      alert('El fondo inicial no puede ser negativo');
+      setError('El fondo inicial no puede ser negativo.');
       return;
     }
 
@@ -58,12 +83,13 @@ export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: 
             <div className="min-w-0">
               <h2 className="text-xl font-bold text-white">Abrir caja</h2>
               <p className="truncate text-xs text-white/70">
-                {registerContext.cashRegisterCode} · {registerContext.cashRegisterName}
+                {registerContext ? `${registerContext.cashRegisterCode} · ${registerContext.cashRegisterName}` : 'Sin caja configurada'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
+            disabled={isSubmitting}
             className="rounded-lg p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Cerrar apertura de caja"
           >
@@ -72,12 +98,38 @@ export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: 
         </div>
 
         <div className="space-y-5 p-6">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
-            <ContextPill icon={Building2} label="Empresa" value={registerContext.companyName} />
-            <ContextPill icon={Store} label="Unidad" value={registerContext.businessUnitName} />
-            <ContextPill icon={Monitor} label="Caja" value={registerContext.cashRegisterName} />
-            <ContextPill icon={User} label="Responsable" value={registerContext.responsibleUserName} />
+            <ContextPill icon={Building2} label="Empresa" value={registerContext?.companyName ?? 'N/D'} />
+            <ContextPill icon={Store} label="Unidad" value={registerContext?.businessUnitName ?? 'N/D'} />
+            <ContextPill icon={Monitor} label="Caja" value={registerContext?.cashRegisterName ?? 'N/D'} />
+            <ContextPill icon={User} label="Responsable" value={registerContext?.responsibleUserName ?? 'N/D'} />
           </div>
+
+          {cashRegisters.length > 1 && (
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Caja activa
+              </label>
+              <select
+                value={selectedCashRegisterId}
+                onChange={(event) => onSelectCashRegister?.(event.target.value)}
+                disabled={isSubmitting}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              >
+                {cashRegisters.map((register) => (
+                  <option key={register.id} value={String(register.id)}>
+                    {register.code} · {register.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -91,8 +143,9 @@ export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: 
                 step="0.01"
                 value={initialCash}
                 onChange={(event) => setInitialCash(event.target.value)}
+                disabled={isSubmitting}
                 placeholder="0.00"
-                className="w-full rounded-lg border-2 border-gray-300 bg-white py-4 pl-12 pr-4 text-2xl font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="w-full rounded-lg border-2 border-gray-300 bg-white py-4 pl-12 pr-4 text-2xl font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
@@ -104,7 +157,8 @@ export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: 
                 <button
                   key={amount}
                   onClick={() => setInitialCash(amount.toFixed(2))}
-                  className="min-h-10 rounded-lg bg-gray-100 px-2 text-sm font-bold text-gray-900 transition hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  disabled={isSubmitting}
+                  className="min-h-10 rounded-lg bg-gray-100 px-2 text-sm font-bold text-gray-900 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                 >
                   {amount === 0 ? '$0' : formatCurrency(amount).replace('.00', '')}
                 </button>
@@ -121,9 +175,10 @@ export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: 
               <textarea
                 value={openingNote}
                 onChange={(event) => setOpeningNote(event.target.value)}
+                disabled={isSubmitting}
                 placeholder="Opcional"
                 rows={3}
-                className="w-full resize-none rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="w-full resize-none rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
@@ -132,15 +187,17 @@ export function OpenShiftModal({ isOpen, registerContext, onClose, onConfirm }: 
         <div className="flex gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
           <button
             onClick={onClose}
-            className="flex-1 rounded-lg px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            disabled={isSubmitting}
+            className="flex-1 rounded-lg px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 rounded-lg bg-orange-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-orange-700"
+            disabled={isSubmitting || !registerContext}
+            className="flex-1 rounded-lg bg-orange-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Abrir caja
+            {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
           </button>
         </div>
       </div>

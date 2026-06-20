@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, Banknote, Check, ChevronDown, ChevronUp, CreditCard, Plus, Smartphone, X, Zap } from 'lucide-react';
+import { AlertCircle, Banknote, Check, ChevronDown, ChevronUp, CreditCard, Plus, Smartphone, WalletCards, X, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { OperationalActivity } from './OperationalActivityFeed';
 import { OperationalActivityFeed } from './OperationalActivityFeed';
@@ -26,6 +26,7 @@ interface SalePaymentPanelProps {
   onExactPayment: () => void;
   onAddPayment: (method: PaymentMethod) => void;
   onCompleteSale: () => void;
+  isCompletingSale?: boolean;
   formatCurrency: (amount: number) => string;
 }
 
@@ -47,6 +48,7 @@ export function SalePaymentPanel({
   onExactPayment,
   onAddPayment,
   onCompleteSale,
+  isCompletingSale = false,
   formatCurrency,
 }: SalePaymentPanelProps) {
   const [isActivityOpen, setIsActivityOpen] = useState(false);
@@ -117,7 +119,9 @@ export function SalePaymentPanel({
                 ? Banknote
                 : payment.method === 'card'
                 ? CreditCard
-                : Smartphone;
+                : payment.method === 'transfer'
+                ? Smartphone
+                : WalletCards;
 
               return (
                 <div
@@ -133,9 +137,10 @@ export function SalePaymentPanel({
                         {payment.method === 'cash' && 'Efectivo'}
                         {payment.method === 'card' && 'Tarjeta'}
                         {payment.method === 'transfer' && 'Transferencia'}
+                        {payment.method === 'credit' && 'Credito'}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {payment.reference || 'Sin referencia'}
+                        {payment.creditDetails?.customerName ?? payment.reference ?? 'Sin referencia'}
                       </p>
                     </div>
                   </div>
@@ -173,7 +178,7 @@ export function SalePaymentPanel({
         {!totals.isPaid && payments.length === 0 && (
           <button
             onClick={onExactPayment}
-            disabled={cartItemCount === 0}
+            disabled={cartItemCount === 0 || isCompletingSale}
             className="w-full rounded-lg bg-orange-600 p-5 text-white shadow-lg transition hover:bg-orange-700 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <div className="flex items-center justify-center gap-3">
@@ -195,7 +200,7 @@ export function SalePaymentPanel({
           shortcut="F1"
           icon={Banknote}
           tone="green"
-          disabled={cartItemCount === 0 || totals.isPaid}
+          disabled={cartItemCount === 0 || totals.isPaid || isCompletingSale}
           onClick={() => onAddPayment('cash')}
         />
         <PaymentMethodButton
@@ -203,7 +208,7 @@ export function SalePaymentPanel({
           shortcut="F2"
           icon={CreditCard}
           tone="blue"
-          disabled={cartItemCount === 0 || totals.isPaid}
+          disabled={cartItemCount === 0 || totals.isPaid || isCompletingSale}
           onClick={() => onAddPayment('card')}
         />
         <PaymentMethodButton
@@ -211,22 +216,35 @@ export function SalePaymentPanel({
           shortcut="F3"
           icon={Smartphone}
           tone="purple"
-          disabled={cartItemCount === 0 || totals.isPaid}
+          disabled={cartItemCount === 0 || totals.isPaid || isCompletingSale}
           onClick={() => onAddPayment('transfer')}
+        />
+        <PaymentMethodButton
+          label="Credito"
+          shortcut="F5"
+          icon={WalletCards}
+          tone="amber"
+          disabled
+          onClick={() => onAddPayment('credit')}
         />
       </div>
 
       <div className="border-t border-gray-200 p-5 dark:border-gray-700">
         <button
           onClick={onCompleteSale}
-          disabled={!totals.isPaid}
+          disabled={!totals.isPaid || isCompletingSale}
           className={`w-full rounded-lg p-4 text-lg font-bold shadow-lg transition ${
-            totals.isPaid
+            totals.isPaid && !isCompletingSale
               ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-xl active:scale-[0.98]'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
           }`}
         >
-          {totals.isPaid ? (
+          {isCompletingSale ? (
+            <div className="flex items-center justify-center gap-2">
+              <Check className="h-6 w-6" />
+              <span>GUARDANDO VENTA...</span>
+            </div>
+          ) : totals.isPaid ? (
             <div className="flex items-center justify-center gap-2">
               <Check className="h-6 w-6" />
               <span>COBRAR VENTA (F4)</span>
@@ -267,7 +285,7 @@ function PaymentMethodButton({
   label: string;
   shortcut: string;
   icon: LucideIcon;
-  tone: 'green' | 'blue' | 'purple';
+  tone: 'green' | 'blue' | 'purple' | 'amber';
   disabled: boolean;
   onClick: () => void;
 }) {
@@ -275,6 +293,7 @@ function PaymentMethodButton({
     green: 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30',
     blue: 'border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/30',
     purple: 'border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-200 dark:hover:bg-purple-900/30',
+    amber: 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/30',
   }[tone];
 
   return (

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Percent, DollarSign } from 'lucide-react';
+import type { DiscountRule } from '../../shared/commercial/discounts';
 
 interface DiscountModalProps {
   isOpen: boolean;
@@ -9,6 +10,8 @@ interface DiscountModalProps {
   itemQuantity: number;
   currentDiscount: number;
   currentDiscountType: 'percentage' | 'fixed';
+  currency?: string;
+  eligibleRules?: DiscountRule[];
   onConfirm: (discount: number, type: 'percentage' | 'fixed') => void;
 }
 
@@ -20,17 +23,20 @@ export function DiscountModal({
   itemQuantity,
   currentDiscount,
   currentDiscountType,
+  currency = 'MXN',
+  eligibleRules = [],
   onConfirm
 }: DiscountModalProps) {
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(currentDiscountType);
   const [discount, setDiscount] = useState(currentDiscount.toString());
+  const [error, setError] = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(amount);
   };
 
@@ -38,6 +44,7 @@ export function DiscountModal({
     if (isOpen) {
       setDiscountType(currentDiscountType);
       setDiscount(currentDiscount.toString());
+      setError('');
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen, currentDiscount, currentDiscountType]);
@@ -53,17 +60,17 @@ export function DiscountModal({
     const discountValue = parseFloat(discount) || 0;
 
     if (discountValue < 0) {
-      alert('El descuento no puede ser negativo');
+      setError('El descuento no puede ser negativo.');
       return;
     }
 
     if (discountType === 'percentage' && discountValue > 100) {
-      alert('El descuento no puede ser mayor a 100%');
+      setError('El descuento no puede ser mayor a 100%.');
       return;
     }
 
     if (discountType === 'fixed' && discountAmount > baseTotal) {
-      alert('El descuento no puede ser mayor al precio total');
+      setError('El descuento no puede ser mayor al precio total.');
       return;
     }
 
@@ -74,6 +81,19 @@ export function DiscountModal({
   const handleRemoveDiscount = () => {
     onConfirm(0, 'percentage');
     onClose();
+  };
+
+  const handleApplyRule = (rule: DiscountRule) => {
+    if (rule.discountType === 'percentage') {
+      setDiscountType('percentage');
+      setDiscount(String(rule.value));
+      setError(rule.requiresAuthorization ? 'Esta regla requiere autorizacion de supervisor antes de cobrar.' : '');
+      return;
+    }
+
+    setDiscountType('fixed');
+    setDiscount(String(Number((rule.value / Math.max(itemQuantity, 1)).toFixed(2))));
+    setError(rule.requiresAuthorization ? 'Esta regla requiere autorizacion de supervisor antes de cobrar.' : '');
   };
 
   if (!isOpen) return null;
@@ -99,6 +119,12 @@ export function DiscountModal({
 
         {/* Content */}
         <div className="p-6 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
           {/* Item Info */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
             <p className="font-semibold text-gray-900 dark:text-white">{itemName}</p>
@@ -135,6 +161,31 @@ export function DiscountModal({
               </button>
             </div>
           </div>
+
+          {eligibleRules.length > 0 && (
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Reglas disponibles</p>
+              <div className="space-y-2">
+                {eligibleRules.slice(0, 4).map((rule) => (
+                  <button
+                    key={rule.id}
+                    onClick={() => handleApplyRule(rule)}
+                    className="flex w-full items-center justify-between gap-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-left text-sm transition hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/20 dark:hover:bg-orange-900/30"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-bold text-gray-950 dark:text-white">{rule.name}</span>
+                      <span className="block text-xs text-gray-600 dark:text-gray-300">
+                        {rule.requiresAuthorization ? 'Requiere autorizacion' : 'Aplicacion directa'}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-black text-orange-700 dark:bg-gray-950/40 dark:text-orange-300">
+                      {rule.discountType === 'percentage' ? `${rule.value}%` : formatCurrency(rule.value)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Discount Amount */}
           <div>

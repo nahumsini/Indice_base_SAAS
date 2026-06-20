@@ -12,6 +12,7 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [error, setError] = useState('');
   const categories = useMemo(
     () => ['Todos', ...Array.from(new Set(pointOfSaleCatalogProducts.map((product) => product.department))).sort()],
     [],
@@ -43,8 +44,9 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
     if (product) {
       onAddProduct(product);
       setBarcodeInput('');
+      setError('');
     } else {
-      alert('Producto no encontrado');
+      setError('Producto no encontrado.');
       setBarcodeInput('');
     }
   };
@@ -83,6 +85,12 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
 
         {/* Search & Filters */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
           {/* Barcode Scanner */}
           <form onSubmit={handleBarcodeScan} className="flex gap-2">
             <div className="relative flex-1">

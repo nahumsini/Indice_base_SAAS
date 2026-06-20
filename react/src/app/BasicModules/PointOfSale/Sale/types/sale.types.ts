@@ -13,8 +13,12 @@ export interface Product {
 export interface SaleItem {
   id: string;
   productId: string;
+  sku?: string;
   name: string;
   price: number;
+  unitCost?: number;
+  taxRate: number;
+  currency?: string;
   quantity: number;
   discount: number; // Percentage or fixed amount
   discountType: 'percentage' | 'fixed';
@@ -32,16 +36,30 @@ export interface Sale {
   total: number;
   customerId?: string;
   customerName?: string;
-  paymentMethod?: 'cash' | 'card' | 'transfer';
+  paymentMethod?: PaymentMethod;
   status: 'pending' | 'completed' | 'cancelled';
   createdAt: Date;
 }
 
-export type PaymentMethod = 'cash' | 'card' | 'transfer';
+export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'credit';
+
+export interface CreditPaymentDetails {
+  customerId: string;
+  customerName: string;
+  ruleId: string;
+  ruleName: string;
+  decision: 'approved' | 'review' | 'blocked';
+  termDays: number;
+  dueDate: string;
+  availableCredit: number;
+  projectedBalance: number;
+  utilizationPercent: number;
+}
 
 export interface Payment {
   id: string;
   method: PaymentMethod;
   amount: number;
   reference?: string;
+  creditDetails?: CreditPaymentDetails;
 }

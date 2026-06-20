@@ -21,7 +21,8 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [lastAddedItem, setLastAddedItem] = useState<string | null>(null);
   const [selectedQuickQuantity, setSelectedQuickQuantity] = useState(1);
-  const [blockSalesWithoutStock] = useState(false);
+  const [blockSalesWithoutStock] = useState(true);
+  const [cartNotice, setCartNotice] = useState('');
 
   useEffect(() => {
     if (!lastAddedItem) {
@@ -49,7 +50,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
 
       const product = products.find((candidate) => candidate.id === item.productId);
       if (product && product.useInventory && newQuantity > product.currentStock) {
-        alert(`Stock insuficiente. Disponible: ${product.currentStock}`);
+        setCartNotice(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}.`);
         return item;
       }
 
@@ -62,16 +63,10 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
       const currentInCart = cart.find((item) => item.productId === product.id)?.quantity || 0;
 
       if (product.currentStock <= 0) {
-        if (blockSalesWithoutStock) {
-          alert(`${product.name} está agotado`);
-          return;
-        }
-
-        if (!confirm(`${product.name} está agotado. ¿Continuar?`)) {
-          return;
-        }
+        setCartNotice(`${product.name} esta agotado. Agrega inventario antes de venderlo en POS.`);
+        return;
       } else if (currentInCart + quantity > product.currentStock) {
-        alert(`Stock insuficiente. Disponible: ${product.currentStock}`);
+        setCartNotice(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}.`);
         return;
       }
     }
@@ -81,12 +76,14 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     if (existingItem) {
       updateQuantity(existingItem.id, existingItem.quantity + quantity);
       setLastAddedItem(existingItem.id);
+      setCartNotice('');
       return;
     }
 
     const newItem = buildSaleItem(product, quantity);
     setCart([newItem, ...cart]);
     setLastAddedItem(newItem.id);
+    setCartNotice('');
   }, [blockSalesWithoutStock, cart, updateQuantity]);
 
   const addProductsToCart = useCallback((requests: CartProductRequest[]) => {
@@ -103,7 +100,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
         const currentInCart = existingItem?.quantity || 0;
 
         if (product.useInventory && currentInCart + quantity > product.currentStock) {
-          alert(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}`);
+          setCartNotice(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}.`);
           return;
         }
 
@@ -154,6 +151,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     setCart([]);
     setBarcodeInput('');
     setLastAddedItem(null);
+    setCartNotice('');
   }, []);
 
   const handleBarcodeSubmit = useCallback((event: FormEvent) => {
@@ -171,7 +169,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
       return;
     }
 
-    alert(`Producto no encontrado: ${barcodeInput}`);
+    setCartNotice(`Producto no encontrado: ${barcodeInput}.`);
     setBarcodeInput('');
   }, [addToCart, barcodeInput, products]);
 
@@ -184,6 +182,8 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     selectedQuickQuantity,
     setSelectedQuickQuantity,
     blockSalesWithoutStock,
+    cartNotice,
+    clearCartNotice: () => setCartNotice(''),
     handleBarcodeSubmit,
     addToCart,
     addProductsToCart,

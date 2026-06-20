@@ -1,7 +1,6 @@
-export function formatSaleCurrency(amount: number) {
+export function formatSaleCurrency(amount: number, currency = 'MXN') {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
-    currency: 'MXN',
+    currency,
   }).format(amount);
 }
-

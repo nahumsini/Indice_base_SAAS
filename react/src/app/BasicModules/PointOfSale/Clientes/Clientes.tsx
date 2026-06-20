@@ -1,16 +1,34 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Users, UserCheck, UserX, DollarSign, User, CreditCard, FileText } from 'lucide-react';
-import { commercialCustomers as mockCustomers, type Customer, type CustomerStatus } from '../shared/commercial/customers';
+import { buildSalesContactInputFromPointOfSale, buildSalesContactPatchFromPointOfSale } from '../../CommerceCore/posCustomerMutations';
+import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
+import { useSalesCrm } from '../../Sales/salesCrmContext';
+import { type Customer, type CustomerStatus } from '../shared/commercial/customers';
 import { AddCustomerModal } from './components/AddCustomerModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
 
 export default function Clientes() {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const { addContact, updateContact } = useSalesCrm();
+  const sharedCustomers = usePointOfSaleCustomers();
+  const [localCustomers, setLocalCustomers] = useState<Customer[]>([]);
+  const [deletedCustomerIds, setDeletedCustomerIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAccountStatementModal, setShowAccountStatementModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>();
+  const [notice, setNotice] = useState('');
+
+  const customers = useMemo(() => {
+    const sharedCustomerIds = new Set(sharedCustomers.map((customer) => customer.id));
+    const localCustomerById = new Map(localCustomers.map((customer) => [customer.id, customer]));
+    const mergedCustomers = [
+      ...sharedCustomers.map((customer) => localCustomerById.get(customer.id) ?? customer),
+      ...localCustomers.filter((customer) => !sharedCustomerIds.has(customer.id)),
+    ];
+
+    return mergedCustomers.filter((customer) => !deletedCustomerIds.includes(customer.id));
+  }, [deletedCustomerIds, localCustomers, sharedCustomers]);
 
   // Filter customers
   const filteredCustomers = useMemo(() => {
@@ -60,11 +78,42 @@ export default function Clientes() {
   };
 
   const handleAddCustomer = (customerData: Partial<Customer>) => {
+    const customerId = customerData.id ?? selectedCustomer?.id;
+    const currentCustomer = customerId ? customers.find((customer) => customer.id === customerId) : undefined;
+
+    if (currentCustomer) {
+      const updatedCustomer: Customer = {
+        ...currentCustomer,
+        ...customerData,
+        id: currentCustomer.id,
+        createdAt: currentCustomer.createdAt,
+      };
+
+      const isSharedCustomer = sharedCustomers.some((customer) => customer.id === currentCustomer.id);
+      if (isSharedCustomer) {
+        updateContact(currentCustomer.id, buildSalesContactPatchFromPointOfSale(updatedCustomer));
+        setNotice('Cliente actualizado en Contactos de Sales y disponible para POS.');
+      } else {
+        setLocalCustomers((current) => [
+          updatedCustomer,
+          ...current.filter((customer) => customer.id !== updatedCustomer.id),
+        ]);
+        setNotice('Cliente local POS actualizado.');
+      }
+      return;
+    }
+
     const newCustomer: Customer = {
       id: `customer-${Date.now()}`,
+      createdAt: new Date(),
+      status: 'active',
+      totalPurchases: 0,
+      currentBalance: 0,
+      loyaltyPoints: 0,
       ...customerData as Customer,
     };
-    setCustomers([...customers, newCustomer]);
+    addContact(buildSalesContactInputFromPointOfSale(newCustomer));
+    setNotice('Cliente creado en Contactos de Sales y disponible para POS.');
   };
 
   const handleEditCustomer = (customer: Customer) => {
@@ -73,14 +122,19 @@ export default function Clientes() {
   };
 
   const handleDeleteCustomer = (id: string) => {
-    if (confirm('¿Estás seguro de eliminar este cliente?')) {
-      setCustomers(customers.filter(c => c.id !== id));
+    if (sharedCustomers.some((customer) => customer.id === id)) {
+      updateContact(id, { status: 'Inactive' });
+      setNotice('Cliente desactivado para POS sin borrar el contacto maestro.');
+      return;
     }
+
+    setLocalCustomers((current) => current.filter((customer) => customer.id !== id));
+    setDeletedCustomerIds((current) => Array.from(new Set([...current, id])));
+    setNotice('Cliente oculto del directorio operativo POS.');
   };
 
   const handleCreditData = (customer: Customer) => {
-    console.log('Credit data:', customer);
-    // TODO: Implement credit data view
+    setNotice(`Crédito POS preparado para ${customer.name}. La pestaña Crédito concentra la gestión formal.`);
   };
 
   const handleAccountStatement = (customer: Customer) => {
@@ -111,6 +165,12 @@ export default function Clientes() {
           Agregar cliente
         </button>
       </div>
+
+      {notice && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {notice}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

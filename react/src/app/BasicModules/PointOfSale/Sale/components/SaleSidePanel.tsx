@@ -26,7 +26,8 @@ export type SaleSidePanelState =
 function paymentLabel(method: Payment['method']) {
   if (method === 'cash') return 'Efectivo';
   if (method === 'card') return 'Tarjeta';
-  return 'Transferencia';
+  if (method === 'transfer') return 'Transferencia';
+  return 'Credito';
 }
 
 export function SaleSidePanel({

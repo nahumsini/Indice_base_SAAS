@@ -16,8 +16,8 @@ export interface CashRegisterContext {
 
 export interface CashClosingInput {
   countedCash: number;
-  countedCard: number;
-  countedTransfer: number;
+  countedCard?: number;
+  countedTransfer?: number;
   notes?: string;
 }
 
@@ -33,6 +33,9 @@ export interface CashClosingRecord extends CashRegisterContext {
   cardCounted: number;
   transferExpected: number;
   transferCounted: number;
+  salesCount?: number;
+  subtotalSales?: number;
+  taxSales?: number;
   totalSales: number;
   totalRefunds: number;
   totalMovements: number;

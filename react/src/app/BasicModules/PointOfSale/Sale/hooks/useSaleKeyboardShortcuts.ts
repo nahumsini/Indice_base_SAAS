@@ -59,6 +59,11 @@ export function useSaleKeyboardShortcuts({
         }
       }
 
+      if (event.key === 'F5') {
+        event.preventDefault();
+        onAddPayment('credit');
+      }
+
       if (event.key === 'Escape') {
         event.preventDefault();
         onClearCart();

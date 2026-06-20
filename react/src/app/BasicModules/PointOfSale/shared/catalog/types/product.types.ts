@@ -6,6 +6,7 @@ export interface CatalogProductComponent {
 export interface CatalogProduct {
   id: string;
   barcode: string;
+  sku?: string;
   name: string;
   description: string;
   saleType: 'unit' | 'bulk' | 'package';
@@ -24,6 +25,11 @@ export interface CatalogProduct {
   maxStock: number;
   isComposite: boolean;
   components?: CatalogProductComponent[];
+  salesProductId?: string;
+  salesProductBackendId?: number;
+  currency?: string;
+  imageUrl?: string;
+  source?: 'sales' | 'pos_mock';
   createdAt: Date;
   updatedAt: Date;
 }

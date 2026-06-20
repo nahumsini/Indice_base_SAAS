@@ -11,6 +11,7 @@ export interface Shift {
   cashRegisterId: string;
   cashRegisterCode: string;
   cashRegisterName: string;
+  currencyCode: string;
   startTime: Date;
   endTime?: Date;
   initialCash: number;
@@ -19,6 +20,8 @@ export interface Shift {
   difference?: number;
   status: 'open' | 'closed';
   sales: number;
+  subtotalSales: number;
+  taxSales: number;
   totalSales: number;
   cashSales: number;
   cardSales: number;
@@ -31,9 +34,11 @@ export interface Shift {
 export interface CashMovement {
   id: string;
   shiftId: string;
-  type: 'entry' | 'withdrawal';
+  type: 'CASH_IN' | 'CASH_OUT' | 'SAFE_DROP' | 'CORRECTION';
   amount: number;
+  currencyCode: string;
   reason: string;
+  reference?: string;
   timestamp: Date;
   cashierName: string;
 }

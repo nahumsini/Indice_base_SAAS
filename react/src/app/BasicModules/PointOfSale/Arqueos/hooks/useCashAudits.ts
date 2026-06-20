@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { mockCashClosingRecords } from '../../shared/cashClosing.mock';
 import { readStoredCashClosings } from '../../shared/cashClosingStorage';
 import type { CashAuditFilters, CashAuditKpis, CashAuditOptions, CashAuditRecord } from '../types/cashAudit.types';
 
@@ -32,7 +31,7 @@ export function useCashAudits(filters: CashAuditFilters) {
   const [records, setRecords] = useState<CashAuditRecord[]>([]);
 
   useEffect(() => {
-    setRecords([...readStoredCashClosings(), ...mockCashClosingRecords].sort(byClosedAtDesc));
+    setRecords(readStoredCashClosings().sort(byClosedAtDesc));
   }, []);
 
   const filteredRecords = useMemo(() => records.filter((record) => {
@@ -77,7 +76,7 @@ export function useCashAudits(filters: CashAuditFilters) {
   }), [filteredRecords]);
 
   const refresh = () => {
-    setRecords([...readStoredCashClosings(), ...mockCashClosingRecords].sort(byClosedAtDesc));
+    setRecords(readStoredCashClosings().sort(byClosedAtDesc));
   };
 
   return {

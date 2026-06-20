@@ -13,6 +13,8 @@ export const discountRules: DiscountRule[] = [
     minimumAmount: 300,
     category: 'Limpieza',
     requiresAuthorization: false,
+    stackable: false,
+    priority: 20,
     status: 'active',
   },
   {
@@ -27,6 +29,8 @@ export const discountRules: DiscountRule[] = [
     minimumAmount: 2000,
     customerType: 'business',
     requiresAuthorization: true,
+    stackable: false,
+    priority: 10,
     status: 'active',
   },
   {
@@ -39,6 +43,8 @@ export const discountRules: DiscountRule[] = [
     startsAt: new Date('2026-06-01'),
     endsAt: new Date('2026-12-31'),
     requiresAuthorization: true,
+    stackable: true,
+    priority: 1,
     status: 'active',
   },
   {
@@ -52,6 +58,8 @@ export const discountRules: DiscountRule[] = [
     endsAt: new Date('2026-07-15'),
     category: 'Kits y Paquetes',
     requiresAuthorization: false,
+    stackable: false,
+    priority: 15,
     status: 'scheduled',
   },
 ];

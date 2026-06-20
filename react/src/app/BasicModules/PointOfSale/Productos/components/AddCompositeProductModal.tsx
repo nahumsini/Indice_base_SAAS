@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Plus, Trash2, Package } from 'lucide-react';
+import { X, Plus, Trash2, Package, AlertTriangle } from 'lucide-react';
 import { Product, ProductComponent } from '../types/product.types';
 
 interface AddCompositeProductModalProps {
@@ -38,6 +38,7 @@ export function AddCompositeProductModal({
   });
 
   const [selectedComponents, setSelectedComponents] = useState<ProductComponent[]>([]);
+  const [error, setError] = useState('');
 
   // Filter only simple products (non-composite)
   const simpleProducts = useMemo(() => {
@@ -45,6 +46,7 @@ export function AddCompositeProductModal({
   }, [availableProducts]);
 
   useEffect(() => {
+    setError('');
     if (product && product.isComposite) {
       setFormData(product);
       setSelectedComponents(product.components || []);
@@ -93,6 +95,7 @@ export function AddCompositeProductModal({
 
   const handleAddComponent = () => {
     if (simpleProducts.length > 0) {
+      setError('');
       setSelectedComponents([
         ...selectedComponents,
         { productId: simpleProducts[0].id, quantity: 1 }
@@ -153,10 +156,11 @@ export function AddCompositeProductModal({
     e.preventDefault();
 
     if (selectedComponents.length === 0) {
-      alert('Debes agregar al menos un producto componente');
+      setError('Debes agregar al menos un producto componente.');
       return;
     }
 
+    setError('');
     const productData = {
       ...formData,
       components: selectedComponents,
@@ -193,6 +197,13 @@ export function AddCompositeProductModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6">
           <div className="space-y-6">
+            {error && (
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             {/* Components Section */}
             <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border-2 border-purple-200 dark:border-purple-700">
               <div className="flex items-center justify-between mb-4">

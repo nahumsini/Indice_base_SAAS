@@ -12,9 +12,21 @@ export interface DiscountRule {
   startsAt: Date;
   endsAt: Date;
   minimumAmount?: number;
+  maximumDiscountAmount?: number;
   customerType?: 'individual' | 'business';
   productId?: string;
   category?: string;
   requiresAuthorization: boolean;
+  stackable?: boolean;
+  priority?: number;
   status: DiscountRuleStatus;
+}
+
+export interface DiscountEligibilityContext {
+  amount: number;
+  productId?: string;
+  category?: string;
+  customerType?: 'individual' | 'business';
+  scope?: DiscountScope;
+  date?: Date;
 }
