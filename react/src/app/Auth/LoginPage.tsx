@@ -76,7 +76,9 @@ export default function LoginPage() {
         LOGIN_MINIMUM_LOADING_MS,
       );
 
+      setIsSubmitting(false);
       navigate('/dashboard', {
+        replace: true,
         state: {
           successToast: copy.successToast,
         },
