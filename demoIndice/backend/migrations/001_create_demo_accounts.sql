@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS demo_accounts (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  company_name VARCHAR(160) NOT NULL,
+  company_slug VARCHAR(180) NOT NULL UNIQUE,
+  environment ENUM('demo', 'external') NOT NULL DEFAULT 'demo',
+  destination_url VARCHAR(500) NULL,
+  status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

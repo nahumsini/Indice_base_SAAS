@@ -1,0 +1,140 @@
+.auth-brand {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 24px;
+  box-shadow: 0 28px 90px -48px rgba(21, 92, 255, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.auth-brand-content {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.auth-brand-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.auth-logo-frame {
+  position: relative;
+  width: min(360px, 100%);
+  height: 96px;
+  overflow: hidden;
+}
+
+.auth-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 420px;
+  max-width: none;
+  transform: translate(-50%, -50%);
+}
+
+.auth-os-label {
+  width: fit-content;
+  border: 1px solid rgba(21, 92, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(21, 92, 255, 0.08);
+  color: var(--primary);
+  padding: 9px 14px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.auth-hero-copy {
+  max-width: 760px;
+}
+
+.auth-eyebrow,
+.auth-framework-label {
+  color: var(--coral);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.auth-framework-label {
+  margin-bottom: 12px;
+  color: #667085;
+}
+
+.auth-hero-copy h1 {
+  max-width: 720px;
+  margin-top: 14px;
+  color: #222831;
+  font-size: 3.35rem;
+  line-height: 1.03;
+}
+
+.auth-hero-copy p:last-child {
+  max-width: 680px;
+  margin-top: 16px;
+  color: #667085;
+  font-size: 1.08rem;
+  line-height: 1.65;
+}
+
+.auth-pillars {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auth-pillar,
+.auth-feature-card {
+  border: 1px solid #dfe5ee;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.05);
+}
+
+.auth-pillar {
+  border-radius: 22px;
+  padding: 16px;
+}
+
+.pillar-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pillar-heading span {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: var(--primary);
+  font-weight: 900;
+}
+
+.auth-pillar h2,
+.auth-feature-card h2 {
+  color: #222831;
+  font-size: 0.95rem;
+}
+
+.auth-pillar p,
+.auth-feature-card p {
+  color: #667085;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.pillar-line {
+  height: 6px;
+  margin-top: 16px;
+  border-radius: 999px;
+}

@@ -1,0 +1,29 @@
+.auth-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auth-feature-card {
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.feature-accent {
+  width: 56px;
+  height: 8px;
+  margin-bottom: 16px;
+  border-radius: 999px;
+}
+
+.feature-accent.blue {
+  background: rgba(21, 92, 255, 0.18);
+}
+
+.feature-accent.coral {
+  background: rgba(255, 107, 94, 0.2);
+}
+
+.feature-accent.teal {
+  background: rgba(89, 195, 165, 0.25);
+}

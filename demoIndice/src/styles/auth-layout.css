@@ -1,0 +1,45 @@
+.auth-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f7f8fa 0%, #eef3f8 48%, #f8fafc 100%);
+  padding: 20px 16px;
+}
+
+.auth-language-row {
+  display: flex;
+  max-width: 1420px;
+  justify-content: flex-end;
+  margin: 0 auto 16px;
+}
+
+.auth-language-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dfe5ee;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--primary);
+  padding: 0 16px;
+  font-weight: 800;
+  box-shadow: 0 6px 18px rgba(31, 45, 61, 0.08);
+}
+
+.auth-language-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.auth-grid {
+  display: grid;
+  max-width: 1420px;
+  min-height: calc(100vh - 72px);
+  grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
+  gap: 24px;
+  margin: 0 auto;
+}
+
+.auth-form-column {
+  display: flex;
+  align-items: center;
+}

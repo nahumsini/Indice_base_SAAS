@@ -18,6 +18,7 @@ export type ProfileCountryOption = {
 export const DEFAULT_PROFILE_COUNTRY: ProfileCountry = 'MX';
 
 const PRIORITY_PROFILE_COUNTRY_CODES = ['MX', 'US', 'CA', 'ES', 'CO', 'AR', 'BR', 'CL', 'PE'] as const;
+const PROFILE_PHONE_DIAL_CODE_COUNTRIES = new Set(['MX', 'CO', 'US', 'CA', 'BR']);
 
 const REGION_CODE_PATTERN = /^[A-Z]{2}$/;
 
@@ -89,6 +90,11 @@ export function isProfileCountry(value: string): value is ProfileCountry {
 export function normalizeProfileCountry(value?: string): ProfileCountry | undefined {
   const normalizedValue = (value ?? '').trim().toUpperCase();
   return isProfileCountry(normalizedValue) ? normalizedValue : undefined;
+}
+
+export function shouldUseProfilePhoneDialCode(value?: string): boolean {
+  const normalizedValue = normalizeProfileCountry(value);
+  return Boolean(normalizedValue && PROFILE_PHONE_DIAL_CODE_COUNTRIES.has(normalizedValue));
 }
 
 const normalizeCountryName = (value?: string) => (

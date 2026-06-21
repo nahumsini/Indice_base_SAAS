@@ -1,0 +1,48 @@
+.inside-panel {
+  margin-top: 32px;
+  border: 1px solid #dfe5ee;
+  border-radius: 24px;
+  background: rgba(248, 250, 252, 0.9);
+  padding: 20px;
+}
+
+.inside-panel p {
+  color: #222831;
+  font-weight: 900;
+}
+
+.inside-panel ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inside-panel li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #667085;
+  font-size: 0.9rem;
+}
+
+.inside-panel li span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #59c3a5;
+}
+
+.auth-switch {
+  margin-top: 22px;
+  color: #667085;
+  text-align: center;
+}
+
+.auth-switch a {
+  color: var(--primary);
+  font-weight: 900;
+  text-decoration: none;
+}

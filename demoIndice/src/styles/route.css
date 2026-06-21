@@ -1,0 +1,71 @@
+.route-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 28px;
+  background: var(--bg);
+}
+
+.route-card {
+  width: min(620px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface);
+  padding: 34px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.route-card img {
+  width: 180px;
+  height: 54px;
+  object-fit: cover;
+  object-position: left center;
+  margin-bottom: 18px;
+}
+
+.route-icon {
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: rgba(21, 92, 255, 0.09);
+  color: var(--primary);
+}
+
+.route-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.route-eyebrow {
+  margin-top: 18px;
+  color: var(--coral);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.route-card h1 {
+  margin-top: 8px;
+  font-size: 2.2rem;
+  line-height: 1.15;
+}
+
+.route-card p {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.route-link {
+  width: 100%;
+  margin-top: 24px;
+}
+
+.back-link {
+  width: 100%;
+  margin-top: 12px;
+}

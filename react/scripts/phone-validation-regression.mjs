@@ -20,6 +20,8 @@ const positiveCases = [
   { country: 'PE', national: '912345678', international: '+51 912 345 678' },
 ];
 
+const visibleDialCodeCountries = new Set(['MX', 'CO', 'US', 'CA', 'BR']);
+
 const negativeCases = [
   { selectedCountry: 'CA', value: '2025550125', description: 'US national number should fail for Canada' },
   { selectedCountry: 'US', value: '4165551234', description: 'Canadian national number should fail for United States' },
@@ -42,12 +44,22 @@ const run = async () => {
     });
 
     const {
+      isPhoneInputDialCodeOnly,
       normalizePhoneInputForCountry,
+      normalizePhoneInputForCountrySelection,
       validatePhoneForProfileCountry,
     } = await import(pathToFileURL(bundledModulePath).href);
 
     positiveCases.forEach(({ country, national, international }) => {
       const normalizedNational = normalizePhoneInputForCountry(national, country);
+      if (visibleDialCodeCountries.has(country)) {
+        assert.equal(
+          normalizedNational,
+          international,
+          `Expected ${country} national number ${national} to include the visible country code`,
+        );
+      }
+
       const nationalValidation = validatePhoneForProfileCountry(normalizedNational, country);
       assert.equal(
         nationalValidation.ok,
@@ -74,8 +86,23 @@ const run = async () => {
       );
     });
 
+    assert.equal(isPhoneInputDialCodeOnly('+52', 'MX'), true, 'Mexico prefix-only input should count as blank');
+    assert.equal(isPhoneInputDialCodeOnly('+1 ', 'CA'), true, 'Canada prefix-only input should count as blank');
+    assert.equal(isPhoneInputDialCodeOnly('+1 416', 'CA'), false, 'Canada number digits after +1 should not count as blank');
+    assert.equal(isPhoneInputDialCodeOnly('+34', 'ES'), false, 'Spain is outside the visible-prefix country scope');
+    assert.equal(
+      normalizePhoneInputForCountrySelection('+1 416 555 1234', 'MX', 'CA').startsWith('+52'),
+      true,
+      'Changing phone country from Canada to Mexico should swap the visible country code',
+    );
+    assert.equal(
+      normalizePhoneInputForCountrySelection('', 'BR', 'CA'),
+      '+55 ',
+      'Changing a blank phone row to Brazil should show the Brazil country code',
+    );
+
     console.log(
-      `Phone validation regression passed: ${positiveCases.length * 2} positive assertions and ${negativeCases.length} negative assertions.`,
+      `Phone validation regression passed: ${positiveCases.length * 2} positive assertions, ${negativeCases.length} negative assertions, and visible-prefix assertions.`,
     );
   } finally {
     rmSync(tempDir, { force: true, recursive: true });
