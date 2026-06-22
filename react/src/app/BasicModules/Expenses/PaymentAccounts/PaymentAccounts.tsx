@@ -8,7 +8,6 @@ import { isBackendId } from '../adapters/adapter.utils';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
 import { paymentAccountsService, toFinanceApiErrorMessage } from '../services';
-import { mockPaymentAccounts } from './paymentAccounts.mock';
 import type { PaymentAccount, PaymentSortField, SortDirection } from './types';
 import { filterPaymentAccounts, sortPaymentAccounts } from './paymentAccounts.utils';
 import { defaultPaymentColumns, type PaymentColumnKey } from './paymentAccountsTableConfig';
@@ -26,7 +25,7 @@ interface PaymentAccountsProps {
 export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {}) {
   const t = useFinanceTranslations();
   const { cashFunds } = usePettyCash();
-  const [accounts, setAccounts] = useState<PaymentAccount[]>(mockPaymentAccounts.filter(account => account.id !== '3'));
+  const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -166,12 +165,6 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
       });
       setSuccessToastMessage(isBackendId(account.id) ? t.paymentAccounts.messages.updated : t.paymentAccounts.messages.created);
     } catch (error) {
-      setAccounts(currentAccounts => {
-        const exists = currentAccounts.some(item => item.id === account.id);
-        return exists
-          ? currentAccounts.map(item => (item.id === account.id ? account : item))
-          : [account, ...currentAccounts];
-      });
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.saveFailed));
     } finally {
       closeModal();
