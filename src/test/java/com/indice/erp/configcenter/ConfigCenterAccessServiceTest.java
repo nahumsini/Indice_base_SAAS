@@ -24,12 +24,22 @@ class ConfigCenterAccessServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void legacyAdminWithoutModuleRowsCanUseSetupTabs() {
+    void adminWithoutModuleRowsCannotUseSetupTabs() {
         var service = new ConfigCenterAccessService(jdbcTemplate);
         var currentUser = new AuthSessionUser(1L, 7L, "Admin", "admin");
         givenUserCompanyId(currentUser, 10L);
         givenModuleRows(10L, List.of());
-        givenTabRowsConfigured(10L, false);
+
+        assertFalse(service.canAccess(currentUser, ConfigCenterTab.BUSINESS_STRUCTURE));
+    }
+
+    @Test
+    void adminNeedsModuleAndAllowedTabRows() {
+        var service = new ConfigCenterAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "Admin", "admin");
+        givenUserCompanyId(currentUser, 10L);
+        givenModuleRows(10L, List.of("config_center"));
+        givenAllowedTab(10L, ConfigCenterTab.BUSINESS_STRUCTURE, true);
 
         assertTrue(service.canAccess(currentUser, ConfigCenterTab.BUSINESS_STRUCTURE));
     }
@@ -50,18 +60,20 @@ class ConfigCenterAccessServiceTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Admin", "admin");
         givenUserCompanyId(currentUser, 10L);
         givenModuleRows(10L, List.of("config_center"));
-        givenTabRowsConfigured(10L, true);
         givenAllowedTab(10L, ConfigCenterTab.USERS, false);
 
         assertFalse(service.canAccess(currentUser, ConfigCenterTab.USERS));
     }
 
     @Test
-    void normalUserCannotUseUserManagementEvenWithConfiguredTab() {
+    void normalUserCanReadUsersTabWhenExplicitlyConfigured() {
         var service = new ConfigCenterAccessService(jdbcTemplate);
         var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+        givenUserCompanyId(currentUser, 10L);
+        givenModuleRows(10L, List.of("config_center"));
+        givenAllowedTab(10L, ConfigCenterTab.USERS, true);
 
-        assertFalse(service.canAccess(currentUser, ConfigCenterTab.USERS));
+        assertTrue(service.canAccess(currentUser, ConfigCenterTab.USERS));
     }
 
     @Test
@@ -87,14 +99,6 @@ class ConfigCenterAccessServiceTest {
             ArgumentMatchers.<RowMapper<String>>any(),
             eq(userCompanyId)
         )).thenReturn(moduleSlugs);
-    }
-
-    private void givenTabRowsConfigured(long userCompanyId, boolean configured) {
-        when(jdbcTemplate.queryForObject(
-            contains("COUNT(*) FROM user_company_tab_permissions WHERE user_company_id = ?"),
-            eq(Long.class),
-            eq(userCompanyId)
-        )).thenReturn(configured ? 1L : 0L);
     }
 
     private void givenAllowedTab(long userCompanyId, ConfigCenterTab tab, boolean allowed) {

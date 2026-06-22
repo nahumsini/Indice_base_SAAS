@@ -1,5 +1,6 @@
 package com.indice.erp.hr.permissions;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.shared.HrPayloadUtils;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -22,6 +23,16 @@ public class HrPermissionDetailRepository {
     }
 
     public Map<String, Object> findRequest(long companyId, Long userCompanyId, long requestId) {
+        return findRequest(companyId, userCompanyId, null, requestId);
+    }
+
+    public Map<String, Object> findRequest(
+        long companyId,
+        Long userCompanyId,
+        HrOperationalScope managementScope,
+        long requestId
+    ) {
+        var scoped = userCompanyId == null && shouldApplyManagementScope(managementScope);
         var rows = jdbcTemplate.query(
             """
                 SELECT r.id, r.request_number, r.user_company_id, r.user_name_snapshot, r.user_position_snapshot,
@@ -30,12 +41,16 @@ public class HrPermissionDetailRepository {
                        r.created_at, r.updated_at, COALESCE(NULLIF(reviewer.full_name, ''), reviewer.email, '') AS reviewed_by_name
                 FROM user_permission_requests r
                 LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by_user_id
+                """
+                + (scoped ? " LEFT JOIN hr_users e ON e.company_id = r.company_id AND e.id = r.user_company_id\n" : "")
+                + """
                 WHERE r.company_id = ?
                   AND r.id = ?
                 """
-                + (userCompanyId == null ? "" : " AND r.user_company_id = ?"),
+                + (userCompanyId == null ? "" : " AND r.user_company_id = ?")
+                + (scoped ? managementScope.hrUserPredicate("e") : ""),
             (rs, rowNum) -> mapRequest(rs),
-            args(companyId, requestId, userCompanyId)
+            args(companyId, requestId, userCompanyId, scoped ? managementScope : null)
         );
         if (rows.isEmpty()) {
             throw new NoSuchElementException("Permission request not found.");
@@ -43,6 +58,10 @@ public class HrPermissionDetailRepository {
         var permission = rows.getFirst();
         permission.put("attachments", attachments(companyId, requestId));
         return permission;
+    }
+
+    private boolean shouldApplyManagementScope(HrOperationalScope scope) {
+        return scope != null && !scope.isCorporateOffice();
     }
 
     private List<Map<String, Object>> attachments(long companyId, long requestId) {
@@ -94,8 +113,19 @@ public class HrPermissionDetailRepository {
         return body;
     }
 
-    private Object[] args(long companyId, long requestId, Long userCompanyId) {
-        return userCompanyId == null ? new Object[] {companyId, requestId} : new Object[] {companyId, requestId, userCompanyId};
+    private Object[] args(long companyId, long requestId, Long userCompanyId, HrOperationalScope managementScope) {
+        if (userCompanyId != null) {
+            return new Object[] {companyId, requestId, userCompanyId};
+        }
+        if (managementScope == null) {
+            return new Object[] {companyId, requestId};
+        }
+
+        var values = new java.util.ArrayList<Object>();
+        values.add(companyId);
+        values.add(requestId);
+        values.addAll(managementScope.hrUserParameters());
+        return values.toArray();
     }
 
     private String initials(String name) {

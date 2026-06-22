@@ -1,5 +1,6 @@
 package com.indice.erp.hr.announcements;
 
+import com.indice.erp.hr.HrOperationalScope;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +67,17 @@ class HrAnnouncementScopeServiceTest {
         var result = service.filterManageable(actor, List.of(global, scopedUnit));
 
         assertEquals(List.of(scopedUnit), result);
+    }
+
+    @Test
+    void adminActorUsesUnitScopeEvenWhenAssignedToBusiness() {
+        var actor = actor(4L, 9L);
+
+        var scope = actor.operationalScope();
+
+        assertEquals(HrOperationalScope.Type.UNIT_HEADQUARTERS, scope.type());
+        assertEquals(4L, scope.unitId());
+        assertNull(scope.businessId());
     }
 
     private HrAnnouncementActor actor(Long unitId, Long businessId) {

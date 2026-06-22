@@ -27,7 +27,14 @@ const ADMIN_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno']);
 const HR_MANAGEMENT_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno', 'manager', 'approver']);
 const UNRESTRICTED_TAB_ROLES = new Set(['root', 'superadmin']);
 const PERSONAL_HOME_PANEL_TABS = new Set<HomePanelTabId>(['profile', 'personal-performance']);
-const PERSONAL_HR_TABS = new Set<HumanResourcesTabId>(['attendance']);
+const PERSONAL_HR_TABS = new Set<HumanResourcesTabId>([
+  'attendance',
+  'control',
+  'announcements',
+  'assets',
+  'records',
+  'permissions',
+]);
 
 export const normalizeAccessRole = (role: string | null | undefined) => {
   const normalized = (role ?? '').trim().toLowerCase();
@@ -66,7 +73,7 @@ export const canAccessHomePanelTab = (
   tabPermissionKeys?: readonly string[] | null,
   tabPermissionsConfigured = false,
 ) => {
-  const roleAllowsTab = isAdminAccessRole(role) || PERSONAL_HOME_PANEL_TABS.has(tabId);
+  const roleAllowsTab = tabId === 'users' || isAdminAccessRole(role) || PERSONAL_HOME_PANEL_TABS.has(tabId);
   if (hasUnrestrictedTabAccess(role)) {
     return true;
   }
@@ -74,7 +81,7 @@ export const canAccessHomePanelTab = (
     return roleAllowsTab && (tabPermissionKeys ?? []).includes(homePanelTabPermissionKey(tabId));
   }
 
-  return roleAllowsTab;
+  return false;
 };
 
 export const canAccessHumanResourcesTab = (
@@ -91,7 +98,7 @@ export const canAccessHumanResourcesTab = (
     return roleAllowsTab && (tabPermissionKeys ?? []).includes(humanResourcesTabPermissionKey(tabId));
   }
 
-  return roleAllowsTab;
+  return false;
 };
 
 export const canAccessModulePage = (

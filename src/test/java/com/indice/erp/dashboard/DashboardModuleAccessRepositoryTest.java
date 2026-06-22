@@ -37,14 +37,15 @@ class DashboardModuleAccessRepositoryTest {
     }
 
     @Test
-    void adminWithoutAssignmentsKeepsLegacyFullAccess() {
+    void adminWithoutAssignmentsGetsNoModules() {
         var repository = new DashboardModuleAccessRepository(jdbcTemplate);
         mockUserCompanyAccess(9L, 1L, 20L, "admin");
         mockModuleSlugs(20L);
 
         var access = repository.loadAccess(9L, 1L, "admin");
 
-        assertTrue(access.allModules());
+        assertFalse(access.allModules());
+        assertEquals(Set.of(), access.moduleSlugs());
     }
 
     @Test

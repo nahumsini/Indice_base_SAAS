@@ -19,6 +19,7 @@ import type { EmployeeRecord, RecordSeverity, RecordStatus, RecordType } from '.
 import type { RecordDetailCopy } from '../translations';
 
 interface RecordDetailModalProps {
+  canManage: boolean;
   copy: RecordDetailCopy;
   isOpen: boolean;
   locale: string;
@@ -95,7 +96,7 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
   minute: '2-digit',
 }).format(new Date(value));
 
-export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdit, onDelete }: RecordDetailModalProps) {
+export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, record, onEdit, onDelete }: RecordDetailModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen || !record) {
@@ -259,34 +260,40 @@ export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdi
         </div>
 
         <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
-          <Button
-            variant="outline"
-            className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
-            onClick={async () => {
-              if (window.confirm(copy.detail.deleteConfirm)) {
-                setIsDeleting(true);
-                try {
-                  await onDelete(record.id);
-                  onClose();
-                } finally {
-                  setIsDeleting(false);
+          {canManage ? (
+            <Button
+              variant="outline"
+              className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+              onClick={async () => {
+                if (window.confirm(copy.detail.deleteConfirm)) {
+                  setIsDeleting(true);
+                  try {
+                    await onDelete(record.id);
+                    onClose();
+                  } finally {
+                    setIsDeleting(false);
+                  }
                 }
-              }
-            }}
-            disabled={isDeleting}
-          >
-            <Trash2 className="h-4 w-4" />
-            {isDeleting ? copy.actions.deleting : copy.actions.delete}
-          </Button>
+              }}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4" />
+              {isDeleting ? copy.actions.deleting : copy.actions.delete}
+            </Button>
+          ) : (
+            <span />
+          )}
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose}>{copy.actions.close}</Button>
-            <Button
-              className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => onEdit(record)}
-            >
-              <Pencil className="h-4 w-4" />
-              {copy.actions.editRecord}
-            </Button>
+            {canManage ? (
+              <Button
+                className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => onEdit(record)}
+              >
+                <Pencil className="h-4 w-4" />
+                {copy.actions.editRecord}
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>

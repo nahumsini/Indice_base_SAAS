@@ -39,6 +39,7 @@ interface UnitsSectionProps {
   onDeleteNegocio: (unidadId: string, negocioId: string) => void;
   onCreateNegocio: (unidadId: string) => void;
   onCreateUnidad: () => void;
+  disabled?: boolean;
 }
 
 export function UnitsSection({
@@ -50,6 +51,7 @@ export function UnitsSection({
   onDeleteNegocio,
   onCreateNegocio,
   onCreateUnidad,
+  disabled = false,
 }: UnitsSectionProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
@@ -120,14 +122,16 @@ export function UnitsSection({
                   <button
                     type="button"
                     onClick={() => onEditUnidad(unidad)}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors"
+                    disabled={disabled}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {structure.actions.configureGroup}
                   </button>
                   <button
                     type="button"
                     onClick={() => onDeleteUnidad(unidad.id)}
-                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                    disabled={disabled}
+                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -156,14 +160,16 @@ export function UnitsSection({
                         <button
                           type="button"
                           onClick={() => onEditNegocio(negocio, unidad.id)}
-                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                          disabled={disabled}
+                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {structure.actions.configure}
                         </button>
                         <button
                           type="button"
                           onClick={() => onDeleteNegocio(unidad.id, negocio.id)}
-                          className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                          disabled={disabled}
+                          className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -176,7 +182,8 @@ export function UnitsSection({
               <button
                 type="button"
                 onClick={() => onCreateNegocio(unidad.id)}
-                className="w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 sm:ml-8 sm:w-auto"
+                disabled={disabled}
+                className="w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:ml-8 sm:w-auto"
               >
                 {structure.actions.addUnit}
               </button>
@@ -188,7 +195,8 @@ export function UnitsSection({
       <button
         type="button"
         onClick={onCreateUnidad}
-        className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+        disabled={disabled}
+        className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {structure.actions.createUnit}
       </button>

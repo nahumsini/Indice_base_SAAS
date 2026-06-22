@@ -30,6 +30,18 @@ abstract class AttendanceApiControllerSupport {
         return hrAccessService.canAccessManagementTab(currentUser, HrTab.CONTROL);
     }
 
+    protected boolean canReadAttendance(AuthSessionUser currentUser) {
+        return hrAccessService.canAccessReadableTab(currentUser, HrTab.ATTENDANCE);
+    }
+
+    protected boolean canRecordSelfAttendance(AuthSessionUser currentUser) {
+        return canReadAttendance(currentUser);
+    }
+
+    protected boolean canWriteSelfAttendance(AuthSessionUser currentUser) {
+        return canAccessControl(currentUser);
+    }
+
     protected ResponseEntity<?> forbidden() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
     }

@@ -40,6 +40,7 @@ class OrganizationScopeAccess {
                 ? scope.unitId()
                 : resolveBusinessUnitId(companyId, scope.businessId());
             case CORPORATE_OFFICE -> null;
+            case UNASSIGNED -> null;
         };
         if (scopedUnitId == null) {
             return List.of();
@@ -76,6 +77,7 @@ class OrganizationScopeAccess {
                     .toList();
             }
             case CORPORATE_OFFICE -> businesses;
+            case UNASSIGNED -> List.of();
         };
     }
 

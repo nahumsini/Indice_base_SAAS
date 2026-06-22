@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -14,8 +15,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.config.AppWebProperties;
 import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +38,9 @@ class ConfigCenterApiControllerTest {
 
     @MockBean
     private SessionAuthService sessionAuthService;
+
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
 
     @MockBean
     private ConfigCenterAccessService accessService;
@@ -90,7 +96,7 @@ class ConfigCenterApiControllerTest {
         );
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.getUsers(7L)).willReturn(payload);
+        given(configCenterService.getUsers(currentUser)).willReturn(payload);
 
         mockMvc.perform(get("/api/v1/config-center/users"))
             .andExpect(status().isOk())
@@ -110,6 +116,23 @@ class ConfigCenterApiControllerTest {
         mockMvc.perform(get("/api/v1/config-center/users"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void usersReturnsSelfPayloadForNormalUserWithUsersTabAccess() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 7L, "Usuario Demo", "user");
+        var payload = Map.of(
+            "users", List.of(Map.of("id", 2L, "email", "demo@example.com")),
+            "catalog", Map.of("units", List.of(), "businesses", List.of(), "modules", List.of())
+        );
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccess(currentUser, ConfigCenterTab.USERS)).willReturn(true);
+        given(configCenterService.getUsers(currentUser)).willReturn(payload);
+
+        mockMvc.perform(get("/api/v1/config-center/users"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.users[0].id").value(2));
     }
 
     @Test
@@ -218,7 +241,7 @@ class ConfigCenterApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.saveStructure(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
+        given(configCenterService.saveStructure(org.mockito.ArgumentMatchers.eq(currentUser), anyMap()))
             .willThrow(new IllegalArgumentException("radius_meters must be greater than zero."));
 
         mockMvc.perform(put("/api/v1/config-center/business-structure")
@@ -243,6 +266,26 @@ class ConfigCenterApiControllerTest {
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("radius_meters must be greater than zero."));
+    }
+
+    @Test
+    void saveStructureReturnsForbiddenWhenCurrentScopeCannotWriteWholeStructure() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(configCenterService.saveStructure(org.mockito.ArgumentMatchers.eq(currentUser), anyMap()))
+            .willThrow(new HrAccessDeniedException("Forbidden"));
+
+        mockMvc.perform(put("/api/v1/config-center/business-structure")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "estructura": "multi",
+                      "map": []
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test
@@ -282,7 +325,12 @@ class ConfigCenterApiControllerTest {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(appWebProperties.resolveInvitationBaseUrl()).willReturn("");
         given(appWebProperties.getAllowedOrigins()).willReturn(List.of("http://localhost:5173"));
-        given(configCenterService.inviteUser(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
+        given(configCenterService.inviteUser(
+            org.mockito.ArgumentMatchers.eq(7L),
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq("admin"),
+            anyMap()
+        ))
             .willReturn(inviteResult);
         given(invitationEmailService.sendInvitation(anyString(), anyString(), anyString()))
             .willReturn(InvitationEmailResult.sentSuccessfully());
@@ -293,7 +341,11 @@ class ConfigCenterApiControllerTest {
                     {
                       "name": "Pending Invite",
                       "email": "invite@example.com",
-                      "role": "user"
+                      "role": "user",
+                      "unit_id": 3,
+                      "business_id": 9,
+                      "module_slugs": ["config_center"],
+                      "tab_permission_keys": ["config_center.profile"]
                     }
                     """)
                 .header("Referer", "http://localhost:5173/dashboard/users"))
@@ -322,6 +374,51 @@ class ConfigCenterApiControllerTest {
                     """))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void inviteUserReturnsForbiddenForReadOnlyNormalUserWithUsersTabAccess() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 7L, "Usuario Demo", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccess(currentUser, ConfigCenterTab.USERS)).willReturn(true);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/config-center/users/invite")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Pending Invite",
+                      "email": "invite@example.com",
+                      "role": "user"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void updateUserRequiresValidCsrfToken() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        doThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .when(sessionCsrfService)
+            .requireCsrf(any(), org.mockito.ArgumentMatchers.isNull());
+
+        mockMvc.perform(put("/api/v1/config-center/users/2")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "role": "user",
+                      "status": "active",
+                      "unit_id": 1,
+                      "business_id": 2,
+                      "module_slugs": ["config_center"],
+                      "tab_permission_keys": ["config_center.users"]
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
     }
 
     @Test
@@ -364,7 +461,7 @@ class ConfigCenterApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.deleteUser(7L, 1L, 5L))
+        given(configCenterService.deleteUser(7L, 1L, "admin", 5L))
             .willReturn(Map.of("success", true, "deleted", true));
 
         mockMvc.perform(delete("/api/v1/config-center/users/5"))
@@ -377,12 +474,12 @@ class ConfigCenterApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.deleteUser(7L, 1L, 1L))
-            .willThrow(new IllegalArgumentException("You cannot delete your own user."));
+        given(configCenterService.deleteUser(7L, 1L, "admin", 1L))
+            .willThrow(new IllegalArgumentException("You cannot deactivate your own user."));
 
         mockMvc.perform(delete("/api/v1/config-center/users/1"))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("You cannot delete your own user."));
+            .andExpect(jsonPath("$.message").value("You cannot deactivate your own user."));
     }
 
     @Test
@@ -390,7 +487,7 @@ class ConfigCenterApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.deleteInvitation(7L, 12L))
+        given(configCenterService.deleteInvitation(7L, 1L, "admin", 12L))
             .willReturn(Map.of("success", true, "deleted", true));
 
         mockMvc.perform(delete("/api/v1/config-center/users/invitations/12"))

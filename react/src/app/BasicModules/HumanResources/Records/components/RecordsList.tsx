@@ -18,6 +18,7 @@ import type { EmployeeRecord, RecordSeverity, RecordType } from '../types/record
 import type { RecordsListCopy } from '../translations';
 
 interface RecordsListProps {
+  canManage: boolean;
   copy: RecordsListCopy;
   locale: string;
   records: EmployeeRecord[];
@@ -87,10 +88,11 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
   minute: '2-digit',
 }).format(new Date(value));
 
-export function RecordsList({ copy, locale, records, visibleColumns, onRecordClick, onEdit, onDownload }: RecordsListProps) {
+export function RecordsList({ canManage, copy, locale, records, visibleColumns, onRecordClick, onEdit, onDownload }: RecordsListProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<StandardSortDirection>(null);
   const visibleColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
+  const showActions = canManage && visibleColumnSet.has('actions');
   const recordColumns = useMemo<Array<{ id: RecordColumnId; label: string; sortable?: boolean }>>(
     () => [
       { id: 'id', label: copy.columns.id, sortable: true },
@@ -198,7 +200,7 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
                   </button>
                 </th>
               ))}
-              {visibleColumnSet.has('actions') ? (
+              {showActions ? (
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-gray-400">
                   {copy.columns.actions}
                 </th>
@@ -213,8 +215,10 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
               return (
                 <tr
                   key={record.id}
-                  onClick={() => onRecordClick(record)}
-                  className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  onClick={canManage ? () => onRecordClick(record) : undefined}
+                  className={canManage
+                    ? 'cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    : undefined}
                 >
                   {visibleColumnSet.has('id') ? (
                     <td className="whitespace-nowrap px-4 py-4 text-sm font-semibold text-gray-900 dark:text-white">
@@ -264,7 +268,7 @@ export function RecordsList({ copy, locale, records, visibleColumns, onRecordCli
                       {formatDate(record.eventDate, locale)}
                     </td>
                   ) : null}
-                  {visibleColumnSet.has('actions') ? (
+                  {showActions ? (
                     <td
                       className="whitespace-nowrap px-4 py-4 text-right text-sm"
                       onClick={(event) => event.stopPropagation()}

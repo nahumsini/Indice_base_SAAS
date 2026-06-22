@@ -358,6 +358,7 @@ export default function Permissions() {
   return (
     <div className="space-y-6">
       <PermissionHeaderBar
+        canCreate
         copy={copy}
         onColumns={() => setIsColumnsModalOpen(true)}
         onCreate={() => setIsCreateModalOpen(true)}

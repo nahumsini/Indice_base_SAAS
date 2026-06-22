@@ -22,6 +22,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -92,6 +94,39 @@ class HrRecordApiControllerTest {
     }
 
     @Test
+    void userListUsesAssignedRecordScopeWhenReadableTabIsAllowed() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
+        var serviceResult = new LinkedHashMap<String, Object>();
+        serviceResult.put("rows", List.of(Map.of(
+            "id", 7L,
+            "title", "Assigned Record",
+            "status", "pending",
+            "type", "observation"
+        )));
+        serviceResult.put("page", 1);
+        serviceResult.put("size", 50);
+        serviceResult.put("total_count", 1);
+        serviceResult.put("total_pages", 1);
+        serviceResult.put("summary", Map.of(
+            "total_count", 1,
+            "pending_count", 1,
+            "reviewed_count", 0,
+            "resolved_count", 0,
+            "high_severity_count", 0
+        ));
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.RECORDS)).willReturn(true);
+        given(hrRecordService.listAssignedRecords(any(AuthSessionUser.class), any(Map.class))).willReturn(serviceResult);
+
+        mockMvc.perform(get("/api/v1/hr/records"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.count").value(1))
+            .andExpect(jsonPath("$.items[0].title").value("Assigned Record"));
+    }
+
+    @Test
     void listReturnsForbiddenWhenRecordsTabIsDenied() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
@@ -146,6 +181,47 @@ class HrRecordApiControllerTest {
             .andExpect(jsonPath("$.record_id").value(12))
             .andExpect(jsonPath("$.record.title").value("Jordan Safety Observation"))
             .andExpect(jsonPath("$.record.status").value("reviewed"));
+    }
+
+    @Test
+    void userDetailsReturnsForbiddenEvenWhenRecordsTabIsReadable() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.RECORDS)).willReturn(true);
+
+        mockMvc.perform(get("/api/v1/hr/records/12"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verify(hrRecordService, never()).getAssignedRecordDetails(any(AuthSessionUser.class), anyLong());
+        verify(hrRecordService, never()).getRecordDetails(any(AuthSessionUser.class), anyLong());
+    }
+
+    @Test
+    void userCreateReturnsForbiddenEvenWhenRecordsTabIsReadable() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.RECORDS)).willReturn(true);
+
+        mockMvc.perform(post("/api/v1/hr/records")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "user_company_id": 2,
+                      "record_type": "incident",
+                      "severity": "high",
+                      "title": "Direct create",
+                      "description": "Should be forbidden"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verify(hrRecordService, never()).createRecord(any(AuthSessionUser.class), any(Map.class));
     }
 
     @Test

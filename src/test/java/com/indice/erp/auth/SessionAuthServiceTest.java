@@ -39,7 +39,20 @@ class SessionAuthServiceTest {
         session.setAttribute(SessionAuthService.SESSION_ROLE, "admin");
 
         when(jdbcTemplate.query(
-            contains("FROM user_companies"),
+            contains("SELECT id, COALESCE(role"),
+            ArgumentMatchers.any(RowMapper.class),
+            eq(5L),
+            eq(7L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(11L);
+            when(rs.getString("role")).thenReturn("admin");
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        when(jdbcTemplate.query(
+            contains("SELECT id\nFROM user_companies"),
             ArgumentMatchers.<RowMapper<Long>>any(),
             eq(5L),
             eq(7L)
@@ -80,6 +93,27 @@ class SessionAuthServiceTest {
         assertEquals(List.of("config_center", "human_resources"), current.get().user().module_slugs());
         assertEquals(List.of("config_center.profile", "human_resources.attendance"), current.get().user().tab_permission_keys());
         assertTrue(current.get().user().tab_permissions_configured());
+        assertEquals(11L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
+    }
+
+    @Test
+    void currentUserReturnsEmptyWhenStoredSessionIsNoLongerActive() {
+        var service = new SessionAuthService(jdbcTemplate, passwordEncoder);
+        var session = new MockHttpSession();
+        session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
+        session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
+        session.setAttribute(SessionAuthService.SESSION_USER_NAME, "Inactive User");
+        session.setAttribute(SessionAuthService.SESSION_ROLE, "admin");
+
+        when(jdbcTemplate.query(
+            contains("SELECT id, COALESCE(role"),
+            ArgumentMatchers.any(RowMapper.class),
+            eq(5L),
+            eq(7L)
+        )).thenReturn(List.of());
+
+        assertTrue(service.currentUser(session).isEmpty());
+        assertTrue(session.isInvalid());
     }
 
     private String mapStringRow(RowMapper<String> rowMapper, String moduleSlug) throws Exception {

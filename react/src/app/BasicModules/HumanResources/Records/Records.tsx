@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   type ApiClientError,
 } from '../../../lib/apiClient';
+import { isHrManagementRole } from '../../../access/accessRules';
+import { authApi } from '../../../api/auth';
 import {
   humanResourcesApi,
   type BackendRecordItem,
@@ -159,6 +161,7 @@ export default function Records() {
   const [visibleRecordColumns, setVisibleRecordColumns] = useState<RecordColumnId[]>(defaultVisibleRecordColumns);
   const [selectedRecord, setSelectedRecord] = useState<EmployeeRecord | null>(null);
   const [editingRecord, setEditingRecord] = useState<EmployeeRecord | null>(null);
+  const [canManageRecords, setCanManageRecords] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loadingState, setLoadingState] = useState({
@@ -310,15 +313,19 @@ export default function Records() {
     });
 
     try {
+      const session = await authApi.getSessionOrNull();
+      const nextCanManageRecords = isHrManagementRole(session?.user.role);
+      setCanManageRecords(nextCanManageRecords);
+
       const [recordsResult, employeesResult] = await runWithMinimumDuration(Promise.allSettled([
         loadRecords(),
-        loadEmployees(),
-      ]));
+        nextCanManageRecords ? loadEmployees() : Promise.resolve(),
+      ] as const));
 
       if (recordsResult.status === 'rejected') {
         setErrorMessage(formatErrorMessage(recordsResult.reason, copy.errors.loadRecords));
       }
-      if (employeesResult.status === 'rejected') {
+      if (nextCanManageRecords && employeesResult.status === 'rejected') {
         setEmployeeLoadError(formatErrorMessage(employeesResult.reason, copy.errors.loadEmployees));
       }
     } catch (error) {
@@ -357,6 +364,9 @@ export default function Records() {
   };
 
   const handleSaveRecord = async (data: CreateRecordData) => {
+    if (!canManageRecords) {
+      return;
+    }
     const fallbackMessage = editingRecord ? copy.errors.updateRecord : copy.errors.createRecord;
 
     setLoadingState({
@@ -391,6 +401,9 @@ export default function Records() {
   };
 
   const handleRecordClick = async (record: EmployeeRecord) => {
+    if (!canManageRecords) {
+      return;
+    }
     setLoadingState({
       isVisible: true,
       title: copy.loading.recordTitle,
@@ -409,6 +422,9 @@ export default function Records() {
   };
 
   const handleEditRecord = async (record: EmployeeRecord) => {
+    if (!canManageRecords) {
+      return;
+    }
     setLoadingState({
       isVisible: true,
       title: copy.loading.recordTitle,
@@ -428,6 +444,9 @@ export default function Records() {
   };
 
   const handleDeleteRecord = async (recordId: string) => {
+    if (!canManageRecords) {
+      return;
+    }
     setLoadingState({
       isVisible: true,
       title: copy.loading.deletingTitle,
@@ -448,6 +467,9 @@ export default function Records() {
   };
 
   const handleDownloadRecord = async (record: EmployeeRecord) => {
+    if (!canManageRecords) {
+      return;
+    }
     try {
       await downloadRecordPdf(record, copy, locale);
     } catch (error) {
@@ -470,37 +492,43 @@ export default function Records() {
 
   return (
     <div className="space-y-6">
-      <RecordHeaderBar
-        copy={copy}
-        onColumns={() => setIsColumnsModalOpen(true)}
-        onCreate={() => {
-          setEditingRecord(null);
-          setIsCreateModalOpen(true);
-          if (employees.length === 0 && !isEmployeesLoading) {
-            void loadEmployees();
-          }
-        }}
-      />
+      {canManageRecords ? (
+        <>
+          <RecordHeaderBar
+            canManage={canManageRecords}
+            copy={copy}
+            onColumns={() => setIsColumnsModalOpen(true)}
+            onCreate={() => {
+              setEditingRecord(null);
+              setIsCreateModalOpen(true);
+              if (employees.length === 0 && !isEmployeesLoading) {
+                void loadEmployees();
+              }
+            }}
+          />
 
-      <RecordFilters
-        copy={copy}
-        filters={filters}
-        onFiltersChange={setFilters}
-        unitOptions={unitOptions}
-        businessOptions={businessOptions}
-      />
+          <RecordFilters
+            copy={copy}
+            filters={filters}
+            onFiltersChange={setFilters}
+            unitOptions={unitOptions}
+            businessOptions={businessOptions}
+          />
 
-      <RecordKpiStrip
-        copy={copy.kpis}
-        highSeverityCount={summary.high_severity_count}
-        pendingCount={summary.pending_count}
-        resolvedCount={summary.resolved_count}
-        reviewedCount={summary.reviewed_count}
-        totalCount={summary.total_count}
-        visibleCount={sortedRecords.length}
-      />
+          <RecordKpiStrip
+            copy={copy.kpis}
+            highSeverityCount={summary.high_severity_count}
+            pendingCount={summary.pending_count}
+            resolvedCount={summary.resolved_count}
+            reviewedCount={summary.reviewed_count}
+            totalCount={summary.total_count}
+            visibleCount={sortedRecords.length}
+          />
+        </>
+      ) : null}
 
       <RecordsList
+        canManage={canManageRecords}
         copy={copy}
         locale={locale}
         records={paginatedRecords}
@@ -515,7 +543,7 @@ export default function Records() {
       />
 
       <Suspense fallback={null}>
-        {isColumnsModalOpen ? (
+        {canManageRecords && isColumnsModalOpen ? (
           <LazyRecordColumnsModal
             columns={recordColumns}
             copy={copy.columnsModal}
@@ -547,7 +575,7 @@ export default function Records() {
       ) : null}
 
       <Suspense fallback={null}>
-        {isCreateModalOpen ? (
+        {canManageRecords && isCreateModalOpen ? (
           <LazyCreateRecordModal
             copy={copy}
             isOpen={isCreateModalOpen}
@@ -566,8 +594,9 @@ export default function Records() {
           />
         ) : null}
 
-        {isDetailModalOpen ? (
+        {canManageRecords && isDetailModalOpen ? (
           <LazyRecordDetailModal
+            canManage={canManageRecords}
             copy={copy}
             locale={locale}
             isOpen={isDetailModalOpen}

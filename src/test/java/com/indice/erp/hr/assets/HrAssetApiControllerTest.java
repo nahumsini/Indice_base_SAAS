@@ -93,6 +93,42 @@ class HrAssetApiControllerTest {
     }
 
     @Test
+    void userListUsesAssignedAssetScopeWhenReadableTabIsAllowed() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
+        var asset = new LinkedHashMap<String, Object>();
+        asset.put("id", 9L);
+        asset.put("asset_code", "LT-SELF");
+        asset.put("status", "assigned");
+        asset.put("value_amount", new BigDecimal("1200.00"));
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("rows", List.of(asset));
+        result.put("page", 1);
+        result.put("size", 20);
+        result.put("total_count", 1L);
+        result.put("total_pages", 1);
+        result.put("summary", Map.of(
+            "total_count", 1,
+            "assigned_count", 1,
+            "available_count", 0,
+            "maintenance_count", 0,
+            "custody_count", 0,
+            "inactive_count", 0,
+            "total_value_amount", new BigDecimal("1200.00")
+        ));
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.ASSETS)).willReturn(false);
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.ASSETS)).willReturn(true);
+        given(hrAssetService.listAssignedAssets(any(AuthSessionUser.class), any(Map.class))).willReturn(result);
+
+        mockMvc.perform(get("/api/v1/hr/assets"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.count").value(1))
+            .andExpect(jsonPath("$.items[0].asset_code").value("LT-SELF"));
+    }
+
+    @Test
     void listReturnsForbiddenWhenAssetsTabIsDenied() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 

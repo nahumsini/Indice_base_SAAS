@@ -56,6 +56,9 @@ public class HrAttendanceApiController extends AttendanceApiControllerSupport {
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canReadAttendance(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             var targetDate = date == null || date.isBlank() ? LocalDate.now() : HrAttendanceService.parseDate(date);

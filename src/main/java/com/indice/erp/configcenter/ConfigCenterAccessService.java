@@ -14,8 +14,6 @@ public class ConfigCenterAccessService {
     private static final String CONFIG_CENTER_MODULE = "config_center";
     private static final Set<String> UNRESTRICTED_ROLES = Set.of("root", "superadmin");
     private static final Set<String> SETUP_ROLES = Set.of("root", "superadmin", "admin", "owner", "dueno");
-    private static final Set<String> USER_MANAGEMENT_ROLES = Set.of("root", "superadmin", "admin");
-
     private final JdbcTemplate jdbcTemplate;
 
     public ConfigCenterAccessService(JdbcTemplate jdbcTemplate) {
@@ -35,14 +33,10 @@ public class ConfigCenterAccessService {
         if (userCompanyId == null) {
             return false;
         }
-        if (!hasConfigCenterModuleAccess(userCompanyId, role)) {
+        if (!hasConfigCenterModuleAccess(userCompanyId)) {
             return false;
         }
-        if (hasConfiguredTabPermissions(userCompanyId)) {
-            return hasAllowedTab(userCompanyId, tab);
-        }
-
-        return true;
+        return hasAllowedTab(userCompanyId, tab);
     }
 
     public boolean canAccessAny(AuthSessionUser currentUser, ConfigCenterTab... tabs) {
@@ -51,7 +45,7 @@ public class ConfigCenterAccessService {
 
     private boolean roleAllowsTab(String role, ConfigCenterTab tab) {
         if (tab == ConfigCenterTab.USERS) {
-            return USER_MANAGEMENT_ROLES.contains(role);
+            return true;
         }
 
         return SETUP_ROLES.contains(role);
@@ -74,7 +68,7 @@ public class ConfigCenterAccessService {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
-    private boolean hasConfigCenterModuleAccess(long userCompanyId, String role) {
+    private boolean hasConfigCenterModuleAccess(long userCompanyId) {
         var moduleSlugs = jdbcTemplate.query(
             """
                 SELECT DISTINCT module_slug
@@ -85,20 +79,7 @@ public class ConfigCenterAccessService {
             (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
             userCompanyId
         );
-        if (moduleSlugs.isEmpty()) {
-            return SETUP_ROLES.contains(role);
-        }
-
         return moduleSlugs.contains(CONFIG_CENTER_MODULE);
-    }
-
-    private boolean hasConfiguredTabPermissions(long userCompanyId) {
-        var rowCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM user_company_tab_permissions WHERE user_company_id = ?",
-            Long.class,
-            userCompanyId
-        );
-        return rowCount != null && rowCount > 0;
     }
 
     private boolean hasAllowedTab(long userCompanyId, ConfigCenterTab tab) {

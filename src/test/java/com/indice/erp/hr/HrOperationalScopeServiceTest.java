@@ -43,18 +43,45 @@ class HrOperationalScopeServiceTest {
     }
 
     @Test
-    void resolvesBusinessOfficeFromCurrentUsersWorkProfile() throws Exception {
+    void resolvesUnitHeadquartersForAdminEvenWhenWorkProfileHasBusiness() throws Exception {
         var service = new HrOperationalScopeService(jdbcTemplate);
         var currentUser = new AuthSessionUser(7L, 1L, "Scoped Admin", "admin");
 
         when(jdbcTemplate.query(
             contains("FROM user_companies uc"),
-            ArgumentMatchers.<RowMapper<HrOperationalScope>>any(),
+            ArgumentMatchers.<RowMapper<?>>any(),
             eq(7L),
             eq(1L)
         )).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            var rowMapper = (RowMapper<HrOperationalScope>) invocation.getArgument(1);
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("unit_id")).thenReturn(4L);
+            when(rs.getLong("business_id")).thenReturn(9L);
+            when(rs.wasNull()).thenReturn(false, false);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var scope = service.resolve(currentUser);
+
+        assertEquals(HrOperationalScope.Type.UNIT_HEADQUARTERS, scope.type());
+        assertEquals(4L, scope.unitId());
+        assertNull(scope.businessId());
+    }
+
+    @Test
+    void resolvesBusinessOfficeForManagerFromCurrentUsersWorkProfile() throws Exception {
+        var service = new HrOperationalScopeService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(7L, 1L, "Scoped Manager", "manager");
+
+        when(jdbcTemplate.query(
+            contains("FROM user_companies uc"),
+            ArgumentMatchers.<RowMapper<?>>any(),
+            eq(7L),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
             ResultSet rs = mock(ResultSet.class);
             when(rs.getLong("unit_id")).thenReturn(4L);
             when(rs.getLong("business_id")).thenReturn(9L);
@@ -67,6 +94,58 @@ class HrOperationalScopeServiceTest {
         assertEquals(HrOperationalScope.Type.BUSINESS_OFFICE, scope.type());
         assertEquals(4L, scope.unitId());
         assertEquals(9L, scope.businessId());
+    }
+
+    @Test
+    void resolvesUnassignedForRegularUsersEvenWhenWorkProfileHasAssignment() throws Exception {
+        var service = new HrOperationalScopeService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(7L, 1L, 22L, "Scoped User", "user");
+
+        when(jdbcTemplate.query(
+            contains("FROM user_companies uc"),
+            ArgumentMatchers.<RowMapper<?>>any(),
+            eq(7L),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("unit_id")).thenReturn(4L);
+            when(rs.getLong("business_id")).thenReturn(9L);
+            when(rs.wasNull()).thenReturn(false, false);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var scope = service.resolve(currentUser);
+
+        assertEquals(HrOperationalScope.Type.UNASSIGNED, scope.type());
+        assertFalse(service.containsAssignment(1L, scope, 4L, 9L));
+    }
+
+    @Test
+    void resolvesUnassignedWhenCurrentUserHasNoWorkProfileAssignment() throws Exception {
+        var service = new HrOperationalScopeService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(7L, 1L, "Scoped Admin", "admin");
+
+        when(jdbcTemplate.query(
+            contains("FROM user_companies uc"),
+            ArgumentMatchers.<RowMapper<?>>any(),
+            eq(7L),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("unit_id")).thenReturn(0L);
+            when(rs.getLong("business_id")).thenReturn(0L);
+            when(rs.wasNull()).thenReturn(true, true);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var scope = service.resolve(currentUser);
+
+        assertEquals(HrOperationalScope.Type.UNASSIGNED, scope.type());
+        assertFalse(service.containsAssignment(1L, scope, 4L, 9L));
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.indice.erp.hr;
 import com.indice.erp.access.ModuleSlugNormalizer;
 import com.indice.erp.auth.AuthSessionUser;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,8 +23,15 @@ public class HrAccessService {
         "manager",
         "approver"
     );
-    private static final Set<String> LEGACY_MODULE_FALLBACK_ROLES = Set.of("admin", "owner", "dueno");
-
+    private static final Set<String> PERSONAL_READ_ROLES = Set.of("user");
+    private static final Set<HrTab> PERSONAL_READ_TABS = EnumSet.of(
+        HrTab.ANNOUNCEMENTS,
+        HrTab.ASSETS,
+        HrTab.ATTENDANCE,
+        HrTab.CONTROL,
+        HrTab.RECORDS,
+        HrTab.PERMISSIONS
+    );
     private final JdbcTemplate jdbcTemplate;
 
     public HrAccessService(JdbcTemplate jdbcTemplate) {
@@ -54,15 +62,38 @@ public class HrAccessService {
         if (!hasHrModuleAccess(userCompanyId, role)) {
             return false;
         }
-        if (hasConfiguredTabPermissions(userCompanyId)) {
-            return hasAllowedTab(userCompanyId, tab);
-        }
-
-        return true;
+        return hasAllowedTab(userCompanyId, tab);
     }
 
     public boolean canAccessAnyManagementTab(AuthSessionUser currentUser, HrTab... tabs) {
         return Arrays.stream(tabs).anyMatch(tab -> canAccessManagementTab(currentUser, tab));
+    }
+
+    public boolean canAccessReadableTab(AuthSessionUser currentUser, HrTab tab) {
+        var role = normalizeRole(currentUser.role());
+        if (UNRESTRICTED_ROLES.contains(role)) {
+            return true;
+        }
+
+        var userCompanyId = userCompanyId(currentUser);
+        return userCompanyId != null && canAccessReadableTab(userCompanyId, role, tab);
+    }
+
+    public boolean canAccessReadableTab(long userCompanyId, String rawRole, HrTab tab) {
+        var role = normalizeRole(rawRole);
+        if (UNRESTRICTED_ROLES.contains(role)) {
+            return true;
+        }
+        if (HR_MANAGEMENT_ROLES.contains(role)) {
+            return canAccessManagementTab(userCompanyId, role, tab);
+        }
+        if (!PERSONAL_READ_ROLES.contains(role) || !PERSONAL_READ_TABS.contains(tab)) {
+            return false;
+        }
+        if (!hasHrModuleAccess(userCompanyId, role)) {
+            return false;
+        }
+        return hasAllowedTab(userCompanyId, tab);
     }
 
     private Long userCompanyId(AuthSessionUser currentUser) {
@@ -93,20 +124,7 @@ public class HrAccessService {
             (rs, rowNum) -> normalizeModuleSlug(rs.getString("module_slug")),
             userCompanyId
         );
-        if (moduleSlugs.isEmpty()) {
-            return LEGACY_MODULE_FALLBACK_ROLES.contains(role);
-        }
-
         return moduleSlugs.contains(HR_MODULE);
-    }
-
-    private boolean hasConfiguredTabPermissions(long userCompanyId) {
-        var rowCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM user_company_tab_permissions WHERE user_company_id = ?",
-            Long.class,
-            userCompanyId
-        );
-        return rowCount != null && rowCount > 0;
     }
 
     private boolean hasAllowedTab(long userCompanyId, HrTab tab) {
@@ -142,6 +160,7 @@ public class HrAccessService {
 
     public enum HrTab {
         COLLABORATORS("collaborators"),
+        ATTENDANCE("attendance"),
         CONTROL("control"),
         PAYROLL("payroll"),
         ANNOUNCEMENTS("announcements"),

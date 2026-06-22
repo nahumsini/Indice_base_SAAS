@@ -2,6 +2,7 @@ package com.indice.erp.hr.announcements;
 
 import com.indice.erp.hr.HrOperationalScope;
 import java.util.List;
+import java.util.Locale;
 
 public record HrAnnouncementActor(
     long userId,
@@ -16,7 +17,17 @@ public record HrAnnouncementActor(
     boolean managementAccess
 ) {
     public HrOperationalScope operationalScope() {
-        return HrOperationalScope.businessOffice(unitId, businessId);
+        var normalizedRole = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
+        if ("root".equals(normalizedRole) || "superadmin".equals(normalizedRole) || "super admin".equals(normalizedRole)) {
+            return HrOperationalScope.corporateOffice();
+        }
+        if ("admin".equals(normalizedRole) || "owner".equals(normalizedRole) || "dueno".equals(normalizedRole) || "dueño".equals(normalizedRole)) {
+            return HrOperationalScope.unitHeadquarters(unitId);
+        }
+        if ("manager".equals(normalizedRole) || "approver".equals(normalizedRole)) {
+            return HrOperationalScope.businessOffice(unitId, businessId);
+        }
+        return HrOperationalScope.unassigned();
     }
 
     public String unitTargetValue() {

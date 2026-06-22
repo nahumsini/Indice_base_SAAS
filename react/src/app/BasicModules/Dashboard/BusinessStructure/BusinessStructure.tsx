@@ -6,6 +6,8 @@ import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/L
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLanguage } from '../../../shared/context';
 import { PROFILE_COUNTRY_OPTIONS } from '../../../shared/profileCountries';
+import { hasUnrestrictedTabAccess } from '../../../access/accessRules';
+import { authApi } from '../../../api/auth';
 import { configCenterApi, type ConfigCenterEmpresaMapUnit } from '../../../api/configCenter';
 import { validateOptionalEmail } from '../../../shared/validation/email';
 import { inputClassName } from './constants';
@@ -843,9 +845,11 @@ export default function BusinessStructure() {
     isVisible: false,
     title: '',
   });
+  const [canEditStructure, setCanEditStructure] = useState(false);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const currentSnapshotRef = useRef<BusinessStructureSnapshot | null>(null);
   const failedAutoSaveKeyRef = useRef('');
+  const isStructureReadOnly = !canEditStructure || loadingOverlay.isVisible;
 
   const hideLoadingOverlay = () => {
     setLoadingOverlay({
@@ -1012,7 +1016,11 @@ export default function BusinessStructure() {
   useEffect(() => {
     let active = true;
 
-    runWithMinimumDuration(Promise.allSettled([configCenterApi.getEmpresa(), configCenterApi.getConfig()]))
+    runWithMinimumDuration(Promise.allSettled([
+      configCenterApi.getEmpresa(),
+      configCenterApi.getConfig(),
+      authApi.getSessionOrNull(),
+    ]))
       .then((results) => {
         if (!active) {
           return;
@@ -1020,9 +1028,11 @@ export default function BusinessStructure() {
 
         const empresaResult = results[0];
         const configResult = results[1];
+        const sessionResult = results[2];
 
         const empresa = empresaResult.status === 'fulfilled' ? empresaResult.value : null;
         const config = configResult.status === 'fulfilled' ? configResult.value : null;
+        const session = sessionResult.status === 'fulfilled' ? sessionResult.value : null;
 
         const resolvedStructure = (config?.estructura ?? empresa?.estructura ?? 'simple') as EstructuraType;
         const resolvedMap = config?.map ?? empresa?.map ?? [];
@@ -1050,6 +1060,7 @@ export default function BusinessStructure() {
         setCompanyAddress(loadedCompanyAddress);
         setCompanyLocation(loadedCompanyLocation);
         setUnidades(loadedUnidades);
+        setCanEditStructure(hasUnrestrictedTabAccess(session?.user.role));
         setBaselineSnapshot(
           cloneSnapshot(
             createBusinessStructureSnapshot({
@@ -1097,6 +1108,10 @@ export default function BusinessStructure() {
   };
 
   const handleEstructuraTypeChange = (nextType: EstructuraType) => {
+    if (!canEditStructure) {
+      return;
+    }
+
     setEstructuraType(nextType);
 
     if (nextType === 'simple') {
@@ -1139,6 +1154,10 @@ export default function BusinessStructure() {
   };
 
   const handleRequestDeleteUnidad = (unidadId: string) => {
+    if (!canEditStructure) {
+      return;
+    }
+
     const unidad = unidades.find((item) => item.id === unidadId);
     if (!unidad) {
       return;
@@ -1152,6 +1171,10 @@ export default function BusinessStructure() {
   };
 
   const handleRequestDeleteNegocio = (unidadId: string, negocioId: string) => {
+    if (!canEditStructure) {
+      return;
+    }
+
     const unidad = unidades.find((item) => item.id === unidadId);
     const negocio = unidad?.negocios.find((item) => item.id === negocioId);
 
@@ -1172,7 +1195,7 @@ export default function BusinessStructure() {
   };
 
   const handleConfirmDelete = () => {
-    if (!pendingDeleteTarget) {
+    if (!canEditStructure || !pendingDeleteTarget) {
       return;
     }
 
@@ -1187,6 +1210,9 @@ export default function BusinessStructure() {
 
   const handleSaveUnidad = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canEditStructure) {
+      return;
+    }
 
     const emailValidation = validateOptionalEmail(unidadFormValues.email);
     if (!emailValidation.ok) {
@@ -1250,7 +1276,7 @@ export default function BusinessStructure() {
 
   const handleSaveNegocio = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!editingNegocio?.unidadId) {
+    if (!canEditStructure || !editingNegocio?.unidadId) {
       return;
     }
 
@@ -1331,6 +1357,10 @@ export default function BusinessStructure() {
   };
 
   const handleEditUnidad = (unidad: Unidad) => {
+    if (!canEditStructure) {
+      return;
+    }
+
     setEditingUnidad(unidad);
     const nextFormValues = createUnidadFormValues(unidad);
     setUnidadFormValues(nextFormValues);
@@ -1339,6 +1369,10 @@ export default function BusinessStructure() {
   };
 
   const handleCreateUnidad = () => {
+    if (!canEditStructure) {
+      return;
+    }
+
     setEditingUnidad(null);
     setUnidadFormValues(DEFAULT_UNIDAD_FORM_VALUES);
     setUnidadInitialValues(DEFAULT_UNIDAD_FORM_VALUES);
@@ -1346,6 +1380,10 @@ export default function BusinessStructure() {
   };
 
   const handleEditNegocio = (negocio: Negocio, unidadId: string) => {
+    if (!canEditStructure) {
+      return;
+    }
+
     setEditingNegocio({ ...negocio, unidadId });
     const nextFormValues = createNegocioFormValues(negocio);
     setNegocioFormValues(nextFormValues);
@@ -1354,6 +1392,10 @@ export default function BusinessStructure() {
   };
 
   const handleCreateNegocio = (unidadId: string) => {
+    if (!canEditStructure) {
+      return;
+    }
+
     setEditingNegocio({ unidadId });
     setNegocioFormValues(DEFAULT_NEGOCIO_FORM_VALUES);
     setNegocioInitialValues(DEFAULT_NEGOCIO_FORM_VALUES);
@@ -1361,6 +1403,10 @@ export default function BusinessStructure() {
   };
 
   const handlePersistBusinessStructure = async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!canEditStructure) {
+      return;
+    }
+
     setIsSaving(true);
     setLoadError('');
 
@@ -1449,6 +1495,7 @@ export default function BusinessStructure() {
     if (
       isLoading
       || isSaving
+      || !canEditStructure
       || loadingOverlay.isVisible
       || showUnidadModal
       || showNegocioModal
@@ -1478,6 +1525,7 @@ export default function BusinessStructure() {
     };
   }, [
     baselineSnapshot,
+    canEditStructure,
     companyLocation,
     currentSnapshot,
     hasUnsavedChanges,
@@ -1560,13 +1608,14 @@ export default function BusinessStructure() {
           ...current,
           ...updates,
         }))}
-        disabled={loadingOverlay.isVisible}
+        disabled={isStructureReadOnly}
       />
 
       <OperationTypeSection
         estructuraType={estructuraType}
         structure={structure}
         isSimpleDisabled={isSimpleModeDisabled}
+        disabled={isStructureReadOnly}
         onEstructuraTypeChange={handleEstructuraTypeChange}
       />
 
@@ -1580,6 +1629,7 @@ export default function BusinessStructure() {
           onDeleteNegocio={handleRequestDeleteNegocio}
           onCreateNegocio={handleCreateNegocio}
           onCreateUnidad={handleCreateUnidad}
+          disabled={isStructureReadOnly}
         />
       )}
 

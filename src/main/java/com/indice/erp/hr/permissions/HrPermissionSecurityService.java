@@ -36,11 +36,15 @@ public class HrPermissionSecurityService {
     }
 
     public PermissionActor requireSelfActor(HttpSession session) {
-        return loadActor(session);
+        var actor = loadActor(session);
+        if (hrAccessService.canAccessReadableTab(actor.userCompanyId(), actor.role(), HrTab.PERMISSIONS)) {
+            return actor;
+        }
+        throw new HrPermissionApiException(HttpStatus.FORBIDDEN, "Forbidden");
     }
 
     public PermissionActor requireSelfWriteActor(HttpSession session, String csrfToken) {
-        var actor = loadActor(session);
+        var actor = requireSelfActor(session);
         requireCsrf(session, csrfToken);
         return actor;
     }

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
@@ -46,10 +47,10 @@ class ConfigCenterServiceTest {
 
         var error = assertThrows(
             IllegalArgumentException.class,
-            () -> service.deleteUser(1L, 7L, 7L)
+            () -> service.deleteUser(1L, 7L, "admin", 7L)
         );
 
-        assertEquals("You cannot delete your own user.", error.getMessage());
+        assertEquals("You cannot deactivate your own user.", error.getMessage());
         verifyNoInteractions(jdbcTemplate);
     }
 
@@ -520,6 +521,58 @@ class ConfigCenterServiceTest {
     void inviteUserRejectsGloballyRegisteredEmailBeforeCreatingInvitation() {
         var service = newService();
 
+        when(jdbcTemplate.query(
+            contains("FROM businesses"),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(9L),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(9L);
+            when(rs.getLong("unit_id")).thenReturn(3L);
+            when(rs.wasNull()).thenReturn(false);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        when(jdbcTemplate.query(
+            contains("FROM units"),
+            org.mockito.ArgumentMatchers.<RowMapper<Long>>any(),
+            eq(3L),
+            eq(1L)
+        )).thenReturn(List.of(3L));
+        when(jdbcTemplate.queryForList(
+            eq("SELECT slug FROM modules WHERE slug IN (?)"),
+            eq(String.class),
+            eq("config_center")
+        )).thenReturn(List.of("config_center"));
+        when(jdbcTemplate.query(
+            contains("SELECT uc.id AS user_company_id"),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq("admin"),
+            eq(1L),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("user_company_id")).thenReturn(10L);
+            when(rs.getString("role")).thenReturn("admin");
+            when(rs.getLong("unit_id")).thenReturn(3L);
+            when(rs.getLong("business_id")).thenReturn(9L);
+            when(rs.wasNull()).thenReturn(false);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        when(jdbcTemplate.query(
+            contains("FROM user_company_module_roles"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(10L)
+        )).thenReturn(List.of("config_center"));
+        when(jdbcTemplate.query(
+            contains("FROM user_company_tab_permissions"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(10L)
+        )).thenReturn(List.of("config_center.profile"));
         when(jdbcTemplate.queryForObject(
             eq("""
                 SELECT COUNT(*)
@@ -555,10 +608,14 @@ class ConfigCenterServiceTest {
 
         var error = assertThrows(
             IllegalArgumentException.class,
-            () -> service.inviteUser(1L, 1L, Map.of(
+            () -> service.inviteUser(1L, 1L, "admin", Map.of(
                 "name", "Taken User",
                 "email", "Taken@example.com",
-                "role", "User"
+                "role", "User",
+                "unit_id", 3L,
+                "business_id", 9L,
+                "module_slugs", List.of("config_center"),
+                "tab_permission_keys", List.of("config_center.profile")
             ))
         );
 

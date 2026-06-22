@@ -25,6 +25,7 @@ interface OperationTypeSectionProps {
   estructuraType: EstructuraType;
   structure: StructureCopy;
   isSimpleDisabled?: boolean;
+  disabled?: boolean;
   onEstructuraTypeChange: (nextType: EstructuraType) => void;
 }
 
@@ -32,8 +33,11 @@ export function OperationTypeSection({
   estructuraType,
   structure,
   isSimpleDisabled = false,
+  disabled = false,
   onEstructuraTypeChange,
 }: OperationTypeSectionProps) {
+  const simpleDisabled = disabled || isSimpleDisabled;
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-5">
@@ -51,17 +55,17 @@ export function OperationTypeSection({
           <button
             type="button"
             onClick={() => {
-              if (!isSimpleDisabled) {
+              if (!simpleDisabled) {
                 onEstructuraTypeChange('simple');
               }
             }}
-            disabled={isSimpleDisabled}
+            disabled={simpleDisabled}
             className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
               estructuraType === 'simple'
                 ? 'border-blue-600 bg-blue-50/80 shadow-sm ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/25 dark:ring-blue-900/40'
                 : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
             } ${
-              isSimpleDisabled
+              simpleDisabled
                 ? 'cursor-not-allowed opacity-55 hover:translate-y-0 hover:border-gray-200 hover:shadow-none dark:hover:border-gray-700'
                 : ''
             }`}
@@ -101,12 +105,17 @@ export function OperationTypeSection({
 
           <button
             type="button"
-            onClick={() => onEstructuraTypeChange('multi')}
+            onClick={() => {
+              if (!disabled) {
+                onEstructuraTypeChange('multi');
+              }
+            }}
+            disabled={disabled}
             className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
               estructuraType === 'multi'
                 ? 'border-blue-600 bg-blue-50/80 shadow-sm ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/25 dark:ring-blue-900/40'
                 : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
-            }`}
+            } ${disabled ? 'cursor-not-allowed opacity-55 hover:translate-y-0 hover:shadow-none' : ''}`}
           >
             <div className="flex items-center gap-2 mb-1">
               <div
@@ -148,8 +157,13 @@ export function OperationTypeSection({
               {structure.mode.switchPrompt}{' '}
               <button
                 type="button"
-                onClick={() => onEstructuraTypeChange('multi')}
-                className="font-semibold hover:underline"
+                onClick={() => {
+                  if (!disabled) {
+                    onEstructuraTypeChange('multi');
+                  }
+                }}
+                disabled={disabled}
+                className="font-semibold hover:underline disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {structure.mode.switchAction}
               </button>

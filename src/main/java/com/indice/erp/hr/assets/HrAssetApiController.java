@@ -53,7 +53,9 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessAssets(user.get())) {
+        var currentUser = user.get();
+        var canManage = canManageAssets(currentUser);
+        if (!canManage && !canReadAssignedAssets(currentUser)) {
             return forbidden();
         }
 
@@ -67,7 +69,9 @@ public class HrAssetApiController {
             filters.put("page", page);
             filters.put("size", size);
 
-            var result = hrAssetService.listAssets(user.get(), filters);
+            var result = canManage
+                ? hrAssetService.listAssets(currentUser, filters)
+                : hrAssetService.listAssignedAssets(currentUser, filters);
             var body = new LinkedHashMap<String, Object>();
             body.put("items", result.get("rows"));
             body.put("count", ((java.util.List<?>) result.get("rows")).size());
@@ -90,12 +94,17 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessAssets(user.get())) {
+        var currentUser = user.get();
+        var canManage = canManageAssets(currentUser);
+        if (!canManage && !canReadAssignedAssets(currentUser)) {
             return forbidden();
         }
 
         try {
-            return ResponseEntity.ok(hrAssetService.assetDetails(user.get(), assetId).get("asset"));
+            var result = canManage
+                ? hrAssetService.assetDetails(currentUser, assetId)
+                : hrAssetService.assignedAssetDetails(currentUser, assetId);
+            return ResponseEntity.ok(result.get("asset"));
         } catch (HrAccessDeniedException ex) {
             return forbidden();
         } catch (NoSuchElementException ex) {
@@ -109,7 +118,7 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessAssets(user.get())) {
+        if (!canManageAssets(user.get())) {
             return forbidden();
         }
 
@@ -131,7 +140,7 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessAssets(user.get())) {
+        if (!canManageAssets(user.get())) {
             return forbidden();
         }
 
@@ -153,7 +162,7 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessAssets(user.get())) {
+        if (!canManageAssets(user.get())) {
             return forbidden();
         }
 
@@ -175,7 +184,7 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessAssets(user.get())) {
+        if (!canManageAssets(user.get())) {
             return forbidden();
         }
 
@@ -197,12 +206,16 @@ public class HrAssetApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessAssets(user.get())) {
+        var currentUser = user.get();
+        var canManage = canManageAssets(currentUser);
+        if (!canManage && !canReadAssignedAssets(currentUser)) {
             return forbidden();
         }
 
         try {
-            return ResponseEntity.ok(hrAssetService.assetHistory(user.get(), assetId));
+            return ResponseEntity.ok(canManage
+                ? hrAssetService.assetHistory(currentUser, assetId)
+                : hrAssetService.assignedAssetHistory(currentUser, assetId));
         } catch (HrAccessDeniedException ex) {
             return forbidden();
         } catch (NoSuchElementException ex) {
@@ -210,8 +223,12 @@ public class HrAssetApiController {
         }
     }
 
-    private boolean canAccessAssets(AuthSessionUser user) {
+    private boolean canManageAssets(AuthSessionUser user) {
         return hrAccessService.canAccessManagementTab(user, HrTab.ASSETS);
+    }
+
+    private boolean canReadAssignedAssets(AuthSessionUser user) {
+        return hrAccessService.canAccessReadableTab(user, HrTab.ASSETS);
     }
 
     private ResponseEntity<?> forbidden() {

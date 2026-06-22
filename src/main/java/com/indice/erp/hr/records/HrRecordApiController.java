@@ -46,13 +46,17 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        var currentUser = user.get();
+        var canManage = canManageRecords(currentUser);
+        if (!canManage && !canReadAssignedRecords(currentUser)) {
             return forbidden();
         }
 
         try {
             var filters = new LinkedHashMap<String, Object>(requestParams);
-            var result = hrRecordService.listRecords(user.get(), filters);
+            var result = canManage
+                ? hrRecordService.listRecords(currentUser, filters)
+                : hrRecordService.listAssignedRecords(currentUser, filters);
             var body = new LinkedHashMap<String, Object>();
             body.put("items", result.get("rows"));
             body.put("count", ((java.util.List<?>) result.get("rows")).size());
@@ -75,12 +79,14 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        var currentUser = user.get();
+        var canManage = canManageRecords(currentUser);
+        if (!canManage) {
             return forbidden();
         }
 
         try {
-            return ResponseEntity.ok(hrRecordService.getRecordDetails(user.get(), recordId));
+            return ResponseEntity.ok(hrRecordService.getRecordDetails(currentUser, recordId));
         } catch (HrAccessDeniedException ex) {
             return forbidden();
         } catch (NoSuchElementException ex) {
@@ -94,7 +100,7 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        if (!canManageRecords(user.get())) {
             return forbidden();
         }
 
@@ -116,7 +122,7 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        if (!canManageRecords(user.get())) {
             return forbidden();
         }
 
@@ -138,7 +144,7 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        if (!canManageRecords(user.get())) {
             return forbidden();
         }
 
@@ -162,7 +168,7 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        if (!canManageRecords(user.get())) {
             return forbidden();
         }
 
@@ -189,7 +195,7 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        if (!canManageRecords(user.get())) {
             return forbidden();
         }
 
@@ -222,7 +228,7 @@ public class HrRecordApiController {
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        if (!canAccessRecords(user.get())) {
+        if (!canManageRecords(user.get())) {
             return forbidden();
         }
 
@@ -236,8 +242,12 @@ public class HrRecordApiController {
         }
     }
 
-    private boolean canAccessRecords(AuthSessionUser user) {
+    private boolean canManageRecords(AuthSessionUser user) {
         return hrAccessService.canAccessManagementTab(user, HrTab.RECORDS);
+    }
+
+    private boolean canReadAssignedRecords(AuthSessionUser user) {
+        return hrAccessService.canAccessReadableTab(user, HrTab.RECORDS);
     }
 
     private ResponseEntity<?> forbidden() {

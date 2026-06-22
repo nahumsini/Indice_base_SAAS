@@ -1,8 +1,12 @@
 package com.indice.erp.configcenter.users;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.configcenter.profile.ConfigCenterProfileUseCases;
-import com.indice.erp.configcenter.support.UserCompanyAccess;
+import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessScope;
+import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.ActorAccess;
+import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.TargetUser;
+import com.indice.erp.configcenter.users.ConfigCenterUserAccessAudit.Snapshot;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.util.Arrays;
@@ -21,6 +25,10 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
     private static final java.util.Set<String> ADMIN_ROLES = new HashSet<>(Arrays.asList("root", "superadmin", "admin"));
 
     protected final ConfigCenterTabPermissionAccess tabPermissionAccess;
+    protected final ConfigCenterUserMutationGuard userMutationGuard;
+    protected final ConfigCenterUserDeactivationGuard userDeactivationGuard;
+    protected final ConfigCenterInvitationAccessGuard invitationAccessGuard;
+    protected final ConfigCenterUserAccessAudit userAccessAudit;
 
     protected ConfigCenterUserAccessUseCases(
         JdbcTemplate jdbcTemplate,
@@ -31,9 +39,19 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
     ) {
         super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
         this.tabPermissionAccess = new ConfigCenterTabPermissionAccess(jdbcTemplate);
+        this.userMutationGuard = new ConfigCenterUserMutationGuard();
+        this.userDeactivationGuard = new ConfigCenterUserDeactivationGuard();
+        this.invitationAccessGuard = new ConfigCenterInvitationAccessGuard();
+        this.userAccessAudit = new ConfigCenterUserAccessAudit(jdbcTemplate, objectMapper);
     }
 
-    public Map<String, Object> getUsers(long companyId) {
+    public Map<String, Object> getUsers(AuthSessionUser currentUser) {
+        var companyId = currentUser.companyId();
+        var actor = loadActorAccess(companyId, currentUser.userId(), currentUser.role());
+        var protectedActor = PROTECTED_ROLES.contains(actor.role());
+        var userOnly = !ADMIN_ROLES.contains(actor.role());
+        var businessScopeId = !userOnly && !protectedActor ? actor.scope().businessId() : null;
+        var unitScopeId = !userOnly && !protectedActor && businessScopeId == null ? actor.scope().unitId() : null;
         var users = jdbcTemplate.query(
             """
                 SELECT u.id,
@@ -58,6 +76,9 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 LEFT JOIN units unit_ref ON unit_ref.id = wp.unit_id
                 LEFT JOIN businesses business_ref ON business_ref.id = wp.business_id
                 WHERE uc.company_id = ?
+                  AND (? = 0 OR uc.user_id = ?)
+                  AND (? = 0 OR wp.business_id = ?)
+                  AND (? = 0 OR wp.unit_id = ?)
                 ORDER BY u.full_name ASC, u.email ASC
                 """,
             (rs, rowNum) -> {
@@ -96,10 +117,16 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 user.put("source", "user");
                 return user;
             },
-            companyId
+            companyId,
+            userOnly ? 1 : 0,
+            currentUser.userId(),
+            businessScopeId == null ? 0 : 1,
+            businessScopeId,
+            unitScopeId == null ? 0 : 1,
+            unitScopeId
         );
 
-        var invitations = jdbcTemplate.query(
+        var invitations = userOnly ? List.<LinkedHashMap<String, Object>>of() : jdbcTemplate.query(
             """
                 SELECT invitation.id,
                        invitation.email,
@@ -115,6 +142,8 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 LEFT JOIN businesses business_ref ON business_ref.id = invitation.business_id
                 WHERE invitation.company_id = ?
                   AND COALESCE(invitation.status, 'pending') = 'pending'
+                  AND (? = 0 OR invitation.business_id = ?)
+                  AND (? = 0 OR invitation.unit_id = ?)
                 ORDER BY invitation.created_at DESC
                 """,
             (rs, rowNum) -> {
@@ -150,17 +179,24 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 invitation.put("source", "invitation");
                 return invitation;
             },
-            companyId
+            companyId,
+            businessScopeId == null ? 0 : 1,
+            businessScopeId,
+            unitScopeId == null ? 0 : 1,
+            unitScopeId
         );
 
         users.addAll(invitations);
 
-        var catalogUnits = jdbcTemplate.query(
+        var catalogUnitId = !userOnly && !protectedActor ? actor.scope().unitId() : null;
+        var catalogBusinessId = !userOnly && !protectedActor ? actor.scope().businessId() : null;
+        var catalogUnits = userOnly ? List.<LinkedHashMap<String, Object>>of() : jdbcTemplate.query(
             """
                 SELECT id, name
                 FROM units
                 WHERE (company_id = ? OR company_id IS NULL)
                   AND (status = 'active' OR status IS NULL OR status = '')
+                  AND (? = 0 OR id = ?)
                 ORDER BY name ASC
                 """,
             (rs, rowNum) -> {
@@ -169,15 +205,19 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 unit.put("name", safe(rs.getString("name")));
                 return unit;
             },
-            companyId
+            companyId,
+            catalogUnitId == null ? 0 : 1,
+            catalogUnitId
         );
 
-        var catalogBusinesses = jdbcTemplate.query(
+        var catalogBusinesses = userOnly ? List.<LinkedHashMap<String, Object>>of() : jdbcTemplate.query(
             """
                 SELECT id, unit_id, name
                 FROM businesses
                 WHERE (company_id = ? OR company_id IS NULL)
                   AND (status = 'active' OR status IS NULL OR status = '')
+                  AND (? = 0 OR id = ?)
+                  AND (? = 0 OR unit_id = ?)
                 ORDER BY name ASC
                 """,
             (rs, rowNum) -> {
@@ -187,10 +227,14 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 business.put("name", safe(rs.getString("name")));
                 return business;
             },
-            companyId
+            companyId,
+            catalogBusinessId == null ? 0 : 1,
+            catalogBusinessId,
+            catalogBusinessId == null && catalogUnitId != null ? 1 : 0,
+            catalogBusinessId == null ? catalogUnitId : null
         );
 
-        var catalogModules = jdbcTemplate.query(
+        var catalogModules = userOnly ? List.<LinkedHashMap<String, Object>>of() : jdbcTemplate.query(
             "SELECT slug, name FROM modules WHERE COALESCE(is_active, 1) = 1 ORDER BY sort_order ASC, name ASC",
             (rs, rowNum) -> {
                 var module = new LinkedHashMap<String, Object>();
@@ -198,13 +242,18 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 module.put("name", safe(rs.getString("name")));
                 return module;
             }
-        );
+        ).stream()
+            .filter(module -> protectedActor || actor.moduleSlugs().contains(safe(String.valueOf(module.get("slug")))))
+            .toList();
+        var catalogTabs = userOnly ? List.of() : tabPermissionAccess.catalogTabs().stream()
+            .filter(tab -> protectedActor || actor.tabPermissionKeys().contains(String.valueOf(tab.get("permission_key"))))
+            .toList();
 
         var catalog = new LinkedHashMap<String, Object>();
         catalog.put("units", catalogUnits);
         catalog.put("businesses", catalogBusinesses);
         catalog.put("modules", catalogModules);
-        catalog.put("tabs", tabPermissionAccess.catalogTabs());
+        catalog.put("tabs", catalogTabs);
 
         var result = new LinkedHashMap<String, Object>();
         result.put("users", users);
@@ -212,7 +261,13 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         return result;
     }
 
-    public Map<String, Object> updateUser(long companyId, long userId, Map<String, Object> payload) {
+    public Map<String, Object> updateUser(
+        long companyId,
+        long actorUserId,
+        String actorRole,
+        long userId,
+        Map<String, Object> payload
+    ) {
         var role = normalizeRole(value(payload, "role"));
         var status = normalizeStatus(value(payload, "status"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
@@ -220,16 +275,23 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var shouldReplaceTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
         var tabPermissionKeys = shouldReplaceTabPermissions ? tabPermissionAccess.normalizeTabPermissionKeys(payload) : List.<String>of();
         tabPermissionAccess.ensureTabPermissionKeysValid(tabPermissionKeys, moduleSlugs);
+        var actor = loadActorAccess(companyId, actorUserId, actorRole);
 
         var rows = jdbcTemplate.query(
             """
-                SELECT uc.id AS user_company_id
+                SELECT uc.user_id,
+                       uc.id AS user_company_id,
+                       COALESCE(uc.role, 'user') AS role
                 FROM user_companies uc
                 WHERE uc.user_id = ?
                   AND uc.company_id = ?
                 LIMIT 1
                 """,
-            (rs, rowNum) -> rs.getLong("user_company_id"),
+            (rs, rowNum) -> new TargetUser(
+                rs.getLong("user_id"),
+                rs.getLong("user_company_id"),
+                normalizeRole(rs.getString("role"))
+            ),
             userId,
             companyId
         );
@@ -238,12 +300,23 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
             throw new NoSuchElementException("User not found.");
         }
 
-        var userCompanyId = rows.get(0);
+        var target = rows.get(0);
+        var before = loadUserAccessSnapshot(companyId, target.userCompanyId());
         var membership = resolveRequestedMembership(
             companyId,
             payload,
-            loadCurrentMembership(companyId, userCompanyId)
+            loadCurrentMembership(companyId, target.userCompanyId())
         );
+        userMutationGuard.validateUpdate(
+            actor,
+            target,
+            payload,
+            moduleSlugs,
+            tabPermissionKeys,
+            new AccessScope(membership.unitId(), membership.businessId()),
+            shouldReplaceTabPermissions
+        );
+        var userCompanyId = target.userCompanyId();
 
         jdbcTemplate.update(
             "UPDATE user_companies SET role = ?, status = ? WHERE id = ?",
@@ -264,6 +337,15 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         if (shouldReplaceTabPermissions) {
             tabPermissionAccess.replaceUserTabPermissions(userCompanyId, tabPermissionKeys, moduleSlugs);
         }
+        userAccessAudit.recordUserChange(
+            companyId,
+            actorUserId,
+            target.userId(),
+            userCompanyId,
+            "user_access_updated",
+            before,
+            new Snapshot(role, status, membership.unitId(), membership.businessId(), moduleSlugs, tabPermissionKeys)
+        );
 
         var result = new LinkedHashMap<String, Object>();
         result.put("success", true);
@@ -271,22 +353,34 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
     }
 
     @Transactional
-    public Map<String, Object> deleteUser(long companyId, long currentUserId, long userId) {
-        if (userId == currentUserId) {
-            throw new IllegalArgumentException("You cannot delete your own user.");
+    public Map<String, Object> deleteUser(long companyId, long actorUserId, String actorRole, long userId) {
+        if (userId == actorUserId) {
+            throw new IllegalArgumentException("You cannot deactivate your own user.");
         }
+        var actor = loadActorAccess(companyId, actorUserId, actorRole);
 
         var rows = jdbcTemplate.query(
             """
-                SELECT uc.id AS user_company_id, COALESCE(uc.role, 'user') AS role
+                SELECT uc.user_id,
+                       uc.id AS user_company_id,
+                       COALESCE(uc.role, 'user') AS role,
+                       wp.unit_id,
+                       wp.business_id
                 FROM user_companies uc
+                LEFT JOIN user_work_profiles wp
+                  ON wp.company_id = uc.company_id
+                 AND wp.user_company_id = uc.id
                 WHERE uc.user_id = ?
                   AND uc.company_id = ?
                 LIMIT 1
                 """,
-            (rs, rowNum) -> new UserCompanyAccess(
-                rs.getLong("user_company_id"),
-                normalizeRole(rs.getString("role"))
+            (rs, rowNum) -> new UserAccessTarget(
+                new TargetUser(
+                    rs.getLong("user_id"),
+                    rs.getLong("user_company_id"),
+                    normalizeRole(rs.getString("role"))
+                ),
+                new AccessScope(getNullableLong(rs, "unit_id"), getNullableLong(rs, "business_id"))
             ),
             userId,
             companyId
@@ -296,32 +390,35 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
             throw new NoSuchElementException("User not found.");
         }
 
-        var access = rows.get(0);
-        if (PROTECTED_ROLES.contains(access.role())) {
-            throw new IllegalArgumentException("Protected users cannot be deleted.");
-        }
+        var target = rows.get(0);
+        var userCompanyId = target.target().userCompanyId();
+        var moduleSlugs = listModuleSlugs(userCompanyId);
+        var tabPermissionKeys = tabPermissionAccess.listUserTabPermissionKeys(userCompanyId);
+        userDeactivationGuard.validate(actor, target.target(), moduleSlugs, tabPermissionKeys, target.scope());
 
-        if (ADMIN_ROLES.contains(access.role())) {
+        if (ADMIN_ROLES.contains(target.target().role())) {
             var adminCount = jdbcTemplate.queryForObject(
                 """
                     SELECT COUNT(*)
                     FROM user_companies
                     WHERE company_id = ?
+                      AND id <> ?
                       AND LOWER(COALESCE(role, 'user')) IN ('root', 'superadmin', 'admin')
                       AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
                     """,
                 Integer.class,
-                companyId
+                companyId,
+                userCompanyId
             );
-            if (adminCount != null && adminCount <= 1) {
+            if (adminCount == null || adminCount < 1) {
                 throw new IllegalArgumentException("At least one administrator must remain.");
             }
         }
 
-        jdbcTemplate.update("DELETE FROM user_company_module_roles WHERE user_company_id = ?", access.userCompanyId());
+        var before = loadUserAccessSnapshot(companyId, userCompanyId);
         jdbcTemplate.update(
             "UPDATE user_companies SET status = 'inactive' WHERE id = ? AND company_id = ?",
-            access.userCompanyId(),
+            userCompanyId,
             companyId
         );
         jdbcTemplate.update(
@@ -335,19 +432,80 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 WHERE user_company_id = ?
                   AND company_id = ?
                 """,
-            access.userCompanyId(),
+            userCompanyId,
             companyId
+        );
+        userAccessAudit.recordUserChange(
+            companyId,
+            actorUserId,
+            target.target().userId(),
+            userCompanyId,
+            "user_deactivated",
+            before,
+            new Snapshot(
+                before.role(),
+                "inactive",
+                before.unitId(),
+                before.businessId(),
+                before.modules(),
+                before.tabPermissions()
+            )
         );
 
         var result = new LinkedHashMap<String, Object>();
         result.put("success", true);
         result.put("deleted", true);
         result.put("archived", true);
+        result.put("inactive", true);
         return result;
     }
 
     protected UserMembership resolveInvitationMembership(long companyId, Map<String, Object> payload) {
         return resolveRequestedMembership(companyId, payload, new UserMembership(null, null));
+    }
+
+    protected ActorAccess loadActorAccess(long companyId, long actorUserId, String actorRole) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT uc.id AS user_company_id,
+                       COALESCE(uc.role, ?) AS role,
+                       wp.unit_id,
+                       wp.business_id
+                FROM user_companies uc
+                LEFT JOIN user_work_profiles wp
+                  ON wp.company_id = uc.company_id
+                 AND wp.user_company_id = uc.id
+                WHERE uc.user_id = ?
+                  AND uc.company_id = ?
+                  AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
+                ORDER BY CASE WHEN wp.id IS NULL THEN 1 ELSE 0 END, wp.id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new ActorAccess(
+                actorUserId,
+                rs.getLong("user_company_id"),
+                normalizeRole(rs.getString("role")),
+                listModuleSlugs(rs.getLong("user_company_id")),
+                tabPermissionAccess.listUserTabPermissionKeys(rs.getLong("user_company_id")),
+                new AccessScope(getNullableLong(rs, "unit_id"), getNullableLong(rs, "business_id"))
+            ),
+            actorRole,
+            actorUserId,
+            companyId
+        );
+
+        if (!rows.isEmpty()) {
+            return rows.getFirst();
+        }
+
+        return new ActorAccess(
+            actorUserId,
+            0L,
+            normalizeRole(actorRole),
+            List.of(),
+            List.of(),
+            new AccessScope(null, null)
+        );
     }
 
     protected UserMembership loadCurrentMembership(long companyId, long userCompanyId) {
@@ -368,6 +526,36 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         );
 
         return rows.isEmpty() ? new UserMembership(null, null) : rows.get(0);
+    }
+
+    protected Snapshot loadUserAccessSnapshot(long companyId, long userCompanyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT COALESCE(uc.role, 'user') AS role,
+                       COALESCE(uc.status, 'active') AS status,
+                       wp.unit_id,
+                       wp.business_id
+                FROM user_companies uc
+                LEFT JOIN user_work_profiles wp
+                  ON wp.company_id = uc.company_id
+                 AND wp.user_company_id = uc.id
+                WHERE uc.company_id = ?
+                  AND uc.id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new Snapshot(
+                normalizeRole(rs.getString("role")),
+                normalizeStatus(rs.getString("status")),
+                getNullableLong(rs, "unit_id"),
+                getNullableLong(rs, "business_id"),
+                listModuleSlugs(userCompanyId),
+                tabPermissionAccess.listUserTabPermissionKeys(userCompanyId)
+            ),
+            companyId,
+            userCompanyId
+        );
+
+        return rows.isEmpty() ? new Snapshot("", "", null, null, List.of(), List.of()) : rows.get(0);
     }
 
     protected UserMembership resolveRequestedMembership(
@@ -499,6 +687,12 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
     private record ScopedBusiness(
         long id,
         Long unitId
+    ) {
+    }
+
+    private record UserAccessTarget(
+        TargetUser target,
+        AccessScope scope
     ) {
     }
 }
