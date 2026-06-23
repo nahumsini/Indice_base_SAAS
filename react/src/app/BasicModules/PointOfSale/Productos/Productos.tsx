@@ -4,6 +4,11 @@ import { buildSalesProductInputFromPointOfSale, buildSalesProductPatchFromPointO
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
 import { type Product, type ProductStatus } from '../shared/commercial/products';
+import {
+  PointOfSaleTitleBar,
+  pointOfSaleTitleBarPrimaryActionClassName,
+  pointOfSaleTitleBarSecondaryActionClassName,
+} from '../shared/components/PointOfSaleTitleBar';
 import { AddProductModal } from './components/AddProductModal';
 import { AddCompositeProductModal } from './components/AddCompositeProductModal';
 
@@ -155,39 +160,36 @@ export default function Productos() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            🛍️ Productos
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Gestiona tu catálogo de productos e inventario
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PointOfSaleTitleBar
+        eyebrow="Catálogo POS"
+        icon="🛍️"
+        title="Productos"
+        subtitle="Catálogo compartido con Sales, optimizado para códigos, precios, disponibilidad y venta rápida."
+        actions={(
+          <>
           <button
             onClick={() => {
               setSelectedProduct(undefined);
               setShowCompositeModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-all shadow-sm"
+            className={pointOfSaleTitleBarSecondaryActionClassName}
           >
             <Layers className="w-4 h-4" />
-            Agregar producto compuesto
+            Producto compuesto
           </button>
           <button
             onClick={() => {
               setSelectedProduct(undefined);
               setShowAddModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-all shadow-sm"
+            className={pointOfSaleTitleBarPrimaryActionClassName}
           >
             <Plus className="w-4 h-4" />
             Agregar producto
           </button>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       {notice && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

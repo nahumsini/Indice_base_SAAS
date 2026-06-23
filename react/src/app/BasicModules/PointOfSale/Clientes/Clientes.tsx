@@ -4,6 +4,10 @@ import { buildSalesContactInputFromPointOfSale, buildSalesContactPatchFromPointO
 import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
 import { type Customer, type CustomerStatus } from '../shared/commercial/customers';
+import {
+  PointOfSaleTitleBar,
+  pointOfSaleTitleBarPrimaryActionClassName,
+} from '../shared/components/PointOfSaleTitleBar';
 import { AddCustomerModal } from './components/AddCustomerModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
 
@@ -144,27 +148,24 @@ export default function Clientes() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            👥 Clientes
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Gestiona tus clientes, historial de compras y créditos
-          </p>
-        </div>
+      <PointOfSaleTitleBar
+        eyebrow="Clientes POS"
+        icon="👥"
+        title="Clientes"
+        subtitle="Directorio rápido compartido con Sales para tickets, crédito operativo y estados de cuenta POS."
+        actions={(
         <button
           onClick={() => {
             setSelectedCustomer(undefined);
             setShowAddModal(true);
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-all shadow-sm"
+          className={pointOfSaleTitleBarPrimaryActionClassName}
         >
           <Plus className="w-4 h-4" />
           Agregar cliente
         </button>
-      </div>
+        )}
+      />
 
       {notice && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

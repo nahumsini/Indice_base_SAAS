@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, TrendingDown, TrendingUp, Package, AlertTriangle, DollarSign, Activity, History } from 'lucide-react';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import { type Product } from '../shared/commercial/products';
+import { PointOfSaleTitleBar } from '../shared/components/PointOfSaleTitleBar';
 import {
   commercialInventoryMovements as mockMovements,
   getCommercialStockStatus,
@@ -139,17 +140,12 @@ export default function Inventario() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            📦 Inventario
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Control y seguimiento de existencias
-          </p>
-        </div>
-      </div>
+      <PointOfSaleTitleBar
+        eyebrow="Disponibilidad POS"
+        icon="📦"
+        title="Inventario"
+        subtitle="Vista operativa de stock para caja y almacén; productos y disponibilidad se comparten con Sales."
+      />
 
       {notice && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

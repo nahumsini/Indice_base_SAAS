@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Loader2 } from 'lucide-react';
 import { CashAuditDetailPanel } from './components/CashAuditDetailPanel';
 import { CashAuditFiltersBar } from './components/CashAuditFiltersBar';
 import { CashAuditHeader } from './components/CashAuditHeader';
@@ -7,7 +7,7 @@ import { CashAuditKpiStrip } from './components/CashAuditKpiStrip';
 import { CashAuditTable } from './components/CashAuditTable';
 import { useCashAuditFilters } from './hooks/useCashAuditFilters';
 import { useCashAudits } from './hooks/useCashAudits';
-import type { CashAuditRecord } from './types/cashAudit.types';
+import type { CashAuditRecord, CashAuditReviewStatus } from './types/cashAudit.types';
 import { exportCashAuditsCsv } from './utils/exportCashAudits';
 
 const formatCurrency = (amount: number) => (
@@ -19,11 +19,26 @@ const formatCurrency = (amount: number) => (
 
 export default function Arqueos() {
   const { filters, setFilter, resetFilters } = useCashAuditFilters();
-  const { records, kpis, options, refresh } = useCashAudits(filters);
+  const { error, loading, records, kpis, options, refresh, updateReview } = useCashAudits(filters);
   const [selectedRecord, setSelectedRecord] = useState<CashAuditRecord | null>(null);
 
   const hasRisk = kpis.short > 0 || kpis.netDifference < 0;
   const hasDifference = Math.abs(kpis.netDifference) >= 1;
+
+  const handleUpdateReview = (
+    record: CashAuditRecord,
+    auditStatus: CashAuditReviewStatus,
+    auditNote: string,
+  ) => {
+    updateReview(record.id, auditStatus, auditNote);
+    setSelectedRecord({
+      ...record,
+      auditNote,
+      auditStatus,
+      reviewedAt: auditStatus === 'resolved' ? new Date() : record.reviewedAt,
+      requiresReview: record.status !== 'balanced' && auditStatus !== 'resolved',
+    });
+  };
 
   return (
     <div className="space-y-5">
@@ -37,6 +52,16 @@ export default function Arqueos() {
       />
 
       <CashAuditKpiStrip kpis={kpis} formatCurrency={formatCurrency} />
+
+      {error && (
+        <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-900 dark:border-red-800 dark:bg-red-900/20 dark:text-red-100">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-bold">No se pudieron cargar los arqueos reales</p>
+            <p className="mt-0.5 text-sm opacity-80">{error}</p>
+          </div>
+        </div>
+      )}
 
       <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${
         !hasDifference
@@ -54,24 +79,33 @@ export default function Arqueos() {
         )}
         <div className="min-w-0">
           <p className="font-bold">
-            {!hasDifference ? 'Periodo balanceado' : hasRisk ? 'Diferencias por revisar' : 'Sobrantes registrados'}
+            {!hasDifference ? 'Periodo sin diferencias abiertas' : hasRisk ? 'Diferencias por revisar' : 'Sobrantes registrados'}
           </p>
           <p className="mt-0.5 text-sm opacity-80">
-            {records.length} cierres filtrados · Diferencia neta {kpis.netDifference > 0 ? '+' : ''}{formatCurrency(kpis.netDifference)}
+            {records.length} cierres filtrados · {kpis.requiresReview} requieren revisión · Diferencia neta {kpis.netDifference > 0 ? '+' : ''}{formatCurrency(kpis.netDifference)}
           </p>
         </div>
       </div>
+
+      {loading && (
+        <div className="flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white p-8 text-sm font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Cargando cierres reales para revisión...
+        </div>
+      )}
 
       <CashAuditTable
         records={records}
         selectedRecordId={selectedRecord?.id}
         onSelectRecord={setSelectedRecord}
         formatCurrency={formatCurrency}
+        isLoading={loading}
       />
 
       <CashAuditDetailPanel
         record={selectedRecord}
         onClose={() => setSelectedRecord(null)}
+        onUpdateReview={handleUpdateReview}
         formatCurrency={formatCurrency}
       />
     </div>

@@ -18,7 +18,8 @@ export function CashAuditFiltersBar({
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="grid gap-3 lg:grid-cols-[1.4fr_repeat(4,minmax(0,1fr))_auto]">
         <label className="relative min-w-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Buscar</span>
+          <Search className="absolute left-3 top-[34px] h-4 w-4 text-gray-400" />
           <input
             value={filters.search}
             onChange={(event) => onFilterChange('search', event.target.value)}
@@ -34,15 +35,27 @@ export function CashAuditFiltersBar({
 
         <button
           onClick={onReset}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+          className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
         >
           <RotateCcw className="h-4 w-4" />
           Limpiar
         </button>
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <FilterSelect label="Empresa" value={filters.company} options={options.companies} onChange={(value) => onFilterChange('company', value)} />
+      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <label className="min-w-0">
+          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Enfoque</span>
+          <select
+            value={filters.focus}
+            onChange={(event) => onFilterChange('focus', event.target.value as CashAuditFilters['focus'])}
+            className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+          >
+            <option value="attention">Por revisar</option>
+            <option value="difference">Con diferencia</option>
+            <option value="reviewed">Revisados</option>
+            <option value="all">Todos</option>
+          </select>
+        </label>
         <label className="min-w-0">
           <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Periodo</span>
           <input
@@ -65,6 +78,20 @@ export function CashAuditFiltersBar({
             <option value="short">Faltantes</option>
           </select>
         </label>
+        <label className="min-w-0">
+          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Revisión</span>
+          <select
+            value={filters.reviewStatus}
+            onChange={(event) => onFilterChange('reviewStatus', event.target.value as CashAuditFilters['reviewStatus'])}
+            className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+          >
+            <option value="all">Todos</option>
+            <option value="pending">Pendiente</option>
+            <option value="in_review">En revisión</option>
+            <option value="resolved">Resuelto</option>
+          </select>
+        </label>
+        <FilterSelect label="Empresa" value={filters.company} options={options.companies} onChange={(value) => onFilterChange('company', value)} />
       </div>
     </div>
   );

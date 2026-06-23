@@ -5,6 +5,7 @@ const currentMonth = new Date().toISOString().slice(0, 7);
 
 export const defaultCashAuditFilters: CashAuditFilters = {
   search: '',
+  focus: 'attention',
   company: 'all',
   businessUnit: 'all',
   business: 'all',
@@ -12,6 +13,7 @@ export const defaultCashAuditFilters: CashAuditFilters = {
   user: 'all',
   month: currentMonth,
   status: 'all',
+  reviewStatus: 'all',
 };
 
 export function useCashAuditFilters() {

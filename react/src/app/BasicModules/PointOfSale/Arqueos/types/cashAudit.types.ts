@@ -1,10 +1,21 @@
 import type { CashClosingRecord, CashClosingStatus } from '../../shared/cashClosing.types';
 
-export type CashAuditRecord = CashClosingRecord;
+export type CashAuditReviewStatus = 'pending' | 'in_review' | 'resolved';
+export type CashAuditFocus = 'attention' | 'difference' | 'reviewed' | 'all';
+
+export interface CashAuditRecord extends CashClosingRecord {
+  auditStatus: CashAuditReviewStatus;
+  auditNote?: string;
+  reviewedAt?: Date;
+  requiresReview: boolean;
+}
+
 export type CashAuditStatusFilter = 'all' | CashClosingStatus;
+export type CashAuditReviewStatusFilter = 'all' | CashAuditReviewStatus;
 
 export interface CashAuditFilters {
   search: string;
+  focus: CashAuditFocus;
   company: string;
   businessUnit: string;
   business: string;
@@ -12,6 +23,7 @@ export interface CashAuditFilters {
   user: string;
   month: string;
   status: CashAuditStatusFilter;
+  reviewStatus: CashAuditReviewStatusFilter;
 }
 
 export interface CashAuditKpis {
@@ -23,6 +35,10 @@ export interface CashAuditKpis {
   balanced: number;
   over: number;
   short: number;
+  pending: number;
+  inReview: number;
+  resolved: number;
+  requiresReview: number;
 }
 
 export interface CashAuditOptions {

@@ -1,0 +1,195 @@
+package com.indice.erp.pos.purchaseorder;
+
+import com.indice.erp.pos.PosRequestGuard;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderActionRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderCreateRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceReviewRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/pos")
+public class PurchaseOrderController {
+
+    private final PosRequestGuard guard;
+    private final PurchaseOrderService service;
+
+    public PurchaseOrderController(PosRequestGuard guard, PurchaseOrderService service) {
+        this.guard = guard;
+        this.service = service;
+    }
+
+    @GetMapping("/product-suppliers")
+    public ResponseEntity<?> listProductSuppliers(HttpSession session) {
+        var access = guard.requireReadAccess(session);
+        return access.denied() ? access.error() : ResponseEntity.ok(service.listProductSuppliers(access.context()));
+    }
+
+    @PostMapping("/product-suppliers")
+    public ResponseEntity<?> upsertProductSupplier(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @Valid @RequestBody ProductSupplierRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.status(HttpStatus.CREATED).body(service.upsertProductSupplier(access.context(), request));
+    }
+
+    @PutMapping("/product-suppliers/{supplierLinkId}")
+    public ResponseEntity<?> updateProductSupplier(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long supplierLinkId,
+            @Valid @RequestBody ProductSupplierRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.updateProductSupplier(access.context(), supplierLinkId, request));
+    }
+
+    @GetMapping("/purchase-orders")
+    public ResponseEntity<?> listPurchaseOrders(
+            HttpSession session,
+            @RequestParam(required = false) PurchaseOrderStatus status,
+            @RequestParam(required = false) Long providerId,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+        var access = guard.requireReadAccess(session);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.listOrders(access.context(), status, providerId, warehouseId, dateFrom, dateTo));
+    }
+
+    @GetMapping("/purchase-orders/{orderId}")
+    public ResponseEntity<?> getPurchaseOrder(HttpSession session, @PathVariable long orderId) {
+        var access = guard.requireReadAccess(session);
+        return access.denied() ? access.error() : ResponseEntity.ok(service.getOrder(access.context(), orderId));
+    }
+
+    @PostMapping("/purchase-orders")
+    public ResponseEntity<?> createPurchaseOrder(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @Valid @RequestBody PurchaseOrderCreateRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.status(HttpStatus.CREATED).body(service.createOrder(access.context(), request));
+    }
+
+    @PostMapping("/purchase-orders/{orderId}/request")
+    public ResponseEntity<?> requestPurchaseOrder(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long orderId,
+            @RequestBody(required = false) PurchaseOrderActionRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.requestOrder(access.context(), orderId, emptyAction(request)));
+    }
+
+    @PostMapping("/purchase-orders/{orderId}/approve")
+    public ResponseEntity<?> approvePurchaseOrder(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long orderId,
+            @RequestBody(required = false) PurchaseOrderActionRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.approveOrder(access.context(), orderId, emptyAction(request)));
+    }
+
+    @PostMapping("/purchase-orders/{orderId}/send")
+    public ResponseEntity<?> sendPurchaseOrder(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long orderId,
+            @RequestBody(required = false) PurchaseOrderActionRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.sendOrder(access.context(), orderId, emptyAction(request)));
+    }
+
+    @PostMapping("/purchase-orders/{orderId}/cancel")
+    public ResponseEntity<?> cancelPurchaseOrder(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long orderId,
+            @RequestBody(required = false) PurchaseOrderActionRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.cancelOrder(access.context(), orderId, emptyAction(request)));
+    }
+
+    @PostMapping("/purchase-orders/{orderId}/receive")
+    public ResponseEntity<?> receivePurchaseOrder(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long orderId,
+            @Valid @RequestBody PurchaseOrderReceiveRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.receiveOrder(access.context(), orderId, request));
+    }
+
+    @GetMapping("/supplier-invoices")
+    public ResponseEntity<?> listSupplierInvoices(
+            HttpSession session,
+            @RequestParam(required = false) SupplierInvoiceStatus status,
+            @RequestParam(required = false) Long providerId) {
+        var access = guard.requireReadAccess(session);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.listSupplierInvoices(access.context(), status, providerId));
+    }
+
+    @PostMapping("/supplier-invoices")
+    public ResponseEntity<?> submitSupplierInvoice(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @Valid @RequestBody SupplierInvoiceRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.status(HttpStatus.CREATED).body(service.submitSupplierInvoice(access.context(), request));
+    }
+
+    @PostMapping("/supplier-invoices/{invoiceId}/review")
+    public ResponseEntity<?> reviewSupplierInvoice(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long invoiceId,
+            @Valid @RequestBody SupplierInvoiceReviewRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.reviewSupplierInvoice(access.context(), invoiceId, request));
+    }
+
+    private PurchaseOrderActionRequest emptyAction(PurchaseOrderActionRequest request) {
+        return request == null ? new PurchaseOrderActionRequest(null) : request;
+    }
+}

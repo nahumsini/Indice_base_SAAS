@@ -22,10 +22,14 @@ const csvHeaders = [
   'countedTotal',
   'difference',
   'status',
+  'auditStatus',
+  'requiresReview',
+  'auditNote',
+  'reviewedAt',
   'notes',
 ];
 
-const escapeCsv = (value: string | number) => {
+const escapeCsv = (value: string | number | boolean) => {
   const serialized = String(value).replace(/"/g, '""');
   return `"${serialized}"`;
 };
@@ -53,6 +57,10 @@ export function exportCashAuditsCsv(records: CashAuditRecord[]) {
     record.countedTotal,
     record.difference,
     record.status,
+    record.auditStatus,
+    record.requiresReview,
+    record.auditNote ?? '',
+    record.reviewedAt?.toISOString() ?? '',
     record.notes ?? '',
   ]);
 

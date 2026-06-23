@@ -51,18 +51,14 @@ export function useCashClosingHistory(filters: PosCashClosingFilters) {
       try {
         const response = await cashClosingsApi.list(filters);
         const rows = sortByClosedAtDesc(response.items);
-        const details = rows.length > 0
-          ? sortByClosedAtDesc(await Promise.all(rows.map((row) => cashClosingsApi.detail(row.id))))
-          : [];
-
         if (!isActive) {
           return;
         }
 
         setState({
           rows,
-          details,
-          selectedDetail: details[0] ?? null,
+          details: [],
+          selectedDetail: null,
           loading: false,
           error: '',
           detailLoading: false,
@@ -134,8 +130,13 @@ export function useCashClosingHistory(filters: PosCashClosingFilters) {
     setReloadKey((current) => current + 1);
   }, []);
 
+  const clearSelectedDetail = useCallback(() => {
+    setState((current) => ({ ...current, selectedDetail: null, detailError: '' }));
+  }, []);
+
   return {
     ...state,
+    clearSelectedDetail,
     refresh,
     selectDetail,
   };
