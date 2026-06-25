@@ -202,8 +202,7 @@ class ConfigCenterUserMutationGuardTest {
                 "human_resources.assets",
                 "human_resources.attendance",
                 "human_resources.control",
-                "human_resources.permissions",
-                "human_resources.records"
+                "human_resources.permissions"
             )
         );
 
@@ -219,12 +218,37 @@ class ConfigCenterUserMutationGuardTest {
                 "human_resources.assets",
                 "human_resources.attendance",
                 "human_resources.control",
-                "human_resources.permissions",
-                "human_resources.records"
+                "human_resources.permissions"
             ),
             scope(),
             true
         ));
+    }
+
+    @Test
+    void userCannotReceiveRecordsTabPermission() {
+        var payload = Map.<String, Object>of(
+            "role", "user",
+            "unit_id", 1L,
+            "business_id", 2L,
+            "module_slugs", List.of("human_resources"),
+            "tab_permission_keys", List.of("human_resources.records")
+        );
+
+        var error = assertThrows(IllegalArgumentException.class, () -> guard.validateInvite(
+            superAdminActor(),
+            "user",
+            payload,
+            List.of("human_resources"),
+            List.of("human_resources.records"),
+            scope(),
+            true
+        ));
+
+        assertEquals(
+            "User role can only receive personal HR permissions. Choose Admin for unit management access.",
+            error.getMessage()
+        );
     }
 
     @Test

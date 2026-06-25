@@ -46,7 +46,7 @@ This file lists flows that are documented in Gherkin but are not fully implement
   - Related scenarios: `HR user sees HR management tabs`, `Normal user sees only personal HR access`
 
 - HR tab visibility still needs complete normal-user filtering.
-  - Normal users should not see Collaborators, Control, Payroll, Announcements management, Assets, Records, Permissions, Incentives, or KPIs management tabs unless explicitly allowed.
+  - Normal users should not see Collaborators, Payroll, Announcements management, Records, Incentives, or KPIs management tabs unless explicitly allowed.
   - Related scenario: `Normal user sees only personal HR access`
 
 - Normal users should not be able to call HR administration endpoints directly.
@@ -74,20 +74,11 @@ This file lists flows that are documented in Gherkin but are not fully implement
 - Company assets still need normal-user management blocking.
   - Related scenario: `Normal user cannot manage company assets`
 
-- HR records still need normal-user management blocking.
-  - Related scenario: `Normal user cannot manage HR records`
-
 - Face enrollment and biometric management still need normal-user blocking.
   - Related scenario: `Normal user cannot manage biometric enrollment`
 
 - Announcements still need targeted visibility for normal users.
   - Related scenario: `Normal user can read targeted announcements only`
-
-- Permissions and absence requests are frontend-only right now and still need backend persistence.
-  - Requests should survive page refresh.
-  - Normal users should see only their own requests.
-  - Manager approval actions should be user-type-restricted.
-  - Related scenarios: `Permission requests persist in the backend`, `Normal user sees only their own permission requests`
 
 - Incentives are frontend-only right now and still need backend persistence.
   - Incentive rules should be saved to the backend.

@@ -109,7 +109,16 @@ class HrAccessServiceTest {
         var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
         givenUserCompanyId(currentUser, 10L);
         givenModuleRows(10L, List.of("human_resources"));
-        givenAllowedTab(10L, HrTab.RECORDS, false);
+        givenAllowedTab(10L, HrTab.PERMISSIONS, false);
+
+        assertFalse(service.canAccessReadableTab(currentUser, HrTab.PERMISSIONS));
+    }
+
+    @Test
+    void normalUserCannotReadRecordsEvenWithConfiguredTab() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+        givenUserCompanyId(currentUser, 10L);
 
         assertFalse(service.canAccessReadableTab(currentUser, HrTab.RECORDS));
     }

@@ -32,7 +32,6 @@ const PERSONAL_HR_TABS = new Set<HumanResourcesTabId>([
   'control',
   'announcements',
   'assets',
-  'records',
   'permissions',
 ]);
 

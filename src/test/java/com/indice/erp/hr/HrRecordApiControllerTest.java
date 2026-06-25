@@ -94,36 +94,18 @@ class HrRecordApiControllerTest {
     }
 
     @Test
-    void userListUsesAssignedRecordScopeWhenReadableTabIsAllowed() throws Exception {
+    void userListReturnsForbiddenEvenWhenRecordsTabIsReadable() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
-        var serviceResult = new LinkedHashMap<String, Object>();
-        serviceResult.put("rows", List.of(Map.of(
-            "id", 7L,
-            "title", "Assigned Record",
-            "status", "pending",
-            "type", "observation"
-        )));
-        serviceResult.put("page", 1);
-        serviceResult.put("size", 50);
-        serviceResult.put("total_count", 1);
-        serviceResult.put("total_pages", 1);
-        serviceResult.put("summary", Map.of(
-            "total_count", 1,
-            "pending_count", 1,
-            "reviewed_count", 0,
-            "resolved_count", 0,
-            "high_severity_count", 0
-        ));
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
-        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.RECORDS)).willReturn(true);
-        given(hrRecordService.listAssignedRecords(any(AuthSessionUser.class), any(Map.class))).willReturn(serviceResult);
 
         mockMvc.perform(get("/api/v1/hr/records"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.count").value(1))
-            .andExpect(jsonPath("$.items[0].title").value("Assigned Record"));
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verify(hrRecordService, never()).listAssignedRecords(any(AuthSessionUser.class), any(Map.class));
+        verify(hrRecordService, never()).listRecords(any(AuthSessionUser.class), any(Map.class));
     }
 
     @Test

@@ -29,7 +29,6 @@ public class HrAccessService {
         HrTab.ASSETS,
         HrTab.ATTENDANCE,
         HrTab.CONTROL,
-        HrTab.RECORDS,
         HrTab.PERMISSIONS
     );
     private final JdbcTemplate jdbcTemplate;

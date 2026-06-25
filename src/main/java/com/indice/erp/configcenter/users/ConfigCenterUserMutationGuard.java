@@ -16,8 +16,7 @@ public final class ConfigCenterUserMutationGuard {
         "human_resources.assets",
         "human_resources.attendance",
         "human_resources.control",
-        "human_resources.permissions",
-        "human_resources.records"
+        "human_resources.permissions"
     );
     private static final String USER_SELF_SERVICE_ERROR =
         "User role can only receive personal HR permissions. Choose Admin for unit management access.";

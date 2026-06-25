@@ -132,7 +132,6 @@ const USER_SELF_SERVICE_TAB_PERMISSION_KEYS = new Set([
   'human_resources.attendance',
   'human_resources.control',
   'human_resources.permissions',
-  'human_resources.records',
 ]);
 
 export default function Users() {

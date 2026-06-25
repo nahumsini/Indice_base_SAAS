@@ -15,11 +15,11 @@ export class ApiClientError extends Error {
   }
 }
 
-const apiBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL ??
-  import.meta.env.VITE_BACKEND_URL ??
-  ''
-).replace(/\/+$/, '');
+const normalizeEnvUrl = (value: unknown) => (
+  typeof value === 'string' ? value.trim().replace(/\/+$/, '') : ''
+);
+
+const apiBaseUrl = normalizeEnvUrl(import.meta.env.VITE_API_BASE_URL);
 const AUTH_ME_PATH = '/api/v1/auth/me';
 const mutationMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 

@@ -48,15 +48,13 @@ public class HrRecordApiController {
         }
         var currentUser = user.get();
         var canManage = canManageRecords(currentUser);
-        if (!canManage && !canReadAssignedRecords(currentUser)) {
+        if (!canManage) {
             return forbidden();
         }
 
         try {
             var filters = new LinkedHashMap<String, Object>(requestParams);
-            var result = canManage
-                ? hrRecordService.listRecords(currentUser, filters)
-                : hrRecordService.listAssignedRecords(currentUser, filters);
+            var result = hrRecordService.listRecords(currentUser, filters);
             var body = new LinkedHashMap<String, Object>();
             body.put("items", result.get("rows"));
             body.put("count", ((java.util.List<?>) result.get("rows")).size());
@@ -244,10 +242,6 @@ public class HrRecordApiController {
 
     private boolean canManageRecords(AuthSessionUser user) {
         return hrAccessService.canAccessManagementTab(user, HrTab.RECORDS);
-    }
-
-    private boolean canReadAssignedRecords(AuthSessionUser user) {
-        return hrAccessService.canAccessReadableTab(user, HrTab.RECORDS);
     }
 
     private ResponseEntity<?> forbidden() {
