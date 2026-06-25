@@ -24,6 +24,7 @@ export interface PosCashClosingSummaryRow {
   totalSalesAmount: number | string;
   ticketsCount: number;
   closedByUserId: number;
+  currencyCode?: string | null;
   closedAt: string;
 }
 

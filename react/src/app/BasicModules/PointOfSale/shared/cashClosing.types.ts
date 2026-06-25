@@ -7,6 +7,7 @@ export interface CashRegisterContext {
   businessUnitName: string;
   businessId: string;
   businessName: string;
+  warehouseName?: string;
   cashRegisterId: string;
   cashRegisterCode: string;
   cashRegisterName: string;

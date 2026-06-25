@@ -260,7 +260,7 @@ class SpecificPosCashTest {
         return new CashClosingSummaryRow(
             id, 40L, 20L, 30L, new BigDecimal("10"), new BigDecimal("90"),
             new BigDecimal("100"), new BigDecimal("100"), BigDecimal.ZERO,
-            new BigDecimal("150"), 3, 10L, Instant.parse(closedAt)
+            new BigDecimal("150"), 3, 10L, "MXN", Instant.parse(closedAt)
         );
     }
 

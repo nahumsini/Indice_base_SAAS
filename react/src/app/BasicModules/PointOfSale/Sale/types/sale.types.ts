@@ -18,6 +18,10 @@ export interface SaleItem {
   price: number;
   unitCost?: number;
   taxRate: number;
+  taxCode?: string;
+  taxLabel?: string;
+  taxJurisdiction?: string;
+  taxIsCustom?: boolean;
   currency?: string;
   quantity: number;
   discount: number; // Percentage or fixed amount

@@ -5,15 +5,15 @@ import { cortesColumnLabels, type CortesColumnId } from '../utils/cortesColumns'
 import {
   type CortesSortDirection,
   type CortesSortKey,
-  formatCurrency,
+  formatClosingAmount,
   formatDateTime,
   getClosingStatus,
   toNumber,
 } from '../utils/cortesUtils';
 
 interface CortesTableProps {
-  currencyCode?: string;
   loading: boolean;
+  preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
   sortDirection: CortesSortDirection;
   sortKey: CortesSortKey;
@@ -39,8 +39,8 @@ const sortableColumns: Partial<Record<CortesColumnId, CortesSortKey>> = {
 };
 
 export function CortesTable({
-  currencyCode = 'MXN',
   loading,
+  preferredCurrency,
   rows,
   sortDirection,
   sortKey,
@@ -92,7 +92,7 @@ export function CortesTable({
               <tr key={row.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
                 {visibleColumns.map((column) => (
                   <td key={`${row.id}-${column}`} className="px-5 py-4 align-middle text-slate-700 dark:text-slate-200">
-                    <CortesTableCell column={column} currencyCode={currencyCode} row={row} />
+                    <CortesTableCell column={column} preferredCurrency={preferredCurrency} row={row} />
                   </td>
                 ))}
                 <td className="px-5 py-4 text-right">
@@ -128,11 +128,11 @@ export function CortesTable({
 
 function CortesTableCell({
   column,
-  currencyCode,
+  preferredCurrency,
   row,
 }: {
   column: CortesColumnId;
-  currencyCode: string;
+  preferredCurrency: string;
   row: PosCashClosingSummaryRow;
 }) {
   const status = getClosingStatus(row);
@@ -164,23 +164,65 @@ function CortesTableCell({
     return <strong className="text-slate-950 dark:text-white">{row.ticketsCount}</strong>;
   }
   if (column === 'totalSales') {
-    return <strong className="text-slate-950 dark:text-white">{formatCurrency(toNumber(row.totalSalesAmount), currencyCode)}</strong>;
+    return <MoneyCell amount={toNumber(row.totalSalesAmount)} preferredCurrency={preferredCurrency} row={row} strong />;
   }
   if (column === 'expected') {
-    return <span className="font-bold">{formatCurrency(toNumber(row.expectedCashAmount), currencyCode)}</span>;
+    return <MoneyCell amount={toNumber(row.expectedCashAmount)} preferredCurrency={preferredCurrency} row={row} />;
   }
   if (column === 'counted') {
-    return <span className="font-bold">{formatCurrency(toNumber(row.countedCashAmount), currencyCode)}</span>;
+    return <MoneyCell amount={toNumber(row.countedCashAmount)} preferredCurrency={preferredCurrency} row={row} />;
   }
   if (column === 'difference') {
     return (
-      <strong className={status === 'short' ? 'text-rose-600' : status === 'over' ? 'text-amber-700' : 'text-emerald-600'}>
-        {toNumber(row.overShortAmount) > 0 ? '+' : ''}{formatCurrency(toNumber(row.overShortAmount), currencyCode)}
-      </strong>
+      <MoneyCell
+        amount={toNumber(row.overShortAmount)}
+        preferredCurrency={preferredCurrency}
+        row={row}
+        strong
+        tone={status === 'short' ? 'danger' : status === 'over' ? 'warning' : 'success'}
+      />
     );
   }
 
   return <StatusBadge status={status} />;
+}
+
+function MoneyCell({
+  amount,
+  preferredCurrency,
+  row,
+  strong = false,
+  tone = 'neutral',
+}: {
+  amount: number;
+  preferredCurrency: string;
+  row: PosCashClosingSummaryRow;
+  strong?: boolean;
+  tone?: 'danger' | 'neutral' | 'success' | 'warning';
+}) {
+  const { convertedLabel, nativeCurrency, nativeLabel } = formatClosingAmount(amount, row, preferredCurrency);
+  const isConverted = nativeCurrency !== preferredCurrency;
+  const className = tone === 'danger'
+    ? 'text-rose-600'
+    : tone === 'warning'
+    ? 'text-amber-700'
+    : tone === 'success'
+    ? 'text-emerald-600'
+    : 'text-slate-950 dark:text-white';
+  const MainTag = strong ? 'strong' : 'span';
+
+  return (
+    <span className="block leading-tight">
+      <MainTag className={`block font-black ${className}`}>
+        {amount > 0 && tone === 'warning' ? '+' : ''}{nativeLabel}
+      </MainTag>
+      {isConverted ? (
+        <span className="mt-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+          equiv. {convertedLabel}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 function StatusBadge({ status }: { status: ReturnType<typeof getClosingStatus> }) {

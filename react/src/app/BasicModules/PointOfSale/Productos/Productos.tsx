@@ -13,10 +13,13 @@ import { AddProductModal } from './components/AddProductModal';
 import { AddCompositeProductModal } from './components/AddCompositeProductModal';
 
 export default function Productos() {
-  const { addProduct, updateProduct } = useSalesCrm();
-  const { balanceLoadError, products: sharedProducts, saleCurrency } = usePointOfSaleCatalogProducts();
-  const [localProducts, setLocalProducts] = useState<Product[]>([]);
-  const [deletedProductIds, setDeletedProductIds] = useState<string[]>([]);
+  const { createProductRecord, updateProductRecord, reloadProducts } = useSalesCrm();
+  const {
+    balanceLoadError,
+    isLoadingInventoryBalances,
+    products: sharedProducts,
+    saleCurrency,
+  } = usePointOfSaleCatalogProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductStatus | 'all'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -24,17 +27,8 @@ export default function Productos() {
   const [showCompositeModal, setShowCompositeModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
   const [notice, setNotice] = useState('');
-
-  const products = useMemo(() => {
-    const sharedProductIds = new Set(sharedProducts.map((product) => product.id));
-    const localProductById = new Map(localProducts.map((product) => [product.id, product]));
-    const mergedProducts = [
-      ...sharedProducts.map((product) => localProductById.get(product.id) ?? product),
-      ...localProducts.filter((product) => !sharedProductIds.has(product.id)),
-    ];
-
-    return mergedProducts.filter((product) => !deletedProductIds.includes(product.id));
-  }, [deletedProductIds, localProducts, sharedProducts]);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const products = sharedProducts;
 
   // Get unique departments
   const departments = useMemo(() => {
@@ -63,7 +57,7 @@ export default function Productos() {
     const active = products.filter(p => p.status === 'active').length;
     const lowStock = products.filter(p => p.useInventory && p.currentStock < p.minStock).length;
     const totalValue = products.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
-    const avgMargin = products.reduce((sum, p) => sum + p.profitMargin, 0) / products.length;
+    const avgMargin = products.length === 0 ? 0 : products.reduce((sum, p) => sum + p.profitMargin, 0) / products.length;
 
     return { total, active, lowStock, totalValue, avgMargin };
   }, [products]);
@@ -91,46 +85,49 @@ export default function Productos() {
     return { label: 'Normal', color: 'green' };
   };
 
-  const handleAddProduct = (productData: Partial<Product>) => {
+  const handleAddProduct = async (productData: Partial<Product>) => {
     const productId = productData.id ?? selectedProduct?.id;
     const currentProduct = productId ? products.find((product) => product.id === productId) : undefined;
+    setIsSavingProduct(true);
+    setNotice('');
 
-    if (currentProduct) {
-      const updatedProduct: Product = {
-        ...currentProduct,
-        ...productData,
-        id: currentProduct.id,
-        source: currentProduct.source,
-        createdAt: currentProduct.createdAt,
-        updatedAt: new Date(),
-      };
+    try {
+      if (currentProduct) {
+        const updatedProduct: Product = {
+          ...currentProduct,
+          ...productData,
+          id: currentProduct.id,
+          source: 'sales',
+          createdAt: currentProduct.createdAt,
+          updatedAt: new Date(),
+        };
 
-      if (currentProduct.source === 'sales') {
-        updateProduct(
+        await updateProductRecord(
           currentProduct.salesProductId ?? currentProduct.id,
           buildSalesProductPatchFromPointOfSale(updatedProduct, saleCurrency),
         );
         setNotice('Producto actualizado en catálogo maestro y preparado para POS.');
-      } else {
-        setLocalProducts((current) => [
-          updatedProduct,
-          ...current.filter((product) => product.id !== updatedProduct.id),
-        ]);
-        setNotice('Producto local POS actualizado.');
+        await reloadProducts();
+        return;
       }
-      return;
-    }
 
-    const newProduct: Product = {
-      id: `product-${Date.now()}`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      currency: saleCurrency,
-      source: 'pos_mock',
-      ...productData as Product,
-    };
-    addProduct(buildSalesProductInputFromPointOfSale(newProduct, saleCurrency));
-    setNotice('Producto creado en catálogo maestro y preparado para POS.');
+      const newProduct: Product = {
+        id: `product-${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        currency: saleCurrency,
+        source: 'sales',
+        ...productData as Product,
+      };
+      await createProductRecord(buildSalesProductInputFromPointOfSale(newProduct, saleCurrency));
+      setNotice('Producto creado en catálogo maestro y preparado para POS.');
+      await reloadProducts();
+    } catch (error) {
+      console.warn('[PointOfSale] Product could not be synced with Sales catalog.', error);
+      setNotice('No se pudo sincronizar el producto con el catálogo maestro de Sales.');
+    } finally {
+      setIsSavingProduct(false);
+    }
   };
 
   const handleEditProduct = (product: Product) => {
@@ -142,20 +139,28 @@ export default function Productos() {
     }
   };
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = async (id: string) => {
     const product = products.find((item) => item.id === id);
-    if (product?.source === 'sales') {
-      updateProduct(product.salesProductId ?? product.id, {
+    if (!product) {
+      return;
+    }
+
+    setIsSavingProduct(true);
+    setNotice('');
+
+    try {
+      await updateProductRecord(product.salesProductId ?? product.id, {
         visibility: 'Internal',
         posPrepared: false,
       });
       setNotice('Producto retirado del catálogo operativo POS sin borrar el registro maestro.');
-      return;
+      await reloadProducts();
+    } catch (error) {
+      console.warn('[PointOfSale] Product could not be removed from POS catalog.', error);
+      setNotice('No se pudo retirar el producto del catálogo operativo POS.');
+    } finally {
+      setIsSavingProduct(false);
     }
-
-    setLocalProducts((current) => current.filter((product) => product.id !== id));
-    setDeletedProductIds((current) => Array.from(new Set([...current, id])));
-    setNotice('Producto oculto del catálogo operativo POS.');
   };
 
   return (
@@ -172,6 +177,7 @@ export default function Productos() {
               setSelectedProduct(undefined);
               setShowCompositeModal(true);
             }}
+            disabled={isSavingProduct}
             className={pointOfSaleTitleBarSecondaryActionClassName}
           >
             <Layers className="w-4 h-4" />
@@ -182,6 +188,7 @@ export default function Productos() {
               setSelectedProduct(undefined);
               setShowAddModal(true);
             }}
+            disabled={isSavingProduct}
             className={pointOfSaleTitleBarPrimaryActionClassName}
           >
             <Plus className="w-4 h-4" />
@@ -194,6 +201,12 @@ export default function Productos() {
       {notice && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {notice}
+        </div>
+      )}
+
+      {isLoadingInventoryBalances && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+          Sincronizando catálogo compartido de Sales e inventario disponible para POS.
         </div>
       )}
 
@@ -369,7 +382,9 @@ export default function Productos() {
                   <td colSpan={10} className="px-4 py-12 text-center">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-500 dark:text-gray-400">
-                      {searchTerm || statusFilter !== 'all' || departmentFilter !== 'all'
+                      {isLoadingInventoryBalances
+                        ? 'Sincronizando catálogo compartido de Sales'
+                        : searchTerm || statusFilter !== 'all' || departmentFilter !== 'all'
                         ? 'No se encontraron productos'
                         : 'No hay productos registrados'}
                     </p>
@@ -455,13 +470,15 @@ export default function Productos() {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEditProduct(product)}
+                            disabled={isSavingProduct}
                             className="p-1.5 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded transition-colors"
                             title="Editar"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDeleteProduct(product.id)}
+                            onClick={() => { void handleDeleteProduct(product.id); }}
+                            disabled={isSavingProduct}
                             className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                             title="Eliminar"
                           >

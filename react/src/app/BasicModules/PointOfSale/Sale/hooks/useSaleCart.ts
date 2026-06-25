@@ -5,10 +5,13 @@ import type { SaleItem } from '../types/sale.types';
 import {
   buildSaleItem,
   recalculateSaleItem,
+  type SaleTaxOverride,
 } from '../utils/saleCalculations';
+import { convertPosDisplayCurrencyAmount } from '../utils/posCurrencyDisplay';
 
 interface UseSaleCartOptions {
   products: Product[];
+  taxOverride?: SaleTaxOverride;
 }
 
 interface CartProductRequest {
@@ -16,7 +19,7 @@ interface CartProductRequest {
   quantity: number;
 }
 
-export function useSaleCart({ products }: UseSaleCartOptions) {
+export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [lastAddedItem, setLastAddedItem] = useState<string | null>(null);
@@ -80,11 +83,11 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
       return;
     }
 
-    const newItem = buildSaleItem(product, quantity);
+    const newItem = buildSaleItem(product, quantity, taxOverride);
     setCart([newItem, ...cart]);
     setLastAddedItem(newItem.id);
     setCartNotice('');
-  }, [blockSalesWithoutStock, cart, updateQuantity]);
+  }, [blockSalesWithoutStock, cart, taxOverride, updateQuantity]);
 
   const addProductsToCart = useCallback((requests: CartProductRequest[]) => {
     if (requests.length === 0) {
@@ -114,7 +117,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
           return;
         }
 
-        const newItem = buildSaleItem(product, quantity);
+        const newItem = buildSaleItem(product, quantity, taxOverride);
         nextCart = [newItem, ...nextCart];
         lastItemId = newItem.id;
       });
@@ -125,7 +128,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
 
       return nextCart;
     });
-  }, []);
+  }, [taxOverride]);
 
   const applyDiscount = useCallback((itemId: string, discount: number, type: SaleItem['discountType']) => {
     setCart((currentCart) => currentCart.map((item) => {
@@ -144,6 +147,19 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     setCart((currentCart) => currentCart.map((item) => recalculateSaleItem(item, {
       discount,
       discountType: type,
+    })));
+  }, []);
+
+  const applyTaxOverride = useCallback((nextTaxOverride: SaleTaxOverride) => {
+    setCart((currentCart) => currentCart.map((item) => recalculateSaleItem(item, {
+      price: convertPosDisplayCurrencyAmount(item.price, item.currency, nextTaxOverride.currency ?? item.currency),
+      unitCost: convertPosDisplayCurrencyAmount(item.unitCost ?? 0, item.currency, nextTaxOverride.currency ?? item.currency),
+      taxRate: nextTaxOverride.taxRate,
+      taxCode: nextTaxOverride.taxCode,
+      taxLabel: nextTaxOverride.taxLabel,
+      taxJurisdiction: nextTaxOverride.taxJurisdiction,
+      taxIsCustom: nextTaxOverride.taxIsCustom,
+      currency: nextTaxOverride.currency,
     })));
   }, []);
 
@@ -190,6 +206,7 @@ export function useSaleCart({ products }: UseSaleCartOptions) {
     updateQuantity,
     applyDiscount,
     applyGlobalDiscount,
+    applyTaxOverride,
     removeItem,
     resetCart,
   };

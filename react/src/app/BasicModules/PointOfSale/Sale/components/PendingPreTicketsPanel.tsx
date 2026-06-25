@@ -1,4 +1,5 @@
-import { ArrowRight, Clock, ReceiptText, User } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, ChevronDown, ChevronUp, Clock, User } from 'lucide-react';
 import type { PreTicket } from '../../shared/cashClosing.types';
 
 interface PendingPreTicketsPanelProps {
@@ -12,28 +13,44 @@ export function PendingPreTicketsPanel({
   onPullPreTicket,
   formatCurrency,
 }: PendingPreTicketsPanelProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const nextPreTicket = preTickets[0];
+
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+    <div className="overflow-hidden rounded-2xl border border-[#F4C84A]/35 bg-white shadow-sm dark:border-[#F4C84A]/20 dark:bg-gray-800">
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-[#F4C84A]/10 dark:hover:bg-[#F4C84A]/10"
+        aria-expanded={isOpen}
+      >
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-            <ReceiptText className="h-4 w-4" />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/25 text-2xl dark:bg-[#F4C84A]/15" aria-hidden="true">
+            🧾
           </span>
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">Preventas pendientes</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {preTickets.length} listas para cobrar
+            <h3 className="truncate text-base font-black text-[#222831] dark:text-white">Preventas pendientes</h3>
+            <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
+              {preTickets.length === 0
+                ? 'Sin tickets pausados para cobrar'
+                : nextPreTicket
+                ? `${preTickets.length} listas · siguiente ${nextPreTicket.code} · ${formatCurrency(nextPreTicket.total)}`
+                : `${preTickets.length} listas para cobrar`}
             </p>
           </div>
         </div>
-      </div>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#222831] text-white dark:bg-gray-700 dark:text-gray-200">
+          {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+        </span>
+      </button>
 
-      <div className="max-h-56 space-y-2 overflow-y-auto p-3">
+      {isOpen && (
+      <div className="max-h-72 space-y-2 overflow-y-auto border-t border-gray-200 p-3 dark:border-gray-700">
         {preTickets.map((preTicket) => (
           <button
             key={preTicket.id}
             onClick={() => onPullPreTicket(preTicket.id)}
-            className="group w-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-left transition hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-900/40 dark:hover:border-blue-700 dark:hover:bg-blue-900/20"
+            className="group w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-left transition hover:border-[#59C3A5]/50 hover:bg-[#59C3A5]/10 dark:border-gray-700 dark:bg-gray-900/40 dark:hover:border-[#59C3A5]/40 dark:hover:bg-[#59C3A5]/10"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -42,7 +59,7 @@ export function PendingPreTicketsPanel({
                   <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                     {preTicket.items.length} lineas
                   </span>
-                  <span className="rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  <span className="rounded-md bg-[#59C3A5]/20 px-1.5 py-0.5 text-[10px] font-bold text-[#14745F] dark:bg-[#59C3A5]/15 dark:text-[#9DE7D3]">
                     {preTicket.status === 'pending' ? 'Pendiente' : 'Cargada'}
                   </span>
                 </div>
@@ -62,7 +79,7 @@ export function PendingPreTicketsPanel({
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-sm font-black text-gray-950 dark:text-white">{formatCurrency(preTicket.total)}</p>
-                <span className="mt-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition group-hover:bg-blue-700">
+                <span className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#2563EB] text-white transition group-hover:bg-[#1D4ED8]">
                   <ArrowRight className="h-4 w-4" />
                 </span>
               </div>
@@ -77,6 +94,7 @@ export function PendingPreTicketsPanel({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

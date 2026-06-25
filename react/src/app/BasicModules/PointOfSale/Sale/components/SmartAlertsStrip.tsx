@@ -71,19 +71,19 @@ export function SmartAlertsStrip({ alerts }: { alerts: SmartAlert[] }) {
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+    <section className="overflow-hidden rounded-2xl border border-[#F4C84A]/40 bg-white shadow-sm dark:border-[#F4C84A]/25 dark:bg-gray-800">
       <button
         onClick={() => setIsOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        className="flex min-h-[68px] w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#F4C84A]/10 dark:hover:bg-[#F4C84A]/10"
         aria-expanded={isOpen}
       >
         <span className="flex min-w-0 items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-            <AlertTriangle className="h-4 w-4" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/25 text-xl dark:bg-[#F4C84A]/15" aria-hidden="true">
+            ⚠️
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-bold text-gray-900 dark:text-white">Alertas inteligentes</span>
-            <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+            <span className="block text-sm font-black text-[#222831] dark:text-white">Alertas inteligentes</span>
+            <span className="block truncate text-xs font-medium text-gray-500 dark:text-gray-400">
               {alerts.length} señales activas para revisar
             </span>
           </span>
@@ -103,9 +103,9 @@ export function SmartAlertsStrip({ alerts }: { alerts: SmartAlert[] }) {
                   key={alert.id}
                   type="button"
                   onClick={alert.onAction}
-                  className={`flex w-[300px] items-start gap-3 rounded-lg border px-4 py-3 text-left shadow-sm transition hover:shadow-md ${styles.shell}`}
+                  className={`flex w-[300px] items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition hover:shadow-md ${styles.shell}`}
                 >
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${styles.icon}`}>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}>
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">

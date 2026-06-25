@@ -196,9 +196,15 @@ export function useSaleCheckout({
     const completedItems = [...cart];
     const completedPayments = [...salePayments];
     const checkoutCurrency = currency.trim().toUpperCase();
+    const shiftCurrency = currentShift.currencyCode?.trim().toUpperCase();
 
     if (!/^[A-Z]{3}$/.test(checkoutCurrency)) {
       setCheckoutNotice('No hay una divisa valida para guardar la venta.');
+      return;
+    }
+
+    if (shiftCurrency && shiftCurrency !== checkoutCurrency) {
+      setCheckoutNotice(`El turno actual esta abierto en ${shiftCurrency}, pero la venta esta configurada en ${checkoutCurrency}. Cierra este turno y abre caja en ${checkoutCurrency}, o cambia el pais fiscal para usar ${shiftCurrency}.`);
       return;
     }
 
@@ -254,12 +260,14 @@ export function useSaleCheckout({
 
       resetCart();
       clearPayments();
-      setCheckoutNotice(`Venta ${saleNumber} guardada. El inventario aun no se descuenta en esta fase.`);
+      setCheckoutNotice(
+        `Venta ${saleNumber} guardada. Los productos con inventario descuentan stock automaticamente; servicios, digitales y lineas custom no afectan inventario.`,
+      );
       setShowTicketModal(true);
       pushActivity({
         type: 'sale',
         title: 'Venta guardada',
-        description: `${completedItems.length} linea${completedItems.length === 1 ? '' : 's'} registrada${completedItems.length === 1 ? '' : 's'} en POS. Inventario pendiente de descuento.`,
+        description: `${completedItems.length} linea${completedItems.length === 1 ? '' : 's'} registrada${completedItems.length === 1 ? '' : 's'} en POS. Inventario actualizado para productos stock.`,
         actor: currentShift.cashierName,
         badge: formatCurrency(completedTotals.total),
         tone: 'success',

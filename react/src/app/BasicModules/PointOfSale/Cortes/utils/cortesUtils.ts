@@ -3,8 +3,15 @@ import type {
   PosCashClosingPaymentMethod,
   PosCashClosingSummaryRow,
 } from '../types/cashClosingHistory.types';
+import {
+  defaultBusinessCurrency,
+  formatBusinessCurrencyAmount,
+  normalizeBusinessCurrencyCode,
+} from '../../../shared/businessCurrency';
+import { convertPosDisplayCurrencyAmount } from '../../Sale/utils/posCurrencyDisplay';
 
 export type CortesViewMode = 'table' | 'day';
+export type CortesPeriodFilter = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 export type CortesDifferenceFilter = 'all' | 'balanced' | 'withDifference' | 'short' | 'over';
 export type CortesSortKey =
   | 'id'
@@ -23,6 +30,7 @@ export type CortesSortDirection = 'asc' | 'desc';
 
 export interface CortesFilters {
   search: string;
+  period: CortesPeriodFilter;
   dateFrom: string;
   dateTo: string;
   warehouseId: string;
@@ -33,14 +41,29 @@ export interface CortesFilters {
 
 export interface CortesAnalytics {
   closingCount: number;
+  preferredCurrency: string;
   totalSales: number;
+  convertedSales: number;
+  totalSalesLabel: string;
+  convertedSalesLabel: string;
+  salesCurrencyTotals: CortesCurrencyTotal[];
+  hasMultipleSalesCurrencies: boolean;
   totalTickets: number;
   expectedCash: number;
+  convertedExpectedCash: number;
   countedCash: number;
+  convertedCountedCash: number;
   netDifference: number;
+  convertedNetDifference: number;
   balancedCount: number;
   shortCount: number;
   overCount: number;
+}
+
+export interface CortesCurrencyTotal {
+  currency: string;
+  total: number;
+  label: string;
 }
 
 export const toNumber = (value: number | string | null | undefined) => Number(value ?? 0) || 0;
@@ -53,12 +76,82 @@ export const toLocalInputDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-export const formatCurrency = (amount: number, currency = 'MXN') => (
-  new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-  }).format(amount)
+export const getCortesPeriodRange = (period: CortesPeriodFilter, baseDate = new Date()) => {
+  const date = new Date(baseDate);
+  date.setHours(0, 0, 0, 0);
+
+  if (period === 'yesterday') {
+    const yesterday = new Date(date);
+    yesterday.setDate(date.getDate() - 1);
+    return {
+      dateFrom: toLocalInputDate(yesterday),
+      dateTo: toLocalInputDate(yesterday),
+    };
+  }
+
+  if (period === 'week') {
+    const start = new Date(date);
+    const day = start.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    start.setDate(start.getDate() + diff);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return {
+      dateFrom: toLocalInputDate(start),
+      dateTo: toLocalInputDate(end),
+    };
+  }
+
+  if (period === 'month') {
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    return {
+      dateFrom: toLocalInputDate(start),
+      dateTo: toLocalInputDate(end),
+    };
+  }
+
+  return {
+    dateFrom: toLocalInputDate(date),
+    dateTo: toLocalInputDate(date),
+  };
+};
+
+export const formatCurrency = (amount: number, currency = defaultBusinessCurrency) => (
+  formatBusinessCurrencyAmount(amount, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 );
+
+export const getClosingCurrency = (row: PosCashClosingSummaryRow) => (
+  normalizeBusinessCurrencyCode(row.currencyCode, defaultBusinessCurrency)
+);
+
+export const convertClosingAmount = (
+  amount: number,
+  row: PosCashClosingSummaryRow,
+  preferredCurrency = defaultBusinessCurrency,
+) => (
+  convertPosDisplayCurrencyAmount(amount, getClosingCurrency(row), preferredCurrency)
+);
+
+export const formatClosingAmount = (
+  amount: number,
+  row: PosCashClosingSummaryRow,
+  preferredCurrency = defaultBusinessCurrency,
+) => {
+  const nativeCurrency = getClosingCurrency(row);
+  const preferred = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
+  const nativeLabel = formatCurrency(amount, nativeCurrency);
+
+  if (nativeCurrency === preferred) {
+    return { convertedLabel: nativeLabel, nativeCurrency, nativeLabel };
+  }
+
+  return {
+    convertedLabel: formatCurrency(convertClosingAmount(amount, row, preferred), preferred),
+    nativeCurrency,
+    nativeLabel,
+  };
+};
 
 export const formatDateTime = (value?: string | null) => {
   if (!value) {
@@ -106,33 +199,78 @@ export const getPaymentTotal = (
     .reduce((total, payment) => total + toNumber(payment.amount), 0)
 );
 
-export const buildCortesAnalytics = (rows: PosCashClosingSummaryRow[]): CortesAnalytics => (
-  rows.reduce<CortesAnalytics>((analytics, row) => {
+export const buildCortesAnalytics = (
+  rows: PosCashClosingSummaryRow[],
+  preferredCurrency = defaultBusinessCurrency,
+): CortesAnalytics => {
+  const preferred = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
+  const totalsByCurrency = new Map<string, number>();
+
+  const analytics = rows.reduce<CortesAnalytics>((currentAnalytics, row) => {
     const status = getClosingStatus(row);
+    const rowCurrency = getClosingCurrency(row);
+    const totalSales = toNumber(row.totalSalesAmount);
+    const expectedCash = toNumber(row.expectedCashAmount);
+    const countedCash = toNumber(row.countedCashAmount);
+    const netDifference = toNumber(row.overShortAmount);
+
+    totalsByCurrency.set(rowCurrency, (totalsByCurrency.get(rowCurrency) ?? 0) + totalSales);
 
     return {
-      closingCount: analytics.closingCount + 1,
-      totalSales: analytics.totalSales + toNumber(row.totalSalesAmount),
-      totalTickets: analytics.totalTickets + row.ticketsCount,
-      expectedCash: analytics.expectedCash + toNumber(row.expectedCashAmount),
-      countedCash: analytics.countedCash + toNumber(row.countedCashAmount),
-      netDifference: analytics.netDifference + toNumber(row.overShortAmount),
-      balancedCount: analytics.balancedCount + (status === 'balanced' ? 1 : 0),
-      shortCount: analytics.shortCount + (status === 'short' ? 1 : 0),
-      overCount: analytics.overCount + (status === 'over' ? 1 : 0),
+      ...currentAnalytics,
+      balancedCount: currentAnalytics.balancedCount + (status === 'balanced' ? 1 : 0),
+      closingCount: currentAnalytics.closingCount + 1,
+      convertedCountedCash: currentAnalytics.convertedCountedCash + convertClosingAmount(countedCash, row, preferred),
+      convertedExpectedCash: currentAnalytics.convertedExpectedCash + convertClosingAmount(expectedCash, row, preferred),
+      convertedNetDifference: currentAnalytics.convertedNetDifference + convertClosingAmount(netDifference, row, preferred),
+      convertedSales: currentAnalytics.convertedSales + convertClosingAmount(totalSales, row, preferred),
+      countedCash: currentAnalytics.countedCash + countedCash,
+      expectedCash: currentAnalytics.expectedCash + expectedCash,
+      netDifference: currentAnalytics.netDifference + netDifference,
+      overCount: currentAnalytics.overCount + (status === 'over' ? 1 : 0),
+      shortCount: currentAnalytics.shortCount + (status === 'short' ? 1 : 0),
+      totalSales: currentAnalytics.totalSales + totalSales,
+      totalTickets: currentAnalytics.totalTickets + row.ticketsCount,
     };
   }, {
     balancedCount: 0,
     closingCount: 0,
+    convertedCountedCash: 0,
+    convertedExpectedCash: 0,
+    convertedNetDifference: 0,
+    convertedSales: 0,
     countedCash: 0,
     expectedCash: 0,
+    hasMultipleSalesCurrencies: false,
     netDifference: 0,
     overCount: 0,
+    preferredCurrency: preferred,
+    salesCurrencyTotals: [],
     shortCount: 0,
     totalSales: 0,
+    totalSalesLabel: formatCurrency(0, preferred),
+    convertedSalesLabel: formatCurrency(0, preferred),
     totalTickets: 0,
-  })
-);
+  });
+
+  const salesCurrencyTotals = Array.from(totalsByCurrency.entries())
+    .sort(([firstCurrency], [secondCurrency]) => firstCurrency.localeCompare(secondCurrency))
+    .map(([currency, total]) => ({
+      currency,
+      label: formatCurrency(total, currency),
+      total,
+    }));
+
+  return {
+    ...analytics,
+    convertedSalesLabel: formatCurrency(analytics.convertedSales, preferred),
+    hasMultipleSalesCurrencies: salesCurrencyTotals.length > 1,
+    salesCurrencyTotals,
+    totalSalesLabel: salesCurrencyTotals.length > 0
+      ? salesCurrencyTotals.map((item) => item.label).join(' / ')
+      : formatCurrency(0, preferred),
+  };
+};
 
 export const filterCortesRows = (
   rows: PosCashClosingSummaryRow[],
@@ -180,7 +318,10 @@ export const sortCortesRows = (
   });
 };
 
-export const groupCortesByDate = (rows: PosCashClosingSummaryRow[]) => {
+export const groupCortesByDate = (
+  rows: PosCashClosingSummaryRow[],
+  preferredCurrency = defaultBusinessCurrency,
+) => {
   const groups = new Map<string, PosCashClosingSummaryRow[]>();
 
   rows.forEach((row) => {
@@ -191,7 +332,7 @@ export const groupCortesByDate = (rows: PosCashClosingSummaryRow[]) => {
   return Array.from(groups.entries())
     .sort(([firstDate], [secondDate]) => secondDate.localeCompare(firstDate))
     .map(([date, dateRows]) => ({
-      analytics: buildCortesAnalytics(dateRows),
+      analytics: buildCortesAnalytics(dateRows, preferredCurrency),
       date,
       rows: dateRows,
     }));

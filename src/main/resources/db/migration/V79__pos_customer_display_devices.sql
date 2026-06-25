@@ -1,0 +1,88 @@
+CREATE TABLE IF NOT EXISTS pos_customer_display_devices (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  unit_id BIGINT NULL,
+  business_id BIGINT NULL,
+  warehouse_id BIGINT NOT NULL,
+  cash_register_id BIGINT NOT NULL,
+  device_token VARCHAR(96) NOT NULL,
+  pairing_code VARCHAR(16) NULL,
+  pairing_code_expires_at TIMESTAMP NULL,
+  name VARCHAR(160) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  paired_at TIMESTAMP NULL,
+  last_seen_at TIMESTAMP NULL,
+  created_by_user_id BIGINT NOT NULL,
+  updated_by_user_id BIGINT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL,
+  version BIGINT NOT NULL DEFAULT 0,
+  metadata_json JSON NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_pos_customer_display_token (device_token),
+  KEY idx_pos_customer_display_company (company_id),
+  KEY idx_pos_customer_display_register (company_id, cash_register_id),
+  KEY idx_pos_customer_display_pairing_code (pairing_code),
+  KEY idx_pos_customer_display_status (company_id, status),
+  KEY idx_pos_customer_display_deleted (deleted_at),
+  CONSTRAINT fk_pos_customer_display_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pos_customer_display_unit FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+  CONSTRAINT fk_pos_customer_display_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL,
+  CONSTRAINT fk_pos_customer_display_warehouse FOREIGN KEY (warehouse_id) REFERENCES sales_inventory_warehouses(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_customer_display_register FOREIGN KEY (cash_register_id) REFERENCES pos_cash_registers(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_customer_display_created_by FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_customer_display_updated_by FOREIGN KEY (updated_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT chk_pos_customer_display_status CHECK (status IN ('PENDING', 'ACTIVE', 'INACTIVE'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS pos_customer_display_snapshots (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  company_id BIGINT NOT NULL,
+  unit_id BIGINT NULL,
+  business_id BIGINT NULL,
+  warehouse_id BIGINT NOT NULL,
+  cash_register_id BIGINT NOT NULL,
+  shift_id BIGINT NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  currency_code VARCHAR(3) NOT NULL,
+  item_count INT NOT NULL DEFAULT 0,
+  subtotal_amount DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+  discount_amount DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+  tax_amount DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+  total_amount DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+  paid_amount DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+  change_amount DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+  balance_amount DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+  ticket_number VARCHAR(80) NULL,
+  customer_message VARCHAR(240) NULL,
+  items_json JSON NULL,
+  payments_json JSON NULL,
+  updated_by_user_id BIGINT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_pos_display_snapshot_register_shift (company_id, cash_register_id, shift_id),
+  KEY idx_pos_display_snapshot_company (company_id),
+  KEY idx_pos_display_snapshot_register (company_id, cash_register_id),
+  KEY idx_pos_display_snapshot_shift (shift_id),
+  KEY idx_pos_display_snapshot_updated (company_id, updated_at),
+  CONSTRAINT fk_pos_display_snapshot_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pos_display_snapshot_unit FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+  CONSTRAINT fk_pos_display_snapshot_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL,
+  CONSTRAINT fk_pos_display_snapshot_warehouse FOREIGN KEY (warehouse_id) REFERENCES sales_inventory_warehouses(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_display_snapshot_register FOREIGN KEY (cash_register_id) REFERENCES pos_cash_registers(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_display_snapshot_shift FOREIGN KEY (shift_id) REFERENCES pos_shifts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pos_display_snapshot_updated_by FOREIGN KEY (updated_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  CONSTRAINT chk_pos_display_snapshot_status CHECK (status IN ('IDLE', 'ACTIVE', 'READY_TO_PAY', 'PAID', 'CLOSED')),
+  CONSTRAINT chk_pos_display_snapshot_amounts CHECK (
+    item_count >= 0
+    AND subtotal_amount >= 0
+    AND discount_amount >= 0
+    AND tax_amount >= 0
+    AND total_amount >= 0
+    AND paid_amount >= 0
+    AND change_amount >= 0
+    AND balance_amount >= 0
+  )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

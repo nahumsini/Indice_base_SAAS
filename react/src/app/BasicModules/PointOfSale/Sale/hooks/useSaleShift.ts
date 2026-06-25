@@ -136,7 +136,7 @@ export function useSaleShift({
     }
   }, [backendShiftId, canOpenShift, currentShift, isRegisterContextLoading]);
 
-  const handleOpenShift = async (initialCash: number, openingNote?: string) => {
+  const handleOpenShift = async (initialCash: number, openingNote?: string, selectedCurrencyCode?: string) => {
     if (!registerContext) {
       setShiftError('No cash register configured. Create a cash register from POS setup before opening a shift.');
       return;
@@ -148,6 +148,12 @@ export function useSaleShift({
       return;
     }
 
+    const openingCurrency = String(selectedCurrencyCode || currency).trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(openingCurrency)) {
+      setShiftError('Selecciona una divisa valida para abrir caja.');
+      return;
+    }
+
     setIsOpeningShift(true);
     setShiftError('');
 
@@ -155,7 +161,7 @@ export function useSaleShift({
       const openedShift = await posBackendApi.openShift({
         cashRegisterId,
         openingAmount: initialCash,
-        currencyCode: currency,
+        currencyCode: openingCurrency,
         openingNote,
       });
       const newShift = buildShiftFromBackend(openedShift, registerContext);

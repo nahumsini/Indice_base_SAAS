@@ -5,18 +5,16 @@ import { formatCurrency } from '../utils/cortesUtils';
 
 interface CortesKpiAreaProps {
   analytics: CortesAnalytics;
-  currencyCode?: string;
 }
 
 export function CortesKpiArea({
   analytics,
-  currencyCode = 'MXN',
 }: CortesKpiAreaProps) {
   const hasDifference = analytics.shortCount > 0 || analytics.overCount > 0;
-  const differenceLabel = analytics.netDifference > 0
-    ? `Sobrante neto ${formatCurrency(analytics.netDifference, currencyCode)}`
-    : analytics.netDifference < 0
-    ? `Faltante neto ${formatCurrency(Math.abs(analytics.netDifference), currencyCode)}`
+  const differenceLabel = analytics.convertedNetDifference > 0
+    ? `Sobrante neto ${formatCurrency(analytics.convertedNetDifference, analytics.preferredCurrency)}`
+    : analytics.convertedNetDifference < 0
+    ? `Faltante neto ${formatCurrency(Math.abs(analytics.convertedNetDifference), analytics.preferredCurrency)}`
     : 'Sin diferencia neta';
 
   const insight = analytics.closingCount === 0
@@ -24,6 +22,9 @@ export function CortesKpiArea({
     : hasDifference
     ? `${analytics.shortCount + analytics.overCount} corte(s) requieren revision antes de cerrar el control operativo.`
     : `${analytics.closingCount} corte(s) balanceados en el periodo; el efectivo contado coincide con lo esperado.`;
+  const currencyInsight = analytics.hasMultipleSalesCurrencies
+    ? `Cobrado en ${analytics.totalSalesLabel}; equivalente ${analytics.convertedSalesLabel} en ${analytics.preferredCurrency}.`
+    : `Cobrado ${analytics.totalSalesLabel}; divisa preferida ${analytics.preferredCurrency}.`;
 
   return (
     <OperationalKpiArea
@@ -32,8 +33,8 @@ export function CortesKpiArea({
           id: 'sales',
           icon: <BadgeDollarSign className="h-4 w-4" />,
           iconClassName: 'text-[#FF6B5E]',
-          label: 'ventas cerradas',
-          value: formatCurrency(analytics.totalSales, currencyCode),
+          label: `ventas en ${analytics.preferredCurrency}`,
+          value: analytics.convertedSalesLabel,
           valueClassName: 'text-[#FF6B5E]',
         },
         {
@@ -54,20 +55,26 @@ export function CortesKpiArea({
           id: 'expected',
           icon: <Banknote className="h-4 w-4" />,
           iconClassName: 'text-emerald-600',
-          label: 'esperado',
-          value: formatCurrency(analytics.expectedCash, currencyCode),
+          label: `esperado ${analytics.preferredCurrency}`,
+          value: formatCurrency(analytics.convertedExpectedCash, analytics.preferredCurrency),
           valueClassName: 'text-emerald-600',
         },
         {
           id: 'difference',
           icon: <AlertTriangle className="h-4 w-4" />,
           iconClassName: hasDifference ? 'text-amber-600' : 'text-emerald-600',
-          label: 'diferencia',
-          value: formatCurrency(analytics.netDifference, currencyCode),
+          label: `diferencia ${analytics.preferredCurrency}`,
+          value: formatCurrency(analytics.convertedNetDifference, analytics.preferredCurrency),
           valueClassName: hasDifference ? 'text-amber-700' : 'text-emerald-600',
         },
       ]}
       alertChips={[
+        ...(analytics.closingCount > 0 ? [{
+          id: 'currency-breakdown',
+          icon: <BadgeDollarSign className="h-3.5 w-3.5" />,
+          label: analytics.totalSalesLabel,
+          tone: 'info' as const,
+        }] : []),
         ...(analytics.shortCount > 0 ? [{
           id: 'short',
           icon: <AlertTriangle className="h-3.5 w-3.5" />,
@@ -107,7 +114,7 @@ export function CortesKpiArea({
           label: 'Faltantes',
         },
       ]}
-      insight={analytics.closingCount > 0 ? `${insight} ${differenceLabel}.` : insight}
+      insight={analytics.closingCount > 0 ? `${insight} ${differenceLabel}. ${currencyInsight}` : insight}
       insightIcon={<AlertTriangle className="h-5 w-5" />}
     />
   );

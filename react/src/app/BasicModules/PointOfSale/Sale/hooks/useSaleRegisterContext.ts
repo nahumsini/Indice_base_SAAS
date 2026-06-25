@@ -122,6 +122,7 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
       businessUnitName: warehouse?.unitName || 'Unidad no asignada',
       businessId: toId(selectedRegister.businessId ?? warehouse?.businessId),
       businessName: warehouse?.businessName || warehouse?.name || 'Negocio no asignado',
+      warehouseName: selectedRegister.warehouseName || warehouse?.name || '',
       cashRegisterId: toId(selectedRegister.id),
       cashRegisterCode: selectedRegister.code,
       cashRegisterName: selectedRegister.name,

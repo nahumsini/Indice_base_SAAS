@@ -7,8 +7,10 @@ export function usePointOfSaleCatalogProducts() {
   const { products: salesProducts } = useSalesCrm();
   const [inventoryBalances, setInventoryBalances] = useState<CommerceInventoryBalanceSnapshot[]>([]);
   const [balanceLoadError, setBalanceLoadError] = useState<string | null>(null);
+  const [isLoadingInventoryBalances, setIsLoadingInventoryBalances] = useState(true);
 
   const reloadInventoryBalances = useCallback(async () => {
+    setIsLoadingInventoryBalances(true);
     try {
       const response = await salesApi.list<CommerceInventoryBalanceSnapshot>('inventory-balances');
       setInventoryBalances(response.items);
@@ -16,6 +18,8 @@ export function usePointOfSaleCatalogProducts() {
     } catch (error) {
       console.warn('[PointOfSale] Inventory balances could not be loaded.', error);
       setBalanceLoadError('No se pudieron cargar las existencias compartidas de inventario.');
+    } finally {
+      setIsLoadingInventoryBalances(false);
     }
   }, []);
 
@@ -36,6 +40,7 @@ export function usePointOfSaleCatalogProducts() {
   return {
     balanceLoadError,
     inventoryBalances,
+    isLoadingInventoryBalances,
     products,
     reloadInventoryBalances,
     saleCurrency,

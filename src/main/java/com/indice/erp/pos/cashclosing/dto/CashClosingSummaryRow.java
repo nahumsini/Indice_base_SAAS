@@ -16,5 +16,6 @@ public record CashClosingSummaryRow(
         BigDecimal totalSalesAmount,
         int ticketsCount,
         Long closedByUserId,
+        String currencyCode,
         Instant closedAt) {
 }

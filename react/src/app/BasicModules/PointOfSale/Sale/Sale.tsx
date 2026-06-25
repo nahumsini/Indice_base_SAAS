@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { defaultBusinessCurrency, normalizeBusinessCurrencyCode } from '../../shared/businessCurrency';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
 import {
@@ -12,8 +14,10 @@ import {
   type DiscountRule,
 } from '../shared/commercial/discounts';
 import type { Product } from '../shared/commercial/products';
+import { CustomerDisplaySetupModal } from './components/CustomerDisplaySetupModal';
 import { IndiceSignalBar } from './components/IndiceSignalBar';
 import { PendingPreTicketsPanel } from './components/PendingPreTicketsPanel';
+import { PosFiscalSettingsModal } from './components/PosFiscalSettingsModal';
 import { QuickProductsPanel } from './components/QuickProductsPanel';
 import { SaleModals } from './components/SaleModals';
 import { SaleNoShiftState } from './components/SaleNoShiftState';
@@ -26,6 +30,7 @@ import { useSaleActivityFeed } from './hooks/useSaleActivityFeed';
 import { useSaleCatalog } from './hooks/useSaleCatalog';
 import { useSaleCart } from './hooks/useSaleCart';
 import { useSaleCheckout } from './hooks/useSaleCheckout';
+import { useCustomerDisplayPublisher } from './hooks/useCustomerDisplayPublisher';
 import { useSaleKeyboardShortcuts } from './hooks/useSaleKeyboardShortcuts';
 import { useSaleRegisterContext } from './hooks/useSaleRegisterContext';
 import { useSaleShift } from './hooks/useSaleShift';
@@ -33,7 +38,13 @@ import { useSaleSmartAlerts } from './hooks/useSaleSmartAlerts';
 import { usePendingPreTickets } from './hooks/usePendingPreTickets';
 import { useSuspendedSales } from './hooks/useSuspendedSales';
 import type { PaymentMethod, SaleItem } from './types/sale.types';
-import { formatSaleCurrency as formatCurrency } from './utils/saleFormatters';
+import { formatPosDisplayCurrency } from './utils/posCurrencyDisplay';
+import {
+  createDefaultPosFiscalSettings,
+  getFiscalSummary,
+  normalizePosFiscalSettings,
+  type PosFiscalSettings,
+} from './utils/posFiscalSettings';
 
 export default function Sale() {
   const { products: saleProducts, saleCurrency } = usePointOfSaleCatalogProducts();
@@ -50,14 +61,43 @@ export default function Sale() {
     refreshContext: refreshRegisterContext,
     clearError: clearRegisterContextError,
   } = useSaleRegisterContext();
-  const effectiveSaleCurrency = useMemo(() => {
+  const baseTransactionCurrency = useMemo(() => {
     const productCurrency = saleProducts.find((product) => product.currency?.trim())?.currency;
-    return (productCurrency || currentOpenShift?.currencyCode || saleCurrency).trim().toUpperCase();
+    return (currentOpenShift?.currencyCode || saleCurrency || productCurrency || defaultBusinessCurrency).trim().toUpperCase();
   }, [currentOpenShift?.currencyCode, saleCurrency, saleProducts]);
-  const formatSaleCurrency = useCallback(
-    (amount: number) => formatCurrency(amount, effectiveSaleCurrency),
-    [effectiveSaleCurrency],
+  const [storedFiscalSettings, setStoredFiscalSettings] = useLocalStorageState<Partial<PosFiscalSettings> | null>(
+    'indice.pos.saleFiscalSettings',
+    null,
   );
+  const fiscalSettings = useMemo(
+    () => normalizePosFiscalSettings(storedFiscalSettings, baseTransactionCurrency),
+    [baseTransactionCurrency, storedFiscalSettings],
+  );
+  const transactionCurrency = fiscalSettings.currencyCode;
+  const formatSaleCurrency = useCallback(
+    (amount: number) => formatPosDisplayCurrency(amount, transactionCurrency, transactionCurrency),
+    [transactionCurrency],
+  );
+  const cartTaxOverride = useMemo(() => ({
+    taxRate: fiscalSettings.taxRate,
+    taxCode: fiscalSettings.taxPresetId,
+    taxLabel: fiscalSettings.taxLabel,
+    taxJurisdiction: fiscalSettings.taxJurisdiction,
+    taxIsCustom: fiscalSettings.isCustomRate,
+    currency: fiscalSettings.currencyCode,
+  }), [fiscalSettings]);
+  const fiscalSummary = useMemo(
+    () => getFiscalSummary(fiscalSettings),
+    [fiscalSettings],
+  );
+  const shiftCurrencyMismatchNotice = useMemo(() => {
+    const shiftCurrency = currentOpenShift?.currencyCode?.trim().toUpperCase();
+    if (!shiftCurrency || shiftCurrency === transactionCurrency) {
+      return '';
+    }
+
+    return `El turno actual esta abierto en ${shiftCurrency}, pero la configuracion fiscal usa ${transactionCurrency}. Para finalizar con esa divisa, cierra este turno y abre caja en ${transactionCurrency}.`;
+  }, [currentOpenShift?.currencyCode, transactionCurrency]);
   const {
     cart,
     setCart,
@@ -75,9 +115,10 @@ export default function Sale() {
     updateQuantity,
     applyDiscount,
     applyGlobalDiscount,
+    applyTaxOverride,
     removeItem,
     resetCart,
-  } = useSaleCart({ products: saleProducts });
+  } = useSaleCart({ products: saleProducts, taxOverride: cartTaxOverride });
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sidePanel, setSidePanel] = useState<SaleSidePanelState | null>(null);
   const { recentActivities, pushActivity } = useSaleActivityFeed();
@@ -120,7 +161,7 @@ export default function Sale() {
     backendCurrentShift: currentOpenShift,
     isRegisterContextLoading,
     canOpenShift: activeCashRegisters.length > 0,
-    currency: effectiveSaleCurrency,
+    currency: transactionCurrency,
     refreshRegisterContext,
   });
 
@@ -128,10 +169,13 @@ export default function Sale() {
   const [selectedItemForDiscount, setSelectedItemForDiscount] = useState<SaleItem | null>(null);
   const [showGlobalDiscountModal, setShowGlobalDiscountModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showCustomerDisplayModal, setShowCustomerDisplayModal] = useState(false);
+  const [showFiscalSettingsModal, setShowFiscalSettingsModal] = useState(false);
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>(() => readStoredDiscountRules());
   const [creditRules, setCreditRules] = useState<CreditRule[]>(() => readStoredCreditRules());
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const posFullscreenRef = useRef<HTMLDivElement>(null);
 
   const { categories, filteredQuickProducts, stockSignals } = useSaleCatalog(saleProducts, selectedCategory);
   const {
@@ -162,7 +206,7 @@ export default function Sale() {
     resetCart,
     pushActivity,
     formatCurrency: formatSaleCurrency,
-    currency: effectiveSaleCurrency,
+    currency: transactionCurrency,
     refreshRegisterContext,
   });
   const openProductPanel = useCallback((product: Product) => {
@@ -200,7 +244,17 @@ export default function Sale() {
     || showDiscountModal
     || showGlobalDiscountModal
     || showTicketModal
-    || showReturnModal;
+    || showReturnModal
+    || showCustomerDisplayModal
+    || showFiscalSettingsModal;
+
+  useCustomerDisplayPublisher({
+    cart,
+    payments,
+    totals,
+    currentShift,
+    currencyCode: transactionCurrency,
+  });
 
   useEffect(() => {
     const focusInput = () => {
@@ -214,6 +268,8 @@ export default function Sale() {
         && !showGlobalDiscountModal
         && !showTicketModal
         && !showReturnModal
+        && !showCustomerDisplayModal
+        && !showFiscalSettingsModal
         && currentShift
       ) {
         barcodeInputRef.current.focus();
@@ -232,6 +288,8 @@ export default function Sale() {
     showGlobalDiscountModal,
     showTicketModal,
     showReturnModal,
+    showCustomerDisplayModal,
+    showFiscalSettingsModal,
     currentShift,
   ]);
 
@@ -264,12 +322,12 @@ export default function Sale() {
   };
 
   const toggleFullscreenMode = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.();
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
       return;
     }
 
-    document.exitFullscreen?.();
+    posFullscreenRef.current?.requestFullscreen?.();
   };
 
   const handleReturn = (saleId: string, type: 'full' | 'partial') => {
@@ -291,6 +349,16 @@ export default function Sale() {
 
     handleAddPayment(method);
   };
+
+  const handleOpenShiftWithCurrency = useCallback(async (
+    initialCash: number,
+    openingNote?: string,
+    selectedCurrencyCode?: string,
+  ) => {
+    const openingCurrency = normalizeBusinessCurrencyCode(selectedCurrencyCode, transactionCurrency);
+    setStoredFiscalSettings(createDefaultPosFiscalSettings(openingCurrency));
+    await handleOpenShift(initialCash, openingNote, openingCurrency);
+  }, [handleOpenShift, setStoredFiscalSettings, transactionCurrency]);
 
   useSaleKeyboardShortcuts({
     barcodeInputRef,
@@ -326,6 +394,32 @@ export default function Sale() {
   const confirmGlobalDiscount = (discount: number, type: SaleItem['discountType']) => {
     applyGlobalDiscount(discount, type);
     setShowGlobalDiscountModal(false);
+  };
+
+  const confirmFiscalSettings = (settings: PosFiscalSettings) => {
+    const normalizedSettings = normalizePosFiscalSettings(settings, transactionCurrency);
+    setStoredFiscalSettings(normalizedSettings);
+    applyTaxOverride({
+      taxRate: normalizedSettings.taxRate,
+      taxCode: normalizedSettings.taxPresetId,
+      taxLabel: normalizedSettings.taxLabel,
+      taxJurisdiction: normalizedSettings.taxJurisdiction,
+      taxIsCustom: normalizedSettings.isCustomRate,
+      currency: normalizedSettings.currencyCode,
+    });
+    if (payments.length > 0) {
+      setPayments([]);
+      setCashReceived(0);
+    }
+    setShowFiscalSettingsModal(false);
+    pushActivity({
+      type: 'sale',
+      title: 'Fiscal configurado',
+      description: `${normalizedSettings.currencyCode} con ${normalizedSettings.taxLabel} aplicado al ticket.`,
+      actor: currentShift?.cashierName ?? 'POS',
+      badge: `${normalizedSettings.taxRate}%`,
+      tone: 'info',
+    });
   };
 
   const openGlobalDiscountModal = () => {
@@ -366,11 +460,13 @@ export default function Sale() {
         warehouses={warehouses}
         activeCashRegisters={activeCashRegisters}
         selectedCashRegisterId={selectedCashRegisterId}
+        preferredCurrencyCode={transactionCurrency}
         isLoading={isRegisterContextLoading}
         isOpeningShift={isOpeningShift}
         error={registerContextError || shiftError}
         onOpenShiftModal={() => setShowOpenShiftModal(true)}
-        onOpenShift={handleOpenShift}
+        onCloseOpenShiftModal={() => setShowOpenShiftModal(false)}
+        onOpenShift={handleOpenShiftWithCurrency}
         onSelectCashRegister={setSelectedCashRegisterId}
         onRetry={refreshRegisterContext}
         onClearError={() => {
@@ -383,102 +479,140 @@ export default function Sale() {
 
   return (
     <>
-      <ShiftBar
-        shift={currentShift}
-        onOpenCashMovement={() => setShowCashMovementModal(true)}
-        onCloseShift={() => { void openCloseShiftModal(); }}
-        onOpenReturn={() => setShowReturnModal(true)}
-      />
-
-      <div className="mt-3">
-        <IndiceSignalBar
-          salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
-          lowStockCount={stockSignals.lowStockProducts.length}
-          suspendedCount={suspendedSales.length}
-          activeAlertCount={smartAlerts.length}
-          isShiftActive={Boolean(currentShift)}
-        />
-      </div>
-
-      <div className="mt-3">
-        <SmartAlertsStrip alerts={smartAlerts} />
-      </div>
-
-      {[cartNotice, checkoutNotice, shiftNotice, shiftError, registerContextError].filter(Boolean).length > 0 && (
-        <div className="mt-3 space-y-2">
-          {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
-          {checkoutNotice && <OperationalNotice message={checkoutNotice} onDismiss={clearCheckoutNotice} />}
-          {shiftNotice && <OperationalNotice message={shiftNotice} onDismiss={clearShiftNotice} />}
-          {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}
-          {registerContextError && <OperationalNotice message={registerContextError} onDismiss={clearRegisterContextError} />}
-        </div>
-      )}
-
-      <div className="mt-3 grid min-h-[720px] grid-cols-1 gap-4 xl:h-[calc(100vh-390px)] xl:grid-cols-[minmax(260px,320px)_minmax(460px,1fr)_minmax(340px,384px)]">
-        <div className="min-w-0 space-y-4">
-          <PendingPreTicketsPanel
-            preTickets={preTickets}
-            onPullPreTicket={pullPreTicket}
-            formatCurrency={formatSaleCurrency}
+      <div
+        ref={posFullscreenRef}
+        data-pos-fullscreen-root
+        className="rounded-[28px] bg-[#F7F8FA] p-3 dark:bg-[#111827]"
+      >
+        <div data-pos-terminal-shell className="mx-auto flex min-h-0 w-full flex-col">
+          <ShiftBar
+            shift={currentShift}
+            onOpenCashMovement={() => setShowCashMovementModal(true)}
+            onCloseShift={() => { void openCloseShiftModal(); }}
+            onOpenReturn={() => setShowReturnModal(true)}
+            onToggleFullscreen={toggleFullscreenMode}
+            onOpenCustomerDisplay={() => setShowCustomerDisplayModal(true)}
+            fiscalSummary={fiscalSummary}
+            fiscalDetail={`${fiscalSettings.taxRate}%`}
+            onOpenFiscalSettings={() => setShowFiscalSettingsModal(true)}
           />
 
-          <QuickProductsPanel
-            categories={categories}
-            filteredQuickProducts={filteredQuickProducts}
-            selectedCategory={selectedCategory}
-            selectedQuickQuantity={selectedQuickQuantity}
-            blockSalesWithoutStock={blockSalesWithoutStock}
-            onSelectCategory={setSelectedCategory}
-            onAddToCart={addToCart}
-            formatCurrency={formatSaleCurrency}
-          />
+          <div className={`mt-2 grid gap-2 ${smartAlerts.length > 0 ? '2xl:grid-cols-[minmax(0,1fr)_minmax(300px,400px)]' : ''}`}>
+            <IndiceSignalBar
+              salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
+              lowStockCount={stockSignals.lowStockProducts.length}
+              suspendedCount={suspendedSales.length}
+              activeAlertCount={smartAlerts.length}
+              isShiftActive={Boolean(currentShift)}
+            />
+
+            {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
+          </div>
+
+          {[cartNotice, checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError].filter(Boolean).length > 0 && (
+            <div className="mt-2 space-y-2">
+              {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
+              {checkoutNotice && <OperationalNotice message={checkoutNotice} onDismiss={clearCheckoutNotice} />}
+              {shiftCurrencyMismatchNotice && <OperationalNotice message={shiftCurrencyMismatchNotice} />}
+              {shiftNotice && <OperationalNotice message={shiftNotice} onDismiss={clearShiftNotice} />}
+              {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}
+              {registerContextError && <OperationalNotice message={registerContextError} onDismiss={clearRegisterContextError} />}
+            </div>
+          )}
+
+          <div
+            data-pos-workspace-grid
+            className="mt-3 grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(620px,1fr)_minmax(420px,520px)] 2xl:h-[clamp(560px,calc(100vh-25rem),720px)] 2xl:grid-cols-[minmax(560px,1fr)_minmax(420px,520px)_minmax(320px,400px)]"
+          >
+            <div data-pos-products-column className="flex min-h-0 min-w-0 flex-col gap-4 xl:row-span-2 2xl:row-span-1">
+              <PendingPreTicketsPanel
+                preTickets={preTickets}
+                onPullPreTicket={pullPreTicket}
+                formatCurrency={formatSaleCurrency}
+              />
+
+              <QuickProductsPanel
+                categories={categories}
+                filteredQuickProducts={filteredQuickProducts}
+                selectedCategory={selectedCategory}
+                selectedQuickQuantity={selectedQuickQuantity}
+                blockSalesWithoutStock={blockSalesWithoutStock}
+                onSelectCategory={setSelectedCategory}
+                onAddToCart={addToCart}
+                formatCurrency={formatSaleCurrency}
+              />
+            </div>
+
+            <div data-pos-ticket-column className="min-h-0 min-w-0 xl:col-start-2 xl:row-start-1 2xl:col-start-auto 2xl:row-start-auto">
+              <SaleTicketPanel
+                cart={cart}
+                barcodeInput={barcodeInput}
+                barcodeInputRef={barcodeInputRef}
+                lastAddedItem={lastAddedItem}
+                totals={totals}
+                products={saleProducts}
+                onBarcodeInputChange={setBarcodeInput}
+                onBarcodeSubmit={handleBarcodeSubmit}
+                onClearCart={clearCart}
+                onUpdateQuantity={updateQuantity}
+                onRemoveItem={removeItem}
+                onOpenItemDiscount={openItemDiscountModal}
+                onOpenGlobalDiscount={openGlobalDiscountModal}
+                onOpenProductPanel={(product) => setSidePanel({ type: 'product', product })}
+                formatCurrency={formatSaleCurrency}
+              />
+            </div>
+
+            <div data-pos-payment-column className="min-h-0 min-w-0 xl:col-start-2 xl:row-start-2 2xl:col-start-auto 2xl:row-start-auto">
+              <SalePaymentPanel
+                totals={totals}
+                payments={payments}
+                cartItemCount={cart.length}
+                selectedQuickQuantity={selectedQuickQuantity}
+                suspendedSales={suspendedSales}
+                recentActivities={recentActivities}
+                onRemovePayment={removePayment}
+                onSuspendSale={suspendCurrentSale}
+                onResumeSuspendedSale={resumeSuspendedSale}
+                onDiscardSuspendedSale={discardSuspendedSale}
+                onQuantityChange={setSelectedQuickQuantity}
+                onOpenSalePanel={openSalePanel}
+                onOpenReturn={() => setShowReturnModal(true)}
+                onFullscreen={toggleFullscreenMode}
+                onOpenCustomerDisplay={() => setShowCustomerDisplayModal(true)}
+                onExactPayment={handleExactPayment}
+                onAddPayment={openPaymentModal}
+                onCompleteSale={() => { void completeSale(); }}
+                isCompletingSale={isCompletingSale}
+                checkoutNotice={checkoutNotice}
+                onClearCheckoutNotice={clearCheckoutNotice}
+                formatCurrency={formatSaleCurrency}
+              />
+            </div>
+          </div>
         </div>
-
-        <SaleTicketPanel
-          cart={cart}
-          barcodeInput={barcodeInput}
-          barcodeInputRef={barcodeInputRef}
-          lastAddedItem={lastAddedItem}
-          totals={totals}
-          products={saleProducts}
-          onBarcodeInputChange={setBarcodeInput}
-          onBarcodeSubmit={handleBarcodeSubmit}
-          onClearCart={clearCart}
-          onUpdateQuantity={updateQuantity}
-          onRemoveItem={removeItem}
-          onOpenItemDiscount={openItemDiscountModal}
-          onOpenGlobalDiscount={openGlobalDiscountModal}
-          onOpenProductPanel={(product) => setSidePanel({ type: 'product', product })}
-          formatCurrency={formatSaleCurrency}
-        />
-
-        <SalePaymentPanel
-          totals={totals}
-          payments={payments}
-          cartItemCount={cart.length}
-          selectedQuickQuantity={selectedQuickQuantity}
-          suspendedSales={suspendedSales}
-          recentActivities={recentActivities}
-          onRemovePayment={removePayment}
-          onSuspendSale={suspendCurrentSale}
-          onResumeSuspendedSale={resumeSuspendedSale}
-          onDiscardSuspendedSale={discardSuspendedSale}
-          onQuantityChange={setSelectedQuickQuantity}
-          onOpenSalePanel={openSalePanel}
-          onOpenReturn={() => setShowReturnModal(true)}
-          onFullscreen={toggleFullscreenMode}
-          onExactPayment={handleExactPayment}
-          onAddPayment={openPaymentModal}
-          onCompleteSale={() => { void completeSale(); }}
-          isCompletingSale={isCompletingSale}
-          formatCurrency={formatSaleCurrency}
-        />
       </div>
 
       <SaleSidePanel
         panel={sidePanel}
         onClose={() => setSidePanel(null)}
         formatCurrency={formatSaleCurrency}
+      />
+
+      <CustomerDisplaySetupModal
+        isOpen={showCustomerDisplayModal}
+        shift={currentShift}
+        onClose={() => setShowCustomerDisplayModal(false)}
+      />
+
+      <PosFiscalSettingsModal
+        isOpen={showFiscalSettingsModal}
+        settings={fiscalSettings}
+        totals={totals}
+        cartItemCount={cart.length}
+        formatCurrency={formatSaleCurrency}
+        onClose={() => setShowFiscalSettingsModal(false)}
+        onConfirm={confirmFiscalSettings}
       />
 
       <SaleModals
@@ -500,7 +634,7 @@ export default function Sale() {
         globalDiscountRules={globalDiscountRules}
         creditRules={creditRules}
         creditCustomers={creditCustomers}
-        currency={effectiveSaleCurrency}
+        currency={transactionCurrency}
         cart={cart}
         totals={totals}
         lastSale={lastSale}
@@ -529,7 +663,7 @@ function OperationalNotice({
   onDismiss,
 }: {
   message: string;
-  onDismiss: () => void;
+  onDismiss?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -537,13 +671,15 @@ function OperationalNotice({
         <AlertTriangle className="h-4 w-4 shrink-0" />
         <span className="min-w-0">{message}</span>
       </span>
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="rounded-lg px-2 py-1 text-xs font-black uppercase tracking-[0.08em] text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
-      >
-        Cerrar
-      </button>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-lg px-2 py-1 text-xs font-black uppercase tracking-[0.08em] text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
+        >
+          Cerrar
+        </button>
+      )}
     </div>
   );
 }

@@ -24,11 +24,13 @@ interface SaleNoShiftStateProps {
   warehouses: PosWarehouseSummary[];
   activeCashRegisters: PosCashRegisterResponse[];
   selectedCashRegisterId: string;
+  preferredCurrencyCode: string;
   isLoading: boolean;
   isOpeningShift: boolean;
   error: string;
   onOpenShiftModal: () => void;
-  onOpenShift: (initialCash: number, openingNote?: string) => void | Promise<void>;
+  onCloseOpenShiftModal: () => void;
+  onOpenShift: (initialCash: number, openingNote?: string, currencyCode?: string) => void | Promise<void>;
   onSelectCashRegister: (cashRegisterId: string) => void;
   onRetry: () => void | Promise<void>;
   onClearError: () => void;
@@ -40,10 +42,12 @@ export function SaleNoShiftState({
   warehouses,
   activeCashRegisters,
   selectedCashRegisterId,
+  preferredCurrencyCode,
   isLoading,
   isOpeningShift,
   error,
   onOpenShiftModal,
+  onCloseOpenShiftModal,
   onOpenShift,
   onSelectCashRegister,
   onRetry,
@@ -173,10 +177,12 @@ export function SaleNoShiftState({
         <OpenShiftModal
           isOpen={isOpenShiftModalOpen}
           registerContext={registerContext}
+          warehouses={warehouses}
           cashRegisters={activeCashRegisters}
           selectedCashRegisterId={selectedCashRegisterId}
+          preferredCurrencyCode={preferredCurrencyCode}
           isSubmitting={isOpeningShift}
-          onClose={() => {}}
+          onClose={onCloseOpenShiftModal}
           onConfirm={onOpenShift}
           onSelectCashRegister={onSelectCashRegister}
         />

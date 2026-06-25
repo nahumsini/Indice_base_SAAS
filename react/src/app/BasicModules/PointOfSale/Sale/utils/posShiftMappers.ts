@@ -43,6 +43,7 @@ export function buildShiftFromBackend(backendShift: PosShiftResponse, registerCo
     businessUnitName: registerContext.businessUnitName,
     businessId: toShiftId(backendShift.businessId ?? registerContext.businessId),
     businessName: registerContext.businessName,
+    warehouseName: registerContext.warehouseName,
     cashRegisterId: toShiftId(backendShift.cashRegisterId || registerContext.cashRegisterId),
     cashRegisterCode: registerContext.cashRegisterCode,
     cashRegisterName: backendShift.cashRegisterName || registerContext.cashRegisterName,

@@ -41,8 +41,9 @@ public class CashClosingHistoryRepository {
             SELECT closing.id, closing.shift_id, closing.cash_register_id, closing.warehouse_id,
                    closing.opening_cash_amount, closing.cash_sales_amount, closing.expected_cash_amount,
                    closing.counted_cash_amount, closing.over_short_amount, closing.total_sales_amount,
-                   closing.tickets_count, closing.closed_by_user_id, closing.closed_at
+                   closing.tickets_count, closing.closed_by_user_id, shift.currency_code, closing.closed_at
             FROM pos_cash_closings closing
+            JOIN pos_shifts shift ON shift.id = closing.shift_id
             """ + where + """
             ORDER BY closing.closed_at DESC, closing.id DESC
             LIMIT ? OFFSET ?
@@ -111,7 +112,8 @@ public class CashClosingHistoryRepository {
             rs.getBigDecimal("cash_sales_amount"), rs.getBigDecimal("expected_cash_amount"),
             rs.getBigDecimal("counted_cash_amount"), rs.getBigDecimal("over_short_amount"),
             rs.getBigDecimal("total_sales_amount"), rs.getInt("tickets_count"),
-            rs.getLong("closed_by_user_id"), PosSqlSupport.instant(rs, "closed_at")
+            rs.getLong("closed_by_user_id"), rs.getString("currency_code"),
+            PosSqlSupport.instant(rs, "closed_at")
         );
     }
 

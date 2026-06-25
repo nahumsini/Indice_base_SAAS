@@ -1,14 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { LayoutList, Table2 } from 'lucide-react';
 import { CorteDetailModal } from './components/CorteDetailModal';
 import { CortesColumnsModal } from './components/CortesColumnsModal';
 import { CortesDayView } from './components/CortesDayView';
-import { CortesFiltersBar } from './components/CortesFiltersBar';
+import { CortesFiltersBar, type CortesFilterOption } from './components/CortesFiltersBar';
 import { CortesHeader } from './components/CortesHeader';
 import { CortesKpiArea } from './components/CortesKpiArea';
+import { defaultBusinessCurrency, normalizeBusinessCurrencyCode } from '../../shared/businessCurrency';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { CortesTable } from './components/CortesTable';
 import { useCashClosingHistory } from './hooks/useCashClosingHistory';
+import { cashClosingsApi } from './services/cashClosingsApi';
+import { posBackendApi, type PosCashRegisterResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
 import type { PosCashClosingSummaryRow } from './types/cashClosingHistory.types';
 import { defaultCortesColumns, type CortesColumnId } from './utils/cortesColumns';
 import {
@@ -18,20 +22,52 @@ import {
   type CortesViewMode,
   buildCortesAnalytics,
   filterCortesRows,
-  formatCurrency,
+  getCortesPeriodRange,
   sortCortesRows,
-  toLocalInputDate,
-  toNumber,
 } from './utils/cortesUtils';
+import { buildCortesPrintReportHtml } from './utils/cortesPrintReport';
 
-const today = toLocalInputDate(new Date());
 const pageSize = 50;
+const todayRange = getCortesPeriodRange('today');
+
+function arrayFromResponse<T>(response: unknown): T[] {
+  if (Array.isArray(response)) {
+    return response as T[];
+  }
+
+  if (response && typeof response === 'object') {
+    const record = response as { content?: unknown; data?: unknown; items?: unknown; rows?: unknown };
+    if (Array.isArray(record.items)) {
+      return record.items as T[];
+    }
+    if (Array.isArray(record.data)) {
+      return record.data as T[];
+    }
+    if (Array.isArray(record.rows)) {
+      return record.rows as T[];
+    }
+    if (Array.isArray(record.content)) {
+      return record.content as T[];
+    }
+  }
+
+  return [];
+}
+
+function getSelectedOptionLabel(options: CortesFilterOption[], value: string, emptyLabel = 'Todos') {
+  if (!value) {
+    return emptyLabel;
+  }
+
+  return options.find((option) => option.value === value)?.label ?? value;
+}
 
 const initialFilters: CortesFilters = {
   cashRegisterId: '',
-  dateFrom: today,
-  dateTo: today,
+  dateFrom: todayRange.dateFrom,
+  dateTo: todayRange.dateTo,
   difference: 'all',
+  period: 'today',
   search: '',
   userId: '',
   warehouseId: '',
@@ -47,6 +83,15 @@ export default function Cortes() {
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<CortesColumnId[]>(defaultCortesColumns);
+  const [warehouses, setWarehouses] = useState<PosWarehouseSummary[]>([]);
+  const [cashRegisters, setCashRegisters] = useState<PosCashRegisterResponse[]>([]);
+  const [shifts, setShifts] = useState<PosShiftResponse[]>([]);
+  const [filterOptionsError, setFilterOptionsError] = useState('');
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
+    'indice.pos.cortesPreferredCurrency',
+    defaultBusinessCurrency,
+  );
+  const preferredCurrency = normalizeBusinessCurrencyCode(storedPreferredCurrency, defaultBusinessCurrency);
 
   const {
     clearSelectedDetail,
@@ -69,16 +114,111 @@ export default function Cortes() {
     warehouseId: filters.warehouseId,
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFilterOptions() {
+      setFilterOptionsError('');
+      try {
+        const [context, shiftRows] = await Promise.all([
+          posBackendApi.context(),
+          posBackendApi.shifts(),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setWarehouses(arrayFromResponse<PosWarehouseSummary>(context.warehouses));
+        setCashRegisters(arrayFromResponse<PosCashRegisterResponse>(context.cashRegisters));
+        setShifts(arrayFromResponse<PosShiftResponse>(shiftRows));
+      } catch (loadError) {
+        if (!cancelled) {
+          setFilterOptionsError(
+            loadError instanceof Error && loadError.message
+              ? loadError.message
+              : 'No se pudieron cargar los selectores reales de POS.',
+          );
+        }
+      }
+    }
+
+    void loadFilterOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const visibleRows = useMemo(() => {
     const filteredRows = filterCortesRows(rows, filters);
     return sortCortesRows(filteredRows, sortKey, sortDirection);
   }, [filters, rows, sortDirection, sortKey]);
 
-  const analytics = useMemo(() => buildCortesAnalytics(visibleRows), [visibleRows]);
-  const currencyCode = selectedDetail?.shift?.currencyCode ?? 'MXN';
+  const analytics = useMemo(
+    () => buildCortesAnalytics(visibleRows, preferredCurrency),
+    [preferredCurrency, visibleRows],
+  );
+
+  const warehouseOptions = useMemo<CortesFilterOption[]>(() => (
+    warehouses.map((warehouse) => ({
+      label: [
+        warehouse.name,
+        warehouse.businessName,
+      ].filter(Boolean).join(' · '),
+      value: String(warehouse.id),
+    }))
+  ), [warehouses]);
+
+  const cashRegisterOptions = useMemo<CortesFilterOption[]>(() => (
+    cashRegisters
+      .filter((register) => !filters.warehouseId || String(register.warehouseId) === filters.warehouseId)
+      .map((register) => ({
+        label: `${register.name} · ${register.code}`,
+        value: String(register.id),
+      }))
+  ), [cashRegisters, filters.warehouseId]);
+
+  const cashierOptions = useMemo<CortesFilterOption[]>(() => {
+    const cashierIds = new Set<number>();
+
+    shifts.forEach((shift) => {
+      if (shift.openedByUserId) {
+        cashierIds.add(Number(shift.openedByUserId));
+      }
+      if (shift.closedByUserId) {
+        cashierIds.add(Number(shift.closedByUserId));
+      }
+    });
+
+    rows.forEach((row) => {
+      if (row.closedByUserId) {
+        cashierIds.add(Number(row.closedByUserId));
+      }
+    });
+
+    return Array.from(cashierIds)
+      .filter((id) => Number.isFinite(id))
+      .sort((first, second) => first - second)
+      .map((id) => ({
+        label: `Usuario ${id}`,
+        value: String(id),
+      }));
+  }, [rows, shifts]);
 
   const updateFilter = <Key extends keyof CortesFilters>(key: Key, value: CortesFilters[Key]) => {
-    setFilters((current) => ({ ...current, [key]: value }));
+    setFilters((current) => {
+      const next = { ...current, [key]: value };
+
+      if (key === 'warehouseId' && next.cashRegisterId) {
+        const selectedRegister = cashRegisters.find((register) => String(register.id) === next.cashRegisterId);
+        if (selectedRegister && value && String(selectedRegister.warehouseId) !== String(value)) {
+          next.cashRegisterId = '';
+        }
+      }
+
+      return next;
+    });
     setOffset(0);
   };
 
@@ -107,31 +247,60 @@ export default function Cortes() {
     clearSelectedDetail();
   };
 
-  const exportCsv = () => {
-    const csvRows = [
-      ['Corte', 'Fecha cierre', 'Almacen', 'Caja', 'Cajero', 'Turno', 'Tickets', 'Ventas', 'Esperado', 'Contado', 'Diferencia'],
-      ...visibleRows.map((row) => [
-        `COR-${row.id}`,
-        row.closedAt,
-        row.warehouseId,
-        row.cashRegisterId,
-        row.closedByUserId,
-        row.shiftId,
-        row.ticketsCount,
-        toNumber(row.totalSalesAmount),
-        toNumber(row.expectedCashAmount),
-        toNumber(row.countedCashAmount),
-        toNumber(row.overShortAmount),
-      ]),
-    ];
-    const csv = csvRows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cortes-pos-${filters.dateFrom}-${filters.dateTo}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const printFilteredReport = async () => {
+    const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
+
+    if (!reportWindow) {
+      setNotice('No se pudo abrir la vista de impresion. Revisa permisos de ventanas emergentes del navegador.');
+      return;
+    }
+
+    reportWindow.document.open();
+    reportWindow.document.write('<!doctype html><title>Preparando reporte</title><body style="font-family:Arial,Helvetica,sans-serif;padding:32px;"><strong>Preparando reporte de cortes...</strong></body>');
+    reportWindow.document.close();
+
+    let reportRows = visibleRows;
+    let reportScopeNote = `Incluye ${visibleRows.length} corte(s) visibles con los filtros actuales.`;
+
+    try {
+      const response = await cashClosingsApi.list({
+        cashRegisterId: filters.cashRegisterId,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        limit: 200,
+        offset: 0,
+        userId: filters.userId,
+        warehouseId: filters.warehouseId,
+      });
+      reportRows = sortCortesRows(filterCortesRows(response.items, filters), sortKey, sortDirection);
+      reportScopeNote = response.count > response.items.length
+        ? `Incluye los primeros ${response.items.length} corte(s) del filtro real. El endpoint reporta ${response.count} corte(s) antes de filtros locales de busqueda o diferencia.`
+        : `Incluye ${reportRows.length} corte(s) filtrado(s) desde el historial real de POS.`;
+    } catch (printError) {
+      reportScopeNote = 'No fue posible consultar el historial completo para impresion; este reporte usa los cortes visibles actualmente en pantalla.';
+      setNotice(printError instanceof Error && printError.message
+        ? `Reporte preparado con filas visibles: ${printError.message}`
+        : 'Reporte preparado con filas visibles porque no fue posible consultar el historial completo.');
+    }
+
+    const reportAnalytics = buildCortesAnalytics(reportRows, preferredCurrency);
+    const reportHtml = buildCortesPrintReportHtml({
+      analytics: reportAnalytics,
+      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
+      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
+      filters,
+      preferredCurrency,
+      rows: reportRows,
+      scopeNote: reportScopeNote,
+      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId),
+    });
+
+    reportWindow.document.open();
+    reportWindow.document.write(reportHtml);
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.setTimeout(() => reportWindow.print(), 350);
+    setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) filtrado(s).`);
   };
 
   const handleRowDownload = (row: PosCashClosingSummaryRow) => {
@@ -151,8 +320,10 @@ export default function Cortes() {
     <div className="space-y-6">
       <CortesHeader
         loading={loading}
+        preferredCurrency={preferredCurrency}
         onColumns={() => setIsColumnsOpen(true)}
-        onExport={exportCsv}
+        onPrintReport={printFilteredReport}
+        onPreferredCurrencyChange={setStoredPreferredCurrency}
         onRefresh={() => {
           refresh();
           setNotice('Cortes actualizados desde el historial real de POS.');
@@ -171,8 +342,21 @@ export default function Cortes() {
         </div>
       ) : null}
 
-      <CortesFiltersBar filters={filters} onChange={updateFilter} onReset={resetFilters} />
-      <CortesKpiArea analytics={analytics} currencyCode={currencyCode} />
+      {filterOptionsError ? (
+        <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {filterOptionsError}
+        </div>
+      ) : null}
+
+      <CortesFiltersBar
+        cashiers={cashierOptions}
+        cashRegisters={cashRegisterOptions}
+        filters={filters}
+        warehouses={warehouseOptions}
+        onChange={updateFilter}
+        onReset={resetFilters}
+      />
+      <CortesKpiArea analytics={analytics} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex w-fit rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -181,7 +365,7 @@ export default function Cortes() {
         </div>
 
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-          Mostrando {visibleRows.length} de {totalCount} corte(s) · Ventas {formatCurrency(analytics.totalSales, currencyCode)}
+          Mostrando {visibleRows.length} de {totalCount} corte(s) · Preferida {analytics.convertedSalesLabel} · Cobrado {analytics.totalSalesLabel}
         </p>
       </div>
 
@@ -193,7 +377,7 @@ export default function Cortes() {
 
       {viewMode === 'table' ? (
         <CortesTable
-          currencyCode={currencyCode}
+          preferredCurrency={preferredCurrency}
           loading={loading}
           rows={visibleRows}
           sortDirection={sortDirection}
@@ -205,7 +389,7 @@ export default function Cortes() {
           onSort={handleSort}
         />
       ) : (
-        <CortesDayView currencyCode={currencyCode} rows={visibleRows} onSelect={openDetail} />
+        <CortesDayView preferredCurrency={preferredCurrency} rows={visibleRows} onSelect={openDetail} />
       )}
 
       <div className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">

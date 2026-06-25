@@ -1,19 +1,26 @@
 import { CalendarDays, ChevronRight } from 'lucide-react';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
-import { formatCurrency, formatDateLabel, formatDateTime, groupCortesByDate, toNumber } from '../utils/cortesUtils';
+import {
+  formatClosingAmount,
+  formatCurrency,
+  formatDateLabel,
+  formatDateTime,
+  groupCortesByDate,
+  toNumber,
+} from '../utils/cortesUtils';
 
 interface CortesDayViewProps {
-  currencyCode?: string;
+  preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
   onSelect: (row: PosCashClosingSummaryRow) => void;
 }
 
 export function CortesDayView({
-  currencyCode = 'MXN',
+  preferredCurrency,
   rows,
   onSelect,
 }: CortesDayViewProps) {
-  const groups = groupCortesByDate(rows);
+  const groups = groupCortesByDate(rows, preferredCurrency);
 
   return (
     <section className="space-y-4">
@@ -36,10 +43,10 @@ export function CortesDayView({
             </div>
 
             <div className="grid gap-3 text-sm font-black text-slate-700 dark:text-slate-200 sm:grid-cols-3">
-              <span>Ventas {formatCurrency(group.analytics.totalSales, currencyCode)}</span>
-              <span>Esperado {formatCurrency(group.analytics.expectedCash, currencyCode)}</span>
+              <span>Preferida {group.analytics.convertedSalesLabel}</span>
+              <span>Cobrado {group.analytics.totalSalesLabel}</span>
               <span className={group.analytics.netDifference === 0 ? 'text-emerald-600' : 'text-amber-700'}>
-                Dif. {formatCurrency(group.analytics.netDifference, currencyCode)}
+                Dif. {formatCurrency(group.analytics.convertedNetDifference, preferredCurrency)}
               </span>
             </div>
           </div>
@@ -63,10 +70,10 @@ export function CortesDayView({
 
                 <div className="grid gap-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:grid-cols-4 md:min-w-[520px]">
                   <span>{row.ticketsCount} tickets</span>
-                  <span>{formatCurrency(toNumber(row.totalSalesAmount), currencyCode)}</span>
-                  <span>Contado {formatCurrency(toNumber(row.countedCashAmount), currencyCode)}</span>
+                  <span>{formatClosingAmount(toNumber(row.totalSalesAmount), row, preferredCurrency).nativeLabel}</span>
+                  <span>Contado {formatClosingAmount(toNumber(row.countedCashAmount), row, preferredCurrency).nativeLabel}</span>
                   <span className={toNumber(row.overShortAmount) === 0 ? 'text-emerald-600' : 'text-amber-700'}>
-                    {toNumber(row.overShortAmount) > 0 ? '+' : ''}{formatCurrency(toNumber(row.overShortAmount), currencyCode)}
+                    {toNumber(row.overShortAmount) > 0 ? '+' : ''}{formatClosingAmount(toNumber(row.overShortAmount), row, preferredCurrency).nativeLabel}
                   </span>
                 </div>
 

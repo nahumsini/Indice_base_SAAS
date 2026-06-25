@@ -10,6 +10,7 @@ const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kio
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
 const PettyCashKiosk = lazy(() => import('./BasicModules/PettyCash/Kiosk/PublicPettyCashKioskPage'));
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
+const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDisplay'));
 
 function KioskRoute() {
   return (
@@ -65,6 +66,22 @@ function PublicCatalogRoute() {
       <SalesCrmProvider>
         <PublicCatalogPage />
       </SalesCrmProvider>
+    </Suspense>
+  );
+}
+
+function CustomerDisplayRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading customer display"
+          description="Preparing the point-of-sale mirror."
+        />
+      )}
+    >
+      <CustomerDisplay />
     </Suspense>
   );
 }
@@ -143,6 +160,14 @@ export const router = createBrowserRouter([
   {
     path: '/public-catalog/:publicAccessToken',
     element: <PublicCatalogRoute />,
+  },
+  {
+    path: '/pos-display/pair',
+    element: <CustomerDisplayRoute />,
+  },
+  {
+    path: '/pos-display/:deviceToken',
+    element: <CustomerDisplayRoute />,
   },
   {
     path: '/:pageId/*',

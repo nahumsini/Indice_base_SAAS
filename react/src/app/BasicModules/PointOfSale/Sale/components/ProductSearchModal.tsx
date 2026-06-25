@@ -1,25 +1,37 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Search, X, Plus, Barcode } from 'lucide-react';
-import { findCatalogProductByBarcode, pointOfSaleCatalogProducts, type Product } from '../../shared/commercial/products';
+import { findCatalogProductByBarcode, type Product } from '../../shared/commercial/products';
 
 interface ProductSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddProduct: (product: Product) => void;
+  products: Product[];
+  isLoading?: boolean;
+  error?: string | null;
+  currency?: string;
 }
 
-export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSearchModalProps) {
+export function ProductSearchModal({
+  isOpen,
+  onClose,
+  onAddProduct,
+  products,
+  isLoading = false,
+  error = null,
+  currency = 'MXN',
+}: ProductSearchModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [barcodeInput, setBarcodeInput] = useState('');
-  const [error, setError] = useState('');
+  const [scanError, setScanError] = useState('');
   const categories = useMemo(
-    () => ['Todos', ...Array.from(new Set(pointOfSaleCatalogProducts.map((product) => product.department))).sort()],
-    [],
+    () => ['Todos', ...Array.from(new Set(products.map((product) => product.department))).sort()],
+    [products],
   );
 
   const filteredProducts = useMemo(() => {
-    let filtered = pointOfSaleCatalogProducts;
+    let filtered = products;
 
     if (selectedCategory !== 'Todos') {
       filtered = filtered.filter((product) => product.department === selectedCategory);
@@ -34,27 +46,27 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
     }
 
     return filtered;
-  }, [searchTerm, selectedCategory]);
+  }, [products, searchTerm, selectedCategory]);
 
   const handleBarcodeScan = (e: FormEvent) => {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
 
-    const product = findCatalogProductByBarcode(pointOfSaleCatalogProducts, barcodeInput);
+    const product = findCatalogProductByBarcode(products, barcodeInput);
     if (product) {
       onAddProduct(product);
       setBarcodeInput('');
-      setError('');
+      setScanError('');
     } else {
-      setError('Producto no encontrado.');
+      setScanError('Producto no encontrado en el catálogo compartido.');
       setBarcodeInput('');
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, productCurrency?: string) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency: productCurrency || currency,
     }).format(amount);
   };
 
@@ -85,9 +97,9 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
 
         {/* Search & Filters */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 space-y-4">
-          {error && (
+          {(error || scanError) && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-              {error}
+              {error || scanError}
             </div>
           )}
 
@@ -143,55 +155,65 @@ export function ProductSearchModal({ isOpen, onClose, onAddProduct }: ProductSea
 
         {/* Products Grid */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredProducts.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => handleAddProduct(product)}
-                className="p-5 bg-gray-50 dark:bg-gray-700/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-2 border-gray-200 dark:border-gray-600 hover:border-orange-500 rounded-xl transition-all text-left group"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
-                      {product.barcode}
-                    </span>
-                    <span className={`text-xs font-medium px-2 py-1 rounded ${
-                      product.currentStock > 50
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : product.currentStock > 20
-                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      Stock: {product.currentStock}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 min-h-[2.5rem]">
-                    {product.name}
-                  </p>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                        {formatCurrency(product.salePrice)}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Costo: {formatCurrency(product.costPrice)}
-                      </p>
+          {isLoading ? (
+            <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+              Cargando catálogo compartido de Sales...
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 text-center text-sm font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+              No hay productos disponibles para POS con los filtros actuales.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredProducts.map((product) => (
+                <button
+                  key={product.id}
+                  onClick={() => handleAddProduct(product)}
+                  className="p-5 bg-gray-50 dark:bg-gray-700/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-2 border-gray-200 dark:border-gray-600 hover:border-orange-500 rounded-xl transition-all text-left group"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
+                        {product.barcode}
+                      </span>
+                      <span className={`text-xs font-medium px-2 py-1 rounded ${
+                        product.currentStock > 50
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : product.currentStock > 20
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        Stock: {product.currentStock}
+                      </span>
                     </div>
-                    <div className="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Plus className="w-5 h-5 text-white" />
+                    <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 min-h-[2.5rem]">
+                      {product.name}
+                    </p>
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                          {formatCurrency(product.salePrice, product.currency)}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Costo: {formatCurrency(product.costPrice, product.currency)}
+                        </p>
+                      </div>
+                      <div className="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Plus className="w-5 h-5 text-white" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} encontrado{filteredProducts.length !== 1 ? 's' : ''}
+              {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} disponible{filteredProducts.length !== 1 ? 's' : ''}
             </p>
             <button
               onClick={onClose}
