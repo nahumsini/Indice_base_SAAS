@@ -9,7 +9,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useLocalStorageState } from '../../../../hooks/useLocalStorageState';
-import type { ContactLearningCopy } from '../translations/contactLearning';
+import type { ContactLearningCopy } from '../translations';
 
 type ContactLearningGuideProps = {
   copy: ContactLearningCopy;

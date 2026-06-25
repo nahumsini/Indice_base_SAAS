@@ -1,6 +1,6 @@
+import type { ReactNode } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
-import { Input } from '../../../../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -9,19 +9,12 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { cn } from '../../../../components/ui/utils';
-import type { TaskPriority, TaskStatus } from '../../Tasks/tasksApi';
-import { ProgressSlider } from '../../shared/ProgressSlider';
-import {
-  InlineTextArea,
-  InlineTextInput,
-  tableInputClass,
-  tableSelectTriggerClass,
-} from './AgendaTablePrimitives';
+import type { TaskStatus } from '../../Tasks/tasksApi';
+import { tableSelectTriggerClass } from './AgendaTablePrimitives';
 import type { AgendaTaskCellProps } from './AgendaTaskCellTypes';
 import { AuditNotesCell, NotesCell, WeightingCell } from './AgendaTaskAuditCells';
-import { BusinessCell, ProjectCell, ResponsibleCell, UnitCell } from './AgendaTaskScopeCells';
-import { normalizeScheduleHourInput } from '../utils/agendaDateUtils';
-import { getTaskScheduleDateKey, getTaskScheduleHour } from '../utils/agendaScheduleUtils';
+import { BusinessCell, UnitCell } from './AgendaTaskScopeCells';
+import { getTaskScheduleHour } from '../utils/agendaScheduleUtils';
 import { clampPercent, getTaskDisplayStatus } from '../utils/agendaTaskStatus';
 import { formatDate } from '../utils/agendaReports';
 
@@ -29,6 +22,8 @@ export { AgendaTaskActions } from './AgendaTaskActions';
 
 export function AgendaTaskCell({
   auditStatusClasses,
+  agendaStatusDate,
+  agendaStatusRange,
   businessOptionsForUnit,
   collaboratorOptionsForScope,
   columnId,
@@ -45,10 +40,8 @@ export function AgendaTaskCell({
   onProjectChange,
   onResponsibleChange,
   onUnitChange,
-  onUpdateSchedulePlacement,
   projects,
   scopedCatalogUnits,
-  selectedScheduleDate,
   task,
   todayAgendaValue,
   unassignedResponsibleValue,
@@ -93,25 +86,9 @@ export function AgendaTaskCell({
     case 'business':
       return <BusinessCell {...scopeCellProps} />;
     case 'title':
-      return (
-        <InlineTextInput
-          value={task.title}
-          placeholder={copy.report.fields.title}
-          disabled={isPending}
-          className="w-full"
-          onCommit={(title) => onPersistTaskChange(task, { title })}
-        />
-      );
+      return <ReadonlyValue>{task.title || copy.common.noRecord}</ReadonlyValue>;
     case 'description':
-      return (
-        <InlineTextArea
-          value={task.description}
-          placeholder={copy.common.noDescription}
-          disabled={isPending}
-          className="w-full"
-          onCommit={(description) => onPersistTaskChange(task, { description: description || null })}
-        />
-      );
+      return <ReadonlyValue muted={!task.description}>{task.description || copy.common.noDescription}</ReadonlyValue>;
     case 'createdAt':
       return (
         <div className="w-full text-sm font-medium text-slate-900 dark:text-white">
@@ -119,48 +96,29 @@ export function AgendaTaskCell({
         </div>
       );
     case 'startDate':
-      return (
-        <Input
-          type="date"
-          value={task.startDate ?? ''}
-          disabled={isPending}
-          className={cn(tableInputClass, 'w-full')}
-          onChange={(event) => void onPersistTaskChange(task, { startDate: event.target.value || null })}
-        />
-      );
+      return <ReadonlyValue muted={!task.startDate}>{task.startDate ? formatDate(task.startDate) : copy.common.noDate}</ReadonlyValue>;
     case 'dueDate':
+      return <ReadonlyValue muted={!task.dueDate}>{task.dueDate ? formatDate(task.dueDate) : copy.common.noDate}</ReadonlyValue>;
+    case 'predecessor':
       return (
-        <Input
-          type="date"
-          value={task.dueDate ?? ''}
-          disabled={isPending}
-          className={cn(tableInputClass, 'w-full')}
-          onChange={(event) => void onPersistTaskChange(task, { dueDate: event.target.value || null })}
-        />
+        <ReadonlyValue muted={!task.predecessorTaskFolio && !task.predecessorTaskTitle}>
+          {task.predecessorTaskFolio
+            ? `${task.predecessorTaskFolio}${task.predecessorTaskTitle ? ` · ${task.predecessorTaskTitle}` : ''}`
+            : copy.common.noRecord}
+        </ReadonlyValue>
       );
     case 'agendaTime':
       return (
-        <Input
-          type="time"
-          step={3600}
-          value={getTaskScheduleHour(task, todayAgendaValue) ?? ''}
-          disabled={isPending}
-          className={cn(tableInputClass, 'w-full')}
-          onChange={(event) =>
-            onUpdateSchedulePlacement(
-              task.taskId,
-              getTaskScheduleDateKey(task, todayAgendaValue) ?? selectedScheduleDate,
-              normalizeScheduleHourInput(event.target.value),
-            )
-          }
-        />
+        <ReadonlyValue muted={!getTaskScheduleHour(task, todayAgendaValue)}>
+          {getTaskScheduleHour(task, todayAgendaValue) ?? copy.schedule.noHourLabel}
+        </ReadonlyValue>
       );
     case 'status': {
-      const displayStatus = getTaskDisplayStatus(task);
+      const displayStatus = getTaskDisplayStatus(task, agendaStatusDate, agendaStatusRange);
 
       return (
         <Select
-          value={displayStatus}
+          value={displayStatus === 'overdue' || displayStatus === 'audited' ? displayStatus : task.status}
           disabled={isPending}
           onValueChange={(value) => {
             if (value === 'overdue' || value === 'audited') {
@@ -221,26 +179,9 @@ export function AgendaTaskCell({
         </div>
       );
     case 'responsible':
-      return <ResponsibleCell {...scopeCellProps} />;
+      return <ReadonlyValue muted={!task.assignedName && !task.responsible}>{task.assignedName ?? task.responsible ?? copy.common.unassigned}</ReadonlyValue>;
     case 'priority':
-      return (
-        <Select
-          value={task.priority}
-          disabled={isPending}
-          onValueChange={(value) => void onPersistTaskChange(task, { priority: value as TaskPriority })}
-        >
-          <SelectTrigger className={cn(tableSelectTriggerClass, 'w-full')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(['low', 'medium', 'high'] as TaskPriority[]).map((priority) => (
-              <SelectItem key={priority} value={priority}>
-                {copy.priorities[priority]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
+      return <ReadonlyValue>{copy.priorities[task.priority]}</ReadonlyValue>;
     case 'attachments':
       return (
         <button
@@ -255,18 +196,13 @@ export function AgendaTaskCell({
         </button>
       );
     case 'project':
-      return <ProjectCell {...scopeCellProps} />;
-    case 'completion':
       return (
-        <div className="w-full min-w-[170px]">
-          <ProgressSlider
-            value={clampPercent(task.completionPercent)}
-            label={copy.form.labels.completion}
-            disabled={isPending}
-            onCommit={(completionPercent) => onPersistTaskChange(task, { completionPercent })}
-          />
-        </div>
+        <ReadonlyValue muted={!task.projectName && !task.project}>
+          {task.projectName ?? task.project ?? copy.common.noRecord}
+        </ReadonlyValue>
       );
+    case 'completion':
+      return <ReadonlyValue>{clampPercent(task.completionPercent)}%</ReadonlyValue>;
     case 'notes':
       return <NotesCell {...auditCellProps} />;
     case 'weighting':
@@ -274,4 +210,17 @@ export function AgendaTaskCell({
     case 'auditNotes':
       return <AuditNotesCell {...auditCellProps} />;
   }
+}
+
+function ReadonlyValue({ children, muted = false }: { children: ReactNode; muted?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'w-full rounded-xl border border-transparent px-3 py-2 text-sm font-semibold leading-5',
+        muted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100',
+      )}
+    >
+      {children}
+    </div>
+  );
 }

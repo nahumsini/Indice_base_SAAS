@@ -14,6 +14,7 @@ export function MixedPaymentModal({ isOpen, onClose, totalAmount, onConfirmPayme
   const [cardAmount, setCardAmount] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
   const [exchangeRate, setExchangeRate] = useState(20.0);
+  const [error, setError] = useState('');
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -55,7 +56,7 @@ export function MixedPaymentModal({ isOpen, onClose, totalAmount, onConfirmPayme
 
   const handleConfirm = () => {
     if (!isComplete) {
-      alert('El monto total pagado debe cubrir el total de la venta');
+      setError('El monto total pagado debe cubrir el total de la venta.');
       return;
     }
     onConfirmPayment();
@@ -64,6 +65,7 @@ export function MixedPaymentModal({ isOpen, onClose, totalAmount, onConfirmPayme
     setCashUsdAmount('');
     setCardAmount('');
     setTransferAmount('');
+    setError('');
   };
 
   const handleClear = () => {
@@ -96,6 +98,12 @@ export function MixedPaymentModal({ isOpen, onClose, totalAmount, onConfirmPayme
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
           {/* Total Display */}
           <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total a cobrar</p>

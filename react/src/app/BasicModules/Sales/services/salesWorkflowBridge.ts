@@ -304,6 +304,8 @@ export function createSaleFromQuote({
           stage: 'Won',
           status: 'Closed',
           probability: '100%',
+          estimatedValue: String(quote.total),
+          currency: quote.currency,
         }
       : undefined,
     inventoryMovementDrafts,

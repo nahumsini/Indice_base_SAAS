@@ -1,16 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Barcode, Shuffle } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { ProductsTranslations } from '../translations';
+
+const labelActionClassNames = getSalesModalActionClassNames('coral');
 
 function createRandomLabel(prefix: string, digits: number) {
   const max = 10 ** digits;
@@ -48,16 +43,26 @@ export function ProductLabelGeneratorModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl overflow-hidden rounded-xl border border-[#FF6B5E]/25 bg-white p-0 shadow-2xl">
-        <DialogHeader className="border-b border-[#FF6B5E]/15 bg-[#FF6B5E]/10 px-6 py-5">
-          <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-950">
-            <Barcode className="h-5 w-5 text-[#B63B32]" />
-            {t.labelsGenerator.title}
-          </DialogTitle>
-          <DialogDescription className="text-sm font-semibold text-slate-600">{t.labelsGenerator.description}</DialogDescription>
-        </DialogHeader>
-
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t.labelsGenerator.title}
+      description={t.labelsGenerator.description}
+      icon={<Barcode className="h-6 w-6" />}
+      contentClassName="max-w-3xl"
+      bodyClassName="!max-h-none bg-white p-0"
+      footer={(
+        <>
+          <Button variant="outline" className={labelActionClassNames.secondary} onClick={() => onOpenChange(false)}>
+            {t.common.cancel}
+          </Button>
+          <Button className={labelActionClassNames.primary} onClick={handleGenerate}>
+            <Shuffle className="h-4 w-4" />
+            {t.labelsGenerator.generate}
+          </Button>
+        </>
+      )}
+    >
         <div className="grid gap-4 p-6 md:grid-cols-[1fr_140px_140px]">
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">{t.labelsGenerator.prefix}</label>
@@ -94,18 +99,6 @@ export function ProductLabelGeneratorModal({
             </div>
           )}
         </div>
-
-        <DialogFooter className="border-t border-[#FF6B5E]/20 bg-[#FF6B5E] px-6 py-4">
-          <Button variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white" onClick={() => onOpenChange(false)}>
-            {t.common.cancel}
-          </Button>
-          <Button className="bg-white text-[#B63B32] hover:bg-white/90" onClick={handleGenerate}>
-            <Shuffle className="h-4 w-4" />
-            {t.labelsGenerator.generate}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }
-

@@ -4,7 +4,7 @@ import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
 import { getPhoneHref, getWhatsAppHref } from '../../utils/salesCommunicationUtils';
 import { OpportunityActionButton } from '../components/ProspectosQuickActions';
-import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import type { ProspectosCopy } from '../translations';
 import { formatCurrencyAmount, parseMoney, setOpportunityDragData } from '../utils/prospectosFormatters';
 import { statusClasses, temperatureClasses } from '../utils/prospectosStatus';
 
@@ -28,7 +28,7 @@ export function ProspectosKanbanCard({
     <article
       draggable
       onDragStart={(event) => setOpportunityDragData(event, opportunity.id)}
-      className="cursor-grab rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#FF6B5E]/35 hover:shadow-md active:cursor-grabbing"
+      className="cursor-grab rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#FF6B5E]/35 hover:shadow-md active:cursor-grabbing"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -43,10 +43,10 @@ export function ProspectosKanbanCard({
       <div className="mt-4 space-y-2 text-sm">
         <p className="font-semibold text-slate-900">{opportunity.contactPerson}</p>
         <p className="text-slate-500">{opportunity.owner}</p>
-        <p className="text-slate-500">{formatCurrencyAmount(parseMoney(opportunity.estimatedValue))} · {opportunity.probability}</p>
+        <p className="text-slate-500">{formatCurrencyAmount(parseMoney(opportunity.estimatedValue), opportunity.currency)} · {opportunity.probability}</p>
       </div>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{copy.agenda.nextAction}</p>
         <p className="mt-1 text-sm font-semibold text-slate-900">{copy.options.nextActions[opportunity.nextAction]}</p>
         <p className="mt-1 text-xs font-semibold text-[#9a6b05]">{opportunity.nextActionDate || copy.agenda.noTime}</p>

@@ -117,6 +117,27 @@ export const enCA = {
         },
       ],
     },
+    providers: {
+      label: 'Providers',
+      ctaLabel: 'Review providers',
+      title: 'Keep one shared supplier directory',
+      summary: 'Use Providers as the common catalogue for Sales, Inventory, Expenses, and future POS flows.',
+      value: 'A single supplier record prevents duplicated fiscal data and keeps purchasing context aligned across modules.',
+      steps: [
+        {
+          title: 'Avoid duplicate suppliers',
+          description: 'Create one provider per business relationship and reuse it from every operational module.',
+        },
+        {
+          title: 'Complete fiscal and contact context',
+          description: 'Tax ID, accounting account, contact, unit, business, and status should live in the shared provider record.',
+        },
+        {
+          title: 'Reuse providers in expenses and inventory',
+          description: 'Expenses can register costs and Inventory can track supplier stock without maintaining separate catalogues.',
+        },
+      ],
+    },
     inventory: {
       label: 'Inventory',
       ctaLabel: 'Review inventory',

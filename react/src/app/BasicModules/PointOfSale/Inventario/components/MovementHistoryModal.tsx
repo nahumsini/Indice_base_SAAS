@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { X, TrendingUp, TrendingDown, Edit, ShoppingCart, RotateCcw, Download } from 'lucide-react';
-import { Product } from '../../Productos/types/product.types';
-import { InventoryMovement, MovementType } from '../types/inventory.types';
+import type { Product } from '../../shared/commercial/products';
+import type { InventoryMovement, MovementType } from '../../shared/commercial/inventory';
 
 interface MovementHistoryModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface MovementHistoryModalProps {
 }
 
 export function MovementHistoryModal({ isOpen, onClose, product, movements }: MovementHistoryModalProps) {
+  const [exportNotice, setExportNotice] = useState('');
+
   if (!isOpen) return null;
 
   const formatDate = (date: Date) => {
@@ -56,8 +59,7 @@ export function MovementHistoryModal({ isOpen, onClose, product, movements }: Mo
   };
 
   const handleExport = () => {
-    console.log('Exportar historial:', product.id);
-    // TODO: Implement export functionality
+    setExportNotice('Exportación preparada. Falta conectar el generador de archivo del historial de inventario.');
   };
 
   const sortedMovements = [...movements].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -90,9 +92,15 @@ export function MovementHistoryModal({ isOpen, onClose, product, movements }: Mo
               <X className="w-5 h-5" />
             </button>
           </div>
-        </div>
+	        </div>
 
-        {/* Stock Summary */}
+	        {exportNotice && (
+	          <div className="mx-6 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+	            {exportNotice}
+	          </div>
+	        )}
+	
+	        {/* Stock Summary */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>

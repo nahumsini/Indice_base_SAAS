@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BadgePercent, Plus, RotateCcw, Save, X } from 'lucide-react';
+import { BadgePercent, Plus, RotateCcw, Save } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -19,7 +11,7 @@ import {
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
 import { cn } from '../../../../components/ui/utils';
-import { getSalesModalStyles } from '../../salesModalStyles';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRule, CommissionRuleStatus, CommissionType } from '../types/commissions';
 import type { SaleRecord } from '../types/salesTypes';
@@ -27,7 +19,7 @@ import { calculateCommission, formatCommissionType } from '../utils/commissionRu
 import { formatSalesCurrency } from '../utils/salesFormatters';
 import { FormField, salesFieldClassName } from './SalesModalPrimitives';
 
-const modalStyles = getSalesModalStyles('coral');
+const actionClassNames = getSalesModalActionClassNames('coral');
 const commissionTypes: CommissionType[] = ['fixed_per_sale', 'fixed_per_product', 'percentage_of_sale', 'percentage_of_product'];
 const ruleStatuses: CommissionRuleStatus[] = ['active', 'inactive'];
 
@@ -124,24 +116,27 @@ export function CommissionRulesModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(modalStyles.content, 'max-h-[90vh] max-w-[980px] !gap-0')} closeButtonClassName={modalStyles.close}>
-        <DialogHeader className={modalStyles.header}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className={modalStyles.title}>
-                <BadgePercent className="h-6 w-6" />
-                {t.commissions.rules.title}
-              </DialogTitle>
-              <DialogDescription className={modalStyles.description}>{t.commissions.rules.description}</DialogDescription>
-            </div>
-            <Button type="button" variant="ghost" size="icon" className={modalStyles.close} onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className={cn(modalStyles.body, 'grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]')}>
+    <SalesModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      icon={<BadgePercent className="h-6 w-6" />}
+      title={t.commissions.rules.title}
+      description={t.commissions.rules.description}
+      contentClassName="max-h-[90vh] max-w-[980px]"
+      bodyClassName="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]"
+      footer={(
+        <>
+          <Button type="button" variant="outline" className={actionClassNames.secondary} onClick={handleReset}>
+            <RotateCcw className="h-4 w-4" />
+            {t.commissions.rules.resetDraft}
+          </Button>
+          <Button type="button" className={actionClassNames.primary} onClick={handleSave}>
+            <Save className="h-4 w-4" />
+            {t.commissions.rules.saveRule}
+          </Button>
+        </>
+      )}
+    >
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.commissions.rules.sections.rules}</h3>
@@ -257,19 +252,6 @@ export function CommissionRulesModal({
               {t.commissions.rules.backendReadyNote}
             </p>
           </section>
-        </div>
-
-        <DialogFooter className={modalStyles.footer}>
-          <Button type="button" variant="outline" className={modalStyles.secondaryButton} onClick={handleReset}>
-            <RotateCcw className="h-4 w-4" />
-            {t.commissions.rules.resetDraft}
-          </Button>
-          <Button type="button" className={modalStyles.primaryButton} onClick={handleSave}>
-            <Save className="h-4 w-4" />
-            {t.commissions.rules.saveRule}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

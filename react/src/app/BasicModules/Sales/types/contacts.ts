@@ -2,6 +2,10 @@ import type { OpportunitySource } from './opportunities';
 
 export type SalesContact = {
   id: string;
+  backendId?: number;
+  contactCode?: string;
+  unitId?: number | null;
+  businessId?: number | null;
   company: string;
   contactPerson: string;
   role: string;
@@ -24,4 +28,6 @@ export type SalesContact = {
   fiscalEmail?: string;
   fiscalRegime?: string;
   fiscalNotes?: string;
+  status?: string;
+  filesCount?: number;
 };

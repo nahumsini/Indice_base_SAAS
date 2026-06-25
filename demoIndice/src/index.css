@@ -1,0 +1,12 @@
+@import './styles/base.css';
+@import './styles/auth-layout.css';
+@import './styles/auth-brand.css';
+@import './styles/auth-brand-extra.css';
+@import './styles/auth-visual.css';
+@import './styles/forms.css';
+@import './styles/forms-extra.css';
+@import './styles/buttons.css';
+@import './styles/shell.css';
+@import './styles/home.css';
+@import './styles/route.css';
+@import './styles/responsive.css';

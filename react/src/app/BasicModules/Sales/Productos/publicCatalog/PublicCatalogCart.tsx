@@ -23,6 +23,7 @@ export function PublicCatalogCart({
   onRequestPurchase: () => void;
 }) {
   const total = calculatePublicCatalogCartTotal(items, cartItems);
+  const totalCurrency = cartItems.map((cartItem) => items.find((item) => item.id === cartItem.itemId)?.currency).find(Boolean);
 
   return (
     <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-5">
@@ -70,12 +71,12 @@ export function PublicCatalogCart({
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <p className="font-black text-slate-950">{formatProductCurrency(pricedItem.lineTotal)}</p>
+                <p className="font-black text-slate-950">{formatProductCurrency(pricedItem.lineTotal, item.currency)}</p>
               </div>
 
               {item.wholesalePrice !== undefined && item.wholesaleMinQuantity !== undefined ? (
                 <p className="mt-2 text-xs font-semibold text-[#8a5f04]">
-                  {t.publicCatalog.wholesaleNote(formatProductCurrency(item.wholesalePrice), item.wholesaleMinQuantity)}
+                  {t.publicCatalog.wholesaleNote(formatProductCurrency(item.wholesalePrice, item.currency), item.wholesaleMinQuantity)}
                 </p>
               ) : null}
             </div>
@@ -86,7 +87,7 @@ export function PublicCatalogCart({
       <div className="mt-4 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-3">
         <div className="flex items-center justify-between text-lg">
           <span className="font-black text-slate-950">{t.publicCatalog.estimatedTotal}</span>
-          <span className="font-black text-[#B63B32]">{formatProductCurrency(total)}</span>
+          <span className="font-black text-[#B63B32]">{formatProductCurrency(total, totalCurrency)}</span>
         </div>
         <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">{t.publicCatalog.taxAvailabilityNote}</p>
         {config.showOnlinePaymentComingSoon ? (

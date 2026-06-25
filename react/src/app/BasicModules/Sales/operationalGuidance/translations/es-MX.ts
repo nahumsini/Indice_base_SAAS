@@ -117,6 +117,27 @@ export const esMX = {
         },
       ],
     },
+    providers: {
+      label: 'Proveedores',
+      ctaLabel: 'Revisar proveedores',
+      title: 'Mantén un directorio compartido de proveedores',
+      summary: 'Usa Proveedores como catálogo común para Ventas, Inventario, Gastos y futuros flujos de POS.',
+      value: 'Un solo proveedor evita duplicar datos fiscales y mantiene alineado el contexto de compras entre módulos.',
+      steps: [
+        {
+          title: 'Evita proveedores duplicados',
+          description: 'Crea un proveedor por relación comercial y reutilízalo desde cada módulo operativo.',
+        },
+        {
+          title: 'Completa contexto fiscal y de contacto',
+          description: 'RFC/tax ID, cuenta contable, contacto, unidad, negocio y estado deben vivir en el proveedor compartido.',
+        },
+        {
+          title: 'Reutiliza proveedores en gastos e inventario',
+          description: 'Gastos registra costos e Inventario lee proveedores de stock sin mantener catálogos separados.',
+        },
+      ],
+    },
     inventory: {
       label: 'Inventario',
       ctaLabel: 'Revisar inventario',

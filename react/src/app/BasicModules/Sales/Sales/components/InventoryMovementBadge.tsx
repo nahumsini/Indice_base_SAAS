@@ -1,4 +1,5 @@
 import { Badge } from '../../../../components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../../components/ui/tooltip';
 import { cn } from '../../../../components/ui/utils';
 import type { InventoryMovementStatus } from '../types/salesTypes';
 import type { SalesRecordsTranslations } from '../translations';
@@ -11,13 +12,25 @@ export function InventoryMovementBadge({
   status: InventoryMovementStatus;
   t: SalesRecordsTranslations;
 }) {
+  const tooltip = getInventoryMovementTooltip(status, t);
+
   return (
-    <Badge
-      variant="outline"
-      title={getInventoryMovementTooltip(status, t)}
-      className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', inventoryMovementStatusClasses[status])}
-    >
-      {t.statuses.movement[status]}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge
+          variant="outline"
+          className={cn('h-auto max-w-full whitespace-normal break-words rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', inventoryMovementStatusClasses[status])}
+        >
+          {t.statuses.movement[status]}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={8}
+        className="max-w-[260px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+      >
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   );
 }

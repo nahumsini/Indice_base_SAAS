@@ -1,9 +1,7 @@
-export function formatSalesCurrency(value: number, currency = 'MXN') {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
+import { defaultSalesCurrency, formatSalesCurrencyAmount, getSalesCurrencyLocale } from '../../utils/salesCurrency';
+
+export function formatSalesCurrency(value: number, currency = defaultSalesCurrency) {
+  return formatSalesCurrencyAmount(value, currency);
 }
 
 export function formatSalesDate(value: string) {
@@ -17,11 +15,11 @@ export function formatSalesDate(value: string) {
 }
 
 export function formatSalesNumber(value: number) {
-  return new Intl.NumberFormat('es-MX').format(value);
+  return new Intl.NumberFormat(getSalesCurrencyLocale()).format(value);
 }
 
 export function formatCommissionRate(value: number) {
-  return `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(value)}%`;
+  return `${new Intl.NumberFormat(getSalesCurrencyLocale(), { maximumFractionDigits: 2 }).format(value)}%`;
 }
 
 export function calculateCommissionAmount(totalAmount: number, commissionRate: number) {

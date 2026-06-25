@@ -106,6 +106,8 @@ export default function Productos() {
         mode={catalog.editingProductId ? 'edit' : 'create'}
         catalogItems={catalog.products}
         categories={catalog.catalogCategories}
+        isSaving={catalog.isSavingProduct}
+        saveError={catalog.productSaveError}
         onOpenChange={catalog.handleProductModalOpenChange}
         onFormChange={catalog.setForm}
         onSubmit={catalog.handleSaveProduct}
@@ -114,7 +116,7 @@ export default function Productos() {
 
       <ProductCategoryManagerModal
         open={catalog.isCategoryManagerOpen}
-        categories={catalog.managedCategories}
+        categories={catalog.catalogCategories}
         t={t}
         onOpenChange={catalog.setIsCategoryManagerOpen}
         onCategoriesChange={catalog.setManagedCategories}

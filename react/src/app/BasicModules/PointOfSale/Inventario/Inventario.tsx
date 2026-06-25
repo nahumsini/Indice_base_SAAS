@@ -1,14 +1,20 @@
 import { useState, useMemo } from 'react';
 import { Search, TrendingDown, TrendingUp, Package, AlertTriangle, DollarSign, Activity, History } from 'lucide-react';
-import { Product } from '../Productos/types/product.types';
-import { mockProducts } from '../Productos/data/products.mock';
-import { InventoryMovement, StockStatus } from './types/inventory.types';
-import { mockMovements } from './data/movements.mock';
+import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
+import { type Product } from '../shared/commercial/products';
+import { PointOfSaleTitleBar } from '../shared/components/PointOfSaleTitleBar';
+import {
+  commercialInventoryMovements as mockMovements,
+  getCommercialStockStatus,
+  type InventoryMovement,
+  type StockStatus,
+} from '../shared/commercial/inventory';
 import { AdjustInventoryModal } from './components/AdjustInventoryModal';
 import { MovementHistoryModal } from './components/MovementHistoryModal';
 
 export default function Inventario() {
-  const [products] = useState<Product[]>(mockProducts.filter(p => !p.isComposite));
+  const { balanceLoadError, products: sharedProducts, saleCurrency } = usePointOfSaleCatalogProducts();
+  const [stockOverrides, setStockOverrides] = useState<Record<string, number>>({});
   const [movements, setMovements] = useState<InventoryMovement[]>(mockMovements);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StockStatus | 'all'>('all');
@@ -16,6 +22,18 @@ export default function Inventario() {
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+  const [notice, setNotice] = useState('');
+
+  const products = useMemo(() => (
+    sharedProducts
+      .filter((product) => !product.isComposite)
+      .map((product) => {
+        const nextStock = stockOverrides[product.id];
+        return nextStock === undefined
+          ? product
+          : { ...product, currentStock: nextStock, updatedAt: new Date() };
+      })
+  ), [sharedProducts, stockOverrides]);
 
   // Get unique departments
   const departments = useMemo(() => {
@@ -24,13 +42,7 @@ export default function Inventario() {
   }, [products]);
 
   // Get stock status for a product
-  const getStockStatus = (product: Product): StockStatus => {
-    if (!product.useInventory) return 'normal';
-    if (product.currentStock === 0) return 'agotado';
-    if (product.currentStock < product.minStock) return 'bajo';
-    if (product.currentStock >= product.maxStock) return 'exceso';
-    return 'normal';
-  };
+  const getStockStatus = getCommercialStockStatus;
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -78,10 +90,10 @@ export default function Inventario() {
     };
   }, [products, movements]);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency = saleCurrency) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(amount);
   };
 
@@ -116,32 +128,36 @@ export default function Inventario() {
   };
 
   const handleSaveAdjustment = (productId: string, newStock: number, movement: Omit<InventoryMovement, 'id'>) => {
-    // Update product stock
-    const updatedProducts = products.map(p =>
-      p.id === productId ? { ...p, currentStock: newStock } : p
-    );
+    setStockOverrides((current) => ({ ...current, [productId]: newStock }));
 
-    // Add movement
     const newMovement: InventoryMovement = {
       ...movement,
       id: `mov-${Date.now()}`,
     };
     setMovements([newMovement, ...movements]);
+    setNotice('Ajuste operativo aplicado en POS. La consolidación maestra de inventario se mantiene en Sales.');
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            📦 Inventario
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Control y seguimiento de existencias
-          </p>
+      <PointOfSaleTitleBar
+        eyebrow="Disponibilidad POS"
+        icon="📦"
+        title="Inventario"
+        subtitle="Vista operativa de stock para caja y almacén; productos y disponibilidad se comparten con Sales."
+      />
+
+      {notice && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {notice}
         </div>
-      </div>
+      )}
+
+      {balanceLoadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          {balanceLoadError}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -357,9 +373,9 @@ export default function Inventario() {
                       <td className="px-4 py-3 text-center text-sm text-gray-500 dark:text-gray-400">
                         {product.maxStock}
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(stockValue)}
-                      </td>
+	                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+	                        {formatCurrency(stockValue, product.currency)}
+	                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                           {getStatusLabel(status)}
@@ -398,7 +414,7 @@ export default function Inventario() {
               Mostrando {filteredProducts.length} de {products.length} producto{products.length !== 1 ? 's' : ''}
             </p>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              Valor total filtrado: {formatCurrency(filteredProducts.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0))}
+	              Valor total filtrado: {formatCurrency(filteredProducts.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0))}
             </p>
           </div>
         )}

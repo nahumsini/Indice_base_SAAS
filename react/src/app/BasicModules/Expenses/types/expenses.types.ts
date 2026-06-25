@@ -3,7 +3,8 @@
 export type ExpenseStatus = 'paid' | 'pending' | 'partial' | 'overdue' | 'audited';
 export type PaymentMethod = 'cash' | 'credit_card' | 'debit_card' | 'transfer' | 'check';
 export type ExpenseEntryType = 'real' | 'budget';
-export type ExpenseFrequency = 'once' | 'monthly' | 'quarterly' | 'annual';
+export type ExpenseFrequency = 'once' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'annual';
+export type ExpenseTaxMode = 'none' | 'auto' | 'manual';
 
 export interface Expense {
   id: string;
@@ -15,8 +16,17 @@ export interface Expense {
   category: ExpenseCategory;
   providerId?: string;
   providerName?: string;
+  budgetId?: string;
   total: number;
   taxes: number;
+  taxCountry?: string;
+  taxIncluded?: boolean;
+  taxMode?: ExpenseTaxMode;
+  taxName?: string;
+  taxProfileId?: string;
+  taxRate?: number;
+  taxRegion?: string;
+  taxSpecialAmount?: number;
   amount: number;
   amountPaid?: number;
   currency: string;
@@ -25,8 +35,12 @@ export interface Expense {
   date: Date;
   paymentMethod: PaymentMethod;
   accountingAccount?: string;
+  paymentAccountId?: string;
   status: ExpenseStatus;
   approver?: string;
+  requestedByUserId?: string;
+  approvedByUserId?: string;
+  performedByUserId?: string;
   notes?: string;
   attachments?: string[];
   costCenter?: string;

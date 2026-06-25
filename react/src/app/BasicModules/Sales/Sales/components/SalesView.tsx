@@ -1,7 +1,6 @@
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLifecycleSignals, SaleRecord, SalesColumnId, SalesFiltersState } from '../types/salesTypes';
 import { SalesFilters } from './SalesFilters';
-import { SalesInsightBar } from './SalesInsightBar';
 import { SalesKpiStrip } from './SalesKpiStrip';
 import { SalesTable } from './SalesTable';
 import type { SalesMetrics } from '../types/salesTypes';
@@ -57,9 +56,7 @@ export function SalesView({
         onFiltersChange={onFiltersChange}
       />
 
-      <SalesKpiStrip metrics={metrics} t={t} />
-
-      <SalesInsightBar
+      <SalesKpiStrip
         metrics={metrics}
         visibleCount={filteredRecords.length}
         totalCount={records.length}

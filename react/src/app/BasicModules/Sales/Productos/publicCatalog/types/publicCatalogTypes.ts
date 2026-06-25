@@ -42,6 +42,7 @@ export type PublicCatalogItem = {
   publicPrice?: number;
   wholesalePrice?: number;
   wholesaleMinQuantity?: number;
+  currency?: string;
   usesInventory?: boolean;
   publicInventoryStatus: PublicInventoryStatus;
   readyForSales?: boolean;
@@ -52,6 +53,7 @@ export type PublicCatalogCartItem = {
   quantity: number;
   unitPrice: number;
   appliedPriceType: PublicCatalogAppliedPriceType;
+  currency?: string;
 };
 
 export type PublicCatalogRequest = {

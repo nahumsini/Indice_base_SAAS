@@ -3,11 +3,12 @@ import { AlertTriangle, Info } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { cn } from '../../../../../components/ui/utils';
-import type { QuoteStatus, SalesContact } from '../../../types';
+import type { SalesContact, SalesQuoteItem } from '../../../types';
 import { FilterSelect } from '../../components/QuoteUi';
 import type { QuotesTranslations } from '../../translations';
 import type { QuoteFormState } from '../../types/quoteBuilderTypes';
 import { getDaysUntil } from '../../utils/quoteReadiness';
+import { QuoteTaxJurisdictionPanel } from './QuoteTaxJurisdictionPanel';
 
 const coralFieldClassName = 'border-slate-200 bg-white shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20';
 
@@ -15,20 +16,24 @@ export function QuoteCustomerSection({
   form,
   t,
   contacts,
+  items,
   opportunityOptions,
-  quoteStatusOptions,
   sellerOptions,
   onFormChange,
   onSellerChange,
+  onCurrencyChange,
+  onUpdateItem,
 }: {
   form: QuoteFormState;
   t: QuotesTranslations;
   contacts: SalesContact[];
+  items: SalesQuoteItem[];
   opportunityOptions: Array<{ value: string; label: string }>;
-  quoteStatusOptions: Array<{ value: string; label: string }>;
   sellerOptions: Array<{ value: string; label: string }>;
   onFormChange: Dispatch<SetStateAction<QuoteFormState>>;
   onSellerChange: (value: string) => void;
+  onCurrencyChange: (value: string) => void;
+  onUpdateItem: (itemId: string, patch: Partial<SalesQuoteItem>) => void;
 }) {
   const daysUntilExpiration = getDaysUntil(form.expirationDate);
   const isExpirationClose = typeof daysUntilExpiration === 'number' && daysUntilExpiration >= 0 && daysUntilExpiration <= 7;
@@ -101,13 +106,16 @@ export function QuoteCustomerSection({
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <FilterSelect
-          label={t.labels.status}
-          value={form.status}
-          onValueChange={(value) => onFormChange((current) => ({ ...current, status: value as QuoteStatus }))}
-          options={quoteStatusOptions}
-        />
+      <QuoteTaxJurisdictionPanel
+        form={form}
+        items={items}
+        t={t}
+        onFormChange={onFormChange}
+        onCurrencyChange={onCurrencyChange}
+        onUpdateItem={onUpdateItem}
+      />
+
+      <div className="grid gap-4">
         <FilterSelect
           label={t.labels.seller}
           value={form.assignedSellerValue}

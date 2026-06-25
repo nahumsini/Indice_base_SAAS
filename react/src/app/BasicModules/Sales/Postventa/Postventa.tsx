@@ -22,14 +22,6 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -48,6 +40,8 @@ import {
 } from '../../../components/ui/table';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
+import { SalesTitleBar } from '../components/SalesTitleBar';
 import {
   customerRelationTypes,
   postSaleStatuses,
@@ -60,7 +54,6 @@ import {
   type SalesPostSaleCase,
   useSalesCrm,
 } from '../salesCrmContext';
-import { getSalesModalStyles } from '../salesModalStyles';
 import type { SaleRecord } from '../Sales/types/salesTypes';
 import {
   getCustomerLifecycleSignals,
@@ -69,14 +62,16 @@ import {
   type CustomerRelationshipStatus,
 } from '../utils/customerLifecycle';
 import { getPhoneHref, getWhatsAppHref } from '../utils/salesCommunicationUtils';
+import { formatSalesCurrencyAmount, formatSalesCurrencyBreakdown, normalizeSalesCurrencyCode } from '../utils/salesCurrency';
 import { usePostSalesTranslations } from './translations';
 import { openSaleSummaryPdf } from './utils/postSalePdf';
 
 type ViewMode = 'table' | 'followUp';
 type FilterValue = 'all' | string;
 type OpportunityAutomationDelay = '30' | '60' | '90' | '180' | 'custom';
-const postSaleModalStyles = getSalesModalStyles('coral');
-const futureOpportunityModalStyles = getSalesModalStyles('aqua');
+const postSaleModalActions = getSalesModalActionClassNames('coral');
+const futureOpportunityModalActions = getSalesModalActionClassNames('aqua');
+const salesModalIconClassName = 'h-5 w-5 text-white';
 
 type PostSaleFormState = {
   clientId: string;
@@ -128,6 +123,7 @@ type CustomerHistory = {
   nextFollowUpDate?: string;
   renewalDate?: string;
   lifetimeValue: number;
+  currency?: string;
   notes: string;
   files: string[];
   sales: SaleRecord[];
@@ -216,12 +212,8 @@ function getDaysUntil(date?: string) {
   return Math.ceil((target - today) / 86400000);
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(value);
+function formatCurrency(value: number, currency?: string | null) {
+  return formatSalesCurrencyAmount(value, currency);
 }
 
 function parseFiles(value: string) {
@@ -230,6 +222,10 @@ function parseFiles(value: string) {
 
 function normalizeKey(value?: string) {
   return (value ?? '').trim().toLowerCase();
+}
+
+function getHistoryCurrency(history?: Pick<CustomerHistory, 'currency' | 'sales' | 'postSaleCase'> | null) {
+  return normalizeSalesCurrencyCode(history?.sales[0]?.currency ?? history?.currency ?? history?.postSaleCase?.currency);
 }
 
 function getEmailHref(email: string, subject: string) {
@@ -274,12 +270,12 @@ function KpiMetric({
 }) {
   return (
     <span className="inline-flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
         {icon}
       </span>
       <span className="text-base font-semibold">
-        <span className={cn('mr-2 font-bold', valueClassName)}>{value}</span>
-        <span className="text-slate-600">{label}</span>
+        <span className={cn('mr-2 font-bold dark:text-white', valueClassName)}>{value}</span>
+        <span className="text-slate-600 dark:text-slate-300">{label}</span>
       </span>
     </span>
   );
@@ -298,9 +294,9 @@ function FilterSelect({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none">
+        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -336,7 +332,7 @@ function ActionButton({
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20 disabled:cursor-not-allowed disabled:opacity-40',
+        'flex h-9 w-9 items-center justify-center rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20 disabled:cursor-not-allowed disabled:opacity-40',
         className,
       )}
     >
@@ -359,22 +355,22 @@ function FollowUpLane({
   renderMeta: (postSaleCase: SalesPostSaleCase) => string;
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div>
-        <h3 className="text-lg font-black text-slate-950">{title}</h3>
-        <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+        <h3 className="text-lg font-black text-slate-950 dark:text-white">{title}</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
       </div>
       <div className="mt-4 space-y-3">
         {cases.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm font-semibold text-slate-500">
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             {emptyLabel}
           </div>
         ) : cases.map((postSaleCase) => (
-          <article key={postSaleCase.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <article key={postSaleCase.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate font-black text-slate-950">{postSaleCase.clientName}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">{postSaleCase.nextAction}</p>
+                <p className="truncate font-black text-slate-950 dark:text-white">{postSaleCase.clientName}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{postSaleCase.nextAction}</p>
               </div>
               <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', riskClasses[postSaleCase.riskLevel])}>
                 {renderMeta(postSaleCase)}
@@ -467,6 +463,7 @@ export default function Postventa() {
         ?? contacts.find((item) => normalizeKey(item.company) === normalizeKey(sale.customerName));
       const key = contact?.id ?? `sale-${normalizeKey(sale.customerName)}`;
       const existing = histories.get(key);
+      const saleHistory = [...(existing?.sales ?? []), sale].sort((left, right) => new Date(right.saleDate).getTime() - new Date(left.saleDate).getTime());
 
       histories.set(key, {
         id: key,
@@ -484,9 +481,10 @@ export default function Postventa() {
         nextFollowUpDate: existing?.nextFollowUpDate,
         renewalDate: existing?.renewalDate,
         lifetimeValue: (existing?.lifetimeValue ?? 0) + sale.totalAmount,
+        currency: saleHistory[0]?.currency ?? existing?.currency ?? sale.currency,
         notes: existing?.notes ?? sale.notes,
         files: existing?.files ?? [],
-        sales: [...(existing?.sales ?? []), sale].sort((left, right) => new Date(right.saleDate).getTime() - new Date(left.saleDate).getTime()),
+        sales: saleHistory,
         postSaleCase: existing?.postSaleCase,
       });
     });
@@ -517,6 +515,7 @@ export default function Postventa() {
         nextFollowUpDate: postSaleCase.nextFollowUpDate,
         renewalDate: postSaleCase.renewalDate,
         lifetimeValue: Math.max(existing?.lifetimeValue ?? 0, postSaleCase.lifetimeValue),
+        currency: existing?.currency ?? postSaleCase.currency,
         notes: postSaleCase.notes || existing?.notes || '',
         files: Array.from(new Set([...(existing?.files ?? []), ...postSaleCase.files])),
         sales: existing?.sales ?? [],
@@ -536,6 +535,7 @@ export default function Postventa() {
           status,
           riskLevel,
           lifetimeValue: history.lifetimeValue || history.sales.reduce((total, sale) => total + sale.totalAmount, 0),
+          currency: getHistoryCurrency(history),
         };
       })
       .sort((left, right) => new Date(right.lastPurchaseDate ?? '1900-01-01').getTime() - new Date(left.lastPurchaseDate ?? '1900-01-01').getTime());
@@ -601,12 +601,20 @@ export default function Postventa() {
 
   const activePostSales = filteredCustomerHistories.length;
   const renewalsSoon = filteredCustomerHistories.filter((history) => lifecycleByHistoryId[history.id]?.renewalDueThisMonth).length;
-  const revenueAtRisk = filteredCustomerHistories.reduce((total, history) => total + (lifecycleByHistoryId[history.id]?.revenueAtRisk ?? 0), 0);
+  const revenueAtRiskDisplay = formatSalesCurrencyBreakdown(
+    filteredCustomerHistories.filter((history) => (lifecycleByHistoryId[history.id]?.revenueAtRisk ?? 0) > 0),
+    (history) => lifecycleByHistoryId[history.id]?.revenueAtRisk ?? 0,
+    (history) => getHistoryCurrency(history),
+  );
   const recoveredCustomers = filteredCustomerHistories.filter((history) => lifecycleByHistoryId[history.id]?.relationship === 'recovered').length;
   const futureOpportunities = filteredCustomerHistories.filter((history) => getDaysUntil(history.nextFollowUpDate) >= 0).length;
-  const recurringRevenue = filteredCustomerHistories
-    .filter((history) => ['recurring', 'renewal'].includes(lifecycleByHistoryId[history.id]?.relationship ?? ''))
-    .reduce((total, history) => total + history.sales.reduce((sum, sale) => sum + sale.totalAmount, 0), 0);
+  const recurringRevenueDisplay = formatSalesCurrencyBreakdown(
+    filteredCustomerHistories
+      .filter((history) => ['recurring', 'renewal'].includes(lifecycleByHistoryId[history.id]?.relationship ?? ''))
+      .flatMap((history) => history.sales),
+    (sale) => sale.totalAmount,
+    (sale) => sale.currency,
+  );
   const atRiskClients = filteredCustomerHistories.filter((history) => ['at_risk', 'lost'].includes(lifecycleByHistoryId[history.id]?.health ?? '')).length;
   const statusDistribution = postSaleStatuses.map((status) => ({
     status,
@@ -629,6 +637,9 @@ export default function Postventa() {
 
   const handleCreateCase = () => {
     const contact = contacts.find((item) => item.id === caseForm.clientId);
+    const relatedQuote = quotes.find((quote) => quote.id === caseForm.lastQuoteId);
+    const relatedOpportunity = opportunities.find((opportunity) => opportunity.id === caseForm.relatedOpportunityId);
+    const caseCurrency = normalizeSalesCurrencyCode(relatedQuote?.currency ?? relatedOpportunity?.currency);
 
     if (!contact || !caseForm.nextAction.trim()) {
       return;
@@ -648,6 +659,7 @@ export default function Postventa() {
       nextFollowUpDate: caseForm.nextFollowUpDate,
       renewalDate: caseForm.renewalDate || undefined,
       lifetimeValue: Number(caseForm.lifetimeValue) || 0,
+      currency: caseCurrency,
       notes: caseForm.notes,
       files: parseFiles(caseForm.files),
       nextAction: caseForm.nextAction,
@@ -717,6 +729,7 @@ export default function Postventa() {
 
     const contact = contacts.find((item) => item.id === automationForm.clientId);
     const latestSale = automationCase.sales[0];
+    const automationCurrency = getHistoryCurrency(automationCase);
     const opportunityNote = [
       automationForm.notes,
       t.forms.lost.generatedNote,
@@ -735,7 +748,8 @@ export default function Postventa() {
       stage: 'New',
       temperature: automationCase.riskLevel === 'High' ? 'Warm' : 'Hot',
       owner: automationForm.owner,
-      estimatedValue: formatCurrency(Math.max(latestSale?.totalAmount ?? automationCase.lifetimeValue, 1)),
+      estimatedValue: String(Math.max(latestSale?.totalAmount ?? automationCase.lifetimeValue, 1)),
+      currency: automationCurrency,
       probability: '25%',
       expectedCloseDate: automationForm.expectedCloseDate,
       nextAction: 'Follow up',
@@ -760,6 +774,7 @@ export default function Postventa() {
       nextFollowUpDate: automationForm.scheduledDate,
       renewalDate: automationCase.renewalDate,
       lifetimeValue: automationCase.lifetimeValue,
+      currency: automationCurrency,
       notes: opportunityNote,
       files: automationCase.files,
       nextAction: t.forms.lost.nextAction,
@@ -795,6 +810,7 @@ export default function Postventa() {
     }
 
     const contact = contacts.find((item) => item.id === futureOpportunityCase.clientId);
+    const futureOpportunityCurrency = getHistoryCurrency(futureOpportunityCase);
 
     addOpportunity({
       opportunityName: futureForm.opportunityName.trim(),
@@ -807,7 +823,8 @@ export default function Postventa() {
       stage: 'New',
       temperature: futureOpportunityCase.riskLevel === 'High' ? 'Warm' : 'Hot',
       owner: futureOpportunityCase.owner,
-      estimatedValue: formatCurrency(Math.max(futureOpportunityCase.lifetimeValue, 1)),
+      estimatedValue: String(Math.max(futureOpportunityCase.lifetimeValue, 1)),
+      currency: futureOpportunityCurrency,
       probability: '25%',
       expectedCloseDate: futureForm.expectedCloseDate,
       nextAction: 'Follow up',
@@ -822,24 +839,16 @@ export default function Postventa() {
 
   return (
     <section className="space-y-5">
-      <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-6 shadow-sm">
-        <div>
-          <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900">
-            <span className="text-2xl leading-none" aria-hidden="true">{t.header.emoji}</span>
-            {t.header.title}
-          </h2>
-          <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600">{t.header.subtitle}</p>
-        </div>
-      </div>
+      <SalesTitleBar icon={t.header.emoji} title={t.header.title} subtitle={t.header.subtitle} />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-sm text-slate-600">
           <KpiMetric icon={<ShieldCheck className="h-4 w-4" />} value={activePostSales} label={t.metrics.activeCustomers} valueClassName="text-[#177d66]" />
           <KpiMetric icon={<CalendarClock className="h-4 w-4" />} value={renewalsSoon} label={t.metrics.renewalsThisMonth} valueClassName="text-violet-600" />
-          <KpiMetric icon={<AlertTriangle className="h-4 w-4" />} value={formatCurrency(revenueAtRisk)} label={t.metrics.revenueAtRisk} valueClassName="text-[#b63b32]" />
+          <KpiMetric icon={<AlertTriangle className="h-4 w-4" />} value={revenueAtRiskDisplay} label={t.metrics.revenueAtRisk} valueClassName="text-[#b63b32]" />
           <KpiMetric icon={<RefreshCw className="h-4 w-4" />} value={recoveredCustomers} label={t.metrics.recoveredCustomers} valueClassName="text-[#2563EB]" />
           <KpiMetric icon={<Sparkles className="h-4 w-4" />} value={futureOpportunities} label={t.metrics.futureOpportunities} valueClassName="text-[#B63B32]" />
-          <KpiMetric icon={<Clock3 className="h-4 w-4" />} value={formatCurrency(recurringRevenue)} label={t.metrics.recurringRevenue} valueClassName="text-[#177d66]" />
+          <KpiMetric icon={<Clock3 className="h-4 w-4" />} value={recurringRevenueDisplay} label={t.metrics.recurringRevenue} valueClassName="text-[#177d66]" />
         </div>
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
           <div className="flex h-3 overflow-hidden rounded-full bg-slate-200">
@@ -858,11 +867,11 @@ export default function Postventa() {
           </div>
         </div>
         <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-semibold leading-6 text-[#B63B32]">
-          {t.insight.summary(formatCurrency(recurringRevenue), atRiskClients, renewalsSoon)}
+          {t.insight.summary(recurringRevenueDisplay, atRiskClients, renewalsSoon)}
         </div>
       </section>
 
-      <div className="flex w-fit rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+      <div className="flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {(['table', 'followUp'] as ViewMode[]).map((view) => (
           <Button
             key={view}
@@ -877,18 +886,18 @@ export default function Postventa() {
         ))}
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="mb-4 text-lg font-bold text-slate-950">{t.filters.title}</h3>
+      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
         <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.filters.search}</label>
+            <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{t.filters.search}</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t.filters.searchPlaceholder}
-                className="h-11 rounded-lg border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+                className="h-11 rounded-xl border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -899,22 +908,22 @@ export default function Postventa() {
       </div>
 
       {viewMode === 'table' ? (
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50">
-                  <TableHead className="min-w-[280px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.client}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.customerHealth}</TableHead>
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.salesHistory}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.lastPurchase}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.lifetimeValue}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.revenueAtRisk}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.nextFollowUp}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.futureOpportunities}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.status}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.owner}</TableHead>
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.actions}</TableHead>
+                <TableRow className="border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+                  <TableHead className="min-w-[280px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.client}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.customerHealth}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.salesHistory}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.lastPurchase}</TableHead>
+                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.lifetimeValue}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.revenueAtRisk}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.nextFollowUp}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.futureOpportunities}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.status}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.owner}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -934,12 +943,12 @@ export default function Postventa() {
 
                   return (
                     <Fragment key={history.id}>
-                      <TableRow className="align-top hover:bg-slate-50/70">
+                      <TableRow className="align-top hover:bg-slate-50/70 dark:border-slate-700 dark:hover:bg-slate-700/40">
                         <TableCell className="px-5 py-4">
                           <div className="flex gap-3">
                             <button
                               type="button"
-                              className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+                              className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                               onClick={() => setExpandedCustomerIds((current) => (
                                 current.includes(history.id)
                                   ? current.filter((id) => id !== history.id)
@@ -950,8 +959,8 @@ export default function Postventa() {
                               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             </button>
                             <div>
-                              <p className="font-black text-slate-950">{history.clientName}</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-500">{history.contactPerson}</p>
+                              <p className="font-black text-slate-950 dark:text-white">{history.clientName}</p>
+                              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{history.contactPerson}</p>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', relationClasses[history.relationType])}>
                                   {t.relationTypeLabels[history.relationType]}
@@ -974,7 +983,7 @@ export default function Postventa() {
                           </div>
                         </TableCell>
                         <TableCell className="px-5 py-4">
-                          <p className="text-sm font-black text-slate-950">{history.sales.length} {history.sales.length === 1 ? t.saleHistory.sale : t.saleHistory.sales}</p>
+                          <p className="text-sm font-black text-slate-950 dark:text-white">{history.sales.length} {history.sales.length === 1 ? t.saleHistory.sale : t.saleHistory.sales}</p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {history.sales.slice(0, 3).map((sale) => (
                               <button
@@ -989,13 +998,13 @@ export default function Postventa() {
                             {history.sales.length > 3 ? <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-600">+{history.sales.length - 3}</Badge> : null}
                           </div>
                         </TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-600">{history.lastPurchaseDate ?? t.common.notAvailable}</TableCell>
-                        <TableCell className="px-5 py-4 font-black text-slate-950">{formatCurrency(history.lifetimeValue)}</TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-600 dark:text-slate-300">{history.lastPurchaseDate ?? t.common.notAvailable}</TableCell>
+                        <TableCell className="px-5 py-4 font-black text-slate-950 dark:text-white">{formatCurrency(history.lifetimeValue, getHistoryCurrency(history))}</TableCell>
                         <TableCell className="px-5 py-4 font-black text-[#B63B32]">
-                          {revenueAtRiskAmount > 0 ? formatCurrency(revenueAtRiskAmount) : t.common.notAvailable}
+                          {revenueAtRiskAmount > 0 ? formatCurrency(revenueAtRiskAmount, getHistoryCurrency(history)) : t.common.notAvailable}
                         </TableCell>
                         <TableCell className="px-5 py-4">
-                          <p className="font-black text-slate-950">{history.nextFollowUpDate ?? t.common.notAvailable}</p>
+                          <p className="font-black text-slate-950 dark:text-white">{history.nextFollowUpDate ?? t.common.notAvailable}</p>
                           <p className="mt-1 text-xs font-semibold text-slate-500">{history.renewalDate ? `${t.table.columns.renewalDate}: ${history.renewalDate}` : t.filters.renewalMissing}</p>
                         </TableCell>
                         <TableCell className="px-5 py-4">
@@ -1028,7 +1037,7 @@ export default function Postventa() {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{history.owner}</TableCell>
+                        <TableCell className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">{history.owner}</TableCell>
                         <TableCell className="px-5 py-4">
                           <div className="flex flex-wrap gap-2">
                             <ActionButton label={t.actions.call} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" disabled={!history.phone} onClick={() => openPhoneCall(history.phone)} />
@@ -1040,12 +1049,12 @@ export default function Postventa() {
                         </TableCell>
                       </TableRow>
                       {isExpanded ? (
-                        <TableRow key={`${history.id}-history`} className="bg-slate-50/70">
+                        <TableRow key={`${history.id}-history`} className="bg-slate-50/70 dark:bg-slate-900/70">
                           <TableCell colSpan={11} className="px-8 py-5">
-                            <div className="rounded-lg border border-slate-200 bg-white">
-                              <div className="border-b border-slate-100 px-5 py-4">
+                            <div className="rounded-[20px] border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                              <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
                                 <p className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.saleHistory.title}</p>
-                                <p className="mt-1 text-sm font-semibold text-slate-600">{t.saleHistory.description}</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{t.saleHistory.description}</p>
                               </div>
                               {history.sales.length ? (
                                 <div className="divide-y divide-slate-100">
@@ -1053,24 +1062,24 @@ export default function Postventa() {
                                     <button
                                       key={sale.id}
                                       type="button"
-                                      className="grid w-full gap-4 px-5 py-4 text-left hover:bg-slate-50 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto]"
+                                      className="grid w-full gap-4 px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto]"
                                       onClick={() => setSelectedSale(sale)}
                                     >
                                       <div>
-                                        <p className="font-black text-slate-950">{sale.saleNumber}</p>
+                                        <p className="font-black text-slate-950 dark:text-white">{sale.saleNumber}</p>
                                         <p className="mt-1 text-xs font-semibold text-slate-500">{sale.quoteReference}</p>
                                       </div>
                                       <div>
                                         <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.date}</p>
-                                        <p className="mt-1 font-semibold text-slate-700">{sale.saleDate}</p>
+                                        <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{sale.saleDate}</p>
                                       </div>
                                       <div>
                                         <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.total}</p>
-                                        <p className="mt-1 font-black text-slate-950">{formatCurrency(sale.totalAmount)}</p>
+                                        <p className="mt-1 font-black text-slate-950 dark:text-white">{formatCurrency(sale.totalAmount, sale.currency)}</p>
                                       </div>
                                       <div>
                                         <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.products}</p>
-                                        <p className="mt-1 font-semibold text-slate-700">{sale.saleLines.length}</p>
+                                        <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{sale.saleLines.length}</p>
                                       </div>
                                       <span className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-3 text-sm font-black text-[#B63B32]">
                                         <Eye className="h-4 w-4" />
@@ -1080,7 +1089,7 @@ export default function Postventa() {
                                   ))}
                                 </div>
                               ) : (
-                                <div className="px-5 py-8 text-center text-sm font-semibold text-slate-500">{t.saleHistory.empty}</div>
+                                <div className="px-5 py-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-300">{t.saleHistory.empty}</div>
                               )}
                             </div>
                           </TableCell>
@@ -1110,278 +1119,268 @@ export default function Postventa() {
         </div>
       )}
 
-      <Dialog open={Boolean(selectedSale)} onOpenChange={(open) => !open && setSelectedSale(null)}>
-        <DialogContent className={cn(postSaleModalStyles.content, 'max-h-[90vh] max-w-4xl')} closeButtonClassName={postSaleModalStyles.close}>
-          <DialogHeader className={postSaleModalStyles.header}>
-            <DialogTitle className={postSaleModalStyles.title}>
-              <History className={cn('h-5 w-5', postSaleModalStyles.icon)} />
-              {t.saleDetail.title}
-            </DialogTitle>
-            <DialogDescription className={postSaleModalStyles.description}>{t.saleDetail.description}</DialogDescription>
-          </DialogHeader>
-          <div className={cn(postSaleModalStyles.body, 'space-y-5')}>
-            <section className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.saleReference}</p>
-                <p className="mt-2 font-black text-slate-950">{selectedSale?.saleNumber}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.quoteReference}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.total}</p>
-                <p className="mt-2 font-black text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0)}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.currency}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.status}</p>
-                <p className="mt-2 font-black text-slate-950">{selectedSale?.commercialStatus}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.financeStatus} · {selectedSale?.inventoryStatus}</p>
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <p className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.lines}</p>
-              </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.product}</TableHead>
-                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.quantity}</TableHead>
-                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.unitPrice}</TableHead>
-                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.margin}</TableHead>
-                      <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.warehouse}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedSale?.saleLines.map((line) => (
-                      <TableRow key={line.id}>
-                        <TableCell className="px-5 py-4">
-                          <p className="font-black text-slate-950">{line.productName}</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">{line.sku}</p>
-                        </TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.quantity}</TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.unitPrice)}</TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.marginAmount)}</TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.warehouseId}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4 text-sm font-semibold leading-6 text-[#B63B32]">
-              {selectedSale?.notes || t.common.notAvailable}
-            </section>
-          </div>
-          <DialogFooter className={postSaleModalStyles.footer}>
+      <SalesModalFrame
+        open={Boolean(selectedSale)}
+        onOpenChange={(open) => !open && setSelectedSale(null)}
+        contentClassName="max-w-4xl"
+        bodyClassName="space-y-5"
+        title={t.saleDetail.title}
+        description={t.saleDetail.description}
+        icon={<History className={salesModalIconClassName} />}
+        footer={
+          <>
             {selectedSale ? (
-              <Button variant="outline" className={postSaleModalStyles.secondaryButton} onClick={() => openSaleSummaryPdf(selectedSale, t)}>
+              <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => openSaleSummaryPdf(selectedSale, t)}>
                 <FileText className="h-4 w-4" />
                 {t.saleDetail.viewPdf}
               </Button>
             ) : null}
-            <Button className={postSaleModalStyles.primaryButton} onClick={() => setSelectedSale(null)}>{t.common.close}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isCaseModalOpen} onOpenChange={setIsCaseModalOpen}>
-        <DialogContent className={cn(postSaleModalStyles.content, 'max-h-[90vh] max-w-5xl')} closeButtonClassName={postSaleModalStyles.close}>
-          <DialogHeader className={postSaleModalStyles.header}>
-            <DialogTitle className={postSaleModalStyles.title}>
-              <ShieldCheck className={cn('h-5 w-5', postSaleModalStyles.icon)} />
-              {t.forms.postSale.title}
-            </DialogTitle>
-            <DialogDescription className={postSaleModalStyles.description}>{t.forms.postSale.description}</DialogDescription>
-          </DialogHeader>
-
-          <div className={cn(postSaleModalStyles.body, 'grid gap-4 md:grid-cols-2')}>
-            <FilterSelect label={t.forms.postSale.client} value={caseForm.clientId} onValueChange={(value) => setCaseForm((current) => ({ ...current, clientId: value }))} options={contacts.map((contact) => ({ value: contact.id, label: `${contact.company} · ${contact.contactPerson}` }))} />
-            <FilterSelect label={t.forms.postSale.opportunity} value={caseForm.relatedOpportunityId} onValueChange={(value) => setCaseForm((current) => ({ ...current, relatedOpportunityId: value }))} options={[{ value: 'none', label: t.common.none }, ...opportunities.map((opportunity) => ({ value: opportunity.id, label: opportunity.opportunityName }))]} />
-            <FilterSelect label={t.forms.postSale.quote} value={caseForm.lastQuoteId} onValueChange={(value) => setCaseForm((current) => ({ ...current, lastQuoteId: value }))} options={[{ value: 'none', label: t.common.none }, ...quotes.map((quote) => ({ value: quote.id, label: `${quote.quoteNumber} · ${quote.clientName}` }))]} />
-            <FilterSelect label={t.forms.postSale.relationType} value={caseForm.relationType} onValueChange={(value) => setCaseForm((current) => ({ ...current, relationType: value as CustomerRelationType }))} options={customerRelationTypes.map((relationType) => ({ value: relationType, label: t.relationTypeLabels[relationType] }))} />
-            <FilterSelect label={t.forms.postSale.postSaleType} value={caseForm.postSaleType} onValueChange={(value) => setCaseForm((current) => ({ ...current, postSaleType: value as PostSaleType }))} options={postSaleTypes.map((postSaleType) => ({ value: postSaleType, label: t.postSaleTypeLabels[postSaleType] }))} />
-            <FilterSelect label={t.forms.postSale.status} value={caseForm.status} onValueChange={(value) => setCaseForm((current) => ({ ...current, status: value as PostSaleStatus }))} options={postSaleStatuses.map((status) => ({ value: status, label: t.statusLabels[status] }))} />
-            <FilterSelect label={t.forms.postSale.owner} value={caseForm.owner} onValueChange={(value) => setCaseForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.postSale.lifetimeValue}</label>
-              <Input type="number" value={caseForm.lifetimeValue} onChange={(event) => setCaseForm((current) => ({ ...current, lifetimeValue: event.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.postSale.lastPurchaseDate}</label>
-              <Input type="date" value={caseForm.lastPurchaseDate} onChange={(event) => setCaseForm((current) => ({ ...current, lastPurchaseDate: event.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.postSale.nextFollowUpDate}</label>
-              <Input type="date" value={caseForm.nextFollowUpDate} onChange={(event) => setCaseForm((current) => ({ ...current, nextFollowUpDate: event.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.postSale.renewalDate}</label>
-              <Input type="date" value={caseForm.renewalDate} onChange={(event) => setCaseForm((current) => ({ ...current, renewalDate: event.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.postSale.nextAction}</label>
-              <Input value={caseForm.nextAction} onChange={(event) => setCaseForm((current) => ({ ...current, nextAction: event.target.value }))} placeholder={t.forms.postSale.nextActionPlaceholder} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.postSale.notes}</label>
-              <Textarea value={caseForm.notes} onChange={(event) => setCaseForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.postSale.notesPlaceholder} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.postSale.files}</label>
-              <Input value={caseForm.files} onChange={(event) => setCaseForm((current) => ({ ...current, files: event.target.value }))} placeholder={t.forms.postSale.filesPlaceholder} />
-            </div>
+            <Button className={postSaleModalActions.primary} onClick={() => setSelectedSale(null)}>{t.common.close}</Button>
+          </>
+        }
+      >
+        <section className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.saleReference}</p>
+            <p className="mt-2 font-black text-slate-950">{selectedSale?.saleNumber}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.quoteReference}</p>
           </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.total}</p>
+            <p className="mt-2 font-black text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0, selectedSale?.currency)}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.currency}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.status}</p>
+            <p className="mt-2 font-black text-slate-950">{selectedSale?.commercialStatus}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.financeStatus} · {selectedSale?.inventoryStatus}</p>
+          </div>
+        </section>
 
-          <DialogFooter className={postSaleModalStyles.footer}>
-            <Button variant="outline" className={postSaleModalStyles.secondaryButton} onClick={() => setIsCaseModalOpen(false)}>{t.common.cancel}</Button>
-            <Button className={postSaleModalStyles.primaryButton} onClick={handleCreateCase}>
+        <section className="rounded-lg border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.lines}</p>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50">
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.product}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.quantity}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.unitPrice}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.margin}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.warehouse}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedSale?.saleLines.map((line) => (
+                  <TableRow key={line.id}>
+                    <TableCell className="px-5 py-4">
+                      <p className="font-black text-slate-950">{line.productName}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{line.sku}</p>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.quantity}</TableCell>
+                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.unitPrice, selectedSale?.currency)}</TableCell>
+                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.marginAmount, selectedSale?.currency)}</TableCell>
+                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.warehouseId}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4 text-sm font-semibold leading-6 text-[#B63B32]">
+          {selectedSale?.notes || t.common.notAvailable}
+        </section>
+      </SalesModalFrame>
+
+      <SalesModalFrame
+        open={isCaseModalOpen}
+        onOpenChange={setIsCaseModalOpen}
+        contentClassName="max-w-5xl"
+        bodyClassName="grid gap-4 md:grid-cols-2"
+        title={t.forms.postSale.title}
+        description={t.forms.postSale.description}
+        icon={<ShieldCheck className={salesModalIconClassName} />}
+        footer={
+          <>
+            <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => setIsCaseModalOpen(false)}>{t.common.cancel}</Button>
+            <Button className={postSaleModalActions.primary} onClick={handleCreateCase}>
               <Plus className="h-4 w-4" />
               {t.forms.postSale.submit}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <FilterSelect label={t.forms.postSale.client} value={caseForm.clientId} onValueChange={(value) => setCaseForm((current) => ({ ...current, clientId: value }))} options={contacts.map((contact) => ({ value: contact.id, label: `${contact.company} · ${contact.contactPerson}` }))} />
+        <FilterSelect label={t.forms.postSale.opportunity} value={caseForm.relatedOpportunityId} onValueChange={(value) => setCaseForm((current) => ({ ...current, relatedOpportunityId: value }))} options={[{ value: 'none', label: t.common.none }, ...opportunities.map((opportunity) => ({ value: opportunity.id, label: opportunity.opportunityName }))]} />
+        <FilterSelect label={t.forms.postSale.quote} value={caseForm.lastQuoteId} onValueChange={(value) => setCaseForm((current) => ({ ...current, lastQuoteId: value }))} options={[{ value: 'none', label: t.common.none }, ...quotes.map((quote) => ({ value: quote.id, label: `${quote.quoteNumber} · ${quote.clientName}` }))]} />
+        <FilterSelect label={t.forms.postSale.relationType} value={caseForm.relationType} onValueChange={(value) => setCaseForm((current) => ({ ...current, relationType: value as CustomerRelationType }))} options={customerRelationTypes.map((relationType) => ({ value: relationType, label: t.relationTypeLabels[relationType] }))} />
+        <FilterSelect label={t.forms.postSale.postSaleType} value={caseForm.postSaleType} onValueChange={(value) => setCaseForm((current) => ({ ...current, postSaleType: value as PostSaleType }))} options={postSaleTypes.map((postSaleType) => ({ value: postSaleType, label: t.postSaleTypeLabels[postSaleType] }))} />
+        <FilterSelect label={t.forms.postSale.status} value={caseForm.status} onValueChange={(value) => setCaseForm((current) => ({ ...current, status: value as PostSaleStatus }))} options={postSaleStatuses.map((status) => ({ value: status, label: t.statusLabels[status] }))} />
+        <FilterSelect label={t.forms.postSale.owner} value={caseForm.owner} onValueChange={(value) => setCaseForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.lifetimeValue}</label>
+          <Input type="number" value={caseForm.lifetimeValue} onChange={(event) => setCaseForm((current) => ({ ...current, lifetimeValue: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.lastPurchaseDate}</label>
+          <Input type="date" value={caseForm.lastPurchaseDate} onChange={(event) => setCaseForm((current) => ({ ...current, lastPurchaseDate: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.nextFollowUpDate}</label>
+          <Input type="date" value={caseForm.nextFollowUpDate} onChange={(event) => setCaseForm((current) => ({ ...current, nextFollowUpDate: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.renewalDate}</label>
+          <Input type="date" value={caseForm.renewalDate} onChange={(event) => setCaseForm((current) => ({ ...current, renewalDate: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.nextAction}</label>
+          <Input value={caseForm.nextAction} onChange={(event) => setCaseForm((current) => ({ ...current, nextAction: event.target.value }))} placeholder={t.forms.postSale.nextActionPlaceholder} />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.notes}</label>
+          <Textarea value={caseForm.notes} onChange={(event) => setCaseForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.postSale.notesPlaceholder} />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.files}</label>
+          <Input value={caseForm.files} onChange={(event) => setCaseForm((current) => ({ ...current, files: event.target.value }))} placeholder={t.forms.postSale.filesPlaceholder} />
+        </div>
+      </SalesModalFrame>
 
-      <Dialog open={Boolean(automationCase)} onOpenChange={(open) => !open && setAutomationCase(null)}>
-        <DialogContent className={cn(postSaleModalStyles.content, 'max-w-3xl')} closeButtonClassName={postSaleModalStyles.close}>
-          <DialogHeader className={postSaleModalStyles.header}>
-            <DialogTitle className={postSaleModalStyles.title}>
-              <CalendarPlus className={cn('h-5 w-5', postSaleModalStyles.icon)} />
-              {t.forms.lost.title}
-            </DialogTitle>
-            <DialogDescription className={postSaleModalStyles.description}>{t.forms.lost.description}</DialogDescription>
-          </DialogHeader>
-          <div className={cn(postSaleModalStyles.body, 'space-y-4')}>
-            <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#B63B32]">{t.forms.lost.contextTitle}</p>
-              <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
-                <div>
-                  <p className="font-black text-slate-950">{automationCase?.clientName}</p>
-                  <p className="mt-1 font-semibold text-slate-500">{automationCase?.contactPerson}</p>
-                </div>
-                <div>
-                  <p className="font-black text-slate-950">{automationCase?.lastPurchaseDate ?? t.common.notAvailable}</p>
-                  <p className="mt-1 font-semibold text-slate-500">{t.table.columns.lastPurchase}</p>
-                </div>
-                <div>
-                  <p className="font-black text-slate-950">{formatCurrency(automationCase?.sales[0]?.totalAmount ?? 0)}</p>
-                  <p className="mt-1 font-semibold text-slate-500">{automationCase?.sales[0]?.saleNumber ?? t.common.notAvailable}</p>
-                </div>
-              </div>
-              <p className="mt-3 text-sm font-semibold leading-6 text-[#B63B32]">{t.forms.lost.contextDescription}</p>
-            </section>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <FilterSelect label={t.forms.lost.timing} value={automationForm.delay} onValueChange={handleAutomationDelayChange} options={[
-                { value: '30', label: t.forms.lost.schedule30 },
-                { value: '60', label: t.forms.lost.schedule60 },
-                { value: '90', label: t.forms.lost.schedule90 },
-                { value: '180', label: t.forms.lost.schedule180 },
-                { value: 'custom', label: t.forms.lost.scheduleCustom },
-              ]} />
-              <FilterSelect label={t.forms.lost.owner} value={automationForm.owner} onValueChange={(value) => setAutomationForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">{t.forms.lost.scheduledDate}</label>
-                <Input type="date" value={automationForm.scheduledDate} onChange={(event) => setAutomationForm((current) => ({ ...current, delay: 'custom', scheduledDate: event.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">{t.forms.lost.expectedCloseDate}</label>
-                <Input type="date" value={automationForm.expectedCloseDate} onChange={(event) => setAutomationForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-bold text-slate-700">{t.forms.lost.opportunityName}</label>
-                <Input value={automationForm.opportunityName} onChange={(event) => setAutomationForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.lost.opportunityNamePlaceholder} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-bold text-slate-700">{t.forms.lost.notes}</label>
-                <Textarea value={automationForm.notes} onChange={(event) => setAutomationForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.lost.notesPlaceholder} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 p-3 text-sm font-semibold leading-6 text-[#177d66]">
-                {t.forms.lost.backendReadyNote}
-              </p>
-            </div>
-          </div>
-          <DialogFooter className={postSaleModalStyles.footer}>
-            <Button variant="outline" className={postSaleModalStyles.secondaryButton} onClick={() => setAutomationCase(null)}>{t.common.cancel}</Button>
-            <Button className={postSaleModalStyles.primaryButton} onClick={handleCreateAutomatedOpportunity}>
+      <SalesModalFrame
+        open={Boolean(automationCase)}
+        onOpenChange={(open) => !open && setAutomationCase(null)}
+        contentClassName="max-w-3xl"
+        bodyClassName="space-y-4"
+        title={t.forms.lost.title}
+        description={t.forms.lost.description}
+        icon={<CalendarPlus className={salesModalIconClassName} />}
+        footer={
+          <>
+            <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => setAutomationCase(null)}>{t.common.cancel}</Button>
+            <Button className={postSaleModalActions.primary} onClick={handleCreateAutomatedOpportunity}>
               <CalendarPlus className="h-4 w-4" />
               {t.forms.lost.submit}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(selectedFilesCase)} onOpenChange={(open) => !open && setSelectedFilesCase(null)}>
-        <DialogContent className={cn(postSaleModalStyles.content, 'max-w-xl')} closeButtonClassName={postSaleModalStyles.close}>
-          <DialogHeader className={postSaleModalStyles.header}>
-            <DialogTitle className={postSaleModalStyles.smallTitle}>
-              <FileText className={cn('h-5 w-5', postSaleModalStyles.icon)} />
-              {t.filesModal.title}
-            </DialogTitle>
-            <DialogDescription className={postSaleModalStyles.description}>{t.filesModal.description}</DialogDescription>
-          </DialogHeader>
-          <div className={cn(postSaleModalStyles.body, 'space-y-3')}>
-            <p className="text-sm font-bold text-slate-500">{selectedFilesCase?.clientName}</p>
-            {selectedFilesCase?.files.length ? selectedFilesCase.files.map((file) => (
-              <div key={file} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <FileText className="h-4 w-4 text-[#B63B32]" />
-                <span className="text-sm font-semibold text-slate-700">{file}</span>
-              </div>
-            )) : (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
-                {t.filesModal.empty}
-              </div>
-            )}
-          </div>
-          <DialogFooter className={postSaleModalStyles.footer}>
-            <Button className={postSaleModalStyles.primaryButton} onClick={() => setSelectedFilesCase(null)}>{t.common.close}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(futureOpportunityCase)} onOpenChange={(open) => !open && setFutureOpportunityCase(null)}>
-        <DialogContent className={cn(futureOpportunityModalStyles.content, 'max-w-2xl')} closeButtonClassName={futureOpportunityModalStyles.close}>
-          <DialogHeader className={futureOpportunityModalStyles.header}>
-            <DialogTitle className={futureOpportunityModalStyles.title}>
-              <Link2 className={cn('h-5 w-5', futureOpportunityModalStyles.icon)} />
-              {t.forms.opportunity.title}
-            </DialogTitle>
-            <DialogDescription className={futureOpportunityModalStyles.description}>{t.forms.opportunity.description}</DialogDescription>
-          </DialogHeader>
-          <div className={cn(futureOpportunityModalStyles.body, 'space-y-4')}>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.opportunityName}</label>
-              <Input value={futureForm.opportunityName} onChange={(event) => setFutureForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.opportunity.opportunityNamePlaceholder} />
+          </>
+        }
+      >
+        <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#B63B32]">{t.forms.lost.contextTitle}</p>
+          <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+            <div>
+              <p className="font-black text-slate-950">{automationCase?.clientName}</p>
+              <p className="mt-1 font-semibold text-slate-500">{automationCase?.contactPerson}</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.expectedCloseDate}</label>
-                <Input type="date" value={futureForm.expectedCloseDate} onChange={(event) => setFutureForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.nextActionDate}</label>
-                <Input type="date" value={futureForm.nextActionDate} onChange={(event) => setFutureForm((current) => ({ ...current, nextActionDate: event.target.value }))} />
-              </div>
+            <div>
+              <p className="font-black text-slate-950">{automationCase?.lastPurchaseDate ?? t.common.notAvailable}</p>
+              <p className="mt-1 font-semibold text-slate-500">{t.table.columns.lastPurchase}</p>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.notes}</label>
-              <Textarea value={futureForm.notes} onChange={(event) => setFutureForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.opportunity.notesPlaceholder} />
+            <div>
+              <p className="font-black text-slate-950">{formatCurrency(automationCase?.sales[0]?.totalAmount ?? 0, automationCase?.sales[0]?.currency ?? getHistoryCurrency(automationCase))}</p>
+              <p className="mt-1 font-semibold text-slate-500">{automationCase?.sales[0]?.saleNumber ?? t.common.notAvailable}</p>
             </div>
           </div>
-          <DialogFooter className={futureOpportunityModalStyles.footer}>
-            <Button variant="outline" className={futureOpportunityModalStyles.secondaryButton} onClick={() => setFutureOpportunityCase(null)}>{t.common.cancel}</Button>
-            <Button className={futureOpportunityModalStyles.primaryButton} onClick={handleCreateFutureOpportunity}>
+          <p className="mt-3 text-sm font-semibold leading-6 text-[#B63B32]">{t.forms.lost.contextDescription}</p>
+        </section>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <FilterSelect label={t.forms.lost.timing} value={automationForm.delay} onValueChange={handleAutomationDelayChange} options={[
+            { value: '30', label: t.forms.lost.schedule30 },
+            { value: '60', label: t.forms.lost.schedule60 },
+            { value: '90', label: t.forms.lost.schedule90 },
+            { value: '180', label: t.forms.lost.schedule180 },
+            { value: 'custom', label: t.forms.lost.scheduleCustom },
+          ]} />
+          <FilterSelect label={t.forms.lost.owner} value={automationForm.owner} onValueChange={(value) => setAutomationForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">{t.forms.lost.scheduledDate}</label>
+            <Input type="date" value={automationForm.scheduledDate} onChange={(event) => setAutomationForm((current) => ({ ...current, delay: 'custom', scheduledDate: event.target.value }))} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">{t.forms.lost.expectedCloseDate}</label>
+            <Input type="date" value={automationForm.expectedCloseDate} onChange={(event) => setAutomationForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-bold text-slate-700">{t.forms.lost.opportunityName}</label>
+            <Input value={automationForm.opportunityName} onChange={(event) => setAutomationForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.lost.opportunityNamePlaceholder} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-bold text-slate-700">{t.forms.lost.notes}</label>
+            <Textarea value={automationForm.notes} onChange={(event) => setAutomationForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.lost.notesPlaceholder} />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <p className="rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 p-3 text-sm font-semibold leading-6 text-[#177d66]">
+            {t.forms.lost.backendReadyNote}
+          </p>
+        </div>
+      </SalesModalFrame>
+
+      <SalesModalFrame
+        open={Boolean(selectedFilesCase)}
+        onOpenChange={(open) => !open && setSelectedFilesCase(null)}
+        contentClassName="max-w-xl"
+        bodyClassName="space-y-3"
+        title={t.filesModal.title}
+        description={t.filesModal.description}
+        icon={<FileText className={salesModalIconClassName} />}
+        footer={<Button className={postSaleModalActions.primary} onClick={() => setSelectedFilesCase(null)}>{t.common.close}</Button>}
+      >
+        <p className="text-sm font-bold text-slate-500">{selectedFilesCase?.clientName}</p>
+        {selectedFilesCase?.files.length ? selectedFilesCase.files.map((file) => (
+          <div key={file} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <FileText className="h-4 w-4 text-[#B63B32]" />
+            <span className="text-sm font-semibold text-slate-700">{file}</span>
+          </div>
+        )) : (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
+            {t.filesModal.empty}
+          </div>
+        )}
+      </SalesModalFrame>
+
+      <SalesModalFrame
+        open={Boolean(futureOpportunityCase)}
+        onOpenChange={(open) => !open && setFutureOpportunityCase(null)}
+        tone="aqua"
+        contentClassName="max-w-2xl"
+        bodyClassName="space-y-4"
+        title={t.forms.opportunity.title}
+        description={t.forms.opportunity.description}
+        icon={<Link2 className={salesModalIconClassName} />}
+        footer={
+          <>
+            <Button variant="outline" className={futureOpportunityModalActions.secondary} onClick={() => setFutureOpportunityCase(null)}>{t.common.cancel}</Button>
+            <Button className={futureOpportunityModalActions.primary} onClick={handleCreateFutureOpportunity}>
               <Sparkles className="h-4 w-4" />
               {t.forms.opportunity.submit}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.opportunityName}</label>
+          <Input value={futureForm.opportunityName} onChange={(event) => setFutureForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.opportunity.opportunityNamePlaceholder} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.expectedCloseDate}</label>
+            <Input type="date" value={futureForm.expectedCloseDate} onChange={(event) => setFutureForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.nextActionDate}</label>
+            <Input type="date" value={futureForm.nextActionDate} onChange={(event) => setFutureForm((current) => ({ ...current, nextActionDate: event.target.value }))} />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.notes}</label>
+          <Textarea value={futureForm.notes} onChange={(event) => setFutureForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.opportunity.notesPlaceholder} />
+        </div>
+      </SalesModalFrame>
     </section>
   );
 }

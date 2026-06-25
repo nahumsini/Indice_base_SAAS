@@ -1,6 +1,6 @@
 import { CalendarDays, KanbanSquare, ListChecks } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
-import type { ProspectosCopy } from '../translations/prospectosTranslations';
+import type { ProspectosCopy } from '../translations';
 import type { OpportunityView } from '../types/prospectosTypes';
 
 const viewOptions: Array<{
@@ -22,7 +22,7 @@ export function ProspectosViewTabs({
   onViewChange: (view: OpportunityView) => void;
 }) {
   return (
-    <div className="inline-flex w-fit items-center rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+    <div className="inline-flex w-fit items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
       {viewOptions.map((view) => {
         const Icon = view.icon;
         const active = activeView === view.id;

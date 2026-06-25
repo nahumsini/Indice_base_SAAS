@@ -45,6 +45,7 @@ export type CommissionRecord = {
   commissionValue: number;
   saleAmount: number;
   commissionAmount: number;
+  currency: string;
   status: CommissionStatus;
   createdDate: string;
   approvedDate?: string;
@@ -57,9 +58,13 @@ export type CommissionRecord = {
 
 export type CommissionKpis = {
   totalCommissions: number;
+  totalCommissionsLabel: string;
   pendingCommissions: number;
+  pendingCommissionsLabel: string;
   approvedCommissions: number;
+  approvedCommissionsLabel: string;
   paidCommissions: number;
+  paidCommissionsLabel: string;
   commissionRate: number;
   commissionCount: number;
 };

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const DEFAULT_TAB_LOADING_DURATION_MS = 700;
 
@@ -20,19 +20,19 @@ export function useDeferredTabChange<T extends string>(
   const loadingTimeoutRef = useRef<number | null>(null);
   const pendingAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
 
-  const clearLoadingTimeout = () => {
+  const clearLoadingTimeout = useCallback(() => {
     if (loadingTimeoutRef.current !== null) {
       window.clearTimeout(loadingTimeoutRef.current);
       loadingTimeoutRef.current = null;
     }
-  };
+  }, []);
 
-  const clearPendingAnimationFrame = () => {
+  const clearPendingAnimationFrame = useCallback(() => {
     pendingAnimationFrameCleanupRef.current?.();
     pendingAnimationFrameCleanupRef.current = null;
-  };
+  }, []);
 
-  const finishLoadingAfterMinimum = () => {
+  const finishLoadingAfterMinimum = useCallback(() => {
     if (typeof window === 'undefined') {
       setIsTabLoading(false);
       return;
@@ -43,9 +43,9 @@ export function useDeferredTabChange<T extends string>(
       setIsTabLoading(false);
       loadingTimeoutRef.current = null;
     }, getRemainingDuration(loadingStartedAtRef.current, minimumDurationMs));
-  };
+  }, [clearLoadingTimeout, minimumDurationMs]);
 
-  const runAfterNextPaint = (callback: () => void) => {
+  const runAfterNextPaint = useCallback((callback: () => void) => {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
       callback();
       return;
@@ -66,7 +66,7 @@ export function useDeferredTabChange<T extends string>(
         window.cancelAnimationFrame(secondFrameId);
       }
     };
-  };
+  }, []);
 
   const changeTab = (nextTab: T) => {
     if (nextTab === activeTab) {
@@ -87,10 +87,16 @@ export function useDeferredTabChange<T extends string>(
     });
   };
 
+  useEffect(() => {
+    if (isTabLoading) {
+      finishLoadingAfterMinimum();
+    }
+  }, [activeTab, finishLoadingAfterMinimum, isTabLoading]);
+
   useEffect(() => () => {
     clearPendingAnimationFrame();
     clearLoadingTimeout();
-  }, []);
+  }, [clearLoadingTimeout, clearPendingAnimationFrame]);
 
   return {
     changeTab,

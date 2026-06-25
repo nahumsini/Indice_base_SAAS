@@ -1,21 +1,27 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, CircleAlert, CreditCard, Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { Camera, CheckCircle2, CircleAlert, CreditCard, Eye, EyeOff, KeyRound, Loader2, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
-import { configCenterApi, type ConfigCenterCurrentUser } from '../../../api/configCenter';
+import { configCenterApi, type ConfigCenterCurrentUser, type ConfigCenterPhoneNumber } from '../../../api/configCenter';
 import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { languages, useLanguage } from '../../../shared/context';
 import {
   DEFAULT_PROFILE_COUNTRY,
-  getProfileCountry,
   getProfileCountryLabel,
   isProfileCountry,
   PROFILE_COUNTRY_OPTIONS,
-  splitProfilePhone,
 } from '../../../shared/profileCountries';
 import {
+  isPhoneInputDialCodeOnly,
   normalizePhoneInputForCountry,
   validatePhoneForProfileCountry,
 } from '../../../shared/validation/phone';
+import {
+  areProfilePhonesEqual,
+  createProfilePhoneValue,
+  createProfilePhoneValues,
+  updatePhoneCountry,
+  type ProfilePhoneFormValue,
+} from './profilePhones';
 
 const inputClassName =
   'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
@@ -32,7 +38,7 @@ const DEFAULT_PROFILE_FORM_VALUES = {
   firstName: '',
   lastName: '',
   country: DEFAULT_PROFILE_COUNTRY,
-  phoneNumber: '',
+  phoneNumbers: [] as ProfilePhoneFormValue[],
   preferredLanguage: DEFAULT_PREFERRED_LANGUAGE,
   avatarObjectKey: '',
   avatarContentType: '',
@@ -59,7 +65,7 @@ type ProfileFormValues = {
   firstName: string;
   lastName: string;
   country: string;
-  phoneNumber: string;
+  phoneNumbers: ProfilePhoneFormValue[];
   preferredLanguage: string;
   avatarObjectKey: string;
   avatarContentType: string;
@@ -230,19 +236,19 @@ const normalizePreferredLanguage = (languageCode?: string) => {
 
 const createProfileFormValues = (user?: ConfigCenterCurrentUser | null): ProfileFormValues => {
   if (!user) {
-    return { ...DEFAULT_PROFILE_FORM_VALUES };
+    return {
+      ...DEFAULT_PROFILE_FORM_VALUES,
+      phoneNumbers: [createProfilePhoneValue()],
+    };
   }
 
-  const phoneParts = splitProfilePhone(
-    user.telefono,
-    user.country,
-  );
+  const profileCountry = user.country ?? DEFAULT_PROFILE_COUNTRY;
 
   return {
     firstName: user.primer_nombre ?? user.nombres ?? '',
     lastName: user.apellido_paterno ?? user.apellidos ?? '',
-    country: phoneParts.country,
-    phoneNumber: phoneParts.number,
+    country: profileCountry,
+    phoneNumbers: createProfilePhoneValues(user, profileCountry),
     preferredLanguage: normalizePreferredLanguage(user.preferred_language),
     avatarObjectKey: user.avatar_object_key ?? '',
     avatarContentType: user.avatar_content_type ?? '',
@@ -258,12 +264,16 @@ const areProfileFormValuesEqual = (
   currentValues.firstName === baselineValues.firstName
   && currentValues.lastName === baselineValues.lastName
   && currentValues.country === baselineValues.country
-  && currentValues.phoneNumber === baselineValues.phoneNumber
+  && areProfilePhonesEqual(currentValues.phoneNumbers, baselineValues.phoneNumbers)
   && currentValues.preferredLanguage === baselineValues.preferredLanguage
   && currentValues.avatarObjectKey === baselineValues.avatarObjectKey
   && currentValues.avatarContentType === baselineValues.avatarContentType
   && currentValues.newPassword === baselineValues.newPassword
   && currentValues.confirmNewPassword === baselineValues.confirmNewPassword
+);
+
+const isBlankProfilePhoneNumber = (phone: ProfilePhoneFormValue) => (
+  !phone.number.trim() || isPhoneInputDialCodeOnly(phone.number, phone.country)
 );
 
 export default function Profile() {
@@ -274,7 +284,7 @@ export default function Profile() {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarPreviewRef = useRef('');
   const [user, setUser] = useState<ConfigCenterCurrentUser | null>(null);
-  const [formValues, setFormValues] = useState<ProfileFormValues>({ ...DEFAULT_PROFILE_FORM_VALUES });
+  const [formValues, setFormValues] = useState<ProfileFormValues>(createProfileFormValues());
   const [baselineValues, setBaselineValues] = useState<ProfileFormValues | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -350,10 +360,6 @@ export default function Profile() {
     () => formValues.lastName.trim(),
     [formValues.lastName],
   );
-  const selectedCountry = useMemo(
-    () => getProfileCountry(formValues.country),
-    [formValues.country],
-  );
   const countryOptions = useMemo(
     () => PROFILE_COUNTRY_OPTIONS.map((country) => ({
       code: country.code,
@@ -361,6 +367,9 @@ export default function Profile() {
     })),
     [currentLanguage.code],
   );
+  const phoneCopy = currentLanguage.code.startsWith('es')
+    ? { add: 'Agregar teléfono', number: 'Número', primary: 'Principal', remove: 'Quitar' }
+    : { add: 'Add phone', number: 'Number', primary: 'Primary', remove: 'Remove' };
 
   const initials = ((firstNames[0] ?? '') + (lastNames[0] ?? '')).trim().toUpperCase() || 'U';
   const avatarDisplayUrl = avatarPreviewUrl || user?.avatar_url || '';
@@ -428,7 +437,9 @@ export default function Profile() {
     setFormValues((currentValues) => ({
       ...currentValues,
       country: value,
-      phoneNumber: normalizePhoneInputForCountry(currentValues.phoneNumber, value),
+      phoneNumbers: currentValues.phoneNumbers.map((phone) => (
+        updatePhoneCountry(phone, value)
+      )),
     }));
 
     if (errorMessage) {
@@ -440,8 +451,53 @@ export default function Profile() {
     }
   };
 
-  const handlePhoneNumberChange = (value: string) => {
-    updateFormValue('phoneNumber', normalizePhoneInputForCountry(value, formValues.country));
+  const updatePhoneNumbers = (updater: (phones: ProfilePhoneFormValue[]) => ProfilePhoneFormValue[]) => {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      phoneNumbers: updater(currentValues.phoneNumbers),
+    }));
+
+    if (errorMessage) {
+      setErrorMessage('');
+    }
+
+    if (saveMessage) {
+      setSaveMessage('');
+    }
+  };
+
+  const handlePhoneCountryChange = (phoneKey: string, value: string) => {
+    if (!isProfileCountry(value)) {
+      return;
+    }
+
+    updatePhoneNumbers((phoneNumbers) => phoneNumbers.map((phone) => (
+      phone.key === phoneKey ? updatePhoneCountry(phone, value) : phone
+    )));
+  };
+
+  const handlePhoneNumberChange = (phoneKey: string, value: string) => {
+    updatePhoneNumbers((phoneNumbers) => phoneNumbers.map((phone) => (
+      phone.key === phoneKey
+        ? { ...phone, number: normalizePhoneInputForCountry(value, phone.country) }
+        : phone
+    )));
+  };
+
+  const handleAddPhoneNumber = () => {
+    updatePhoneNumbers((phoneNumbers) => [
+      ...phoneNumbers,
+      createProfilePhoneValue(phoneNumbers.length, { country: formValues.country }),
+    ]);
+  };
+
+  const handleRemovePhoneNumber = (phoneKey: string) => {
+    updatePhoneNumbers((phoneNumbers) => {
+      const nextPhoneNumbers = phoneNumbers.filter((phone) => phone.key !== phoneKey);
+      return nextPhoneNumbers.length
+        ? nextPhoneNumbers
+        : [createProfilePhoneValue(0, { country: formValues.country })];
+    });
   };
 
   const handleAvatarFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -545,31 +601,35 @@ export default function Profile() {
     setSaveMessage('');
 
     try {
-      const trimmedPhoneNumber = valuesToSave.phoneNumber.trim();
-      let formattedPhone = '';
-      const isPhoneSelectionUnchanged = valuesToSave.phoneNumber === baselineToSave.phoneNumber
-        && valuesToSave.country === baselineToSave.country;
-
-      if (trimmedPhoneNumber) {
-        if (isPhoneSelectionUnchanged && user.telefono?.trim()) {
-          formattedPhone = user.telefono.trim();
-        } else {
-          const validation = validatePhoneForProfileCountry(trimmedPhoneNumber, valuesToSave.country);
-
-          if (!validation.ok) {
-            setErrorMessage(profileCopy.messages.invalidPhone);
-            setSaveMessage('');
-            return;
-          }
-
-          formattedPhone = validation.international;
+      const formattedPhones: ConfigCenterPhoneNumber[] = [];
+      for (const phone of valuesToSave.phoneNumbers) {
+        const trimmedPhoneNumber = phone.number.trim();
+        if (!trimmedPhoneNumber || isPhoneInputDialCodeOnly(trimmedPhoneNumber, phone.country)) {
+          continue;
         }
+
+        const validation = validatePhoneForProfileCountry(trimmedPhoneNumber, phone.country);
+
+        if (!validation.ok) {
+          setErrorMessage(profileCopy.messages.invalidPhone);
+          setSaveMessage('');
+          return;
+        }
+
+        formattedPhones.push({
+          id: phone.id,
+          label: phone.label.trim() || `Phone ${formattedPhones.length + 1}`,
+          phone: validation.international,
+          country: phone.country,
+          is_primary: formattedPhones.length === 0,
+        });
       }
 
       const response = await configCenterApi.saveCurrentUser({
         primer_nombre: valuesToSave.firstName,
         apellido_paterno: valuesToSave.lastName,
-        telefono: formattedPhone,
+        telefono: formattedPhones[0]?.phone ?? '',
+        phone_numbers: formattedPhones,
         country: valuesToSave.country,
         preferred_language: valuesToSave.preferredLanguage,
         ...(valuesToSave.avatarObjectKey !== baselineToSave.avatarObjectKey
@@ -621,16 +681,14 @@ export default function Profile() {
       return undefined;
     }
 
-    const trimmedAutoSavePhoneNumber = formValues.phoneNumber.trim();
-    const isPhoneSelectionUnchanged = baselineValues !== null
-      && formValues.phoneNumber === baselineValues.phoneNumber
-      && formValues.country === baselineValues.country;
+    const hasBlankExtraPhone = formValues.phoneNumbers.length > 1
+      && formValues.phoneNumbers.some((phone) => isBlankProfilePhoneNumber(phone));
+    const hasInvalidPhoneNumber = formValues.phoneNumbers.some((phone) => (
+      !isBlankProfilePhoneNumber(phone)
+      && !validatePhoneForProfileCountry(phone.number, phone.country).ok
+    ));
 
-    if (
-      trimmedAutoSavePhoneNumber
-      && !(isPhoneSelectionUnchanged && user?.telefono?.trim())
-      && !validatePhoneForProfileCountry(trimmedAutoSavePhoneNumber, formValues.country).ok
-    ) {
+    if (hasBlankExtraPhone || hasInvalidPhoneNumber) {
       return undefined;
     }
 
@@ -820,25 +878,62 @@ export default function Profile() {
             <input type="email" value={user?.email ?? ''} readOnly className={inputClassName} />
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t.panelInicial.profile.fields.phone} <span className="text-[11px] text-gray-400">{profileCopy.messages.optional}</span>
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="flex min-h-[42px] items-center rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 sm:min-w-[112px]">
-                <span className="truncate font-medium">
-                  {selectedCountry.flag} {selectedCountry.dialCode}
-                </span>
-              </div>
-              <input
-                type="tel"
-                value={formValues.phoneNumber}
-                onChange={(event) => handlePhoneNumberChange(event.target.value)}
-                className={`${inputClassName} flex-1`}
-                inputMode="numeric"
-                autoComplete="tel-national"
-              />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {t.panelInicial.profile.fields.phone} <span className="text-[11px] text-gray-400">{profileCopy.messages.optional}</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAddPhoneNumber}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-700/40 dark:text-blue-200 dark:hover:bg-blue-900/20"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {phoneCopy.add}
+              </button>
             </div>
+
+            {formValues.phoneNumbers.map((phone, index) => (
+                <div key={phone.key} className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      {index === 0 ? phoneCopy.primary : `${t.panelInicial.profile.fields.phone} ${index + 1}`}
+                    </span>
+                    {formValues.phoneNumbers.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoneNumber(phone.key)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {phoneCopy.remove}
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(180px,260px)_minmax(0,1fr)]">
+                    <select
+                      value={phone.country}
+                      onChange={(event) => handlePhoneCountryChange(phone.key, event.target.value)}
+                      className={`${inputClassName} appearance-none cursor-pointer`}
+                    >
+                      {countryOptions.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={phone.number}
+                      onChange={(event) => handlePhoneNumberChange(phone.key, event.target.value)}
+                      className={inputClassName}
+                      inputMode="tel"
+                      autoComplete={index === 0 ? 'tel' : 'off'}
+                      placeholder={phoneCopy.number}
+                    />
+                  </div>
+                </div>
+            ))}
             <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
               {profileCopy.hints.phone}
             </p>

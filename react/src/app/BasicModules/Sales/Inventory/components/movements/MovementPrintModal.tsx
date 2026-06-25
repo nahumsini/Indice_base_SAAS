@@ -1,10 +1,12 @@
 import { useRef } from 'react';
 import { FileText, Printer } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../../components/SalesModalFrame';
 import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
+
+const printActionClassNames = getSalesModalActionClassNames('coral');
 
 export function MovementPrintModal({
   movement,
@@ -44,19 +46,24 @@ export function MovementPrintModal({
   };
 
   return (
-    <Dialog open={Boolean(movement)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="grid h-[90vh] max-h-[900px] w-[calc(100vw-2rem)] max-w-[1040px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[#FF6B5E]/25 bg-white p-0 shadow-2xl sm:max-w-[1040px]">
-        <DialogHeader className="bg-[#222831] px-6 py-5 text-white">
-          <DialogTitle className="flex items-center gap-3 text-2xl font-black">
-            <FileText className="h-6 w-6 text-[#FF6B5E]" />
-            {t.operational.modals.movementDocumentTitle}
-          </DialogTitle>
-          <DialogDescription className="max-w-3xl text-sm font-medium leading-6 text-slate-200">
-            {t.operational.modals.movementDocumentSubtitle}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 overflow-auto bg-slate-100 px-4 py-5">
+    <SalesModalFrame
+      open={Boolean(movement)}
+      onOpenChange={(open) => !open && onClose()}
+      title={t.operational.modals.movementDocumentTitle}
+      description={t.operational.modals.movementDocumentSubtitle}
+      icon={<FileText className="h-6 w-6" />}
+      contentClassName="flex h-[90vh] max-h-[900px] w-[calc(100vw-2rem)] max-w-[1040px] flex-col sm:max-w-[1040px]"
+      bodyClassName="!max-h-none min-h-0 flex-1 overflow-auto bg-slate-100 px-4 py-5"
+      footer={(
+        <>
+          <Button variant="outline" className={printActionClassNames.secondary} onClick={onClose}>{t.common.close}</Button>
+          <Button className={printActionClassNames.primary} onClick={handlePrint}>
+            <Printer className="h-4 w-4" />
+            {t.operational.modals.printDocument}
+          </Button>
+        </>
+      )}
+    >
           <article ref={documentRef} className="mx-auto min-h-[760px] w-full max-w-[820px] bg-white px-12 py-10 shadow-xl ring-1 ring-slate-200">
             <header className="border-b border-slate-200 pb-7">
               <div className="flex items-start justify-between gap-6">
@@ -125,17 +132,7 @@ export function MovementPrintModal({
               </div>
             </section>
           </article>
-        </div>
-
-        <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4">
-          <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white" onClick={onClose}>{t.common.close}</Button>
-          <Button className="h-10 gap-2 rounded-lg bg-[#FF6B5E] text-white hover:bg-[#E85C50]" onClick={handlePrint}>
-            <Printer className="h-4 w-4" />
-            {t.operational.modals.printDocument}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }
 

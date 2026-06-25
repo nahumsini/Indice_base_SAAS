@@ -8,6 +8,7 @@ import {
 } from 'libphonenumber-js/max';
 
 import {
+  shouldUseProfilePhoneDialCode,
   isProfileCountry,
   type ProfileCountry,
 } from '../profileCountries';
@@ -106,6 +107,36 @@ function trimToCountryPhoneLength(rawDigits: string, country: CountryCode): stri
   return acceptedDigits;
 }
 
+function getVisiblePhoneDialCode(country: CountryCode): string {
+  return `+${getCountryCallingCode(country)}`;
+}
+
+function normalizePhoneInputWithDialCode(rawNumber: string, country: CountryCode): string {
+  const trimmedNumber = rawNumber.trim();
+  const countryCallingCode = getCountryCallingCode(country);
+  const visibleDialCode = getVisiblePhoneDialCode(country);
+  const digits = stripToDigits(rawNumber);
+
+  if (!trimmedNumber || !digits || digits === countryCallingCode) {
+    return `${visibleDialCode} `;
+  }
+
+  if (trimmedNumber.startsWith('+') && !digits.startsWith(countryCallingCode)) {
+    const explicitInternationalNumber = parsePhoneNumberFromString(trimmedNumber);
+    return explicitInternationalNumber
+      ? explicitInternationalNumber.formatInternational()
+      : trimmedNumber;
+  }
+
+  const nationalDigits = extractNationalDigitsForCountry(rawNumber, country);
+  if (!nationalDigits || nationalDigits === countryCallingCode) {
+    return `${visibleDialCode} `;
+  }
+
+  const trimmedDigits = trimToCountryPhoneLength(nationalDigits, country);
+  return new AsYouType(country).input(`${visibleDialCode}${trimmedDigits}`) || `${visibleDialCode} `;
+}
+
 export function getPhoneDigitLimitForCountry(country?: string): number | undefined {
   const normalizedCountry = normalizePhoneCountry(country);
   if (!normalizedCountry) {
@@ -126,7 +157,13 @@ export function normalizePhoneInputForCountry(
 
   const trimmedNumber = rawNumber.trim();
   if (!trimmedNumber) {
-    return '';
+    return shouldUseProfilePhoneDialCode(normalizedCountry)
+      ? `${getVisiblePhoneDialCode(normalizedCountry)} `
+      : '';
+  }
+
+  if (shouldUseProfilePhoneDialCode(normalizedCountry)) {
+    return normalizePhoneInputWithDialCode(rawNumber, normalizedCountry);
   }
 
   // Keep explicit international inputs in international format so a number
@@ -146,6 +183,28 @@ export function normalizePhoneInputForCountry(
 
   const trimmedDigits = trimToCountryPhoneLength(nationalDigits, normalizedCountry);
   return new AsYouType(normalizedCountry).input(trimmedDigits);
+}
+
+export function normalizePhoneInputForCountrySelection(
+  rawNumber: string,
+  nextCountry?: string,
+  currentCountry?: string,
+): string {
+  const normalizedNextCountry = normalizePhoneCountry(nextCountry);
+  if (!normalizedNextCountry) {
+    return rawNumber;
+  }
+
+  const digits = stripToDigits(rawNumber);
+  const normalizedCurrentCountry = normalizePhoneCountry(currentCountry);
+  const currentCallingCode = normalizedCurrentCountry
+    ? getCountryCallingCode(normalizedCurrentCountry)
+    : '';
+  const nationalDigits = currentCallingCode && digits.startsWith(currentCallingCode)
+    ? digits.slice(currentCallingCode.length)
+    : digits;
+
+  return normalizePhoneInputForCountry(nationalDigits, normalizedNextCountry);
 }
 
 /**
@@ -207,4 +266,16 @@ export function formatPhoneAsYouType(
   }
 
   return new AsYouType(normalizedCountry).input(normalized);
+}
+
+export function isPhoneInputDialCodeOnly(
+  rawNumber: string,
+  country?: string,
+): boolean {
+  const normalizedCountry = normalizePhoneCountry(country);
+  if (!normalizedCountry || !shouldUseProfilePhoneDialCode(normalizedCountry)) {
+    return false;
+  }
+
+  return stripToDigits(rawNumber) === getCountryCallingCode(normalizedCountry);
 }

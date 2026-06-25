@@ -96,6 +96,7 @@ export function buildPreviewProduct(form: ProductFormState): SalesCatalogItem {
     description: form.description.trim() || 'Commercial and operational description.',
     price: Number(form.price) || 0,
     cost: Number(form.cost) || 0,
+    currency: form.currency,
     taxCategory: form.taxCategory,
     status: form.status,
     visibility: form.visibility,

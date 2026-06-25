@@ -1,5 +1,5 @@
 import { apiClient } from '../../../lib/apiClient';
-import type { TaskAuditStatus, TaskPriority, TaskStatus, TaskType } from '../Tasks/tasksApi';
+import type { TaskAuditStatus, TaskDependencyType, TaskPriority, TaskStatus, TaskType } from '../Tasks/tasksApi';
 
 export interface AgendaTaskItem {
   id: number;
@@ -58,6 +58,12 @@ export interface AgendaTaskItem {
   creator: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  predecessorDependencyId: number | null;
+  predecessorTaskId: number | null;
+  predecessorTaskFolio: string | null;
+  predecessorTaskTitle: string | null;
+  dependencyType: TaskDependencyType | null;
+  dependencyLagDays: number;
   attachments: number;
   isOverdue: boolean;
 }
@@ -133,6 +139,12 @@ function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTaskItem {
     creator: record.creator ?? record.createdByName ?? null,
     createdAt: record.createdAt ?? null,
     updatedAt: record.updatedAt ?? null,
+    predecessorDependencyId: record.predecessorDependencyId ?? null,
+    predecessorTaskId: record.predecessorTaskId ?? null,
+    predecessorTaskFolio: record.predecessorTaskFolio ?? null,
+    predecessorTaskTitle: record.predecessorTaskTitle ?? null,
+    dependencyType: record.dependencyType ?? null,
+    dependencyLagDays: Number(record.dependencyLagDays ?? 0),
     attachments: Number(record.attachments ?? 0),
     isOverdue: Boolean(record.isOverdue),
   };

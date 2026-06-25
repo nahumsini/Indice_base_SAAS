@@ -38,6 +38,11 @@ export type ProductMediaDraft = {
   url: string;
   alt?: string;
   source: 'upload' | 'url';
+  file?: File;
+  objectKey?: string;
+  fileName?: string;
+  contentType?: string;
+  sizeBytes?: number;
 };
 
 export type ProductBundleDraft = {
@@ -56,6 +61,7 @@ export type ProductFormState = {
   sku: string;
   category: SalesProductCategory | (string & {});
   type: SalesProductType;
+  currency: string;
   price: string;
   cost: string;
   logisticsCost: string;

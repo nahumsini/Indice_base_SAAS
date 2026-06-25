@@ -1,13 +1,18 @@
 import type { TaskStatus } from '../Tasks/tasksApi';
 
-export type PeriodFilter = 'mine' | 'delegated' | 'team' | 'week' | 'month' | 'overdue' | 'custom';
-export type DisplayTaskStatus = TaskStatus | 'overdue' | 'audited';
-export type OpenStatusFilter = 'open';
-export type AuditPendingStatusFilter = 'pending_audit';
-export type StatusFilter = 'all' | DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter;
+export type PeriodFilter = 'all' | 'today' | 'tomorrow' | 'yesterday' | 'week' | 'month' | 'custom';
+export type AgendaFocusFilter = 'mine' | 'delegated' | 'team';
+export type AgendaStatus = 'pending' | 'in_progress' | 'paused' | 'completed' | 'overdue' | 'audited';
+export type DisplayTaskStatus = AgendaStatus | Extract<TaskStatus, 'cancelled'>;
+export type StatusFilter = 'all' | AgendaStatus;
 export type OptionFilter = 'all' | string;
 export type AgendaViewMode = 'table' | 'kanban' | 'diagram';
 export type AgendaScheduleViewMode = 'day' | 'week' | 'list';
+
+export type AgendaLoadRange = {
+  from: string;
+  to: string;
+};
 
 export type AgendaColumnId =
   | 'folio'
@@ -19,6 +24,7 @@ export type AgendaColumnId =
   | 'createdAt'
   | 'startDate'
   | 'dueDate'
+  | 'predecessor'
   | 'agendaTime'
   | 'status'
   | 'creator'
@@ -49,8 +55,7 @@ export type AgendaKanbanColumnId =
   | 'in_progress'
   | 'paused'
   | 'completed'
-  | 'audited'
-  | 'cancelled';
+  | 'audited';
 
 export interface AgendaSortState {
   columnId: AgendaColumnId;

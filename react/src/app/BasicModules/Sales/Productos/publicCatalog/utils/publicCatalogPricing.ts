@@ -9,12 +9,14 @@ export function getPublicCatalogUnitPrice(item: PublicCatalogItem, quantity: num
     return {
       unitPrice: item.wholesalePrice,
       appliedPriceType: 'wholesale' as const,
+      currency: item.currency,
     };
   }
 
   return {
     unitPrice: item.publicPrice ?? 0,
     appliedPriceType: 'public' as const,
+    currency: item.currency,
   };
 }
 

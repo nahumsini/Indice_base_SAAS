@@ -1,43 +1,51 @@
-import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type DragEvent, type FormEvent, type SetStateAction } from 'react';
+import { FailureToast } from '../../../components/FailureToast';
+import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
+import { SuccessToast } from '../../../components/SuccessToast';
+import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
 import { mockProviders } from '../data/expenses.mock';
-import type { Expense, ExpenseFrequency, ExpenseStatus } from '../types/expenses.types';
-import { ExpenseTable, type ColumnConfig } from '../Expenses/components/ExpenseTable';
+import type { Expense } from '../types/expenses.types';
+import type { ProviderRecord } from '../Providers/useProveedoresLogic';
+import { accountingAccountsService, budgetLinesService, toFinanceApiErrorMessage } from '../services';
+import { ExpenseTable } from '../Expenses/components/ExpenseTable';
 import { AttachmentsModal } from '../Expenses/components/AttachmentsModal';
-import { useBudgetLogic, type BudgetFutureFilter } from './useBudgetLogic';
-import type { BudgetDraft } from './budgetUtils';
+import type { ColumnConfig } from '../types/expenseView.types';
+import type { FinanceReferenceOption } from '../types/finance-reference.types';
+import { BudgetCreateModal } from '../components/modals/BudgetCreateModal';
+import { BudgetFiltersPanel } from '../components/filters/BudgetFiltersPanel';
+import { ColumnConfigurationModal } from '../components/table/ColumnConfigurationModal';
+import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
+import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { buildBudgetLineDraft, buildBudgetMasterDraft, createBudgetDraftStateFromExpense, createInitialBudgetDraftState } from './budgetDraftState';
+import { generateProjectedBudgetEntries, getBudgetScheduleDates } from './budgetUtils';
+import { BudgetSummaryBar } from './components/BudgetSummaryBar';
+import { BudgetTableHeader } from './components/BudgetTableHeader';
+import { MISSING_ACCOUNTING_ACCOUNT_FILTER, useBudgetLogic } from './useBudgetLogic';
+import { useBudgetMasters } from './useBudgetMasters';
 
 interface BudgetTableProps {
   columns: ColumnConfig[];
   expenses: Expense[];
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
+  providers?: ProviderRecord[];
 }
 
-const frequencyOptions: Array<{ value: ExpenseFrequency; label: string }> = [
-  { value: 'once', label: 'Una vez' },
-  { value: 'monthly', label: 'Mensual' },
-  { value: 'quarterly', label: 'Trimestral' },
-  { value: 'annual', label: 'Anual' },
-];
-
-const initialDraftState = {
-  businessUnit: '',
-  business: '',
-  concept: '',
-  description: '',
-  duration: 1,
-  frequency: 'once' as ExpenseFrequency,
-  providerId: '',
-  startDate: '',
-};
-
-export default function BudgetTable({ columns, expenses, onExpensesChange }: BudgetTableProps) {
+export default function BudgetTable({ columns, expenses, onExpensesChange, providers: providerRecords }: BudgetTableProps) {
+  const t = useFinanceTranslations();
+  const [activeAccountingAccountOptions, setActiveAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
   const [attachmentsByExpenseId, setAttachmentsByExpenseId] = useState<Record<string, string[]>>({});
   const [attachmentsExpense, setAttachmentsExpense] = useState<Expense | null>(null);
-  const [draft, setDraft] = useState(initialDraftState);
+  const [draft, setDraft] = useState(createInitialBudgetDraftState);
+  const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
+  const [editingBudgetExpense, setEditingBudgetExpense] = useState<Expense | null>(null);
+  const [failureToastMessage, setFailureToastMessage] = useState('');
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [successToastMessage, setSuccessToastMessage] = useState('');
+  const [tableColumns, setTableColumns] = useState(() => columns.map(column => ({ ...column })));
+  const saveTimeoutsRef = useRef<Record<string, number>>({});
   const {
-    addBudgetEntries,
+    accountingAccountFilter,
     businessFilter,
     businessUnitFilter,
     customEndDate,
@@ -46,6 +54,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange }: Bud
     futureFilter,
     providerFilter,
     searchTerm,
+    setAccountingAccountFilter,
     setBusinessFilter,
     setBusinessUnitFilter,
     setCustomEndDate,
@@ -53,17 +62,101 @@ export default function BudgetTable({ columns, expenses, onExpensesChange }: Bud
     setFutureFilter,
     setProviderFilter,
     setSearchTerm,
-    setStatusFilter,
-    statusFilter,
   } = useBudgetLogic({ expenses, onExpensesChange });
+  const providers = useMemo(() => (
+    providerRecords?.length ? providerRecordsToExpenseProviders(providerRecords) : mockProviders
+  ), [providerRecords]);
+  const {
+    businessOptions: referenceBusinessOptions,
+    unitOptions: referenceUnitOptions,
+    userOptions,
+  } = useFinanceReferenceData(setFailureToastMessage);
+  const {
+    createBudget,
+    isLoadingBudgets,
+  } = useBudgetMasters(setFailureToastMessage);
 
-  const businessUnits = useMemo(() => {
-    return Array.from(new Set(expenses.map(expense => expense.businessUnit)));
-  }, [expenses]);
+  useEffect(() => () => {
+    Object.values(saveTimeoutsRef.current).forEach(timeoutId => window.clearTimeout(timeoutId));
+  }, []);
 
-  const businesses = useMemo(() => {
-    return Array.from(new Set(expenses.map(expense => expense.business)));
+  useEffect(() => {
+    setTableColumns(currentColumns => reconcileBudgetColumns(currentColumns, columns));
+  }, [columns]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    accountingAccountsService.getAccountingAccounts()
+      .then(accounts => {
+        if (!isMounted) return;
+        setActiveAccountingAccountOptions(accounts
+          .filter(account => account.isActive)
+          .sort((first, second) => first.code.localeCompare(second.code))
+          .map(account => {
+            const label = `${account.code} - ${account.name}`;
+            return { value: label, label };
+          }));
+      })
+      .catch(error => {
+        if (isMounted) {
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.accountLoadFailed));
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [t.expenses.messages.accountLoadFailed]);
+
+  const unitOptions = useMemo(() => (
+    referenceUnitOptions.length > 0
+      ? referenceUnitOptions
+      : Array.from(new Set(expenses.map(expense => expense.businessUnit))).map(value => ({ value, label: value }))
+  ), [expenses, referenceUnitOptions]);
+  const businessOptions = useMemo(() => (
+    referenceBusinessOptions.length > 0
+      ? referenceBusinessOptions
+      : Array.from(new Set(expenses.map(expense => expense.business))).map(value => ({ value, label: value }))
+  ), [expenses, referenceBusinessOptions]);
+  const businessUnitFilterOptions = useMemo(() => [{ value: 'all', label: t.common.all }, ...unitOptions], [t.common.all, unitOptions]);
+  const businessFilterOptions = useMemo(() => [{ value: 'all', label: t.common.all }, ...businessOptions], [businessOptions, t.common.all]);
+  const fallbackAccountingAccountOptions = useMemo<FinanceReferenceOption[]>(() => {
+    const accounts = new Set<string>();
+
+    expenses.forEach(expense => {
+      if (expense.type !== 'budget') return;
+      const account = expense.accountingAccount?.trim();
+      if (account) accounts.add(account);
+    });
+
+    return Array.from(accounts)
+      .sort((first, second) => first.localeCompare(second))
+      .map(account => ({ value: account, label: account }));
   }, [expenses]);
+  const selectableAccountingAccountOptions = activeAccountingAccountOptions.length > 0
+    ? activeAccountingAccountOptions
+    : fallbackAccountingAccountOptions;
+  const accountingAccountFilterOptions = useMemo(() => {
+    const accounts = new Set<string>();
+    let hasMissingAccount = false;
+
+    expenses.forEach(expense => {
+      if (expense.type !== 'budget') return;
+      const account = expense.accountingAccount?.trim();
+      if (account) {
+        accounts.add(account);
+        return;
+      }
+      hasMissingAccount = true;
+    });
+
+    return [
+      { value: 'all', label: t.common.all },
+      ...Array.from(accounts).sort((first, second) => first.localeCompare(second)).map(account => ({ value: account, label: account })),
+      ...(hasMissingAccount ? [{ value: MISSING_ACCOUNTING_ACCOUNT_FILTER, label: t.budgets.columns.accountingAccount.label }] : []),
+    ];
+  }, [expenses, t.budgets.columns.accountingAccount.label, t.common.all]);
 
   const getExpenseAttachments = (expense: Expense) => {
     return attachmentsByExpenseId[expense.id] ?? expense.attachments ?? [];
@@ -82,293 +175,266 @@ export default function BudgetTable({ columns, expenses, onExpensesChange }: Bud
     }));
   };
 
-  const closeCreateModal = () => {
-    setDraft(initialDraftState);
+  const openCreateModal = () => {
+    setDraft(createInitialBudgetDraftState());
+    setEditingBudgetExpense(null);
+    setIsCreateModalOpen(true);
+  };
+
+  const closeBudgetModal = () => {
+    setDraft(createInitialBudgetDraftState());
+    setEditingBudgetExpense(null);
     setIsCreateModalOpen(false);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const updateDraft = (updates: Partial<ReturnType<typeof createInitialBudgetDraftState>>) => {
+    setDraft(current => ({ ...current, ...updates }));
+  };
 
-    const provider = mockProviders.find(item => item.id === draft.providerId);
-    const budgetDraft: BudgetDraft = {
-      businessUnit: draft.businessUnit,
-      business: draft.business,
-      concept: draft.concept,
-      description: draft.description,
-      duration: Number(draft.duration),
-      frequency: draft.frequency,
-      providerId: draft.providerId || undefined,
-      providerName: provider?.name,
-      startDate: draft.startDate ? new Date(`${draft.startDate}T00:00:00`) : new Date(),
+  const revealCreatedBudgetEntries = (entries: Expense[]) => {
+    const scheduledDates = entries
+      .map(entry => entry.dueDate)
+      .filter(date => !Number.isNaN(date.getTime()))
+      .sort((left, right) => left.getTime() - right.getTime());
+
+    if (scheduledDates.length === 0) return;
+
+    setFutureFilter('custom');
+    setCustomStartDate(formatDateInputValue(scheduledDates[0]));
+    setCustomEndDate(formatDateInputValue(scheduledDates[scheduledDates.length - 1]));
+    setSearchTerm('');
+    setBusinessUnitFilter('all');
+    setBusinessFilter('all');
+    setProviderFilter('all');
+    setAccountingAccountFilter('all');
+  };
+
+  const openEditBudgetExpense = (expense: Expense) => {
+    setDraft(createBudgetDraftStateFromExpense(expense));
+    setEditingBudgetExpense(expense);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      const budget = await createBudget(buildBudgetMasterDraft(draft));
+      const providerName = providers.find(provider => provider.id === draft.providerId)?.name;
+      const localBudgetEntries = generateProjectedBudgetEntries(
+        buildBudgetLineDraft(draft, providerName),
+        expenses.filter(expense => expense.type === 'budget').length,
+      ).map(entry => ({ ...entry, budgetId: budget.id }));
+      const createLineResults = await Promise.allSettled(
+        localBudgetEntries.map(entry => budgetLinesService.createBudgetLineFromExpense(entry, budget.id)),
+      );
+      const savedEntries = createLineResults
+        .filter((result): result is PromiseFulfilledResult<Expense> => result.status === 'fulfilled')
+        .map(result => result.value);
+      const failedEntries = createLineResults
+        .map((result, index) => (result.status === 'rejected' ? localBudgetEntries[index] : null))
+        .filter((entry): entry is (typeof localBudgetEntries)[number] => Boolean(entry));
+
+      onExpensesChange(currentExpenses => [...savedEntries, ...failedEntries, ...currentExpenses]);
+      revealCreatedBudgetEntries([...savedEntries, ...failedEntries]);
+
+      if (failedEntries.length > 0) {
+        setFailureToastMessage(t.budgets.messages.partialSaveFailed);
+      } else {
+        setSuccessToastMessage(t.budgets.messages.created(savedEntries.length));
+      }
+      setDraft(createInitialBudgetDraftState());
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.createFailed));
+    }
+  };
+
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingBudgetExpense) return;
+
+    const providerName = providers.find(provider => provider.id === draft.providerId)?.name;
+    const lineDraft = buildBudgetLineDraft(draft, providerName);
+    const scheduleDates = getBudgetScheduleDates(
+      toDateFromInput(draft.budgetPeriodStart),
+      toDateFromInput(draft.budgetPeriodEnd),
+      draft.frequency,
+    );
+    const dueDate = scheduleDates[0] ?? lineDraft.startDate;
+    const nextExpense: Expense = {
+      ...editingBudgetExpense,
+      accountingAccount: lineDraft.accountingAccount,
+      amount: lineDraft.amount ?? 0,
+      business: lineDraft.business,
+      businessUnit: lineDraft.businessUnit,
+      concept: lineDraft.concept,
+      currency: lineDraft.currency ?? editingBudgetExpense.currency,
+      date: dueDate,
+      description: lineDraft.description,
+      dueDate,
+      duration: scheduleDates.length || 1,
+      frequency: lineDraft.frequency,
+      providerId: lineDraft.providerId,
+      providerName,
+      startDate: lineDraft.startDate,
+      taxes: lineDraft.taxes ?? 0,
+      taxCountry: lineDraft.taxCountry,
+      taxIncluded: lineDraft.taxIncluded,
+      taxMode: lineDraft.taxMode,
+      taxName: lineDraft.taxName,
+      taxProfileId: lineDraft.taxProfileId,
+      taxRate: lineDraft.taxRate,
+      taxRegion: lineDraft.taxRegion,
+      taxSpecialAmount: lineDraft.taxSpecialAmount,
+      total: lineDraft.total ?? 0,
+      updatedAt: new Date(),
     };
 
-    addBudgetEntries(budgetDraft);
-    setDraft(initialDraftState);
-    setIsCreateModalOpen(false);
+    onExpensesChange(currentExpenses => currentExpenses.map(expense => (
+      expense.id === editingBudgetExpense.id ? nextExpense : expense
+    )));
+    persistBudgetExpense(nextExpense);
+    setSuccessToastMessage(t.budgets.messages.updated);
+    closeBudgetModal();
+  };
+
+  const persistBudgetExpense = useCallback((expense: Expense) => {
+    if (!expense.id.startsWith('budget-line-')) return;
+    window.clearTimeout(saveTimeoutsRef.current[expense.id]);
+    saveTimeoutsRef.current[expense.id] = window.setTimeout(() => {
+      budgetLinesService.updateBudgetLineFromExpense(expense)
+        .then(savedExpense => {
+          onExpensesChange(currentExpenses => currentExpenses.map(item => (
+            item.id === expense.id ? savedExpense : item
+          )));
+        })
+        .catch(error => {
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.lineSaveFailed));
+        });
+    }, 700);
+  }, [onExpensesChange, t.budgets.messages.lineSaveFailed]);
+
+  const deleteBudgetExpense = (expenseId: string) => {
+    const expense = expenses.find(item => item.id === expenseId);
+    onExpensesChange(currentExpenses => currentExpenses.filter(item => item.id !== expenseId));
+    if (!expense || !expense.id.startsWith('budget-line-')) return;
+
+    budgetLinesService.deleteBudgetLine(expenseId)
+      .then(() => setSuccessToastMessage(t.budgets.messages.deleted))
+      .catch(error => {
+        onExpensesChange(currentExpenses => [expense, ...currentExpenses]);
+        setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.deleteFailed));
+      });
+  };
+
+  const handleColumnDragStart = (index: number) => {
+    setDraggedColumnIndex(index);
+  };
+
+  const handleColumnDragOver = (event: DragEvent, index: number) => {
+    event.preventDefault();
+    if (draggedColumnIndex === null || draggedColumnIndex === index) return;
+
+    setTableColumns(currentColumns => {
+      const nextColumns = [...currentColumns];
+      const draggedColumn = nextColumns[draggedColumnIndex];
+      nextColumns.splice(draggedColumnIndex, 1);
+      nextColumns.splice(index, 0, draggedColumn);
+      return nextColumns;
+    });
+    setDraggedColumnIndex(index);
+  };
+
+  const handleColumnDragEnd = () => {
+    setDraggedColumnIndex(null);
+  };
+
+  const updateColumnVisibility = (index: number, visible: boolean) => {
+    setTableColumns(currentColumns => {
+      const nextColumns = [...currentColumns];
+      const targetColumn = nextColumns[index];
+      nextColumns[index] = { ...targetColumn, visible: targetColumn.fixed ? true : visible };
+      return nextColumns;
+    });
   };
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#147514] dark:bg-[#0b3f1b] rounded-2xl shadow-sm dark:shadow-black/30 p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="text-4xl">📋</span>
-            <div>
-              <h2 className="text-2xl font-bold text-white">Presupuestos</h2>
-              <p className="text-sm text-white/90 mt-1">
-                Planea gastos futuros usando la misma tabla operativa de Gastos.
-              </p>
-            </div>
-          </div>
+      <LoadingBarOverlay isVisible={isLoadingBudgets} title={t.budgets.loadingTitle} description={t.budgets.loadingDescription} />
+      <BudgetTableHeader onConfigureColumns={() => setIsColumnModalOpen(true)} onCreate={openCreateModal} />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-11 items-center rounded-xl border border-white/20 bg-white/15 px-4 text-sm font-semibold text-white dark:bg-white/10">
-              {filteredBudgetExpenses.length} registros futuros
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#147514] shadow-md transition-colors hover:bg-gray-50 dark:text-[#0b3f1b] dark:hover:bg-gray-100"
-            >
-              <Plus className="h-4 w-4" />
-              Agregar gasto al presupuesto
-            </button>
-          </div>
-        </div>
-      </div>
+      <BudgetFiltersPanel
+        accountingAccountFilter={accountingAccountFilter}
+        accountingAccountOptions={accountingAccountFilterOptions}
+        businessOptions={businessFilterOptions}
+        businessFilter={businessFilter}
+        businessUnitFilter={businessUnitFilter}
+        businessUnitOptions={businessUnitFilterOptions}
+        customEndDate={customEndDate}
+        customStartDate={customStartDate}
+        futureFilter={futureFilter}
+        providerFilter={providerFilter}
+        providers={providers}
+        resultCount={filteredBudgetExpenses.length}
+        searchTerm={searchTerm}
+        onAccountingAccountChange={setAccountingAccountFilter}
+        onBusinessChange={setBusinessFilter}
+        onBusinessUnitChange={setBusinessUnitFilter}
+        onCustomEndDateChange={setCustomEndDate}
+        onCustomStartDateChange={setCustomStartDate}
+        onFutureFilterChange={setFutureFilter}
+        onProviderChange={setProviderFilter}
+        onSearchChange={setSearchTerm}
+      />
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
-              <SlidersHorizontal className="h-4 w-4" />
-            </span>
-            <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">Filtros de presupuesto</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Por defecto se muestran presupuestos desde el próximo mes.
-              </p>
-            </div>
-          </div>
-
-          <span className="inline-flex w-fit items-center rounded-full bg-[#147514]/10 px-3 py-1 text-xs font-bold text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
-            {filteredBudgetExpenses.length} resultados
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
-          <div className="xl:col-span-2">
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Buscar
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Folio, concepto o proveedor..."
-                className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Periodo futuro
-            </label>
-            <select
-              value={futureFilter}
-              onChange={(event) => setFutureFilter(event.target.value as BudgetFutureFilter)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="next_month">Próximo mes</option>
-              <option value="next_quarter">Próximo trimestre</option>
-              <option value="custom">Rango futuro personalizado</option>
-            </select>
-          </div>
-
-          {futureFilter === 'custom' && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Desde
-                </label>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(event) => setCustomStartDate(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Hasta
-                </label>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(event) => setCustomEndDate(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                />
-              </div>
-            </>
-          )}
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Unidad
-            </label>
-            <select
-              value={businessUnitFilter}
-              onChange={(event) => setBusinessUnitFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="all">Todas</option>
-              {businessUnits.map(unit => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Negocio
-            </label>
-            <select
-              value={businessFilter}
-              onChange={(event) => setBusinessFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="all">Todos</option>
-              {businesses.map(business => (
-                <option key={business} value={business}>{business}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Proveedor
-            </label>
-            <select
-              value={providerFilter}
-              onChange={(event) => setProviderFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="all">Todos</option>
-              {mockProviders.map(provider => (
-                <option key={provider.id} value={provider.id}>{provider.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Estado
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as ExpenseStatus | 'all')}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#147514] dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="all">Todos</option>
-              <option value="paid">Pagado</option>
-              <option value="pending">Pendiente</option>
-              <option value="partial">Pago Parcial</option>
-              <option value="overdue">Vencido</option>
-              <option value="audited">Auditado</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <BudgetSummaryBar expenses={filteredBudgetExpenses} />
 
       {isCreateModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-          onClick={closeCreateModal}
-        >
-          <form
-            onSubmit={handleSubmit}
-            onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800"
-          >
-            <div className="flex flex-shrink-0 items-center justify-between bg-[#147514] px-6 py-4 dark:bg-[#0b3f1b]">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
-                  <Plus className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">
-                    Agregar gasto al presupuesto
-                  </h3>
-                  <p className="text-sm text-white/90">
-                    Define la recurrencia para generar entradas futuras.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                className="rounded-lg p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="Cerrar modal de presupuesto"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <BudgetSelect label="Unidad" required value={draft.businessUnit} onChange={(value) => setDraft(current => ({ ...current, businessUnit: value }))} options={businessUnits} />
-                <BudgetSelect label="Negocio" required value={draft.business} onChange={(value) => setDraft(current => ({ ...current, business: value }))} options={businesses} />
-                <BudgetSelect label="Proveedor" value={draft.providerId} onChange={(value) => setDraft(current => ({ ...current, providerId: value }))} options={mockProviders.map(provider => ({ value: provider.id, label: provider.name }))} includeEmpty />
-                <BudgetTextInput label="Concepto" required value={draft.concept} onChange={(value) => setDraft(current => ({ ...current, concept: value }))} />
-                <BudgetTextInput label="Descripción" value={draft.description} onChange={(value) => setDraft(current => ({ ...current, description: value }))} />
-                <BudgetSelect label="Frecuencia" required value={draft.frequency} onChange={(value) => setDraft(current => ({ ...current, frequency: value as ExpenseFrequency }))} options={frequencyOptions} />
-                <BudgetNumberInput label="Duración" min={1} value={draft.duration} onChange={(value) => setDraft(current => ({ ...current, duration: value }))} />
-                <BudgetDateInput label="Fecha de inicio" required value={draft.startDate} onChange={(value) => setDraft(current => ({ ...current, startDate: value }))} />
-              </div>
-            </div>
-
-            <div className="flex flex-shrink-0 justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/60">
-              <button
-                type="submit"
-                className="rounded-xl bg-[#147514] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#105010]"
-              >
-                Generar presupuesto
-              </button>
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
+        <BudgetCreateModal
+          accountingAccountOptions={selectableAccountingAccountOptions}
+          businessOptions={businessOptions}
+          draft={draft}
+          mode={editingBudgetExpense ? 'edit' : 'create'}
+          providers={providers}
+          unitOptions={unitOptions}
+          onClose={closeBudgetModal}
+          onDraftChange={updateDraft}
+          onSubmit={editingBudgetExpense ? handleEditSubmit : handleCreateSubmit}
+        />
       )}
 
       <ExpenseTable
-        columns={columns}
-        emptyTitle="No hay presupuestos para el rango seleccionado"
-        emptyMessage="Agrega un gasto al presupuesto o cambia el filtro futuro."
+        actionVisibility={{ showAudit: false, showMarkPaid: false, showRecordPayment: false }}
+        columns={tableColumns}
+        emptyTitle={t.budgets.messages.emptyTitle}
+        emptyMessage={t.budgets.messages.emptyMessage}
         expenses={filteredBudgetExpenses}
         getAttachments={getExpenseAttachments}
+        onDeleteExpense={deleteBudgetExpense}
+        onEditExpense={openEditBudgetExpense}
         onExpensesChange={onExpensesChange}
         onOpenAttachments={setAttachmentsExpense}
+        onPersistExpenseUpdate={persistBudgetExpense}
+        businessOptions={businessOptions}
+        providers={providers}
+        unitOptions={unitOptions}
+        userOptions={userOptions}
       />
+
+      {isColumnModalOpen && (
+        <ColumnConfigurationModal
+          columns={tableColumns}
+          description={t.budgets.headerSubtitle}
+          onApply={() => setIsColumnModalOpen(false)}
+          onClose={() => setIsColumnModalOpen(false)}
+          onDragEnd={handleColumnDragEnd}
+          onDragOver={handleColumnDragOver}
+          onDragStart={handleColumnDragStart}
+          onHideOptionalColumns={() => setTableColumns(currentColumns => currentColumns.map(column => (column.fixed ? { ...column, visible: true } : { ...column, visible: false })))}
+          onShowAllColumns={() => setTableColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
+          onUpdateVisibility={updateColumnVisibility}
+        />
+      )}
 
       {attachmentsExpense && (
         <AttachmentsModal
@@ -380,118 +446,62 @@ export default function BudgetTable({ columns, expenses, onExpensesChange }: Bud
           onSave={saveExpenseAttachments}
         />
       )}
+      <SuccessToast
+        isVisible={Boolean(successToastMessage)}
+        message={successToastMessage}
+        onClose={() => setSuccessToastMessage('')}
+      />
+      <FailureToast
+        isVisible={Boolean(failureToastMessage)}
+        message={failureToastMessage}
+        onClose={() => setFailureToastMessage('')}
+      />
     </div>
   );
 }
 
-function BudgetTextInput({
-  label,
-  onChange,
-  required,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  required?: boolean;
-  value: string;
-}) {
-  return (
-    <label className="space-y-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
-      <span>{label}{required ? ' *' : ''}</span>
-      <input
-        required={required}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-      />
-    </label>
-  );
+function reconcileBudgetColumns(currentColumns: ColumnConfig[], sourceColumns: ColumnConfig[]) {
+  const sourceByKey = new Map(sourceColumns.map(column => [column.key, column]));
+  const currentByKey = new Map(currentColumns.map(column => [column.key, column]));
+  const nextColumns = [
+    ...currentColumns
+      .filter(column => sourceByKey.has(column.key))
+      .map(column => {
+        const sourceColumn = sourceByKey.get(column.key);
+        return {
+          ...sourceColumn,
+          visible: sourceColumn?.fixed ? true : column.visible,
+        } as ColumnConfig;
+      }),
+    ...sourceColumns
+      .filter(column => !currentByKey.has(column.key))
+      .map(column => ({ ...column })),
+  ];
+
+  return areColumnConfigsEqual(currentColumns, nextColumns) ? currentColumns : nextColumns;
 }
 
-function BudgetNumberInput({
-  label,
-  min,
-  onChange,
-  value,
-}: {
-  label: string;
-  min: number;
-  onChange: (value: number) => void;
-  value: number;
-}) {
-  return (
-    <label className="space-y-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
-      <span>{label} *</span>
-      <input
-        min={min}
-        required
-        type="number"
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-      />
-    </label>
-  );
+function areColumnConfigsEqual(leftColumns: ColumnConfig[], rightColumns: ColumnConfig[]) {
+  if (leftColumns.length !== rightColumns.length) return false;
+
+  return leftColumns.every((leftColumn, index) => {
+    const rightColumn = rightColumns[index];
+    return (
+      leftColumn.key === rightColumn.key
+      && leftColumn.label === rightColumn.label
+      && leftColumn.visible === rightColumn.visible
+      && Boolean(leftColumn.fixed) === Boolean(rightColumn.fixed)
+    );
+  });
 }
 
-function BudgetDateInput({
-  label,
-  onChange,
-  required,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  required?: boolean;
-  value: string;
-}) {
-  return (
-    <label className="space-y-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
-      <span>{label}{required ? ' *' : ''}</span>
-      <input
-        required={required}
-        type="date"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-      />
-    </label>
-  );
+function toDateFromInput(value: string) {
+  return value ? new Date(`${value}T00:00:00`) : new Date('');
 }
 
-function BudgetSelect({
-  includeEmpty,
-  label,
-  onChange,
-  options,
-  required,
-  value,
-}: {
-  includeEmpty?: boolean;
-  label: string;
-  onChange: (value: string) => void;
-  options: Array<string | { value: string; label: string }>;
-  required?: boolean;
-  value: string;
-}) {
-  return (
-    <label className="space-y-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
-      <span>{label}{required ? ' *' : ''}</span>
-      <select
-        required={required}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-      >
-        {(includeEmpty || !required) && <option value="">Seleccionar</option>}
-        {options.map(option => {
-          const value = typeof option === 'string' ? option : option.value;
-          const label = typeof option === 'string' ? option : option.label;
-          return (
-            <option key={value} value={value}>{label}</option>
-          );
-        })}
-      </select>
-    </label>
-  );
+function formatDateInputValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

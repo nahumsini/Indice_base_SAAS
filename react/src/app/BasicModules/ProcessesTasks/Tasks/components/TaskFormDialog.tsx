@@ -555,12 +555,12 @@ export function TaskFormDialog({
             </div>
           </div>
 
-          <DialogFooter className="sticky bottom-0 z-10 shrink-0 border-t border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+          <DialogFooter className="sticky bottom-0 z-10 grid shrink-0 grid-cols-1 gap-2 border-t border-slate-200/80 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-800 sm:flex sm:px-6">
             <DialogClose asChild>
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                className="h-10 w-full rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 sm:w-auto"
                 disabled={isSubmitting}
               >
                 {copy.common.cancel}
@@ -568,7 +568,7 @@ export function TaskFormDialog({
             </DialogClose>
             <Button
               type="submit"
-              className={`h-10 rounded-xl px-4 text-sm font-semibold ${accentButtonClass}`}
+              className={`h-10 w-full rounded-xl px-4 text-sm font-semibold sm:w-auto ${accentButtonClass}`}
               disabled={!isFormValid || isSubmitting}
             >
               {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}

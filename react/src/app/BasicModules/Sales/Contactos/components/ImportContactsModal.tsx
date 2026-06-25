@@ -2,17 +2,9 @@ import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { CheckCircle2, FileUp, Smartphone, UploadCloud } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { cn } from '../../../../components/ui/utils';
-import { getSalesModalStyles } from '../../salesModalStyles';
-import type { ContactCopy } from '../translations/contactTranslations';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import type { ContactCopy } from '../translations';
 import {
   parseContactFile,
   pickNativeContacts,
@@ -20,12 +12,12 @@ import {
   type ImportedContactDraft,
 } from '../utils/contactImportUtils';
 
-const importModalStyles = getSalesModalStyles('coral');
-
 type ImportContactsResult = {
   imported: number;
   skipped: number;
 };
+
+const importContactsActionClassNames = getSalesModalActionClassNames('coral');
 
 export function ImportContactsModal({
   copy,
@@ -113,30 +105,44 @@ export function ImportContactsModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className={cn(importModalStyles.content, '!flex max-h-[90vh] max-w-2xl flex-col !gap-0')} closeButtonClassName={importModalStyles.close}>
-        <DialogHeader className={cn(importModalStyles.header, 'shrink-0')}>
-          <DialogTitle className={importModalStyles.title}>
-            <UploadCloud className="h-6 w-6" />
-            {copy.title}
-          </DialogTitle>
-          <DialogDescription className={importModalStyles.description}>
-            {copy.description}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+    <SalesModalFrame
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      title={copy.title}
+      description={copy.description}
+      icon={<UploadCloud className="h-5 w-5" />}
+      contentClassName="flex max-h-[calc(100vh-2rem)] w-[min(94vw,760px)] max-w-none flex-col sm:max-w-none"
+      bodyClassName="!max-h-none min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/70 px-6 py-5"
+      footer={(
+        <>
+          <Button
+            variant="outline"
+            className={importContactsActionClassNames.secondary}
+            onClick={() => handleOpenChange(false)}
+          >
+            {copy.cancel}
+          </Button>
+          <Button
+            className={importContactsActionClassNames.primary}
+            onClick={handleImportContacts}
+            disabled={drafts.length === 0 || isReadingContacts}
+          >
+            {copy.importContacts}
+          </Button>
+        </>
+      )}
+    >
           <section className="grid gap-3 md:grid-cols-2">
             <button
               type="button"
               className={cn(
-                'rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/5 p-4 text-left transition hover:bg-[#FF6B5E]/10',
+                'rounded-2xl border border-[#FF6B5E]/25 bg-white p-4 text-left shadow-sm transition hover:bg-[#FF6B5E]/10',
                 !canUseNativeContacts && 'opacity-70',
               )}
               onClick={handlePickNativeContacts}
               disabled={!canUseNativeContacts || isReadingContacts}
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#FF6B5E] text-white">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6B5E] text-white">
                 <Smartphone className="h-5 w-5" />
               </span>
               <span className="mt-3 block text-sm font-black text-slate-950">{copy.fromPhone}</span>
@@ -150,11 +156,11 @@ export function ImportContactsModal({
 
             <button
               type="button"
-              className="rounded-lg border border-slate-200 bg-white p-4 text-left transition hover:border-[#FF6B5E]/35 hover:bg-slate-50"
+              className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#FF6B5E]/35 hover:bg-slate-50"
               onClick={() => fileInputRef.current?.click()}
               disabled={isReadingContacts}
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
                 <FileUp className="h-5 w-5" />
               </span>
               <span className="mt-3 block text-sm font-black text-slate-950">{copy.fileTitle}</span>
@@ -165,7 +171,7 @@ export function ImportContactsModal({
             <input ref={fileInputRef} type="file" accept=".vcf,.csv,text/vcard,text/csv" className="hidden" onChange={handleFileChange} />
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{copy.previewTitle}</h3>
@@ -178,13 +184,13 @@ export function ImportContactsModal({
 
             <div className="mt-4 max-h-56 space-y-2 overflow-y-auto">
               {drafts.length > 0 ? drafts.slice(0, 8).map((contact, index) => (
-                <div key={`${contact.contactPerson}-${contact.email}-${index}`} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-                  <p className="font-bold text-slate-950">{contact.contactPerson}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">{contact.company}</p>
-                  <p className="mt-1 text-xs text-slate-500">{[contact.phone, contact.email].filter(Boolean).join(' · ') || copy.noPhoneEmail}</p>
+                <div key={`${contact.contactPerson}-${contact.email}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="break-words font-bold text-slate-950">{contact.contactPerson}</p>
+                  <p className="mt-1 break-words text-sm font-semibold text-slate-500">{contact.company}</p>
+                  <p className="mt-1 break-all text-xs text-slate-500">{[contact.phone, contact.email].filter(Boolean).join(' · ') || copy.noPhoneEmail}</p>
                 </div>
               )) : (
-                <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-400">
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-400">
                   {copy.emptyPreview}
                 </div>
               )}
@@ -195,20 +201,11 @@ export function ImportContactsModal({
           </section>
 
           {statusMessage ? (
-            <div className="flex items-start gap-3 rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 text-sm font-semibold text-[#177D66]">
+            <div className="flex items-start gap-3 rounded-2xl border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 text-sm font-semibold text-[#177D66]">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{statusMessage}</span>
             </div>
           ) : null}
-        </div>
-
-        <DialogFooter className={cn(importModalStyles.footer, 'shrink-0')}>
-          <Button variant="outline" className={importModalStyles.secondaryButton} onClick={() => handleOpenChange(false)}>{copy.cancel}</Button>
-          <Button className={importModalStyles.primaryButton} onClick={handleImportContacts} disabled={drafts.length === 0 || isReadingContacts}>
-            {copy.importContacts}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

@@ -3,13 +3,13 @@ import { updateProcessTaskAgendaPlacement } from '../../Tasks/tasksApi';
 import type { AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
 import type {
+  AgendaLoadRange,
   AgendaSchedulePlacement,
   AgendaSchedulePlacements,
   AgendaScheduleViewMode,
 } from '../types';
-import { isDateInputValue } from '../utils/agendaDateUtils';
+import { getWeekDateKeys, isDateInputValue } from '../utils/agendaDateUtils';
 import {
-  agendaScheduleHours,
   getBrowserAgendaTimeZone,
   getTaskScheduleDateKey,
   getTaskScheduleHour,
@@ -21,7 +21,7 @@ const agendaScheduleStorageKey = 'processes-tasks-agenda-schedule-v1';
 
 type UseAgendaScheduleStateOptions = {
   agendaCopy: AgendaTranslations;
-  loadAgenda: () => Promise<void>;
+  loadAgenda: (rangeOverride?: AgendaLoadRange) => Promise<void>;
   patchTaskInAgenda: (taskId: number, patch: Partial<AgendaTaskItem>) => void;
   setAgendaError: (message: string | null) => void;
   setTaskPendingState: (taskId: number, isPending: boolean) => void;
@@ -50,10 +50,7 @@ function getInitialAgendaSchedulePlacements(): AgendaSchedulePlacements {
 
       restoredPlacements[taskId] = {
         date: placement.date,
-        hour:
-          typeof placement.hour === 'string' && agendaScheduleHours.includes(placement.hour)
-            ? placement.hour
-            : null,
+        hour: normalizeAgendaScheduleHour(placement.hour),
       };
     });
 
@@ -61,6 +58,19 @@ function getInitialAgendaSchedulePlacements(): AgendaSchedulePlacements {
   } catch {
     return {};
   }
+}
+
+function getScheduleLoadRange(viewMode: AgendaScheduleViewMode, selectedDateKey: string): AgendaLoadRange {
+  if (viewMode === 'day') {
+    return { from: selectedDateKey, to: selectedDateKey };
+  }
+
+  const weekDateKeys = getWeekDateKeys(selectedDateKey);
+
+  return {
+    from: weekDateKeys[0] ?? selectedDateKey,
+    to: weekDateKeys[weekDateKeys.length - 1] ?? selectedDateKey,
+  };
 }
 
 export function useAgendaScheduleState({
@@ -149,26 +159,36 @@ export function useAgendaScheduleState({
         agendaTimeZone: getBrowserAgendaTimeZone(),
       })
         .then((updatedTask) => {
+          const reloadRange = getScheduleLoadRange(scheduleViewMode, selectedScheduleDate);
+
           patchTaskInAgenda(taskId, {
             agendaDate: updatedTask.agendaDate ?? dateKey,
             agendaStartTime: updatedTask.agendaStartTime ?? normalizedHour,
             agendaEndTime: updatedTask.agendaEndTime ?? null,
             agendaTimeZone: updatedTask.agendaTimeZone ?? getBrowserAgendaTimeZone(),
           });
-          return loadAgenda();
+          return loadAgenda(reloadRange);
         })
         .catch((error) => {
           if (import.meta.env.DEV) {
             console.warn('Agenda placement save failed.', { error, taskId, dateKey, hour: normalizedHour });
           }
           setAgendaError(getErrorMessage(error, agendaCopy.messages.updateTask));
-          void loadAgenda();
+          void loadAgenda(getScheduleLoadRange(scheduleViewMode, selectedScheduleDate));
         })
         .finally(() => {
           setTaskPendingState(taskId, false);
         });
     },
-    [agendaCopy.messages.updateTask, loadAgenda, patchTaskInAgenda, setAgendaError, setTaskPendingState],
+    [
+      agendaCopy.messages.updateTask,
+      loadAgenda,
+      patchTaskInAgenda,
+      scheduleViewMode,
+      selectedScheduleDate,
+      setAgendaError,
+      setTaskPendingState,
+    ],
   );
 
   const handleScheduleTaskDragStart = useCallback((event: ReactDragEvent<HTMLElement>, taskId: number) => {

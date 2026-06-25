@@ -17,6 +17,7 @@ class SalesReferenceService {
         validateBusiness(companyId, SalesPayloadSupport.longValue(payload, "businessId"));
         validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "ownerUserCompanyId"));
         validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "assignedSellerUserCompanyId"));
+        validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "sellerUserCompanyId"));
 
         validateSalesReference(companyId, "sales_contacts", SalesPayloadSupport.longValue(payload, "contactId"), "contactId");
         validateSalesReference(companyId, "sales_opportunities", SalesPayloadSupport.longValue(payload, "opportunityId"), "opportunityId");
@@ -25,6 +26,15 @@ class SalesReferenceService {
 
         if ("quotes".equals(collection)) {
             validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "assignedSellerUserCompanyId"));
+        }
+        if ("inventory-balances".equals(collection)) {
+            validateSalesReference(companyId, "sales_products", SalesPayloadSupport.longValue(payload, "productId"), "productId");
+            validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "warehouseId"), "warehouseId");
+        }
+        if ("inventory-movements".equals(collection)) {
+            validateSalesReference(companyId, "sales_products", SalesPayloadSupport.longValue(payload, "productId"), "productId");
+            validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "fromWarehouseId"), "fromWarehouseId");
+            validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "toWarehouseId"), "toWarehouseId");
         }
     }
 
@@ -38,6 +48,7 @@ class SalesReferenceService {
             case "opportunity", "opportunities" -> "sales_opportunities";
             case "product", "products" -> "sales_products";
             case "quote", "quotes" -> "sales_quotes";
+            case "sale", "sales" -> "sales_records";
             case "contract", "contracts" -> "sales_contracts";
             case "post_sale", "post-sales", "postSale", "post_sale_case" -> "sales_post_sale_cases";
             default -> null;

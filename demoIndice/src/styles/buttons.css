@@ -1,0 +1,37 @@
+.primary-button,
+.route-link,
+.back-link {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.primary-button,
+.route-link {
+  border: 0;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.primary-button:hover,
+.route-link:hover {
+  background: var(--primary-strong);
+}
+
+.back-link {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+}
+
+.primary-button svg,
+.route-link svg,
+.back-link svg {
+  width: 18px;
+  height: 18px;
+}

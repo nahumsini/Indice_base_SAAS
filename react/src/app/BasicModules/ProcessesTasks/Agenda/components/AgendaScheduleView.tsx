@@ -121,6 +121,14 @@ export function AgendaScheduleView({
     Boolean(taskScheduleMap.get(task.taskId)?.hour),
   ).length;
   const visibleCount = scheduleViewMode === 'day' ? dayTasks.length : visibleScheduleTasks.length;
+  const visibleScheduleHours = Array.from(
+    new Set([
+      ...agendaScheduleHours,
+      ...visibleScheduleTasks
+        .map((task) => taskScheduleMap.get(task.taskId)?.hour ?? null)
+        .filter((hour): hour is string => Boolean(hour)),
+    ]),
+  ).sort(compareAgendaText);
 
   const moveScheduleWindow = (direction: -1 | 1) => {
     const offset = scheduleViewMode === 'day' ? direction : direction * 7;
@@ -177,13 +185,13 @@ export function AgendaScheduleView({
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div
           className="grid border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400"
-          style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}
+          style={{ gridTemplateColumns: 'minmax(76px, 120px) minmax(0, 1fr)' }}
         >
-          <div className="px-4 py-3">{scheduleCopy.hourColumn}</div>
-          <div className="px-4 py-3">{scheduleCopy.planColumn}</div>
+          <div className="px-3 py-3 sm:px-4">{scheduleCopy.hourColumn}</div>
+          <div className="px-3 py-3 sm:px-4">{scheduleCopy.planColumn}</div>
         </div>
 
-        {agendaScheduleHours.map((hour) => {
+        {visibleScheduleHours.map((hour) => {
           const hourTasks = tasksForDateAndHour(selectedScheduleDate, hour);
 
           return (
@@ -192,12 +200,12 @@ export function AgendaScheduleView({
               onDragOver={onScheduleDragOver}
               onDrop={(event) => onScheduleDrop(event, selectedScheduleDate, hour)}
               className="grid min-h-[104px] border-b border-slate-100 transition-colors last:border-b-0 hover:bg-[#F4C84A]/5 dark:border-slate-700 dark:hover:bg-[#F4C84A]/10"
-              style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}
+              style={{ gridTemplateColumns: 'minmax(76px, 120px) minmax(0, 1fr)' }}
             >
-              <div className="border-r border-slate-100 bg-slate-50/60 px-4 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+              <div className="border-r border-slate-100 bg-slate-50/60 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300 sm:px-4">
                 {hour}
               </div>
-              <div className="space-y-3 px-4 py-4">
+              <div className="min-w-0 space-y-3 px-3 py-4 sm:px-4">
                 {hourTasks.length > 0 ? (
                   hourTasks.map((task) => renderScheduleTaskCard(task, { dateKey: selectedScheduleDate }))
                 ) : (
@@ -237,7 +245,7 @@ export function AgendaScheduleView({
   );
 
   const renderWeekView = () => (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="overflow-x-auto overflow-y-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div
         className="grid min-w-[1120px] border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400"
         style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
@@ -278,7 +286,7 @@ export function AgendaScheduleView({
       </div>
 
       <div className="max-h-[68vh] min-w-[1120px] overflow-auto">
-        {agendaScheduleHours.map((hour) => (
+        {visibleScheduleHours.map((hour) => (
           <div
             key={hour}
             className="grid min-h-[118px] border-b border-slate-100 last:border-b-0 dark:border-slate-700"

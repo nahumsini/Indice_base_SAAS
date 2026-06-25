@@ -9,7 +9,7 @@ import {
   Target,
 } from 'lucide-react';
 import { useLocalStorageState } from '../../../../hooks/useLocalStorageState';
-import type { ProspectosLearningCopy } from '../translations/prospectosLearning';
+import type { ProspectosLearningCopy } from '../translations';
 
 type ProspectosLearningGuideProps = {
   copy: ProspectosLearningCopy;

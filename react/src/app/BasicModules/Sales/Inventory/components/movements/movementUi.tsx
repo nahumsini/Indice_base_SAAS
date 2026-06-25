@@ -27,8 +27,8 @@ export const movementStatusTone = {
 
 export function MovementFlow({ movement }: { movement: InventoryOperationalMovement }) {
   return (
-    <div className="min-w-[260px] rounded-lg border border-slate-200 bg-white p-3">
-      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
+    <div className="min-w-[260px] rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
         {movement.fromWarehouseName ?? 'System'}
       </span>
       <div className="my-2 flex items-center gap-2 pl-3 text-[#B63B32]">
@@ -53,7 +53,7 @@ export function MovementProduct({ movement, t }: { movement: InventoryOperationa
         )}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-sm font-black text-slate-950">{movement.productName}</p>
+        <p className="truncate text-sm font-black text-slate-950 dark:text-white">{movement.productName}</p>
         <p className="mt-1 text-xs font-semibold text-slate-500">SKU: {movement.productSku ?? t.common.notAvailable}</p>
         {movement.variantLabel ? <p className="text-xs font-semibold text-slate-400">{movement.variantLabel}</p> : null}
       </div>
@@ -94,9 +94,9 @@ export function MovementActions({
   ];
 
   return (
-    <div className="flex justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
+    <div className="flex justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 dark:border-slate-700 dark:bg-slate-900">
       {actions.map((action) => (
-        <Button key={action.title} size="icon" variant="ghost" className={`h-9 w-9 rounded-lg border ${action.className}`} title={action.title} disabled={action.disabled} onClick={action.onClick}>
+        <Button key={action.title} size="icon" variant="ghost" className={`h-9 w-9 rounded-xl border ${action.className}`} title={action.title} disabled={action.disabled} onClick={action.onClick}>
           {action.icon}
         </Button>
       ))}
@@ -107,7 +107,7 @@ export function MovementActions({
 export function MovementNumber({ movement, t }: { movement: InventoryOperationalMovement; t: InventoryTranslations }) {
   return (
     <div className="min-w-[170px]">
-      <p className="text-sm font-black text-slate-950">{movement.movementNumber ?? movement.id}</p>
+      <p className="text-sm font-black text-slate-950 dark:text-white">{movement.movementNumber ?? movement.id}</p>
       <span className={`mt-2 inline-flex rounded-md border px-2 py-1 text-[11px] font-black uppercase tracking-[0.08em] ${movementTone[movement.movementType]}`}>
         {t.operational.movementTypes[movement.movementType]}
       </span>

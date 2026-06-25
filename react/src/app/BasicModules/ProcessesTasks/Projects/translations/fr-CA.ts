@@ -25,7 +25,7 @@ export const frCA: ProjectsTranslations = {
     subtitle: "Portefeuille operationnel avec taches reelles, preuves, cloture, audit et avancement calcule depuis l'agenda.",
     actions: {
       table: 'Taches',
-      diagram: 'Diagramme',
+      diagram: 'Gantt',
       columns: 'Colonnes',
       create: 'Creer un projet',
     },

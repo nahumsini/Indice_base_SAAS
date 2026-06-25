@@ -8,7 +8,9 @@ import { SalesCrmProvider } from './BasicModules/Sales/salesCrmContext';
 const App = lazy(() => import('./App'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
+const PettyCashKiosk = lazy(() => import('./BasicModules/PettyCash/Kiosk/PublicPettyCashKioskPage'));
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
+const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDisplay'));
 
 function KioskRoute() {
   return (
@@ -42,12 +44,44 @@ function TaskKioskRoute() {
   );
 }
 
+function PettyCashKioskRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading petty cash"
+          description="Preparing the petty cash kiosk."
+        />
+      )}
+    >
+      <PettyCashKiosk />
+    </Suspense>
+  );
+}
+
 function PublicCatalogRoute() {
   return (
     <Suspense fallback={null}>
       <SalesCrmProvider>
         <PublicCatalogPage />
       </SalesCrmProvider>
+    </Suspense>
+  );
+}
+
+function CustomerDisplayRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading customer display"
+          description="Preparing the point-of-sale mirror."
+        />
+      )}
+    >
+      <CustomerDisplay />
     </Suspense>
   );
 }
@@ -120,8 +154,20 @@ export const router = createBrowserRouter([
     element: <TaskKioskRoute />,
   },
   {
+    path: '/petty-cash/kiosk/:fundToken',
+    element: <PettyCashKioskRoute />,
+  },
+  {
     path: '/public-catalog/:publicAccessToken',
     element: <PublicCatalogRoute />,
+  },
+  {
+    path: '/pos-display/pair',
+    element: <CustomerDisplayRoute />,
+  },
+  {
+    path: '/pos-display/:deviceToken',
+    element: <CustomerDisplayRoute />,
   },
   {
     path: '/:pageId/*',

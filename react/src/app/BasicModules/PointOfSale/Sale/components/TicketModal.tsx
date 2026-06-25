@@ -21,6 +21,7 @@ interface TicketModalProps {
 export function TicketModal({ isOpen, onClose, items, payments, totals, shift, saleNumber }: TicketModalProps) {
   const [isHovering, setIsHovering] = useState(false);
   const [countdown, setCountdown] = useState(2);
+  const [notice, setNotice] = useState('');
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -55,16 +56,11 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   };
 
   const handleEmail = () => {
-    const email = prompt('Ingresa el email del cliente:');
-    if (email) {
-      alert(`Ticket enviado a ${email}`);
-      onClose();
-    }
+    setNotice('El envio por email quedo preparado para conectarse al directorio de clientes.');
   };
 
   const handleDownload = () => {
-    alert('Descargando ticket en PDF...');
-    onClose();
+    setNotice('La descarga PDF quedo preparada para usar el motor documental de POS.');
   };
 
   if (!isOpen) return null;
@@ -74,12 +70,12 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md"
+        className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-t-2xl px-6 py-4 print:hidden">
+        <div className="bg-gradient-to-r from-gray-700 to-gray-800 px-6 py-4 print:hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -183,11 +179,28 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
                     {payment.method === 'cash' && 'Efectivo'}
                     {payment.method === 'card' && 'Tarjeta'}
                     {payment.method === 'transfer' && 'Transferencia'}
+                    {payment.method === 'credit' && 'Credito'}
                     {payment.reference && ` (${payment.reference})`}
                   </span>
                   <span>{formatCurrency(payment.amount)}</span>
                 </div>
               ))}
+              {payments.some((payment) => payment.creditDetails) && (
+                <div className="mt-2 space-y-1 border-t border-gray-200 pt-2 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                  {payments.filter((payment) => payment.creditDetails).map((payment) => (
+                    <div key={payment.id}>
+                      <div className="flex justify-between">
+                        <span>Cliente credito:</span>
+                        <span>{payment.creditDetails?.customerName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Vencimiento:</span>
+                        <span>{payment.creditDetails?.dueDate}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {totals.change > 0 && (
                 <div className="flex justify-between font-bold text-gray-900 dark:text-white mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span>CAMBIO:</span>
@@ -205,7 +218,13 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
         </div>
 
         {/* Actions */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex gap-2 print:hidden">
+        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 print:hidden">
+          {notice && (
+            <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+              {notice}
+            </div>
+          )}
+          <div className="flex gap-2">
           <button
             onClick={handlePrint}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg transition-colors"
@@ -227,6 +246,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
             <Download className="w-4 h-4" />
             <span className="font-medium">PDF</span>
           </button>
+          </div>
         </div>
       </div>
     </div>

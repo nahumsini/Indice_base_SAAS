@@ -1,0 +1,1 @@
+export { esMX } from './contactTranslations';

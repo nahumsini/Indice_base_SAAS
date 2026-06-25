@@ -63,7 +63,7 @@ export function AgendaScheduleTaskCard({
   task,
 }: AgendaScheduleTaskCardProps) {
   const scheduleCopy = copy.schedule;
-  const displayStatus = getTaskDisplayStatus(task);
+  const displayStatus = getTaskDisplayStatus(task, options.dateKey ?? selectedScheduleDate);
   const dueLabel = schedule.date
     ? formatDate(schedule.date)
     : task.dueDate

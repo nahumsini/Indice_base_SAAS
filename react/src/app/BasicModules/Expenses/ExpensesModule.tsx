@@ -1,13 +1,16 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
+import { FailureToast } from '../../components/FailureToast';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
-import { useGastosTranslations } from '../../hooks/useGastosTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { mockExpenses } from './data/expenses.mock';
+import { mockProviderRecords } from './data/providerRecords.mock';
+import { budgetLinesService, expensesService, providersService, toFinanceApiErrorMessage } from './services';
+import { useFinanceTranslations } from './hooks/useFinanceTranslations';
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
-import { mockProviderRecords, type ProviderRecord } from './Providers/useProveedoresLogic';
+import type { ProviderRecord } from './Providers/useProveedoresLogic';
 
 const Expenses = lazy(() => import('./Expenses'));
 const Budgets = lazy(() => import('./Budgets'));
@@ -41,64 +44,118 @@ const legacyExpenseTabAliases: Partial<Record<string, TabId>> = {
   cuentas_pago: 'payment_accounts',
 };
 
+const createInitialExpenseState = () => [
+  ...mockExpenses.map(expense => ({
+    ...expense,
+    projected: expense.projected ?? false,
+    type: expense.type ?? 'real',
+  })),
+  ...generateProjectedBudgetEntries({
+    businessUnit: 'Operations',
+    business: 'Restaurante',
+    concept: 'Monthly cleaning supplies budget',
+    description: 'Projected recurring spend for cleaning and hygiene supplies.',
+    duration: 4,
+    frequency: 'monthly',
+    amount: 2750,
+    providerId: 'provider-6',
+    providerName: 'Clean & Shine Services',
+    startDate: new Date(2026, 5, 1),
+    taxes: 450,
+    total: 3200,
+  }, mockExpenses.length),
+  ...generateProjectedBudgetEntries({
+    businessUnit: 'IT',
+    business: 'Hotel',
+    concept: 'Quarterly software renewals budget',
+    description: 'Forecast for SaaS tools and operational subscriptions.',
+    duration: 3,
+    frequency: 'quarterly',
+    amount: 3900,
+    providerId: 'provider-2',
+    providerName: 'Tech Solutions LLC',
+    startDate: new Date(2026, 6, 15),
+    taxes: 600,
+    total: 4500,
+  }, mockExpenses.length + 4),
+];
+
 export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
-  const t = useGastosTranslations();
+  const t = useFinanceTranslations();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<TabId>(
     'expenses',
     expenseTabIds,
     legacyExpenseTabAliases,
   );
   const [providers, setProviders] = useState<ProviderRecord[]>(mockProviderRecords);
-  const [expenses, setExpenses] = useState<Expense[]>(() =>
-    [
-      ...mockExpenses.map(expense => ({
-        ...expense,
-        projected: expense.projected ?? false,
-        type: expense.type ?? 'real',
-      })),
-      ...generateProjectedBudgetEntries({
-        businessUnit: 'Operations',
-        business: 'Restaurante',
-        concept: 'Monthly cleaning supplies budget',
-        description: 'Projected recurring spend for cleaning and hygiene supplies.',
-        duration: 4,
-        frequency: 'monthly',
-        amount: 2750,
-        providerId: 'provider-6',
-        providerName: 'Clean & Shine Services',
-        startDate: new Date(2026, 5, 1),
-        taxes: 450,
-        total: 3200,
-      }, mockExpenses.length),
-      ...generateProjectedBudgetEntries({
-        businessUnit: 'IT',
-        business: 'Hotel',
-        concept: 'Quarterly software renewals budget',
-        description: 'Forecast for SaaS tools and operational subscriptions.',
-        duration: 3,
-        frequency: 'quarterly',
-        amount: 3900,
-        providerId: 'provider-2',
-        providerName: 'Tech Solutions LLC',
-        startDate: new Date(2026, 6, 15),
-        taxes: 600,
-        total: 4500,
-      }, mockExpenses.length + 4),
-    ],
-  );
+  const [expenses, setExpenses] = useState<Expense[]>(createInitialExpenseState);
+  const [isFinanceDataLoading, setIsFinanceDataLoading] = useState(false);
+  const [failureToastMessage, setFailureToastMessage] = useState('');
   const tabs = [
-    { id: 'expenses' as TabId, label: t.tabs.gastos, emoji: '💰' },
-    { id: 'budgets' as TabId, label: t.tabs.presupuestos, emoji: '📋' },
-    { id: 'providers' as TabId, label: t.tabs.proveedores, emoji: '🏢' },
-    { id: 'accounting' as TabId, label: t.tabs.accountingAccounts, emoji: '📊' },
-    { id: 'payment_accounts' as TabId, label: t.tabs.paymentAccounts, emoji: '💳' },
-    { id: 'kpis' as TabId, label: t.tabs.kpis, emoji: '📊' },
+    { id: 'expenses' as TabId, label: t.module.tabs.expenses, emoji: '💰' },
+    { id: 'budgets' as TabId, label: t.module.tabs.budgets, emoji: '📋' },
+    { id: 'providers' as TabId, label: t.module.tabs.providers, emoji: '🏢' },
+    { id: 'accounting' as TabId, label: t.module.tabs.accountingAccounts, emoji: '📊' },
+    { id: 'payment_accounts' as TabId, label: t.module.tabs.paymentAccounts, emoji: '💳' },
+    { id: 'kpis' as TabId, label: t.module.tabs.kpis, emoji: '📊' },
   ];
+
+  useEffect(() => {
+    let isMounted = true;
+    const fallbackExpenses = createInitialExpenseState();
+
+    const loadFinanceData = async () => {
+      setIsFinanceDataLoading(true);
+      let nextProviders = mockProviderRecords;
+      let nextFailureMessage = '';
+
+      try {
+        nextProviders = await providersService.getProviderRecords();
+      } catch (error) {
+        nextFailureMessage = toFinanceApiErrorMessage(error);
+      }
+
+      const [expenseResult, budgetResult] = await Promise.allSettled([
+        expensesService.getExpenses(nextProviders),
+        budgetLinesService.getBudgetExpenses(),
+      ]);
+
+      if (!isMounted) return;
+
+      const nextRealExpenses = expenseResult.status === 'fulfilled'
+        ? expenseResult.value
+        : fallbackExpenses.filter(expense => expense.type !== 'budget');
+      const nextBudgetExpenses = budgetResult.status === 'fulfilled'
+        ? budgetResult.value
+        : fallbackExpenses.filter(expense => expense.type === 'budget');
+
+      if (expenseResult.status === 'rejected') {
+        nextFailureMessage = toFinanceApiErrorMessage(expenseResult.reason);
+      } else if (budgetResult.status === 'rejected') {
+        nextFailureMessage = toFinanceApiErrorMessage(budgetResult.reason);
+      }
+
+      setProviders(nextProviders);
+      setExpenses([...nextRealExpenses, ...nextBudgetExpenses]);
+      setFailureToastMessage(nextFailureMessage);
+      setIsFinanceDataLoading(false);
+    };
+
+    loadFinanceData().catch((error) => {
+      if (!isMounted) return;
+      setFailureToastMessage(toFinanceApiErrorMessage(error));
+      setIsFinanceDataLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'budgets':
-        return <Budgets expenses={expenses} onExpensesChange={setExpenses} />;
+        return <Budgets expenses={expenses} providers={providers} onExpensesChange={setExpenses} />;
       case 'providers':
         return <Providers providers={providers} onProvidersChange={setProviders} />;
       case 'kpis':
@@ -109,7 +166,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
         return <PaymentAccounts onNavigate={onNavigate} />;
       case 'expenses':
       default:
-        return <Expenses expenses={expenses} onExpensesChange={setExpenses} />;
+        return <Expenses expenses={expenses} providers={providers} onExpensesChange={setExpenses} />;
     }
   };
 
@@ -117,12 +174,22 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
         isVisible={isTabLoading}
-        title="Loading expenses tab"
-        description="Opening the selected expenses workspace."
+        title={t.module.loadingTabTitle}
+        description={t.module.loadingTabDescription}
+      />
+      <LoadingBarOverlay
+        isVisible={isFinanceDataLoading}
+        title={t.module.loadingFinanceTitle}
+        description={t.module.loadingFinanceDescription}
+      />
+      <FailureToast
+        isVisible={Boolean(failureToastMessage)}
+        message={failureToastMessage}
+        onClose={() => setFailureToastMessage('')}
       />
 
       {/* Module Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
+      <div className="border-b border-gray-200 bg-white px-4 py-5 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8 lg:py-6">
         <div className="max-w-[1600px] mx-auto">
           {/* Favorites Bar */}
           <FavoritesBar 
@@ -133,31 +200,31 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
             currentModule="expenses" 
           />
           
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {t.title}
+              <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                {t.module.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {t.subtitle}
+                {t.module.subtitle}
               </p>
             </div>
             <Button 
               variant="outline" 
               onClick={() => onNavigate()}
-              className="text-sm gap-2"
+              className="w-full gap-2 text-sm sm:w-auto"
             >
-              <span className="text-lg">🏠</span> {t.back}
+              <span className="text-lg">🏠</span> {t.module.back}
             </Button>
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
+          <div className="-mx-4 mt-4 flex snap-x items-center gap-2 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+                className={`flex snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
@@ -172,13 +239,13 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       </div>
 
       {/* Active Tab Content */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
+      <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
               isVisible
-              title="Loading expenses tab"
-              description="Downloading only the selected expenses workspace."
+              title={t.module.loadingTabTitle}
+              description={t.module.loadingTabDescription}
             />
           )}
         >

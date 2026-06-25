@@ -1,352 +1,464 @@
-import { useState } from 'react';
-import { Calendar, Printer, Download, DollarSign, TrendingUp, TrendingDown, Users, Package, CreditCard } from 'lucide-react';
-import { mockCorteData } from './data/corte.mock';
-import { CorteData } from './types/corte.types';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { LayoutList, Table2 } from 'lucide-react';
+import { CorteDetailModal } from './components/CorteDetailModal';
+import { CortesColumnsModal } from './components/CortesColumnsModal';
+import { CortesDayView } from './components/CortesDayView';
+import { CortesFiltersBar, type CortesFilterOption } from './components/CortesFiltersBar';
+import { CortesHeader } from './components/CortesHeader';
+import { CortesKpiArea } from './components/CortesKpiArea';
+import { defaultBusinessCurrency, normalizeBusinessCurrencyCode } from '../../shared/businessCurrency';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { CortesTable } from './components/CortesTable';
+import { useCashClosingHistory } from './hooks/useCashClosingHistory';
+import { cashClosingsApi } from './services/cashClosingsApi';
+import { posBackendApi, type PosCashRegisterResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
+import type { PosCashClosingSummaryRow } from './types/cashClosingHistory.types';
+import { defaultCortesColumns, type CortesColumnId } from './utils/cortesColumns';
+import {
+  type CortesFilters,
+  type CortesSortDirection,
+  type CortesSortKey,
+  type CortesViewMode,
+  buildCortesAnalytics,
+  filterCortesRows,
+  getCortesPeriodRange,
+  sortCortesRows,
+} from './utils/cortesUtils';
+import { buildCortesPrintReportHtml } from './utils/cortesPrintReport';
+
+const pageSize = 50;
+const todayRange = getCortesPeriodRange('today');
+
+function arrayFromResponse<T>(response: unknown): T[] {
+  if (Array.isArray(response)) {
+    return response as T[];
+  }
+
+  if (response && typeof response === 'object') {
+    const record = response as { content?: unknown; data?: unknown; items?: unknown; rows?: unknown };
+    if (Array.isArray(record.items)) {
+      return record.items as T[];
+    }
+    if (Array.isArray(record.data)) {
+      return record.data as T[];
+    }
+    if (Array.isArray(record.rows)) {
+      return record.rows as T[];
+    }
+    if (Array.isArray(record.content)) {
+      return record.content as T[];
+    }
+  }
+
+  return [];
+}
+
+function getSelectedOptionLabel(options: CortesFilterOption[], value: string, emptyLabel = 'Todos') {
+  if (!value) {
+    return emptyLabel;
+  }
+
+  return options.find((option) => option.value === value)?.label ?? value;
+}
+
+const initialFilters: CortesFilters = {
+  cashRegisterId: '',
+  dateFrom: todayRange.dateFrom,
+  dateTo: todayRange.dateTo,
+  difference: 'all',
+  period: 'today',
+  search: '',
+  userId: '',
+  warehouseId: '',
+};
 
 export default function Cortes() {
-  const [corteData] = useState<CorteData>(mockCorteData);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+  const [filters, setFilters] = useState<CortesFilters>(initialFilters);
+  const [viewMode, setViewMode] = useState<CortesViewMode>('table');
+  const [sortKey, setSortKey] = useState<CortesSortKey>('closedAt');
+  const [sortDirection, setSortDirection] = useState<CortesSortDirection>('desc');
+  const [offset, setOffset] = useState(0);
+  const [notice, setNotice] = useState('');
+  const [isColumnsOpen, setIsColumnsOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<CortesColumnId[]>(defaultCortesColumns);
+  const [warehouses, setWarehouses] = useState<PosWarehouseSummary[]>([]);
+  const [cashRegisters, setCashRegisters] = useState<PosCashRegisterResponse[]>([]);
+  const [shifts, setShifts] = useState<PosShiftResponse[]>([]);
+  const [filterOptionsError, setFilterOptionsError] = useState('');
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
+    'indice.pos.cortesPreferredCurrency',
+    defaultBusinessCurrency,
+  );
+  const preferredCurrency = normalizeBusinessCurrencyCode(storedPreferredCurrency, defaultBusinessCurrency);
+
+  const {
+    clearSelectedDetail,
+    detailError,
+    detailLoading,
+    error,
+    loading,
+    rows,
+    selectedDetail,
+    totalCount,
+    refresh,
+    selectDetail,
+  } = useCashClosingHistory({
+    cashRegisterId: filters.cashRegisterId,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    limit: pageSize,
+    offset,
+    userId: filters.userId,
+    warehouseId: filters.warehouseId,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFilterOptions() {
+      setFilterOptionsError('');
+      try {
+        const [context, shiftRows] = await Promise.all([
+          posBackendApi.context(),
+          posBackendApi.shifts(),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setWarehouses(arrayFromResponse<PosWarehouseSummary>(context.warehouses));
+        setCashRegisters(arrayFromResponse<PosCashRegisterResponse>(context.cashRegisters));
+        setShifts(arrayFromResponse<PosShiftResponse>(shiftRows));
+      } catch (loadError) {
+        if (!cancelled) {
+          setFilterOptionsError(
+            loadError instanceof Error && loadError.message
+              ? loadError.message
+              : 'No se pudieron cargar los selectores reales de POS.',
+          );
+        }
+      }
+    }
+
+    void loadFilterOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const visibleRows = useMemo(() => {
+    const filteredRows = filterCortesRows(rows, filters);
+    return sortCortesRows(filteredRows, sortKey, sortDirection);
+  }, [filters, rows, sortDirection, sortKey]);
+
+  const analytics = useMemo(
+    () => buildCortesAnalytics(visibleRows, preferredCurrency),
+    [preferredCurrency, visibleRows],
   );
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(amount);
+  const warehouseOptions = useMemo<CortesFilterOption[]>(() => (
+    warehouses.map((warehouse) => ({
+      label: [
+        warehouse.name,
+        warehouse.businessName,
+      ].filter(Boolean).join(' · '),
+      value: String(warehouse.id),
+    }))
+  ), [warehouses]);
+
+  const cashRegisterOptions = useMemo<CortesFilterOption[]>(() => (
+    cashRegisters
+      .filter((register) => !filters.warehouseId || String(register.warehouseId) === filters.warehouseId)
+      .map((register) => ({
+        label: `${register.name} · ${register.code}`,
+        value: String(register.id),
+      }))
+  ), [cashRegisters, filters.warehouseId]);
+
+  const cashierOptions = useMemo<CortesFilterOption[]>(() => {
+    const cashierIds = new Set<number>();
+
+    shifts.forEach((shift) => {
+      if (shift.openedByUserId) {
+        cashierIds.add(Number(shift.openedByUserId));
+      }
+      if (shift.closedByUserId) {
+        cashierIds.add(Number(shift.closedByUserId));
+      }
+    });
+
+    rows.forEach((row) => {
+      if (row.closedByUserId) {
+        cashierIds.add(Number(row.closedByUserId));
+      }
+    });
+
+    return Array.from(cashierIds)
+      .filter((id) => Number.isFinite(id))
+      .sort((first, second) => first - second)
+      .map((id) => ({
+        label: `Usuario ${id}`,
+        value: String(id),
+      }));
+  }, [rows, shifts]);
+
+  const updateFilter = <Key extends keyof CortesFilters>(key: Key, value: CortesFilters[Key]) => {
+    setFilters((current) => {
+      const next = { ...current, [key]: value };
+
+      if (key === 'warehouseId' && next.cashRegisterId) {
+        const selectedRegister = cashRegisters.find((register) => String(register.id) === next.cashRegisterId);
+        if (selectedRegister && value && String(selectedRegister.warehouseId) !== String(value)) {
+          next.cashRegisterId = '';
+        }
+      }
+
+      return next;
+    });
+    setOffset(0);
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    }).format(date);
+  const resetFilters = () => {
+    setFilters(initialFilters);
+    setOffset(0);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleSort = (nextSortKey: CortesSortKey) => {
+    if (nextSortKey === sortKey) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortKey(nextSortKey);
+    setSortDirection('desc');
   };
 
-  const handleDownload = () => {
-    console.log('Descargar corte');
-    // TODO: Implement PDF download
+  const openDetail = (row: PosCashClosingSummaryRow) => {
+    setIsDetailOpen(true);
+    selectDetail(row.id);
   };
+
+  const closeDetail = () => {
+    setIsDetailOpen(false);
+    clearSelectedDetail();
+  };
+
+  const printFilteredReport = async () => {
+    const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
+
+    if (!reportWindow) {
+      setNotice('No se pudo abrir la vista de impresion. Revisa permisos de ventanas emergentes del navegador.');
+      return;
+    }
+
+    reportWindow.document.open();
+    reportWindow.document.write('<!doctype html><title>Preparando reporte</title><body style="font-family:Arial,Helvetica,sans-serif;padding:32px;"><strong>Preparando reporte de cortes...</strong></body>');
+    reportWindow.document.close();
+
+    let reportRows = visibleRows;
+    let reportScopeNote = `Incluye ${visibleRows.length} corte(s) visibles con los filtros actuales.`;
+
+    try {
+      const response = await cashClosingsApi.list({
+        cashRegisterId: filters.cashRegisterId,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        limit: 200,
+        offset: 0,
+        userId: filters.userId,
+        warehouseId: filters.warehouseId,
+      });
+      reportRows = sortCortesRows(filterCortesRows(response.items, filters), sortKey, sortDirection);
+      reportScopeNote = response.count > response.items.length
+        ? `Incluye los primeros ${response.items.length} corte(s) del filtro real. El endpoint reporta ${response.count} corte(s) antes de filtros locales de busqueda o diferencia.`
+        : `Incluye ${reportRows.length} corte(s) filtrado(s) desde el historial real de POS.`;
+    } catch (printError) {
+      reportScopeNote = 'No fue posible consultar el historial completo para impresion; este reporte usa los cortes visibles actualmente en pantalla.';
+      setNotice(printError instanceof Error && printError.message
+        ? `Reporte preparado con filas visibles: ${printError.message}`
+        : 'Reporte preparado con filas visibles porque no fue posible consultar el historial completo.');
+    }
+
+    const reportAnalytics = buildCortesAnalytics(reportRows, preferredCurrency);
+    const reportHtml = buildCortesPrintReportHtml({
+      analytics: reportAnalytics,
+      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
+      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
+      filters,
+      preferredCurrency,
+      rows: reportRows,
+      scopeNote: reportScopeNote,
+      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId),
+    });
+
+    reportWindow.document.open();
+    reportWindow.document.write(reportHtml);
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.setTimeout(() => reportWindow.print(), 350);
+    setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) filtrado(s).`);
+  };
+
+  const handleRowDownload = (row: PosCashClosingSummaryRow) => {
+    setNotice(`El corte COR-${row.id} esta listo para descarga desde el detalle.`);
+    openDetail(row);
+  };
+
+  const handleRowPrint = (row: PosCashClosingSummaryRow) => {
+    setNotice(`Abriendo COR-${row.id} para impresion.`);
+    openDetail(row);
+  };
+
+  const nextPageDisabled = offset + pageSize >= totalCount;
+  const previousPageDisabled = offset === 0;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            💰 Corte de Caja
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Resumen de ventas y movimientos del día
-          </p>
+      <CortesHeader
+        loading={loading}
+        preferredCurrency={preferredCurrency}
+        onColumns={() => setIsColumnsOpen(true)}
+        onPrintReport={printFilteredReport}
+        onPreferredCurrencyChange={setStoredPreferredCurrency}
+        onRefresh={() => {
+          refresh();
+          setNotice('Cortes actualizados desde el historial real de POS.');
+        }}
+      />
+
+      {notice ? (
+        <div className="rounded-[20px] border border-[#F4C84A]/25 bg-[#F4C84A]/10 px-4 py-3 text-sm font-black text-[#9A6B05] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
+          {notice}
         </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500"
-          />
+      ) : null}
+
+      {error ? (
+        <div className="rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+          {error}
+        </div>
+      ) : null}
+
+      {filterOptionsError ? (
+        <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {filterOptionsError}
+        </div>
+      ) : null}
+
+      <CortesFiltersBar
+        cashiers={cashierOptions}
+        cashRegisters={cashRegisterOptions}
+        filters={filters}
+        warehouses={warehouseOptions}
+        onChange={updateFilter}
+        onReset={resetFilters}
+      />
+      <CortesKpiArea analytics={analytics} />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex w-fit rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <ViewButton active={viewMode === 'table'} icon={<Table2 className="h-4 w-4" />} label="Tabla" onClick={() => setViewMode('table')} />
+          <ViewButton active={viewMode === 'day'} icon={<LayoutList className="h-4 w-4" />} label="Por día" onClick={() => setViewMode('day')} />
+        </div>
+
+        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+          Mostrando {visibleRows.length} de {totalCount} corte(s) · Preferida {analytics.convertedSalesLabel} · Cobrado {analytics.totalSalesLabel}
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+          Cargando cortes reales del punto de venta...
+        </div>
+      ) : null}
+
+      {viewMode === 'table' ? (
+        <CortesTable
+          preferredCurrency={preferredCurrency}
+          loading={loading}
+          rows={visibleRows}
+          sortDirection={sortDirection}
+          sortKey={sortKey}
+          visibleColumns={visibleColumns}
+          onDownload={handleRowDownload}
+          onPrint={handleRowPrint}
+          onSelect={openDetail}
+          onSort={handleSort}
+        />
+      ) : (
+        <CortesDayView preferredCurrency={preferredCurrency} rows={visibleRows} onSelect={openDetail} />
+      )}
+
+      <div className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+          Pagina {Math.floor(offset / pageSize) + 1} · limite {pageSize}
+        </p>
+        <div className="flex gap-2">
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors"
+            type="button"
+            disabled={previousPageDisabled}
+            onClick={() => setOffset((current) => Math.max(0, current - pageSize))}
+            className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
           >
-            <Printer className="w-4 h-4" />
-            Imprimir
+            Anterior
           </button>
           <button
-            onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors"
+            type="button"
+            disabled={nextPageDisabled}
+            onClick={() => setOffset((current) => current + pageSize)}
+            className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
           >
-            <Download className="w-4 h-4" />
-            Descargar
+            Siguiente
           </button>
         </div>
       </div>
 
-      {/* Corte Info */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">CORTE</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Corte del Administrador De La Tienda iniciado el {formatDate(corteData.fecha)}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              De {formatDate(corteData.fecha)} 9:43 p.m. a {formatDate(corteData.fecha)} 11:28 p.m. (Turno Actual)
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-              + Hacer corte de caja
-            </button>
-            <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-              + Abrir turno del día
-            </button>
-          </div>
-        </div>
+      <CortesColumnsModal
+        open={isColumnsOpen}
+        visibleColumns={visibleColumns}
+        onClose={() => setIsColumnsOpen(false)}
+        onVisibleColumnsChange={setVisibleColumns}
+      />
 
-        {/* Main Totals */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-6 border-2 border-green-200 dark:border-green-800">
-            <div className="flex items-center gap-3 mb-2">
-              <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Ventas Totales</h4>
-            </div>
-            <p className="text-4xl font-bold text-green-700 dark:text-green-400">
-              {formatCurrency(corteData.ventasTotales)}
-            </p>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-6 border-2 border-blue-200 dark:border-blue-800">
-            <div className="flex items-center gap-3 mb-2">
-              <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Dinero en Caja</h4>
-            </div>
-            <p className="text-4xl font-bold text-blue-700 dark:text-blue-400">
-              {formatCurrency(corteData.dineroEnCaja)}
-            </p>
-          </div>
-        </div>
-
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Desglose de Ventas */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Desglose de Ventas
-              </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ventas en Efectivo y Vales</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.ventasEfectivoVales)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ventas en tarjetas</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.ventasTarjetas)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Efectivo</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.efectivo)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Tarjetas</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.tarjetas)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ventas en efectivo</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.ventasEnEfectivo)}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-gray-300 dark:border-gray-700">
-                  <span className="font-semibold text-gray-900 dark:text-white">Total</span>
-                  <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(corteData.dineroEnCaja)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Entradas de efectivo */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingDown className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Entradas de efectivo
-                </h4>
-              </div>
-              <div className="text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Si 17 am: Entrada De Dinero $</span>
-                  <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(corteData.entradasEfectivo)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Ventas por Departamento */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Package className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Ventas por Departamento
-                </h4>
-              </div>
-              <div className="space-y-2 text-sm">
-                {corteData.ventasPorDepartamento.map((dept, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">{dept.departamento}</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(dept.monto)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Impuestos */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Impuestos
-                </h4>
-              </div>
-              <div className="space-y-2 text-sm">
-                {corteData.impuestos.map((imp, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">{imp.tipo}</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(imp.monto)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Ganancia */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Ganancia
-                </h4>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ventas</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.ventasSinImpuestos)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Egresos</span>
-                  <span className="font-semibold text-red-600 dark:text-red-400">-{formatCurrency(corteData.egresos)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Costo Total de Artículos</span>
-                  <span className="font-semibold text-red-600 dark:text-red-400">-{formatCurrency(corteData.costoTotalArticulos)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Descuentos de Ventas</span>
-                  <span className="font-semibold text-red-600 dark:text-red-400">-{formatCurrency(corteData.descuentos)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Devoluciones de Ventas</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.devolucionesVentas)}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t-2 border-purple-300 dark:border-purple-700">
-                  <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                  <span className="font-bold text-2xl text-purple-700 dark:text-purple-400">{formatCurrency(corteData.gananciaTotal)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Ingresos de contado */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Ingresos de contado
-                </h4>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ventas en Efectivo</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.ventasEfectivoContado)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ventas por Transferencia</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.ventasTransferencia)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ventas con Cheque</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(corteData.ventasCheque)}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-gray-300 dark:border-gray-700">
-                  <span className="font-semibold text-gray-900 dark:text-white">Total</span>
-                  <span className="font-bold text-green-600 dark:text-green-400">
-                    {formatCurrency(corteData.ventasEfectivoContado + corteData.ventasTransferencia + corteData.ventasCheque)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Salidas de Efectivo */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="w-4 h-4 text-red-600 dark:text-red-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Salidas de Efectivo
-                </h4>
-              </div>
-              <div className="text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Si se hace Pago a Proveedor</span>
-                  <span className="font-bold text-red-600 dark:text-red-400">{formatCurrency(corteData.pagoProveedores)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Pagos de Créditos */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Pagos de Créditos
-                </h4>
-              </div>
-              <div className="text-sm text-center text-gray-500 dark:text-gray-400 py-2">
-                No se realizaron pagos de créditos
-              </div>
-            </div>
-
-            {/* Clientes con más ventas */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Clientes con más ventas
-                </h4>
-              </div>
-              <div className="space-y-2 text-sm">
-                {corteData.clientesMasVentas.map((cliente, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
-                      {cliente.nombre}
-                    </span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(cliente.ventas || 0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Clientes con más ganancia */}
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Clientes con más ganancia
-                </h4>
-              </div>
-              <div className="space-y-2 text-sm">
-                {corteData.clientesMasGanancia.map((cliente, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-green-600 dark:text-green-400 hover:underline cursor-pointer">
-                      {cliente.nombre}
-                    </span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(cliente.ganancia || 0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <CorteDetailModal
+        detail={selectedDetail}
+        error={detailError}
+        loading={detailLoading}
+        open={isDetailOpen}
+        onClose={closeDetail}
+        onDownload={() => setNotice('La descarga PDF del corte queda preparada para la siguiente fase documental.')}
+        onPrint={() => window.print()}
+      />
     </div>
+  );
+}
+
+function ViewButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-black transition ${
+        active
+          ? 'bg-[#FF6B5E] text-white shadow-sm'
+          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

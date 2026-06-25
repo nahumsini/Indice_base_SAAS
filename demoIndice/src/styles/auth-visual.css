@@ -1,0 +1,128 @@
+.auth-visual {
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.05);
+}
+
+.visual-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.visual-heading p {
+  color: #667085;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.visual-heading h2 {
+  margin-top: 8px;
+  color: #222831;
+  font-size: 1.1rem;
+}
+
+.visual-metric {
+  border: 1px solid rgba(21, 92, 255, 0.15);
+  border-radius: 16px;
+  background: rgba(21, 92, 255, 0.08);
+  padding: 8px 14px;
+  text-align: right;
+}
+
+.visual-metric strong {
+  display: block;
+  color: var(--primary);
+  font-size: 1.35rem;
+}
+
+.visual-metric span {
+  color: #667085;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.visual-grid {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 20px;
+}
+
+.visual-bars {
+  display: flex;
+  min-height: 188px;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid #dfe5ee;
+  border-radius: 22px;
+  background: rgba(248, 250, 252, 0.7);
+  padding: 24px 20px;
+}
+
+.visual-bar-shell {
+  display: flex;
+  width: 40px;
+  height: 144px;
+  align-items: flex-end;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: inset 0 2px 8px rgba(31, 45, 61, 0.05);
+}
+
+.visual-bar-shell div {
+  width: 100%;
+  border-radius: 999px;
+}
+
+.visual-context {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.visual-context p {
+  color: #667085;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.visual-pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.visual-pillar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dfe5ee;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.visual-pillar span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.visual-pillar strong {
+  color: #222831;
+  font-size: 0.86rem;
+}

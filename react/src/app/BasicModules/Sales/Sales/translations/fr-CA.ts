@@ -19,6 +19,7 @@ export const frCA = {
     subtitle: 'Suivez les ventes gagnées, les preuves de paiement, les validations, la préparation de l’inventaire et les commissions.',
     columnsAction: 'Colonnes',
     commissionRulesAction: 'Commission Rules',
+    preferredCurrencyAction: 'Devise préférée',
     primaryAction: 'Nouvelle vente',
   },
   filters: {
@@ -165,6 +166,7 @@ export const frCA = {
       notes: 'Notes',
     },
     placeholders: {
+      opportunitySelector: 'Sélectionnez une opportunité',
       quoteSelector: 'Sélectionnez un devis accepté',
       quoteReference: 'Q-2026-000',
       saleDocumentReference: 'Générée après l’enregistrement',

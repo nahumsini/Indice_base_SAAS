@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, User, Building2 } from 'lucide-react';
 import { Customer, CustomerType } from '../types/customer.types';
 
@@ -24,10 +24,29 @@ export function AddCustomerModal({ isOpen, onClose, onSave, customer }: AddCusto
     notes: customer?.notes || '',
   });
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setCustomerType(customer?.customerType || 'individual');
+    setFormData({
+      name: customer?.name || '',
+      email: customer?.email || '',
+      phone: customer?.phone || '',
+      rfc: customer?.rfc || '',
+      address: customer?.address || '',
+      city: customer?.city || '',
+      state: customer?.state || '',
+      postalCode: customer?.postalCode || '',
+      creditLimit: customer?.creditLimit?.toString() || '',
+      notes: customer?.notes || '',
+    });
+  }, [customer, isOpen]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const newCustomer: Partial<Customer> = {
+      id: customer?.id,
       ...formData,
       customerType,
       creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : undefined,

@@ -10,25 +10,27 @@ interface ReturnModalProps {
 export function ReturnModal({ isOpen, onClose, onConfirm }: ReturnModalProps) {
   const [saleId, setSaleId] = useState('');
   const [returnType, setReturnType] = useState<'full' | 'partial'>('full');
+  const [error, setError] = useState('');
 
   const handleConfirm = () => {
     if (!saleId.trim()) {
-      alert('Ingresa el número de venta');
+      setError('Ingresa el numero de venta.');
       return;
     }
 
     onConfirm(saleId, returnType);
     setSaleId('');
     setReturnType('full');
+    setError('');
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-t-2xl px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center justify-between bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
               <RotateCcw className="w-6 h-6 text-white" />
@@ -45,6 +47,12 @@ export function ReturnModal({ isOpen, onClose, onConfirm }: ReturnModalProps) {
 
         {/* Content */}
         <div className="p-6 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
           {/* Alert */}
           <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
             <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />

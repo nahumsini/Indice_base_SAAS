@@ -6,11 +6,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../../components/ui/select';
-import { agendaStatusFilterValues } from '../hooks/useAgendaFilters';
+import { agendaFocusFilterValues, agendaStatusFilterValues } from '../hooks/useAgendaFilters';
 import type { AgendaTranslations } from '../translations';
 import type {
   AgendaParticipantFilterOption,
   AgendaProjectFilterOption,
+  AgendaFocusFilter,
   PeriodFilter,
   StatusFilter,
 } from '../types';
@@ -23,10 +24,13 @@ type AgendaFiltersProps = {
   copy: AgendaTranslations;
   customDateFrom: string;
   customDateTo: string;
+  focusFilter: AgendaFocusFilter;
+  focusLabels: Record<AgendaFocusFilter, string>;
   onBusinessFilterChange: (value: string) => void;
   onCollaboratorFilterChange: (value: string) => void;
   onCustomDateFromChange: (value: string) => void;
   onCustomDateToChange: (value: string) => void;
+  onFocusFilterChange: (value: AgendaFocusFilter) => void;
   onPeriodFilterChange: (value: PeriodFilter) => void;
   onProjectFilterChange: (value: string) => void;
   onStatusFilterChange: (value: StatusFilter) => void;
@@ -48,10 +52,13 @@ export function AgendaFilters({
   copy,
   customDateFrom,
   customDateTo,
+  focusFilter,
+  focusLabels,
   onBusinessFilterChange,
   onCollaboratorFilterChange,
   onCustomDateFromChange,
   onCustomDateToChange,
+  onFocusFilterChange,
   onPeriodFilterChange,
   onProjectFilterChange,
   onStatusFilterChange,
@@ -65,9 +72,24 @@ export function AgendaFilters({
   unitOptions,
 }: AgendaFiltersProps) {
   return (
-    <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-5 text-base font-bold text-slate-800 dark:text-white">{copy.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+    <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+      <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white sm:mb-5">{copy.filters.title}</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-7">
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.focus}</label>
+          <Select value={focusFilter} onValueChange={(value) => onFocusFilterChange(value as AgendaFocusFilter)}>
+            <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {agendaFocusFilterValues.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {focusLabels[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="space-y-2">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.period}</label>
           <Select value={periodFilter} onValueChange={(value) => onPeriodFilterChange(value as PeriodFilter)}>

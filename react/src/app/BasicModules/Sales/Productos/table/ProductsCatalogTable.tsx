@@ -106,7 +106,7 @@ export function ProductsCatalogTable({
         onClearSelection={rowSelection.clearSelection}
       />
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <Table className="min-w-[1680px] table-fixed">
             <TableHeader>
@@ -123,7 +123,7 @@ export function ProductsCatalogTable({
             <TableBody>
               {products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length + 3} className="px-5 py-12 text-center text-sm font-semibold text-slate-500">
+                  <TableCell colSpan={columns.length + 3} className="px-5 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-300">
                     {t.table.empty}
                   </TableCell>
                 </TableRow>

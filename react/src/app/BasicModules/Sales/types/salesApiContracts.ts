@@ -4,14 +4,16 @@ import type { SalesOpportunity } from './opportunities';
 import type { SalesPostSaleCase } from './postSales';
 import type { SalesCatalogItem } from './products';
 import type { SalesQuote } from './quotes';
+import type { SaleRecord } from '../Sales/types/salesTypes';
 
 export type SalesApiResourceName =
   | 'contacts'
   | 'opportunities'
   | 'products'
   | 'quotes'
-  | 'postSaleCases'
-  | 'digitalContracts';
+  | 'sales'
+  | 'post-sales'
+  | 'contracts';
 
 export type SalesApiListResponse<TItem> = {
   items: TItem[];
@@ -30,6 +32,7 @@ export type SalesApiContracts = {
   opportunities: SalesApiListResponse<SalesOpportunity>;
   products: SalesApiListResponse<SalesCatalogItem>;
   quotes: SalesApiListResponse<SalesQuote>;
-  postSaleCases: SalesApiListResponse<SalesPostSaleCase>;
-  digitalContracts: SalesApiListResponse<DigitalContract>;
+  sales: SalesApiListResponse<SaleRecord>;
+  'post-sales': SalesApiListResponse<SalesPostSaleCase>;
+  contracts: SalesApiListResponse<DigitalContract>;
 };

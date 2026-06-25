@@ -7,6 +7,10 @@ export type OpportunityProbability = '10%' | '25%' | '50%' | '75%' | '90%' | '10
 
 export type SalesOpportunity = {
   id: string;
+  backendId?: number;
+  opportunityCode?: string;
+  unitId?: number | null;
+  businessId?: number | null;
   opportunityName: string;
   contactId: string;
   company: string;
@@ -19,6 +23,7 @@ export type SalesOpportunity = {
   ownerUserCompanyId?: number | null;
   owner: string;
   estimatedValue: string;
+  currency?: string;
   probability: OpportunityProbability;
   expectedCloseDate: string;
   nextAction: OpportunityNextAction;
@@ -27,6 +32,7 @@ export type SalesOpportunity = {
   files: string[];
   status: OpportunityStatus;
   notes: string;
+  filesCount?: number;
 };
 
 export const opportunityStages: OpportunityStage[] = [

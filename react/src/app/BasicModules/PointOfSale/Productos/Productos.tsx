@@ -1,18 +1,34 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Package, AlertCircle, TrendingUp, DollarSign, Box, Layers } from 'lucide-react';
-import { Product, ProductStatus } from './types/product.types';
-import { mockProducts } from './data/products.mock';
+import { buildSalesProductInputFromPointOfSale, buildSalesProductPatchFromPointOfSale } from '../../CommerceCore/posProductMutations';
+import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
+import { useSalesCrm } from '../../Sales/salesCrmContext';
+import { type Product, type ProductStatus } from '../shared/commercial/products';
+import {
+  PointOfSaleTitleBar,
+  pointOfSaleTitleBarPrimaryActionClassName,
+  pointOfSaleTitleBarSecondaryActionClassName,
+} from '../shared/components/PointOfSaleTitleBar';
 import { AddProductModal } from './components/AddProductModal';
 import { AddCompositeProductModal } from './components/AddCompositeProductModal';
 
 export default function Productos() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const { createProductRecord, updateProductRecord, reloadProducts } = useSalesCrm();
+  const {
+    balanceLoadError,
+    isLoadingInventoryBalances,
+    products: sharedProducts,
+    saleCurrency,
+  } = usePointOfSaleCatalogProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductStatus | 'all'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCompositeModal, setShowCompositeModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+  const [notice, setNotice] = useState('');
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const products = sharedProducts;
 
   // Get unique departments
   const departments = useMemo(() => {
@@ -41,15 +57,15 @@ export default function Productos() {
     const active = products.filter(p => p.status === 'active').length;
     const lowStock = products.filter(p => p.useInventory && p.currentStock < p.minStock).length;
     const totalValue = products.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
-    const avgMargin = products.reduce((sum, p) => sum + p.profitMargin, 0) / products.length;
+    const avgMargin = products.length === 0 ? 0 : products.reduce((sum, p) => sum + p.profitMargin, 0) / products.length;
 
     return { total, active, lowStock, totalValue, avgMargin };
   }, [products]);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency = saleCurrency) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency,
     }).format(amount);
   };
 
@@ -69,14 +85,49 @@ export default function Productos() {
     return { label: 'Normal', color: 'green' };
   };
 
-  const handleAddProduct = (productData: Partial<Product>) => {
-    const newProduct: Product = {
-      id: `product-${Date.now()}`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...productData as Product,
-    };
-    setProducts([...products, newProduct]);
+  const handleAddProduct = async (productData: Partial<Product>) => {
+    const productId = productData.id ?? selectedProduct?.id;
+    const currentProduct = productId ? products.find((product) => product.id === productId) : undefined;
+    setIsSavingProduct(true);
+    setNotice('');
+
+    try {
+      if (currentProduct) {
+        const updatedProduct: Product = {
+          ...currentProduct,
+          ...productData,
+          id: currentProduct.id,
+          source: 'sales',
+          createdAt: currentProduct.createdAt,
+          updatedAt: new Date(),
+        };
+
+        await updateProductRecord(
+          currentProduct.salesProductId ?? currentProduct.id,
+          buildSalesProductPatchFromPointOfSale(updatedProduct, saleCurrency),
+        );
+        setNotice('Producto actualizado en catálogo maestro y preparado para POS.');
+        await reloadProducts();
+        return;
+      }
+
+      const newProduct: Product = {
+        id: `product-${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        currency: saleCurrency,
+        source: 'sales',
+        ...productData as Product,
+      };
+      await createProductRecord(buildSalesProductInputFromPointOfSale(newProduct, saleCurrency));
+      setNotice('Producto creado en catálogo maestro y preparado para POS.');
+      await reloadProducts();
+    } catch (error) {
+      console.warn('[PointOfSale] Product could not be synced with Sales catalog.', error);
+      setNotice('No se pudo sincronizar el producto con el catálogo maestro de Sales.');
+    } finally {
+      setIsSavingProduct(false);
+    }
   };
 
   const handleEditProduct = (product: Product) => {
@@ -88,47 +139,82 @@ export default function Productos() {
     }
   };
 
-  const handleDeleteProduct = (id: string) => {
-    if (confirm('¿Estás seguro de eliminar este producto?')) {
-      setProducts(products.filter(p => p.id !== id));
+  const handleDeleteProduct = async (id: string) => {
+    const product = products.find((item) => item.id === id);
+    if (!product) {
+      return;
+    }
+
+    setIsSavingProduct(true);
+    setNotice('');
+
+    try {
+      await updateProductRecord(product.salesProductId ?? product.id, {
+        visibility: 'Internal',
+        posPrepared: false,
+      });
+      setNotice('Producto retirado del catálogo operativo POS sin borrar el registro maestro.');
+      await reloadProducts();
+    } catch (error) {
+      console.warn('[PointOfSale] Product could not be removed from POS catalog.', error);
+      setNotice('No se pudo retirar el producto del catálogo operativo POS.');
+    } finally {
+      setIsSavingProduct(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            🛍️ Productos
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Gestiona tu catálogo de productos e inventario
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PointOfSaleTitleBar
+        eyebrow="Catálogo POS"
+        icon="🛍️"
+        title="Productos"
+        subtitle="Catálogo compartido con Sales, optimizado para códigos, precios, disponibilidad y venta rápida."
+        actions={(
+          <>
           <button
             onClick={() => {
               setSelectedProduct(undefined);
               setShowCompositeModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-all shadow-sm"
+            disabled={isSavingProduct}
+            className={pointOfSaleTitleBarSecondaryActionClassName}
           >
             <Layers className="w-4 h-4" />
-            Agregar producto compuesto
+            Producto compuesto
           </button>
           <button
             onClick={() => {
               setSelectedProduct(undefined);
               setShowAddModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-all shadow-sm"
+            disabled={isSavingProduct}
+            className={pointOfSaleTitleBarPrimaryActionClassName}
           >
             <Plus className="w-4 h-4" />
             Agregar producto
           </button>
+          </>
+        )}
+      />
+
+      {notice && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {notice}
         </div>
-      </div>
+      )}
+
+      {isLoadingInventoryBalances && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+          Sincronizando catálogo compartido de Sales e inventario disponible para POS.
+        </div>
+      )}
+
+      {balanceLoadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          {balanceLoadError}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -296,7 +382,9 @@ export default function Productos() {
                   <td colSpan={10} className="px-4 py-12 text-center">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-500 dark:text-gray-400">
-                      {searchTerm || statusFilter !== 'all' || departmentFilter !== 'all'
+                      {isLoadingInventoryBalances
+                        ? 'Sincronizando catálogo compartido de Sales'
+                        : searchTerm || statusFilter !== 'all' || departmentFilter !== 'all'
                         ? 'No se encontraron productos'
                         : 'No hay productos registrados'}
                     </p>
@@ -340,15 +428,15 @@ export default function Productos() {
                           {getSaleTypeLabel(product.saleType)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(product.costPrice)}
-                      </td>
+	                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+	                        {formatCurrency(product.costPrice, product.currency)}
+	                      </td>
                       <td className="px-4 py-3 text-sm font-semibold text-purple-600 dark:text-purple-400">
                         {product.profitMargin.toFixed(2)}%
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(product.salePrice)}
-                      </td>
+	                      <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
+	                        {formatCurrency(product.salePrice, product.currency)}
+	                      </td>
                       <td className="px-4 py-3">
                         {product.useInventory ? (
                           <div className="flex items-center gap-2">
@@ -382,13 +470,15 @@ export default function Productos() {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEditProduct(product)}
+                            disabled={isSavingProduct}
                             className="p-1.5 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded transition-colors"
                             title="Editar"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDeleteProduct(product.id)}
+                            onClick={() => { void handleDeleteProduct(product.id); }}
+                            disabled={isSavingProduct}
                             className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                             title="Eliminar"
                           >

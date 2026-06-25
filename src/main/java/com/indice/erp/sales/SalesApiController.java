@@ -2,6 +2,7 @@ package com.indice.erp.sales;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -81,6 +82,51 @@ public class SalesApiController {
                     user.get().companyId(),
                     user.get().userId(),
                     payload == null ? Map.<String, Object>of() : payload));
+        } catch (NoSuchElementException ex) {
+            return notFound(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
+    @PostMapping("/products/images/presign-upload")
+    public ResponseEntity<?> createProductImageUpload(
+            HttpSession session,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) {
+            return unauthorized();
+        }
+
+        try {
+            return ResponseEntity.ok(salesService.createProductImageUpload(
+                    user.get().companyId(),
+                    payload == null ? Map.<String, Object>of() : payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return storageUnavailable(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
+    @PostMapping("/products/{productId}/images")
+    public ResponseEntity<?> registerProductImage(
+            HttpSession session,
+            @PathVariable long productId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) {
+            return unauthorized();
+        }
+
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(salesService.registerProductImage(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    productId,
+                    payload == null ? Map.<String, Object>of() : payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return storageUnavailable(ex);
         } catch (NoSuchElementException ex) {
             return notFound(ex);
         } catch (IllegalArgumentException ex) {
@@ -299,6 +345,10 @@ public class SalesApiController {
 
     private static ResponseEntity<Map<String, String>> badRequest(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+    }
+
+    private static ResponseEntity<Map<String, String>> storageUnavailable(ObjectStorageDisabledException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
     }
 
     private static Long nullableLong(String raw) {

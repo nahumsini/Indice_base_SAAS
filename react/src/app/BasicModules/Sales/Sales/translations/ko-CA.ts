@@ -19,6 +19,7 @@ export const koCA = {
     subtitle: '확정된 판매, 결제 증빙, 검증 진행, 재고 준비 상태와 커미션을 추적합니다.',
     columnsAction: '열',
     commissionRulesAction: 'Commission Rules',
+    preferredCurrencyAction: '기본 통화',
     primaryAction: '새 판매',
   },
   filters: {
@@ -165,6 +166,7 @@ export const koCA = {
       notes: '메모',
     },
     placeholders: {
+      opportunitySelector: '기회 선택',
       quoteSelector: '승인된 견적 선택',
       quoteReference: 'Q-2026-000',
       saleDocumentReference: '저장 후 생성됨',

@@ -13,6 +13,7 @@ import { ProductThumbnail } from '../../../Productos/components/ProductThumbnail
 import type { SalesCatalogItem, SalesQuoteItem } from '../../../types';
 import type { QuotesTranslations } from '../../translations';
 import type { QuoteFormState } from '../../types/quoteBuilderTypes';
+import { getQuoteLineExchangeRateLabel } from '../../utils/quoteCurrencyConversion';
 import { calculateQuoteLinePricing, getRoundedMargin } from '../../utils/quotePricing';
 import {
   createCustomTaxPreset,
@@ -37,11 +38,16 @@ export function QuoteLineItemRow({
   products: SalesCatalogItem[];
   form: QuoteFormState;
   t: QuotesTranslations;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number, currency?: string | null) => string;
   onUpdate: (patch: Partial<SalesQuoteItem>) => void;
   onRemove: () => void;
 }) {
   const pricing = calculateQuoteLinePricing(item, products);
+  const quoteCurrency = item.quoteCurrency ?? form.currency;
+  const originalCurrency = item.originalCurrency ?? product?.currency ?? quoteCurrency;
+  const originalUnitPrice = item.originalUnitPrice ?? product?.price ?? item.unitPrice;
+  const hasCurrencyConversion = originalCurrency.toUpperCase() !== quoteCurrency.toUpperCase();
+  const exchangeRateLabel = getQuoteLineExchangeRateLabel(item.exchangeRate);
   const previewProduct = product ?? {
     name: item.productName,
     imageUrl: undefined,
@@ -87,6 +93,18 @@ export function QuoteLineItemRow({
       taxIsCustom: preset.id === 'custom-tax' || preset.rateEditable,
     });
   };
+  const handleUnitPriceChange = (value: number) => {
+    const patch: Partial<SalesQuoteItem> = {
+      unitPrice: value,
+      convertedUnitPrice: value,
+    };
+
+    if (!hasCurrencyConversion) {
+      patch.originalUnitPrice = value;
+    }
+
+    onUpdate(patch);
+  };
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -98,6 +116,9 @@ export function QuoteLineItemRow({
             <p className="mt-1 text-xs font-semibold text-slate-500">{item.sku}</p>
             <p className="mt-1 text-xs font-semibold text-slate-400">
               {product ? t.productTypeLabels[product.type] : t.common.unassigned}
+            </p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">
+              {t.pricing.catalogPrice}: {formatCurrency(originalUnitPrice, originalCurrency)}
             </p>
           </div>
         </div>
@@ -113,8 +134,8 @@ export function QuoteLineItemRow({
           <Input className={coralFieldClassName} type="number" min={1} value={item.quantity} onChange={(event) => onUpdate({ quantity: Number(event.target.value) || 1 })} />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.labels.unitPrice}</label>
-          <Input className={coralFieldClassName} type="number" min={0} value={item.unitPrice} onChange={(event) => onUpdate({ unitPrice: Number(event.target.value) || 0 })} />
+          <label className="text-xs font-bold text-slate-500">{t.pricing.convertedPrice}</label>
+          <Input className={coralFieldClassName} type="number" min={0} value={item.unitPrice} onChange={(event) => handleUnitPriceChange(Number(event.target.value) || 0)} />
         </div>
         <div className="space-y-1">
           <label className="text-xs font-bold text-slate-500">{t.labels.discount}</label>
@@ -155,10 +176,16 @@ export function QuoteLineItemRow({
         <div className="space-y-1">
           <label className="text-xs font-bold text-slate-500">{t.labels.subtotal}</label>
           <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-black text-slate-950">
-            {formatCurrency(pricing.lineTotal)}
+            {formatCurrency(pricing.lineTotal, quoteCurrency)}
           </div>
         </div>
       </div>
+
+      {hasCurrencyConversion ? (
+        <div className="mt-3 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-xs font-bold text-[#7C5604]">
+          {t.pricing.exchangeRate}: 1 {originalCurrency} = {exchangeRateLabel} {quoteCurrency} · {item.exchangeRateDate}
+        </div>
+      ) : null}
 
       <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
         <div className="space-y-1">
@@ -172,7 +199,7 @@ export function QuoteLineItemRow({
         </div>
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
           <p className="font-bold text-slate-500">{t.pricing.estimatedCost}</p>
-          <p className="mt-1 font-black text-slate-950">{formatCurrency(pricing.estimatedCost)}</p>
+          <p className="mt-1 font-black text-slate-950">{formatCurrency(pricing.estimatedCost, quoteCurrency)}</p>
         </div>
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
           <p className="font-bold text-slate-500">{t.pricing.estimatedMargin}</p>

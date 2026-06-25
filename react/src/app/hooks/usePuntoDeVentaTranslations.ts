@@ -7,8 +7,9 @@ export const usePuntoDeVentaTranslations = () => {
     es: {
       title: 'Punto de Venta',
       subtitle: 'Sistema de facturación y gestión de ventas',
-      back: 'Volver',
+      back: 'Regresar',
       tabs: {
+        sale: 'Venta',
         cortes: 'Cortes',
         facturacion: 'Facturación',
         inventario: 'Inventario',
@@ -20,6 +21,7 @@ export const usePuntoDeVentaTranslations = () => {
         productos: 'Productos',
         ordenesCompra: 'Órdenes de Compra',
         descuentos: 'Descuentos',
+        credito: 'Crédito',
         kpis: 'KPIs',
       },
     },
@@ -28,6 +30,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Billing system and sales management',
       back: 'Back',
       tabs: {
+        sale: 'Sale',
         cortes: 'Cash Cuts',
         facturacion: 'Billing',
         inventario: 'Inventory',
@@ -39,6 +42,7 @@ export const usePuntoDeVentaTranslations = () => {
         productos: 'Products',
         ordenesCompra: 'Purchase Orders',
         descuentos: 'Discounts',
+        credito: 'Credit',
         kpis: 'KPIs',
       },
     },
@@ -47,6 +51,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Sistema de faturação e gestão de vendas',
       back: 'Voltar',
       tabs: {
+        sale: 'Venda',
         cortes: 'Cortes',
         facturacion: 'Faturação',
         inventario: 'Inventário',
@@ -58,6 +63,7 @@ export const usePuntoDeVentaTranslations = () => {
         productos: 'Produtos',
         ordenesCompra: 'Ordens de Compra',
         descuentos: 'Descontos',
+        credito: 'Crédito',
         kpis: 'KPIs',
       },
     },
@@ -66,6 +72,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Système de facturation et gestion des ventes',
       back: 'Retour',
       tabs: {
+        sale: 'Vente',
         cortes: 'Coupes de caisse',
         facturacion: 'Facturation',
         inventario: 'Inventaire',
@@ -77,6 +84,7 @@ export const usePuntoDeVentaTranslations = () => {
         productos: 'Produits',
         ordenesCompra: 'Bons de Commande',
         descuentos: 'Remises',
+        credito: 'Crédit',
         kpis: 'KPIs',
       },
     },
@@ -85,6 +93,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Abrechnungssystem und Verkaufsverwaltung',
       back: 'Zurück',
       tabs: {
+        sale: 'Verkauf',
         cortes: 'Kassenabschlüsse',
         facturacion: 'Abrechnung',
         inventario: 'Inventar',
@@ -96,6 +105,7 @@ export const usePuntoDeVentaTranslations = () => {
         productos: 'Produkte',
         ordenesCompra: 'Bestellungen',
         descuentos: 'Rabatte',
+        credito: 'Kredit',
         kpis: 'KPIs',
       },
     },
@@ -104,6 +114,7 @@ export const usePuntoDeVentaTranslations = () => {
       subtitle: 'Sistema di fatturazione e gestione vendite',
       back: 'Indietro',
       tabs: {
+        sale: 'Vendita',
         cortes: 'Chiusure di Cassa',
         facturacion: 'Fatturazione',
         inventario: 'Inventario',
@@ -115,6 +126,7 @@ export const usePuntoDeVentaTranslations = () => {
         productos: 'Prodotti',
         ordenesCompra: 'Ordini di Acquisto',
         descuentos: 'Sconti',
+        credito: 'Credito',
         kpis: 'KPIs',
       },
     },

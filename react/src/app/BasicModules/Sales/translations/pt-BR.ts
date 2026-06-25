@@ -14,6 +14,7 @@ export const ptBR = {
     cotizacion: 'Cotações',
     sales: 'Vendas',
     productos: 'Produtos',
+    proveedores: 'Fornecedores',
     inventario: 'Inventário',
     contrato: 'Contratos',
     postventa: 'Pós-venda',

@@ -10,6 +10,7 @@ export interface ConfigCenterCurrentUser {
   primer_nombre?: string;
   apellido_paterno?: string;
   telefono?: string;
+  phone_numbers?: ConfigCenterPhoneNumber[];
   country?: string;
   preferred_language?: string;
   avatar_url?: string;
@@ -18,10 +19,19 @@ export interface ConfigCenterCurrentUser {
   role?: string | null;
 }
 
+export interface ConfigCenterPhoneNumber {
+  id?: number;
+  label: string;
+  phone: string;
+  country?: string | null;
+  is_primary?: boolean;
+}
+
 export interface SaveCurrentUserPayload {
   primer_nombre: string;
   apellido_paterno: string;
   telefono?: string;
+  phone_numbers?: ConfigCenterPhoneNumber[];
   country?: string;
   preferred_language?: string;
   avatar_object_key?: string;

@@ -11,6 +11,7 @@ interface CashPaymentModalProps {
 export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPayment }: CashPaymentModalProps) {
   const [amountPaid, setAmountPaid] = useState('');
   const [change, setChange] = useState(0);
+  const [error, setError] = useState('');
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -40,12 +41,13 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
   const handleConfirm = () => {
     const paid = parseFloat(amountPaid) || 0;
     if (paid < totalAmount) {
-      alert('El monto pagado no puede ser menor al total');
+      setError('El monto pagado no puede ser menor al total.');
       return;
     }
     onConfirmPayment(paid, change);
     setAmountPaid('');
     setChange(0);
+    setError('');
   };
 
   if (!isOpen) return null;
@@ -71,6 +73,12 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
           {/* Total to Pay */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total a cobrar</p>

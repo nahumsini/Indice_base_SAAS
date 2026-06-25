@@ -16,8 +16,8 @@ export type CreateContactInput = Omit<SalesContact, 'id'>;
 export type UpdateContactInput = Partial<Omit<SalesContact, 'id'>>;
 export type CreateOpportunityInput = Omit<SalesOpportunity, 'id'>;
 export type UpdateOpportunityInput = Partial<Omit<SalesOpportunity, 'id'>>;
-export type CreateProductInput = Omit<SalesCatalogItem, 'id' | 'lastUpdated'> & { lastUpdated?: string };
-export type UpdateProductInput = Partial<Omit<SalesCatalogItem, 'id'>>;
+export type CreateProductInput = Omit<SalesCatalogItem, 'id' | 'backendId' | 'productCode' | 'lastUpdated'> & { lastUpdated?: string };
+export type UpdateProductInput = Partial<Omit<SalesCatalogItem, 'id' | 'backendId'>>;
 export type CreateQuoteInput = Omit<SalesQuote, 'id' | 'quoteNumber' | 'lastUpdated'> & {
   quoteNumber?: string;
   lastUpdated?: string;
@@ -41,6 +41,9 @@ export type SalesCrmContextValue = {
   deleteOpportunity: (opportunityId: string) => void;
   addProduct: (product: CreateProductInput) => SalesCatalogItem;
   updateProduct: (productId: string, patch: UpdateProductInput) => void;
+  createProductRecord: (product: CreateProductInput) => Promise<SalesCatalogItem>;
+  updateProductRecord: (productId: string, patch: UpdateProductInput) => Promise<SalesCatalogItem>;
+  reloadProducts: () => Promise<void>;
   addQuote: (quote: CreateQuoteInput) => SalesQuote;
   updateQuote: (quoteId: string, patch: UpdateQuoteInput) => void;
   addSaleRecord: (saleRecord: SaleRecord) => void;

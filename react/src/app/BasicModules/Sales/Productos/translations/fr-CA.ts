@@ -92,6 +92,7 @@ export const frCA = {
   labels: {
     price: 'Prix',
     cost: 'Cout',
+    currency: 'Devise',
     margin: 'Marge',
     profit: 'Profit',
     status: 'Statut',
@@ -407,6 +408,8 @@ export const frCA = {
     editTitle: 'Modifier l article',
     description: 'Ajoutez un bloc commercial reutilisable pour devis, PDV et futures connexions d inventaire.',
     editDescription: 'Mettez a jour l information commerciale, visuelle et operationnelle de cet article.',
+    validationMissingRequired: (fields: string) => `Completez les champs obligatoires avant d enregistrer : ${fields}.`,
+    saveFailed: 'Impossible d enregistrer l article. Revisez les informations requises et reessayez.',
     fields: {
       name: 'Nom du produit ou service',
       sku: 'SKU / code interne',

@@ -64,12 +64,17 @@ export function normalizeScheduleHourInput(value: string) {
     return null;
   }
 
-  const [rawHour] = value.split(':');
+  const [rawHour, rawMinute = '00'] = value.split(':');
   const hour = Number(rawHour);
+  const minute = Number(rawMinute);
 
-  if (!Number.isFinite(hour)) {
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) {
     return null;
   }
 
-  return `${String(Math.max(0, Math.min(23, hour))).padStart(2, '0')}:00`;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }

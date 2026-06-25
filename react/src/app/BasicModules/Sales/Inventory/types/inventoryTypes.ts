@@ -88,6 +88,7 @@ export type InventoryWarehouse = {
   businessId?: string;
   businessName?: string;
   jurisdiction: string;
+  responsibleUserId?: string;
   responsibleName: string;
   addressNote?: string;
   status: InventoryWarehouseStatus;
@@ -95,6 +96,7 @@ export type InventoryWarehouse = {
 };
 
 export type InventoryWarehouseDistribution = {
+  balanceId?: string;
   warehouseId: string;
   warehouseName: string;
   available: number;

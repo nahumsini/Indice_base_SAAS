@@ -14,7 +14,7 @@ export function QuoteCatalogSection({
 }: {
   products: SalesCatalogItem[];
   t: QuotesTranslations;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number, currency?: string | null) => string;
   onAddProduct: (product: SalesCatalogItem) => void;
 }) {
   const [showNotReady, setShowNotReady] = useState(false);

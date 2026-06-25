@@ -19,6 +19,7 @@ export const esMX = {
     subtitle: 'Controla ventas ganadas, evidencia de pago, validaciones, preparación de inventario y comisiones.',
     columnsAction: 'Columnas',
     commissionRulesAction: 'Commission Rules',
+    preferredCurrencyAction: 'Divisa preferida',
     primaryAction: 'Nueva venta',
   },
   filters: {
@@ -26,6 +27,17 @@ export const esMX = {
     title: 'Filtros',
     search: 'Buscar',
     searchPlaceholder: 'Buscar venta, cotización, cliente, vendedor, pago, unidad o negocio',
+    focus: 'Enfoque',
+    focusOptions: {
+      all: 'Todas',
+      open: 'Abiertas',
+      pendingFinance: 'Finanzas pendientes',
+      pendingInventory: 'Inventario pendiente',
+      toDeliver: 'Por entregar',
+      delivered: 'Entregadas',
+      cancelled: 'Canceladas',
+      atRisk: 'Clientes en riesgo',
+    },
     businessUnit: 'Unidad de negocio',
     business: 'Negocio',
     period: 'Periodo',
@@ -62,6 +74,71 @@ export const esMX = {
     pendingInventoryMovement: 'Movimiento pendiente',
     deliveredSales: 'Ventas entregadas',
   },
+  kpiEngine: {
+    labels: {
+      visibleRevenue: 'ingreso preferido',
+      visibleSales: 'visibles',
+      openSales: 'abiertas',
+      deliveredSales: 'entregadas',
+      financePending: 'finanzas pendientes',
+      inventoryPending: 'inventario pendiente',
+      deliveryProgress: 'avance de entrega',
+    },
+    alerts: {
+      financePending: (count: number) => `${count} finanzas pendientes`,
+      inventoryPending: (count: number) => `${count} inventario pendiente`,
+      customersAtRisk: (count: number) => `${count} clientes en riesgo`,
+      nativeCurrencyTotal: (label: string) => `Total nativo ${label}`,
+    },
+    segments: {
+      active: 'Activas',
+      pendingFinance: 'Finanzas',
+      pendingInventory: 'Inventario',
+      delivered: 'Entregadas',
+      cancelled: 'Canceladas',
+    },
+    insight: ({
+      customersAtRisk,
+      delivered,
+      pendingFinance,
+      pendingInventory,
+      progress,
+      preferredCurrency,
+      nativeTotal,
+      exchangeRateDate,
+      total,
+      visible,
+    }: {
+      customersAtRisk: number;
+      delivered: number;
+      pendingFinance: number;
+      pendingInventory: number;
+      progress: number;
+      preferredCurrency: string;
+      nativeTotal: string;
+      exchangeRateDate: string;
+      total: number;
+      visible: number;
+    }) => {
+      if (visible === 0) {
+        return 'No hay ventas visibles con los filtros actuales; ajusta la vista antes de tomar acción.';
+      }
+
+      if (pendingFinance > 0) {
+        return `${pendingFinance} ventas necesitan validación financiera antes de avanzar inventario o cierre operativo.`;
+      }
+
+      if (pendingInventory > 0) {
+        return `${pendingInventory} ventas necesitan preparación de inventario antes de continuar la entrega.`;
+      }
+
+      if (customersAtRisk > 0) {
+        return `${customersAtRisk} clientes en riesgo requieren seguimiento antes de debilitar la salud postventa.`;
+      }
+
+      return `${delivered} ventas están entregadas con ${progress}% de avance sobre ${visible} de ${total} registros visibles. Totales en ${preferredCurrency} usando tipo de cambio por fecha de venta${exchangeRateDate ? ` hasta ${exchangeRateDate}` : ''}; total nativo: ${nativeTotal}.`;
+    },
+  },
   insight: {
     summary: (totalAmount: string, recurringRevenue: string, customersAtRisk: number, visible: number, total: number) => (
       `Mostrando ${visible} ventas · ${totalAmount} de ingresos · ${recurringRevenue} recurrentes · ${customersAtRisk} clientes en riesgo · mostrando ${visible} de ${total}.`
@@ -71,8 +148,17 @@ export const esMX = {
     ...enCA.table,
     emptyTitle: 'No se encontraron ventas',
     emptyDescription: 'Ajusta filtros o crea una venta desde una cotización aceptada.',
+    resizeColumn: (column: string) => `Redimensionar columna ${column}`,
+    selection: {
+      selectVisible: 'Seleccionar ventas visibles',
+      selectSale: (saleNumber: string) => `Seleccionar venta ${saleNumber}`,
+    },
+    bulkActions: {
+      selected: (count: number) => `${count} seleccionadas`,
+      clear: 'Limpiar selección',
+    },
     actions: {
-      previewSummary: 'Vista previa del resumen',
+      previewSummary: 'Vista previa de invoice',
       manageCommission: 'Gestionar comisión',
       exportSummary: 'Exportar resumen de venta',
       prepareMovement: 'Preparar traspaso a inventario',
@@ -117,11 +203,13 @@ export const esMX = {
     detailTitle: 'Detalle de venta',
     description: 'Revisa el cierre comercial y el traspaso operativo.',
     quoteHelper: 'Las ventas normalmente deben generarse desde cotizaciones aceptadas.',
+    opportunitySelectorHelper: 'Empieza por la oportunidad y confirma la cotización aceptada que autoriza la venta.',
     quoteSelectorHelper: 'Elige primero una cotización aceptada para precargar cliente, vendedor y monto.',
     quoteFallbackHelper: 'Aún no hay cotizaciones aceptadas, por eso se muestran todas para este flujo de preparación.',
     generatedFromQuote: (quoteNumber: string, notes?: string) => (
       notes ? `Generada desde ${quoteNumber}. ${notes}` : `Generada desde ${quoteNumber}.`
     ),
+    generatedFromOpportunity: (opportunityName: string) => `Preparada desde la oportunidad ${opportunityName}. Selecciona una cotización aceptada para completar la venta.`,
     validationTitle: 'Completa la venta antes de guardar',
     validationErrors: {
       missingCustomer: 'Selecciona una cotización o cliente para conservar la relación comercial.',
@@ -137,8 +225,10 @@ export const esMX = {
     },
     inventoryHelper: 'Inventario controla la ejecución de stock. Este registro de venta solo prepara el traspaso.',
     inventoryExecutionHelper: 'Inventario valida la ejecución de stock después del cierre comercial. Desde esta pantalla no se descuenta inventario.',
+    itemsHelper: 'Las partidas se heredan de la cotización aceptada para que el invoice respete el documento comercial autorizado.',
+    reviewHelper: 'Confirma totales visibles para cliente y contexto operativo antes de guardar la venta.',
     acceptedQuoteBadge: 'Aceptada',
-    previewSaleSummary: 'Vista previa del resumen',
+    previewSaleSummary: 'Vista previa de invoice',
     summaryDocumentTitle: 'Resumen de venta',
     summaryDocumentSubtitle: 'Resumen del traspaso comercial generado desde una cotización ganada.',
     summaryDocumentEyebrow: 'Resumen de venta',
@@ -150,10 +240,22 @@ export const esMX = {
       tax: 'Impuesto',
       total: 'Total',
     },
+    tabs: {
+      customer: 'Cliente y venta',
+      items: 'Partidas',
+      inventory: 'Inventario',
+      payment: 'Pago',
+      review: 'Revisión final',
+    },
     sections: {
       ...enCA.modal.sections,
       general: 'General',
+      closeSource: 'Oportunidad y cotización',
+      commercialClose: 'Cierre comercial',
+      items: 'Partidas cotizadas',
+      operationalReadiness: 'Preparación operativa',
       payment: 'Pago',
+      review: 'Revisión final',
       validation: 'Validación',
       inventory: 'Inventario',
       operationalContext: 'Contexto operativo',
@@ -163,6 +265,7 @@ export const esMX = {
     },
     fields: {
       ...enCA.modal.fields,
+      opportunitySelector: 'Oportunidad',
       quoteSelector: 'Cotización',
       quoteReference: 'Referencia de cotización',
       saleDocumentReference: 'Referencia del documento de venta',
@@ -174,6 +277,7 @@ export const esMX = {
       nextFollowUpDate: 'Último / próximo seguimiento',
       renewalDate: 'Fecha de renovación',
       totalAmount: 'Monto total',
+      taxTotal: 'Impuesto',
       currency: 'Moneda',
       paymentMethod: 'Método de pago',
       paymentReference: 'Referencia de pago',
@@ -196,6 +300,7 @@ export const esMX = {
     },
     postSaleSnapshotHelper: 'Contexto de ciclo del cliente desde Postventa para entender continuidad sin salir de Ventas.',
     placeholders: {
+      opportunitySelector: 'Selecciona una oportunidad',
       quoteSelector: 'Selecciona una cotización aceptada',
       quoteReference: 'Q-2026-000',
       saleDocumentReference: 'Se genera al guardar',
@@ -212,6 +317,27 @@ export const esMX = {
       fiscalAddress: 'Dirección fiscal',
       taxIdentifier: 'Identificación fiscal',
       defaultWarehouse: 'Almacén predeterminado',
+    },
+    workspace: {
+      summaryTitle: 'Resumen vivo de venta',
+      summarySubtitle: 'Salud del cierre, monto cotizado y preparación operativa antes de guardar.',
+      readinessTitle: 'Preparación operativa',
+      noOpportunitySelected: 'Selecciona primero una oportunidad para heredar cliente y contexto comercial.',
+      noApprovedQuoteForOpportunity: 'Esta oportunidad todavía no tiene una cotización aprobada. Aprueba una cotización antes de convertirla en venta.',
+      approvedQuotesAvailable: (count: number) => `${count} cotización${count === 1 ? '' : 'es'} aprobada${count === 1 ? '' : 's'} disponible${count === 1 ? '' : 's'} para esta oportunidad.`,
+      noLinkedQuotes: 'Sin cotizaciones ligadas',
+      noItems: 'Selecciona una cotización aceptada con partidas antes de guardar esta venta.',
+      opportunityLoaded: 'Oportunidad cargada',
+      opportunityPending: 'Oportunidad pendiente',
+      quoteReady: 'Cotización lista',
+      quotePending: 'Cotización pendiente',
+      nextAction: 'Siguiente acción',
+      nextActionReady: 'Revisa el pago y guarda la venta para activar finanzas, inventario y postventa.',
+      nextActionNeedsQuote: 'Selecciona una cotización aprobada ligada a la oportunidad antes de guardar la venta.',
+      itemsLabel: 'Partidas',
+      opportunityStage: 'Etapa de oportunidad',
+      opportunityValue: 'Valor de oportunidad',
+      expirationDate: 'Vigencia de cotización',
     },
   },
   statuses: {
@@ -269,11 +395,55 @@ export const esMX = {
     notesPlaceholder: 'Contexto de comisión, notas de aprobación o momento de pago.',
     save: 'Guardar comisión',
   },
+  commissions: {
+    ...enCA.commissions,
+    kpiEngine: {
+      labels: {
+        visible: 'visibles',
+        totalCommissions: 'comisiones totales',
+        pending: 'pendientes',
+        approved: 'aprobadas',
+        paid: 'pagadas',
+        commissionRate: 'tasa promedio',
+      },
+      alerts: {
+        pending: (count: number) => `${count} comisiones pendientes`,
+        cancelled: (count: number) => `${count} comisiones canceladas`,
+      },
+      segments: {
+        pending: 'Pendientes',
+        approved: 'Aprobadas',
+        paid: 'Pagadas',
+        cancelled: 'Canceladas',
+      },
+      insight: ({
+        count,
+        paid,
+        pending,
+        rate,
+      }: {
+        count: number;
+        paid: number;
+        pending: number;
+        rate: string;
+      }) => {
+        if (count === 0) {
+          return 'No hay comisiones visibles con los filtros actuales; ajusta la vista o revisa las reglas.';
+        }
+
+        if (pending > 0) {
+          return `${pending} comisiones necesitan aprobación o seguimiento de pago antes de cerrar el ciclo.`;
+        }
+
+        return `${paid} comisiones están pagadas con una tasa promedio de ${rate}.`;
+      },
+    },
+  },
   summaryPreview: {
-    title: 'Resumen de venta',
-    description: 'Vista previa del resumen operativo antes de ejecutar inventario, finanzas y postventa.',
+    title: 'Vista previa de invoice',
+    description: 'Revisa el documento visible para cliente antes de imprimirlo o compartirlo.',
     noProducts: 'No hay líneas de producto disponibles desde la cotización seleccionada.',
-    footerNote: 'Esta es una vista operativa para ejecución interna, no un documento fiscal.',
+    footerNote: 'El invoice se prepara localmente desde la venta y el contexto de negocio asignado.',
     sections: {
       general: 'General',
       products: 'Productos',
@@ -283,6 +453,27 @@ export const esMX = {
       validation: 'Estado de validación',
       commission: 'Resumen de comisión',
     },
+  },
+  invoice: {
+    documentTitle: 'Invoice',
+    documentLabel: 'Documento comercial',
+    subtitle: 'Documento de venta para cliente generado desde una cotización aceptada y la unidad de negocio asignada.',
+    number: 'Folio de invoice',
+    generated: 'Generado',
+    billTo: 'Facturar a',
+    issuedBy: 'Emitido por',
+    itemsTitle: 'Partidas facturadas',
+    subtotal: 'Subtotal',
+    discount: 'Descuento',
+    total: 'Total',
+    registry: 'Registro',
+    taxSummary: 'Resumen de impuestos',
+    defaultNotes: 'Gracias por su compra.',
+    disclaimerTitle: 'Nota del documento',
+    disclaimerBody: 'Este invoice comercial genérico resume la venta. El cumplimiento fiscal/electrónico depende de la entidad legal configurada y de la integración fiscal local.',
+    download: 'Descargar PDF',
+    print: 'Imprimir',
+    pageLabel: (page: number, total: number) => `Página ${page} de ${total}`,
   },
   guidance: {
     title: 'Guía operativa',

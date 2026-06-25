@@ -4,6 +4,7 @@ export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled' |
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskType = 'task' | 'project-task' | 'process';
 export type TaskAuditStatus = 'not_ready' | 'pending' | 'audited';
+export type TaskDependencyType = 'finish_to_start';
 
 export interface TaskRecord {
   id: number;
@@ -57,6 +58,12 @@ export interface TaskRecord {
   creator: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  predecessorDependencyId: number | null;
+  predecessorTaskId: number | null;
+  predecessorTaskFolio: string | null;
+  predecessorTaskTitle: string | null;
+  dependencyType: TaskDependencyType | null;
+  dependencyLagDays: number;
   attachments: number;
 }
 
@@ -85,6 +92,12 @@ export interface TaskAgendaPlacementPayload {
   agendaStartTime: string | null;
   agendaEndTime?: string | null;
   agendaTimeZone?: string | null;
+}
+
+export interface TaskDependencyPayload {
+  predecessorTaskId: number | null;
+  dependencyType?: TaskDependencyType;
+  lagDays?: number;
 }
 
 export interface TaskAttachmentRecord {
@@ -206,6 +219,12 @@ export function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     creator: record.creator ?? record.createdByName ?? null,
     createdAt: record.createdAt ?? null,
     updatedAt: record.updatedAt ?? null,
+    predecessorDependencyId: record.predecessorDependencyId ?? null,
+    predecessorTaskId: record.predecessorTaskId ?? null,
+    predecessorTaskFolio: record.predecessorTaskFolio ?? null,
+    predecessorTaskTitle: record.predecessorTaskTitle ?? null,
+    dependencyType: (record.dependencyType as TaskDependencyType | null | undefined) ?? null,
+    dependencyLagDays: Number(record.dependencyLagDays ?? 0),
     attachments: Number(record.attachments ?? 0),
   };
 }
@@ -261,6 +280,15 @@ export async function updateProcessTask(taskId: number, payload: TaskPayload) {
 export async function updateProcessTaskAgendaPlacement(taskId: number, payload: TaskAgendaPlacementPayload) {
   const response = await apiClient<Partial<TaskRecord>>(`/api/v1/process-tasks/${taskId}/agenda-placement`, {
     method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeTaskRecord(response);
+}
+
+export async function updateProcessTaskDependencies(taskId: number, payload: TaskDependencyPayload) {
+  const response = await apiClient<Partial<TaskRecord>>(`/api/v1/process-tasks/${taskId}/dependencies`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   });
 

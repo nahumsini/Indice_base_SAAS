@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
-  AuditPendingStatusFilter,
-  DisplayTaskStatus,
-  OpenStatusFilter,
+  AgendaFocusFilter,
+  AgendaStatus,
   OptionFilter,
   PeriodFilter,
   StatusFilter,
 } from '../types';
 import {
   addDays,
+  dateInputValueToDate,
   endOfMonth,
   endOfWeek,
   isDateInputValue,
@@ -17,23 +17,23 @@ import {
   toDateInputValue,
 } from '../utils/agendaDateUtils';
 
-export const agendaStatusFilterValues: Array<DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter> = [
-  'open',
+export const agendaStatusFilterValues: AgendaStatus[] = [
   'pending',
   'in_progress',
   'paused',
   'completed',
-  'pending_audit',
-  'audited',
   'overdue',
-  'cancelled',
+  'audited',
 ];
 
-const agendaPeriodFilterValues: PeriodFilter[] = ['mine', 'delegated', 'team', 'week', 'month', 'overdue', 'custom'];
+const agendaPeriodFilterValues: PeriodFilter[] = ['all', 'today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
+export const agendaFocusFilterValues: AgendaFocusFilter[] = ['mine', 'delegated', 'team'];
 const agendaFiltersStorageKey = 'processes-tasks-agenda-filters-v1';
-const allPastStartDate = '1970-01-01';
+const agendaTodayLookbackDays = 365;
+const agendaAllRange = { from: '1900-01-01', to: '2999-12-31' };
 
 type StoredAgendaFilters = {
+  focus?: AgendaFocusFilter;
   period?: PeriodFilter;
   status?: StatusFilter;
   unit?: OptionFilter;
@@ -48,23 +48,64 @@ function isAgendaPeriodFilter(value: string | null | undefined): value is Period
   return agendaPeriodFilterValues.includes(value as PeriodFilter);
 }
 
+function isAgendaFocusFilter(value: string | null | undefined): value is AgendaFocusFilter {
+  return agendaFocusFilterValues.includes(value as AgendaFocusFilter);
+}
+
 function isAgendaStatusFilter(value: string | null | undefined): value is StatusFilter {
-  return (
-    value === 'all' ||
-    agendaStatusFilterValues.includes(value as DisplayTaskStatus | OpenStatusFilter | AuditPendingStatusFilter)
-  );
+  return value === 'all' || agendaStatusFilterValues.includes(value as AgendaStatus);
+}
+
+function normalizeLegacyStatus(value: string | null | undefined): StatusFilter | null {
+  if (isAgendaStatusFilter(value)) {
+    return value;
+  }
+
+  switch (value) {
+    case 'pending_audit':
+      return 'completed';
+    case 'open':
+    case 'cancelled':
+      return 'all';
+    default:
+      return null;
+  }
+}
+
+function normalizeLegacyFocus(
+  period: string | null | undefined,
+  focus: string | null | undefined,
+): AgendaFocusFilter | null {
+  if (isAgendaFocusFilter(focus)) {
+    return focus;
+  }
+
+  switch (period) {
+    case 'mine':
+      return 'mine';
+    case 'delegated':
+      return 'delegated';
+    case 'team':
+    case 'overdue':
+    case 'pendingAudit':
+      return 'team';
+    default:
+      return null;
+  }
 }
 
 function agendaDeepLinkFilters(search: string) {
   const params = new URLSearchParams(search);
   const period = params.get('period');
+  const focus = params.get('focus');
   const status = params.get('status');
   const from = params.get('from');
   const to = params.get('to');
 
   return {
+    focus: normalizeLegacyFocus(period, focus),
     period: isAgendaPeriodFilter(period) ? period : null,
-    status: isAgendaStatusFilter(status) ? status : null,
+    status: normalizeLegacyStatus(status),
     unit: params.get('unit'),
     business: params.get('business'),
     collaborator: params.get('collaborator'),
@@ -86,11 +127,14 @@ function getStoredAgendaFilters(): StoredAgendaFilters {
 
     const parsedFilters = JSON.parse(rawFilters) as Partial<Record<keyof StoredAgendaFilters, string>>;
     const period = parsedFilters.period;
+    const focus = parsedFilters.focus;
     const status = parsedFilters.status;
+    const legacyFocus = normalizeLegacyFocus(period, focus);
 
     return {
+      focus: legacyFocus ?? undefined,
       period: isAgendaPeriodFilter(period) ? period : undefined,
-      status: isAgendaStatusFilter(status) ? status : undefined,
+      status: normalizeLegacyStatus(status) ?? undefined,
       unit: parsedFilters.unit || undefined,
       business: parsedFilters.business || undefined,
       project: parsedFilters.project || undefined,
@@ -107,17 +151,27 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
   const today = new Date();
 
   switch (period) {
-    case 'delegated':
+    case 'all':
+      return agendaAllRange;
+    case 'today':
       return {
-        from: allPastStartDate,
-        to: '2099-12-31',
-      };
-    case 'mine':
-    case 'team':
-      return {
-        from: allPastStartDate,
+        from: toDateInputValue(addDays(today, -agendaTodayLookbackDays)),
         to: toDateInputValue(today),
       };
+    case 'tomorrow': {
+      const tomorrow = addDays(today, 1);
+      return {
+        from: toDateInputValue(tomorrow),
+        to: toDateInputValue(tomorrow),
+      };
+    }
+    case 'yesterday': {
+      const yesterday = addDays(today, -1);
+      return {
+        from: toDateInputValue(addDays(yesterday, -agendaTodayLookbackDays)),
+        to: toDateInputValue(yesterday),
+      };
+    }
     case 'week':
       return {
         from: toDateInputValue(startOfWeek(today)),
@@ -128,12 +182,14 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
         from: toDateInputValue(startOfMonth(today)),
         to: toDateInputValue(endOfMonth(today)),
       };
-    case 'overdue':
-      return {
-        from: allPastStartDate,
-        to: toDateInputValue(addDays(today, -1)),
-      };
     case 'custom':
+      if (customTo < toDateInputValue(today)) {
+        return {
+          from: toDateInputValue(addDays(dateInputValueToDate(customFrom), -agendaTodayLookbackDays)),
+          to: customTo,
+        };
+      }
+
       return {
         from: customFrom,
         to: customTo,
@@ -145,7 +201,10 @@ export function useAgendaFilters(search: string) {
   const initialDeepLinkFilters = useMemo(() => agendaDeepLinkFilters(search), []);
   const storedAgendaFilters = useMemo(() => getStoredAgendaFilters(), []);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(
-    initialDeepLinkFilters.period ?? storedAgendaFilters.period ?? 'mine',
+    initialDeepLinkFilters.period ?? storedAgendaFilters.period ?? 'today',
+  );
+  const [focusFilter, setFocusFilter] = useState<AgendaFocusFilter>(
+    initialDeepLinkFilters.focus ?? storedAgendaFilters.focus ?? 'mine',
   );
   const [customDateFrom, setCustomDateFrom] = useState(
     () => initialDeepLinkFilters.from ?? storedAgendaFilters.customDateFrom ?? toDateInputValue(new Date()),
@@ -178,6 +237,9 @@ export function useAgendaFilters(search: string) {
     if (filters.period) {
       setPeriodFilter(filters.period);
     }
+    if (filters.focus) {
+      setFocusFilter(filters.focus);
+    }
     if (filters.from) {
       setCustomDateFrom(filters.from);
     }
@@ -207,6 +269,7 @@ export function useAgendaFilters(search: string) {
       agendaFiltersStorageKey,
       JSON.stringify({
         period: periodFilter,
+        focus: focusFilter,
         status: statusFilter,
         unit: unitFilter,
         business: businessFilter,
@@ -221,6 +284,7 @@ export function useAgendaFilters(search: string) {
     collaboratorFilter,
     customDateFrom,
     customDateTo,
+    focusFilter,
     periodFilter,
     projectFilter,
     statusFilter,
@@ -261,12 +325,14 @@ export function useAgendaFilters(search: string) {
     collaboratorFilter,
     customDateFrom,
     customDateTo,
+    focusFilter,
     handleCustomDateFromChange,
     handleCustomDateToChange,
     periodFilter,
     projectFilter,
     setBusinessFilter,
     setCollaboratorFilter,
+    setFocusFilter,
     setPeriodFilter,
     setProjectFilter,
     setStatusFilter,

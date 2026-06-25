@@ -1,13 +1,11 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { Link2 } from 'lucide-react';
+import { Button } from '../../../../components/ui/button';
+import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
 import type { ProductsTranslations } from '../translations';
 import { PublicCatalogLinkPanel } from './PublicCatalogLinkPanel';
 import type { PublicCatalogConfig } from './types/publicCatalogTypes';
+
+const linkActionClassNames = getSalesModalActionClassNames('coral');
 
 export function PublicCatalogLinkModal({
   catalog,
@@ -29,16 +27,28 @@ export function PublicCatalogLinkModal({
   onDownloadQr: () => void;
 }) {
   return (
-    <Dialog open={Boolean(catalog)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto rounded-xl border-slate-200 p-0 sm:max-w-[460px]">
-        <DialogHeader className="border-b border-slate-200 px-5 py-4">
-          <DialogTitle className="text-xl font-black text-slate-950">{t.publicCatalog.linkSection}</DialogTitle>
-          <DialogDescription className="font-semibold text-slate-500">
-            {catalog?.title ?? t.publicCatalog.publicCatalog}
-          </DialogDescription>
-        </DialogHeader>
+    <SalesModalFrame
+      open={Boolean(catalog)}
+      onOpenChange={onOpenChange}
+      title={t.publicCatalog.linkSection}
+      description={catalog?.title ?? t.publicCatalog.publicCatalog}
+      icon={<Link2 className="h-6 w-6" />}
+      contentClassName="sm:max-w-[460px]"
+      bodyClassName="p-0"
+      footerClassName="sm:justify-end"
+      footer={(
+        <Button
+          type="button"
+          variant="outline"
+          className={linkActionClassNames.secondary}
+          onClick={() => onOpenChange(false)}
+        >
+          {t.common.close}
+        </Button>
+      )}
+    >
         {catalog ? (
-          <div className="p-5">
+          <div className="min-h-0 overflow-y-auto bg-slate-50/70 p-5">
             <PublicCatalogLinkPanel
               catalog={catalog}
               t={t}
@@ -50,7 +60,6 @@ export function PublicCatalogLinkModal({
             />
           </div>
         ) : null}
-      </DialogContent>
-    </Dialog>
+    </SalesModalFrame>
   );
 }

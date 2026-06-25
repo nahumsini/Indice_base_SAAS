@@ -15,6 +15,7 @@ export const enCA = {
     subtitle: 'Track won sales, payment evidence, validation progress, inventory readiness, and commissions.',
     columnsAction: 'Columns',
     commissionRulesAction: 'Commission Rules',
+    preferredCurrencyAction: 'Preferred currency',
     primaryAction: 'New Sale',
   },
   viewSwitcher: {
@@ -25,6 +26,17 @@ export const enCA = {
     title: 'Filters',
     search: 'Search',
     searchPlaceholder: 'Search sale, quote, customer, seller, payment reference, unit or business',
+    focus: 'Focus',
+    focusOptions: {
+      all: 'All sales',
+      open: 'Open sales',
+      pendingFinance: 'Finance pending',
+      pendingInventory: 'Inventory pending',
+      toDeliver: 'To deliver',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+      atRisk: 'Customers at risk',
+    },
     businessUnit: 'Business Unit',
     business: 'Business',
     period: 'Period',
@@ -60,6 +72,71 @@ export const enCA = {
     pendingInventoryMovement: 'Pending Inventory Movement',
     deliveredSales: 'Delivered Sales',
   },
+  kpiEngine: {
+    labels: {
+      visibleRevenue: 'preferred revenue',
+      visibleSales: 'visible',
+      openSales: 'open',
+      deliveredSales: 'delivered',
+      financePending: 'finance pending',
+      inventoryPending: 'inventory pending',
+      deliveryProgress: 'delivery progress',
+    },
+    alerts: {
+      financePending: (count: number) => `${count} finance pending`,
+      inventoryPending: (count: number) => `${count} inventory pending`,
+      customersAtRisk: (count: number) => `${count} customers at risk`,
+      nativeCurrencyTotal: (label: string) => `Native total ${label}`,
+    },
+    segments: {
+      active: 'Active',
+      pendingFinance: 'Finance',
+      pendingInventory: 'Inventory',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+    },
+    insight: ({
+      customersAtRisk,
+      delivered,
+      pendingFinance,
+      pendingInventory,
+      progress,
+      preferredCurrency,
+      nativeTotal,
+      exchangeRateDate,
+      total,
+      visible,
+    }: {
+      customersAtRisk: number;
+      delivered: number;
+      pendingFinance: number;
+      pendingInventory: number;
+      progress: number;
+      preferredCurrency: string;
+      nativeTotal: string;
+      exchangeRateDate: string;
+      total: number;
+      visible: number;
+    }) => {
+      if (visible === 0) {
+        return 'No visible sales match the current filters; adjust the view before taking action.';
+      }
+
+      if (pendingFinance > 0) {
+        return `${pendingFinance} sales need finance validation before inventory or closure can move cleanly.`;
+      }
+
+      if (pendingInventory > 0) {
+        return `${pendingInventory} sales need inventory handoff preparation before fulfillment continues.`;
+      }
+
+      if (customersAtRisk > 0) {
+        return `${customersAtRisk} customers at risk need follow-up before post-sale health weakens.`;
+      }
+
+      return `${delivered} sales are delivered with ${progress}% delivery progress across ${visible} of ${total} visible records. Totals are shown in ${preferredCurrency} using sale-date rates${exchangeRateDate ? ` through ${exchangeRateDate}` : ''}; native total: ${nativeTotal}.`;
+    },
+  },
   insight: {
     summary: (totalAmount: string, recurringRevenue: string, customersAtRisk: number, visible: number, total: number) => (
       `Showing ${visible} sales · ${totalAmount} total revenue · ${recurringRevenue} recurring revenue · ${customersAtRisk} customers at risk · showing ${visible} of ${total}.`
@@ -68,8 +145,17 @@ export const enCA = {
   table: {
     emptyTitle: 'No sales found',
     emptyDescription: 'Adjust filters or create a sales record from an accepted quote.',
+    resizeColumn: (column: string) => `Resize ${column} column`,
+    selection: {
+      selectVisible: 'Select visible sales',
+      selectSale: (saleNumber: string) => `Select sale ${saleNumber}`,
+    },
+    bulkActions: {
+      selected: (count: number) => `${count} selected`,
+      clear: 'Clear selection',
+    },
     actions: {
-      previewSummary: 'Preview sale summary',
+      previewSummary: 'Preview invoice',
       manageCommission: 'Manage commission',
       exportSummary: 'Export sale summary',
       prepareMovement: 'Prepare inventory handoff',
@@ -129,11 +215,13 @@ export const enCA = {
     detailTitle: 'Sale detail',
     description: 'Review the commercial closure and the operational handoff.',
     quoteHelper: 'Sales should normally be generated from accepted quotes.',
+    opportunitySelectorHelper: 'Start with the opportunity, then confirm the accepted quote that authorizes the sale.',
     quoteSelectorHelper: 'Choose an accepted quote first so the sale can inherit customer, seller, and amount context.',
     quoteFallbackHelper: 'No accepted quotes are available yet, so all quotes are shown for this preparation flow.',
     generatedFromQuote: (quoteNumber: string, notes?: string) => (
       notes ? `Generated from ${quoteNumber}. ${notes}` : `Generated from ${quoteNumber}.`
     ),
+    generatedFromOpportunity: (opportunityName: string) => `Prepared from opportunity ${opportunityName}. Select an accepted quote to complete the sale.`,
     validationTitle: 'Complete the sale before saving',
     validationErrors: {
       missingCustomer: 'Select a quote or customer so the sale keeps its customer relationship.',
@@ -149,8 +237,10 @@ export const enCA = {
     },
     inventoryHelper: 'Inventory controls stock execution. This sales record only prepares the handoff.',
     inventoryExecutionHelper: 'Inventory validates stock execution after commercial closure. No stock is deducted from this screen.',
+    itemsHelper: 'Items are inherited from the accepted quote so the invoice matches the authorized commercial document.',
+    reviewHelper: 'Confirm customer-facing totals and operational context before saving the sale.',
     acceptedQuoteBadge: 'Accepted',
-    previewSaleSummary: 'Preview sale summary',
+    previewSaleSummary: 'Preview invoice',
     summaryDocumentTitle: 'Sale Summary',
     summaryDocumentSubtitle: 'Commercial handoff summary generated from a won quote.',
     summaryDocumentEyebrow: 'Sales summary',
@@ -162,9 +252,21 @@ export const enCA = {
       tax: 'Tax',
       total: 'Total',
     },
+    tabs: {
+      customer: 'Customer and sale',
+      items: 'Line items',
+      inventory: 'Inventory',
+      payment: 'Payment',
+      review: 'Final review',
+    },
     sections: {
       general: 'General',
+      closeSource: 'Opportunity and quote',
+      commercialClose: 'Commercial closure',
+      items: 'Quoted items',
+      operationalReadiness: 'Operational readiness',
       payment: 'Payment',
+      review: 'Final review',
       validation: 'Validation',
       inventory: 'Inventory',
       operationalContext: 'Operational Context',
@@ -174,6 +276,7 @@ export const enCA = {
       notes: 'Notes',
     },
     fields: {
+      opportunitySelector: 'Opportunity',
       quoteSelector: 'Quote',
       quoteReference: 'Quote reference',
       saleDocumentReference: 'Sale document reference',
@@ -185,6 +288,7 @@ export const enCA = {
       nextFollowUpDate: 'Last / next follow-up',
       renewalDate: 'Renewal date',
       totalAmount: 'Total amount',
+      taxTotal: 'Tax',
       currency: 'Currency',
       paymentMethod: 'Payment method',
       paymentReference: 'Payment reference',
@@ -208,6 +312,7 @@ export const enCA = {
     postSaleSnapshotHelper: 'Read-only customer lifecycle context from Post Sale so the sales team can understand continuity without leaving Sales.',
     commissionBreakdownHelper: 'Read-only commission records generated from this sale and current frontend rules.',
     placeholders: {
+      opportunitySelector: 'Select an opportunity',
       quoteSelector: 'Select an accepted quote',
       quoteReference: 'Q-2026-000',
       saleDocumentReference: 'Generated after saving',
@@ -224,6 +329,27 @@ export const enCA = {
       fiscalAddress: 'Fiscal Address',
       taxIdentifier: 'Tax Identifier',
       defaultWarehouse: 'Default Warehouse',
+    },
+    workspace: {
+      summaryTitle: 'Live sale summary',
+      summarySubtitle: 'Close health, quote amount, and handoff readiness before saving.',
+      readinessTitle: 'Operational readiness',
+      noOpportunitySelected: 'Select an opportunity first so the sale can inherit customer and commercial context.',
+      noApprovedQuoteForOpportunity: 'This opportunity does not have an approved quote yet. Approve a quote before converting it into a sale.',
+      approvedQuotesAvailable: (count: number) => `${count} approved quote${count === 1 ? '' : 's'} available for this opportunity.`,
+      noLinkedQuotes: 'No linked quotes',
+      noItems: 'Select an accepted quote with line items before saving this sale.',
+      opportunityLoaded: 'Opportunity loaded',
+      opportunityPending: 'Opportunity pending',
+      quoteReady: 'Quote ready',
+      quotePending: 'Quote pending',
+      nextAction: 'Next action',
+      nextActionReady: 'Review payment details and save the sale to hand off finance, inventory, and post-sale execution.',
+      nextActionNeedsQuote: 'Select an approved quote linked to the opportunity before saving the sale.',
+      itemsLabel: 'Items',
+      opportunityStage: 'Opportunity stage',
+      opportunityValue: 'Opportunity value',
+      expirationDate: 'Quote validity',
     },
   },
   statuses: {
@@ -308,6 +434,47 @@ export const enCA = {
       approved: 'Approved',
       paid: 'Paid',
       commissionRate: 'Commission Rate',
+    },
+    kpiEngine: {
+      labels: {
+        visible: 'visible',
+        totalCommissions: 'total commissions',
+        pending: 'pending',
+        approved: 'approved',
+        paid: 'paid',
+        commissionRate: 'average rate',
+      },
+      alerts: {
+        pending: (count: number) => `${count} commissions pending approval`,
+        cancelled: (count: number) => `${count} cancelled commissions`,
+      },
+      segments: {
+        pending: 'Pending',
+        approved: 'Approved',
+        paid: 'Paid',
+        cancelled: 'Cancelled',
+      },
+      insight: ({
+        count,
+        pending,
+        paid,
+        rate,
+      }: {
+        count: number;
+        pending: number;
+        paid: number;
+        rate: string;
+      }) => {
+        if (count === 0) {
+          return 'No visible commissions match the current filters; adjust the view or review commission rules.';
+        }
+
+        if (pending > 0) {
+          return `${pending} commissions need approval or payment follow-up before the cycle is closed.`;
+        }
+
+        return `${paid} commissions are paid with an average commission rate of ${rate}.`;
+      },
     },
     insight: {
       summary: (count: number, pending: string, paid: string, rate: string) => (
@@ -413,10 +580,10 @@ export const enCA = {
     },
   },
   summaryPreview: {
-    title: 'Sale Summary',
-    description: 'Preview the operational summary before inventory, finance, and after-sales execution.',
+    title: 'Invoice Preview',
+    description: 'Review the customer-facing invoice before printing or sharing it.',
     noProducts: 'No product lines are available from the selected quote.',
-    footerNote: 'This is an operational preview for internal execution, not a fiscal document.',
+    footerNote: 'The invoice is prepared locally from the sale and assigned business context.',
     sections: {
       general: 'General',
       products: 'Products',
@@ -426,6 +593,27 @@ export const enCA = {
       validation: 'Validation Status',
       commission: 'Commission Summary',
     },
+  },
+  invoice: {
+    documentTitle: 'Invoice',
+    documentLabel: 'Commercial invoice',
+    subtitle: 'Customer-facing sales document generated from an accepted quote and the assigned business unit.',
+    number: 'Invoice number',
+    generated: 'Generated',
+    billTo: 'Bill to',
+    issuedBy: 'Issued by',
+    itemsTitle: 'Invoiced items',
+    subtotal: 'Subtotal',
+    discount: 'Discount',
+    total: 'Total',
+    registry: 'Registry',
+    taxSummary: 'Tax summary',
+    defaultNotes: 'Thank you for your business.',
+    disclaimerTitle: 'Document note',
+    disclaimerBody: 'This generic commercial invoice summarizes the sale. Fiscal/e-invoicing compliance depends on the configured legal entity and local tax integration.',
+    download: 'Download PDF',
+    print: 'Print',
+    pageLabel: (page: number, total: number) => `Page ${page} of ${total}`,
   },
   guidance: {
     title: 'Operational guidance',

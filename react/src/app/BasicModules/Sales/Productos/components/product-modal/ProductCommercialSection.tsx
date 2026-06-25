@@ -2,6 +2,14 @@ import type { Dispatch, SetStateAction } from 'react';
 import { Calculator, CircleDollarSign } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../../../components/ui/select';
+import { salesCurrencyOptions } from '../../../utils/salesCurrency';
 import type { ProductsTranslations } from '../../translations';
 import type { ProductFormState } from '../../types/productosTypes';
 import { formatProductCurrency } from '../../utils/productFormatters';
@@ -89,7 +97,7 @@ export function ProductCommercialSection({
           />
           <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
             <p className="text-xs font-bold text-slate-500">{t.priceBuilder.totalCost}</p>
-            <p className="mt-1 text-xl font-black text-slate-950">{formatProductCurrency(pricing.totalCost)}</p>
+            <p className="mt-1 text-xl font-black text-slate-950">{formatProductCurrency(pricing.totalCost, form.currency)}</p>
           </div>
         </div>
 
@@ -102,7 +110,7 @@ export function ProductCommercialSection({
           />
           <div className="rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/10 p-3">
             <p className="text-xs font-bold text-[#177d66]">{t.priceBuilder.suggestedPrice}</p>
-            <p className="mt-1 text-xl font-black text-slate-950">{formatProductCurrency(pricing.suggestedPrice)}</p>
+            <p className="mt-1 text-xl font-black text-slate-950">{formatProductCurrency(pricing.suggestedPrice, form.currency)}</p>
           </div>
           <Button
             type="button"
@@ -117,6 +125,21 @@ export function ProductCommercialSection({
 
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
           <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{t.priceBuilder.finalBlock}</p>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">{t.labels.currency}</label>
+            <Select value={form.currency} onValueChange={(value) => onFormChange((current) => ({ ...current, currency: value }))}>
+              <SelectTrigger className={productFieldClassName}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {salesCurrencyOptions.map((option) => (
+                  <SelectItem key={option.code} value={option.code}>
+                    {option.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <ProductNumberField
             label={t.priceBuilder.finalSalePrice}
             value={form.price}

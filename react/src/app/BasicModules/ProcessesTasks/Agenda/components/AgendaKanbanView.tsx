@@ -3,20 +3,19 @@ import { Badge } from '../../../../components/ui/badge';
 import { cn } from '../../../../components/ui/utils';
 import type { AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
-import type { AgendaKanbanColumn, AgendaKanbanColumnId } from '../types';
+import type { AgendaKanbanColumn, AgendaKanbanColumnId, AgendaLoadRange, DisplayTaskStatus } from '../types';
 import { formatDate } from '../utils/agendaReports';
 import {
   clampPercent,
   formatWeightingScore,
   getTaskDisplayStatus,
-  getTaskKanbanColumnId,
 } from '../utils/agendaTaskStatus';
 import { TableActionButton } from './AgendaTablePrimitives';
 
 type AgendaKanbanViewProps = {
-  auditStatusClasses: Record<AgendaTaskItem['auditStatus'], string>;
   columns: AgendaKanbanColumn[];
   copy: AgendaTranslations;
+  displayStatusClasses: Record<DisplayTaskStatus, string>;
   draggingTaskId: number | null;
   isLoading: boolean;
   isTaskPending: (taskId: number) => boolean;
@@ -28,12 +27,14 @@ type AgendaKanbanViewProps = {
   onOpenAttachments: (task: AgendaTaskItem) => void;
   onSetDraggingTaskId: (taskId: number | null) => void;
   sortedTaskCount: number;
+  statusReferenceDate: string;
+  statusReferenceRange: AgendaLoadRange;
 };
 
 export function AgendaKanbanView({
-  auditStatusClasses,
   columns,
   copy,
+  displayStatusClasses,
   draggingTaskId,
   isLoading,
   isTaskPending,
@@ -45,6 +46,8 @@ export function AgendaKanbanView({
   onOpenAttachments,
   onSetDraggingTaskId,
   sortedTaskCount,
+  statusReferenceDate,
+  statusReferenceRange,
 }: AgendaKanbanViewProps) {
   return (
     <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -74,8 +77,8 @@ export function AgendaKanbanView({
           {copy.table.empty}
         </div>
       ) : (
-        <div className="overflow-x-auto bg-slate-50/70 p-4 dark:bg-slate-900/40">
-          <div className="grid min-w-[1820px] grid-cols-7 gap-4">
+        <div className="overflow-x-auto bg-slate-50/70 p-3 dark:bg-slate-900/40 sm:p-4">
+          <div className="grid auto-cols-[minmax(280px,82vw)] grid-flow-col gap-3 sm:auto-cols-[300px] lg:min-w-[1560px] lg:grid-flow-row lg:grid-cols-6 lg:gap-4">
             {columns.map((column) => {
               const columnTasks = kanbanTasksByColumn.get(column.id) ?? [];
               const draggedTaskIsActive = draggingTaskId != null && column.acceptsDrop;
@@ -84,7 +87,7 @@ export function AgendaKanbanView({
                 <section
                   key={column.id}
                   className={cn(
-                    'flex min-h-[520px] flex-col rounded-2xl border p-3 transition-colors',
+                    'flex min-h-[460px] flex-col rounded-2xl border p-3 transition-colors lg:min-h-[520px]',
                     column.accentClassName,
                     draggedTaskIsActive && 'ring-2 ring-[#F4C84A]/25',
                   )}
@@ -125,9 +128,8 @@ export function AgendaKanbanView({
 
                     {columnTasks.map((task) => {
                       const pending = isTaskPending(task.taskId);
-                      const taskColumnId = getTaskKanbanColumnId(task);
                       const taskIsDragging = draggingTaskId === task.taskId;
-                      const displayStatus = getTaskDisplayStatus(task);
+                      const displayStatus = getTaskDisplayStatus(task, statusReferenceDate, statusReferenceRange);
 
                       return (
                         <article
@@ -152,10 +154,10 @@ export function AgendaKanbanView({
                               variant="outline"
                               className={cn(
                                 'rounded-full px-2.5 py-1 text-xs font-semibold',
-                                auditStatusClasses[task.auditStatus],
+                                displayStatusClasses[displayStatus],
                               )}
                             >
-                              {taskColumnId === 'overdue' ? copy.statuses.overdue : copy.auditStatuses[task.auditStatus]}
+                              {copy.statuses[displayStatus]}
                             </Badge>
                           </div>
 

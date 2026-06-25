@@ -4,12 +4,14 @@ import { normalizeTextKey } from '../../utils/salesTextUtils';
 import { getCustomerLifecycleSignals } from '../../utils/customerLifecycle';
 import { validateSaleDraftForBackendReadiness } from '../../services/salesWorkflowBridge';
 import { useSalesCrm } from '../../salesCrmContext';
+import { defaultSalesCurrency } from '../../utils/salesCurrency';
 import { calculateCommissionAmount } from '../utils/salesFormatters';
 import { calculateSalesMetrics } from '../utils/salesMetrics';
 import { defaultVisibleSalesColumns } from '../utils/salesStatuses';
 
 const initialFilters: SalesFiltersState = {
   search: '',
+  focus: 'all',
   businessUnit: 'all',
   business: 'all',
   period: 'all',
@@ -76,6 +78,22 @@ function filterSalesRecords(
 
   return records.filter((record) => {
     const lifecycle = lifecycleByRecordId[record.id];
+    const isCancelled = record.commercialStatus === 'cancelled' || record.commercialStatus === 'rejected';
+    const isOpen = record.deliveryStatus !== 'delivered' && !isCancelled;
+    const focusMatches = (() => {
+      if (filters.focus === 'all') return true;
+      if (filters.focus === 'open') return isOpen;
+      if (filters.focus === 'pending_finance') return record.financeStatus === 'pending';
+      if (filters.focus === 'pending_inventory') {
+        return record.inventoryMovementStatus === 'pending'
+          || record.inventoryMovementStatus === 'not_generated'
+          || record.inventoryStatus === 'pending';
+      }
+      if (filters.focus === 'to_deliver') return !isCancelled && record.deliveryStatus !== 'delivered';
+      if (filters.focus === 'delivered') return record.deliveryStatus === 'delivered';
+      if (filters.focus === 'cancelled') return isCancelled;
+      return ['at_risk', 'lost'].includes(lifecycle?.health ?? '');
+    })();
     const searchable = normalizeTextKey([
       record.saleNumber,
       record.quoteReference,
@@ -92,6 +110,7 @@ function filterSalesRecords(
     ].join(' '));
 
     return (!query || searchable.includes(query))
+      && focusMatches
       && matchesFilter(record.businessUnitId ?? '', filters.businessUnit)
       && matchesFilter(record.businessId ?? '', filters.business)
       && isWithinSelectedPeriod(record.saleDate, filters.period)
@@ -135,7 +154,7 @@ function uniqueBusinesses(records: SaleRecord[]) {
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function useSalesRecords() {
+export function useSalesRecords(preferredCurrency = defaultSalesCurrency) {
   const {
     salesRecords: records,
     postSaleCases,
@@ -162,7 +181,10 @@ export function useSalesRecords() {
     [filters, lifecycleByRecordId, records],
   );
 
-  const metrics = useMemo(() => calculateSalesMetrics(filteredRecords, lifecycleByRecordId), [filteredRecords, lifecycleByRecordId]);
+  const metrics = useMemo(
+    () => calculateSalesMetrics(filteredRecords, lifecycleByRecordId, preferredCurrency),
+    [filteredRecords, lifecycleByRecordId, preferredCurrency],
+  );
   const sellers = useMemo(() => uniqueOptions(records.map((record) => record.sellerName)), [records]);
   const customers = useMemo(() => uniqueOptions(records.map((record) => record.customerName)), [records]);
   const businessUnits = useMemo(() => uniqueBusinessUnits(records), [records]);

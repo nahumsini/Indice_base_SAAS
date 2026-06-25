@@ -25,7 +25,7 @@ function FilterSelect({
     <div className="space-y-2">
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -63,7 +63,7 @@ export function CommissionFilters({
   const statuses: CommissionStatus[] = ['pending', 'approved', 'paid', 'cancelled'];
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.commissions.filters.title}</h3>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-2 xl:col-span-2">
@@ -74,7 +74,7 @@ export function CommissionFilters({
               value={filters.search}
               onChange={(event) => updateFilter('search', event.target.value)}
               placeholder={t.commissions.filters.searchPlaceholder}
-              className="h-11 rounded-lg border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="h-11 rounded-xl border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </div>
         </div>

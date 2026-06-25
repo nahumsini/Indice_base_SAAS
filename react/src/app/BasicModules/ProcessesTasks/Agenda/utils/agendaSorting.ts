@@ -1,7 +1,7 @@
 import type { TaskPriority } from '../../Tasks/tasksApi';
 import type { AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
-import type { AgendaColumnId, AgendaSortDirection, AgendaSortValue } from '../types';
+import type { AgendaColumnId, AgendaLoadRange, AgendaSortDirection, AgendaSortValue } from '../types';
 import { getTaskScheduleHour } from './agendaScheduleUtils';
 import { clampPercent, getTaskDisplayStatus } from './agendaTaskStatus';
 
@@ -33,6 +33,8 @@ export function getAgendaSortValue(
   columnId: AgendaColumnId,
   copy: AgendaTranslations,
   todayValue?: string,
+  agendaStatusDate?: string,
+  agendaStatusRange?: AgendaLoadRange,
 ): AgendaSortValue {
   switch (columnId) {
     case 'folio':
@@ -53,10 +55,12 @@ export function getAgendaSortValue(
       return sortableDateValue(task.startDate);
     case 'dueDate':
       return sortableDateValue(task.dueDate);
+    case 'predecessor':
+      return task.predecessorTaskFolio ?? task.predecessorTaskTitle ?? '';
     case 'agendaTime':
       return getTaskScheduleHour(task, todayValue) ?? null;
     case 'status':
-      return copy.statuses[getTaskDisplayStatus(task)];
+      return copy.statuses[getTaskDisplayStatus(task, agendaStatusDate, agendaStatusRange)];
     case 'creator':
       return task.createdByName ?? task.creator ?? '';
     case 'responsible':
