@@ -15,6 +15,7 @@ public final class ConfigCenterUserMutationGuard {
         "human_resources.announcements",
         "human_resources.assets",
         "human_resources.attendance",
+        "human_resources.control",
         "human_resources.permissions",
         "human_resources.records"
     );
