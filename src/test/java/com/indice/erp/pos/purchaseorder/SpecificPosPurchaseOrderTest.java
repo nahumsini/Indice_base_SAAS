@@ -3,7 +3,9 @@ package com.indice.erp.pos.purchaseorder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +20,8 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveIt
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
+import com.indice.erp.storage.ObjectStorageProperties;
+import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,11 +32,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class SpecificPosPurchaseOrderTest {
 
     @Mock PurchaseOrderRepository repository;
+    @Mock ObjectStorageService objectStorageService;
 
     @Test
     void createOrderLinksProductsToProvider() {
@@ -42,8 +48,9 @@ class SpecificPosPurchaseOrderTest {
         when(repository.findProduct(context(), 700L)).thenReturn(Optional.of(product()));
         when(repository.nextOrderFolio(context())).thenReturn("PO-2026-0001");
         when(repository.insertOrder(eq(context()), any(), any(), eq(PurchaseOrderStatus.DRAFT),
-            eq("PO-2026-0001"), eq("MXN"), eq(LocalDate.parse("2026-06-25")),
-            eq("Comprar para sucursal"), any(), any(), any(), any())).thenReturn(99L);
+            eq(PurchaseOrderOrigin.POS_REPLENISHMENT), isNull(), eq("PO-2026-0001"), eq("MXN"),
+            eq(LocalDate.parse("2026-06-25")), eq("Comprar para sucursal"), any(), any(), any(),
+            anyList())).thenReturn(99L);
         when(repository.findOrder(context(), 99L)).thenReturn(Optional.of(order(PurchaseOrderStatus.DRAFT, 300L)));
 
         service.createOrder(context(), createRequest());
@@ -90,7 +97,12 @@ class SpecificPosPurchaseOrderTest {
     }
 
     private PurchaseOrderService service() {
-        return new PurchaseOrderService(repository);
+        return new PurchaseOrderService(
+            repository,
+            new BCryptPasswordEncoder(),
+            objectStorageService,
+            new ObjectStorageProperties()
+        );
     }
 
     private PosContext context() {
@@ -102,6 +114,7 @@ class SpecificPosPurchaseOrderTest {
             300L,
             30L,
             "MXN",
+            PurchaseOrderOrigin.POS_REPLENISHMENT,
             LocalDate.parse("2026-06-25"),
             "Comprar para sucursal",
             List.of(new PurchaseOrderItemRequest(
@@ -157,6 +170,8 @@ class SpecificPosPurchaseOrderTest {
             "proveedor@example.com",
             "PO-2026-0001",
             status,
+            PurchaseOrderOrigin.POS_REPLENISHMENT,
+            null,
             "MXN",
             new BigDecimal("136.5000"),
             new BigDecimal("21.8400"),

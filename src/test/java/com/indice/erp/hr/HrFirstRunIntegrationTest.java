@@ -2626,7 +2626,7 @@ class HrFirstRunIntegrationTest {
         session.setAttribute(SessionAuthService.SESSION_USER_ID, 1L);
         session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 1L);
         session.setAttribute(SessionAuthService.SESSION_USER_NAME, "Usuario Demo");
-        session.setAttribute(SessionAuthService.SESSION_ROLE, "admin");
+        session.setAttribute(SessionAuthService.SESSION_ROLE, "superadmin");
         return session;
     }
 

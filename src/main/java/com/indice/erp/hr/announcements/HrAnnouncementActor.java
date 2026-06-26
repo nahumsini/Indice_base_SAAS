@@ -16,6 +16,9 @@ public record HrAnnouncementActor(
     boolean managementAccess
 ) {
     public HrOperationalScope operationalScope() {
+        if ("root".equals(role) || "superadmin".equals(role)) {
+            return HrOperationalScope.corporateOffice();
+        }
         return HrOperationalScope.businessOffice(unitId, businessId);
     }
 

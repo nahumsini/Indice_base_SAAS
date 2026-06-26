@@ -75,6 +75,7 @@ public class HrAnnouncementSecurityService {
                 LEFT JOIN user_work_profiles wp
                   ON wp.user_company_id = uc.id
                  AND wp.company_id = uc.company_id
+                 AND LOWER(COALESCE(wp.status, 'active')) IN ('active', 'activo')
                 WHERE uc.user_id = ?
                   AND uc.company_id = ?
                   AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
