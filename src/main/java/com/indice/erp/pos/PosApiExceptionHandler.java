@@ -1,5 +1,6 @@
 package com.indice.erp.pos;
 
+import com.indice.erp.storage.ObjectStorageException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -40,5 +41,10 @@ public class PosApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<?> handleDataIntegrity(DataIntegrityViolationException ex) {
         return ResponseEntity.status(409).body(Map.of("message", "POS record conflicts with existing data."));
+    }
+
+    @ExceptionHandler(ObjectStorageException.class)
+    public ResponseEntity<?> handleObjectStorage(ObjectStorageException ex) {
+        return ResponseEntity.status(503).body(Map.of("message", ex.getMessage()));
     }
 }

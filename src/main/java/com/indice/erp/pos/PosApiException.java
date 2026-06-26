@@ -30,4 +30,8 @@ public class PosApiException extends RuntimeException {
     public static PosApiException conflict(String message) {
         return new PosApiException(HttpStatus.CONFLICT, message);
     }
+
+    public static PosApiException serviceUnavailable(String message) {
+        return new PosApiException(HttpStatus.SERVICE_UNAVAILABLE, message);
+    }
 }

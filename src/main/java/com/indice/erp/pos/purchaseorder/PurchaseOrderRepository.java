@@ -11,6 +11,13 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderItemRespo
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceResponse;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessResponse;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalCatalogProduct;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionCreateRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionItemRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionItemResponse;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionResponse;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Statement;
@@ -132,6 +139,7 @@ public class PurchaseOrderRepository {
     public List<PurchaseOrderResponse> listOrders(
             PosContext context,
             PurchaseOrderStatus status,
+            PurchaseOrderOrigin origin,
             Long providerId,
             Long warehouseId,
             LocalDate dateFrom,
@@ -144,6 +152,10 @@ public class PurchaseOrderRepository {
         if (status != null) {
             sql.append(" AND po.status = ?");
             params.add(status.name());
+        }
+        if (origin != null) {
+            sql.append(" AND po.origin = ?");
+            params.add(origin.name());
         }
         if (providerId != null) {
             sql.append(" AND po.provider_id = ?");
@@ -182,6 +194,8 @@ public class PurchaseOrderRepository {
             WarehouseRef warehouse,
             ProviderRef provider,
             PurchaseOrderStatus status,
+            PurchaseOrderOrigin origin,
+            Long sourceSubmissionId,
             String folio,
             String currencyCode,
             LocalDate expectedDate,
@@ -194,10 +208,10 @@ public class PurchaseOrderRepository {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                 INSERT INTO pos_purchase_orders
-                (company_id, unit_id, business_id, warehouse_id, provider_id, folio, status,
-                 currency_code, subtotal_amount, tax_amount, total_amount, expected_date,
+                (company_id, unit_id, business_id, warehouse_id, provider_id, folio, status, origin,
+                 source_submission_id, currency_code, subtotal_amount, tax_amount, total_amount, expected_date,
                  notes, created_by_user_id, metadata_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, context.companyId());
             statement.setObject(2, warehouse.unitId());
@@ -206,14 +220,21 @@ public class PurchaseOrderRepository {
             statement.setLong(5, provider.id());
             statement.setString(6, folio);
             statement.setString(7, status.name());
-            statement.setString(8, normalizedCurrency(currencyCode));
-            statement.setBigDecimal(9, subtotal);
-            statement.setBigDecimal(10, taxes);
-            statement.setBigDecimal(11, total);
-            statement.setObject(12, expectedDate == null ? null : Date.valueOf(expectedDate));
-            statement.setString(13, trimToNull(notes));
-            statement.setLong(14, context.userId());
-            statement.setString(15, PosJsonSupport.toJson(Map.of("source", "POS_REPLENISHMENT")));
+            statement.setString(8, origin.name());
+            statement.setObject(9, sourceSubmissionId);
+            statement.setString(10, normalizedCurrency(currencyCode));
+            statement.setBigDecimal(11, subtotal);
+            statement.setBigDecimal(12, taxes);
+            statement.setBigDecimal(13, total);
+            statement.setObject(14, expectedDate == null ? null : Date.valueOf(expectedDate));
+            statement.setString(15, trimToNull(notes));
+            statement.setLong(16, context.userId());
+            var metadata = new LinkedHashMap<String, Object>();
+            metadata.put("source", origin.name());
+            if (sourceSubmissionId != null) {
+                metadata.put("sourceSubmissionId", sourceSubmissionId);
+            }
+            statement.setString(17, PosJsonSupport.toJson(metadata));
             return statement;
         }, keyHolder);
 
@@ -228,7 +249,7 @@ public class PurchaseOrderRepository {
         var timestampColumn = switch (status) {
             case REQUESTED -> "ordered_at";
             case APPROVED -> "approved_at";
-            case SENT -> "sent_at";
+            case ISSUED, SENT, CONFIRMED -> "sent_at";
             case RECEIVED -> "received_at";
             case CANCELLED -> "cancelled_at";
             default -> null;
@@ -393,6 +414,260 @@ public class PurchaseOrderRepository {
                 ? PurchaseOrderStatus.PARTIALLY_RECEIVED
                 : PurchaseOrderStatus.SENT;
         updateStatus(context, orderId, status, null);
+    }
+
+    public List<SupplierSubmissionResponse> listSupplierSubmissions(
+            PosContext context,
+            SupplierSubmissionStatus status,
+            Long providerId,
+            LocalDate dateFrom,
+            LocalDate dateTo) {
+        var params = scopedParams(context, "provider");
+        var sql = new StringBuilder(supplierSubmissionSelect()).append("""
+            WHERE submission.company_id = ? AND submission.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()));
+        if (status != null) {
+            sql.append(" AND submission.status = ?");
+            params.add(status.name());
+        }
+        if (providerId != null) {
+            sql.append(" AND submission.provider_id = ?");
+            params.add(providerId);
+        }
+        if (dateFrom != null) {
+            sql.append(" AND DATE(submission.created_at) >= ?");
+            params.add(Date.valueOf(dateFrom));
+        }
+        if (dateTo != null) {
+            sql.append(" AND DATE(submission.created_at) <= ?");
+            params.add(Date.valueOf(dateTo));
+        }
+        sql.append(" ORDER BY submission.created_at DESC, submission.id DESC");
+
+        var submissions = jdbcTemplate.query(sql.toString(), this::mapSupplierSubmission, params.toArray());
+        return attachSubmissionItems(context, submissions);
+    }
+
+    public Optional<SupplierSubmissionResponse> findSupplierSubmission(PosContext context, long submissionId) {
+        var params = scopedParams(context, "provider");
+        params.add(1, submissionId);
+        var submissions = jdbcTemplate.query(supplierSubmissionSelect() + """
+            WHERE submission.company_id = ? AND submission.id = ? AND submission.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
+            """, this::mapSupplierSubmission, params.toArray());
+        return attachSubmissionItems(context, submissions).stream().findFirst();
+    }
+
+    public long insertSupplierSubmission(
+            PosContext context,
+            ProviderRef provider,
+            SupplierSubmissionCreateRequest request,
+            String submissionNumber,
+            BigDecimal subtotal,
+            BigDecimal tax,
+            BigDecimal total,
+            List<SupplierSubmissionLineCommand> items) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement("""
+                INSERT INTO pos_supplier_submissions
+                (company_id, provider_id, portal_access_id, submission_number, status, currency_code,
+                 subtotal_amount, tax_amount, total_amount, submitted_by_name, submitted_by_email,
+                 submitted_at, notes, metadata_json)
+                VALUES (?, ?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+                """, Statement.RETURN_GENERATED_KEYS);
+            statement.setLong(1, context.companyId());
+            statement.setLong(2, provider.id());
+            statement.setObject(3, request.portalAccessId());
+            statement.setString(4, submissionNumber);
+            statement.setString(5, normalizedCurrency(request.currencyCode()));
+            statement.setBigDecimal(6, subtotal);
+            statement.setBigDecimal(7, tax);
+            statement.setBigDecimal(8, total);
+            statement.setString(9, trimToNull(request.submittedByName()));
+            statement.setString(10, trimToNull(request.submittedByEmail()));
+            statement.setString(11, trimToNull(request.notes()));
+            var metadata = new LinkedHashMap<String, Object>();
+            metadata.put("source", "SUPPLIER_SUBMISSION");
+            metadata.put("providerId", provider.id());
+            statement.setString(12, PosJsonSupport.toJson(metadata));
+            return statement;
+        }, keyHolder);
+
+        var submissionId = keyHolder.getKey().longValue();
+        for (var item : items) {
+            insertSupplierSubmissionItem(context, submissionId, item);
+        }
+        return submissionId;
+    }
+
+    public boolean updateSupplierSubmissionStatus(
+            PosContext context,
+            long submissionId,
+            SupplierSubmissionStatus status,
+            String reviewNote) {
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_submissions
+            SET status = ?, reviewed_by_user_id = ?, reviewed_at = CURRENT_TIMESTAMP,
+                review_note = COALESCE(NULLIF(?, ''), review_note)
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """,
+            status.name(),
+            context.userId(),
+            trimToNull(reviewNote),
+            context.companyId(),
+            submissionId
+        ) > 0;
+    }
+
+    public void markSupplierSubmissionConverted(PosContext context, long submissionId, long purchaseOrderId) {
+        jdbcTemplate.update("""
+            UPDATE pos_supplier_submissions
+            SET status = 'CONVERTED_TO_PURCHASE_ORDER',
+                converted_purchase_order_id = ?,
+                reviewed_by_user_id = COALESCE(reviewed_by_user_id, ?),
+                reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP)
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """,
+            purchaseOrderId,
+            context.userId(),
+            context.companyId(),
+            submissionId
+        );
+        jdbcTemplate.update("""
+            UPDATE pos_supplier_submission_items
+            SET status = 'CONVERTED'
+            WHERE company_id = ? AND submission_id = ? AND status <> 'REJECTED'
+            """, context.companyId(), submissionId);
+    }
+
+    public boolean portalAccessBelongsToProvider(PosContext context, long portalAccessId, long providerId) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM pos_supplier_portal_access
+            WHERE company_id = ? AND id = ? AND provider_id = ?
+              AND deleted_at IS NULL
+              AND status = 'ACTIVE'
+            """, Long.class, context.companyId(), portalAccessId, providerId);
+        return count != null && count > 0;
+    }
+
+    public List<SupplierPortalAccessResponse> listSupplierPortalAccess(PosContext context) {
+        var params = scopedParams(context, "provider");
+        return jdbcTemplate.query("""
+            SELECT access.*, provider.name AS provider_name, provider.email AS provider_email
+            FROM pos_supplier_portal_access access
+            JOIN finance_providers provider ON provider.id = access.provider_id
+            WHERE access.company_id = ? AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
+            ORDER BY access.created_at DESC, access.id DESC
+            """, this::mapSupplierPortalAccess, params.toArray());
+    }
+
+    public long insertSupplierPortalAccess(
+            PosContext context,
+            SupplierPortalAccessRequest request,
+            String portalCode,
+            String pinHash) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement("""
+                INSERT INTO pos_supplier_portal_access
+                (company_id, provider_id, portal_code, pin_hash, status, allowed_capabilities_json,
+                 expires_at, created_by_user_id, updated_by_user_id, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, Statement.RETURN_GENERATED_KEYS);
+            statement.setLong(1, context.companyId());
+            statement.setLong(2, request.providerId());
+            statement.setString(3, portalCode);
+            statement.setString(4, pinHash);
+            statement.setString(5, normalizePortalStatus(request.status()));
+            statement.setString(6, PosJsonSupport.toJson(List.of("SUPPLIER_SUBMISSION")));
+            statement.setObject(7, request.expiresAt() == null ? null : java.sql.Timestamp.from(request.expiresAt()));
+            statement.setLong(8, context.userId());
+            statement.setLong(9, context.userId());
+            statement.setString(10, PosJsonSupport.toJson(Map.of("source", "POS_SUPPLIER_PORTAL")));
+            return statement;
+        }, keyHolder);
+        return keyHolder.getKey().longValue();
+    }
+
+    public Optional<SupplierPortalAccessResponse> findSupplierPortalAccess(PosContext context, long accessId) {
+        var params = scopedParams(context, "provider");
+        params.add(1, accessId);
+        return jdbcTemplate.query("""
+            SELECT access.*, provider.name AS provider_name, provider.email AS provider_email
+            FROM pos_supplier_portal_access access
+            JOIN finance_providers provider ON provider.id = access.provider_id
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
+            """, this::mapSupplierPortalAccess, params.toArray()).stream().findFirst();
+    }
+
+    public Optional<SupplierPortalAccessRecord> findSupplierPortalAccessByCode(String portalCode) {
+        return jdbcTemplate.query("""
+            SELECT access.*, provider.name AS provider_name, provider.email AS provider_email
+            FROM pos_supplier_portal_access access
+            JOIN finance_providers provider ON provider.id = access.provider_id
+            WHERE access.portal_code = ? AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+            """, (rs, rowNum) -> new SupplierPortalAccessRecord(
+            rs.getLong("id"),
+            rs.getLong("company_id"),
+            rs.getLong("provider_id"),
+            rs.getString("provider_name"),
+            rs.getString("provider_email"),
+            rs.getString("portal_code"),
+            rs.getString("pin_hash"),
+            rs.getString("status"),
+            instant(rs, "expires_at")
+        ), normalizePortalCode(portalCode)).stream().findFirst();
+    }
+
+    public boolean supplierPortalCodeExists(long companyId, String portalCode) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM pos_supplier_portal_access
+            WHERE portal_code = ? AND deleted_at IS NULL
+            """, Long.class, normalizePortalCode(portalCode));
+        return count != null && count > 0;
+    }
+
+    public List<SupplierPortalCatalogProduct> listSupplierPortalCatalogProducts(long companyId, long providerId) {
+        return jdbcTemplate.query("""
+            SELECT ps.product_id, product.name AS product_name, product.sku AS product_sku,
+                   ps.provider_sku, ps.cost_amount, ps.currency_code,
+                   ps.lead_time_days, ps.minimum_order_quantity
+            FROM pos_product_suppliers ps
+            JOIN sales_products product ON product.id = ps.product_id
+            WHERE ps.company_id = ? AND ps.provider_id = ?
+              AND ps.deleted_at IS NULL AND ps.is_active = TRUE
+              AND product.deleted_at IS NULL
+            ORDER BY ps.is_preferred DESC, product.name ASC
+            """, (rs, rowNum) -> new SupplierPortalCatalogProduct(
+            rs.getLong("product_id"),
+            rs.getString("product_name"),
+            rs.getString("product_sku"),
+            rs.getString("provider_sku"),
+            rs.getBigDecimal("cost_amount"),
+            rs.getString("currency_code"),
+            nullableInteger(rs, "lead_time_days"),
+            rs.getBigDecimal("minimum_order_quantity")
+        ), companyId, providerId);
+    }
+
+    public String nextSubmissionNumber(PosContext context) {
+        var year = LocalDate.now().getYear();
+        var prefix = "SUP-" + year + "-";
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM pos_supplier_submissions
+            WHERE company_id = ? AND submission_number LIKE ?
+            """, Long.class, context.companyId(), prefix + "%");
+        return prefix + String.format("%04d", (count == null ? 0 : count) + 1);
     }
 
     public long insertSupplierInvoice(PosContext context, SupplierInvoiceRequest request) {
@@ -562,6 +837,72 @@ public class PurchaseOrderRepository {
         );
     }
 
+    private void insertSupplierSubmissionItem(
+            PosContext context,
+            long submissionId,
+            SupplierSubmissionLineCommand item) {
+        jdbcTemplate.update("""
+            INSERT INTO pos_supplier_submission_items
+            (company_id, submission_id, product_id, provider_sku, product_name,
+             product_description, image_url, quantity, unit_cost_amount, tax_rate,
+             line_subtotal_amount, line_tax_amount, line_total_amount, lead_time_days,
+             minimum_order_quantity, status, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?)
+            """,
+            context.companyId(),
+            submissionId,
+            item.productId(),
+            item.providerSku(),
+            item.productName(),
+            item.productDescription(),
+            item.imageUrl(),
+            item.quantity(),
+            item.unitCost(),
+            item.taxRate(),
+            item.lineSubtotal(),
+            item.lineTax(),
+            item.lineTotal(),
+            item.leadTimeDays(),
+            item.minimumOrderQuantity(),
+            PosJsonSupport.toJson(Map.of("source", "SUPPLIER_SUBMISSION"))
+        );
+    }
+
+    private List<SupplierSubmissionResponse> attachSubmissionItems(
+            PosContext context,
+            List<SupplierSubmissionResponse> submissions) {
+        if (submissions.isEmpty()) {
+            return submissions;
+        }
+        var submissionIds = submissions.stream().map(SupplierSubmissionResponse::id).toList();
+        var placeholders = String.join(",", submissionIds.stream().map(id -> "?").toList());
+        var params = new ArrayList<Object>();
+        params.add(context.companyId());
+        params.addAll(submissionIds);
+        var items = jdbcTemplate.query("""
+            SELECT *
+            FROM pos_supplier_submission_items
+            WHERE company_id = ? AND submission_id IN (""" + placeholders + """
+            )
+            ORDER BY id ASC
+            """, this::mapSupplierSubmissionItemRow, params.toArray());
+        var bySubmission = new LinkedHashMap<Long, List<SupplierSubmissionItemResponse>>();
+        for (var item : items) {
+            bySubmission.computeIfAbsent(item.submissionId(), ignored -> new ArrayList<>()).add(item.response());
+        }
+        return submissions.stream()
+            .map(submission -> new SupplierSubmissionResponse(
+                submission.id(), submission.companyId(), submission.providerId(), submission.providerName(),
+                submission.providerEmail(), submission.portalAccessId(), submission.submissionNumber(),
+                submission.status(), submission.currencyCode(), submission.subtotalAmount(), submission.taxAmount(),
+                submission.totalAmount(), submission.submittedByName(), submission.submittedByEmail(),
+                submission.submittedAt(), submission.reviewedByUserId(), submission.reviewedAt(),
+                submission.reviewNote(), submission.convertedPurchaseOrderId(), submission.notes(),
+                submission.createdAt(), bySubmission.getOrDefault(submission.id(), List.of())
+            ))
+            .toList();
+    }
+
     private List<PurchaseOrderResponse> attachItems(PosContext context, List<PurchaseOrderResponse> orders) {
         if (orders.isEmpty()) {
             return orders;
@@ -585,10 +926,11 @@ public class PurchaseOrderRepository {
             .map(order -> new PurchaseOrderResponse(
                 order.id(), order.companyId(), order.unitId(), order.businessId(), order.warehouseId(),
                 order.warehouseName(), order.providerId(), order.providerName(), order.providerEmail(),
-                order.folio(), order.status(), order.currencyCode(), order.subtotalAmount(),
-                order.taxAmount(), order.totalAmount(), order.expectedDate(), order.orderedAt(),
-                order.approvedAt(), order.sentAt(), order.receivedAt(), order.cancelledAt(),
-                order.notes(), order.createdAt(), byOrder.getOrDefault(order.id(), List.of())
+                order.folio(), order.status(), order.origin(), order.sourceSubmissionId(),
+                order.currencyCode(), order.subtotalAmount(), order.taxAmount(), order.totalAmount(),
+                order.expectedDate(), order.orderedAt(), order.approvedAt(), order.sentAt(),
+                order.receivedAt(), order.cancelledAt(), order.notes(), order.createdAt(),
+                byOrder.getOrDefault(order.id(), List.of())
             ))
             .toList();
     }
@@ -606,6 +948,8 @@ public class PurchaseOrderRepository {
             rs.getString("provider_email"),
             rs.getString("folio"),
             PurchaseOrderStatus.valueOf(rs.getString("status")),
+            PurchaseOrderOrigin.valueOf(rs.getString("origin")),
+            PosSqlSupport.nullableLong(rs, "source_submission_id"),
             rs.getString("currency_code"),
             rs.getBigDecimal("subtotal_amount"),
             rs.getBigDecimal("tax_amount"),
@@ -642,6 +986,74 @@ public class PurchaseOrderRepository {
         return new OrderItemRow(rs.getLong("purchase_order_id"), response);
     }
 
+    private SupplierSubmissionResponse mapSupplierSubmission(java.sql.ResultSet rs, int rowNum)
+            throws java.sql.SQLException {
+        return new SupplierSubmissionResponse(
+            rs.getLong("id"),
+            rs.getLong("company_id"),
+            rs.getLong("provider_id"),
+            rs.getString("provider_name"),
+            rs.getString("provider_email"),
+            PosSqlSupport.nullableLong(rs, "portal_access_id"),
+            rs.getString("submission_number"),
+            SupplierSubmissionStatus.valueOf(rs.getString("status")),
+            rs.getString("currency_code"),
+            rs.getBigDecimal("subtotal_amount"),
+            rs.getBigDecimal("tax_amount"),
+            rs.getBigDecimal("total_amount"),
+            rs.getString("submitted_by_name"),
+            rs.getString("submitted_by_email"),
+            instant(rs, "submitted_at"),
+            PosSqlSupport.nullableLong(rs, "reviewed_by_user_id"),
+            instant(rs, "reviewed_at"),
+            rs.getString("review_note"),
+            PosSqlSupport.nullableLong(rs, "converted_purchase_order_id"),
+            rs.getString("notes"),
+            instant(rs, "created_at"),
+            List.of()
+        );
+    }
+
+    private SupplierPortalAccessResponse mapSupplierPortalAccess(java.sql.ResultSet rs, int rowNum)
+            throws java.sql.SQLException {
+        var portalCode = rs.getString("portal_code");
+        return new SupplierPortalAccessResponse(
+            rs.getLong("id"),
+            rs.getLong("provider_id"),
+            rs.getString("provider_name"),
+            rs.getString("provider_email"),
+            portalCode,
+            "/supplier-portal/" + portalCode,
+            rs.getString("status"),
+            instant(rs, "expires_at"),
+            instant(rs, "created_at"),
+            instant(rs, "updated_at")
+        );
+    }
+
+    private SupplierSubmissionItemRow mapSupplierSubmissionItemRow(java.sql.ResultSet rs, int rowNum)
+            throws java.sql.SQLException {
+        var response = new SupplierSubmissionItemResponse(
+            rs.getLong("id"),
+            PosSqlSupport.nullableLong(rs, "product_id"),
+            rs.getString("provider_sku"),
+            rs.getString("product_name"),
+            rs.getString("product_description"),
+            rs.getString("image_url"),
+            rs.getBigDecimal("quantity"),
+            rs.getBigDecimal("unit_cost_amount"),
+            rs.getBigDecimal("tax_rate"),
+            rs.getBigDecimal("line_subtotal_amount"),
+            rs.getBigDecimal("line_tax_amount"),
+            rs.getBigDecimal("line_total_amount"),
+            nullableInteger(rs, "lead_time_days"),
+            rs.getBigDecimal("minimum_order_quantity"),
+            SupplierSubmissionStatus.valueOf(rs.getString("status")),
+            rs.getString("review_note")
+        );
+        return new SupplierSubmissionItemRow(rs.getLong("submission_id"), response);
+    }
+
     private SupplierInvoiceResponse mapInvoice(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         return new SupplierInvoiceResponse(
             rs.getLong("id"),
@@ -674,6 +1086,14 @@ public class PurchaseOrderRepository {
             FROM pos_purchase_orders po
             JOIN sales_inventory_warehouses warehouse ON warehouse.id = po.warehouse_id
             JOIN finance_providers provider ON provider.id = po.provider_id
+            """;
+    }
+
+    private String supplierSubmissionSelect() {
+        return """
+            SELECT submission.*, provider.name AS provider_name, provider.email AS provider_email
+            FROM pos_supplier_submissions submission
+            JOIN finance_providers provider ON provider.id = submission.provider_id
             """;
     }
 
@@ -744,6 +1164,14 @@ public class PurchaseOrderRepository {
         return value == null || value.isBlank() ? "MXN" : value.trim().toUpperCase();
     }
 
+    private String normalizePortalStatus(String value) {
+        return value == null || value.isBlank() ? "ACTIVE" : value.trim().toUpperCase();
+    }
+
+    private String normalizePortalCode(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
+    }
+
     private String trimToNull(String value) {
         if (value == null) {
             return null;
@@ -761,6 +1189,19 @@ public class PurchaseOrderRepository {
     public record WarehouseRef(Long id, String name, Long unitId, Long businessId) {
     }
 
+    public record SupplierPortalAccessRecord(
+        Long id,
+        Long companyId,
+        Long providerId,
+        String providerName,
+        String providerEmail,
+        String portalCode,
+        String pinHash,
+        String status,
+        Instant expiresAt
+    ) {
+    }
+
     public record PurchaseOrderLineCommand(
         Long productId,
         String sku,
@@ -774,6 +1215,26 @@ public class PurchaseOrderRepository {
     ) {
     }
 
+    public record SupplierSubmissionLineCommand(
+        Long productId,
+        String providerSku,
+        String productName,
+        String productDescription,
+        String imageUrl,
+        BigDecimal quantity,
+        BigDecimal unitCost,
+        BigDecimal taxRate,
+        BigDecimal lineSubtotal,
+        BigDecimal lineTax,
+        BigDecimal lineTotal,
+        Integer leadTimeDays,
+        BigDecimal minimumOrderQuantity
+    ) {
+    }
+
     private record OrderItemRow(Long orderId, PurchaseOrderItemResponse response) {
+    }
+
+    private record SupplierSubmissionItemRow(Long submissionId, SupplierSubmissionItemResponse response) {
     }
 }

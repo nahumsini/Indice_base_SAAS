@@ -6,19 +6,33 @@ import { PurchaseOrderDetailModal } from './components/PurchaseOrderDetailModal'
 import { PurchaseOrderFiltersBar } from './components/PurchaseOrderFilters';
 import { PurchaseOrderHeader } from './components/PurchaseOrderHeader';
 import { PurchaseOrderKpis } from './components/PurchaseOrderKpis';
+import { PurchaseOrderViewSwitcher, type PurchaseOrderWorkspaceMode } from './components/PurchaseOrderViewSwitcher';
 import { PurchaseOrdersTable } from './components/PurchaseOrdersTable';
 import { ReceivePurchaseOrderModal } from './components/ReceivePurchaseOrderModal';
+import { SupplierSubmissionDetailModal } from './components/SupplierSubmissionDetailModal';
+import { SupplierSubmissionKpis } from './components/SupplierSubmissionKpis';
+import { SupplierSubmissionsTable } from './components/SupplierSubmissionsTable';
 import { SupplierInvoiceModal } from './components/SupplierInvoiceModal';
 import { SupplierInvoicesPanel } from './components/SupplierInvoicesPanel';
+import { SupplierPortalAccessModal } from './components/SupplierPortalAccessModal';
 import { usePurchaseOrderWorkspace } from './hooks/usePurchaseOrderWorkspace';
-import type { PurchaseOrder, SupplierInvoiceStatus } from './types/purchaseOrder.types';
+import type {
+  PurchaseOrder,
+  SupplierInvoiceStatus,
+  SupplierPortalAccessPayload,
+  SupplierSubmission,
+  SupplierSubmissionConvertPayload,
+  SupplierSubmissionReviewPayload,
+} from './types/purchaseOrder.types';
 
 export default function OrdenesCompra() {
   const { balanceLoadError, products, saleCurrency } = usePointOfSaleCatalogProducts();
   const {
     createOrder,
+    createSupplierPortalAccess,
     error,
     filteredOrders,
+    filteredSupplierSubmissions,
     filters,
     loading,
     notice,
@@ -27,18 +41,24 @@ export default function OrdenesCompra() {
     receiveOrder,
     reload,
     reviewSupplierInvoice,
+    reviewSupplierSubmission,
     saving,
     setFilters,
     setNotice,
     submitSupplierInvoice,
     supplierInvoices,
     supplierLinks,
+    supplierPortalAccess,
     warehouses,
+    convertSupplierSubmission,
   } = usePurchaseOrderWorkspace();
 
+  const [workspaceMode, setWorkspaceMode] = useState<PurchaseOrderWorkspaceMode>('orders');
   const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [showSupplierPortal, setShowSupplierPortal] = useState(false);
   const [showSupplierInvoice, setShowSupplierInvoice] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<SupplierSubmission | null>(null);
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
 
   const handleOrderAction = (order: PurchaseOrder, action: 'request' | 'approve' | 'send' | 'cancel') => {
@@ -50,11 +70,40 @@ export default function OrdenesCompra() {
     void reviewSupplierInvoice(invoiceId, status).catch(() => undefined);
   };
 
+  const handleSubmissionReview = async (
+    submissionId: number,
+    payload: SupplierSubmissionReviewPayload,
+  ) => {
+    const updated = await reviewSupplierSubmission(submissionId, payload);
+    setSelectedSubmission(updated);
+    return updated;
+  };
+
+  const handleSubmissionConvert = async (
+    submissionId: number,
+    payload: SupplierSubmissionConvertPayload,
+  ) => {
+    const order = await convertSupplierSubmission(submissionId, payload);
+    setSelectedSubmission(null);
+    setWorkspaceMode('orders');
+    setSelectedOrder(order);
+    return order;
+  };
+
+  const handleCreateSupplierPortalAccess = async (payload: SupplierPortalAccessPayload) => (
+    createSupplierPortalAccess(payload)
+  );
+
+  const openSubmissionConvert = (submission: SupplierSubmission) => {
+    setSelectedSubmission(submission);
+  };
+
   return (
     <div className="space-y-6">
       <PurchaseOrderHeader
         onCreateInvoice={() => setShowSupplierInvoice(true)}
         onCreateOrder={() => setShowCreateOrder(true)}
+        onManageSupplierPortal={() => setShowSupplierPortal(true)}
         onRefresh={() => void reload()}
         refreshing={loading}
       />
@@ -79,33 +128,57 @@ export default function OrdenesCompra() {
         </section>
       ) : null}
 
+      <PurchaseOrderViewSwitcher
+        mode={workspaceMode}
+        orderCount={filteredOrders.length}
+        submissionCount={filteredSupplierSubmissions.length}
+        onChange={setWorkspaceMode}
+      />
+
       <PurchaseOrderFiltersBar
         filters={filters}
+        mode={workspaceMode}
         providers={providers}
         warehouses={warehouses}
         onChange={setFilters}
       />
 
-      <PurchaseOrderKpis
-        currency={saleCurrency}
-        invoices={supplierInvoices}
-        orders={filteredOrders}
-      />
+      {workspaceMode === 'orders' ? (
+        <PurchaseOrderKpis
+          currency={saleCurrency}
+          invoices={supplierInvoices}
+          orders={filteredOrders}
+        />
+      ) : (
+        <SupplierSubmissionKpis submissions={filteredSupplierSubmissions} />
+      )}
 
-      <PurchaseOrdersTable
-        disabled={saving}
-        invoices={supplierInvoices}
-        orders={filteredOrders}
-        onAction={handleOrderAction}
-        onReceive={setReceivingOrder}
-        onSelect={setSelectedOrder}
-      />
+      {workspaceMode === 'orders' ? (
+        <>
+          <PurchaseOrdersTable
+            disabled={saving}
+            invoices={supplierInvoices}
+            orders={filteredOrders}
+            onAction={handleOrderAction}
+            onReceive={setReceivingOrder}
+            onSelect={setSelectedOrder}
+          />
 
-      <SupplierInvoicesPanel
-        disabled={saving}
-        invoices={supplierInvoices}
-        onReview={handleInvoiceReview}
-      />
+          <SupplierInvoicesPanel
+            disabled={saving}
+            invoices={supplierInvoices}
+            onReview={handleInvoiceReview}
+          />
+        </>
+      ) : (
+        <SupplierSubmissionsTable
+          disabled={saving}
+          submissions={filteredSupplierSubmissions}
+          onConvert={openSubmissionConvert}
+          onSelect={setSelectedSubmission}
+          onStartReview={setSelectedSubmission}
+        />
+      )}
 
       {showCreateOrder ? (
         <CreatePurchaseOrderModal
@@ -130,6 +203,16 @@ export default function OrdenesCompra() {
         />
       ) : null}
 
+      {showSupplierPortal ? (
+        <SupplierPortalAccessModal
+          accessList={supplierPortalAccess}
+          providers={providers}
+          saving={saving}
+          onClose={() => setShowSupplierPortal(false)}
+          onSubmit={handleCreateSupplierPortalAccess}
+        />
+      ) : null}
+
       <ReceivePurchaseOrderModal
         order={receivingOrder}
         saving={saving}
@@ -141,6 +224,15 @@ export default function OrdenesCompra() {
         invoices={supplierInvoices}
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
+      />
+
+      <SupplierSubmissionDetailModal
+        saving={saving}
+        submission={selectedSubmission}
+        warehouses={warehouses}
+        onClose={() => setSelectedSubmission(null)}
+        onConvert={handleSubmissionConvert}
+        onReview={handleSubmissionReview}
       />
     </div>
   );

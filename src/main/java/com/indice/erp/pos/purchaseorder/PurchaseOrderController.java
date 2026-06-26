@@ -5,8 +5,16 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierRequest
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderActionRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderCreateRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalInvoiceRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalLoginRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalSubmissionRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceReviewRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionConvertRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionCreateRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionReviewRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -68,6 +76,7 @@ public class PurchaseOrderController {
     public ResponseEntity<?> listPurchaseOrders(
             HttpSession session,
             @RequestParam(required = false) PurchaseOrderStatus status,
+            @RequestParam(required = false) PurchaseOrderOrigin origin,
             @RequestParam(required = false) Long providerId,
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -75,7 +84,7 @@ public class PurchaseOrderController {
         var access = guard.requireReadAccess(session);
         return access.denied()
             ? access.error()
-            : ResponseEntity.ok(service.listOrders(access.context(), status, providerId, warehouseId, dateFrom, dateTo));
+            : ResponseEntity.ok(service.listOrders(access.context(), status, origin, providerId, warehouseId, dateFrom, dateTo));
     }
 
     @GetMapping("/purchase-orders/{orderId}")
@@ -153,6 +162,115 @@ public class PurchaseOrderController {
         return access.denied()
             ? access.error()
             : ResponseEntity.ok(service.receiveOrder(access.context(), orderId, request));
+    }
+
+    @GetMapping("/supplier-submissions")
+    public ResponseEntity<?> listSupplierSubmissions(
+            HttpSession session,
+            @RequestParam(required = false) SupplierSubmissionStatus status,
+            @RequestParam(required = false) Long providerId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+        var access = guard.requireReadAccess(session);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.listSupplierSubmissions(access.context(), status, providerId, dateFrom, dateTo));
+    }
+
+    @GetMapping("/supplier-submissions/{submissionId}")
+    public ResponseEntity<?> getSupplierSubmission(HttpSession session, @PathVariable long submissionId) {
+        var access = guard.requireReadAccess(session);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.getSupplierSubmission(access.context(), submissionId));
+    }
+
+    @PostMapping("/supplier-submissions")
+    public ResponseEntity<?> createSupplierSubmission(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @Valid @RequestBody SupplierSubmissionCreateRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.status(HttpStatus.CREATED).body(service.createSupplierSubmission(access.context(), request));
+    }
+
+    @GetMapping("/supplier-portal-access")
+    public ResponseEntity<?> listSupplierPortalAccess(HttpSession session) {
+        var access = guard.requireReadAccess(session);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.listSupplierPortalAccess(access.context()));
+    }
+
+    @PostMapping("/supplier-portal-access")
+    public ResponseEntity<?> createSupplierPortalAccess(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @Valid @RequestBody SupplierPortalAccessRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.status(HttpStatus.CREATED).body(service.createSupplierPortalAccess(access.context(), request));
+    }
+
+    @PostMapping("/public/supplier-portal/{portalCode}/authenticate")
+    public ResponseEntity<?> authenticateSupplierPortal(
+            @PathVariable String portalCode,
+            @Valid @RequestBody SupplierPortalLoginRequest request) {
+        return ResponseEntity.ok(service.authenticateSupplierPortal(portalCode, request));
+    }
+
+    @PostMapping("/public/supplier-portal/{portalCode}/submissions")
+    public ResponseEntity<?> createPublicSupplierSubmission(
+            @PathVariable String portalCode,
+            @Valid @RequestBody SupplierPortalSubmissionRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            service.createPublicSupplierSubmission(portalCode, request)
+        );
+    }
+
+    @PostMapping("/public/supplier-portal/{portalCode}/invoices/presign-upload")
+    public ResponseEntity<?> createPublicSupplierInvoiceUpload(
+            @PathVariable String portalCode,
+            @Valid @RequestBody SupplierPortalDocumentUploadRequest request) {
+        return ResponseEntity.ok(service.createPublicSupplierInvoiceUpload(portalCode, request));
+    }
+
+    @PostMapping("/public/supplier-portal/{portalCode}/invoices")
+    public ResponseEntity<?> createPublicSupplierInvoice(
+            @PathVariable String portalCode,
+            @Valid @RequestBody SupplierPortalInvoiceRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            service.createPublicSupplierInvoice(portalCode, request)
+        );
+    }
+
+    @PostMapping("/supplier-submissions/{submissionId}/review")
+    public ResponseEntity<?> reviewSupplierSubmission(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long submissionId,
+            @Valid @RequestBody SupplierSubmissionReviewRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.reviewSupplierSubmission(access.context(), submissionId, request));
+    }
+
+    @PostMapping("/supplier-submissions/{submissionId}/convert-to-purchase-order")
+    public ResponseEntity<?> convertSupplierSubmission(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long submissionId,
+            @Valid @RequestBody SupplierSubmissionConvertRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.status(HttpStatus.CREATED).body(
+                service.convertSupplierSubmission(access.context(), submissionId, request)
+            );
     }
 
     @GetMapping("/supplier-invoices")
