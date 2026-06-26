@@ -1,17 +1,44 @@
 export type PurchaseOrderStatus =
   | 'DRAFT'
   | 'REQUESTED'
+  | 'IN_REVIEW'
+  | 'NEEDS_CLARIFICATION'
   | 'APPROVED'
+  | 'ISSUED'
   | 'SENT'
+  | 'CONFIRMED'
   | 'PARTIALLY_RECEIVED'
   | 'RECEIVED'
-  | 'CANCELLED';
+  | 'INVOICED'
+  | 'VALIDATED_FOR_PAYMENT'
+  | 'SCHEDULED_FOR_PAYMENT'
+  | 'PAID'
+  | 'CLOSED'
+  | 'CANCELLED'
+  | 'REJECTED';
+
+export type PurchaseOrderOrigin =
+  | 'INDICE'
+  | 'SUPPLIER_KIOSK'
+  | 'POS_REPLENISHMENT'
+  | 'SALES'
+  | 'IMPORT';
 
 export type SupplierInvoiceStatus =
   | 'SUBMITTED'
   | 'MATCHED'
   | 'APPROVED_FOR_PAYMENT'
   | 'REJECTED';
+
+export type SupplierSubmissionStatus =
+  | 'SUPPLIER_DRAFT'
+  | 'SUBMITTED'
+  | 'IN_REVIEW'
+  | 'NEEDS_CLARIFICATION'
+  | 'APPROVED'
+  | 'PARTIALLY_APPROVED'
+  | 'REJECTED'
+  | 'CONVERTED_TO_PURCHASE_ORDER';
 
 export type PurchaseOrderItem = {
   id: number;
@@ -40,6 +67,8 @@ export type PurchaseOrder = {
   providerEmail?: string | null;
   folio: string;
   status: PurchaseOrderStatus;
+  origin?: PurchaseOrderOrigin | null;
+  sourceSubmissionId?: number | null;
   currencyCode: string;
   subtotalAmount: number | string;
   taxAmount: number | string;
@@ -58,6 +87,104 @@ export type PurchaseOrder = {
 export type PurchaseOrderListResponse = {
   items: PurchaseOrder[];
   count: number;
+};
+
+export type SupplierSubmissionItem = {
+  id: number;
+  productId?: number | null;
+  providerSku?: string | null;
+  productName: string;
+  productDescription?: string | null;
+  imageUrl?: string | null;
+  quantity: number | string;
+  unitCost: number | string;
+  taxRate: number | string;
+  lineSubtotal: number | string;
+  lineTax: number | string;
+  lineTotal: number | string;
+  leadTimeDays?: number | null;
+  minimumOrderQuantity?: number | string | null;
+  status: SupplierSubmissionStatus;
+  reviewNote?: string | null;
+};
+
+export type SupplierSubmission = {
+  id: number;
+  companyId: number;
+  providerId: number;
+  providerName: string;
+  providerEmail?: string | null;
+  portalAccessId?: number | null;
+  submissionNumber: string;
+  status: SupplierSubmissionStatus;
+  currencyCode: string;
+  subtotalAmount: number | string;
+  taxAmount: number | string;
+  totalAmount: number | string;
+  submittedByName?: string | null;
+  submittedByEmail?: string | null;
+  submittedAt?: string | null;
+  reviewedByUserId?: number | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
+  convertedPurchaseOrderId?: number | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  items: SupplierSubmissionItem[];
+};
+
+export type SupplierSubmissionListResponse = {
+  items: SupplierSubmission[];
+  count: number;
+};
+
+export type SupplierPortalAccessStatus = 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'REVOKED';
+
+export type SupplierPortalAccess = {
+  id: number;
+  providerId: number;
+  providerName: string;
+  providerEmail?: string | null;
+  portalCode: string;
+  portalUrl: string;
+  status: SupplierPortalAccessStatus;
+  expiresAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type SupplierPortalAccessListResponse = {
+  items: SupplierPortalAccess[];
+  count: number;
+};
+
+export type SupplierPortalAccessPayload = {
+  providerId: number;
+  portalCode?: string | null;
+  pin: string;
+  status?: SupplierPortalAccessStatus;
+  expiresAt?: string | null;
+};
+
+export type SupplierPortalCatalogProduct = {
+  productId: number;
+  productName: string;
+  productSku?: string | null;
+  providerSku?: string | null;
+  costAmount: number | string;
+  currencyCode: string;
+  leadTimeDays?: number | null;
+  minimumOrderQuantity?: number | string | null;
+};
+
+export type SupplierPortalContextResponse = {
+  portalAccessId: number;
+  portalCode: string;
+  providerId: number;
+  providerName: string;
+  providerEmail?: string | null;
+  status: SupplierPortalAccessStatus;
+  catalogProducts: SupplierPortalCatalogProduct[];
 };
 
 export type ProductSupplier = {
@@ -101,6 +228,7 @@ export type PurchaseOrderCreatePayload = {
   providerId: number;
   warehouseId: number;
   currencyCode: string;
+  origin?: PurchaseOrderOrigin | null;
   expectedDate?: string | null;
   notes?: string | null;
   items: Array<{
@@ -162,4 +290,75 @@ export type SupplierInvoicePayload = {
   notes?: string | null;
   documentUrl?: string | null;
   submittedByName?: string | null;
+};
+
+export type SupplierSubmissionPayload = {
+  providerId: number;
+  portalAccessId?: number | null;
+  currencyCode: string;
+  submittedByName?: string | null;
+  submittedByEmail?: string | null;
+  notes?: string | null;
+  items: Array<{
+    productId?: number | null;
+    providerSku?: string | null;
+    productName: string;
+    productDescription?: string | null;
+    imageUrl?: string | null;
+    quantity: number;
+    unitCost: number;
+    taxRate?: number;
+    leadTimeDays?: number | null;
+    minimumOrderQuantity?: number | null;
+  }>;
+};
+
+export type SupplierPortalSubmissionPayload = Omit<SupplierSubmissionPayload, 'providerId' | 'portalAccessId'> & {
+  pin: string;
+};
+
+export type SupplierPortalInvoicePayload = {
+  pin: string;
+  invoiceNumber: string;
+  invoiceDate?: string | null;
+  dueDate?: string | null;
+  subtotalAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  currencyCode: string;
+  notes?: string | null;
+  documentUrl?: string | null;
+  submittedByName?: string | null;
+};
+
+export type SupplierPortalDocumentUploadPayload = {
+  pin: string;
+  fileName: string;
+  contentType?: string | null;
+  sizeBytes: number;
+};
+
+export type SupplierPortalDocumentUploadResponse = {
+  objectKey: string;
+  object_key?: string;
+  uploadUrl: string;
+  upload_url?: string;
+  expiresAt?: string;
+  expires_at?: string;
+  uploadHeaders?: Record<string, string>;
+  upload_headers?: Record<string, string>;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+};
+
+export type SupplierSubmissionReviewPayload = {
+  status: SupplierSubmissionStatus;
+  reviewNote?: string | null;
+};
+
+export type SupplierSubmissionConvertPayload = {
+  warehouseId: number;
+  expectedDate?: string | null;
+  notes?: string | null;
 };

@@ -3,6 +3,7 @@ import type { PurchaseOrder, SupplierInvoice } from '../types/purchaseOrder.type
 import {
   formatDate,
   formatMoney,
+  purchaseOrderOriginLabels,
   purchaseOrderStatusLabels,
   statusClassName,
   supplierInvoiceStatusLabels,
@@ -110,6 +111,8 @@ export function PurchaseOrderDetailModal({
           </main>
 
           <aside className="space-y-4 border-l border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+            <Summary label="Origen" value={purchaseOrderOriginLabels[order.origin ?? 'POS_REPLENISHMENT']} />
+            {order.sourceSubmissionId ? <Summary label="Propuesta proveedor" value={`#${order.sourceSubmissionId}`} /> : null}
             <Summary label="Proveedor" value={order.providerName} />
             <Summary label="Almacen" value={order.warehouseName} />
             <Summary label="Esperado" value={formatDate(order.expectedDate)} />

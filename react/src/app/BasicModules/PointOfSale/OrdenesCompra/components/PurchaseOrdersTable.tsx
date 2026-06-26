@@ -4,6 +4,7 @@ import {
   formatDate,
   formatMoney,
   numberFrom,
+  purchaseOrderOriginLabels,
   purchaseOrderStatusLabels,
   statusClassName,
 } from '../utils/purchaseOrderFormat';
@@ -37,10 +38,10 @@ export function PurchaseOrdersTable({
   return (
     <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1180px] text-sm">
+        <table className="w-full min-w-[1280px] text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/60">
             <tr>
-              {['Folio', 'Proveedor', 'Almacen', 'Esperado', 'Partidas', 'Recepcion', 'Facturas', 'Total', 'Estado', 'Acciones'].map((header) => (
+              {['Folio', 'Origen', 'Proveedor', 'Almacen', 'Esperado', 'Partidas', 'Recepcion', 'Facturas', 'Total', 'Estado', 'Acciones'].map((header) => (
                 <th key={header} className="px-5 py-4 text-left text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                   {header}
                 </th>
@@ -59,6 +60,14 @@ export function PurchaseOrdersTable({
                       {order.folio}
                     </button>
                     <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{formatDate(order.createdAt?.slice(0, 10))}</p>
+                  </td>
+                  <td className="px-5 py-5">
+                    <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+                      {purchaseOrderOriginLabels[order.origin ?? 'POS_REPLENISHMENT']}
+                    </span>
+                    {order.sourceSubmissionId ? (
+                      <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Propuesta #{order.sourceSubmissionId}</p>
+                    ) : null}
                   </td>
                   <td className="px-5 py-5">
                     <p className="font-semibold text-slate-900 dark:text-slate-100">{order.providerName}</p>

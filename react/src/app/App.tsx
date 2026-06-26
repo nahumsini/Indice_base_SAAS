@@ -21,9 +21,10 @@ import {
 } from './config/navigation';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { dashboardApi } from './api/dashboard';
-import { routeForBackendSlug } from './config/moduleCatalog';
+import { authApi } from './api/auth';
+import { buildDefaultModuleCatalog, routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
-import { canAccessModulePage } from './access/accessRules';
+import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -347,6 +348,7 @@ function Dashboard({
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
   const { pathname, state } = location;
   const { pageId, '*': wildcardPath } = useParams();
   const [learningModeActive, setLearningModeActive] = useLocalStorageState('indice.app.learningModeActive', true);
@@ -449,8 +451,11 @@ export default function App() {
   useEffect(() => {
     let active = true;
 
-    dashboardApi.listModules()
-      .then((backendModules) => {
+    const loadAllowedModuleRoutes = async () => {
+      const session = await authApi.getSessionOrNull().catch(() => null);
+
+      try {
+        const backendModules = await dashboardApi.listModules();
         if (!active) {
           return;
         }
@@ -462,23 +467,35 @@ export default function App() {
             routes.add(route);
           }
         }
-        setAllowedModuleRoutes(routes);
-      })
-      .catch(() => {
-        if (active) {
-          setAllowedModuleRoutes(new Set<PageId>());
+        if (routes.size === 0 && isAdminAccessRole(session?.user.role)) {
+          for (const module of buildDefaultModuleCatalog(t)) {
+            routes.add(module.route);
+          }
         }
-      })
-      .finally(() => {
+        setAllowedModuleRoutes(routes);
+      } catch {
+        if (active) {
+          const routes = new Set<PageId>();
+          if (isAdminAccessRole(session?.user.role)) {
+            for (const module of buildDefaultModuleCatalog(t)) {
+              routes.add(module.route);
+            }
+          }
+          setAllowedModuleRoutes(routes);
+        }
+      } finally {
         if (active) {
           setIsModuleAccessLoaded(true);
         }
-      });
+      }
+    };
+
+    void loadAllowedModuleRoutes();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!isModuleNavigationLoading || moduleNavigationTargetPathRef.current !== pathname) {

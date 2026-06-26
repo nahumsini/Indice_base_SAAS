@@ -6,29 +6,40 @@ import type {
   ProviderOption,
   PurchaseOrder,
   PurchaseOrderCreatePayload,
+  PurchaseOrderOrigin,
   PurchaseOrderReceivePayload,
   PurchaseOrderStatus,
   SupplierInvoice,
   SupplierInvoicePayload,
   SupplierInvoiceStatus,
+  SupplierPortalAccess,
+  SupplierPortalAccessPayload,
+  SupplierSubmission,
+  SupplierSubmissionConvertPayload,
+  SupplierSubmissionReviewPayload,
+  SupplierSubmissionStatus,
 } from '../types/purchaseOrder.types';
 
 export type PurchaseOrderFilters = {
   query: string;
   status: PurchaseOrderStatus | 'ALL';
+  origin: PurchaseOrderOrigin | 'ALL';
   providerId: number | 'ALL';
   warehouseId: number | 'ALL';
   dateFrom: string;
   dateTo: string;
+  submissionStatus: SupplierSubmissionStatus | 'ALL';
 };
 
 const initialFilters: PurchaseOrderFilters = {
   query: '',
   status: 'ALL',
+  origin: 'ALL',
   providerId: 'ALL',
   warehouseId: 'ALL',
   dateFrom: '',
   dateTo: '',
+  submissionStatus: 'ALL',
 };
 
 const toErrorMessage = (error: unknown, fallback: string) => (
@@ -41,6 +52,8 @@ export function usePurchaseOrderWorkspace() {
   const [warehouses, setWarehouses] = useState<PosWarehouseSummary[]>([]);
   const [supplierLinks, setSupplierLinks] = useState<ProductSupplier[]>([]);
   const [supplierInvoices, setSupplierInvoices] = useState<SupplierInvoice[]>([]);
+  const [supplierSubmissions, setSupplierSubmissions] = useState<SupplierSubmission[]>([]);
+  const [supplierPortalAccess, setSupplierPortalAccess] = useState<SupplierPortalAccess[]>([]);
   const [filters, setFilters] = useState<PurchaseOrderFilters>(initialFilters);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,25 +61,34 @@ export function usePurchaseOrderWorkspace() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadStaticData = useCallback(async () => {
-    const [context, providerResponse, supplierLinkResponse] = await Promise.all([
+    const [context, providerResponse, supplierLinkResponse, supplierPortalResponse] = await Promise.all([
       purchaseOrdersApi.context(),
       purchaseOrdersApi.providers(),
       purchaseOrdersApi.productSuppliers(),
+      purchaseOrdersApi.listSupplierPortalAccess(),
     ]);
     setWarehouses(context.warehouses ?? []);
     setProviders((providerResponse.providers ?? []).filter((provider) => provider.status !== 'INACTIVE'));
     setSupplierLinks(supplierLinkResponse.items ?? []);
+    setSupplierPortalAccess(supplierPortalResponse.items ?? []);
   }, []);
 
   const loadOrders = useCallback(async () => {
-    const [orderResponse, invoiceResponse] = await Promise.all([
+    const [orderResponse, invoiceResponse, submissionResponse] = await Promise.all([
       purchaseOrdersApi.listOrders(filters),
       purchaseOrdersApi.listSupplierInvoices({
         providerId: filters.providerId,
       }),
+      purchaseOrdersApi.listSupplierSubmissions({
+        status: filters.submissionStatus,
+        providerId: filters.providerId,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      }),
     ]);
     setOrders(orderResponse.items ?? []);
     setSupplierInvoices(invoiceResponse.items ?? []);
+    setSupplierSubmissions(submissionResponse.items ?? []);
   }, [filters]);
 
   const reload = useCallback(async () => {
@@ -95,6 +117,16 @@ export function usePurchaseOrderWorkspace() {
         .includes(query)
     ));
   }, [filters.query, orders]);
+
+  const filteredSupplierSubmissions = useMemo(() => {
+    const query = filters.query.trim().toLowerCase();
+    if (!query) return supplierSubmissions;
+    return supplierSubmissions.filter((submission) => (
+      `${submission.submissionNumber} ${submission.providerName} ${submission.submittedByName ?? ''} ${submission.notes ?? ''}`
+        .toLowerCase()
+        .includes(query)
+    ));
+  }, [filters.query, supplierSubmissions]);
 
   const mutate = useCallback(async <T,>(operation: () => Promise<T>, successMessage: string) => {
     setSaving(true);
@@ -129,14 +161,29 @@ export function usePurchaseOrderWorkspace() {
     mutate(() => purchaseOrdersApi.submitSupplierInvoice(payload), 'Factura de proveedor registrada para revision.')
   ), [mutate]);
 
+  const createSupplierPortalAccess = useCallback((payload: SupplierPortalAccessPayload) => (
+    mutate(() => purchaseOrdersApi.createSupplierPortalAccess(payload), 'Acceso de proveedor listo para compartir.')
+  ), [mutate]);
+
   const reviewSupplierInvoice = useCallback((invoiceId: number, status: SupplierInvoiceStatus, reviewNote?: string) => (
     mutate(() => purchaseOrdersApi.reviewSupplierInvoice(invoiceId, status, reviewNote), 'Factura de proveedor actualizada.')
   ), [mutate]);
 
+  const reviewSupplierSubmission = useCallback((submissionId: number, payload: SupplierSubmissionReviewPayload) => (
+    mutate(() => purchaseOrdersApi.reviewSupplierSubmission(submissionId, payload), 'Propuesta de proveedor actualizada.')
+  ), [mutate]);
+
+  const convertSupplierSubmission = useCallback((submissionId: number, payload: SupplierSubmissionConvertPayload) => (
+    mutate(() => purchaseOrdersApi.convertSupplierSubmission(submissionId, payload), 'Propuesta convertida en orden de compra.')
+  ), [mutate]);
+
   return {
+    convertSupplierSubmission,
+    createSupplierPortalAccess,
     createOrder,
     error,
     filteredOrders,
+    filteredSupplierSubmissions,
     filters,
     loading,
     notice,
@@ -146,12 +193,15 @@ export function usePurchaseOrderWorkspace() {
     receiveOrder,
     reload,
     reviewSupplierInvoice,
+    reviewSupplierSubmission,
     saving,
     setFilters,
     setNotice,
     submitSupplierInvoice,
     supplierInvoices,
     supplierLinks,
+    supplierPortalAccess,
+    supplierSubmissions,
     warehouses,
   };
 }

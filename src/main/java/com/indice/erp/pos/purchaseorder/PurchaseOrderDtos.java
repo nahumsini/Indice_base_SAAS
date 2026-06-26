@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public final class PurchaseOrderDtos {
 
@@ -63,6 +64,7 @@ public final class PurchaseOrderDtos {
         @NotNull Long providerId,
         @NotNull Long warehouseId,
         @NotBlank @Size(min = 3, max = 3) String currencyCode,
+        PurchaseOrderOrigin origin,
         LocalDate expectedDate,
         @Size(max = 4000) String notes,
         @Valid @NotEmpty List<PurchaseOrderItemRequest> items
@@ -112,6 +114,8 @@ public final class PurchaseOrderDtos {
         String providerEmail,
         String folio,
         PurchaseOrderStatus status,
+        PurchaseOrderOrigin origin,
+        Long sourceSubmissionId,
         String currencyCode,
         BigDecimal subtotalAmount,
         BigDecimal taxAmount,
@@ -129,6 +133,195 @@ public final class PurchaseOrderDtos {
     }
 
     public record PurchaseOrderListResponse(List<PurchaseOrderResponse> items, int count) {
+    }
+
+    public record SupplierSubmissionItemRequest(
+        Long productId,
+        @Size(max = 120) String providerSku,
+        @NotBlank @Size(max = 240) String productName,
+        @Size(max = 4000) String productDescription,
+        String imageUrl,
+        @NotNull @DecimalMin("0.0001") BigDecimal quantity,
+        @NotNull @DecimalMin("0.00") BigDecimal unitCost,
+        @DecimalMin("0.00") BigDecimal taxRate,
+        Integer leadTimeDays,
+        @DecimalMin("0.0001") BigDecimal minimumOrderQuantity
+    ) {
+    }
+
+    public record SupplierSubmissionCreateRequest(
+        @NotNull Long providerId,
+        Long portalAccessId,
+        @NotBlank @Size(min = 3, max = 3) String currencyCode,
+        @Size(max = 180) String submittedByName,
+        @Size(max = 180) String submittedByEmail,
+        @Size(max = 4000) String notes,
+        @Valid @NotEmpty List<SupplierSubmissionItemRequest> items
+    ) {
+    }
+
+    public record SupplierSubmissionReviewRequest(
+        @NotNull SupplierSubmissionStatus status,
+        @Size(max = 4000) String reviewNote
+    ) {
+    }
+
+    public record SupplierSubmissionConvertRequest(
+        @NotNull Long warehouseId,
+        LocalDate expectedDate,
+        @Size(max = 4000) String notes
+    ) {
+    }
+
+    public record SupplierSubmissionItemResponse(
+        Long id,
+        Long productId,
+        String providerSku,
+        String productName,
+        String productDescription,
+        String imageUrl,
+        BigDecimal quantity,
+        BigDecimal unitCost,
+        BigDecimal taxRate,
+        BigDecimal lineSubtotal,
+        BigDecimal lineTax,
+        BigDecimal lineTotal,
+        Integer leadTimeDays,
+        BigDecimal minimumOrderQuantity,
+        SupplierSubmissionStatus status,
+        String reviewNote
+    ) {
+    }
+
+    public record SupplierSubmissionResponse(
+        Long id,
+        Long companyId,
+        Long providerId,
+        String providerName,
+        String providerEmail,
+        Long portalAccessId,
+        String submissionNumber,
+        SupplierSubmissionStatus status,
+        String currencyCode,
+        BigDecimal subtotalAmount,
+        BigDecimal taxAmount,
+        BigDecimal totalAmount,
+        String submittedByName,
+        String submittedByEmail,
+        Instant submittedAt,
+        Long reviewedByUserId,
+        Instant reviewedAt,
+        String reviewNote,
+        Long convertedPurchaseOrderId,
+        String notes,
+        Instant createdAt,
+        List<SupplierSubmissionItemResponse> items
+    ) {
+    }
+
+    public record SupplierSubmissionListResponse(List<SupplierSubmissionResponse> items, int count) {
+    }
+
+    public record SupplierPortalAccessRequest(
+        @NotNull Long providerId,
+        @Size(max = 120) String portalCode,
+        @NotBlank @Size(min = 4, max = 20) String pin,
+        @Size(max = 40) String status,
+        Instant expiresAt
+    ) {
+    }
+
+    public record SupplierPortalAccessResponse(
+        Long id,
+        Long providerId,
+        String providerName,
+        String providerEmail,
+        String portalCode,
+        String portalUrl,
+        String status,
+        Instant expiresAt,
+        Instant createdAt,
+        Instant updatedAt
+    ) {
+    }
+
+    public record SupplierPortalAccessListResponse(List<SupplierPortalAccessResponse> items, int count) {
+    }
+
+    public record SupplierPortalLoginRequest(
+        @NotBlank @Size(min = 4, max = 20) String pin
+    ) {
+    }
+
+    public record SupplierPortalCatalogProduct(
+        Long productId,
+        String productName,
+        String productSku,
+        String providerSku,
+        BigDecimal costAmount,
+        String currencyCode,
+        Integer leadTimeDays,
+        BigDecimal minimumOrderQuantity
+    ) {
+    }
+
+    public record SupplierPortalContextResponse(
+        Long portalAccessId,
+        String portalCode,
+        Long providerId,
+        String providerName,
+        String providerEmail,
+        String status,
+        List<SupplierPortalCatalogProduct> catalogProducts
+    ) {
+    }
+
+    public record SupplierPortalSubmissionRequest(
+        @NotBlank @Size(min = 4, max = 20) String pin,
+        @NotBlank @Size(min = 3, max = 3) String currencyCode,
+        @Size(max = 180) String submittedByName,
+        @Size(max = 180) String submittedByEmail,
+        @Size(max = 4000) String notes,
+        @Valid @NotEmpty List<SupplierSubmissionItemRequest> items
+    ) {
+    }
+
+    public record SupplierPortalInvoiceRequest(
+        @NotBlank @Size(min = 4, max = 20) String pin,
+        @NotBlank @Size(max = 120) String invoiceNumber,
+        LocalDate invoiceDate,
+        LocalDate dueDate,
+        @NotNull @DecimalMin("0.00") BigDecimal subtotalAmount,
+        @NotNull @DecimalMin("0.00") BigDecimal taxAmount,
+        @NotNull @DecimalMin("0.00") BigDecimal totalAmount,
+        @NotBlank @Size(min = 3, max = 3) String currencyCode,
+        @Size(max = 4000) String notes,
+        String documentUrl,
+        @Size(max = 180) String submittedByName
+    ) {
+    }
+
+    public record SupplierPortalDocumentUploadRequest(
+        @NotBlank @Size(min = 4, max = 20) String pin,
+        @NotBlank @Size(max = 240) String fileName,
+        @Size(max = 120) String contentType,
+        @NotNull @DecimalMin("1") Long sizeBytes
+    ) {
+    }
+
+    public record SupplierPortalDocumentUploadResponse(
+        String objectKey,
+        String object_key,
+        String uploadUrl,
+        String upload_url,
+        Instant expiresAt,
+        String expires_at,
+        Map<String, String> uploadHeaders,
+        Map<String, String> upload_headers,
+        String fileName,
+        String contentType,
+        Long sizeBytes
+    ) {
     }
 
     public record SupplierInvoiceRequest(

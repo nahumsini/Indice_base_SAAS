@@ -7,7 +7,7 @@ import {
 } from 'react';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import {
-  salesTabIds,
+  routedSalesTabIds,
   type SalesTabId,
 } from './salesIdentity';
 import { SalesCrmProvider } from './salesCrmContext';
@@ -76,7 +76,7 @@ export default function Ventas({ learningModeActive = false, onNavigate }: Venta
   const moduleContentRef = useRef<HTMLElement | null>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<SalesTabId>(
     'leads',
-    salesTabIds,
+    routedSalesTabIds,
     legacySalesTabAliases,
   );
   const ActiveComponent = salesTabComponents[activeTab] || Prospectos;

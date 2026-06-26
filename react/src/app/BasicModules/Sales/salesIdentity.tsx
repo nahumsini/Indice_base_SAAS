@@ -35,6 +35,10 @@ export const salesTabIds = [
 
 export type SalesTabId = (typeof salesTabIds)[number];
 
+export const routedSalesTabIds = salesTabIds.filter(
+  (tabId): tabId is SalesTabId => tabId !== 'after-sales',
+);
+
 type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'productos' | 'proveedores' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
 
 type SalesTone = 'blue' | 'aqua' | 'yellow' | 'coral' | 'graphite';
@@ -98,7 +102,9 @@ export const salesModuleTabs: Array<{
   { id: 'kpis', translationKey: 'kpis', icon: BarChart3, emoji: '📊', tone: 'blue' },
 ];
 
-export const visibleSalesModuleTabs = salesModuleTabs.filter((tab) => tab.id !== 'contracts');
+export const visibleSalesModuleTabs = salesModuleTabs.filter(
+  (tab) => tab.id !== 'contracts' && tab.id !== 'after-sales',
+);
 
 const toneClasses: Record<SalesTone, {
   accent: string;
