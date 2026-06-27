@@ -26,5 +26,6 @@ USER spring:spring
 EXPOSE 8082
 
 ENV JAVA_OPTS=""
+ENV SPRING_FLYWAY_ENABLED=true
 
-ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -Dspring.flyway.enabled=${SPRING_FLYWAY_ENABLED:-true} -jar /app/app.jar"]
